@@ -1303,7 +1303,6 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		0x00, 'L', 'i', 'n', 'u', 'x'
 	};
 	static int last_irq;
-	static int multiport_cnt;	/* For four-port boards w/one EEPROM */
 	int i, irq;
 	unsigned short sum;
 	unsigned char *ee_data;
@@ -1557,7 +1556,6 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		} else if (ee_data[0] == 0xff  &&  ee_data[1] == 0xff &&
 				   ee_data[2] == 0) {
 			sa_offset = 2;		/* Grrr, damn Matrox boards. */
-			multiport_cnt = 4;
 		}
 #ifdef CONFIG_MIPS_COBALT
                if ((pdev->bus->number == 0) &&

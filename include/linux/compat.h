@@ -27,7 +27,7 @@
 #endif
 
 #ifndef __SC_DELOUSE
-#define __SC_DELOUSE(t,v) ((t)(unsigned long)(v))
+#define __SC_DELOUSE(t,v) ((__force t)(unsigned long)(v))
 #endif
 
 #define COMPAT_SYSCALL_DEFINE0(name) \
@@ -365,10 +365,10 @@ asmlinkage ssize_t compat_sys_pwritev(compat_ulong_t fd,
 		compat_ulong_t vlen, u32 pos_low, u32 pos_high);
 asmlinkage ssize_t compat_sys_preadv2(compat_ulong_t fd,
 		const struct compat_iovec __user *vec,
-		compat_ulong_t vlen, u32 pos_low, u32 pos_high, int flags);
+		compat_ulong_t vlen, u32 pos_low, u32 pos_high, rwf_t flags);
 asmlinkage ssize_t compat_sys_pwritev2(compat_ulong_t fd,
 		const struct compat_iovec __user *vec,
-		compat_ulong_t vlen, u32 pos_low, u32 pos_high, int flags);
+		compat_ulong_t vlen, u32 pos_low, u32 pos_high, rwf_t flags);
 
 #ifdef __ARCH_WANT_COMPAT_SYS_PREADV64
 asmlinkage long compat_sys_preadv64(unsigned long fd,
@@ -380,6 +380,18 @@ asmlinkage long compat_sys_preadv64(unsigned long fd,
 asmlinkage long compat_sys_pwritev64(unsigned long fd,
 		const struct compat_iovec __user *vec,
 		unsigned long vlen, loff_t pos);
+#endif
+
+#ifdef __ARCH_WANT_COMPAT_SYS_PREADV64V2
+asmlinkage long  compat_sys_readv64v2(unsigned long fd,
+		const struct compat_iovec __user *vec,
+		unsigned long vlen, loff_t pos, rwf_t flags);
+#endif
+
+#ifdef __ARCH_WANT_COMPAT_SYS_PWRITEV64V2
+asmlinkage long compat_sys_pwritev64v2(unsigned long fd,
+		const struct compat_iovec __user *vec,
+		unsigned long vlen, loff_t pos, rwf_t flags);
 #endif
 
 asmlinkage long compat_sys_lseek(unsigned int, compat_off_t, unsigned int);

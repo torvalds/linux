@@ -30,7 +30,6 @@ xor@d0060900 {
 	reg = <0xd0060900 0x100
 	       0xd0060b00 0x100>;
 	clocks = <&coreclk 0>;
-	status = "okay";
 
 	xor00 {
 	      interrupts = <51>;

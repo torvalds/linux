@@ -7,45 +7,32 @@
 DEFINE_PER_CPU(struct ida_bitmap *, ida_bitmap);
 static DEFINE_SPINLOCK(simple_ida_lock);
 
-/**
- * idr_alloc - allocate an id
- * @idr: idr handle
- * @ptr: pointer to be associated with the new id
- * @start: the minimum id (inclusive)
- * @end: the maximum id (exclusive)
- * @gfp: memory allocation flags
- *
- * Allocates an unused ID in the range [start, end).  Returns -ENOSPC
- * if there are no unused IDs in that range.
- *
- * Note that @end is treated as max when <= 0.  This is to always allow
- * using @start + N as @end as long as N is inside integer range.
- *
- * Simultaneous modifications to the @idr are not allowed and should be
- * prevented by the user, usually with a lock.  idr_alloc() may be called
- * concurrently with read-only accesses to the @idr, such as idr_find() and
- * idr_for_each_entry().
- */
-int idr_alloc(struct idr *idr, void *ptr, int start, int end, gfp_t gfp)
+int idr_alloc_cmn(struct idr *idr, void *ptr, unsigned long *index,
+		  unsigned long start, unsigned long end, gfp_t gfp,
+		  bool ext)
 {
-	void __rcu **slot;
 	struct radix_tree_iter iter;
+	void __rcu **slot;
 
-	if (WARN_ON_ONCE(start < 0))
-		return -EINVAL;
 	if (WARN_ON_ONCE(radix_tree_is_internal_node(ptr)))
 		return -EINVAL;
 
 	radix_tree_iter_init(&iter, start);
-	slot = idr_get_free(&idr->idr_rt, &iter, gfp, end);
+	if (ext)
+		slot = idr_get_free_ext(&idr->idr_rt, &iter, gfp, end);
+	else
+		slot = idr_get_free(&idr->idr_rt, &iter, gfp, end);
 	if (IS_ERR(slot))
 		return PTR_ERR(slot);
 
 	radix_tree_iter_replace(&idr->idr_rt, &iter, slot, ptr);
 	radix_tree_iter_tag_clear(&idr->idr_rt, &iter, IDR_FREE);
-	return iter.index;
+
+	if (index)
+		*index = iter.index;
+	return 0;
 }
-EXPORT_SYMBOL_GPL(idr_alloc);
+EXPORT_SYMBOL_GPL(idr_alloc_cmn);
 
 /**
  * idr_alloc_cyclic - allocate new idr entry in a cyclical fashion
@@ -134,6 +121,20 @@ void *idr_get_next(struct idr *idr, int *nextid)
 }
 EXPORT_SYMBOL(idr_get_next);
 
+void *idr_get_next_ext(struct idr *idr, unsigned long *nextid)
+{
+	struct radix_tree_iter iter;
+	void __rcu **slot;
+
+	slot = radix_tree_iter_find(&idr->idr_rt, &iter, *nextid);
+	if (!slot)
+		return NULL;
+
+	*nextid = iter.index;
+	return rcu_dereference_raw(*slot);
+}
+EXPORT_SYMBOL(idr_get_next_ext);
+
 /**
  * idr_replace - replace pointer for given id
  * @idr: idr handle
@@ -150,12 +151,19 @@ EXPORT_SYMBOL(idr_get_next);
  */
 void *idr_replace(struct idr *idr, void *ptr, int id)
 {
+	if (WARN_ON_ONCE(id < 0))
+		return ERR_PTR(-EINVAL);
+
+	return idr_replace_ext(idr, ptr, id);
+}
+EXPORT_SYMBOL(idr_replace);
+
+void *idr_replace_ext(struct idr *idr, void *ptr, unsigned long id)
+{
 	struct radix_tree_node *node;
 	void __rcu **slot = NULL;
 	void *entry;
 
-	if (WARN_ON_ONCE(id < 0))
-		return ERR_PTR(-EINVAL);
 	if (WARN_ON_ONCE(radix_tree_is_internal_node(ptr)))
 		return ERR_PTR(-EINVAL);
 
@@ -167,7 +175,7 @@ void *idr_replace(struct idr *idr, void *ptr, int id)
 
 	return entry;
 }
-EXPORT_SYMBOL(idr_replace);
+EXPORT_SYMBOL(idr_replace_ext);
 
 /**
  * DOC: IDA description

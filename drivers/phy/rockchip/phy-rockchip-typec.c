@@ -622,12 +622,11 @@ static int tcphy_get_mode(struct rockchip_typec_phy *tcphy)
 	struct extcon_dev *edev = tcphy->extcon;
 	union extcon_property_value property;
 	unsigned int id;
-	bool dfp, ufp, dp;
+	bool ufp, dp;
 	u8 mode;
 	int ret;
 
 	ufp = extcon_get_state(edev, EXTCON_USB);
-	dfp = extcon_get_state(edev, EXTCON_USB_HOST);
 	dp = extcon_get_state(edev, EXTCON_DISP_DP);
 
 	mode = MODE_DFP_USB;

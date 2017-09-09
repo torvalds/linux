@@ -33,6 +33,8 @@
 #include "rcu_segcblist.h"
 #include "rcu.h"
 
+int rcu_scheduler_active __read_mostly;
+
 static int init_srcu_struct_fields(struct srcu_struct *sp)
 {
 	sp->srcu_lock_nesting[0] = 0;
@@ -193,3 +195,9 @@ void synchronize_srcu(struct srcu_struct *sp)
 	destroy_rcu_head_on_stack(&rs.head);
 }
 EXPORT_SYMBOL_GPL(synchronize_srcu);
+
+/* Lockdep diagnostics.  */
+void __init rcu_scheduler_starting(void)
+{
+	rcu_scheduler_active = RCU_SCHEDULER_RUNNING;
+}

@@ -98,20 +98,19 @@ static int nfp_pcie_sriov_enable(struct pci_dev *pdev, int num_vfs)
 	struct nfp_pf *pf = pci_get_drvdata(pdev);
 	int err;
 
-	mutex_lock(&pf->lock);
-
 	if (num_vfs > pf->limit_vfs) {
 		nfp_info(pf->cpp, "Firmware limits number of VFs to %u\n",
 			 pf->limit_vfs);
-		err = -EINVAL;
-		goto err_unlock;
+		return -EINVAL;
 	}
 
 	err = pci_enable_sriov(pdev, num_vfs);
 	if (err) {
 		dev_warn(&pdev->dev, "Failed to enable PCI SR-IOV: %d\n", err);
-		goto err_unlock;
+		return err;
 	}
+
+	mutex_lock(&pf->lock);
 
 	err = nfp_app_sriov_enable(pf->app, num_vfs);
 	if (err) {
@@ -129,9 +128,8 @@ static int nfp_pcie_sriov_enable(struct pci_dev *pdev, int num_vfs)
 	return num_vfs;
 
 err_sriov_disable:
-	pci_disable_sriov(pdev);
-err_unlock:
 	mutex_unlock(&pf->lock);
+	pci_disable_sriov(pdev);
 	return err;
 #endif
 	return 0;
@@ -158,10 +156,10 @@ static int nfp_pcie_sriov_disable(struct pci_dev *pdev)
 
 	pf->num_vfs = 0;
 
+	mutex_unlock(&pf->lock);
+
 	pci_disable_sriov(pdev);
 	dev_dbg(&pdev->dev, "Removed VFs.\n");
-
-	mutex_unlock(&pf->lock);
 #endif
 	return 0;
 }
@@ -174,6 +172,21 @@ static int nfp_pcie_sriov_configure(struct pci_dev *pdev, int num_vfs)
 		return nfp_pcie_sriov_enable(pdev, num_vfs);
 }
 
+static const struct firmware *
+nfp_net_fw_request(struct pci_dev *pdev, struct nfp_pf *pf, const char *name)
+{
+	const struct firmware *fw = NULL;
+	int err;
+
+	err = request_firmware_direct(&fw, name, &pdev->dev);
+	nfp_info(pf->cpp, "  %s: %s\n",
+		 name, err ? "not found" : "found, loading...");
+	if (err)
+		return NULL;
+
+	return fw;
+}
+
 /**
  * nfp_net_fw_find() - Find the correct firmware image for netdev mode
  * @pdev:	PCI Device structure
@@ -184,13 +197,32 @@ static int nfp_pcie_sriov_configure(struct pci_dev *pdev, int num_vfs)
 static const struct firmware *
 nfp_net_fw_find(struct pci_dev *pdev, struct nfp_pf *pf)
 {
-	const struct firmware *fw = NULL;
 	struct nfp_eth_table_port *port;
+	const struct firmware *fw;
 	const char *fw_model;
 	char fw_name[256];
-	int spc, err = 0;
-	int i, j;
+	const u8 *serial;
+	u16 interface;
+	int spc, i, j;
 
+	nfp_info(pf->cpp, "Looking for firmware file in order of priority:\n");
+
+	/* First try to find a firmware image specific for this device */
+	interface = nfp_cpp_interface(pf->cpp);
+	nfp_cpp_serial(pf->cpp, &serial);
+	sprintf(fw_name, "netronome/serial-%pMF-%02hhx-%02hhx.nffw",
+		serial, interface >> 8, interface & 0xff);
+	fw = nfp_net_fw_request(pdev, pf, fw_name);
+	if (fw)
+		return fw;
+
+	/* Then try the PCI name */
+	sprintf(fw_name, "netronome/pci-%s.nffw", pci_name(pdev));
+	fw = nfp_net_fw_request(pdev, pf, fw_name);
+	if (fw)
+		return fw;
+
+	/* Finally try the card type and media */
 	if (!pf->eth_tbl) {
 		dev_err(&pdev->dev, "Error: can't identify media config\n");
 		return NULL;
@@ -223,13 +255,7 @@ nfp_net_fw_find(struct pci_dev *pdev, struct nfp_pf *pf)
 	if (spc <= 0)
 		return NULL;
 
-	err = request_firmware(&fw, fw_name, &pdev->dev);
-	if (err)
-		return NULL;
-
-	dev_info(&pdev->dev, "Loading FW image: %s\n", fw_name);
-
-	return fw;
+	return nfp_net_fw_request(pdev, pf, fw_name);
 }
 
 /**

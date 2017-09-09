@@ -26,6 +26,21 @@
 
 #include <linux/types.h>
 
+/**
+ * struct dvb_net_if - describes a DVB network interface
+ *
+ * @pid: Packet ID (PID) of the MPEG-TS that contains data
+ * @if_num: number of the Digital TV interface.
+ * @feedtype: Encapsulation type of the feed.
+ *
+ * A MPEG-TS stream may contain packet IDs with IP packages on it.
+ * This struct describes it, and the type of encoding.
+ *
+ * @feedtype can be:
+ *
+ *	- %DVB_NET_FEEDTYPE_MPE for MPE encoding
+ *	- %DVB_NET_FEEDTYPE_ULE for ULE encoding.
+ */
 struct dvb_net_if {
 	__u16 pid;
 	__u16 if_num;

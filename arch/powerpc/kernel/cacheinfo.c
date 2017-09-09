@@ -167,10 +167,10 @@ static void release_cache_debugcheck(struct cache *cache)
 
 	list_for_each_entry(iter, &cache_list, list)
 		WARN_ONCE(iter->next_local == cache,
-			  "cache for %s(%s) refers to cache for %s(%s)\n",
-			  iter->ofnode->full_name,
+			  "cache for %pOF(%s) refers to cache for %pOF(%s)\n",
+			  iter->ofnode,
 			  cache_type_string(iter),
-			  cache->ofnode->full_name,
+			  cache->ofnode,
 			  cache_type_string(cache));
 }
 
@@ -179,8 +179,8 @@ static void release_cache(struct cache *cache)
 	if (!cache)
 		return;
 
-	pr_debug("freeing L%d %s cache for %s\n", cache->level,
-		 cache_type_string(cache), cache->ofnode->full_name);
+	pr_debug("freeing L%d %s cache for %pOF\n", cache->level,
+		 cache_type_string(cache), cache->ofnode);
 
 	release_cache_debugcheck(cache);
 	list_del(&cache->list);
@@ -194,8 +194,8 @@ static void cache_cpu_set(struct cache *cache, int cpu)
 
 	while (next) {
 		WARN_ONCE(cpumask_test_cpu(cpu, &next->shared_cpu_map),
-			  "CPU %i already accounted in %s(%s)\n",
-			  cpu, next->ofnode->full_name,
+			  "CPU %i already accounted in %pOF(%s)\n",
+			  cpu, next->ofnode,
 			  cache_type_string(next));
 		cpumask_set_cpu(cpu, &next->shared_cpu_map);
 		next = next->next_local;
@@ -355,7 +355,7 @@ static int cache_is_unified_d(const struct device_node *np)
  */
 static struct cache *cache_do_one_devnode_unified(struct device_node *node, int level)
 {
-	pr_debug("creating L%d ucache for %s\n", level, node->full_name);
+	pr_debug("creating L%d ucache for %pOF\n", level, node);
 
 	return new_cache(cache_is_unified_d(node), level, node);
 }
@@ -365,8 +365,8 @@ static struct cache *cache_do_one_devnode_split(struct device_node *node,
 {
 	struct cache *dcache, *icache;
 
-	pr_debug("creating L%d dcache and icache for %s\n", level,
-		 node->full_name);
+	pr_debug("creating L%d dcache and icache for %pOF\n", level,
+		 node);
 
 	dcache = new_cache(CACHE_TYPE_DATA, level, node);
 	icache = new_cache(CACHE_TYPE_INSTRUCTION, level, node);
@@ -679,7 +679,6 @@ static struct kobj_type cache_index_type = {
 
 static void cacheinfo_create_index_opt_attrs(struct cache_index_dir *dir)
 {
-	const char *cache_name;
 	const char *cache_type;
 	struct cache *cache;
 	char *buf;
@@ -690,7 +689,6 @@ static void cacheinfo_create_index_opt_attrs(struct cache_index_dir *dir)
 		return;
 
 	cache = dir->cache;
-	cache_name = cache->ofnode->full_name;
 	cache_type = cache_type_string(cache);
 
 	/* We don't want to create an attribute that can't provide a
@@ -707,14 +705,14 @@ static void cacheinfo_create_index_opt_attrs(struct cache_index_dir *dir)
 		rc = attr->show(&dir->kobj, attr, buf);
 		if (rc <= 0) {
 			pr_debug("not creating %s attribute for "
-				 "%s(%s) (rc = %zd)\n",
-				 attr->attr.name, cache_name,
+				 "%pOF(%s) (rc = %zd)\n",
+				 attr->attr.name, cache->ofnode,
 				 cache_type, rc);
 			continue;
 		}
 		if (sysfs_create_file(&dir->kobj, &attr->attr))
-			pr_debug("could not create %s attribute for %s(%s)\n",
-				 attr->attr.name, cache_name, cache_type);
+			pr_debug("could not create %s attribute for %pOF(%s)\n",
+				 attr->attr.name, cache->ofnode, cache_type);
 	}
 
 	kfree(buf);
@@ -831,8 +829,8 @@ static void cache_cpu_clear(struct cache *cache, int cpu)
 		struct cache *next = cache->next_local;
 
 		WARN_ONCE(!cpumask_test_cpu(cpu, &cache->shared_cpu_map),
-			  "CPU %i not accounted in %s(%s)\n",
-			  cpu, cache->ofnode->full_name,
+			  "CPU %i not accounted in %pOF(%s)\n",
+			  cpu, cache->ofnode,
 			  cache_type_string(cache));
 
 		cpumask_clear_cpu(cpu, &cache->shared_cpu_map);

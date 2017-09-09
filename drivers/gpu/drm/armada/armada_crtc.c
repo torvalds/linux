@@ -334,16 +334,6 @@ static void armada_drm_vblank_off(struct armada_crtc *dcrtc)
 	armada_drm_plane_work_run(dcrtc, dcrtc->crtc.primary);
 }
 
-void armada_drm_crtc_gamma_set(struct drm_crtc *crtc, u16 r, u16 g, u16 b,
-	int idx)
-{
-}
-
-void armada_drm_crtc_gamma_get(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-	int idx)
-{
-}
-
 /* The mode_config.mutex will be held for this call */
 static void armada_drm_crtc_dpms(struct drm_crtc *crtc, int dpms)
 {
@@ -1150,13 +1140,13 @@ int armada_drm_plane_init(struct armada_plane *plane)
 	return 0;
 }
 
-static struct drm_prop_enum_list armada_drm_csc_yuv_enum_list[] = {
+static const struct drm_prop_enum_list armada_drm_csc_yuv_enum_list[] = {
 	{ CSC_AUTO,        "Auto" },
 	{ CSC_YUV_CCIR601, "CCIR601" },
 	{ CSC_YUV_CCIR709, "CCIR709" },
 };
 
-static struct drm_prop_enum_list armada_drm_csc_rgb_enum_list[] = {
+static const struct drm_prop_enum_list armada_drm_csc_rgb_enum_list[] = {
 	{ CSC_AUTO,         "Auto" },
 	{ CSC_RGB_COMPUTER, "Computer system" },
 	{ CSC_RGB_STUDIO,   "Studio" },
@@ -1269,6 +1259,7 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 				       &armada_primary_plane_funcs,
 				       armada_primary_formats,
 				       ARRAY_SIZE(armada_primary_formats),
+				       NULL,
 				       DRM_PLANE_TYPE_PRIMARY, NULL);
 	if (ret) {
 		kfree(primary);
@@ -1329,8 +1320,7 @@ armada_lcd_bind(struct device *dev, struct device *master, void *data)
 		port = of_get_child_by_name(parent, "port");
 		of_node_put(np);
 		if (!port) {
-			dev_err(dev, "no port node found in %s\n",
-				parent->full_name);
+			dev_err(dev, "no port node found in %pOF\n", parent);
 			return -ENXIO;
 		}
 
@@ -1364,7 +1354,7 @@ static int armada_lcd_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id armada_lcd_of_match[] = {
+static const struct of_device_id armada_lcd_of_match[] = {
 	{
 		.compatible	= "marvell,dove-lcd",
 		.data		= &armada510_ops,

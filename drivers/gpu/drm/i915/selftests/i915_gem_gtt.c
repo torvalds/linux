@@ -197,6 +197,9 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 {
 	I915_RND_STATE(seed_prng);
 	unsigned int size;
+	struct i915_vma mock_vma;
+
+	memset(&mock_vma, 0, sizeof(struct i915_vma));
 
 	/* Keep creating larger objects until one cannot fit into the hole */
 	for (size = 12; (hole_end - hole_start) >> size; size++) {
@@ -255,8 +258,11 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 			    vm->allocate_va_range(vm, addr, BIT_ULL(size)))
 				break;
 
-			vm->insert_entries(vm, obj->mm.pages, addr,
-					   I915_CACHE_NONE, 0);
+			mock_vma.pages = obj->mm.pages;
+			mock_vma.node.size = BIT_ULL(size);
+			mock_vma.node.start = addr;
+
+			vm->insert_entries(vm, &mock_vma, I915_CACHE_NONE, 0);
 		}
 		count = n;
 

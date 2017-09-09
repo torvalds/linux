@@ -258,6 +258,7 @@ EXPORT_SYMBOL_GPL(mlx5_db_alloc);
 void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db)
 {
 	u32 db_per_page = PAGE_SIZE / cache_line_size();
+
 	mutex_lock(&dev->priv.pgdir_mutex);
 
 	__set_bit(db->index, db->u.pgdir->bitmap);

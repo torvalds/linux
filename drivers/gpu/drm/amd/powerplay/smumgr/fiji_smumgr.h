@@ -28,17 +28,8 @@
 #include "smu7_smumgr.h"
 
 
-
-struct fiji_smu_avfs {
-	enum AVFS_BTC_STATUS AvfsBtcStatus;
-	uint32_t           AvfsBtcParam;
-};
-
-
 struct fiji_smumgr {
 	struct smu7_smumgr                   smu7_data;
-
-	struct fiji_smu_avfs avfs;
 	struct SMU73_Discrete_DpmTable       smc_state_table;
 	struct SMU73_Discrete_Ulv            ulv_setting;
 	struct SMU73_Discrete_PmFuses  power_tune_table;
@@ -46,8 +37,6 @@ struct fiji_smumgr {
 	uint32_t        activity_target[SMU73_MAX_LEVELS_GRAPHICS];
 
 };
-
-
 
 #endif
 

@@ -134,13 +134,13 @@ static void lp5521_set_led_current(struct lp55xx_led *led, u8 led_current)
 static void lp5521_load_engine(struct lp55xx_chip *chip)
 {
 	enum lp55xx_engine_index idx = chip->engine_idx;
-	u8 mask[] = {
+	static const u8 mask[] = {
 		[LP55XX_ENGINE_1] = LP5521_MODE_R_M,
 		[LP55XX_ENGINE_2] = LP5521_MODE_G_M,
 		[LP55XX_ENGINE_3] = LP5521_MODE_B_M,
 	};
 
-	u8 val[] = {
+	static const u8 val[] = {
 		[LP55XX_ENGINE_1] = LP5521_LOAD_R,
 		[LP55XX_ENGINE_2] = LP5521_LOAD_G,
 		[LP55XX_ENGINE_3] = LP5521_LOAD_B,
@@ -160,7 +160,7 @@ static void lp5521_stop_all_engines(struct lp55xx_chip *chip)
 static void lp5521_stop_engine(struct lp55xx_chip *chip)
 {
 	enum lp55xx_engine_index idx = chip->engine_idx;
-	u8 mask[] = {
+	static const u8 mask[] = {
 		[LP55XX_ENGINE_1] = LP5521_MODE_R_M,
 		[LP55XX_ENGINE_2] = LP5521_MODE_G_M,
 		[LP55XX_ENGINE_3] = LP5521_MODE_B_M,
@@ -226,7 +226,7 @@ static int lp5521_update_program_memory(struct lp55xx_chip *chip,
 {
 	enum lp55xx_engine_index idx = chip->engine_idx;
 	u8 pattern[LP5521_PROGRAM_LENGTH] = {0};
-	u8 addr[] = {
+	static const u8 addr[] = {
 		[LP55XX_ENGINE_1] = LP5521_REG_R_PROG_MEM,
 		[LP55XX_ENGINE_2] = LP5521_REG_G_PROG_MEM,
 		[LP55XX_ENGINE_3] = LP5521_REG_B_PROG_MEM,

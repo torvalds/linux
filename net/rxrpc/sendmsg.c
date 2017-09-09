@@ -61,7 +61,7 @@ static int rxrpc_wait_for_tx_window(struct rxrpc_sock *rx,
 			  call->cong_cwnd + call->cong_extra))
 			break;
 		if (call->state >= RXRPC_CALL_COMPLETE) {
-			ret = -call->error;
+			ret = call->error;
 			break;
 		}
 		if (signal_pending(current)) {
@@ -101,11 +101,23 @@ static inline void rxrpc_instant_resend(struct rxrpc_call *call, int ix)
 }
 
 /*
+ * Notify the owner of the call that the transmit phase is ended and the last
+ * packet has been queued.
+ */
+static void rxrpc_notify_end_tx(struct rxrpc_sock *rx, struct rxrpc_call *call,
+				rxrpc_notify_end_tx_t notify_end_tx)
+{
+	if (notify_end_tx)
+		notify_end_tx(&rx->sk, call, call->user_call_ID);
+}
+
+/*
  * Queue a DATA packet for transmission, set the resend timeout and send the
  * packet immediately
  */
-static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
-			       bool last)
+static void rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
+			       struct sk_buff *skb, bool last,
+			       rxrpc_notify_end_tx_t notify_end_tx)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	rxrpc_seq_t seq = sp->hdr.seq;
@@ -116,8 +128,10 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 
 	ASSERTCMP(seq, ==, call->tx_top + 1);
 
-	if (last)
+	if (last) {
 		annotation |= RXRPC_TX_ANNO_LAST;
+		set_bit(RXRPC_CALL_TX_LASTQ, &call->flags);
+	}
 
 	/* We have to set the timestamp before queueing as the retransmit
 	 * algorithm can see the packet as soon as we queue it.
@@ -141,6 +155,7 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 		switch (call->state) {
 		case RXRPC_CALL_CLIENT_SEND_REQUEST:
 			call->state = RXRPC_CALL_CLIENT_AWAIT_REPLY;
+			rxrpc_notify_end_tx(rx, call, notify_end_tx);
 			break;
 		case RXRPC_CALL_SERVER_ACK_REQUEST:
 			call->state = RXRPC_CALL_SERVER_SEND_REPLY;
@@ -153,6 +168,7 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 				break;
 		case RXRPC_CALL_SERVER_SEND_REPLY:
 			call->state = RXRPC_CALL_SERVER_AWAIT_ACK;
+			rxrpc_notify_end_tx(rx, call, notify_end_tx);
 			break;
 		default:
 			break;
@@ -189,7 +205,8 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
  */
 static int rxrpc_send_data(struct rxrpc_sock *rx,
 			   struct rxrpc_call *call,
-			   struct msghdr *msg, size_t len)
+			   struct msghdr *msg, size_t len,
+			   rxrpc_notify_end_tx_t notify_end_tx)
 {
 	struct rxrpc_skb_priv *sp;
 	struct sk_buff *skb;
@@ -311,11 +328,6 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 				call->tx_total_len -= copy;
 		}
 
-		/* check for the far side aborting the call or a network error
-		 * occurring */
-		if (call->state == RXRPC_CALL_COMPLETE)
-			goto call_terminated;
-
 		/* add the packet to the send queue if it's now full */
 		if (sp->remain <= 0 ||
 		    (msg_data_left(msg) == 0 && !more)) {
@@ -350,8 +362,20 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			if (ret < 0)
 				goto out;
 
-			rxrpc_queue_packet(call, skb, !msg_data_left(msg) && !more);
+			rxrpc_queue_packet(rx, call, skb,
+					   !msg_data_left(msg) && !more,
+					   notify_end_tx);
 			skb = NULL;
+		}
+
+		/* Check for the far side aborting the call or a network error
+		 * occurring.  If this happens, save any packet that was under
+		 * construction so that in the case of a network error, the
+		 * call can be retried or redirected.
+		 */
+		if (call->state == RXRPC_CALL_COMPLETE) {
+			ret = call->error;
+			goto out;
 		}
 	} while (msg_data_left(msg) > 0);
 
@@ -361,11 +385,6 @@ out:
 	call->tx_pending = skb;
 	_leave(" = %d", ret);
 	return ret;
-
-call_terminated:
-	rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
-	_leave(" = %d", -call->error);
-	return -call->error;
 
 maybe_error:
 	if (copied)
@@ -611,7 +630,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		/* Reply phase not begun or not complete for service call. */
 		ret = -EPROTO;
 	} else {
-		ret = rxrpc_send_data(rx, call, msg, len);
+		ret = rxrpc_send_data(rx, call, msg, len, NULL);
 	}
 
 	mutex_unlock(&call->user_mutex);
@@ -631,6 +650,7 @@ error_release_sock:
  * @call: The call to send data through
  * @msg: The data to send
  * @len: The amount of data to send
+ * @notify_end_tx: Notification that the last packet is queued.
  *
  * Allow a kernel service to send data on a call.  The call must be in an state
  * appropriate to sending data.  No control data should be supplied in @msg,
@@ -638,7 +658,8 @@ error_release_sock:
  * more data to come, otherwise this data will end the transmission phase.
  */
 int rxrpc_kernel_send_data(struct socket *sock, struct rxrpc_call *call,
-			   struct msghdr *msg, size_t len)
+			   struct msghdr *msg, size_t len,
+			   rxrpc_notify_end_tx_t notify_end_tx)
 {
 	int ret;
 
@@ -656,11 +677,12 @@ int rxrpc_kernel_send_data(struct socket *sock, struct rxrpc_call *call,
 	case RXRPC_CALL_CLIENT_SEND_REQUEST:
 	case RXRPC_CALL_SERVER_ACK_REQUEST:
 	case RXRPC_CALL_SERVER_SEND_REPLY:
-		ret = rxrpc_send_data(rxrpc_sk(sock->sk), call, msg, len);
+		ret = rxrpc_send_data(rxrpc_sk(sock->sk), call, msg, len,
+				      notify_end_tx);
 		break;
 	case RXRPC_CALL_COMPLETE:
 		read_lock_bh(&call->state_lock);
-		ret = -call->error;
+		ret = call->error;
 		read_unlock_bh(&call->state_lock);
 		break;
 	default:

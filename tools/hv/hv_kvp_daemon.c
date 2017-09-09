@@ -1136,7 +1136,7 @@ static int process_ip_string(FILE *f, char *ip_string, int type)
 	int i = 0;
 	int j = 0;
 	char str[256];
-	char sub_str[10];
+	char sub_str[13];
 	int offset = 0;
 
 	memset(addr, 0, sizeof(addr));

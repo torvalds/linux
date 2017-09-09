@@ -189,10 +189,11 @@ static inline int ip_route_input(struct sk_buff *skb, __be32 dst, __be32 src,
 
 	rcu_read_lock();
 	err = ip_route_input_noref(skb, dst, src, tos, devin);
-	if (!err)
+	if (!err) {
 		skb_dst_force_safe(skb);
-	if (!skb_dst(skb))
-		err = -EINVAL;
+		if (!skb_dst(skb))
+			err = -EINVAL;
+	}
 	rcu_read_unlock();
 
 	return err;

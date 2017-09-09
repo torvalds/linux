@@ -108,9 +108,6 @@ static int kfd_topology_get_crat_acpi(void *crat_image, size_t *size)
 static void kfd_populated_cu_info_cpu(struct kfd_topology_device *dev,
 		struct crat_subtype_computeunit *cu)
 {
-	BUG_ON(!dev);
-	BUG_ON(!cu);
-
 	dev->node_props.cpu_cores_count = cu->num_cpu_cores;
 	dev->node_props.cpu_core_id_base = cu->processor_id_low;
 	if (cu->hsa_capability & CRAT_CU_FLAGS_IOMMU_PRESENT)
@@ -123,9 +120,6 @@ static void kfd_populated_cu_info_cpu(struct kfd_topology_device *dev,
 static void kfd_populated_cu_info_gpu(struct kfd_topology_device *dev,
 		struct crat_subtype_computeunit *cu)
 {
-	BUG_ON(!dev);
-	BUG_ON(!cu);
-
 	dev->node_props.simd_id_base = cu->processor_id_low;
 	dev->node_props.simd_count = cu->num_simd_cores;
 	dev->node_props.lds_size_in_kb = cu->lds_size_in_kb;
@@ -147,8 +141,6 @@ static int kfd_parse_subtype_cu(struct crat_subtype_computeunit *cu)
 {
 	struct kfd_topology_device *dev;
 	int i = 0;
-
-	BUG_ON(!cu);
 
 	pr_info("Found CU entry in CRAT table with proximity_domain=%d caps=%x\n",
 			cu->proximity_domain, cu->hsa_capability);
@@ -176,8 +168,6 @@ static int kfd_parse_subtype_mem(struct crat_subtype_memory *mem)
 	struct kfd_mem_properties *props;
 	struct kfd_topology_device *dev;
 	int i = 0;
-
-	BUG_ON(!mem);
 
 	pr_info("Found memory entry in CRAT table with proximity_domain=%d\n",
 			mem->promixity_domain);
@@ -222,8 +212,6 @@ static int kfd_parse_subtype_cache(struct crat_subtype_cache *cache)
 	struct kfd_cache_properties *props;
 	struct kfd_topology_device *dev;
 	uint32_t id;
-
-	BUG_ON(!cache);
 
 	id = cache->processor_id_low;
 
@@ -274,8 +262,6 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink)
 	uint32_t id_from;
 	uint32_t id_to;
 
-	BUG_ON(!iolink);
-
 	id_from = iolink->proximity_domain_from;
 	id_to = iolink->proximity_domain_to;
 
@@ -323,8 +309,6 @@ static int kfd_parse_subtype(struct crat_subtype_generic *sub_type_hdr)
 	struct crat_subtype_iolink *iolink;
 	int ret = 0;
 
-	BUG_ON(!sub_type_hdr);
-
 	switch (sub_type_hdr->type) {
 	case CRAT_SUBTYPE_COMPUTEUNIT_AFFINITY:
 		cu = (struct crat_subtype_computeunit *)sub_type_hdr;
@@ -367,8 +351,6 @@ static void kfd_release_topology_device(struct kfd_topology_device *dev)
 	struct kfd_mem_properties *mem;
 	struct kfd_cache_properties *cache;
 	struct kfd_iolink_properties *iolink;
-
-	BUG_ON(!dev);
 
 	list_del(&dev->list);
 
@@ -416,7 +398,7 @@ static struct kfd_topology_device *kfd_create_topology_device(void)
 	struct kfd_topology_device *dev;
 
 	dev = kfd_alloc_struct(dev);
-	if (dev == NULL) {
+	if (!dev) {
 		pr_err("No memory to allocate a topology device");
 		return NULL;
 	}
@@ -666,7 +648,7 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 			dev->node_props.simd_count);
 
 	if (dev->mem_bank_count < dev->node_props.mem_banks_count) {
-		pr_info_once("kfd: mem_banks_count truncated from %d to %d\n",
+		pr_info_once("mem_banks_count truncated from %d to %d\n",
 				dev->node_props.mem_banks_count,
 				dev->mem_bank_count);
 		sysfs_show_32bit_prop(buffer, "mem_banks_count",
@@ -763,8 +745,6 @@ static void kfd_remove_sysfs_node_entry(struct kfd_topology_device *dev)
 	struct kfd_cache_properties *cache;
 	struct kfd_mem_properties *mem;
 
-	BUG_ON(!dev);
-
 	if (dev->kobj_iolink) {
 		list_for_each_entry(iolink, &dev->io_link_props, list)
 			if (iolink->kobj) {
@@ -819,12 +799,12 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 	int ret;
 	uint32_t i;
 
-	BUG_ON(!dev);
+	if (WARN_ON(dev->kobj_node))
+		return -EEXIST;
 
 	/*
 	 * Creating the sysfs folders
 	 */
-	BUG_ON(dev->kobj_node);
 	dev->kobj_node = kfd_alloc_struct(dev->kobj_node);
 	if (!dev->kobj_node)
 		return -ENOMEM;
@@ -957,7 +937,7 @@ static int kfd_topology_update_sysfs(void)
 	int ret;
 
 	pr_info("Creating topology SYSFS entries\n");
-	if (sys_props.kobj_topology == NULL) {
+	if (!sys_props.kobj_topology) {
 		sys_props.kobj_topology =
 				kfd_alloc_struct(sys_props.kobj_topology);
 		if (!sys_props.kobj_topology)
@@ -1117,10 +1097,8 @@ static struct kfd_topology_device *kfd_assign_gpu(struct kfd_dev *gpu)
 	struct kfd_topology_device *dev;
 	struct kfd_topology_device *out_dev = NULL;
 
-	BUG_ON(!gpu);
-
 	list_for_each_entry(dev, &topology_device_list, list)
-		if (dev->gpu == NULL && dev->node_props.simd_count > 0) {
+		if (!dev->gpu && (dev->node_props.simd_count > 0)) {
 			dev->gpu = gpu;
 			out_dev = dev;
 			break;
@@ -1143,11 +1121,9 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	struct kfd_topology_device *dev;
 	int res;
 
-	BUG_ON(!gpu);
-
 	gpu_id = kfd_generate_gpu_id(gpu);
 
-	pr_debug("kfd: Adding new GPU (ID: 0x%x) to topology\n", gpu_id);
+	pr_debug("Adding new GPU (ID: 0x%x) to topology\n", gpu_id);
 
 	down_write(&topology_lock);
 	/*
@@ -1170,8 +1146,8 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		 * GPU vBIOS
 		 */
 
-		/*
-		 * Update the SYSFS tree, since we added another topology device
+		/* Update the SYSFS tree, since we added another topology
+		 * device
 		 */
 		if (kfd_topology_update_sysfs() < 0)
 			kfd_topology_release_sysfs();
@@ -1190,7 +1166,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 
 	if (dev->gpu->device_info->asic_family == CHIP_CARRIZO) {
 		dev->node_props.capability |= HSA_CAP_DOORBELL_PACKET_TYPE;
-		pr_info("amdkfd: adding doorbell packet type capability\n");
+		pr_info("Adding doorbell packet type capability\n");
 	}
 
 	res = 0;
@@ -1209,8 +1185,6 @@ int kfd_topology_remove_device(struct kfd_dev *gpu)
 	struct kfd_topology_device *dev;
 	uint32_t gpu_id;
 	int res = -ENODEV;
-
-	BUG_ON(!gpu);
 
 	down_write(&topology_lock);
 

@@ -754,7 +754,7 @@ static const struct v4l2_ioctl_ops vip_ioctl_ops = {
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
-static struct video_device video_dev_template = {
+static const struct video_device video_dev_template = {
 	.name = KBUILD_MODNAME,
 	.release = video_device_release_empty,
 	.fops = &vip_fops,

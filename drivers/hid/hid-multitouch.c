@@ -72,6 +72,7 @@ MODULE_LICENSE("GPL");
 #define MT_QUIRK_FIX_CONST_CONTACT_ID	BIT(14)
 #define MT_QUIRK_TOUCH_SIZE_SCALING	BIT(15)
 #define MT_QUIRK_STICKY_FINGERS		BIT(16)
+#define MT_QUIRK_ASUS_CUSTOM_UP		BIT(17)
 
 #define MT_INPUTMODE_TOUCHSCREEN	0x02
 #define MT_INPUTMODE_TOUCHPAD		0x03
@@ -169,6 +170,7 @@ static void mt_post_parse(struct mt_device *td);
 #define MT_CLS_GENERALTOUCH_TWOFINGERS		0x0108
 #define MT_CLS_GENERALTOUCH_PWT_TENFINGERS	0x0109
 #define MT_CLS_LG				0x010a
+#define MT_CLS_ASUS				0x010b
 #define MT_CLS_VTL				0x0110
 #define MT_CLS_GOOGLE				0x0111
 
@@ -290,6 +292,10 @@ static struct mt_class mt_classes[] = {
 			MT_QUIRK_IGNORE_DUPLICATES |
 			MT_QUIRK_HOVERING |
 			MT_QUIRK_CONTACT_CNT_ACCURATE },
+	{ .name = MT_CLS_ASUS,
+		.quirks = MT_QUIRK_ALWAYS_VALID |
+			MT_QUIRK_CONTACT_CNT_ACCURATE |
+			MT_QUIRK_ASUS_CUSTOM_UP },
 	{ .name = MT_CLS_VTL,
 		.quirks = MT_QUIRK_ALWAYS_VALID |
 			MT_QUIRK_CONTACT_CNT_ACCURATE |
@@ -341,7 +347,7 @@ static struct attribute *sysfs_attrs[] = {
 	NULL
 };
 
-static struct attribute_group mt_attribute_group = {
+static const struct attribute_group mt_attribute_group = {
 	.attrs = sysfs_attrs
 };
 
@@ -905,6 +911,8 @@ static int mt_touch_input_configured(struct hid_device *hdev,
 	return 0;
 }
 
+#define mt_map_key_clear(c)	hid_map_usage_clear(hi, usage, bit, \
+						    max, EV_KEY, (c))
 static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		struct hid_field *field, struct hid_usage *usage,
 		unsigned long **bit, int *max)
@@ -922,8 +930,34 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	    field->application != HID_DG_PEN &&
 	    field->application != HID_DG_TOUCHPAD &&
 	    field->application != HID_GD_KEYBOARD &&
-	    field->application != HID_CP_CONSUMER_CONTROL)
+	    field->application != HID_CP_CONSUMER_CONTROL &&
+	    field->application != HID_GD_WIRELESS_RADIO_CTLS &&
+	    !(field->application == HID_VD_ASUS_CUSTOM_MEDIA_KEYS &&
+	      td->mtclass.quirks & MT_QUIRK_ASUS_CUSTOM_UP))
 		return -1;
+
+	/*
+	 * Some Asus keyboard+touchpad devices have the hotkeys defined in the
+	 * touchpad report descriptor. We need to treat these as an array to
+	 * map usages to input keys.
+	 */
+	if (field->application == HID_VD_ASUS_CUSTOM_MEDIA_KEYS &&
+	    td->mtclass.quirks & MT_QUIRK_ASUS_CUSTOM_UP &&
+	    (usage->hid & HID_USAGE_PAGE) == HID_UP_CUSTOM) {
+		set_bit(EV_REP, hi->input->evbit);
+		if (field->flags & HID_MAIN_ITEM_VARIABLE)
+			field->flags &= ~HID_MAIN_ITEM_VARIABLE;
+		switch (usage->hid & HID_USAGE) {
+		case 0x10: mt_map_key_clear(KEY_BRIGHTNESSDOWN);	break;
+		case 0x20: mt_map_key_clear(KEY_BRIGHTNESSUP);		break;
+		case 0x35: mt_map_key_clear(KEY_DISPLAY_OFF);		break;
+		case 0x6b: mt_map_key_clear(KEY_F21);			break;
+		case 0x6c: mt_map_key_clear(KEY_SLEEP);			break;
+		default:
+			return -1;
+		}
+		return 1;
+	}
 
 	/*
 	 * some egalax touchscreens have "application == HID_DG_TOUCHSCREEN"
@@ -1132,6 +1166,12 @@ static int mt_input_configured(struct hid_device *hdev, struct hid_input *hi)
 			break;
 		case HID_CP_CONSUMER_CONTROL:
 			suffix = "Consumer Control";
+			break;
+		case HID_GD_WIRELESS_RADIO_CTLS:
+			suffix = "Wireless Radio Control";
+			break;
+		case HID_VD_ASUS_CUSTOM_MEDIA_KEYS:
+			suffix = "Custom Media Keys";
 			break;
 		default:
 			suffix = "UNKNOWN";
@@ -1383,6 +1423,12 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_EXPORT_ALL_INPUTS,
 		MT_USB_DEVICE(USB_VENDOR_ID_ANTON,
 			USB_DEVICE_ID_ANTON_TOUCH_PAD) },
+
+	/* Asus T304UA */
+	{ .driver_data = MT_CLS_ASUS,
+		HID_DEVICE(BUS_USB, HID_GROUP_MULTITOUCH_WIN_8,
+			USB_VENDOR_ID_ASUSTEK,
+			USB_DEVICE_ID_ASUSTEK_T304_KEYBOARD) },
 
 	/* Atmel panels */
 	{ .driver_data = MT_CLS_SERIAL,

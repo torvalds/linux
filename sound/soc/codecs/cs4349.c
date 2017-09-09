@@ -255,7 +255,7 @@ static struct snd_soc_dai_driver cs4349_dai = {
 	.symmetric_rates = 1,
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_cs4349 = {
+static const struct snd_soc_codec_driver soc_codec_dev_cs4349 = {
 	.component_driver = {
 		.controls		= cs4349_snd_controls,
 		.num_controls		= ARRAY_SIZE(cs4349_snd_controls),

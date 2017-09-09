@@ -14,7 +14,6 @@
 
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
-#include <rxrpc/packet.h>
 #include "internal.h"
 #include "afs_cm.h"
 
@@ -293,6 +292,19 @@ static void afs_load_bvec(struct afs_call *call, struct msghdr *msg,
 }
 
 /*
+ * Advance the AFS call state when the RxRPC call ends the transmit phase.
+ */
+static void afs_notify_end_request_tx(struct sock *sock,
+				      struct rxrpc_call *rxcall,
+				      unsigned long call_user_ID)
+{
+	struct afs_call *call = (struct afs_call *)call_user_ID;
+
+	if (call->state == AFS_CALL_REQUESTING)
+		call->state = AFS_CALL_AWAIT_REPLY;
+}
+
+/*
  * attach the data from a bunch of pages on an inode to a call
  */
 static int afs_send_pages(struct afs_call *call, struct msghdr *msg)
@@ -311,14 +323,8 @@ static int afs_send_pages(struct afs_call *call, struct msghdr *msg)
 		bytes = msg->msg_iter.count;
 		nr = msg->msg_iter.nr_segs;
 
-		/* Have to change the state *before* sending the last
-		 * packet as RxRPC might give us the reply before it
-		 * returns from sending the request.
-		 */
-		if (first + nr - 1 >= last)
-			call->state = AFS_CALL_AWAIT_REPLY;
-		ret = rxrpc_kernel_send_data(afs_socket, call->rxcall,
-					     msg, bytes);
+		ret = rxrpc_kernel_send_data(afs_socket, call->rxcall, msg,
+					     bytes, afs_notify_end_request_tx);
 		for (loop = 0; loop < nr; loop++)
 			put_page(bv[loop].bv_page);
 		if (ret < 0)
@@ -410,7 +416,8 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 	if (!call->send_pages)
 		call->state = AFS_CALL_AWAIT_REPLY;
 	ret = rxrpc_kernel_send_data(afs_socket, rxcall,
-				     &msg, call->request_size);
+				     &msg, call->request_size,
+				     afs_notify_end_request_tx);
 	if (ret < 0)
 		goto error_do_abort;
 
@@ -742,6 +749,20 @@ static int afs_deliver_cm_op_id(struct afs_call *call)
 }
 
 /*
+ * Advance the AFS call state when an RxRPC service call ends the transmit
+ * phase.
+ */
+static void afs_notify_end_reply_tx(struct sock *sock,
+				    struct rxrpc_call *rxcall,
+				    unsigned long call_user_ID)
+{
+	struct afs_call *call = (struct afs_call *)call_user_ID;
+
+	if (call->state == AFS_CALL_REPLYING)
+		call->state = AFS_CALL_AWAIT_ACK;
+}
+
+/*
  * send an empty reply
  */
 void afs_send_empty_reply(struct afs_call *call)
@@ -760,7 +781,8 @@ void afs_send_empty_reply(struct afs_call *call)
 	msg.msg_flags		= 0;
 
 	call->state = AFS_CALL_AWAIT_ACK;
-	switch (rxrpc_kernel_send_data(afs_socket, call->rxcall, &msg, 0)) {
+	switch (rxrpc_kernel_send_data(afs_socket, call->rxcall, &msg, 0,
+				       afs_notify_end_reply_tx)) {
 	case 0:
 		_leave(" [replied]");
 		return;
@@ -798,7 +820,8 @@ void afs_send_simple_reply(struct afs_call *call, const void *buf, size_t len)
 	msg.msg_flags		= 0;
 
 	call->state = AFS_CALL_AWAIT_ACK;
-	n = rxrpc_kernel_send_data(afs_socket, call->rxcall, &msg, len);
+	n = rxrpc_kernel_send_data(afs_socket, call->rxcall, &msg, len,
+				   afs_notify_end_reply_tx);
 	if (n >= 0) {
 		/* Success */
 		_leave(" [replied]");

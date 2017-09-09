@@ -613,7 +613,7 @@ static struct tm6000_board tm6000_boards[] = {
 };
 
 /* table of devices that work with this driver */
-static struct usb_device_id tm6000_id_table[] = {
+static const struct usb_device_id tm6000_id_table[] = {
 	{ USB_DEVICE(0x6000, 0x0001), .driver_info = TM5600_BOARD_GENERIC },
 	{ USB_DEVICE(0x6000, 0x0002), .driver_info = TM6010_BOARD_GENERIC },
 	{ USB_DEVICE(0x06e1, 0xf332), .driver_info = TM6000_BOARD_ADSTECH_DUAL_TV },

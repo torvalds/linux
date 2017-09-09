@@ -890,16 +890,26 @@ static void ath10k_htt_rx_h_ppdu(struct ath10k *ar,
 		status->nss = 0;
 		status->encoding = RX_ENC_LEGACY;
 		status->bw = RATE_INFO_BW_20;
+
 		status->flag &= ~RX_FLAG_MACTIME_END;
 		status->flag |= RX_FLAG_NO_SIGNAL_VAL;
+
+		status->flag &= ~(RX_FLAG_AMPDU_IS_LAST);
+		status->flag |= RX_FLAG_AMPDU_DETAILS | RX_FLAG_AMPDU_LAST_KNOWN;
+		status->ampdu_reference = ar->ampdu_reference;
 
 		ath10k_htt_rx_h_signal(ar, status, rxd);
 		ath10k_htt_rx_h_channel(ar, status, rxd, vdev_id);
 		ath10k_htt_rx_h_rates(ar, status, rxd);
 	}
 
-	if (is_last_ppdu)
+	if (is_last_ppdu) {
 		ath10k_htt_rx_h_mactime(ar, status, rxd);
+
+		/* set ampdu last segment flag */
+		status->flag |= RX_FLAG_AMPDU_IS_LAST;
+		ar->ampdu_reference++;
+	}
 }
 
 static const char * const tid_to_ac[] = {
@@ -1514,7 +1524,7 @@ static bool ath10k_htt_rx_amsdu_allowed(struct ath10k *ar,
 	 */
 
 	if (!rx_status->freq) {
-		ath10k_warn(ar, "no channel configured; ignoring frame(s)!\n");
+		ath10k_dbg(ar, ATH10K_DBG_HTT, "no channel configured; ignoring frame(s)!\n");
 		return false;
 	}
 
@@ -1735,7 +1745,8 @@ static void ath10k_htt_rx_delba(struct ath10k *ar, struct htt_resp *resp)
 }
 
 static int ath10k_htt_rx_extract_amsdu(struct sk_buff_head *list,
-				       struct sk_buff_head *amsdu)
+				       struct sk_buff_head *amsdu,
+				       int budget_left)
 {
 	struct sk_buff *msdu;
 	struct htt_rx_desc *rxd;
@@ -1746,8 +1757,9 @@ static int ath10k_htt_rx_extract_amsdu(struct sk_buff_head *list,
 	if (WARN_ON(!skb_queue_empty(amsdu)))
 		return -EINVAL;
 
-	while ((msdu = __skb_dequeue(list))) {
+	while ((msdu = __skb_dequeue(list)) && budget_left) {
 		__skb_queue_tail(amsdu, msdu);
+		budget_left--;
 
 		rxd = (void *)msdu->data - sizeof(*rxd);
 		if (rxd->msdu_end.common.info0 &
@@ -1838,7 +1850,8 @@ static int ath10k_htt_rx_h_rx_offload(struct ath10k *ar,
 	return num_msdu;
 }
 
-static int ath10k_htt_rx_in_ord_ind(struct ath10k *ar, struct sk_buff *skb)
+static int ath10k_htt_rx_in_ord_ind(struct ath10k *ar, struct sk_buff *skb,
+				    int budget_left)
 {
 	struct ath10k_htt *htt = &ar->htt;
 	struct htt_resp *resp = (void *)skb->data;
@@ -1895,9 +1908,9 @@ static int ath10k_htt_rx_in_ord_ind(struct ath10k *ar, struct sk_buff *skb)
 	if (offload)
 		num_msdus = ath10k_htt_rx_h_rx_offload(ar, &list);
 
-	while (!skb_queue_empty(&list)) {
+	while (!skb_queue_empty(&list) && budget_left) {
 		__skb_queue_head_init(&amsdu);
-		ret = ath10k_htt_rx_extract_amsdu(&list, &amsdu);
+		ret = ath10k_htt_rx_extract_amsdu(&list, &amsdu, budget_left);
 		switch (ret) {
 		case 0:
 			/* Note: The in-order indication may report interleaved
@@ -1907,6 +1920,7 @@ static int ath10k_htt_rx_in_ord_ind(struct ath10k *ar, struct sk_buff *skb)
 			 * should still give an idea about rx rate to the user.
 			 */
 			num_msdus += skb_queue_len(&amsdu);
+			budget_left -= skb_queue_len(&amsdu);
 			ath10k_htt_rx_h_ppdu(ar, &amsdu, status, vdev_id);
 			ath10k_htt_rx_h_filter(ar, &amsdu, status);
 			ath10k_htt_rx_h_mpdu(ar, &amsdu, status);
@@ -2549,7 +2563,8 @@ int ath10k_htt_txrx_compl_task(struct ath10k *ar, int budget)
 		}
 
 		spin_lock_bh(&htt->rx_ring.lock);
-		num_rx_msdus = ath10k_htt_rx_in_ord_ind(ar, skb);
+		num_rx_msdus = ath10k_htt_rx_in_ord_ind(ar, skb,
+							(budget - quota));
 		spin_unlock_bh(&htt->rx_ring.lock);
 		if (num_rx_msdus < 0) {
 			resched_napi = true;

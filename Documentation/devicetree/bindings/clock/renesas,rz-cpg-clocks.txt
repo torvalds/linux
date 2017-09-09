@@ -50,5 +50,4 @@ Examples
 		clocks = <&mstp3_clks R7S72100_CLK_MTU2>;
 		clock-names = "fck";
 		power-domains = <&cpg_clocks>;
-		status = "disabled";
 	};

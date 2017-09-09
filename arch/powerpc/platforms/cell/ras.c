@@ -196,8 +196,8 @@ static int __init cbe_ptcal_enable(void)
 	for_each_node_by_type(np, "cpu") {
 		const u32 *nid = of_get_property(np, "node-id", NULL);
 		if (!nid) {
-			printk(KERN_ERR "%s: node %s is missing node-id?\n",
-					__func__, np->full_name);
+			printk(KERN_ERR "%s: node %pOF is missing node-id?\n",
+					__func__, np);
 			continue;
 		}
 		cbe_ptcal_enable_on_node(*nid, order);

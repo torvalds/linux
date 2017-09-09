@@ -78,7 +78,6 @@ Example for APQ8064:
 			interrupts = <0 152 0x0>;
 			clocks = <&gcc GSBI4_UART_CLK>, <&gcc GSBI4_H_CLK>;
 			clock-names = "core", "iface";
-			status = "ok";
 		};
 	};
 

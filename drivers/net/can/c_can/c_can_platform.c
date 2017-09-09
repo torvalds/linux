@@ -220,7 +220,7 @@ static const struct c_can_driver_data am3352_dcan_drvdata = {
 	.raminit_bits = am3352_raminit_bits,
 };
 
-static struct platform_device_id c_can_id_table[] = {
+static const struct platform_device_id c_can_id_table[] = {
 	{
 		.name = KBUILD_MODNAME,
 		.driver_data = (kernel_ulong_t)&c_can_drvdata,

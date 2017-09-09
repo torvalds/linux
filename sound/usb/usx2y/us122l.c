@@ -736,7 +736,7 @@ unlock:
 	return err;
 }
 
-static struct usb_device_id snd_us122l_usb_id_table[] = {
+static const struct usb_device_id snd_us122l_usb_id_table[] = {
 	{
 		.match_flags =	USB_DEVICE_ID_MATCH_DEVICE,
 		.idVendor =	0x0644,

@@ -613,11 +613,7 @@ int __nvme_submit_user_cmd(struct request_queue *q, struct nvme_command *cmd,
 
 		if (!disk)
 			goto submit;
-		bio->bi_bdev = bdget_disk(disk, 0);
-		if (!bio->bi_bdev) {
-			ret = -ENODEV;
-			goto out_unmap;
-		}
+		bio->bi_disk = disk;
 
 		if (meta_buffer && meta_len) {
 			struct bio_integrity_payload *bip;
@@ -668,11 +664,8 @@ int __nvme_submit_user_cmd(struct request_queue *q, struct nvme_command *cmd,
  out_free_meta:
 	kfree(meta);
  out_unmap:
-	if (bio) {
-		if (disk && bio->bi_bdev)
-			bdput(bio->bi_bdev);
+	if (bio)
 		blk_rq_unmap_user(bio);
-	}
  out:
 	blk_mq_free_request(req);
 	return ret;

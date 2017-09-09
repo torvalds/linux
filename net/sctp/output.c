@@ -57,15 +57,15 @@
 #include <net/sctp/checksum.h>
 
 /* Forward declarations for private helpers. */
-static sctp_xmit_t __sctp_packet_append_chunk(struct sctp_packet *packet,
-					      struct sctp_chunk *chunk);
-static sctp_xmit_t sctp_packet_can_append_data(struct sctp_packet *packet,
-					   struct sctp_chunk *chunk);
+static enum sctp_xmit __sctp_packet_append_chunk(struct sctp_packet *packet,
+						 struct sctp_chunk *chunk);
+static enum sctp_xmit sctp_packet_can_append_data(struct sctp_packet *packet,
+						  struct sctp_chunk *chunk);
 static void sctp_packet_append_data(struct sctp_packet *packet,
-					   struct sctp_chunk *chunk);
-static sctp_xmit_t sctp_packet_will_fit(struct sctp_packet *packet,
-					struct sctp_chunk *chunk,
-					u16 chunk_len);
+				    struct sctp_chunk *chunk);
+static enum sctp_xmit sctp_packet_will_fit(struct sctp_packet *packet,
+					   struct sctp_chunk *chunk,
+					   u16 chunk_len);
 
 static void sctp_packet_reset(struct sctp_packet *packet)
 {
@@ -181,11 +181,11 @@ void sctp_packet_free(struct sctp_packet *packet)
  * as it can fit in the packet, but any more data that does not fit in this
  * packet can be sent only after receiving the COOKIE_ACK.
  */
-sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *packet,
-				       struct sctp_chunk *chunk,
-				       int one_packet, gfp_t gfp)
+enum sctp_xmit sctp_packet_transmit_chunk(struct sctp_packet *packet,
+					  struct sctp_chunk *chunk,
+					  int one_packet, gfp_t gfp)
 {
-	sctp_xmit_t retval;
+	enum sctp_xmit retval;
 
 	pr_debug("%s: packet:%p size:%zu chunk:%p size:%d\n", __func__,
 		 packet, packet->size, chunk, chunk->skb ? chunk->skb->len : -1);
@@ -218,12 +218,12 @@ sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *packet,
 }
 
 /* Try to bundle an auth chunk into the packet. */
-static sctp_xmit_t sctp_packet_bundle_auth(struct sctp_packet *pkt,
-					   struct sctp_chunk *chunk)
+static enum sctp_xmit sctp_packet_bundle_auth(struct sctp_packet *pkt,
+					      struct sctp_chunk *chunk)
 {
 	struct sctp_association *asoc = pkt->transport->asoc;
+	enum sctp_xmit retval = SCTP_XMIT_OK;
 	struct sctp_chunk *auth;
-	sctp_xmit_t retval = SCTP_XMIT_OK;
 
 	/* if we don't have an association, we can't do authentication */
 	if (!asoc)
@@ -254,10 +254,10 @@ static sctp_xmit_t sctp_packet_bundle_auth(struct sctp_packet *pkt,
 }
 
 /* Try to bundle a SACK with the packet. */
-static sctp_xmit_t sctp_packet_bundle_sack(struct sctp_packet *pkt,
-					   struct sctp_chunk *chunk)
+static enum sctp_xmit sctp_packet_bundle_sack(struct sctp_packet *pkt,
+					      struct sctp_chunk *chunk)
 {
-	sctp_xmit_t retval = SCTP_XMIT_OK;
+	enum sctp_xmit retval = SCTP_XMIT_OK;
 
 	/* If sending DATA and haven't aleady bundled a SACK, try to
 	 * bundle one in to the packet.
@@ -299,11 +299,11 @@ out:
 /* Append a chunk to the offered packet reporting back any inability to do
  * so.
  */
-static sctp_xmit_t __sctp_packet_append_chunk(struct sctp_packet *packet,
-					      struct sctp_chunk *chunk)
+static enum sctp_xmit __sctp_packet_append_chunk(struct sctp_packet *packet,
+						 struct sctp_chunk *chunk)
 {
-	sctp_xmit_t retval = SCTP_XMIT_OK;
 	__u16 chunk_len = SCTP_PAD4(ntohs(chunk->chunk_hdr->length));
+	enum sctp_xmit retval = SCTP_XMIT_OK;
 
 	/* Check to see if this chunk will fit into the packet */
 	retval = sctp_packet_will_fit(packet, chunk, chunk_len);
@@ -353,10 +353,10 @@ finish:
 /* Append a chunk to the offered packet reporting back any inability to do
  * so.
  */
-sctp_xmit_t sctp_packet_append_chunk(struct sctp_packet *packet,
-				     struct sctp_chunk *chunk)
+enum sctp_xmit sctp_packet_append_chunk(struct sctp_packet *packet,
+					struct sctp_chunk *chunk)
 {
-	sctp_xmit_t retval = SCTP_XMIT_OK;
+	enum sctp_xmit retval = SCTP_XMIT_OK;
 
 	pr_debug("%s: packet:%p chunk:%p\n", __func__, packet, chunk);
 
@@ -653,8 +653,8 @@ out:
  ********************************************************************/
 
 /* This private function check to see if a chunk can be added */
-static sctp_xmit_t sctp_packet_can_append_data(struct sctp_packet *packet,
-					   struct sctp_chunk *chunk)
+static enum sctp_xmit sctp_packet_can_append_data(struct sctp_packet *packet,
+						  struct sctp_chunk *chunk)
 {
 	size_t datasize, rwnd, inflight, flight_size;
 	struct sctp_transport *transport = packet->transport;
@@ -762,12 +762,12 @@ static void sctp_packet_append_data(struct sctp_packet *packet,
 	sctp_chunk_assign_ssn(chunk);
 }
 
-static sctp_xmit_t sctp_packet_will_fit(struct sctp_packet *packet,
-					struct sctp_chunk *chunk,
-					u16 chunk_len)
+static enum sctp_xmit sctp_packet_will_fit(struct sctp_packet *packet,
+					   struct sctp_chunk *chunk,
+					   u16 chunk_len)
 {
+	enum sctp_xmit retval = SCTP_XMIT_OK;
 	size_t psize, pmtu, maxsize;
-	sctp_xmit_t retval = SCTP_XMIT_OK;
 
 	psize = packet->size;
 	if (packet->transport->asoc)

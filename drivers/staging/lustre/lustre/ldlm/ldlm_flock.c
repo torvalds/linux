@@ -52,10 +52,10 @@
 
 #define DEBUG_SUBSYSTEM S_LDLM
 
-#include "../include/lustre_dlm.h"
-#include "../include/obd_support.h"
-#include "../include/obd_class.h"
-#include "../include/lustre_lib.h"
+#include <lustre_dlm.h>
+#include <obd_support.h>
+#include <obd_class.h>
+#include <lustre_lib.h>
 #include <linux/list.h>
 #include "ldlm_internal.h"
 
@@ -90,8 +90,8 @@ ldlm_flocks_overlap(struct ldlm_lock *lock, struct ldlm_lock *new)
 static inline void
 ldlm_flock_destroy(struct ldlm_lock *lock, enum ldlm_mode mode, __u64 flags)
 {
-	LDLM_DEBUG(lock, "ldlm_flock_destroy(mode: %d, flags: 0x%llx)",
-		   mode, flags);
+	LDLM_DEBUG(lock, "%s(mode: %d, flags: 0x%llx)",
+		   __func__, mode, flags);
 
 	/* Safe to not lock here, since it should be empty anyway */
 	LASSERT(hlist_unhashed(&lock->l_exp_flock_hash));
@@ -596,7 +596,7 @@ granted:
 		default:
 			getlk->fl_type = F_UNLCK;
 		}
-		getlk->fl_pid = (pid_t)lock->l_policy_data.l_flock.pid;
+		getlk->fl_pid = -(pid_t)lock->l_policy_data.l_flock.pid;
 		getlk->fl_start = (loff_t)lock->l_policy_data.l_flock.start;
 		getlk->fl_end = (loff_t)lock->l_policy_data.l_flock.end;
 	} else {

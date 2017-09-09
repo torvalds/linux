@@ -20,7 +20,8 @@
 #include "sti_vid.h"
 #include "sti_vtg.h"
 
-static void sti_crtc_enable(struct drm_crtc *crtc)
+static void sti_crtc_atomic_enable(struct drm_crtc *crtc,
+				   struct drm_crtc_state *old_state)
 {
 	struct sti_mixer *mixer = to_sti_mixer(crtc);
 
@@ -31,7 +32,8 @@ static void sti_crtc_enable(struct drm_crtc *crtc)
 	drm_crtc_vblank_on(crtc);
 }
 
-static void sti_crtc_disabling(struct drm_crtc *crtc)
+static void sti_crtc_atomic_disable(struct drm_crtc *crtc,
+				    struct drm_crtc_state *old_state)
 {
 	struct sti_mixer *mixer = to_sti_mixer(crtc);
 
@@ -222,10 +224,10 @@ static void sti_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs sti_crtc_helper_funcs = {
-	.enable = sti_crtc_enable,
-	.disable = sti_crtc_disabling,
 	.mode_set_nofb = sti_crtc_mode_set_nofb,
 	.atomic_flush = sti_crtc_atomic_flush,
+	.atomic_enable = sti_crtc_atomic_enable,
+	.atomic_disable = sti_crtc_atomic_disable,
 };
 
 static void sti_crtc_destroy(struct drm_crtc *crtc)

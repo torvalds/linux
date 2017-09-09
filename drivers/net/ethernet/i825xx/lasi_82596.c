@@ -149,7 +149,7 @@ static void mpu_port(struct net_device *dev, int c, dma_addr_t x)
 
 #define LAN_PROM_ADDR	0xF0810000
 
-static int
+static int __init
 lan_init_chip(struct parisc_device *dev)
 {
 	struct	net_device *netdevice;
@@ -194,7 +194,7 @@ lan_init_chip(struct parisc_device *dev)
 	return retval;
 }
 
-static int lan_remove_chip(struct parisc_device *pdev)
+static int __exit lan_remove_chip(struct parisc_device *pdev)
 {
 	struct net_device *dev = parisc_get_drvdata(pdev);
 	struct i596_private *lp = netdev_priv(dev);
@@ -206,7 +206,7 @@ static int lan_remove_chip(struct parisc_device *pdev)
 	return 0;
 }
 
-static struct parisc_device_id lan_tbl[] = {
+static const struct parisc_device_id lan_tbl[] __initconst = {
 	{ HPHW_FIO, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x0008a },
 	{ HPHW_FIO, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x00072 },
 	{ 0, }
@@ -214,11 +214,11 @@ static struct parisc_device_id lan_tbl[] = {
 
 MODULE_DEVICE_TABLE(parisc, lan_tbl);
 
-static struct parisc_driver lan_driver = {
+static struct parisc_driver lan_driver __refdata = {
 	.name		= "lasi_82596",
 	.id_table	= lan_tbl,
 	.probe		= lan_init_chip,
-	.remove         = lan_remove_chip,
+	.remove         = __exit_p(lan_remove_chip),
 };
 
 static int lasi_82596_init(void)

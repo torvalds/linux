@@ -414,8 +414,8 @@ nf_nat_setup_info(struct nf_conn *ct,
 	if (nf_ct_is_confirmed(ct))
 		return NF_ACCEPT;
 
-	NF_CT_ASSERT(maniptype == NF_NAT_MANIP_SRC ||
-		     maniptype == NF_NAT_MANIP_DST);
+	WARN_ON(maniptype != NF_NAT_MANIP_SRC &&
+		maniptype != NF_NAT_MANIP_DST);
 	BUG_ON(nf_nat_initialized(ct, maniptype));
 
 	/* What we've got will look like inverse of reply. Normally
@@ -441,7 +441,7 @@ nf_nat_setup_info(struct nf_conn *ct,
 		else
 			ct->status |= IPS_DST_NAT;
 
-		if (nfct_help(ct))
+		if (nfct_help(ct) && !nfct_seqadj(ct))
 			if (!nfct_seqadj_ext_add(ct))
 				return NF_DROP;
 	}

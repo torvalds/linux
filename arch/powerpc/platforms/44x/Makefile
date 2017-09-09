@@ -1,6 +1,6 @@
-obj-$(CONFIG_44x)	+= misc_44x.o
+obj-y	+= misc_44x.o machine_check.o
 ifneq ($(CONFIG_PPC4xx_CPM),y)
-obj-$(CONFIG_44x)	+= idle.o
+obj-y	+= idle.o
 endif
 obj-$(CONFIG_PPC44x_SIMPLE) += ppc44x_simple.o
 obj-$(CONFIG_EBONY)	+= ebony.o

@@ -217,6 +217,9 @@ struct qed_vf_info {
 	u8 num_rxqs;
 	u8 num_txqs;
 
+	u16 rx_coal;
+	u16 tx_coal;
+
 	u8 num_sbs;
 
 	u8 num_mac_filters;

@@ -1983,8 +1983,11 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
 
 	spin_lock(&class->lock);
 	if (!get_zspage_inuse(zspage)) {
-		ret = -EBUSY;
-		goto unlock_class;
+		/*
+		 * Set "offset" to end of the page so that every loops
+		 * skips unnecessary object scanning.
+		 */
+		offset = PAGE_SIZE;
 	}
 
 	pos = offset;
@@ -2052,7 +2055,6 @@ unpin_objects:
 		}
 	}
 	kunmap_atomic(s_addr);
-unlock_class:
 	spin_unlock(&class->lock);
 	migrate_write_unlock(zspage);
 

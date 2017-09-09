@@ -148,7 +148,8 @@ static const struct exynos_drm_plane_config plane_configs[MIXER_WIN_NR] = {
 		.pixel_formats = vp_formats,
 		.num_pixel_formats = ARRAY_SIZE(vp_formats),
 		.capabilities = EXYNOS_DRM_PLANE_CAP_SCALE |
-				EXYNOS_DRM_PLANE_CAP_ZPOS,
+				EXYNOS_DRM_PLANE_CAP_ZPOS |
+				EXYNOS_DRM_PLANE_CAP_TILE,
 	},
 };
 
@@ -483,29 +484,18 @@ static void vp_video_buffer(struct mixer_context *ctx,
 	unsigned int priority = state->base.normalized_zpos + 1;
 	unsigned long flags;
 	dma_addr_t luma_addr[2], chroma_addr[2];
-	bool tiled_mode = false;
-	bool crcb_mode = false;
+	bool is_tiled, is_nv21;
 	u32 val;
 
-	switch (fb->format->format) {
-	case DRM_FORMAT_NV12:
-		crcb_mode = false;
-		break;
-	case DRM_FORMAT_NV21:
-		crcb_mode = true;
-		break;
-	default:
-		DRM_ERROR("pixel format for vp is wrong [%d].\n",
-				fb->format->format);
-		return;
-	}
+	is_nv21 = (fb->format->format == DRM_FORMAT_NV21);
+	is_tiled = (fb->modifier == DRM_FORMAT_MOD_SAMSUNG_64_32_TILE);
 
 	luma_addr[0] = exynos_drm_fb_dma_addr(fb, 0);
 	chroma_addr[0] = exynos_drm_fb_dma_addr(fb, 1);
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		__set_bit(MXR_BIT_INTERLACE, &ctx->flags);
-		if (tiled_mode) {
+		if (is_tiled) {
 			luma_addr[1] = luma_addr[0] + 0x40;
 			chroma_addr[1] = chroma_addr[0] + 0x40;
 		} else {
@@ -525,14 +515,14 @@ static void vp_video_buffer(struct mixer_context *ctx,
 	vp_reg_writemask(res, VP_MODE, val, VP_MODE_LINE_SKIP);
 
 	/* setup format */
-	val = (crcb_mode ? VP_MODE_NV21 : VP_MODE_NV12);
-	val |= (tiled_mode ? VP_MODE_MEM_TILED : VP_MODE_MEM_LINEAR);
+	val = (is_nv21 ? VP_MODE_NV21 : VP_MODE_NV12);
+	val |= (is_tiled ? VP_MODE_MEM_TILED : VP_MODE_MEM_LINEAR);
 	vp_reg_writemask(res, VP_MODE, val, VP_MODE_FMT_MASK);
 
 	/* setting size of input image */
 	vp_reg_write(res, VP_IMG_SIZE_Y, VP_IMG_HSIZE(fb->pitches[0]) |
 		VP_IMG_VSIZE(fb->height));
-	/* chroma height has to reduced by 2 to avoid chroma distorions */
+	/* chroma plane for NV12/NV21 is half the height of the luma plane */
 	vp_reg_write(res, VP_IMG_SIZE_C, VP_IMG_HSIZE(fb->pitches[0]) |
 		VP_IMG_VSIZE(fb->height / 2));
 
@@ -594,7 +584,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	unsigned long flags;
 	unsigned int win = plane->index;
 	unsigned int x_ratio = 0, y_ratio = 0;
-	unsigned int src_x_offset, src_y_offset, dst_x_offset, dst_y_offset;
+	unsigned int dst_x_offset, dst_y_offset;
 	dma_addr_t dma_addr;
 	unsigned int fmt;
 	u32 val;
@@ -616,12 +606,9 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_ARGB8888:
+	default:
 		fmt = MXR_FORMAT_ARGB8888;
 		break;
-
-	default:
-		DRM_DEBUG_KMS("pixelformat unsupported by mixer\n");
-		return;
 	}
 
 	/* ratio is already checked by common plane code */
@@ -631,12 +618,10 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	dst_x_offset = state->crtc.x;
 	dst_y_offset = state->crtc.y;
 
-	/* converting dma address base and source offset */
+	/* translate dma address base s.t. the source image offset is zero */
 	dma_addr = exynos_drm_fb_dma_addr(fb, 0)
 		+ (state->src.x * fb->format->cpp[0])
 		+ (state->src.y * fb->pitches[0]);
-	src_x_offset = 0;
-	src_y_offset = 0;
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		__set_bit(MXR_BIT_INTERLACE, &ctx->flags);
@@ -666,11 +651,6 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	val |= MXR_GRP_WH_H_SCALE(x_ratio);
 	val |= MXR_GRP_WH_V_SCALE(y_ratio);
 	mixer_reg_write(res, MXR_GRAPHIC_WH(win), val);
-
-	/* setup offsets in source image */
-	val  = MXR_GRP_SXY_SX(src_x_offset);
-	val |= MXR_GRP_SXY_SY(src_y_offset);
-	mixer_reg_write(res, MXR_GRAPHIC_SXY(win), val);
 
 	/* setup offsets in display image */
 	val  = MXR_GRP_DXY_DX(dst_x_offset);
@@ -747,6 +727,10 @@ static void mixer_win_reset(struct mixer_context *ctx)
 	mixer_reg_writemask(res, MXR_CFG, 0, MXR_CFG_GRP1_ENABLE);
 	if (test_bit(MXR_BIT_VP_ENABLED, &ctx->flags))
 		mixer_reg_writemask(res, MXR_CFG, 0, MXR_CFG_VP_ENABLE);
+
+	/* set all source image offsets to zero */
+	mixer_reg_write(res, MXR_GRAPHIC_SXY(0), 0);
+	mixer_reg_write(res, MXR_GRAPHIC_SXY(1), 0);
 
 	spin_unlock_irqrestore(&res->reg_slock, flags);
 }

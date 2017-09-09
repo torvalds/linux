@@ -35,7 +35,6 @@
 #include "sdhci-pci-o2micro.h"
 
 static int sdhci_pci_enable_dma(struct sdhci_host *host);
-static void sdhci_pci_set_bus_width(struct sdhci_host *host, int width);
 static void sdhci_pci_hw_reset(struct sdhci_host *host);
 
 #ifdef CONFIG_PM_SLEEP
@@ -562,7 +561,7 @@ static const struct sdhci_ops sdhci_intel_byt_ops = {
 	.set_clock		= sdhci_set_clock,
 	.set_power		= sdhci_intel_set_power,
 	.enable_dma		= sdhci_pci_enable_dma,
-	.set_bus_width		= sdhci_pci_set_bus_width,
+	.set_bus_width		= sdhci_set_bus_width,
 	.reset			= sdhci_reset,
 	.set_uhs_signaling	= sdhci_set_uhs_signaling,
 	.hw_reset		= sdhci_pci_hw_reset,
@@ -730,6 +729,24 @@ static const struct sdhci_pci_fixes sdhci_intel_byt_sd = {
 #define INTEL_MRFLD_SD		2
 #define INTEL_MRFLD_SDIO	3
 
+#ifdef CONFIG_ACPI
+static void intel_mrfld_mmc_fix_up_power_slot(struct sdhci_pci_slot *slot)
+{
+	struct acpi_device *device, *child;
+
+	device = ACPI_COMPANION(&slot->chip->pdev->dev);
+	if (!device)
+		return;
+
+	acpi_device_fix_up_power(device);
+	list_for_each_entry(child, &device->children, node)
+		if (child->status.present && child->status.enabled)
+			acpi_device_fix_up_power(child);
+}
+#else
+static inline void intel_mrfld_mmc_fix_up_power_slot(struct sdhci_pci_slot *slot) {}
+#endif
+
 static int intel_mrfld_mmc_probe_slot(struct sdhci_pci_slot *slot)
 {
 	unsigned int func = PCI_FUNC(slot->chip->pdev->devfn);
@@ -751,6 +768,8 @@ static int intel_mrfld_mmc_probe_slot(struct sdhci_pci_slot *slot)
 	default:
 		return -ENODEV;
 	}
+
+	intel_mrfld_mmc_fix_up_power_slot(slot);
 	return 0;
 }
 
@@ -1197,7 +1216,7 @@ static int amd_probe(struct sdhci_pci_chip *chip)
 static const struct sdhci_ops amd_sdhci_pci_ops = {
 	.set_clock			= sdhci_set_clock,
 	.enable_dma			= sdhci_pci_enable_dma,
-	.set_bus_width			= sdhci_pci_set_bus_width,
+	.set_bus_width			= sdhci_set_bus_width,
 	.reset				= sdhci_reset,
 	.set_uhs_signaling		= sdhci_set_uhs_signaling,
 	.platform_execute_tuning	= amd_execute_tuning,
@@ -1313,29 +1332,6 @@ static int sdhci_pci_enable_dma(struct sdhci_host *host)
 	return 0;
 }
 
-static void sdhci_pci_set_bus_width(struct sdhci_host *host, int width)
-{
-	u8 ctrl;
-
-	ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
-
-	switch (width) {
-	case MMC_BUS_WIDTH_8:
-		ctrl |= SDHCI_CTRL_8BITBUS;
-		ctrl &= ~SDHCI_CTRL_4BITBUS;
-		break;
-	case MMC_BUS_WIDTH_4:
-		ctrl |= SDHCI_CTRL_4BITBUS;
-		ctrl &= ~SDHCI_CTRL_8BITBUS;
-		break;
-	default:
-		ctrl &= ~(SDHCI_CTRL_8BITBUS | SDHCI_CTRL_4BITBUS);
-		break;
-	}
-
-	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
-}
-
 static void sdhci_pci_gpio_hw_reset(struct sdhci_host *host)
 {
 	struct sdhci_pci_slot *slot = sdhci_priv(host);
@@ -1362,7 +1358,7 @@ static void sdhci_pci_hw_reset(struct sdhci_host *host)
 static const struct sdhci_ops sdhci_pci_ops = {
 	.set_clock	= sdhci_set_clock,
 	.enable_dma	= sdhci_pci_enable_dma,
-	.set_bus_width	= sdhci_pci_set_bus_width,
+	.set_bus_width	= sdhci_set_bus_width,
 	.reset		= sdhci_reset,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 	.hw_reset		= sdhci_pci_hw_reset,

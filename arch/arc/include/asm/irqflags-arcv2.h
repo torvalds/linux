@@ -47,9 +47,6 @@
 #define ISA_INIT_STATUS_BITS	(STATUS_IE_MASK | STATUS_AD_MASK | \
 					(ARCV2_IRQ_DEF_PRIO << 1))
 
-/* SLEEP needs default irq priority (<=) which can interrupt the doze */
-#define ISA_SLEEP_ARG		(0x10 | ARCV2_IRQ_DEF_PRIO)
-
 #ifndef __ASSEMBLY__
 
 /*

@@ -145,7 +145,7 @@ static const struct mxser_cardinfo mxser_cards[] = {
 
 /* driver_data correspond to the lines in the structure above
    see also ISA probe function before you change something */
-static struct pci_device_id mxser_pcibrds[] = {
+static const struct pci_device_id mxser_pcibrds[] = {
 	{ PCI_VDEVICE(MOXA, PCI_DEVICE_ID_MOXA_C168),	.driver_data = 3 },
 	{ PCI_VDEVICE(MOXA, PCI_DEVICE_ID_MOXA_C104),	.driver_data = 4 },
 	{ PCI_VDEVICE(MOXA, PCI_DEVICE_ID_MOXA_CP132),	.driver_data = 8 },

@@ -48,7 +48,6 @@ Each dmas request consists of 3 cells:
 Example:
 
 	spi4: spi@1a280000 {
-		status = "ok";
 		spi-max-frequency = <50000000>;
 
 		pinctrl-0 = <&spi_pins>;

@@ -198,7 +198,7 @@ static int write_metadata(struct log_writes_c *lc, void *entry,
 	}
 	bio->bi_iter.bi_size = 0;
 	bio->bi_iter.bi_sector = sector;
-	bio->bi_bdev = lc->logdev->bdev;
+	bio_set_dev(bio, lc->logdev->bdev);
 	bio->bi_end_io = log_end_io;
 	bio->bi_private = lc;
 	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
@@ -263,7 +263,7 @@ static int log_one_block(struct log_writes_c *lc,
 	}
 	bio->bi_iter.bi_size = 0;
 	bio->bi_iter.bi_sector = sector;
-	bio->bi_bdev = lc->logdev->bdev;
+	bio_set_dev(bio, lc->logdev->bdev);
 	bio->bi_end_io = log_end_io;
 	bio->bi_private = lc;
 	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
@@ -285,7 +285,7 @@ static int log_one_block(struct log_writes_c *lc,
 			}
 			bio->bi_iter.bi_size = 0;
 			bio->bi_iter.bi_sector = sector;
-			bio->bi_bdev = lc->logdev->bdev;
+			bio_set_dev(bio, lc->logdev->bdev);
 			bio->bi_end_io = log_end_io;
 			bio->bi_private = lc;
 			bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
@@ -539,7 +539,7 @@ static void normal_map_bio(struct dm_target *ti, struct bio *bio)
 {
 	struct log_writes_c *lc = ti->private;
 
-	bio->bi_bdev = lc->dev->bdev;
+	bio_set_dev(bio, lc->dev->bdev);
 }
 
 static int log_writes_map(struct dm_target *ti, struct bio *bio)

@@ -51,6 +51,7 @@ struct atmel_ebi {
 	struct  {
 		struct regmap *regmap;
 		struct clk *clk;
+		const struct atmel_hsmc_reg_layout *layout;
 	} smc;
 
 	struct device *dev;
@@ -84,8 +85,8 @@ static void at91sam9_ebi_get_config(struct atmel_ebi_dev *ebid,
 static void sama5_ebi_get_config(struct atmel_ebi_dev *ebid,
 				 struct atmel_ebi_dev_config *conf)
 {
-	atmel_hsmc_cs_conf_get(ebid->ebi->smc.regmap, conf->cs,
-			       &conf->smcconf);
+	atmel_hsmc_cs_conf_get(ebid->ebi->smc.regmap, ebid->ebi->smc.layout,
+			       conf->cs, &conf->smcconf);
 }
 
 static const struct atmel_smc_timing_xlate timings_xlate_table[] = {
@@ -287,8 +288,8 @@ static void at91sam9_ebi_apply_config(struct atmel_ebi_dev *ebid,
 static void sama5_ebi_apply_config(struct atmel_ebi_dev *ebid,
 				   struct atmel_ebi_dev_config *conf)
 {
-	atmel_hsmc_cs_conf_apply(ebid->ebi->smc.regmap, conf->cs,
-				 &conf->smcconf);
+	atmel_hsmc_cs_conf_apply(ebid->ebi->smc.regmap, ebid->ebi->smc.layout,
+				 conf->cs, &conf->smcconf);
 }
 
 static int atmel_ebi_dev_setup(struct atmel_ebi *ebi, struct device_node *np,
@@ -526,6 +527,10 @@ static int atmel_ebi_probe(struct platform_device *pdev)
 	ebi->smc.regmap = syscon_node_to_regmap(smc_np);
 	if (IS_ERR(ebi->smc.regmap))
 		return PTR_ERR(ebi->smc.regmap);
+
+	ebi->smc.layout = atmel_hsmc_get_reg_layout(smc_np);
+	if (IS_ERR(ebi->smc.layout))
+		return PTR_ERR(ebi->smc.layout);
 
 	ebi->smc.clk = of_clk_get(smc_np, 0);
 	if (IS_ERR(ebi->smc.clk)) {

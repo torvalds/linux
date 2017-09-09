@@ -16,6 +16,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -78,7 +79,6 @@ static int exynos_dp_video_phy_probe(struct platform_device *pdev)
 {
 	struct exynos_dp_video_phy *state;
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
 	struct phy_provider *phy_provider;
 	struct phy *phy;
 
@@ -93,8 +93,7 @@ static int exynos_dp_video_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(state->regs);
 	}
 
-	match = of_match_node(exynos_dp_video_phy_of_match, dev->of_node);
-	state->drvdata = match->data;
+	state->drvdata = of_device_get_match_data(dev);
 
 	phy = devm_phy_create(dev, NULL, &exynos_dp_video_phy_ops);
 	if (IS_ERR(phy)) {

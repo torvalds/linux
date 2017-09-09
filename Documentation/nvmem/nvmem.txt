@@ -112,7 +112,7 @@ take nvmem_device as parameter.
 5. Releasing a reference to the NVMEM
 =====================================
 
-When a consumers no longer needs the NVMEM, it has to release the reference
+When a consumer no longer needs the NVMEM, it has to release the reference
 to the NVMEM it has obtained using the APIs mentioned in the above section.
 The NVMEM framework provides 2 APIs to release a reference to the NVMEM.
 

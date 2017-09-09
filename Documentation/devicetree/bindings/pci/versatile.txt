@@ -5,7 +5,7 @@ PCI host controller found on the ARM Versatile PB board's FPGA.
 Required properties:
 - compatible: should contain "arm,versatile-pci" to identify the Versatile PCI
   controller.
-- reg: base addresses and lengths of the pci controller. There must be 3
+- reg: base addresses and lengths of the PCI controller. There must be 3
   entries:
 	- Versatile-specific registers
 	- Self Config space

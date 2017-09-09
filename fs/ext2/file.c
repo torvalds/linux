@@ -107,29 +107,6 @@ static int ext2_dax_fault(struct vm_fault *vmf)
 	return ret;
 }
 
-static int ext2_dax_pfn_mkwrite(struct vm_fault *vmf)
-{
-	struct inode *inode = file_inode(vmf->vma->vm_file);
-	struct ext2_inode_info *ei = EXT2_I(inode);
-	loff_t size;
-	int ret;
-
-	sb_start_pagefault(inode->i_sb);
-	file_update_time(vmf->vma->vm_file);
-	down_read(&ei->dax_sem);
-
-	/* check that the faulting page hasn't raced with truncate */
-	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	if (vmf->pgoff >= size)
-		ret = VM_FAULT_SIGBUS;
-	else
-		ret = dax_pfn_mkwrite(vmf);
-
-	up_read(&ei->dax_sem);
-	sb_end_pagefault(inode->i_sb);
-	return ret;
-}
-
 static const struct vm_operations_struct ext2_dax_vm_ops = {
 	.fault		= ext2_dax_fault,
 	/*
@@ -138,7 +115,7 @@ static const struct vm_operations_struct ext2_dax_vm_ops = {
 	 * will always fail and fail back to regular faults.
 	 */
 	.page_mkwrite	= ext2_dax_fault,
-	.pfn_mkwrite	= ext2_dax_pfn_mkwrite,
+	.pfn_mkwrite	= ext2_dax_fault,
 };
 
 static int ext2_file_mmap(struct file *file, struct vm_area_struct *vma)

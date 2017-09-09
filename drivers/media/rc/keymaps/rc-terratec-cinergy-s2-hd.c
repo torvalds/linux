@@ -63,10 +63,10 @@ static struct rc_map_table terratec_cinergy_s2_hd[] = {
 
 static struct rc_map_list terratec_cinergy_s2_hd_map = {
 	.map = {
-		.scan    = terratec_cinergy_s2_hd,
-		.size    = ARRAY_SIZE(terratec_cinergy_s2_hd),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_TERRATEC_CINERGY_S2_HD,
+		.scan     = terratec_cinergy_s2_hd,
+		.size     = ARRAY_SIZE(terratec_cinergy_s2_hd),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_TERRATEC_CINERGY_S2_HD,
 	}
 };
 

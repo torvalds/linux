@@ -33,18 +33,12 @@ struct inetpeer_addr {
 };
 
 struct inet_peer {
-	/* group together avl_left,avl_right,v4daddr to speedup lookups */
-	struct inet_peer __rcu	*avl_left, *avl_right;
+	struct rb_node		rb_node;
 	struct inetpeer_addr	daddr;
-	__u32			avl_height;
 
 	u32			metrics[RTAX_MAX];
 	u32			rate_tokens;	/* rate limiting for ICMP */
 	unsigned long		rate_last;
-	union {
-		struct list_head	gc_list;
-		struct rcu_head     gc_rcu;
-	};
 	/*
 	 * Once inet_peer is queued for deletion (refcnt == 0), following field
 	 * is not available: rid
@@ -55,7 +49,6 @@ struct inet_peer {
 			atomic_t			rid;		/* Frag reception counter */
 		};
 		struct rcu_head         rcu;
-		struct inet_peer	*gc_next;
 	};
 
 	/* following fields might be frequently dirtied */
@@ -64,7 +57,7 @@ struct inet_peer {
 };
 
 struct inet_peer_base {
-	struct inet_peer __rcu	*root;
+	struct rb_root		rb_root;
 	seqlock_t		lock;
 	int			total;
 };

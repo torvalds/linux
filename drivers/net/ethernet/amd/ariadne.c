@@ -692,7 +692,7 @@ static void ariadne_remove_one(struct zorro_dev *z)
 	free_netdev(dev);
 }
 
-static struct zorro_device_id ariadne_zorro_tbl[] = {
+static const struct zorro_device_id ariadne_zorro_tbl[] = {
 	{ ZORRO_PROD_VILLAGE_TRONIC_ARIADNE },
 	{ 0 }
 };

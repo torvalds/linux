@@ -1337,7 +1337,7 @@ out_free:
 
 MODULE_DEVICE_TABLE(i2c, ov2722_id);
 
-static struct acpi_device_id ov2722_acpi_match[] = {
+static const struct acpi_device_id ov2722_acpi_match[] = {
 	{ "INT33FB" },
 	{},
 };

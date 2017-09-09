@@ -443,8 +443,12 @@ qla27xx_fwdt_entry_t263(struct scsi_qla_host *vha,
 		qla27xx_skip_entry(ent, buf);
 	}
 
-	if (buf)
-		ent->t263.num_queues = count;
+	if (buf) {
+		if (count)
+			ent->t263.num_queues = count;
+		else
+			qla27xx_skip_entry(ent, buf);
+	}
 
 	return false;
 }
@@ -692,11 +696,12 @@ qla27xx_fwdt_entry_t274(struct scsi_qla_host *vha,
 		qla27xx_skip_entry(ent, buf);
 	}
 
-	if (buf)
-		ent->t274.num_queues = count;
-
-	if (!count)
-		qla27xx_skip_entry(ent, buf);
+	if (buf) {
+		if (count)
+			ent->t274.num_queues = count;
+		else
+			qla27xx_skip_entry(ent, buf);
+	}
 
 	return false;
 }

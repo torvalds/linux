@@ -103,6 +103,68 @@ DEFINE_EVENT(
 	TP_PROTO(struct rvt_mregion *mr, u16 m, u16 n, void *v, size_t len),
 	TP_ARGS(mr, m, n, v, len));
 
+DECLARE_EVENT_CLASS(
+	rvt_sge_template,
+	TP_PROTO(struct rvt_sge *sge, struct ib_sge *isge),
+	TP_ARGS(sge, isge),
+	TP_STRUCT__entry(
+		RDI_DEV_ENTRY(ib_to_rvt(sge->mr->pd->device))
+		__field(struct rvt_mregion *, mr)
+		__field(struct rvt_sge *, sge)
+		__field(struct ib_sge *, isge)
+		__field(void *, vaddr)
+		__field(u64, ivaddr)
+		__field(u32, lkey)
+		__field(u32, sge_length)
+		__field(u32, length)
+		__field(u32, ilength)
+		__field(int, user)
+		__field(u16, m)
+		__field(u16, n)
+	),
+	TP_fast_assign(
+		RDI_DEV_ASSIGN(ib_to_rvt(sge->mr->pd->device));
+		__entry->mr = sge->mr;
+		__entry->sge = sge;
+		__entry->isge = isge;
+		__entry->vaddr = sge->vaddr;
+		__entry->ivaddr = isge->addr;
+		__entry->lkey = sge->mr->lkey;
+		__entry->sge_length = sge->sge_length;
+		__entry->length = sge->length;
+		__entry->ilength = isge->length;
+		__entry->m = sge->m;
+		__entry->n = sge->m;
+		__entry->user = ibpd_to_rvtpd(sge->mr->pd)->user;
+	),
+	TP_printk(
+		"[%s] mr %p sge %p isge %p vaddr %p ivaddr %llx lkey %x sge_length %u length %u ilength %u m %u n %u user %u",
+		__get_str(dev),
+		__entry->mr,
+		__entry->sge,
+		__entry->isge,
+		__entry->vaddr,
+		__entry->ivaddr,
+		__entry->lkey,
+		__entry->sge_length,
+		__entry->length,
+		__entry->ilength,
+		__entry->m,
+		__entry->n,
+		__entry->user
+	)
+);
+
+DEFINE_EVENT(
+	rvt_sge_template, rvt_sge_adjacent,
+	TP_PROTO(struct rvt_sge *sge, struct ib_sge *isge),
+	TP_ARGS(sge, isge));
+
+DEFINE_EVENT(
+	rvt_sge_template, rvt_sge_new,
+	TP_PROTO(struct rvt_sge *sge, struct ib_sge *isge),
+	TP_ARGS(sge, isge));
+
 #endif /* __RVT_TRACE_MR_H */
 
 #undef TRACE_INCLUDE_PATH

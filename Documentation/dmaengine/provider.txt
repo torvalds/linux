@@ -181,13 +181,6 @@ Currently, the types available are:
     - Used by the client drivers to register a callback that will be
       called on a regular basis through the DMA controller interrupt
 
-  * DMA_SG
-    - The device supports memory to memory scatter-gather
-      transfers.
-    - Even though a plain memcpy can look like a particular case of a
-      scatter-gather transfer, with a single chunk to transfer, it's a
-      distinct transaction type in the mem2mem transfers case
-
   * DMA_PRIVATE
     - The devices only supports slave transfers, and as such isn't
       available for async transfers.
@@ -395,6 +388,13 @@ where to put them)
 	  when DMA_CTRL_REUSE is already set
 	- Terminating the channel
 
+  * DMA_PREP_CMD
+    - If set, the client driver tells DMA controller that passed data in DMA
+      API is command data.
+    - Interpretation of command data is DMA controller specific. It can be
+      used for issuing commands to other peripherals/register reads/register
+      writes for which the descriptor should be in different format from
+      normal data descriptors.
 
 General Design Notes
 --------------------

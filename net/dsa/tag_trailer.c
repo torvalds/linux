@@ -40,7 +40,7 @@ static struct sk_buff *trailer_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_set_network_header(nskb, skb_network_header(skb) - skb->head);
 	skb_set_transport_header(nskb, skb_transport_header(skb) - skb->head);
 	skb_copy_and_csum_dev(skb, skb_put(nskb, skb->len));
-	kfree_skb(skb);
+	consume_skb(skb);
 
 	if (padlen) {
 		skb_put_zero(nskb, padlen);
@@ -56,8 +56,7 @@ static struct sk_buff *trailer_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 static struct sk_buff *trailer_rcv(struct sk_buff *skb, struct net_device *dev,
-				   struct packet_type *pt,
-				   struct net_device *orig_dev)
+				   struct packet_type *pt)
 {
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
 	struct dsa_port *cpu_dp = dsa_get_cpu_port(dst);

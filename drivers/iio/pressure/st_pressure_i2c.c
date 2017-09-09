@@ -77,7 +77,8 @@ static int st_press_i2c_probe(struct i2c_client *client,
 	press_data = iio_priv(indio_dev);
 
 	if (client->dev.of_node) {
-		st_sensors_of_i2c_probe(client, st_press_of_match);
+		st_sensors_of_name_probe(&client->dev, st_press_of_match,
+					 client->name, sizeof(client->name));
 	} else if (ACPI_HANDLE(&client->dev)) {
 		ret = st_sensors_match_acpi_device(&client->dev);
 		if ((ret < 0) || (ret >= ST_PRESS_MAX))

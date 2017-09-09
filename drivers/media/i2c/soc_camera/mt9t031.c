@@ -592,7 +592,7 @@ static const struct dev_pm_ops mt9t031_dev_pm_ops = {
 	.runtime_resume		= mt9t031_runtime_resume,
 };
 
-static struct device_type mt9t031_dev_type = {
+static const struct device_type mt9t031_dev_type = {
 	.name	= "MT9T031",
 	.pm	= &mt9t031_dev_pm_ops,
 };

@@ -42,7 +42,7 @@ void intel_gvt_clean_cmd_parser(struct intel_gvt *gvt);
 
 int intel_gvt_init_cmd_parser(struct intel_gvt *gvt);
 
-int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload);
+int intel_gvt_scan_and_shadow_ringbuffer(struct intel_vgpu_workload *workload);
 
 int intel_gvt_scan_and_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx);
 

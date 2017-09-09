@@ -759,7 +759,7 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 	/*
 	 * Maximum synchronous period factor supported by the chip.
 	 */
-	period = (11 * div_10M[np->clock_divn - 1]) / (4 * np->clock_khz);
+	period = div64_ul(11 * div_10M[np->clock_divn - 1], 4 * np->clock_khz);
 	np->maxsync = period > 2540 ? 254 : period / 10;
 
 	/*

@@ -103,7 +103,7 @@ static void rtl_port_unmap(void __iomem *addr)
 static int ibm_rtl_write(u8 value)
 {
 	int ret = 0, count = 0;
-	static u32 cmd_port_val;
+	u32 cmd_port_val;
 
 	RTL_DEBUG("%s(%d)\n", __func__, value);
 

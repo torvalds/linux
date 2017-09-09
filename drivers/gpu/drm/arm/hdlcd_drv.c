@@ -253,8 +253,6 @@ static struct drm_driver hdlcd_driver = {
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,
-	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = drm_gem_prime_export,
@@ -343,7 +341,6 @@ err_register:
 	}
 err_fbdev:
 	drm_kms_helper_poll_fini(drm);
-	drm_vblank_cleanup(drm);
 err_vblank:
 	pm_runtime_disable(drm->dev);
 err_pm_active:
@@ -375,7 +372,6 @@ static void hdlcd_drm_unbind(struct device *dev)
 	component_unbind_all(dev, drm);
 	of_node_put(hdlcd->crtc.port);
 	hdlcd->crtc.port = NULL;
-	drm_vblank_cleanup(drm);
 	pm_runtime_get_sync(drm->dev);
 	drm_irq_uninstall(drm);
 	pm_runtime_put_sync(drm->dev);

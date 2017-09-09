@@ -746,6 +746,14 @@ int main(void)
 	OFFSET(PACA_SUBCORE_SIBLING_MASK, paca_struct, subcore_sibling_mask);
 	OFFSET(PACA_SIBLING_PACA_PTRS, paca_struct, thread_sibling_pacas);
 	OFFSET(PACA_REQ_PSSCR, paca_struct, requested_psscr);
+#define STOP_SPR(x, f)	OFFSET(x, paca_struct, stop_sprs.f)
+	STOP_SPR(STOP_PID, pid);
+	STOP_SPR(STOP_LDBAR, ldbar);
+	STOP_SPR(STOP_FSCR, fscr);
+	STOP_SPR(STOP_HFSCR, hfscr);
+	STOP_SPR(STOP_MMCR1, mmcr1);
+	STOP_SPR(STOP_MMCR2, mmcr2);
+	STOP_SPR(STOP_MMCRA, mmcra);
 #endif
 
 	DEFINE(PPC_DBELL_SERVER, PPC_DBELL_SERVER);

@@ -10,6 +10,7 @@
 #define _DLM_NETLINK_H
 
 #include <linux/types.h>
+#include <linux/dlmconstants.h>
 
 enum {
 	DLM_STATUS_WAITING = 1,

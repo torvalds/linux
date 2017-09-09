@@ -52,7 +52,7 @@
 #include <asm/switch_to.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/vdso.h>
-#include <asm/intel_rdt.h>
+#include <asm/intel_rdt_sched.h>
 #include <asm/unistd.h>
 #ifdef CONFIG_IA32_EMULATION
 /* Not included via unistd.h */
@@ -69,8 +69,7 @@ void __show_regs(struct pt_regs *regs, int all)
 	unsigned int fsindex, gsindex;
 	unsigned int ds, cs, es;
 
-	printk(KERN_DEFAULT "RIP: %04lx:%pS\n", regs->cs & 0xffff,
-		(void *)regs->ip);
+	printk(KERN_DEFAULT "RIP: %04lx:%pS\n", regs->cs, (void *)regs->ip);
 	printk(KERN_DEFAULT "RSP: %04lx:%016lx EFLAGS: %08lx", regs->ss,
 		regs->sp, regs->flags);
 	if (regs->orig_ax != -1)
@@ -146,6 +145,123 @@ void release_thread(struct task_struct *dead_task)
 			BUG();
 		}
 #endif
+	}
+}
+
+enum which_selector {
+	FS,
+	GS
+};
+
+/*
+ * Saves the FS or GS base for an outgoing thread if FSGSBASE extensions are
+ * not available.  The goal is to be reasonably fast on non-FSGSBASE systems.
+ * It's forcibly inlined because it'll generate better code and this function
+ * is hot.
+ */
+static __always_inline void save_base_legacy(struct task_struct *prev_p,
+					     unsigned short selector,
+					     enum which_selector which)
+{
+	if (likely(selector == 0)) {
+		/*
+		 * On Intel (without X86_BUG_NULL_SEG), the segment base could
+		 * be the pre-existing saved base or it could be zero.  On AMD
+		 * (with X86_BUG_NULL_SEG), the segment base could be almost
+		 * anything.
+		 *
+		 * This branch is very hot (it's hit twice on almost every
+		 * context switch between 64-bit programs), and avoiding
+		 * the RDMSR helps a lot, so we just assume that whatever
+		 * value is already saved is correct.  This matches historical
+		 * Linux behavior, so it won't break existing applications.
+		 *
+		 * To avoid leaking state, on non-X86_BUG_NULL_SEG CPUs, if we
+		 * report that the base is zero, it needs to actually be zero:
+		 * see the corresponding logic in load_seg_legacy.
+		 */
+	} else {
+		/*
+		 * If the selector is 1, 2, or 3, then the base is zero on
+		 * !X86_BUG_NULL_SEG CPUs and could be anything on
+		 * X86_BUG_NULL_SEG CPUs.  In the latter case, Linux
+		 * has never attempted to preserve the base across context
+		 * switches.
+		 *
+		 * If selector > 3, then it refers to a real segment, and
+		 * saving the base isn't necessary.
+		 */
+		if (which == FS)
+			prev_p->thread.fsbase = 0;
+		else
+			prev_p->thread.gsbase = 0;
+	}
+}
+
+static __always_inline void save_fsgs(struct task_struct *task)
+{
+	savesegment(fs, task->thread.fsindex);
+	savesegment(gs, task->thread.gsindex);
+	save_base_legacy(task, task->thread.fsindex, FS);
+	save_base_legacy(task, task->thread.gsindex, GS);
+}
+
+static __always_inline void loadseg(enum which_selector which,
+				    unsigned short sel)
+{
+	if (which == FS)
+		loadsegment(fs, sel);
+	else
+		load_gs_index(sel);
+}
+
+static __always_inline void load_seg_legacy(unsigned short prev_index,
+					    unsigned long prev_base,
+					    unsigned short next_index,
+					    unsigned long next_base,
+					    enum which_selector which)
+{
+	if (likely(next_index <= 3)) {
+		/*
+		 * The next task is using 64-bit TLS, is not using this
+		 * segment at all, or is having fun with arcane CPU features.
+		 */
+		if (next_base == 0) {
+			/*
+			 * Nasty case: on AMD CPUs, we need to forcibly zero
+			 * the base.
+			 */
+			if (static_cpu_has_bug(X86_BUG_NULL_SEG)) {
+				loadseg(which, __USER_DS);
+				loadseg(which, next_index);
+			} else {
+				/*
+				 * We could try to exhaustively detect cases
+				 * under which we can skip the segment load,
+				 * but there's really only one case that matters
+				 * for performance: if both the previous and
+				 * next states are fully zeroed, we can skip
+				 * the load.
+				 *
+				 * (This assumes that prev_base == 0 has no
+				 * false positives.  This is the case on
+				 * Intel-style CPUs.)
+				 */
+				if (likely(prev_index | next_index | prev_base))
+					loadseg(which, next_index);
+			}
+		} else {
+			if (prev_index != next_index)
+				loadseg(which, next_index);
+			wrmsrl(which == FS ? MSR_FS_BASE : MSR_KERNEL_GS_BASE,
+			       next_base);
+		}
+	} else {
+		/*
+		 * The next task is using a real segment.  Loading the selector
+		 * is sufficient.
+		 */
+		loadseg(which, next_index);
 	}
 }
 
@@ -229,10 +345,19 @@ start_thread_common(struct pt_regs *regs, unsigned long new_ip,
 		    unsigned long new_sp,
 		    unsigned int _cs, unsigned int _ss, unsigned int _ds)
 {
+	WARN_ON_ONCE(regs != current_pt_regs());
+
+	if (static_cpu_has(X86_BUG_NULL_SEG)) {
+		/* Loading zero below won't clear the base. */
+		loadsegment(fs, __USER_DS);
+		load_gs_index(__USER_DS);
+	}
+
 	loadsegment(fs, 0);
 	loadsegment(es, _ds);
 	loadsegment(ds, _ds);
 	load_gs_index(0);
+
 	regs->ip		= new_ip;
 	regs->sp		= new_sp;
 	regs->cs		= _cs;
@@ -277,7 +402,9 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	struct fpu *next_fpu = &next->fpu;
 	int cpu = smp_processor_id();
 	struct tss_struct *tss = &per_cpu(cpu_tss, cpu);
-	unsigned prev_fsindex, prev_gsindex;
+
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_DEBUG_ENTRY) &&
+		     this_cpu_read(irq_count) != -1);
 
 	switch_fpu_prepare(prev_fpu, cpu);
 
@@ -286,8 +413,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 *
 	 * (e.g. xen_load_tls())
 	 */
-	savesegment(fs, prev_fsindex);
-	savesegment(gs, prev_gsindex);
+	save_fsgs(prev_p);
 
 	/*
 	 * Load TLS before restoring any segments so that segment loads
@@ -326,108 +452,10 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	if (unlikely(next->ds | prev->ds))
 		loadsegment(ds, next->ds);
 
-	/*
-	 * Switch FS and GS.
-	 *
-	 * These are even more complicated than DS and ES: they have
-	 * 64-bit bases are that controlled by arch_prctl.  The bases
-	 * don't necessarily match the selectors, as user code can do
-	 * any number of things to cause them to be inconsistent.
-	 *
-	 * We don't promise to preserve the bases if the selectors are
-	 * nonzero.  We also don't promise to preserve the base if the
-	 * selector is zero and the base doesn't match whatever was
-	 * most recently passed to ARCH_SET_FS/GS.  (If/when the
-	 * FSGSBASE instructions are enabled, we'll need to offer
-	 * stronger guarantees.)
-	 *
-	 * As an invariant,
-	 * (fsbase != 0 && fsindex != 0) || (gsbase != 0 && gsindex != 0) is
-	 * impossible.
-	 */
-	if (next->fsindex) {
-		/* Loading a nonzero value into FS sets the index and base. */
-		loadsegment(fs, next->fsindex);
-	} else {
-		if (next->fsbase) {
-			/* Next index is zero but next base is nonzero. */
-			if (prev_fsindex)
-				loadsegment(fs, 0);
-			wrmsrl(MSR_FS_BASE, next->fsbase);
-		} else {
-			/* Next base and index are both zero. */
-			if (static_cpu_has_bug(X86_BUG_NULL_SEG)) {
-				/*
-				 * We don't know the previous base and can't
-				 * find out without RDMSR.  Forcibly clear it.
-				 */
-				loadsegment(fs, __USER_DS);
-				loadsegment(fs, 0);
-			} else {
-				/*
-				 * If the previous index is zero and ARCH_SET_FS
-				 * didn't change the base, then the base is
-				 * also zero and we don't need to do anything.
-				 */
-				if (prev->fsbase || prev_fsindex)
-					loadsegment(fs, 0);
-			}
-		}
-	}
-	/*
-	 * Save the old state and preserve the invariant.
-	 * NB: if prev_fsindex == 0, then we can't reliably learn the base
-	 * without RDMSR because Intel user code can zero it without telling
-	 * us and AMD user code can program any 32-bit value without telling
-	 * us.
-	 */
-	if (prev_fsindex)
-		prev->fsbase = 0;
-	prev->fsindex = prev_fsindex;
-
-	if (next->gsindex) {
-		/* Loading a nonzero value into GS sets the index and base. */
-		load_gs_index(next->gsindex);
-	} else {
-		if (next->gsbase) {
-			/* Next index is zero but next base is nonzero. */
-			if (prev_gsindex)
-				load_gs_index(0);
-			wrmsrl(MSR_KERNEL_GS_BASE, next->gsbase);
-		} else {
-			/* Next base and index are both zero. */
-			if (static_cpu_has_bug(X86_BUG_NULL_SEG)) {
-				/*
-				 * We don't know the previous base and can't
-				 * find out without RDMSR.  Forcibly clear it.
-				 *
-				 * This contains a pointless SWAPGS pair.
-				 * Fixing it would involve an explicit check
-				 * for Xen or a new pvop.
-				 */
-				load_gs_index(__USER_DS);
-				load_gs_index(0);
-			} else {
-				/*
-				 * If the previous index is zero and ARCH_SET_GS
-				 * didn't change the base, then the base is
-				 * also zero and we don't need to do anything.
-				 */
-				if (prev->gsbase || prev_gsindex)
-					load_gs_index(0);
-			}
-		}
-	}
-	/*
-	 * Save the old state and preserve the invariant.
-	 * NB: if prev_gsindex == 0, then we can't reliably learn the base
-	 * without RDMSR because Intel user code can zero it without telling
-	 * us and AMD user code can program any 32-bit value without telling
-	 * us.
-	 */
-	if (prev_gsindex)
-		prev->gsbase = 0;
-	prev->gsindex = prev_gsindex;
+	load_seg_legacy(prev->fsindex, prev->fsbase,
+			next->fsindex, next->fsbase, FS);
+	load_seg_legacy(prev->gsindex, prev->gsbase,
+			next->gsindex, next->gsbase, GS);
 
 	switch_fpu_finish(next_fpu, cpu);
 

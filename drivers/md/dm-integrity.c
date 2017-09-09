@@ -250,7 +250,8 @@ struct dm_integrity_io {
 
 	struct completion *completion;
 
-	struct block_device *orig_bi_bdev;
+	struct gendisk *orig_bi_disk;
+	u8 orig_bi_partno;
 	bio_end_io_t *orig_bi_end_io;
 	struct bio_integrity_payload *orig_bi_integrity;
 	struct bvec_iter orig_bi_iter;
@@ -1164,7 +1165,8 @@ static void integrity_end_io(struct bio *bio)
 	struct dm_integrity_io *dio = dm_per_bio_data(bio, sizeof(struct dm_integrity_io));
 
 	bio->bi_iter = dio->orig_bi_iter;
-	bio->bi_bdev = dio->orig_bi_bdev;
+	bio->bi_disk = dio->orig_bi_disk;
+	bio->bi_partno = dio->orig_bi_partno;
 	if (dio->orig_bi_integrity) {
 		bio->bi_integrity = dio->orig_bi_integrity;
 		bio->bi_opf |= REQ_INTEGRITY;
@@ -1681,8 +1683,9 @@ sleep:
 
 	dio->orig_bi_iter = bio->bi_iter;
 
-	dio->orig_bi_bdev = bio->bi_bdev;
-	bio->bi_bdev = ic->dev->bdev;
+	dio->orig_bi_disk = bio->bi_disk;
+	dio->orig_bi_partno = bio->bi_partno;
+	bio_set_dev(bio, ic->dev->bdev);
 
 	dio->orig_bi_integrity = bio_integrity(bio);
 	bio->bi_integrity = NULL;

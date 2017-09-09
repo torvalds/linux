@@ -34,6 +34,7 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
+    Pointer to struct :c:type:`v4l2_ext_controls`.
 
 
 Description
@@ -180,7 +181,7 @@ still cause this situation.
 	``V4L2_CTRL_FLAG_HAS_PAYLOAD`` is set for this control.
 
 
-.. tabularcolumns:: |p{4.0cm}|p{2.0cm}|p{2.0cm}|p{8.5cm}|
+.. tabularcolumns:: |p{4.0cm}|p{2.2cm}|p{2.1cm}|p{8.2cm}|
 
 .. c:type:: v4l2_ext_controls
 

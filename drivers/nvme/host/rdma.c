@@ -19,6 +19,7 @@
 #include <linux/string.h>
 #include <linux/atomic.h>
 #include <linux/blk-mq.h>
+#include <linux/blk-mq-rdma.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -463,14 +464,10 @@ static int nvme_rdma_create_queue_ib(struct nvme_rdma_queue *queue)
 	ibdev = queue->device->dev;
 
 	/*
-	 * The admin queue is barely used once the controller is live, so don't
-	 * bother to spread it out.
+	 * Spread I/O queues completion vectors according their queue index.
+	 * Admin queues can always go on completion vector 0.
 	 */
-	if (idx == 0)
-		comp_vector = 0;
-	else
-		comp_vector = idx % ibdev->num_comp_vectors;
-
+	comp_vector = idx == 0 ? idx : idx - 1;
 
 	/* +1 for ib_stop_cq */
 	queue->ib_cq = ib_alloc_cq(ibdev, queue,
@@ -611,10 +608,20 @@ out_free_queues:
 static int nvme_rdma_init_io_queues(struct nvme_rdma_ctrl *ctrl)
 {
 	struct nvmf_ctrl_options *opts = ctrl->ctrl.opts;
+	struct ib_device *ibdev = ctrl->device->dev;
 	unsigned int nr_io_queues;
 	int i, ret;
 
 	nr_io_queues = min(opts->nr_io_queues, num_online_cpus());
+
+	/*
+	 * we map queues according to the device irq vectors for
+	 * optimal locality so we don't need more queues than
+	 * completion vectors.
+	 */
+	nr_io_queues = min_t(unsigned int, nr_io_queues,
+				ibdev->num_comp_vectors);
+
 	ret = nvme_set_queue_count(&ctrl->ctrl, &nr_io_queues);
 	if (ret)
 		return ret;
@@ -704,14 +711,16 @@ static void nvme_rdma_reconnect_ctrl_work(struct work_struct *work)
 	if (ctrl->ctrl.queue_count > 1) {
 		nvme_rdma_free_io_queues(ctrl);
 
-		ret = blk_mq_reinit_tagset(&ctrl->tag_set);
+		ret = blk_mq_reinit_tagset(&ctrl->tag_set,
+					   nvme_rdma_reinit_request);
 		if (ret)
 			goto requeue;
 	}
 
 	nvme_rdma_stop_and_free_queue(&ctrl->queues[0]);
 
-	ret = blk_mq_reinit_tagset(&ctrl->admin_tag_set);
+	ret = blk_mq_reinit_tagset(&ctrl->admin_tag_set,
+				   nvme_rdma_reinit_request);
 	if (ret)
 		goto requeue;
 
@@ -1502,15 +1511,22 @@ static void nvme_rdma_complete_rq(struct request *rq)
 	nvme_complete_rq(rq);
 }
 
+static int nvme_rdma_map_queues(struct blk_mq_tag_set *set)
+{
+	struct nvme_rdma_ctrl *ctrl = set->driver_data;
+
+	return blk_mq_rdma_map_queues(set, ctrl->device->dev, 0);
+}
+
 static const struct blk_mq_ops nvme_rdma_mq_ops = {
 	.queue_rq	= nvme_rdma_queue_rq,
 	.complete	= nvme_rdma_complete_rq,
 	.init_request	= nvme_rdma_init_request,
 	.exit_request	= nvme_rdma_exit_request,
-	.reinit_request	= nvme_rdma_reinit_request,
 	.init_hctx	= nvme_rdma_init_hctx,
 	.poll		= nvme_rdma_poll,
 	.timeout	= nvme_rdma_timeout,
+	.map_queues	= nvme_rdma_map_queues,
 };
 
 static const struct blk_mq_ops nvme_rdma_admin_mq_ops = {
@@ -1518,7 +1534,6 @@ static const struct blk_mq_ops nvme_rdma_admin_mq_ops = {
 	.complete	= nvme_rdma_complete_rq,
 	.init_request	= nvme_rdma_init_request,
 	.exit_request	= nvme_rdma_exit_request,
-	.reinit_request	= nvme_rdma_reinit_request,
 	.init_hctx	= nvme_rdma_init_admin_hctx,
 	.timeout	= nvme_rdma_timeout,
 };
@@ -1716,7 +1731,8 @@ static void nvme_rdma_reset_ctrl_work(struct work_struct *work)
 	}
 
 	if (ctrl->ctrl.queue_count > 1) {
-		ret = blk_mq_reinit_tagset(&ctrl->tag_set);
+		ret = blk_mq_reinit_tagset(&ctrl->tag_set,
+					   nvme_rdma_reinit_request);
 		if (ret)
 			goto del_dead_ctrl;
 
@@ -1950,10 +1966,6 @@ static struct nvmf_transport_ops nvme_rdma_transport = {
 	.create_ctrl	= nvme_rdma_create_ctrl,
 };
 
-static void nvme_rdma_add_one(struct ib_device *ib_device)
-{
-}
-
 static void nvme_rdma_remove_one(struct ib_device *ib_device, void *client_data)
 {
 	struct nvme_rdma_ctrl *ctrl;
@@ -1975,7 +1987,6 @@ static void nvme_rdma_remove_one(struct ib_device *ib_device, void *client_data)
 
 static struct ib_client nvme_rdma_ib_client = {
 	.name   = "nvme_rdma",
-	.add = nvme_rdma_add_one,
 	.remove = nvme_rdma_remove_one
 };
 

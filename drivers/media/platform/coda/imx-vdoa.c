@@ -314,6 +314,8 @@ static int vdoa_probe(struct platform_device *pdev)
 		return PTR_ERR(vdoa->regs);
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!res)
+		return -EINVAL;
 	vdoa->irq = devm_request_threaded_irq(&pdev->dev, res->start, NULL,
 					vdoa_irq_handler, IRQF_ONESHOT,
 					"vdoa", vdoa);

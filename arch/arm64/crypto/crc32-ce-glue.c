@@ -1,7 +1,7 @@
 /*
  * Accelerated CRC32(C) using arm64 NEON and Crypto Extensions instructions
  *
- * Copyright (C) 2016 Linaro Ltd <ard.biesheuvel@linaro.org>
+ * Copyright (C) 2016 - 2017 Linaro Ltd <ard.biesheuvel@linaro.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -19,6 +19,7 @@
 
 #include <asm/hwcap.h>
 #include <asm/neon.h>
+#include <asm/simd.h>
 #include <asm/unaligned.h>
 
 #define PMULL_MIN_LEN		64L	/* minimum size of buffer
@@ -105,10 +106,10 @@ static int crc32_pmull_update(struct shash_desc *desc, const u8 *data,
 		length -= l;
 	}
 
-	if (length >= PMULL_MIN_LEN) {
+	if (length >= PMULL_MIN_LEN && may_use_simd()) {
 		l = round_down(length, SCALE_F);
 
-		kernel_neon_begin_partial(10);
+		kernel_neon_begin();
 		*crc = crc32_pmull_le(data, l, *crc);
 		kernel_neon_end();
 
@@ -137,10 +138,10 @@ static int crc32c_pmull_update(struct shash_desc *desc, const u8 *data,
 		length -= l;
 	}
 
-	if (length >= PMULL_MIN_LEN) {
+	if (length >= PMULL_MIN_LEN && may_use_simd()) {
 		l = round_down(length, SCALE_F);
 
-		kernel_neon_begin_partial(10);
+		kernel_neon_begin();
 		*crc = crc32c_pmull_le(data, l, *crc);
 		kernel_neon_end();
 

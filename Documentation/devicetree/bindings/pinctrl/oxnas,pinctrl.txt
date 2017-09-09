@@ -50,7 +50,6 @@ uart2: serial@900000 {
 	reg-io-width = <1>;
 	current-speed = <115200>;
 	no-loopback-test;
-	status = "disabled";
 	resets = <&reset 22>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;

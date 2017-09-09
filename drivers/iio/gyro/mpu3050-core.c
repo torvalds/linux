@@ -1063,11 +1063,6 @@ static int mpu3050_trigger_probe(struct iio_dev *indio_dev, int irq)
 	case IRQF_TRIGGER_RISING:
 		dev_info(&indio_dev->dev,
 			 "pulse interrupts on the rising edge\n");
-		if (mpu3050->irq_opendrain) {
-			dev_info(&indio_dev->dev,
-				 "rising edge incompatible with open drain\n");
-			mpu3050->irq_opendrain = false;
-		}
 		break;
 	case IRQF_TRIGGER_FALLING:
 		mpu3050->irq_actl = true;
@@ -1078,11 +1073,6 @@ static int mpu3050_trigger_probe(struct iio_dev *indio_dev, int irq)
 		mpu3050->irq_latch = true;
 		dev_info(&indio_dev->dev,
 			 "interrupts active high level\n");
-		if (mpu3050->irq_opendrain) {
-			dev_info(&indio_dev->dev,
-				 "active high incompatible with open drain\n");
-			mpu3050->irq_opendrain = false;
-		}
 		/*
 		 * With level IRQs, we mask the IRQ until it is processed,
 		 * but with edge IRQs (pulses) we can queue several interrupts

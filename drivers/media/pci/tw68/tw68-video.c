@@ -916,7 +916,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 #endif
 };
 
-static struct video_device tw68_video_template = {
+static const struct video_device tw68_video_template = {
 	.name			= "tw68_video",
 	.fops			= &video_fops,
 	.ioctl_ops		= &video_ioctl_ops,

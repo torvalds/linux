@@ -377,8 +377,6 @@ static int eeprom_93xx46_probe_dt(struct spi_device *spi)
 	struct device_node *np = spi->dev.of_node;
 	struct eeprom_93xx46_platform_data *pd;
 	u32 tmp;
-	int gpio;
-	enum of_gpio_flags of_flags;
 	int ret;
 
 	pd = devm_kzalloc(&spi->dev, sizeof(*pd), GFP_KERNEL);
@@ -403,22 +401,14 @@ static int eeprom_93xx46_probe_dt(struct spi_device *spi)
 	if (of_property_read_bool(np, "read-only"))
 		pd->flags |= EE_READONLY;
 
-	gpio = of_get_named_gpio_flags(np, "select-gpios", 0, &of_flags);
-	if (gpio_is_valid(gpio)) {
-		unsigned long flags =
-			of_flags == OF_GPIO_ACTIVE_LOW ? GPIOF_ACTIVE_LOW : 0;
+	pd->select = devm_gpiod_get_optional(&spi->dev, "select",
+					     GPIOD_OUT_LOW);
+	if (IS_ERR(pd->select))
+		return PTR_ERR(pd->select);
 
-		ret = devm_gpio_request_one(&spi->dev, gpio, flags,
-					    "eeprom_93xx46_select");
-		if (ret)
-			return ret;
-
-		pd->select = gpio_to_desc(gpio);
-		pd->prepare = select_assert;
-		pd->finish = select_deassert;
-
-		gpiod_direction_output(pd->select, 0);
-	}
+	pd->prepare = select_assert;
+	pd->finish = select_deassert;
+	gpiod_direction_output(pd->select, 0);
 
 	if (of_id->data) {
 		const struct eeprom_93xx46_devtype_data *data = of_id->data;

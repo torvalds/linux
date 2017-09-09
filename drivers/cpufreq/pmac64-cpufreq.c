@@ -516,7 +516,7 @@ static int __init g5_pm72_cpufreq_init(struct device_node *cpunode)
 		goto bail;
 	}
 
-	DBG("cpufreq: i2c clock chip found: %s\n", hwclock->full_name);
+	DBG("cpufreq: i2c clock chip found: %pOF\n", hwclock);
 
 	/* Now get all the platform functions */
 	pfunc_cpu_getfreq =

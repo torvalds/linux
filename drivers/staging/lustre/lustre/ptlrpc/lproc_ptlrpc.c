@@ -31,12 +31,12 @@
  */
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include "../include/obd_support.h"
-#include "../include/obd.h"
-#include "../include/lprocfs_status.h"
-#include "../include/lustre/lustre_idl.h"
-#include "../include/lustre_net.h"
-#include "../include/obd_class.h"
+#include <obd_support.h>
+#include <obd.h>
+#include <lprocfs_status.h>
+#include <uapi/linux/lustre/lustre_idl.h>
+#include <lustre_net.h>
+#include <obd_class.h>
 #include "ptlrpc_internal.h"
 
 static struct ll_rpc_opcode {
@@ -905,11 +905,18 @@ static int ptlrpc_lprocfs_svc_req_history_show(struct seq_file *s, void *iter)
 	rc = ptlrpc_lprocfs_svc_req_history_seek(svcpt, srhi, srhi->srhi_seq);
 
 	if (rc == 0) {
+		struct timespec64 arrival, sent, arrivaldiff;
 		char nidstr[LNET_NIDSTR_SIZE];
 
 		req = srhi->srhi_req;
 
 		libcfs_nid2str_r(req->rq_self, nidstr, sizeof(nidstr));
+		arrival.tv_sec = req->rq_arrival_time.tv_sec;
+		arrival.tv_nsec = req->rq_arrival_time.tv_nsec;
+		sent.tv_sec = req->rq_sent;
+		sent.tv_nsec = 0;
+		arrivaldiff = timespec64_sub(sent, arrival);
+
 		/* Print common req fields.
 		 * CAVEAT EMPTOR: we're racing with the service handler
 		 * here.  The request could contain any old crap, so you
@@ -917,13 +924,15 @@ static int ptlrpc_lprocfs_svc_req_history_show(struct seq_file *s, void *iter)
 		 * parser. Currently I only print stuff here I know is OK
 		 * to look at coz it was set up in request_in_callback()!!!
 		 */
-		seq_printf(s, "%lld:%s:%s:x%llu:%d:%s:%lld:%lds(%+lds) ",
+		seq_printf(s, "%lld:%s:%s:x%llu:%d:%s:%lld.%06lld:%lld.%06llds(%+lld.0s) ",
 			   req->rq_history_seq, nidstr,
 			   libcfs_id2str(req->rq_peer), req->rq_xid,
 			   req->rq_reqlen, ptlrpc_rqphase2str(req),
 			   (s64)req->rq_arrival_time.tv_sec,
-			   (long)(req->rq_sent - req->rq_arrival_time.tv_sec),
-			   (long)(req->rq_sent - req->rq_deadline));
+			   (s64)req->rq_arrival_time.tv_nsec / NSEC_PER_USEC,
+			   (s64)arrivaldiff.tv_sec,
+			   (s64)(arrivaldiff.tv_nsec / NSEC_PER_USEC),
+			   (s64)(req->rq_sent - req->rq_deadline));
 		if (!svc->srv_ops.so_req_printer)
 			seq_putc(s, '\n');
 		else

@@ -123,7 +123,7 @@ static inline void node_page_state_add(long x, struct pglist_data *pgdat,
 	atomic_long_add(x, &vm_node_stat[item]);
 }
 
-static inline unsigned long global_page_state(enum zone_stat_item item)
+static inline unsigned long global_zone_page_state(enum zone_stat_item item)
 {
 	long x = atomic_long_read(&vm_zone_stat[item]);
 #ifdef CONFIG_SMP
@@ -199,7 +199,7 @@ extern unsigned long sum_zone_node_page_state(int node,
 extern unsigned long node_page_state(struct pglist_data *pgdat,
 						enum node_stat_item item);
 #else
-#define sum_zone_node_page_state(node, item) global_page_state(item)
+#define sum_zone_node_page_state(node, item) global_zone_page_state(item)
 #define node_page_state(node, item) global_node_page_state(item)
 #endif /* CONFIG_NUMA */
 

@@ -236,6 +236,7 @@ enum mddev_flags {
 				 * never cause the array to become failed.
 				 */
 	MD_HAS_PPL,		/* The raid array has PPL feature set */
+	MD_HAS_MULTIPLE_PPLS,	/* The raid array has multiple PPLs feature set */
 };
 
 enum mddev_sb_flags {
@@ -509,6 +510,11 @@ static inline void md_sync_acct(struct block_device *bdev, unsigned long nr_sect
 	atomic_add(nr_sectors, &bdev->bd_contains->bd_disk->sync_io);
 }
 
+static inline void md_sync_acct_bio(struct bio *bio, unsigned long nr_sectors)
+{
+	atomic_add(nr_sectors, &bio->bi_disk->sync_io);
+}
+
 struct md_personality
 {
 	char *name;
@@ -721,14 +727,14 @@ static inline void mddev_clear_unsupported_flags(struct mddev *mddev,
 static inline void mddev_check_writesame(struct mddev *mddev, struct bio *bio)
 {
 	if (bio_op(bio) == REQ_OP_WRITE_SAME &&
-	    !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors)
+	    !bio->bi_disk->queue->limits.max_write_same_sectors)
 		mddev->queue->limits.max_write_same_sectors = 0;
 }
 
 static inline void mddev_check_write_zeroes(struct mddev *mddev, struct bio *bio)
 {
 	if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
-	    !bdev_get_queue(bio->bi_bdev)->limits.max_write_zeroes_sectors)
+	    !bio->bi_disk->queue->limits.max_write_zeroes_sectors)
 		mddev->queue->limits.max_write_zeroes_sectors = 0;
 }
 #endif /* _MD_MD_H */

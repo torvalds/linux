@@ -149,8 +149,8 @@ static bool usbport_trig_port_observed(struct usbport_trig_data *usbport_data,
 	count = of_count_phandle_with_args(led_np, "trigger-sources",
 					   "#trigger-source-cells");
 	if (count < 0) {
-		dev_warn(dev, "Failed to get trigger sources for %s\n",
-			 led_np->full_name);
+		dev_warn(dev, "Failed to get trigger sources for %pOF\n",
+			 led_np);
 		return false;
 	}
 
@@ -205,6 +205,7 @@ static int usbport_trig_add_port(struct usbport_trig_data *usbport_data,
 	}
 	snprintf(port->port_name, len, "%s-port%d", hub_name, portnum);
 
+	sysfs_attr_init(&port->attr.attr);
 	port->attr.attr.name = port->port_name;
 	port->attr.attr.mode = S_IRUSR | S_IWUSR;
 	port->attr.show = usbport_trig_port_show;

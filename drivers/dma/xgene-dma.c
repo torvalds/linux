@@ -391,11 +391,6 @@ static void xgene_dma_set_src_buffer(__le64 *ext8, size_t *len,
 	*paddr += nbytes;
 }
 
-static void xgene_dma_invalidate_buffer(__le64 *ext8)
-{
-	*ext8 |= cpu_to_le64(XGENE_DMA_INVALID_LEN_CODE);
-}
-
 static __le64 *xgene_dma_lookup_ext8(struct xgene_dma_desc_hw *desc, int idx)
 {
 	switch (idx) {
@@ -423,48 +418,6 @@ static void xgene_dma_init_desc(struct xgene_dma_desc_hw *desc,
 	desc->m1 |= cpu_to_le64(XGENE_DMA_DESC_C_BIT);
 	desc->m3 |= cpu_to_le64((u64)dst_ring_num <<
 				XGENE_DMA_DESC_HOENQ_NUM_POS);
-}
-
-static void xgene_dma_prep_cpy_desc(struct xgene_dma_chan *chan,
-				    struct xgene_dma_desc_sw *desc_sw,
-				    dma_addr_t dst, dma_addr_t src,
-				    size_t len)
-{
-	struct xgene_dma_desc_hw *desc1, *desc2;
-	int i;
-
-	/* Get 1st descriptor */
-	desc1 = &desc_sw->desc1;
-	xgene_dma_init_desc(desc1, chan->tx_ring.dst_ring_num);
-
-	/* Set destination address */
-	desc1->m2 |= cpu_to_le64(XGENE_DMA_DESC_DR_BIT);
-	desc1->m3 |= cpu_to_le64(dst);
-
-	/* Set 1st source address */
-	xgene_dma_set_src_buffer(&desc1->m1, &len, &src);
-
-	if (!len)
-		return;
-
-	/*
-	 * We need to split this source buffer,
-	 * and need to use 2nd descriptor
-	 */
-	desc2 = &desc_sw->desc2;
-	desc1->m0 |= cpu_to_le64(XGENE_DMA_DESC_NV_BIT);
-
-	/* Set 2nd to 5th source address */
-	for (i = 0; i < 4 && len; i++)
-		xgene_dma_set_src_buffer(xgene_dma_lookup_ext8(desc2, i),
-					 &len, &src);
-
-	/* Invalidate unused source address field */
-	for (; i < 4; i++)
-		xgene_dma_invalidate_buffer(xgene_dma_lookup_ext8(desc2, i));
-
-	/* Updated flag that we have prepared 64B descriptor */
-	desc_sw->flags |= XGENE_DMA_FLAG_64B_DESC;
 }
 
 static void xgene_dma_prep_xor_desc(struct xgene_dma_chan *chan,
@@ -889,114 +842,6 @@ static void xgene_dma_free_chan_resources(struct dma_chan *dchan)
 	/* Delete this channel DMA pool */
 	dma_pool_destroy(chan->desc_pool);
 	chan->desc_pool = NULL;
-}
-
-static struct dma_async_tx_descriptor *xgene_dma_prep_sg(
-	struct dma_chan *dchan, struct scatterlist *dst_sg,
-	u32 dst_nents, struct scatterlist *src_sg,
-	u32 src_nents, unsigned long flags)
-{
-	struct xgene_dma_desc_sw *first = NULL, *new = NULL;
-	struct xgene_dma_chan *chan;
-	size_t dst_avail, src_avail;
-	dma_addr_t dst, src;
-	size_t len;
-
-	if (unlikely(!dchan))
-		return NULL;
-
-	if (unlikely(!dst_nents || !src_nents))
-		return NULL;
-
-	if (unlikely(!dst_sg || !src_sg))
-		return NULL;
-
-	chan = to_dma_chan(dchan);
-
-	/* Get prepared for the loop */
-	dst_avail = sg_dma_len(dst_sg);
-	src_avail = sg_dma_len(src_sg);
-	dst_nents--;
-	src_nents--;
-
-	/* Run until we are out of scatterlist entries */
-	while (true) {
-		/* Create the largest transaction possible */
-		len = min_t(size_t, src_avail, dst_avail);
-		len = min_t(size_t, len, XGENE_DMA_MAX_64B_DESC_BYTE_CNT);
-		if (len == 0)
-			goto fetch;
-
-		dst = sg_dma_address(dst_sg) + sg_dma_len(dst_sg) - dst_avail;
-		src = sg_dma_address(src_sg) + sg_dma_len(src_sg) - src_avail;
-
-		/* Allocate the link descriptor from DMA pool */
-		new = xgene_dma_alloc_descriptor(chan);
-		if (!new)
-			goto fail;
-
-		/* Prepare DMA descriptor */
-		xgene_dma_prep_cpy_desc(chan, new, dst, src, len);
-
-		if (!first)
-			first = new;
-
-		new->tx.cookie = 0;
-		async_tx_ack(&new->tx);
-
-		/* update metadata */
-		dst_avail -= len;
-		src_avail -= len;
-
-		/* Insert the link descriptor to the LD ring */
-		list_add_tail(&new->node, &first->tx_list);
-
-fetch:
-		/* fetch the next dst scatterlist entry */
-		if (dst_avail == 0) {
-			/* no more entries: we're done */
-			if (dst_nents == 0)
-				break;
-
-			/* fetch the next entry: if there are no more: done */
-			dst_sg = sg_next(dst_sg);
-			if (!dst_sg)
-				break;
-
-			dst_nents--;
-			dst_avail = sg_dma_len(dst_sg);
-		}
-
-		/* fetch the next src scatterlist entry */
-		if (src_avail == 0) {
-			/* no more entries: we're done */
-			if (src_nents == 0)
-				break;
-
-			/* fetch the next entry: if there are no more: done */
-			src_sg = sg_next(src_sg);
-			if (!src_sg)
-				break;
-
-			src_nents--;
-			src_avail = sg_dma_len(src_sg);
-		}
-	}
-
-	if (!new)
-		return NULL;
-
-	new->tx.flags = flags; /* client is in control of this ack */
-	new->tx.cookie = -EBUSY;
-	list_splice(&first->tx_list, &new->tx_list);
-
-	return &new->tx;
-fail:
-	if (!first)
-		return NULL;
-
-	xgene_dma_free_desc_list(chan, &first->tx_list);
-	return NULL;
 }
 
 static struct dma_async_tx_descriptor *xgene_dma_prep_xor(
@@ -1653,7 +1498,6 @@ static void xgene_dma_set_caps(struct xgene_dma_chan *chan,
 	dma_cap_zero(dma_dev->cap_mask);
 
 	/* Set DMA device capability */
-	dma_cap_set(DMA_SG, dma_dev->cap_mask);
 
 	/* Basically here, the X-Gene SoC DMA engine channel 0 supports XOR
 	 * and channel 1 supports XOR, PQ both. First thing here is we have
@@ -1679,7 +1523,6 @@ static void xgene_dma_set_caps(struct xgene_dma_chan *chan,
 	dma_dev->device_free_chan_resources = xgene_dma_free_chan_resources;
 	dma_dev->device_issue_pending = xgene_dma_issue_pending;
 	dma_dev->device_tx_status = xgene_dma_tx_status;
-	dma_dev->device_prep_dma_sg = xgene_dma_prep_sg;
 
 	if (dma_has_cap(DMA_XOR, dma_dev->cap_mask)) {
 		dma_dev->device_prep_dma_xor = xgene_dma_prep_xor;
@@ -1731,8 +1574,7 @@ static int xgene_dma_async_register(struct xgene_dma *pdma, int id)
 
 	/* DMA capability info */
 	dev_info(pdma->dev,
-		 "%s: CAPABILITY ( %s%s%s)\n", dma_chan_name(&chan->dma_chan),
-		 dma_has_cap(DMA_SG, dma_dev->cap_mask) ? "SGCPY " : "",
+		 "%s: CAPABILITY ( %s%s)\n", dma_chan_name(&chan->dma_chan),
 		 dma_has_cap(DMA_XOR, dma_dev->cap_mask) ? "XOR " : "",
 		 dma_has_cap(DMA_PQ, dma_dev->cap_mask) ? "PQ " : "");
 

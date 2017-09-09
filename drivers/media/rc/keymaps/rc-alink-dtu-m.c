@@ -45,10 +45,10 @@ static struct rc_map_table alink_dtu_m[] = {
 
 static struct rc_map_list alink_dtu_m_map = {
 	.map = {
-		.scan    = alink_dtu_m,
-		.size    = ARRAY_SIZE(alink_dtu_m),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_ALINK_DTU_M,
+		.scan     = alink_dtu_m,
+		.size     = ARRAY_SIZE(alink_dtu_m),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_ALINK_DTU_M,
 	}
 };
 

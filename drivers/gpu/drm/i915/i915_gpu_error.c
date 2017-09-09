@@ -463,6 +463,7 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 	err_printf(m, "  hangcheck action timestamp: %lu, %u ms ago\n",
 		   ee->hangcheck_timestamp,
 		   jiffies_to_msecs(jiffies - ee->hangcheck_timestamp));
+	err_printf(m, "  engine reset count: %u\n", ee->reset_count);
 
 	error_print_request(m, "  ELSP[0]: ", &ee->execlist[0]);
 	error_print_request(m, "  ELSP[1]: ", &ee->execlist[1]);
@@ -1236,6 +1237,8 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 	ee->hangcheck_timestamp = engine->hangcheck.action_timestamp;
 	ee->hangcheck_action = engine->hangcheck.action;
 	ee->hangcheck_stalled = engine->hangcheck.stalled;
+	ee->reset_count = i915_reset_engine_count(&dev_priv->gpu_error,
+						  engine);
 
 	if (USES_PPGTT(dev_priv)) {
 		int i;
@@ -1263,7 +1266,7 @@ static void record_request(struct drm_i915_gem_request *request,
 			   struct drm_i915_error_request *erq)
 {
 	erq->context = request->ctx->hw_id;
-	erq->ban_score = request->ctx->ban_score;
+	erq->ban_score = atomic_read(&request->ctx->ban_score);
 	erq->seqno = request->global_seqno;
 	erq->jiffies = request->emitted_jiffies;
 	erq->head = request->head;
@@ -1354,9 +1357,9 @@ static void record_context(struct drm_i915_error_context *e,
 
 	e->handle = ctx->user_handle;
 	e->hw_id = ctx->hw_id;
-	e->ban_score = ctx->ban_score;
-	e->guilty = ctx->guilty_count;
-	e->active = ctx->active_count;
+	e->ban_score = atomic_read(&ctx->ban_score);
+	e->guilty = atomic_read(&ctx->guilty_count);
+	e->active = atomic_read(&ctx->active_count);
 }
 
 static void request_record_user_bo(struct drm_i915_gem_request *request,

@@ -79,7 +79,7 @@ struct snd_card_azt2320 {
 	struct snd_wss *chip;
 };
 
-static struct pnp_card_device_id snd_azt2320_pnpids[] = {
+static const struct pnp_card_device_id snd_azt2320_pnpids[] = {
 	/* PRO16V */
 	{ .id = "AZT1008", .devs = { { "AZT1008" }, { "AZT2001" }, } },
 	/* Aztech Sound Galaxy 16 */

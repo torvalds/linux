@@ -280,7 +280,7 @@ static int check_tty_count(struct tty_struct *tty, const char *routine)
 {
 #ifdef CHECK_TTY_COUNT
 	struct list_head *p;
-	int count = 0;
+	int count = 0, kopen_count = 0;
 
 	spin_lock(&tty->files_lock);
 	list_for_each(p, &tty->tty_files) {
@@ -291,10 +291,12 @@ static int check_tty_count(struct tty_struct *tty, const char *routine)
 	    tty->driver->subtype == PTY_TYPE_SLAVE &&
 	    tty->link && tty->link->count)
 		count++;
-	if (tty->count != count) {
-		tty_warn(tty, "%s: tty->count(%d) != #fd's(%d)\n",
-			 routine, tty->count, count);
-		return count;
+	if (tty_port_kopened(tty->port))
+		kopen_count++;
+	if (tty->count != (count + kopen_count)) {
+		tty_warn(tty, "%s: tty->count(%d) != (#fd's(%d) + #kopen's(%d))\n",
+			 routine, tty->count, count, kopen_count);
+		return (count + kopen_count);
 	}
 #endif
 	return 0;
@@ -462,6 +464,14 @@ static int hung_up_tty_fasync(int fd, struct file *file, int on)
 	return -ENOTTY;
 }
 
+static void tty_show_fdinfo(struct seq_file *m, struct file *file)
+{
+	struct tty_struct *tty = file_tty(file);
+
+	if (tty && tty->ops && tty->ops->show_fdinfo)
+		tty->ops->show_fdinfo(tty, m);
+}
+
 static const struct file_operations tty_fops = {
 	.llseek		= no_llseek,
 	.read		= tty_read,
@@ -472,6 +482,7 @@ static const struct file_operations tty_fops = {
 	.open		= tty_open,
 	.release	= tty_release,
 	.fasync		= tty_fasync,
+	.show_fdinfo	= tty_show_fdinfo,
 };
 
 static const struct file_operations console_fops = {
@@ -1513,6 +1524,38 @@ static int tty_release_checks(struct tty_struct *tty, int idx)
 }
 
 /**
+ *      tty_kclose      -       closes tty opened by tty_kopen
+ *      @tty: tty device
+ *
+ *      Performs the final steps to release and free a tty device. It is the
+ *      same as tty_release_struct except that it also resets TTY_PORT_KOPENED
+ *      flag on tty->port.
+ */
+void tty_kclose(struct tty_struct *tty)
+{
+	/*
+	 * Ask the line discipline code to release its structures
+	 */
+	tty_ldisc_release(tty);
+
+	/* Wait for pending work before tty destruction commmences */
+	tty_flush_works(tty);
+
+	tty_debug_hangup(tty, "freeing structure\n");
+	/*
+	 * The release_tty function takes care of the details of clearing
+	 * the slots and preserving the termios structure. The tty_unlock_pair
+	 * should be safe as we keep a kref while the tty is locked (so the
+	 * unlock never unlocks a freed tty).
+	 */
+	mutex_lock(&tty_mutex);
+	tty_port_set_kopened(tty->port, 0);
+	release_tty(tty, tty->index);
+	mutex_unlock(&tty_mutex);
+}
+EXPORT_SYMBOL_GPL(tty_kclose);
+
+/**
  *	tty_release_struct	-	release a tty struct
  *	@tty: tty device
  *	@idx: index of the tty
@@ -1786,6 +1829,56 @@ static struct tty_driver *tty_lookup_driver(dev_t device, struct file *filp,
 }
 
 /**
+ *	tty_kopen	-	open a tty device for kernel
+ *	@device: dev_t of device to open
+ *
+ *	Opens tty exclusively for kernel. Performs the driver lookup,
+ *	makes sure it's not already opened and performs the first-time
+ *	tty initialization.
+ *
+ *	Returns the locked initialized &tty_struct
+ *
+ *	Claims the global tty_mutex to serialize:
+ *	  - concurrent first-time tty initialization
+ *	  - concurrent tty driver removal w/ lookup
+ *	  - concurrent tty removal from driver table
+ */
+struct tty_struct *tty_kopen(dev_t device)
+{
+	struct tty_struct *tty;
+	struct tty_driver *driver = NULL;
+	int index = -1;
+
+	mutex_lock(&tty_mutex);
+	driver = tty_lookup_driver(device, NULL, &index);
+	if (IS_ERR(driver)) {
+		mutex_unlock(&tty_mutex);
+		return ERR_CAST(driver);
+	}
+
+	/* check whether we're reopening an existing tty */
+	tty = tty_driver_lookup_tty(driver, NULL, index);
+	if (IS_ERR(tty))
+		goto out;
+
+	if (tty) {
+		/* drop kref from tty_driver_lookup_tty() */
+		tty_kref_put(tty);
+		tty = ERR_PTR(-EBUSY);
+	} else { /* tty_init_dev returns tty with the tty_lock held */
+		tty = tty_init_dev(driver, index);
+		if (IS_ERR(tty))
+			goto out;
+		tty_port_set_kopened(tty->port, 1);
+	}
+out:
+	mutex_unlock(&tty_mutex);
+	tty_driver_kref_put(driver);
+	return tty;
+}
+EXPORT_SYMBOL_GPL(tty_kopen);
+
+/**
  *	tty_open_by_driver	-	open a tty device
  *	@device: dev_t of device to open
  *	@inode: inode of device file
@@ -1801,7 +1894,7 @@ static struct tty_driver *tty_lookup_driver(dev_t device, struct file *filp,
  *	  - concurrent tty driver removal w/ lookup
  *	  - concurrent tty removal from driver table
  */
-struct tty_struct *tty_open_by_driver(dev_t device, struct inode *inode,
+static struct tty_struct *tty_open_by_driver(dev_t device, struct inode *inode,
 					     struct file *filp)
 {
 	struct tty_struct *tty;
@@ -1824,6 +1917,12 @@ struct tty_struct *tty_open_by_driver(dev_t device, struct inode *inode,
 	}
 
 	if (tty) {
+		if (tty_port_kopened(tty->port)) {
+			tty_kref_put(tty);
+			mutex_unlock(&tty_mutex);
+			tty = ERR_PTR(-EBUSY);
+			goto out;
+		}
 		mutex_unlock(&tty_mutex);
 		retval = tty_lock_interruptible(tty);
 		tty_kref_put(tty);  /* drop kref from tty_driver_lookup_tty() */
@@ -1846,7 +1945,6 @@ out:
 	tty_driver_kref_put(driver);
 	return tty;
 }
-EXPORT_SYMBOL_GPL(tty_open_by_driver);
 
 /**
  *	tty_open		-	open a tty device

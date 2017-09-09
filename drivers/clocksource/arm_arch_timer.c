@@ -455,7 +455,11 @@ void arch_timer_enable_workaround(const struct arch_timer_erratum_workaround *wa
 			per_cpu(timer_unstable_counter_workaround, i) = wa;
 	}
 
-	static_branch_enable(&arch_timer_read_ool_enabled);
+	/*
+	 * Use the locked version, as we're called from the CPU
+	 * hotplug framework. Otherwise, we end-up in deadlock-land.
+	 */
+	static_branch_enable_cpuslocked(&arch_timer_read_ool_enabled);
 
 	/*
 	 * Don't use the vdso fastpath if errata require using the

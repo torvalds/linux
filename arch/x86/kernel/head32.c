@@ -10,6 +10,7 @@
 #include <linux/mm.h>
 #include <linux/memblock.h>
 
+#include <asm/desc.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/e820/api.h>
@@ -30,6 +31,9 @@ static void __init i386_default_early_setup(void)
 asmlinkage __visible void __init i386_start_kernel(void)
 {
 	cr4_init_shadow();
+
+	idt_setup_early_handler();
+
 	sanitize_boot_params(&boot_params);
 
 	x86_early_init_platform_quirks();

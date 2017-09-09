@@ -952,7 +952,7 @@ static int stm32_gpiolib_register_bank(struct stm32_pinctrl *pctl,
 	int npins = STM32_GPIO_PINS_PER_BANK;
 	int bank_nr, err;
 
-	rstc = of_reset_control_get(np, NULL);
+	rstc = of_reset_control_get_exclusive(np, NULL);
 	if (!IS_ERR(rstc))
 		reset_control_deassert(rstc);
 

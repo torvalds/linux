@@ -2168,7 +2168,6 @@ static const struct blk_mq_ops nvme_fc_mq_ops = {
 	.complete	= nvme_fc_complete_rq,
 	.init_request	= nvme_fc_init_request,
 	.exit_request	= nvme_fc_exit_request,
-	.reinit_request	= nvme_fc_reinit_request,
 	.init_hctx	= nvme_fc_init_hctx,
 	.poll		= nvme_fc_poll,
 	.timeout	= nvme_fc_timeout,
@@ -2269,7 +2268,7 @@ nvme_fc_reinit_io_queues(struct nvme_fc_ctrl *ctrl)
 
 	nvme_fc_init_io_queues(ctrl);
 
-	ret = blk_mq_reinit_tagset(&ctrl->tag_set);
+	ret = blk_mq_reinit_tagset(&ctrl->tag_set, nvme_fc_reinit_request);
 	if (ret)
 		goto out_free_io_queues;
 
@@ -2655,7 +2654,6 @@ static const struct blk_mq_ops nvme_fc_admin_mq_ops = {
 	.complete	= nvme_fc_complete_rq,
 	.init_request	= nvme_fc_init_request,
 	.exit_request	= nvme_fc_exit_request,
-	.reinit_request	= nvme_fc_reinit_request,
 	.init_hctx	= nvme_fc_init_admin_hctx,
 	.timeout	= nvme_fc_timeout,
 };

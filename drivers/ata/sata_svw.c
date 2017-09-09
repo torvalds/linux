@@ -339,7 +339,7 @@ static int k2_sata_show_info(struct seq_file *m, struct Scsi_Host *shost)
 		if (!reg)
 			continue;
 		if (index == *reg) {
-			seq_printf(m, "devspec: %s\n", np->full_name);
+			seq_printf(m, "devspec: %pOF\n", np);
 			break;
 		}
 	}

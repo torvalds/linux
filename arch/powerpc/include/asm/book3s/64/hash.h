@@ -40,7 +40,7 @@
  * Define the address range of the kernel non-linear virtual area
  */
 #define H_KERN_VIRT_START ASM_CONST(0xD000000000000000)
-#define H_KERN_VIRT_SIZE	ASM_CONST(0x0000100000000000)
+#define H_KERN_VIRT_SIZE  ASM_CONST(0x0000400000000000) /* 64T */
 
 /*
  * The vmalloc space starts at the beginning of that region, and
@@ -48,8 +48,10 @@
  * (we keep a quarter for the virtual memmap)
  */
 #define H_VMALLOC_START	H_KERN_VIRT_START
-#define H_VMALLOC_SIZE	(H_KERN_VIRT_SIZE >> 1)
+#define H_VMALLOC_SIZE	ASM_CONST(0x380000000000) /* 56T */
 #define H_VMALLOC_END	(H_VMALLOC_START + H_VMALLOC_SIZE)
+
+#define H_KERN_IO_START	H_VMALLOC_END
 
 /*
  * Region IDs

@@ -1,1 +1,1 @@
-obj-y		:= hv_init.o
+obj-y		:= hv_init.o mmu.o

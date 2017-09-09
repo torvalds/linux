@@ -1315,7 +1315,6 @@ static int i5400_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->edac_ctl_cap = EDAC_FLAG_NONE;
 	mci->edac_cap = EDAC_FLAG_NONE;
 	mci->mod_name = "i5400_edac.c";
-	mci->mod_ver = I5400_REVISION;
 	mci->ctl_name = i5400_devs[dev_idx].ctl_name;
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;

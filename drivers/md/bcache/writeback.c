@@ -181,7 +181,7 @@ static void write_dirty(struct closure *cl)
 	dirty_init(w);
 	bio_set_op_attrs(&io->bio, REQ_OP_WRITE, 0);
 	io->bio.bi_iter.bi_sector = KEY_START(&w->key);
-	io->bio.bi_bdev		= io->dc->bdev;
+	bio_set_dev(&io->bio, io->dc->bdev);
 	io->bio.bi_end_io	= dirty_endio;
 
 	closure_bio_submit(&io->bio, cl);
@@ -250,8 +250,7 @@ static void read_dirty(struct cached_dev *dc)
 		dirty_init(w);
 		bio_set_op_attrs(&io->bio, REQ_OP_READ, 0);
 		io->bio.bi_iter.bi_sector = PTR_OFFSET(&w->key, 0);
-		io->bio.bi_bdev		= PTR_CACHE(dc->disk.c,
-						    &w->key, 0)->bdev;
+		bio_set_dev(&io->bio, PTR_CACHE(dc->disk.c, &w->key, 0)->bdev);
 		io->bio.bi_end_io	= read_dirty_endio;
 
 		if (bio_alloc_pages(&io->bio, GFP_KERNEL))

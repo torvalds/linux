@@ -52,7 +52,12 @@
  *     drm_modeset_drop_locks(&ctx);
  *     drm_modeset_acquire_fini(&ctx);
  *
- * On top of of these per-object locks using &ww_mutex there's also an overall
+ * If all that is needed is a single modeset lock, then the &struct
+ * drm_modeset_acquire_ctx is not needed and the locking can be simplified
+ * by passing a NULL instead of ctx in the drm_modeset_lock()
+ * call and, when done, by calling drm_modeset_unlock().
+ *
+ * On top of these per-object locks using &ww_mutex there's also an overall
  * &drm_mode_config.mutex, for protecting everything else. Mostly this means
  * probe state of connectors, and preventing hotplug add/removal of connectors.
  *
@@ -313,11 +318,14 @@ EXPORT_SYMBOL(drm_modeset_lock_init);
  * @lock: lock to take
  * @ctx: acquire ctx
  *
- * If ctx is not NULL, then its ww acquire context is used and the
+ * If @ctx is not NULL, then its ww acquire context is used and the
  * lock will be tracked by the context and can be released by calling
  * drm_modeset_drop_locks().  If -EDEADLK is returned, this means a
  * deadlock scenario has been detected and it is an error to attempt
  * to take any more locks without first calling drm_modeset_backoff().
+ *
+ * If @ctx is NULL then the function call behaves like a normal,
+ * non-nesting mutex_lock() call.
  */
 int drm_modeset_lock(struct drm_modeset_lock *lock,
 		struct drm_modeset_acquire_ctx *ctx)

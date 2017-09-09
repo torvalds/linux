@@ -845,7 +845,7 @@ static irqreturn_t snd_ymfpci_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct snd_pcm_hardware snd_ymfpci_playback =
+static const struct snd_pcm_hardware snd_ymfpci_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_MMAP_VALID | 
@@ -867,7 +867,7 @@ static struct snd_pcm_hardware snd_ymfpci_playback =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_ymfpci_capture =
+static const struct snd_pcm_hardware snd_ymfpci_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_MMAP_VALID |

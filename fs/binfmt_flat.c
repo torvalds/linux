@@ -890,7 +890,7 @@ static int load_flat_shared_library(int id, struct lib_info *libs)
 	 * as we're past the point of no return and are dealing with shared
 	 * libraries.
 	 */
-	bprm.cred_prepared = 1;
+	bprm.called_set_creds = 1;
 
 	res = prepare_binprm(&bprm);
 

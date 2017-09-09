@@ -245,6 +245,7 @@ struct trace_array {
 	int			stop_count;
 	int			clock_id;
 	int			nr_topts;
+	bool			clear_trace;
 	struct tracer		*current_trace;
 	unsigned int		trace_flags;
 	unsigned char		trace_flags_index[TRACE_FLAGS_MAX_SIZE];

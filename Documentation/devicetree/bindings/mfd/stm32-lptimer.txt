@@ -1,0 +1,48 @@
+STMicroelectronics STM32 Low-Power Timer
+
+The STM32 Low-Power Timer (LPTIM) is a 16-bit timer that provides several
+functions:
+- PWM output (with programmable prescaler, configurable polarity)
+- Quadrature encoder, counter
+- Trigger source for STM32 ADC/DAC (LPTIM_OUT)
+
+Required properties:
+- compatible:		Must be "st,stm32-lptimer".
+- reg:			Offset and length of the device's register set.
+- clocks:		Phandle to the clock used by the LP Timer module.
+- clock-names:		Must be "mux".
+- #address-cells:	Should be '<1>'.
+- #size-cells:		Should be '<0>'.
+
+Optional subnodes:
+- pwm:			See ../pwm/pwm-stm32-lp.txt
+- counter:		See ../iio/timer/stm32-lptimer-cnt.txt
+- trigger:		See ../iio/timer/stm32-lptimer-trigger.txt
+
+Example:
+
+	timer@40002400 {
+		compatible = "st,stm32-lptimer";
+		reg = <0x40002400 0x400>;
+		clocks = <&timer_clk>;
+		clock-names = "mux";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pwm {
+			compatible = "st,stm32-pwm-lp";
+			pinctrl-names = "default";
+			pinctrl-0 = <&lppwm1_pins>;
+		};
+
+		trigger@0 {
+			compatible = "st,stm32-lptimer-trigger";
+			reg = <0>;
+		};
+
+		counter {
+			compatible = "st,stm32-lptimer-counter";
+			pinctrl-names = "default";
+			pinctrl-0 = <&lptim1_in_pins>;
+		};
+	};

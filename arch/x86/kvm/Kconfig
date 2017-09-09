@@ -89,6 +89,5 @@ config KVM_MMU_AUDIT
 # OK, it's a little counter-intuitive to do this, but it puts it neatly under
 # the virtualization menu.
 source drivers/vhost/Kconfig
-source drivers/lguest/Kconfig
 
 endif # VIRTUALIZATION

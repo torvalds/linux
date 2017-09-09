@@ -1053,14 +1053,14 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	if (!dev->hw_learning_and_tx_capable)
 		learning_mode_force = false;
 
-	rdev->allowed_protocols = RC_BIT_ALL_IR_DECODER;
+	rdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	rdev->priv = dev;
 	rdev->open = ene_open;
 	rdev->close = ene_close;
 	rdev->s_idle = ene_set_idle;
 	rdev->driver_name = ENE_DRIVER_NAME;
 	rdev->map_name = RC_MAP_RC6_MCE;
-	rdev->input_name = "ENE eHome Infrared Remote Receiver";
+	rdev->device_name = "ENE eHome Infrared Remote Receiver";
 
 	if (dev->hw_learning_and_tx_capable) {
 		rdev->s_learning_mode = ene_set_learning_mode;
@@ -1070,7 +1070,7 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 		rdev->s_tx_carrier = ene_set_tx_carrier;
 		rdev->s_tx_duty_cycle = ene_set_tx_duty_cycle;
 		rdev->s_carrier_report = ene_set_carrier_report;
-		rdev->input_name = "ENE eHome Infrared Remote Transceiver";
+		rdev->device_name = "ENE eHome Infrared Remote Transceiver";
 	}
 
 	dev->rdev = rdev;

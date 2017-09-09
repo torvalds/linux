@@ -125,7 +125,8 @@ void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev)
 		if (mec >= adev->gfx.mec.num_mec)
 			break;
 
-		if (adev->gfx.mec.num_mec > 1) {
+		/* FIXME: spreading the queues across pipes causes perf regressions */
+		if (0) {
 			/* policy: amdgpu owns the first two queues of the first MEC */
 			if (mec == 0 && queue < 2)
 				set_bit(i, adev->gfx.mec.queue_bitmap);

@@ -168,6 +168,24 @@ static int __init x86_mpx_setup(char *s)
 }
 __setup("nompx", x86_mpx_setup);
 
+#ifdef CONFIG_X86_64
+static int __init x86_pcid_setup(char *s)
+{
+	/* require an exact match without trailing characters */
+	if (strlen(s))
+		return 0;
+
+	/* do not emit a message if the feature is not present */
+	if (!boot_cpu_has(X86_FEATURE_PCID))
+		return 1;
+
+	setup_clear_cpu_cap(X86_FEATURE_PCID);
+	pr_info("nopcid: PCID feature disabled\n");
+	return 1;
+}
+__setup("nopcid", x86_pcid_setup);
+#endif
+
 static int __init x86_noinvpcid_setup(char *s)
 {
 	/* noinvpcid doesn't accept parameters */
@@ -308,6 +326,38 @@ static __always_inline void setup_smap(struct cpuinfo_x86 *c)
 #else
 		cr4_clear_bits(X86_CR4_SMAP);
 #endif
+	}
+}
+
+static void setup_pcid(struct cpuinfo_x86 *c)
+{
+	if (cpu_has(c, X86_FEATURE_PCID)) {
+		if (cpu_has(c, X86_FEATURE_PGE)) {
+			/*
+			 * We'd like to use cr4_set_bits_and_update_boot(),
+			 * but we can't.  CR4.PCIDE is special and can only
+			 * be set in long mode, and the early CPU init code
+			 * doesn't know this and would try to restore CR4.PCIDE
+			 * prior to entering long mode.
+			 *
+			 * Instead, we rely on the fact that hotplug, resume,
+			 * etc all fully restore CR4 before they write anything
+			 * that could have nonzero PCID bits to CR3.  CR4.PCIDE
+			 * has no effect on the page tables themselves, so we
+			 * don't need it to be restored early.
+			 */
+			cr4_set_bits(X86_CR4_PCIDE);
+		} else {
+			/*
+			 * flush_tlb_all(), as currently implemented, won't
+			 * work if PCID is on but PGE is not.  Since that
+			 * combination doesn't exist on real hardware, there's
+			 * no reason to try to fully support it, but it's
+			 * polite to avoid corrupting data if we're on
+			 * an improperly configured VM.
+			 */
+			clear_cpu_cap(c, X86_FEATURE_PCID);
+		}
 	}
 }
 
@@ -1125,6 +1175,9 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	setup_smep(c);
 	setup_smap(c);
 
+	/* Set up PCID */
+	setup_pcid(c);
+
 	/*
 	 * The vendor-specific functions might have changed features.
 	 * Now we do "generic changes."
@@ -1289,15 +1342,6 @@ static __init int setup_disablecpuid(char *arg)
 __setup("clearcpuid=", setup_disablecpuid);
 
 #ifdef CONFIG_X86_64
-struct desc_ptr idt_descr __ro_after_init = {
-	.size = NR_VECTORS * 16 - 1,
-	.address = (unsigned long) idt_table,
-};
-const struct desc_ptr debug_idt_descr = {
-	.size = NR_VECTORS * 16 - 1,
-	.address = (unsigned long) debug_idt_table,
-};
-
 DEFINE_PER_CPU_FIRST(union irq_stack_union,
 		     irq_stack_union) __aligned(PAGE_SIZE) __visible;
 
@@ -1552,6 +1596,7 @@ void cpu_init(void)
 	mmgrab(&init_mm);
 	me->active_mm = &init_mm;
 	BUG_ON(me->mm);
+	initialize_tlbstate_and_flush();
 	enter_lazy_tlb(&init_mm, me);
 
 	load_sp0(t, &current->thread);
@@ -1606,6 +1651,7 @@ void cpu_init(void)
 	mmgrab(&init_mm);
 	curr->active_mm = &init_mm;
 	BUG_ON(curr->mm);
+	initialize_tlbstate_and_flush();
 	enter_lazy_tlb(&init_mm, curr);
 
 	load_sp0(t, thread);

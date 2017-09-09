@@ -12,7 +12,8 @@
 	FN(ABORTED)		\
 	FN(DROP)		\
 	FN(PASS)		\
-	FN(TX)
+	FN(TX)			\
+	FN(REDIRECT)
 
 #define __XDP_ACT_TP_FN(x)	\
 	TRACE_DEFINE_ENUM(XDP_##x);
@@ -30,23 +31,118 @@ TRACE_EVENT(xdp_exception,
 	TP_ARGS(dev, xdp, act),
 
 	TP_STRUCT__entry(
-		__string(name, dev->name)
-		__array(u8, prog_tag, 8)
+		__field(int, prog_id)
 		__field(u32, act)
+		__field(int, ifindex)
 	),
 
 	TP_fast_assign(
-		BUILD_BUG_ON(sizeof(__entry->prog_tag) != sizeof(xdp->tag));
-		memcpy(__entry->prog_tag, xdp->tag, sizeof(xdp->tag));
-		__assign_str(name, dev->name);
-		__entry->act = act;
+		__entry->prog_id	= xdp->aux->id;
+		__entry->act		= act;
+		__entry->ifindex	= dev->ifindex;
 	),
 
-	TP_printk("prog=%s device=%s action=%s",
-		  __print_hex_str(__entry->prog_tag, 8),
-		  __get_str(name),
-		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB))
+	TP_printk("prog_id=%d action=%s ifindex=%d",
+		  __entry->prog_id,
+		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB),
+		  __entry->ifindex)
 );
+
+DECLARE_EVENT_CLASS(xdp_redirect_template,
+
+	TP_PROTO(const struct net_device *dev,
+		 const struct bpf_prog *xdp,
+		 int to_ifindex, int err,
+		 const struct bpf_map *map, u32 map_index),
+
+	TP_ARGS(dev, xdp, to_ifindex, err, map, map_index),
+
+	TP_STRUCT__entry(
+		__field(int, prog_id)
+		__field(u32, act)
+		__field(int, ifindex)
+		__field(int, err)
+		__field(int, to_ifindex)
+		__field(u32, map_id)
+		__field(int, map_index)
+	),
+
+	TP_fast_assign(
+		__entry->prog_id	= xdp->aux->id;
+		__entry->act		= XDP_REDIRECT;
+		__entry->ifindex	= dev->ifindex;
+		__entry->err		= err;
+		__entry->to_ifindex	= to_ifindex;
+		__entry->map_id		= map ? map->id : 0;
+		__entry->map_index	= map_index;
+	),
+
+	TP_printk("prog_id=%d action=%s ifindex=%d to_ifindex=%d err=%d",
+		  __entry->prog_id,
+		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB),
+		  __entry->ifindex, __entry->to_ifindex,
+		  __entry->err)
+);
+
+DEFINE_EVENT(xdp_redirect_template, xdp_redirect,
+	TP_PROTO(const struct net_device *dev,
+		 const struct bpf_prog *xdp,
+		 int to_ifindex, int err,
+		 const struct bpf_map *map, u32 map_index),
+	TP_ARGS(dev, xdp, to_ifindex, err, map, map_index)
+);
+
+DEFINE_EVENT(xdp_redirect_template, xdp_redirect_err,
+	TP_PROTO(const struct net_device *dev,
+		 const struct bpf_prog *xdp,
+		 int to_ifindex, int err,
+		 const struct bpf_map *map, u32 map_index),
+	TP_ARGS(dev, xdp, to_ifindex, err, map, map_index)
+);
+
+#define _trace_xdp_redirect(dev, xdp, to)		\
+	 trace_xdp_redirect(dev, xdp, to, 0, NULL, 0);
+
+#define _trace_xdp_redirect_err(dev, xdp, to, err)	\
+	 trace_xdp_redirect_err(dev, xdp, to, err, NULL, 0);
+
+DEFINE_EVENT_PRINT(xdp_redirect_template, xdp_redirect_map,
+	TP_PROTO(const struct net_device *dev,
+		 const struct bpf_prog *xdp,
+		 int to_ifindex, int err,
+		 const struct bpf_map *map, u32 map_index),
+	TP_ARGS(dev, xdp, to_ifindex, err, map, map_index),
+	TP_printk("prog_id=%d action=%s ifindex=%d to_ifindex=%d err=%d"
+		  " map_id=%d map_index=%d",
+		  __entry->prog_id,
+		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB),
+		  __entry->ifindex, __entry->to_ifindex,
+		  __entry->err,
+		  __entry->map_id, __entry->map_index)
+);
+
+DEFINE_EVENT_PRINT(xdp_redirect_template, xdp_redirect_map_err,
+	TP_PROTO(const struct net_device *dev,
+		 const struct bpf_prog *xdp,
+		 int to_ifindex, int err,
+		 const struct bpf_map *map, u32 map_index),
+	TP_ARGS(dev, xdp, to_ifindex, err, map, map_index),
+	TP_printk("prog_id=%d action=%s ifindex=%d to_ifindex=%d err=%d"
+		  " map_id=%d map_index=%d",
+		  __entry->prog_id,
+		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB),
+		  __entry->ifindex, __entry->to_ifindex,
+		  __entry->err,
+		  __entry->map_id, __entry->map_index)
+);
+
+#define _trace_xdp_redirect_map(dev, xdp, fwd, map, idx)		\
+	 trace_xdp_redirect_map(dev, xdp, fwd ? fwd->ifindex : 0,	\
+				0, map, idx);
+
+#define _trace_xdp_redirect_map_err(dev, xdp, fwd, map, idx, err)	\
+	 trace_xdp_redirect_map_err(dev, xdp, fwd ? fwd->ifindex : 0,	\
+				    err, map, idx);
 
 #endif /* _TRACE_XDP_H */
 

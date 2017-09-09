@@ -679,7 +679,7 @@ static void remap(struct thin_c *tc, struct bio *bio, dm_block_t block)
 	struct pool *pool = tc->pool;
 	sector_t bi_sector = bio->bi_iter.bi_sector;
 
-	bio->bi_bdev = tc->pool_dev->bdev;
+	bio_set_dev(bio, tc->pool_dev->bdev);
 	if (block_size_is_power_of_two(pool))
 		bio->bi_iter.bi_sector =
 			(block << pool->sectors_per_block_shift) |
@@ -691,7 +691,7 @@ static void remap(struct thin_c *tc, struct bio *bio, dm_block_t block)
 
 static void remap_to_origin(struct thin_c *tc, struct bio *bio)
 {
-	bio->bi_bdev = tc->origin_dev->bdev;
+	bio_set_dev(bio, tc->origin_dev->bdev);
 }
 
 static int bio_triggers_commit(struct thin_c *tc, struct bio *bio)
@@ -3313,7 +3313,7 @@ static int pool_map(struct dm_target *ti, struct bio *bio)
 	 * As this is a singleton target, ti->begin is always zero.
 	 */
 	spin_lock_irqsave(&pool->lock, flags);
-	bio->bi_bdev = pt->data_dev->bdev;
+	bio_set_dev(bio, pt->data_dev->bdev);
 	r = DM_MAPIO_REMAPPED;
 	spin_unlock_irqrestore(&pool->lock, flags);
 

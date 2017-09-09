@@ -81,5 +81,4 @@ Examples
 		dma-names = "tx", "rx";
 		power-domains = <&cpg>;
 		resets = <&cpg 310>;
-		status = "disabled";
 	};

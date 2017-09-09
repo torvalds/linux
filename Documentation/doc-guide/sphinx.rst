@@ -19,6 +19,110 @@ Finally, there are thousands of plain text documentation files scattered around
 ``Documentation``. Some of these will likely be converted to reStructuredText
 over time, but the bulk of them will remain in plain text.
 
+.. _sphinx_install:
+
+Sphinx Install
+==============
+
+The ReST markups currently used by the Documentation/ files are meant to be
+built with ``Sphinx`` version 1.3 or upper. If you're desiring to build
+PDF outputs, it is recommended to use version 1.4.6 or upper.
+
+There's a script that checks for the Spinx requirements. Please see
+:ref:`sphinx-pre-install` for further details.
+
+Most distributions are shipped with Sphinx, but its toolchain is fragile,
+and it is not uncommon that upgrading it or some other Python packages
+on your machine would cause the documentation build to break.
+
+A way to get rid of that is to use a different version than the one shipped
+on your distributions. In order to do that, it is recommended to install
+Sphinx inside a virtual environment, using ``virtualenv-3``
+or ``virtualenv``, depending on how your distribution packaged Python 3.
+
+.. note::
+
+   #) Sphinx versions below 1.5 don't work properly with Python's
+      docutils version 0.13.1 or upper. So, if you're willing to use
+      those versions, you should run ``pip install 'docutils==0.12'``.
+
+   #) It is recommended to use the RTD theme for html output. Depending
+      on the Sphinx version, it should be installed  in separate,
+      with ``pip install sphinx_rtd_theme``.
+
+   #) Some ReST pages contain math expressions. Due to the way Sphinx work,
+      those expressions are written using LaTeX notation. It needs texlive
+      installed with amdfonts and amsmath in order to evaluate them.
+
+In summary, if you want to install Sphinx version 1.4.9, you should do::
+
+       $ virtualenv sphinx_1.4
+       $ . sphinx_1.4/bin/activate
+       (sphinx_1.4) $ pip install -r Documentation/sphinx/requirements.txt
+
+After running ``. sphinx_1.4/bin/activate``, the prompt will change,
+in order to indicate that you're using the new environment. If you
+open a new shell, you need to rerun this command to enter again at
+the virtual environment before building the documentation.
+
+Image output
+------------
+
+The kernel documentation build system contains an extension that
+handles images on both GraphViz and SVG formats (see
+:ref:`sphinx_kfigure`).
+
+For it to work, you need to install both GraphViz and ImageMagick
+packages. If those packages are not installed, the build system will
+still build the documentation, but won't include any images at the
+output.
+
+PDF and LaTeX builds
+--------------------
+
+Such builds are currently supported only with Sphinx versions 1.4 and upper.
+
+For PDF and LaTeX output, you'll also need ``XeLaTeX`` version 3.14159265.
+
+Depending on the distribution, you may also need to install a series of
+``texlive`` packages that provide the minimal set of functionalities
+required for ``XeLaTeX`` to work.
+
+.. _sphinx-pre-install:
+
+Checking for Sphinx dependencies
+--------------------------------
+
+There's a script that automatically check for Sphinx dependencies. If it can
+recognize your distribution, it will also give a hint about the install
+command line options for your distro::
+
+	$ ./scripts/sphinx-pre-install
+	Checking if the needed tools for Fedora release 26 (Twenty Six) are available
+	Warning: better to also install "texlive-luatex85".
+	You should run:
+
+		sudo dnf install -y texlive-luatex85
+		/usr/bin/virtualenv sphinx_1.4
+		. sphinx_1.4/bin/activate
+		pip install -r Documentation/sphinx/requirements.txt
+
+	Can't build as 1 mandatory dependency is missing at ./scripts/sphinx-pre-install line 468.
+
+By default, it checks all the requirements for both html and PDF, including
+the requirements for images, math expressions and LaTeX build, and assumes
+that a virtual Python environment will be used. The ones needed for html
+builds are assumed to be mandatory; the others to be optional.
+
+It supports two optional parameters:
+
+``--no-pdf``
+	Disable checks for PDF;
+
+``--no-virtualenv``
+	Use OS packaging for Sphinx instead of Python virtual environment.
+
+
 Sphinx Build
 ============
 
@@ -118,7 +222,7 @@ Here are some specific guidelines for the kernel documentation:
 the C domain
 ------------
 
-The `Sphinx C Domain`_ (name c) is suited for documentation of C API. E.g. a
+The **Sphinx C Domain** (name c) is suited for documentation of C API. E.g. a
 function prototype:
 
 .. code-block:: rst
@@ -229,6 +333,7 @@ Rendered as:
 
         - column 3
 
+.. _sphinx_kfigure:
 
 Figures & Images
 ================

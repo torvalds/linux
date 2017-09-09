@@ -10,12 +10,9 @@
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
-
-struct tcf_hashinfo {
-	struct hlist_head	*htab;
-	unsigned int		hmask;
-	spinlock_t		lock;
-	u32			index;
+struct tcf_idrinfo {
+	spinlock_t	lock;
+	struct idr	action_idr;
 };
 
 struct tc_action_ops;
@@ -25,9 +22,8 @@ struct tc_action {
 	__u32				type; /* for backward compat(TCA_OLD_COMPAT) */
 	__u32				order;
 	struct list_head		list;
-	struct tcf_hashinfo		*hinfo;
+	struct tcf_idrinfo		*idrinfo;
 
-	struct hlist_node		tcfa_head;
 	u32				tcfa_index;
 	int				tcfa_refcnt;
 	int				tcfa_bindcnt;
@@ -44,7 +40,6 @@ struct tc_action {
 	struct tc_cookie	*act_cookie;
 	struct tcf_chain	*goto_chain;
 };
-#define tcf_head	common.tcfa_head
 #define tcf_index	common.tcfa_index
 #define tcf_refcnt	common.tcfa_refcnt
 #define tcf_bindcnt	common.tcfa_bindcnt
@@ -56,27 +51,6 @@ struct tc_action {
 #define tcf_rate_est	common.tcfa_rate_est
 #define tcf_lock	common.tcfa_lock
 #define tcf_rcu		common.tcfa_rcu
-
-static inline unsigned int tcf_hash(u32 index, unsigned int hmask)
-{
-	return index & hmask;
-}
-
-static inline int tcf_hashinfo_init(struct tcf_hashinfo *hf, unsigned int mask)
-{
-	int i;
-
-	spin_lock_init(&hf->lock);
-	hf->index = 0;
-	hf->hmask = mask;
-	hf->htab = kzalloc((mask + 1) * sizeof(struct hlist_head),
-			   GFP_KERNEL);
-	if (!hf->htab)
-		return -ENOMEM;
-	for (i = 0; i < mask + 1; i++)
-		INIT_HLIST_HEAD(&hf->htab[i]);
-	return 0;
-}
 
 /* Update lastuse only if needed, to avoid dirtying a cache line.
  * We use a temp variable to avoid fetching jiffies twice.
@@ -126,53 +100,51 @@ struct tc_action_ops {
 };
 
 struct tc_action_net {
-	struct tcf_hashinfo *hinfo;
+	struct tcf_idrinfo *idrinfo;
 	const struct tc_action_ops *ops;
 };
 
 static inline
 int tc_action_net_init(struct tc_action_net *tn,
-		       const struct tc_action_ops *ops, unsigned int mask)
+		       const struct tc_action_ops *ops)
 {
 	int err = 0;
 
-	tn->hinfo = kmalloc(sizeof(*tn->hinfo), GFP_KERNEL);
-	if (!tn->hinfo)
+	tn->idrinfo = kmalloc(sizeof(*tn->idrinfo), GFP_KERNEL);
+	if (!tn->idrinfo)
 		return -ENOMEM;
 	tn->ops = ops;
-	err = tcf_hashinfo_init(tn->hinfo, mask);
-	if (err)
-		kfree(tn->hinfo);
+	spin_lock_init(&tn->idrinfo->lock);
+	idr_init(&tn->idrinfo->action_idr);
 	return err;
 }
 
-void tcf_hashinfo_destroy(const struct tc_action_ops *ops,
-			  struct tcf_hashinfo *hinfo);
+void tcf_idrinfo_destroy(const struct tc_action_ops *ops,
+			 struct tcf_idrinfo *idrinfo);
 
 static inline void tc_action_net_exit(struct tc_action_net *tn)
 {
-	tcf_hashinfo_destroy(tn->ops, tn->hinfo);
-	kfree(tn->hinfo);
+	tcf_idrinfo_destroy(tn->ops, tn->idrinfo);
+	kfree(tn->idrinfo);
 }
 
 int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
 		       struct netlink_callback *cb, int type,
 		       const struct tc_action_ops *ops);
-int tcf_hash_search(struct tc_action_net *tn, struct tc_action **a, u32 index);
-u32 tcf_hash_new_index(struct tc_action_net *tn);
-bool tcf_hash_check(struct tc_action_net *tn, u32 index, struct tc_action **a,
+int tcf_idr_search(struct tc_action_net *tn, struct tc_action **a, u32 index);
+bool tcf_idr_check(struct tc_action_net *tn, u32 index, struct tc_action **a,
 		    int bind);
-int tcf_hash_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
-		    struct tc_action **a, const struct tc_action_ops *ops, int bind,
-		    bool cpustats);
-void tcf_hash_cleanup(struct tc_action *a, struct nlattr *est);
-void tcf_hash_insert(struct tc_action_net *tn, struct tc_action *a);
+int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
+		   struct tc_action **a, const struct tc_action_ops *ops,
+		   int bind, bool cpustats);
+void tcf_idr_cleanup(struct tc_action *a, struct nlattr *est);
+void tcf_idr_insert(struct tc_action_net *tn, struct tc_action *a);
 
-int __tcf_hash_release(struct tc_action *a, bool bind, bool strict);
+int __tcf_idr_release(struct tc_action *a, bool bind, bool strict);
 
-static inline int tcf_hash_release(struct tc_action *a, bool bind)
+static inline int tcf_idr_release(struct tc_action *a, bool bind)
 {
-	return __tcf_hash_release(a, bind, false);
+	return __tcf_idr_release(a, bind, false);
 }
 
 int tcf_register_action(struct tc_action_ops *a, struct pernet_operations *ops);

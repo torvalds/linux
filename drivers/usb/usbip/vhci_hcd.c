@@ -1274,7 +1274,7 @@ static int vhci_free_streams(struct usb_hcd *hcd, struct usb_device *udev,
 	return 0;
 }
 
-static struct hc_driver vhci_hc_driver = {
+static const struct hc_driver vhci_hc_driver = {
 	.description	= driver_name,
 	.product_desc	= driver_desc,
 	.hcd_priv_size	= sizeof(struct vhci_hcd),
@@ -1516,7 +1516,6 @@ static int __init vhci_hcd_init(void)
 		}
 	}
 
-	pr_info(DRIVER_DESC " v" USBIP_VERSION "\n");
 	return ret;
 
 err_add_hcd:
@@ -1542,4 +1541,3 @@ module_exit(vhci_hcd_exit);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-MODULE_VERSION(USBIP_VERSION);

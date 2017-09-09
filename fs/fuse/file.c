@@ -457,7 +457,7 @@ int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
 	 * wait for all outstanding writes, before sending the FSYNC
 	 * request.
 	 */
-	err = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	err = file_write_and_wait_range(file, start, end);
 	if (err)
 		goto out;
 
@@ -465,10 +465,10 @@ int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
 
 	/*
 	 * Due to implementation of fuse writeback
-	 * filemap_write_and_wait_range() does not catch errors.
+	 * file_write_and_wait_range() does not catch errors.
 	 * We have to do this directly after fuse_sync_writes()
 	 */
-	err = filemap_check_errors(file->f_mapping);
+	err = file_check_and_advance_wb_err(file);
 	if (err)
 		goto out;
 
@@ -2102,11 +2102,11 @@ static int convert_fuse_file_lock(struct fuse_conn *fc,
 		fl->fl_end = ffl->end;
 
 		/*
-		 * Convert pid into the caller's pid namespace. If the pid
-		 * does not map into the namespace fl_pid will get set to 0.
+		 * Convert pid into init's pid namespace.  The locks API will
+		 * translate it into the caller's pid namespace.
 		 */
 		rcu_read_lock();
-		fl->fl_pid = pid_vnr(find_pid_ns(ffl->pid, fc->pid_ns));
+		fl->fl_pid = pid_nr_ns(find_pid_ns(ffl->pid, fc->pid_ns), &init_pid_ns);
 		rcu_read_unlock();
 		break;
 

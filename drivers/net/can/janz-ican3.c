@@ -1875,7 +1875,7 @@ static struct attribute *ican3_sysfs_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group ican3_sysfs_attr_group = {
+static const struct attribute_group ican3_sysfs_attr_group = {
 	.attrs = ican3_sysfs_attrs,
 };
 

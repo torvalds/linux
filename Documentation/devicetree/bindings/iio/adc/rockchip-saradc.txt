@@ -6,6 +6,7 @@ Required properties:
    - "rockchip,rk3066-tsadc": for rk3036
    - "rockchip,rk3328-saradc", "rockchip,rk3399-saradc": for rk3328
    - "rockchip,rk3399-saradc": for rk3399
+   - "rockchip,rv1108-saradc", "rockchip,rk3399-saradc": for rv1108
 
 - reg: physical base address of the controller and length of memory mapped
        region.

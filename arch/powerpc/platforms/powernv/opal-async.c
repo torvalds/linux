@@ -171,8 +171,8 @@ int __init opal_async_comp_init(void)
 
 	async = of_get_property(opal_node, "opal-msg-async-num", NULL);
 	if (!async) {
-		pr_err("%s: %s has no opal-msg-async-num\n",
-				__func__, opal_node->full_name);
+		pr_err("%s: %pOF has no opal-msg-async-num\n",
+				__func__, opal_node);
 		err = -ENOENT;
 		goto out_opal_node;
 	}

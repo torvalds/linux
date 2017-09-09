@@ -652,7 +652,6 @@ static int atmel_classd_probe(struct platform_device *pdev)
 	}
 
 	snd_soc_card_set_drvdata(card, dd);
-	platform_set_drvdata(pdev, card);
 
 	ret = atmel_classd_asoc_card_init(dev, card);
 	if (ret) {

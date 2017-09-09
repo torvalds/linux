@@ -33,8 +33,9 @@
 
 #include "cxd2099.h"
 
-/* comment this line to deactivate the cxd2099ar buffer mode */
-#define BUFFER_MODE 1
+static int buffermode;
+module_param(buffermode, int, 0444);
+MODULE_PARM_DESC(buffermode, "Enable use of the CXD2099AR buffer mode (default: disabled)");
 
 static int read_data(struct dvb_ca_en50221 *ca, int slot, u8 *ebuf, int ecount);
 
@@ -221,7 +222,6 @@ static int write_reg(struct cxd *ci, u8 reg, u8 val)
 	return write_regm(ci, reg, val, 0xff);
 }
 
-#ifdef BUFFER_MODE
 static int write_block(struct cxd *ci, u8 adr, u8 *data, u16 n)
 {
 	int status = 0;
@@ -248,7 +248,6 @@ static int write_block(struct cxd *ci, u8 adr, u8 *data, u16 n)
 	}
 	return status;
 }
-#endif
 
 static void set_mode(struct cxd *ci, int mode)
 {
@@ -642,8 +641,6 @@ static int read_data(struct dvb_ca_en50221 *ca, int slot, u8 *ebuf, int ecount)
 	return len;
 }
 
-#ifdef BUFFER_MODE
-
 static int write_data(struct dvb_ca_en50221 *ca, int slot, u8 *ebuf, int ecount)
 {
 	struct cxd *ci = ca->data;
@@ -658,7 +655,6 @@ static int write_data(struct dvb_ca_en50221 *ca, int slot, u8 *ebuf, int ecount)
 	mutex_unlock(&ci->lock);
 	return ecount;
 }
-#endif
 
 static struct dvb_ca_en50221 en_templ = {
 	.read_attribute_mem  = read_attribute_mem,
@@ -669,11 +665,8 @@ static struct dvb_ca_en50221 en_templ = {
 	.slot_shutdown       = slot_shutdown,
 	.slot_ts_enable      = slot_ts_enable,
 	.poll_slot_status    = poll_slot_status,
-#ifdef BUFFER_MODE
 	.read_data           = read_data,
 	.write_data          = write_data,
-#endif
-
 };
 
 struct dvb_ca_en50221 *cxd2099_attach(struct cxd2099_cfg *cfg,
@@ -703,6 +696,14 @@ struct dvb_ca_en50221 *cxd2099_attach(struct cxd2099_cfg *cfg,
 	ci->en.data = ci;
 	init(ci);
 	dev_info(&i2c->dev, "Attached CXD2099AR at %02x\n", ci->cfg.adr);
+
+	if (!buffermode) {
+		ci->en.read_data = NULL;
+		ci->en.write_data = NULL;
+	} else {
+		dev_info(&i2c->dev, "Using CXD2099AR buffer mode");
+	}
+
 	return &ci->en;
 }
 EXPORT_SYMBOL(cxd2099_attach);

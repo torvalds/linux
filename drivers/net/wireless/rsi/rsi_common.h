@@ -83,4 +83,5 @@ u16 rsi_get_connected_channel(struct rsi_hw *adapter);
 struct rsi_hw *rsi_91x_init(void);
 void rsi_91x_deinit(struct rsi_hw *adapter);
 int rsi_read_pkt(struct rsi_common *common, s32 rcv_pkt_len);
+struct rsi_sta *rsi_find_sta(struct rsi_common *common, u8 *mac_addr);
 #endif

@@ -32,6 +32,7 @@ static int xtensa_mx_irq_map(struct irq_domain *d, unsigned int irq,
 		irq_set_status_flags(irq, IRQ_LEVEL);
 		return 0;
 	}
+	irqd_set_single_target(irq_desc_get_irq_data(irq_to_desc(irq)));
 	return xtensa_irq_map(d, irq, hw);
 }
 
@@ -121,9 +122,12 @@ static int xtensa_mx_irq_retrigger(struct irq_data *d)
 static int xtensa_mx_irq_set_affinity(struct irq_data *d,
 		const struct cpumask *dest, bool force)
 {
-	unsigned mask = 1u << cpumask_any_and(dest, cpu_online_mask);
+	int cpu = cpumask_any_and(dest, cpu_online_mask);
+	unsigned mask = 1u << cpu;
 
 	set_er(mask, MIROUT(d->hwirq - HW_IRQ_MX_BASE));
+	irq_data_update_effective_affinity(d, cpumask_of(cpu));
+
 	return 0;
 
 }

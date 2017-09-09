@@ -20,7 +20,9 @@ more details.
 
 For more details see the file COPYING in the source distribution of Linux.
 
-.. class:: toc-title
+.. only:: html
+
+   .. class:: toc-title
 
         Table of Contents
 

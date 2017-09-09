@@ -38,7 +38,7 @@ Arguments
 
        -  boolean state
 
-       -  Tells the DVB subsystem if A/V synchronization shall be ON or OFF.
+       -  Tells the Digital TV subsystem if A/V synchronization shall be ON or OFF.
 
           TRUE: AV-sync ON
 

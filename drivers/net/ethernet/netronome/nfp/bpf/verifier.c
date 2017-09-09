@@ -79,28 +79,32 @@ nfp_bpf_check_exit(struct nfp_prog *nfp_prog,
 		   const struct bpf_verifier_env *env)
 {
 	const struct bpf_reg_state *reg0 = &env->cur_state.regs[0];
+	u64 imm;
 
 	if (nfp_prog->act == NN_ACT_XDP)
 		return 0;
 
-	if (reg0->type != CONST_IMM) {
-		pr_info("unsupported exit state: %d, imm: %llx\n",
-			reg0->type, reg0->imm);
+	if (!(reg0->type == SCALAR_VALUE && tnum_is_const(reg0->var_off))) {
+		char tn_buf[48];
+
+		tnum_strn(tn_buf, sizeof(tn_buf), reg0->var_off);
+		pr_info("unsupported exit state: %d, var_off: %s\n",
+			reg0->type, tn_buf);
 		return -EINVAL;
 	}
 
-	if (nfp_prog->act != NN_ACT_DIRECT &&
-	    reg0->imm != 0 && (reg0->imm & ~0U) != ~0U) {
+	imm = reg0->var_off.value;
+	if (nfp_prog->act != NN_ACT_DIRECT && imm != 0 && (imm & ~0U) != ~0U) {
 		pr_info("unsupported exit state: %d, imm: %llx\n",
-			reg0->type, reg0->imm);
+			reg0->type, imm);
 		return -EINVAL;
 	}
 
-	if (nfp_prog->act == NN_ACT_DIRECT && reg0->imm <= TC_ACT_REDIRECT &&
-	    reg0->imm != TC_ACT_SHOT && reg0->imm != TC_ACT_STOLEN &&
-	    reg0->imm != TC_ACT_QUEUED) {
+	if (nfp_prog->act == NN_ACT_DIRECT && imm <= TC_ACT_REDIRECT &&
+	    imm != TC_ACT_SHOT && imm != TC_ACT_STOLEN &&
+	    imm != TC_ACT_QUEUED) {
 		pr_info("unsupported exit state: %d, imm: %llx\n",
-			reg0->type, reg0->imm);
+			reg0->type, imm);
 		return -EINVAL;
 	}
 

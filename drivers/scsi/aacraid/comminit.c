@@ -520,9 +520,9 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 			dev->raw_io_64 = 1;
 		dev->sync_mode = aac_sync_mode;
 		if (dev->a_ops.adapter_comm &&
-			(status[1] & AAC_OPT_NEW_COMM)) {
-				dev->comm_interface = AAC_COMM_MESSAGE;
-				dev->raw_io_interface = 1;
+		    (status[1] & AAC_OPT_NEW_COMM)) {
+			dev->comm_interface = AAC_COMM_MESSAGE;
+			dev->raw_io_interface = 1;
 			if ((status[1] & AAC_OPT_NEW_COMM_TYPE1)) {
 				/* driver supports TYPE1 (Tupelo) */
 				dev->comm_interface = AAC_COMM_MESSAGE_TYPE1;

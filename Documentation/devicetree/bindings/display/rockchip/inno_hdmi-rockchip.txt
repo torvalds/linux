@@ -25,7 +25,6 @@ hdmi: hdmi@20034000 {
 	clock-names = "pclk";
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_ctl>;
-	status = "disabled";
 
 	hdmi_in: port {
 		#address-cells = <1>;

@@ -1650,8 +1650,8 @@ void __init mpic_init(struct mpic *mpic)
 	if (mpic->flags & MPIC_SECONDARY) {
 		int virq = irq_of_parse_and_map(mpic->node, 0);
 		if (virq) {
-			printk(KERN_INFO "%s: hooking up to IRQ %d\n",
-					mpic->node->full_name, virq);
+			printk(KERN_INFO "%pOF: hooking up to IRQ %d\n",
+					mpic->node, virq);
 			irq_set_handler_data(virq, mpic);
 			irq_set_chained_handler(virq, &mpic_cascade);
 		}

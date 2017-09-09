@@ -279,7 +279,7 @@ static int rc_core_dvb_usb_remote_init(struct dvb_usb_device *d)
 	dev->change_protocol = d->props.rc.core.change_protocol;
 	dev->allowed_protocols = d->props.rc.core.allowed_protos;
 	usb_to_input_id(d->udev, &dev->input_id);
-	dev->input_name = "IR-receiver inside an USB DVB receiver";
+	dev->device_name = "IR-receiver inside an USB DVB receiver";
 	dev->input_phys = d->rc_phys;
 	dev->dev.parent = &d->udev->dev;
 	dev->priv = d;

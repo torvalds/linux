@@ -33,7 +33,6 @@ Example (for NXP i.MX28 with pin control stuff for GPIO irq):
                 compatible = "fsl,imx28-spi";
                 pinctrl-names = "default";
                 pinctrl-0 = <&spi2_pins_b &spi2_sck_cfg>;
-                status = "okay";
 
                 enc28j60: ethernet@0 {
                         compatible = "microchip,enc28j60";

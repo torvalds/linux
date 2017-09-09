@@ -26,7 +26,7 @@ MODULE_LICENSE("GPL v2");
  */
 static bool force_two_pcm_support(struct fw_unit *unit)
 {
-	const char *const models[] = {
+	static const char *const models[] = {
 		/* TC Electronic models. */
 		"StudioKonnekt48",
 		/* Focusrite models. */

@@ -29,7 +29,7 @@
 #define PREFIX "snd-bcd2000: "
 #define BUFSIZE 64
 
-static struct usb_device_id id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x1397, 0x00bd) },
 	{ },
 };

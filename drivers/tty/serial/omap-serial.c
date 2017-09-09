@@ -1235,21 +1235,20 @@ out:
 #ifdef CONFIG_SERIAL_OMAP_CONSOLE
 
 #ifdef CONFIG_SERIAL_EARLYCON
-static unsigned int __init omap_serial_early_in(struct uart_port *port,
-						int offset)
+static unsigned int omap_serial_early_in(struct uart_port *port, int offset)
 {
 	offset <<= port->regshift;
 	return readw(port->membase + offset);
 }
 
-static void __init omap_serial_early_out(struct uart_port *port, int offset,
-					 int value)
+static void omap_serial_early_out(struct uart_port *port, int offset,
+				  int value)
 {
 	offset <<= port->regshift;
 	writew(value, port->membase + offset);
 }
 
-static void __init omap_serial_early_putc(struct uart_port *port, int c)
+static void omap_serial_early_putc(struct uart_port *port, int c)
 {
 	unsigned int status;
 
@@ -1262,8 +1261,8 @@ static void __init omap_serial_early_putc(struct uart_port *port, int c)
 	omap_serial_early_out(port, UART_TX, c);
 }
 
-static void __init early_omap_serial_write(struct console *console,
-					   const char *s, unsigned int count)
+static void early_omap_serial_write(struct console *console, const char *s,
+				    unsigned int count)
 {
 	struct earlycon_device *device = console->data;
 	struct uart_port *port = &device->port;
