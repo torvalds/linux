@@ -794,7 +794,7 @@ static void rproc_remove_subdevices(struct rproc *rproc)
 {
 	struct rproc_subdev *subdev;
 
-	list_for_each_entry(subdev, &rproc->subdevs, node)
+	list_for_each_entry_reverse(subdev, &rproc->subdevs, node)
 		subdev->remove(subdev);
 }
 
@@ -1119,7 +1119,7 @@ static void rproc_crash_handler_work(struct work_struct *work)
 }
 
 /**
- * __rproc_boot() - boot a remote processor
+ * rproc_boot() - boot a remote processor
  * @rproc: handle of a remote processor
  *
  * Boot a remote processor (i.e. load its firmware, power it on, ...).
@@ -1129,7 +1129,7 @@ static void rproc_crash_handler_work(struct work_struct *work)
  *
  * Returns 0 on success, and an appropriate error value otherwise.
  */
-static int __rproc_boot(struct rproc *rproc)
+int rproc_boot(struct rproc *rproc)
 {
 	const struct firmware *firmware_p;
 	struct device *dev;
@@ -1179,15 +1179,6 @@ downref_rproc:
 unlock_mutex:
 	mutex_unlock(&rproc->lock);
 	return ret;
-}
-
-/**
- * rproc_boot() - boot a remote processor
- * @rproc: handle of a remote processor
- */
-int rproc_boot(struct rproc *rproc)
-{
-	return __rproc_boot(rproc);
 }
 EXPORT_SYMBOL(rproc_boot);
 
@@ -1369,7 +1360,7 @@ static void rproc_type_release(struct device *dev)
 	kfree(rproc);
 }
 
-static struct device_type rproc_type = {
+static const struct device_type rproc_type = {
 	.name		= "remoteproc",
 	.release	= rproc_type_release,
 };
@@ -1440,6 +1431,7 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 	rproc->dev.parent = dev;
 	rproc->dev.type = &rproc_type;
 	rproc->dev.class = &rproc_class;
+	rproc->dev.driver_data = rproc;
 
 	/* Assign a unique device index and name */
 	rproc->index = ida_simple_get(&rproc_dev_index, 0, 0, GFP_KERNEL);
@@ -1577,6 +1569,23 @@ void rproc_remove_subdev(struct rproc *rproc, struct rproc_subdev *subdev)
 	list_del(&subdev->node);
 }
 EXPORT_SYMBOL(rproc_remove_subdev);
+
+/**
+ * rproc_get_by_child() - acquire rproc handle of @dev's ancestor
+ * @dev:	child device to find ancestor of
+ *
+ * Returns the ancestor rproc instance, or NULL if not found.
+ */
+struct rproc *rproc_get_by_child(struct device *dev)
+{
+	for (dev = dev->parent; dev; dev = dev->parent) {
+		if (dev->type == &rproc_type)
+			return dev->driver_data;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(rproc_get_by_child);
 
 /**
  * rproc_report_crash() - rproc crash reporter function
