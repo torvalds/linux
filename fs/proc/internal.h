@@ -40,7 +40,7 @@ struct proc_dir_entry {
 	const struct inode_operations *proc_iops;
 	const struct file_operations *proc_fops;
 	struct proc_dir_entry *parent;
-	struct rb_root subdir;
+	struct rb_root_cached subdir;
 	struct rb_node subdir_node;
 	void *data;
 	atomic_t count;		/* use count */

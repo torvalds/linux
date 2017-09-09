@@ -1930,6 +1930,17 @@ config TEST_KMOD
 
 	  If unsure, say N.
 
+config TEST_DEBUG_VIRTUAL
+	tristate "Test CONFIG_DEBUG_VIRTUAL feature"
+	depends on DEBUG_VIRTUAL
+	help
+	  Test the kernel's ability to detect incorrect calls to
+	  virt_to_phys() done against the non-linear part of the
+	  kernel's virtual address map.
+
+	  If unsure, say N.
+
+
 source "samples/Kconfig"
 
 source "lib/Kconfig.kgdb"

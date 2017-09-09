@@ -29,6 +29,9 @@ config OPENRISC
 	select CPU_NO_EFFICIENT_FFS if !OPENRISC_HAVE_INST_FF1
 	select NO_BOOTMEM
 
+config CPU_BIG_ENDIAN
+	def_bool y
+
 config MMU
 	def_bool y
 

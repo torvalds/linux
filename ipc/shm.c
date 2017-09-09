@@ -72,14 +72,14 @@ static void shm_destroy(struct ipc_namespace *ns, struct shmid_kernel *shp);
 static int sysvipc_shm_proc_show(struct seq_file *s, void *it);
 #endif
 
-void shm_init_ns(struct ipc_namespace *ns)
+int shm_init_ns(struct ipc_namespace *ns)
 {
 	ns->shm_ctlmax = SHMMAX;
 	ns->shm_ctlall = SHMALL;
 	ns->shm_ctlmni = SHMMNI;
 	ns->shm_rmid_forced = 0;
 	ns->shm_tot = 0;
-	ipc_init_ids(&shm_ids(ns));
+	return ipc_init_ids(&shm_ids(ns));
 }
 
 /*
@@ -95,7 +95,7 @@ static void do_shm_rmid(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
 	if (shp->shm_nattch) {
 		shp->shm_perm.mode |= SHM_DEST;
 		/* Do not find it any more */
-		shp->shm_perm.key = IPC_PRIVATE;
+		ipc_set_key_private(&shm_ids(ns), &shp->shm_perm);
 		shm_unlock(shp);
 	} else
 		shm_destroy(ns, shp);
@@ -106,13 +106,15 @@ void shm_exit_ns(struct ipc_namespace *ns)
 {
 	free_ipcs(ns, &shm_ids(ns), do_shm_rmid);
 	idr_destroy(&ns->ids[IPC_SHM_IDS].ipcs_idr);
+	rhashtable_destroy(&ns->ids[IPC_SHM_IDS].key_ht);
 }
 #endif
 
 static int __init ipc_ns_init(void)
 {
-	shm_init_ns(&init_ipc_ns);
-	return 0;
+	const int err = shm_init_ns(&init_ipc_ns);
+	WARN(err, "ipc: sysv shm_init_ns failed: %d\n", err);
+	return err;
 }
 
 pure_initcall(ipc_ns_init);

@@ -17,6 +17,9 @@ config FRV
 	select HAVE_DEBUG_STACKOVERFLOW
 	select ARCH_NO_COHERENT_DMA_MMAP
 
+config CPU_BIG_ENDIAN
+	def_bool y
+
 config ZONE_DMA
 	bool
 	default y

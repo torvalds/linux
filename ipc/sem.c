@@ -122,15 +122,13 @@ struct sem_undo {
  * that may be shared among all a CLONE_SYSVSEM task group.
  */
 struct sem_undo_list {
-	atomic_t		refcnt;
+	refcount_t		refcnt;
 	spinlock_t		lock;
 	struct list_head	list_proc;
 };
 
 
 #define sem_ids(ns)	((ns)->ids[IPC_SEM_IDS])
-
-#define sem_checkid(sma, semid)	ipc_checkid(&sma->sem_perm, semid)
 
 static int newary(struct ipc_namespace *, struct ipc_params *);
 static void freeary(struct ipc_namespace *, struct kern_ipc_perm *);
@@ -185,14 +183,14 @@ static int sysvipc_sem_proc_show(struct seq_file *s, void *it);
 #define sc_semopm	sem_ctls[2]
 #define sc_semmni	sem_ctls[3]
 
-void sem_init_ns(struct ipc_namespace *ns)
+int sem_init_ns(struct ipc_namespace *ns)
 {
 	ns->sc_semmsl = SEMMSL;
 	ns->sc_semmns = SEMMNS;
 	ns->sc_semopm = SEMOPM;
 	ns->sc_semmni = SEMMNI;
 	ns->used_sems = 0;
-	ipc_init_ids(&ns->ids[IPC_SEM_IDS]);
+	return ipc_init_ids(&ns->ids[IPC_SEM_IDS]);
 }
 
 #ifdef CONFIG_IPC_NS
@@ -200,15 +198,18 @@ void sem_exit_ns(struct ipc_namespace *ns)
 {
 	free_ipcs(ns, &sem_ids(ns), freeary);
 	idr_destroy(&ns->ids[IPC_SEM_IDS].ipcs_idr);
+	rhashtable_destroy(&ns->ids[IPC_SEM_IDS].key_ht);
 }
 #endif
 
-void __init sem_init(void)
+int __init sem_init(void)
 {
-	sem_init_ns(&init_ipc_ns);
+	const int err = sem_init_ns(&init_ipc_ns);
+
 	ipc_init_proc_interface("sysvipc/sem",
 				"       key      semid perms      nsems   uid   gid  cuid  cgid      otime      ctime\n",
 				IPC_SEM_IDS, sysvipc_sem_proc_show);
+	return err;
 }
 
 /**
@@ -1642,7 +1643,7 @@ static inline int get_undo_list(struct sem_undo_list **undo_listp)
 		if (undo_list == NULL)
 			return -ENOMEM;
 		spin_lock_init(&undo_list->lock);
-		atomic_set(&undo_list->refcnt, 1);
+		refcount_set(&undo_list->refcnt, 1);
 		INIT_LIST_HEAD(&undo_list->list_proc);
 
 		current->sysvsem.undo_list = undo_list;
@@ -1786,7 +1787,7 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
 	if (nsops > ns->sc_semopm)
 		return -E2BIG;
 	if (nsops > SEMOPM_FAST) {
-		sops = kmalloc(sizeof(*sops)*nsops, GFP_KERNEL);
+		sops = kvmalloc(sizeof(*sops)*nsops, GFP_KERNEL);
 		if (sops == NULL)
 			return -ENOMEM;
 	}
@@ -2018,7 +2019,7 @@ out_unlock_free:
 	rcu_read_unlock();
 out_free:
 	if (sops != fast_sops)
-		kfree(sops);
+		kvfree(sops);
 	return error;
 }
 
@@ -2041,7 +2042,7 @@ int copy_semundo(unsigned long clone_flags, struct task_struct *tsk)
 		error = get_undo_list(&undo_list);
 		if (error)
 			return error;
-		atomic_inc(&undo_list->refcnt);
+		refcount_inc(&undo_list->refcnt);
 		tsk->sysvsem.undo_list = undo_list;
 	} else
 		tsk->sysvsem.undo_list = NULL;
@@ -2070,7 +2071,7 @@ void exit_sem(struct task_struct *tsk)
 		return;
 	tsk->sysvsem.undo_list = NULL;
 
-	if (!atomic_dec_and_test(&ulp->refcnt))
+	if (!refcount_dec_and_test(&ulp->refcnt))
 		return;
 
 	for (;;) {

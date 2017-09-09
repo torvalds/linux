@@ -7457,6 +7457,13 @@ S:	Maintained
 F:	tools/testing/selftests/
 F:	Documentation/dev-tools/kselftest*
 
+KERNEL USERMODE HELPER
+M:	"Luis R. Rodriguez" <mcgrof@kernel.org>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	kernel/umh.c
+F:	include/linux/umh.h
+
 KERNEL VIRTUAL MACHINE (KVM)
 M:	Paolo Bonzini <pbonzini@redhat.com>
 M:	Radim Krčmář <rkrcmar@redhat.com>
@@ -7632,7 +7639,7 @@ F:	include/linux/kmemleak.h
 F:	mm/kmemleak.c
 F:	mm/kmemleak-test.c
 
-KMOD MODULE USERMODE HELPER
+KMOD KERNEL MODULE LOADER - USERMODE HELPER
 M:	"Luis R. Rodriguez" <mcgrof@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
@@ -7789,6 +7796,13 @@ LIBLOCKDEP
 M:	Sasha Levin <alexander.levin@verizon.com>
 S:	Maintained
 F:	tools/lib/lockdep/
+
+HMM - Heterogeneous Memory Management
+M:	JÃ©rÃ´me Glisse <jglisse@redhat.com>
+L:	linux-mm@kvack.org
+S:	Maintained
+F:	mm/hmm*
+F:	include/linux/hmm*
 
 LIBNVDIMM BLK: MMIO-APERTURE DRIVER
 M:	Ross Zwisler <ross.zwisler@linux.intel.com>
@@ -10727,8 +10741,11 @@ W:	http://wiki.enneenne.com/index.php/LinuxPPS_support
 L:	linuxpps@ml.enneenne.com (subscribers-only)
 S:	Maintained
 F:	Documentation/pps/
+F:	Documentation/devicetree/bindings/pps/pps-gpio.txt
+F:	Documentation/ABI/testing/sysfs-pps
 F:	drivers/pps/
 F:	include/linux/pps*.h
+F:	include/uapi/linux/pps.h
 
 PPTP DRIVER
 M:	Dmitry Kozlov <xeb@mail.ru>
