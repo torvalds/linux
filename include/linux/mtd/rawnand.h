@@ -1,6 +1,4 @@
 /*
- *  linux/include/linux/mtd/nand.h
- *
  *  Copyright © 2000-2010 David Woodhouse <dwmw2@infradead.org>
  *                        Steven J. Hill <sjhill@realitydiluted.com>
  *		          Thomas Gleixner <tglx@linutronix.de>
@@ -15,8 +13,8 @@
  * Changelog:
  *	See git changelog.
  */
-#ifndef __LINUX_MTD_NAND_H
-#define __LINUX_MTD_NAND_H
+#ifndef __LINUX_MTD_RAWNAND_H
+#define __LINUX_MTD_RAWNAND_H
 
 #include <linux/wait.h>
 #include <linux/spinlock.h>
@@ -43,12 +41,6 @@ void nand_release(struct mtd_info *mtd);
 
 /* Internal helper for board drivers which need to override command function */
 void nand_wait_ready(struct mtd_info *mtd);
-
-/* locks all blocks present in the device */
-int nand_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
-
-/* unlocks specified locked blocks */
-int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 
 /* The maximum number of NAND chips in an array */
 #define NAND_MAX_CHIPS		8
@@ -88,10 +80,6 @@ int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 #define NAND_CMD_GET_FEATURES	0xee
 #define NAND_CMD_SET_FEATURES	0xef
 #define NAND_CMD_RESET		0xff
-
-#define NAND_CMD_LOCK		0x2a
-#define NAND_CMD_UNLOCK1	0x23
-#define NAND_CMD_UNLOCK2	0x24
 
 /* Extended commands for large page devices */
 #define NAND_CMD_READSTART	0x30
@@ -449,14 +437,16 @@ struct nand_jedec_params {
 	__le16 crc;
 } __packed;
 
+/* The maximum expected count of bytes in the NAND ID sequence */
+#define NAND_MAX_ID_LEN 8
+
 /**
  * struct nand_id - NAND id structure
- * @data: buffer containing the id bytes. Currently 8 bytes large, but can
- *	  be extended if required.
+ * @data: buffer containing the id bytes.
  * @len: ID length.
  */
 struct nand_id {
-	u8 data[8];
+	u8 data[NAND_MAX_ID_LEN];
 	int len;
 };
 
@@ -1028,8 +1018,6 @@ static inline void *nand_get_manufacturer_data(struct nand_chip *chip)
 #define NAND_MFR_ATO		0x9b
 #define NAND_MFR_WINBOND	0xef
 
-/* The maximum expected count of bytes in the NAND ID sequence */
-#define NAND_MAX_ID_LEN 8
 
 /*
  * A helper for defining older NAND chips where the second ID byte fully
@@ -1246,6 +1234,8 @@ int onfi_init_data_interface(struct nand_chip *chip,
  */
 static inline bool nand_is_slc(struct nand_chip *chip)
 {
+	WARN(chip->bits_per_cell == 0,
+	     "chip->bits_per_cell is used uninitialized\n");
 	return chip->bits_per_cell == 1;
 }
 
@@ -1328,4 +1318,4 @@ void nand_cleanup(struct nand_chip *chip);
 
 /* Default extended ID decoding function */
 void nand_decode_ext_id(struct nand_chip *chip);
-#endif /* __LINUX_MTD_NAND_H */
+#endif /* __LINUX_MTD_RAWNAND_H */

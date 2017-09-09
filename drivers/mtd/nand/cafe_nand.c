@@ -13,7 +13,7 @@
 #include <linux/device.h>
 #undef DEBUG
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/rslib.h>
 #include <linux/pci.h>
