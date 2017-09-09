@@ -2511,6 +2511,7 @@ void destroy_node_manager_caches(void);
 /*
  * segment.c
  */
+bool need_SSR(struct f2fs_sb_info *sbi);
 void register_inmem_page(struct inode *inode, struct page *page);
 void drop_inmem_pages(struct inode *inode);
 void drop_inmem_page(struct inode *inode, struct page *page);
