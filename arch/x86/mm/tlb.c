@@ -50,6 +50,9 @@ static void load_new_mm_cr3(pgd_t *pgdir)
 		 * invpcid_flush_single_context(X86_CR3_PCID_ASID_USER) could
 		 * do it here, but can only be used if X86_FEATURE_INVPCID is
 		 * available - and many machines support pcid without invpcid.
+		 *
+		 * The line below is a no-op: X86_CR3_PCID_KERN_FLUSH is now 0;
+		 * but keep that line in there in case something changes.
 		 */
 		new_mm_cr3 |= X86_CR3_PCID_KERN_FLUSH;
 		kaiser_flush_tlb_on_return_to_user();

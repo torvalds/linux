@@ -29,14 +29,19 @@ orq  X86_CR3_PCID_KERN_VAR, \reg
 movq \reg, %cr3
 .endm
 
-.macro _SWITCH_TO_USER_CR3 reg
+.macro _SWITCH_TO_USER_CR3 reg regb
+/*
+ * regb must be the low byte portion of reg: because we have arranged
+ * for the low byte of the user PCID to serve as the high byte of NOFLUSH
+ * (0x80 for each when PCID is enabled, or 0x00 when PCID and NOFLUSH are
+ * not enabled): so that the one register can update both memory and cr3.
+ */
 movq %cr3, \reg
 andq $(~(X86_CR3_PCID_ASID_MASK | KAISER_SHADOW_PGD_OFFSET)), \reg
 orq  PER_CPU_VAR(X86_CR3_PCID_USER_VAR), \reg
 js   9f
-// FLUSH this time, reset to NOFLUSH for next time
-// But if nopcid?  Consider using 0x80 for user pcid?
-movb $(0x80), PER_CPU_VAR(X86_CR3_PCID_USER_VAR+7)
+/* FLUSH this time, reset to NOFLUSH for next time (if PCID enabled) */
+movb \regb, PER_CPU_VAR(X86_CR3_PCID_USER_VAR+7)
 9:
 movq \reg, %cr3
 .endm
@@ -49,7 +54,7 @@ popq %rax
 
 .macro SWITCH_USER_CR3
 pushq %rax
-_SWITCH_TO_USER_CR3 %rax
+_SWITCH_TO_USER_CR3 %rax %al
 popq %rax
 .endm
 
@@ -61,7 +66,7 @@ movq PER_CPU_VAR(unsafe_stack_register_backup), %rax
 
 .macro SWITCH_USER_CR3_NO_STACK
 movq %rax, PER_CPU_VAR(unsafe_stack_register_backup)
-_SWITCH_TO_USER_CR3 %rax
+_SWITCH_TO_USER_CR3 %rax %al
 movq PER_CPU_VAR(unsafe_stack_register_backup), %rax
 .endm
 
@@ -69,7 +74,7 @@ movq PER_CPU_VAR(unsafe_stack_register_backup), %rax
 
 .macro SWITCH_KERNEL_CR3 reg
 .endm
-.macro SWITCH_USER_CR3 reg
+.macro SWITCH_USER_CR3 reg regb
 .endm
 .macro SWITCH_USER_CR3_NO_STACK
 .endm

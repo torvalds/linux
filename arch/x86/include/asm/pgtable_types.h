@@ -111,16 +111,17 @@
 
 /* Mask for all the PCID-related bits in CR3: */
 #define X86_CR3_PCID_MASK       (X86_CR3_PCID_NOFLUSH | X86_CR3_PCID_ASID_MASK)
+#define X86_CR3_PCID_ASID_KERN  (_AC(0x0,UL))
+
 #if defined(CONFIG_KAISER) && defined(CONFIG_X86_64)
-#define X86_CR3_PCID_ASID_KERN  (_AC(0x4,UL))
-#define X86_CR3_PCID_ASID_USER  (_AC(0x6,UL))
+/* Let X86_CR3_PCID_ASID_USER be usable for the X86_CR3_PCID_NOFLUSH bit */
+#define X86_CR3_PCID_ASID_USER	(_AC(0x80,UL))
 
 #define X86_CR3_PCID_KERN_FLUSH		(X86_CR3_PCID_ASID_KERN)
 #define X86_CR3_PCID_USER_FLUSH		(X86_CR3_PCID_ASID_USER)
 #define X86_CR3_PCID_KERN_NOFLUSH	(X86_CR3_PCID_NOFLUSH | X86_CR3_PCID_ASID_KERN)
 #define X86_CR3_PCID_USER_NOFLUSH	(X86_CR3_PCID_NOFLUSH | X86_CR3_PCID_ASID_USER)
 #else
-#define X86_CR3_PCID_ASID_KERN  (_AC(0x0,UL))
 #define X86_CR3_PCID_ASID_USER  (_AC(0x0,UL))
 /*
  * PCIDs are unsupported on 32-bit and none of these bits can be
