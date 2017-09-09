@@ -385,16 +385,16 @@ static inline void __dev_map_flush(struct bpf_map *map)
 
 #if defined(CONFIG_STREAM_PARSER) && defined(CONFIG_BPF_SYSCALL)
 struct sock  *__sock_map_lookup_elem(struct bpf_map *map, u32 key);
-int sock_map_attach_prog(struct bpf_map *map, struct bpf_prog *prog, u32 type);
+int sock_map_prog(struct bpf_map *map, struct bpf_prog *prog, u32 type);
 #else
 static inline struct sock  *__sock_map_lookup_elem(struct bpf_map *map, u32 key)
 {
 	return NULL;
 }
 
-static inline int sock_map_attach_prog(struct bpf_map *map,
-				       struct bpf_prog *prog,
-				       u32 type)
+static inline int sock_map_prog(struct bpf_map *map,
+				struct bpf_prog *prog,
+				u32 type)
 {
 	return -EOPNOTSUPP;
 }
