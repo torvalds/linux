@@ -24,9 +24,9 @@ MODULE_AUTHOR("Realtek Semiconductor Corp.");
 MODULE_VERSION(DRIVERVERSION);
 
 /* module param defaults */
-static int rtw_chip_version = 0x00;
+static int rtw_chip_version;
 static int rtw_rfintfs = HWPI;
-static int rtw_lbkmode = 0;/* RTL8712_AIR_TRX; */
+static int rtw_lbkmode;/* RTL8712_AIR_TRX; */
 
 
 static int rtw_network_mode = Ndis802_11IBSS;/* Ndis802_11Infrastructure;infra, ad-hoc, auto */
@@ -40,7 +40,7 @@ static int rtw_frag_thresh = 2346;/*  */
 static int rtw_preamble = PREAMBLE_LONG;/* long, short, auto */
 static int rtw_scan_mode = 1;/* active, passive */
 static int rtw_adhoc_tx_pwr = 1;
-static int rtw_soft_ap = 0;
+static int rtw_soft_ap;
 /* int smart_ps = 1; */
 static int rtw_power_mgnt = 1;
 static int rtw_ips_mode = IPS_NORMAL;
@@ -61,18 +61,18 @@ static int rtw_busy_thresh = 40;
 /* int qos_enable = 0; */
 static int rtw_ack_policy = NORMAL_ACK;
 
-static int rtw_software_encrypt = 0;
-static int rtw_software_decrypt = 0;
+static int rtw_software_encrypt;
+static int rtw_software_decrypt;
 
-static int rtw_acm_method = 0;/*  0:By SW 1:By HW. */
+static int rtw_acm_method;/*  0:By SW 1:By HW. */
 
 static int rtw_wmm_enable = 1;/*  default is set to enable the wmm. */
-static int rtw_uapsd_enable = 0;
+static int rtw_uapsd_enable;
 static int rtw_uapsd_max_sp = NO_LIMIT;
-static int rtw_uapsd_acbk_en = 0;
-static int rtw_uapsd_acbe_en = 0;
-static int rtw_uapsd_acvi_en = 0;
-static int rtw_uapsd_acvo_en = 0;
+static int rtw_uapsd_acbk_en;
+static int rtw_uapsd_acbe_en;
+static int rtw_uapsd_acvi_en;
+static int rtw_uapsd_acvo_en;
 
 int rtw_ht_enable = 1;
 /*  0: 20 MHz, 1: 40 MHz, 2: 80 MHz, 3: 160MHz, 4: 80+80MHz */
@@ -81,7 +81,7 @@ int rtw_ht_enable = 1;
 static int rtw_bw_mode = 0x21;
 static int rtw_ampdu_enable = 1;/* for enable tx_ampdu ,0: disable, 0x1:enable (but wifi_spec should be 0), 0x2: force enable (don't care wifi_spec) */
 static int rtw_rx_stbc = 1;/*  0: disable, 1:enable 2.4g */
-static int rtw_ampdu_amsdu = 0;/*  0: disabled, 1:enabled, 2:auto . There is an IOT issu with DLINK DIR-629 when the flag turn on */
+static int rtw_ampdu_amsdu;/*  0: disabled, 1:enabled, 2:auto . There is an IOT issu with DLINK DIR-629 when the flag turn on */
 /*  Short GI support Bit Map */
 /*  BIT0 - 20MHz, 0: non-support, 1: support */
 /*  BIT1 - 40MHz, 0: non-support, 1: support */
@@ -99,8 +99,8 @@ static int rtw_lowrate_two_xmit = 1;/* Use 2 path Tx to transmit MCS0~7 and lega
 
 /* int rf_config = RF_1T2R;  1T2R */
 static int rtw_rf_config = RF_MAX_TYPE;  /* auto */
-static int rtw_low_power = 0;
-static int rtw_wifi_spec = 0;
+static int rtw_low_power;
+static int rtw_wifi_spec;
 static int rtw_channel_plan = RT_CHANNEL_DOMAIN_MAX;
 
 static int rtw_btcoex_enable = 1;
@@ -116,29 +116,29 @@ MODULE_PARM_DESC(rtw_ant_num, "Antenna number setting");
 static int rtw_AcceptAddbaReq = true;/*  0:Reject AP's Add BA req, 1:Accept AP's Add BA req. */
 
 static int rtw_antdiv_cfg = 1; /*  0:OFF , 1:ON, 2:decide by Efuse config */
-static int rtw_antdiv_type = 0 ; /* 0:decide by efuse  1: for 88EE, 1Tx and 1RxCG are diversity.(2 Ant with SPDT), 2:  for 88EE, 1Tx and 2Rx are diversity.(2 Ant, Tx and RxCG are both on aux port, RxCS is on main port), 3: for 88EE, 1Tx and 1RxCG are fixed.(1Ant, Tx and RxCG are both on aux port) */
+static int rtw_antdiv_type; /* 0:decide by efuse  1: for 88EE, 1Tx and 1RxCG are diversity.(2 Ant with SPDT), 2:  for 88EE, 1Tx and 2Rx are diversity.(2 Ant, Tx and RxCG are both on aux port, RxCS is on main port), 3: for 88EE, 1Tx and 1RxCG are fixed.(1Ant, Tx and RxCG are both on aux port) */
 
 
-static int rtw_enusbss = 0;/* 0:disable, 1:enable */
+static int rtw_enusbss;/* 0:disable, 1:enable */
 
 static int rtw_hwpdn_mode =2;/* 0:disable, 1:enable, 2: by EFUSE config */
 
 #ifdef CONFIG_HW_PWRP_DETECTION
 static int rtw_hwpwrp_detect = 1;
 #else
-static int rtw_hwpwrp_detect = 0; /* HW power  ping detect 0:disable , 1:enable */
+static int rtw_hwpwrp_detect; /* HW power  ping detect 0:disable , 1:enable */
 #endif
 
-static int rtw_hw_wps_pbc = 0;
+static int rtw_hw_wps_pbc;
 
 int rtw_mc2u_disable = 0;
 
-static int rtw_80211d = 0;
+static int rtw_80211d;
 
 #ifdef CONFIG_QOS_OPTIMIZATION
 static int rtw_qos_opt_enable = 1;/* 0: disable, 1:enable */
 #else
-static int rtw_qos_opt_enable = 0;/* 0: disable, 1:enable */
+static int rtw_qos_opt_enable;/* 0: disable, 1:enable */
 #endif
 module_param(rtw_qos_opt_enable, int, 0644);
 
@@ -192,7 +192,7 @@ module_param(rtw_mc2u_disable, int, 0644);
 module_param(rtw_80211d, int, 0644);
 MODULE_PARM_DESC(rtw_80211d, "Enable 802.11d mechanism");
 
-static uint rtw_notch_filter = 0;
+static uint rtw_notch_filter;
 module_param(rtw_notch_filter, uint, 0644);
 MODULE_PARM_DESC(rtw_notch_filter, "0:Disable, 1:Enable, 2:Enable only for P2P");
 
@@ -202,8 +202,8 @@ static uint rtw_hiq_filter = CONFIG_RTW_HIQ_FILTER;
 module_param(rtw_hiq_filter, uint, 0644);
 MODULE_PARM_DESC(rtw_hiq_filter, "0:allow all, 1:allow special, 2:deny all");
 
-static int rtw_tx_pwr_lmt_enable = 0;
-static int rtw_tx_pwr_by_rate = 0;
+static int rtw_tx_pwr_lmt_enable;
+static int rtw_tx_pwr_by_rate;
 
 module_param(rtw_tx_pwr_lmt_enable, int, 0644);
 MODULE_PARM_DESC(rtw_tx_pwr_lmt_enable,"0:Disable, 1:Enable, 2: Depend on efuse");
@@ -225,7 +225,7 @@ MODULE_PARM_DESC(rtw_phy_file_path, "The path of phy parameter");
 static int rtw_load_phy_file = (BIT2|BIT6);
 module_param(rtw_load_phy_file, int, 0644);
 MODULE_PARM_DESC(rtw_load_phy_file,"PHY File Bit Map");
-static int rtw_decrypt_phy_file = 0;
+static int rtw_decrypt_phy_file;
 module_param(rtw_decrypt_phy_file, int, 0644);
 MODULE_PARM_DESC(rtw_decrypt_phy_file,"Enable Decrypt PHY File");
 
