@@ -129,7 +129,7 @@ union recv_frame *_rtw_alloc_recvframe(struct __queue *pfree_recv_queue)
 
 		plist = get_next(phead);
 
-		precvframe = LIST_CONTAINOR(plist, union recv_frame, u);
+		precvframe = (union recv_frame *)plist;
 
 		list_del_init(&precvframe->u.hdr.list);
 		padapter = precvframe->u.hdr.adapter;
@@ -243,7 +243,7 @@ void rtw_free_recvframe_queue(struct __queue *pframequeue,  struct __queue *pfre
 	plist = get_next(phead);
 
 	while (phead != plist) {
-		precvframe = LIST_CONTAINOR(plist, union recv_frame, u);
+		precvframe = (union recv_frame *)plist;
 
 		plist = get_next(plist);
 
@@ -1732,7 +1732,7 @@ static union recv_frame *recvframe_defrag(struct adapter *adapter,
 
 	phead = get_list_head(defrag_q);
 	plist = get_next(phead);
-	prframe = LIST_CONTAINOR(plist, union recv_frame, u);
+	prframe = (union recv_frame *)plist;
 	pfhdr = &prframe->u.hdr;
 	list_del_init(&(prframe->u.list));
 
@@ -1754,7 +1754,7 @@ static union recv_frame *recvframe_defrag(struct adapter *adapter,
 	data = get_recvframe_data(prframe);
 
 	while (phead != plist) {
-		pnextrframe = LIST_CONTAINOR(plist, union recv_frame, u);
+		pnextrframe = (union recv_frame *)plist;
 		pnfhdr = &pnextrframe->u.hdr;
 
 
@@ -2071,7 +2071,7 @@ int enqueue_reorder_recvframe(struct recv_reorder_ctrl *preorder_ctrl, union rec
 	plist = get_next(phead);
 
 	while (phead != plist) {
-		pnextrframe = LIST_CONTAINOR(plist, union recv_frame, u);
+		pnextrframe = (union recv_frame *)plist;
 		pnextattrib = &pnextrframe->u.hdr.attrib;
 
 		if (SN_LESS(pnextattrib->seq_num, pattrib->seq_num))
@@ -2146,7 +2146,7 @@ int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reorder_ctr
 			return true;
 		}
 
-		prframe = LIST_CONTAINOR(plist, union recv_frame, u);
+		prframe = (union recv_frame *)plist;
 		pattrib = &prframe->u.hdr.attrib;
 
 		#ifdef DBG_RX_SEQ
@@ -2162,7 +2162,7 @@ int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reorder_ctr
 	/*  Check if there is any packet need indicate. */
 	while (!list_empty(phead)) {
 
-		prframe = LIST_CONTAINOR(plist, union recv_frame, u);
+		prframe = (union recv_frame *)plist;
 		pattrib = &prframe->u.hdr.attrib;
 
 		if (!SN_LESS(preorder_ctrl->indicate_seq, pattrib->seq_num)) {

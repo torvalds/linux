@@ -429,7 +429,7 @@ u32 rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 		plist = get_next(phead);
 
 		while (!list_empty(phead)) {
-			prframe = LIST_CONTAINOR(plist, union recv_frame, u);
+			prframe = (union recv_frame *)plist;
 
 			plist = get_next(plist);
 
