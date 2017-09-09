@@ -36,6 +36,7 @@ config RESET_BERLIN
 
 config RESET_HSDK_V1
 	bool "HSDK v1 Reset Driver"
+	depends on HAS_IOMEM
 	default n
 	help
 	  This enables the reset controller driver for HSDK v1.
