@@ -189,6 +189,14 @@ config I2C_PIIX4
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-piix4.
 
+config I2C_CHT_WC
+	tristate "Intel Cherry Trail Whiskey Cove PMIC smbus controller"
+	depends on INTEL_SOC_PMIC_CHTWC
+	help
+	  If you say yes to this option, support will be included for the
+	  SMBus controller found in the Intel Cherry Trail Whiskey Cove PMIC
+	  found on some Intel Cherry Trail systems.
+
 config I2C_NFORCE2
 	tristate "Nvidia nForce2, nForce3 and nForce4"
 	depends on PCI
@@ -899,6 +907,13 @@ config I2C_SIRF
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-sirf.
+
+config I2C_SPRD
+	bool "Spreadtrum I2C interface"
+	depends on I2C=y && ARCH_SPRD
+	help
+	  If you say yes to this option, support will be included for the
+	  Spreadtrum I2C interface.
 
 config I2C_ST
 	tristate "STMicroelectronics SSC I2C support"

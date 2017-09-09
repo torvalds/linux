@@ -11,7 +11,7 @@
  */
 
 #include <linux/gpio.h>
-#include <linux/i2c/tc35876x.h>
+#include <linux/platform_data/tc35876x.h>
 #include <asm/intel-mid.h>
 
 /*tc35876x DSI_LVDS bridge chip and panel platform data*/
