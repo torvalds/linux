@@ -72,6 +72,7 @@ struct qcom_adsp {
 	void *mem_region;
 	size_t mem_size;
 
+	struct qcom_rproc_glink glink_subdev;
 	struct qcom_rproc_subdev smd_subdev;
 	struct qcom_rproc_ssr ssr_subdev;
 };
@@ -400,6 +401,7 @@ static int adsp_probe(struct platform_device *pdev)
 		goto free_rproc;
 	}
 
+	qcom_add_glink_subdev(rproc, &adsp->glink_subdev);
 	qcom_add_smd_subdev(rproc, &adsp->smd_subdev);
 	qcom_add_ssr_subdev(rproc, &adsp->ssr_subdev, desc->ssr_name);
 
@@ -422,6 +424,7 @@ static int adsp_remove(struct platform_device *pdev)
 	qcom_smem_state_put(adsp->state);
 	rproc_del(adsp->rproc);
 
+	qcom_remove_glink_subdev(adsp->rproc, &adsp->glink_subdev);
 	qcom_remove_smd_subdev(adsp->rproc, &adsp->smd_subdev);
 	qcom_remove_ssr_subdev(adsp->rproc, &adsp->ssr_subdev);
 	rproc_free(adsp->rproc);
