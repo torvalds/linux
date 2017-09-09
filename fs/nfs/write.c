@@ -504,8 +504,12 @@ try_again:
 	for (subreq = head->wb_this_page; subreq != head;
 			subreq = subreq->wb_this_page) {
 
-		if (!kref_get_unless_zero(&subreq->wb_kref))
+		if (!kref_get_unless_zero(&subreq->wb_kref)) {
+			if (subreq->wb_offset == head->wb_offset + total_bytes)
+				total_bytes += subreq->wb_bytes;
 			continue;
+		}
+
 		while (!nfs_lock_request(subreq)) {
 			/*
 			 * Unlock page to allow nfs_page_group_sync_on_bit()
