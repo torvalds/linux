@@ -151,7 +151,7 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	}
 
 	if (ret != 0) {
-		btrfs_print_leaf(fs_info, path->nodes[0]);
+		btrfs_print_leaf(path->nodes[0]);
 		btrfs_crit(fs_info, "unable to update root key %llu %u %llu",
 			   key->objectid, key->type, key->offset);
 		BUG_ON(1);
@@ -335,10 +335,11 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 	return err;
 }
 
-/* drop the root item for 'key' from 'root' */
-int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
-		   const struct btrfs_key *key)
+/* drop the root item for 'key' from the tree root */
+int btrfs_del_root(struct btrfs_trans_handle *trans,
+		   struct btrfs_fs_info *fs_info, const struct btrfs_key *key)
 {
+	struct btrfs_root *root = fs_info->tree_root;
 	struct btrfs_path *path;
 	int ret;
 
