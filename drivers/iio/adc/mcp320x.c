@@ -356,62 +356,25 @@ static int mcp320x_remove(struct spi_device *spi)
 #if defined(CONFIG_OF)
 static const struct of_device_id mcp320x_dt_ids[] = {
 	/* NOTE: The use of compatibles with no vendor prefix is deprecated. */
-	{
-		.compatible = "mcp3001",
-		.data = &mcp320x_chip_infos[mcp3001],
-	}, {
-		.compatible = "mcp3002",
-		.data = &mcp320x_chip_infos[mcp3002],
-	}, {
-		.compatible = "mcp3004",
-		.data = &mcp320x_chip_infos[mcp3004],
-	}, {
-		.compatible = "mcp3008",
-		.data = &mcp320x_chip_infos[mcp3008],
-	}, {
-		.compatible = "mcp3201",
-		.data = &mcp320x_chip_infos[mcp3201],
-	}, {
-		.compatible = "mcp3202",
-		.data = &mcp320x_chip_infos[mcp3202],
-	}, {
-		.compatible = "mcp3204",
-		.data = &mcp320x_chip_infos[mcp3204],
-	}, {
-		.compatible = "mcp3208",
-		.data = &mcp320x_chip_infos[mcp3208],
-	}, {
-		.compatible = "mcp3301",
-		.data = &mcp320x_chip_infos[mcp3301],
-	}, {
-		.compatible = "microchip,mcp3001",
-		.data = &mcp320x_chip_infos[mcp3001],
-	}, {
-		.compatible = "microchip,mcp3002",
-		.data = &mcp320x_chip_infos[mcp3002],
-	}, {
-		.compatible = "microchip,mcp3004",
-		.data = &mcp320x_chip_infos[mcp3004],
-	}, {
-		.compatible = "microchip,mcp3008",
-		.data = &mcp320x_chip_infos[mcp3008],
-	}, {
-		.compatible = "microchip,mcp3201",
-		.data = &mcp320x_chip_infos[mcp3201],
-	}, {
-		.compatible = "microchip,mcp3202",
-		.data = &mcp320x_chip_infos[mcp3202],
-	}, {
-		.compatible = "microchip,mcp3204",
-		.data = &mcp320x_chip_infos[mcp3204],
-	}, {
-		.compatible = "microchip,mcp3208",
-		.data = &mcp320x_chip_infos[mcp3208],
-	}, {
-		.compatible = "microchip,mcp3301",
-		.data = &mcp320x_chip_infos[mcp3301],
-	}, {
-	}
+	{ .compatible = "mcp3001" },
+	{ .compatible = "mcp3002" },
+	{ .compatible = "mcp3004" },
+	{ .compatible = "mcp3008" },
+	{ .compatible = "mcp3201" },
+	{ .compatible = "mcp3202" },
+	{ .compatible = "mcp3204" },
+	{ .compatible = "mcp3208" },
+	{ .compatible = "mcp3301" },
+	{ .compatible = "microchip,mcp3001" },
+	{ .compatible = "microchip,mcp3002" },
+	{ .compatible = "microchip,mcp3004" },
+	{ .compatible = "microchip,mcp3008" },
+	{ .compatible = "microchip,mcp3201" },
+	{ .compatible = "microchip,mcp3202" },
+	{ .compatible = "microchip,mcp3204" },
+	{ .compatible = "microchip,mcp3208" },
+	{ .compatible = "microchip,mcp3301" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, mcp320x_dt_ids);
 #endif
