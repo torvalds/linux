@@ -3241,8 +3241,10 @@ static void ibx_irq_postinstall(struct drm_device *dev)
 
 	if (HAS_PCH_IBX(dev_priv))
 		mask = SDE_GMBUS | SDE_AUX_MASK | SDE_POISON;
-	else
+	else if (HAS_PCH_CPT(dev_priv) || HAS_PCH_LPT(dev_priv))
 		mask = SDE_GMBUS_CPT | SDE_AUX_MASK_CPT;
+	else
+		mask = SDE_GMBUS_CPT;
 
 	gen5_assert_iir_is_zero(dev_priv, SDEIIR);
 	I915_WRITE(SDEIMR, ~mask);
