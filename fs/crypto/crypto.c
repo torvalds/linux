@@ -26,6 +26,7 @@
 #include <linux/ratelimit.h>
 #include <linux/dcache.h>
 #include <linux/namei.h>
+#include <crypto/aes.h>
 #include "fscrypt_private.h"
 
 static unsigned int num_prealloc_crypto_pages = 32;
@@ -147,8 +148,8 @@ int fscrypt_do_page_crypto(const struct inode *inode, fscrypt_direction_t rw,
 {
 	struct {
 		__le64 index;
-		u8 padding[FS_XTS_TWEAK_SIZE - sizeof(__le64)];
-	} xts_tweak;
+		u8 padding[FS_IV_SIZE - sizeof(__le64)];
+	} iv;
 	struct skcipher_request *req = NULL;
 	DECLARE_FS_COMPLETION_RESULT(ecr);
 	struct scatterlist dst, src;
@@ -157,6 +158,16 @@ int fscrypt_do_page_crypto(const struct inode *inode, fscrypt_direction_t rw,
 	int res = 0;
 
 	BUG_ON(len == 0);
+
+	BUILD_BUG_ON(sizeof(iv) != FS_IV_SIZE);
+	BUILD_BUG_ON(AES_BLOCK_SIZE != FS_IV_SIZE);
+	iv.index = cpu_to_le64(lblk_num);
+	memset(iv.padding, 0, sizeof(iv.padding));
+
+	if (ci->ci_essiv_tfm != NULL) {
+		crypto_cipher_encrypt_one(ci->ci_essiv_tfm, (u8 *)&iv,
+					  (u8 *)&iv);
+	}
 
 	req = skcipher_request_alloc(tfm, gfp_flags);
 	if (!req) {
@@ -170,15 +181,11 @@ int fscrypt_do_page_crypto(const struct inode *inode, fscrypt_direction_t rw,
 		req, CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
 		page_crypt_complete, &ecr);
 
-	BUILD_BUG_ON(sizeof(xts_tweak) != FS_XTS_TWEAK_SIZE);
-	xts_tweak.index = cpu_to_le64(lblk_num);
-	memset(xts_tweak.padding, 0, sizeof(xts_tweak.padding));
-
 	sg_init_table(&dst, 1);
 	sg_set_page(&dst, dest_page, len, offs);
 	sg_init_table(&src, 1);
 	sg_set_page(&src, src_page, len, offs);
-	skcipher_request_set_crypt(req, &src, &dst, len, &xts_tweak);
+	skcipher_request_set_crypt(req, &src, &dst, len, &iv);
 	if (rw == FS_DECRYPT)
 		res = crypto_skcipher_decrypt(req);
 	else
@@ -477,6 +484,8 @@ static void __exit fscrypt_exit(void)
 		destroy_workqueue(fscrypt_read_workqueue);
 	kmem_cache_destroy(fscrypt_ctx_cachep);
 	kmem_cache_destroy(fscrypt_info_cachep);
+
+	fscrypt_essiv_cleanup();
 }
 module_exit(fscrypt_exit);
 

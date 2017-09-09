@@ -1345,6 +1345,9 @@ int azx_codec_configure(struct azx *chip)
 	list_for_each_codec_safe(codec, next, &chip->bus) {
 		snd_hda_codec_configure(codec);
 	}
+
+	if (!azx_bus(chip)->num_codecs)
+		return -ENODEV;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(azx_codec_configure);

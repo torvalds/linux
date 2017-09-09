@@ -128,3 +128,11 @@
 		reg = <1>;
 	};
 };
+
+&reg_arm {
+	vin-supply = <&sw1a_reg>;
+};
+
+&reg_soc {
+	vin-supply = <&sw1a_reg>;
+};

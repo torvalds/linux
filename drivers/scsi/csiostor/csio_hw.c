@@ -794,18 +794,24 @@ csio_hw_dev_ready(struct csio_hw *hw)
 {
 	uint32_t reg;
 	int cnt = 6;
+	int src_pf;
 
 	while (((reg = csio_rd_reg32(hw, PL_WHOAMI_A)) == 0xFFFFFFFF) &&
 	       (--cnt != 0))
 		mdelay(100);
 
-	if ((cnt == 0) && (((int32_t)(SOURCEPF_G(reg)) < 0) ||
-			   (SOURCEPF_G(reg) >= CSIO_MAX_PFN))) {
+	if (csio_is_t5(hw->pdev->device & CSIO_HW_CHIP_MASK))
+		src_pf = SOURCEPF_G(reg);
+	else
+		src_pf = T6_SOURCEPF_G(reg);
+
+	if ((cnt == 0) && (((int32_t)(src_pf) < 0) ||
+			   (src_pf >= CSIO_MAX_PFN))) {
 		csio_err(hw, "PL_WHOAMI returned 0x%x, cnt:%d\n", reg, cnt);
 		return -EIO;
 	}
 
-	hw->pfn = SOURCEPF_G(reg);
+	hw->pfn = src_pf;
 
 	return 0;
 }
@@ -1581,10 +1587,16 @@ csio_hw_flash_config(struct csio_hw *hw, u32 *fw_cfg_param, char *path)
 	unsigned int mtype = 0, maddr = 0;
 	uint32_t *cfg_data;
 	int value_to_add = 0;
+	const char *fw_cfg_file;
 
-	if (request_firmware(&cf, FW_CFG_NAME_T5, dev) < 0) {
+	if (csio_is_t5(pci_dev->device & CSIO_HW_CHIP_MASK))
+		fw_cfg_file = FW_CFG_NAME_T5;
+	else
+		fw_cfg_file = FW_CFG_NAME_T6;
+
+	if (request_firmware(&cf, fw_cfg_file, dev) < 0) {
 		csio_err(hw, "could not find config file %s, err: %d\n",
-			 FW_CFG_NAME_T5, ret);
+			 fw_cfg_file, ret);
 		return -ENOENT;
 	}
 
@@ -1623,9 +1635,8 @@ csio_hw_flash_config(struct csio_hw *hw, u32 *fw_cfg_param, char *path)
 		ret = csio_memory_write(hw, mtype, maddr + size, 4, &last.word);
 	}
 	if (ret == 0) {
-		csio_info(hw, "config file upgraded to %s\n",
-			  FW_CFG_NAME_T5);
-		snprintf(path, 64, "%s%s", "/lib/firmware/", FW_CFG_NAME_T5);
+		csio_info(hw, "config file upgraded to %s\n", fw_cfg_file);
+		snprintf(path, 64, "%s%s", "/lib/firmware/", fw_cfg_file);
 	}
 
 leave:
@@ -1886,6 +1897,19 @@ static struct fw_info fw_info_array[] = {
 			.intfver_iscsi = FW_INTFVER(T5, ISCSI),
 			.intfver_fcoe = FW_INTFVER(T5, FCOE),
 		},
+	}, {
+		.chip = CHELSIO_T6,
+		.fs_name = FW_CFG_NAME_T6,
+		.fw_mod_name = FW_FNAME_T6,
+		.fw_hdr = {
+			.chip = FW_HDR_CHIP_T6,
+			.fw_ver = __cpu_to_be32(FW_VERSION(T6)),
+			.intfver_nic = FW_INTFVER(T6, NIC),
+			.intfver_vnic = FW_INTFVER(T6, VNIC),
+			.intfver_ri = FW_INTFVER(T6, RI),
+			.intfver_iscsi = FW_INTFVER(T6, ISCSI),
+			.intfver_fcoe = FW_INTFVER(T6, FCOE),
+		},
 	}
 };
 
@@ -2002,6 +2026,7 @@ csio_hw_flash_fw(struct csio_hw *hw, int *reset)
 	struct device *dev = &pci_dev->dev ;
 	const u8 *fw_data = NULL;
 	unsigned int fw_size = 0;
+	const char *fw_bin_file;
 
 	/* This is the firmware whose headers the driver was compiled
 	 * against
@@ -2014,9 +2039,14 @@ csio_hw_flash_fw(struct csio_hw *hw, int *reset)
 		return -EINVAL;
 	}
 
-	if (request_firmware(&fw, FW_FNAME_T5, dev) < 0) {
+	if (csio_is_t5(pci_dev->device & CSIO_HW_CHIP_MASK))
+		fw_bin_file = FW_FNAME_T5;
+	else
+		fw_bin_file = FW_FNAME_T6;
+
+	if (request_firmware(&fw, fw_bin_file, dev) < 0) {
 		csio_err(hw, "could not find firmware image %s, err: %d\n",
-			 FW_FNAME_T5, ret);
+			 fw_bin_file, ret);
 	} else {
 		fw_data = fw->data;
 		fw_size = fw->size;
@@ -2036,6 +2066,17 @@ csio_hw_flash_fw(struct csio_hw *hw, int *reset)
 		release_firmware(fw);
 	kfree(card_fw);
 	return ret;
+}
+
+static int csio_hw_check_fwver(struct csio_hw *hw)
+{
+	if (csio_is_t6(hw->pdev->device & CSIO_HW_CHIP_MASK) &&
+	    (hw->fwrev < CSIO_MIN_T6_FW)) {
+		csio_hw_print_fw_version(hw, "T6 unsupported fw");
+		return -1;
+	}
+
+	return 0;
 }
 
 /*
@@ -2105,6 +2146,10 @@ csio_hw_configure(struct csio_hw *hw)
 		if (rv != 0)
 			goto out;
 
+		rv = csio_hw_check_fwver(hw);
+		if (rv < 0)
+			goto out;
+
 		/* If the firmware doesn't support Configuration Files,
 		 * return an error.
 		 */
@@ -2132,6 +2177,10 @@ csio_hw_configure(struct csio_hw *hw)
 		}
 
 	} else {
+		rv = csio_hw_check_fwver(hw);
+		if (rv < 0)
+			goto out;
+
 		if (hw->fw_state == CSIO_DEV_STATE_INIT) {
 
 			hw->flags |= CSIO_HWF_USING_SOFT_PARAMS;
@@ -2241,8 +2290,13 @@ static void
 csio_hw_intr_enable(struct csio_hw *hw)
 {
 	uint16_t vec = (uint16_t)csio_get_mb_intr_idx(csio_hw_to_mbm(hw));
-	uint32_t pf = SOURCEPF_G(csio_rd_reg32(hw, PL_WHOAMI_A));
+	u32 pf = 0;
 	uint32_t pl = csio_rd_reg32(hw, PL_INT_ENABLE_A);
+
+	if (csio_is_t5(hw->pdev->device & CSIO_HW_CHIP_MASK))
+		pf = SOURCEPF_G(csio_rd_reg32(hw, PL_WHOAMI_A));
+	else
+		pf = T6_SOURCEPF_G(csio_rd_reg32(hw, PL_WHOAMI_A));
 
 	/*
 	 * Set aivec for MSI/MSIX. PCIE_PF_CFG.INTXType is set up
@@ -2293,7 +2347,12 @@ csio_hw_intr_enable(struct csio_hw *hw)
 void
 csio_hw_intr_disable(struct csio_hw *hw)
 {
-	uint32_t pf = SOURCEPF_G(csio_rd_reg32(hw, PL_WHOAMI_A));
+	u32 pf = 0;
+
+	if (csio_is_t5(hw->pdev->device & CSIO_HW_CHIP_MASK))
+		pf = SOURCEPF_G(csio_rd_reg32(hw, PL_WHOAMI_A));
+	else
+		pf = T6_SOURCEPF_G(csio_rd_reg32(hw, PL_WHOAMI_A));
 
 	if (!(hw->flags & CSIO_HWF_HW_INTR_ENABLED))
 		return;
@@ -2918,6 +2977,8 @@ static void csio_cplsw_intr_handler(struct csio_hw *hw)
  */
 static void csio_le_intr_handler(struct csio_hw *hw)
 {
+	enum chip_type chip = CHELSIO_CHIP_VERSION(hw->chip_id);
+
 	static struct intr_info le_intr_info[] = {
 		{ LIPMISS_F, "LE LIP miss", -1, 0 },
 		{ LIP0_F, "LE 0 LIP error", -1, 0 },
@@ -2927,7 +2988,18 @@ static void csio_le_intr_handler(struct csio_hw *hw)
 		{ 0, NULL, 0, 0 }
 	};
 
-	if (csio_handle_intr_status(hw, LE_DB_INT_CAUSE_A, le_intr_info))
+	static struct intr_info t6_le_intr_info[] = {
+		{ T6_LIPMISS_F, "LE LIP miss", -1, 0 },
+		{ T6_LIP0_F, "LE 0 LIP error", -1, 0 },
+		{ TCAMINTPERR_F, "LE parity error", -1, 1 },
+		{ T6_UNKNOWNCMD_F, "LE unknown command", -1, 1 },
+		{ SSRAMINTPERR_F, "LE request queue parity error", -1, 1 },
+		{ 0, NULL, 0, 0 }
+	};
+
+	if (csio_handle_intr_status(hw, LE_DB_INT_CAUSE_A,
+				    (chip == CHELSIO_T5) ?
+				    le_intr_info : t6_le_intr_info))
 		csio_hw_fatal_err(hw);
 }
 

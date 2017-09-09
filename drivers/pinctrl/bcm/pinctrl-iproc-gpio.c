@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 Broadcom Corporation
+ * Copyright (C) 2014-2017 Broadcom
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -9,7 +9,9 @@
  * kind, whether express or implied; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
+ */
+
+/*
  * This file contains the Broadcom Iproc GPIO driver that supports 3
  * GPIO controllers on Iproc including the ASIU GPIO controller, the
  * chipCommonG GPIO controller, and the always-on GPIO controller. Basic

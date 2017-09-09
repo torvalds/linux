@@ -188,7 +188,7 @@ static void bl_end_io_read(struct bio *bio)
 {
 	struct parallel_io *par = bio->bi_private;
 
-	if (bio->bi_error) {
+	if (bio->bi_status) {
 		struct nfs_pgio_header *header = par->data;
 
 		if (!header->pnfs_error)
@@ -319,7 +319,7 @@ static void bl_end_io_write(struct bio *bio)
 	struct parallel_io *par = bio->bi_private;
 	struct nfs_pgio_header *header = par->data;
 
-	if (bio->bi_error) {
+	if (bio->bi_status) {
 		if (!header->pnfs_error)
 			header->pnfs_error = -EIO;
 		pnfs_set_lo_fail(header->lseg);

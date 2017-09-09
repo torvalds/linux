@@ -105,6 +105,11 @@ static u64 dma_iommu_get_required_mask(struct device *dev)
 	return mask;
 }
 
+int dma_iommu_mapping_error(struct device *dev, dma_addr_t dma_addr)
+{
+	return dma_addr == IOMMU_MAPPING_ERROR;
+}
+
 struct dma_map_ops dma_iommu_ops = {
 	.alloc			= dma_iommu_alloc_coherent,
 	.free			= dma_iommu_free_coherent,
@@ -115,5 +120,6 @@ struct dma_map_ops dma_iommu_ops = {
 	.map_page		= dma_iommu_map_page,
 	.unmap_page		= dma_iommu_unmap_page,
 	.get_required_mask	= dma_iommu_get_required_mask,
+	.mapping_error		= dma_iommu_mapping_error,
 };
 EXPORT_SYMBOL(dma_iommu_ops);

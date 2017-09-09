@@ -328,7 +328,7 @@ allow_packet:
 
 		if ((*skb->data) & 1) {
 			/* protocol is compressed */
-			skb_push(skb, 1)[0] = 0;
+			*(u8 *)skb_push(skb, 1) = 0;
 		}
 
 		skb->ip_summed = CHECKSUM_NONE;
@@ -506,7 +506,6 @@ static int pptp_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
 	struct pppox_sock *po;
-	struct pptp_opt *opt;
 	int error = 0;
 
 	if (!sk)
@@ -520,7 +519,6 @@ static int pptp_release(struct socket *sock)
 	}
 
 	po = pppox_sk(sk);
-	opt = &po->proto.pptp;
 	del_chan(po);
 
 	pppox_unbind_sock(sk);

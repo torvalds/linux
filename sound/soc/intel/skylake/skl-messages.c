@@ -507,6 +507,8 @@ static void skl_setup_cpr_gateway_cfg(struct skl_sst *ctx,
 			struct skl_module_cfg *mconfig,
 			struct skl_cpr_cfg *cpr_mconfig)
 {
+	u32 dma_io_buf;
+
 	cpr_mconfig->gtw_cfg.node_id = skl_get_node_id(ctx, mconfig);
 
 	if (cpr_mconfig->gtw_cfg.node_id == SKL_NON_GATEWAY_CPR_NODE_ID) {
@@ -514,10 +516,29 @@ static void skl_setup_cpr_gateway_cfg(struct skl_sst *ctx,
 		return;
 	}
 
-	if (SKL_CONN_SOURCE == mconfig->hw_conn_type)
-		cpr_mconfig->gtw_cfg.dma_buffer_size = 2 * mconfig->obs;
-	else
-		cpr_mconfig->gtw_cfg.dma_buffer_size = 2 * mconfig->ibs;
+	switch (mconfig->hw_conn_type) {
+	case SKL_CONN_SOURCE:
+		if (mconfig->dev_type == SKL_DEVICE_HDAHOST)
+			dma_io_buf =  mconfig->ibs;
+		else
+			dma_io_buf =  mconfig->obs;
+		break;
+
+	case SKL_CONN_SINK:
+		if (mconfig->dev_type == SKL_DEVICE_HDAHOST)
+			dma_io_buf =  mconfig->obs;
+		else
+			dma_io_buf =  mconfig->ibs;
+		break;
+
+	default:
+		dev_warn(ctx->dev, "wrong connection type: %d\n",
+				mconfig->hw_conn_type);
+		return;
+	}
+
+	cpr_mconfig->gtw_cfg.dma_buffer_size =
+				mconfig->dma_buffer_size * dma_io_buf;
 
 	cpr_mconfig->cpr_feature_mask = 0;
 	cpr_mconfig->gtw_cfg.config_length  = 0;
@@ -707,6 +728,7 @@ static u16 skl_get_module_param_size(struct skl_sst *ctx,
 		return param_size;
 
 	case SKL_MODULE_TYPE_BASE_OUTFMT:
+	case SKL_MODULE_TYPE_MIC_SELECT:
 	case SKL_MODULE_TYPE_KPB:
 		return sizeof(struct skl_base_outfmt_cfg);
 
@@ -761,6 +783,7 @@ static int skl_set_module_format(struct skl_sst *ctx,
 		break;
 
 	case SKL_MODULE_TYPE_BASE_OUTFMT:
+	case SKL_MODULE_TYPE_MIC_SELECT:
 	case SKL_MODULE_TYPE_KPB:
 		skl_set_base_outfmt_format(ctx, module_config, *param_data);
 		break;

@@ -76,7 +76,7 @@ struct zpci_fib {
 	u32 gd;
 } __packed __aligned(8);
 
-int zpci_mod_fc(u64 req, struct zpci_fib *fib);
+u8 zpci_mod_fc(u64 req, struct zpci_fib *fib, u8 *status);
 int zpci_refresh_trans(u64 fn, u64 addr, u64 range);
 int zpci_load(u64 *data, u64 req, u64 offset);
 int zpci_store(u64 data, u64 req, u64 offset);

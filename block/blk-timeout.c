@@ -189,12 +189,14 @@ unsigned long blk_rq_timeout(unsigned long timeout)
  * Notes:
  *    Each request has its own timer, and as it is added to the queue, we
  *    set up the timer. When the request completes, we cancel the timer.
- *    Queue lock must be held for the non-mq case, mq case doesn't care.
  */
 void blk_add_timer(struct request *req)
 {
 	struct request_queue *q = req->q;
 	unsigned long expiry;
+
+	if (!q->mq_ops)
+		lockdep_assert_held(q->queue_lock);
 
 	/* blk-mq has its own handler, so we don't need ->rq_timed_out_fn */
 	if (!q->mq_ops && !q->rq_timed_out_fn)

@@ -190,7 +190,57 @@
 				function = "spdif_out_ao";
 			};
 		};
+
+		ao_cec_pins: ao_cec {
+			mux {
+				groups = "ao_cec";
+				function = "cec_ao";
+			};
+		};
+
+		ee_cec_pins: ee_cec {
+			mux {
+				groups = "ee_cec";
+				function = "cec_ao";
+			};
+		};
 	};
+};
+
+&hdmi_tx {
+	compatible = "amlogic,meson-gxl-dw-hdmi", "amlogic,meson-gx-dw-hdmi";
+	resets = <&reset RESET_HDMITX_CAPB3>,
+		 <&reset RESET_HDMI_SYSTEM_RESET>,
+		 <&reset RESET_HDMI_TX>;
+	reset-names = "hdmitx_apb", "hdmitx", "hdmitx_phy";
+	clocks = <&clkc CLKID_HDMI_PCLK>,
+		 <&clkc CLKID_CLK81>,
+		 <&clkc CLKID_GCLK_VENCI_INT0>;
+	clock-names = "isfr", "iahb", "venci";
+};
+
+&hiubus {
+	clkc: clock-controller@0 {
+		compatible = "amlogic,gxl-clkc", "amlogic,gxbb-clkc";
+		#clock-cells = <1>;
+		reg = <0x0 0x0 0x0 0x3db>;
+	};
+};
+
+&i2c_A {
+	clocks = <&clkc CLKID_I2C>;
+};
+
+&i2c_AO {
+	clocks = <&clkc CLKID_AO_I2C>;
+};
+
+&i2c_B {
+	clocks = <&clkc CLKID_I2C>;
+};
+
+&i2c_C {
+	clocks = <&clkc CLKID_I2C>;
 };
 
 &periphs {
@@ -203,12 +253,12 @@
 		gpio: bank@4b0 {
 			reg = <0x0 0x004b0 0x0 0x28>,
 			      <0x0 0x004e8 0x0 0x14>,
-			      <0x0 0x00120 0x0 0x14>,
+			      <0x0 0x00520 0x0 0x14>,
 			      <0x0 0x00430 0x0 0x40>;
 			reg-names = "mux", "pull", "pull-enable", "gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
-			gpio-ranges = <&pinctrl_periphs 0 14 101>;
+			gpio-ranges = <&pinctrl_periphs 0 10 101>;
 		};
 
 		emmc_pins: emmc {
@@ -228,6 +278,22 @@
 				       "nor_c",
 				       "nor_cs";
 				function = "nor";
+			};
+		};
+
+		spi_pins: spi {
+			mux {
+				groups = "spi_miso",
+					"spi_mosi",
+					"spi_sclk";
+				function = "spi";
+			};
+		};
+
+		spi_ss0_pins: spi-ss0 {
+			mux {
+				groups = "spi_ss0";
+				function = "spi";
 			};
 		};
 
@@ -354,6 +420,20 @@
 			};
 		};
 
+		eth_link_led_pins: eth_link_led {
+			mux {
+				groups = "eth_link_led";
+				function = "eth_led";
+			};
+		};
+
+		eth_act_led_pins: eth_act_led {
+			mux {
+				groups = "eth_act_led";
+				function = "eth_led";
+			};
+		};
+		
 		pwm_a_pins: pwm_a {
 			mux {
 				groups = "pwm_a";
@@ -501,30 +581,6 @@
 	};
 };
 
-&hiubus {
-	clkc: clock-controller@0 {
-		compatible = "amlogic,gxl-clkc", "amlogic,gxbb-clkc";
-		#clock-cells = <1>;
-		reg = <0x0 0x0 0x0 0x3db>;
-	};
-};
-
-&i2c_A {
-	clocks = <&clkc CLKID_I2C>;
-};
-
-&i2c_AO {
-	clocks = <&clkc CLKID_AO_I2C>;
-};
-
-&i2c_B {
-	clocks = <&clkc CLKID_I2C>;
-};
-
-&i2c_C {
-	clocks = <&clkc CLKID_I2C>;
-};
-
 &saradc {
 	compatible = "amlogic,meson-gxl-saradc", "amlogic,meson-saradc";
 	clocks = <&xtal>,
@@ -556,22 +612,17 @@
 	clock-names = "core", "clkin0", "clkin1";
 };
 
+&spicc {
+	clocks = <&clkc CLKID_SPICC>;
+	clock-names = "core";
+	resets = <&reset RESET_PERIPHS_SPICC>;
+	num-cs = <1>;
+};
+
 &spifc {
 	clocks = <&clkc CLKID_SPI>;
 };
 
 &vpu {
 	compatible = "amlogic,meson-gxl-vpu", "amlogic,meson-gx-vpu";
-};
-
-&hdmi_tx {
-	compatible = "amlogic,meson-gxl-dw-hdmi", "amlogic,meson-gx-dw-hdmi";
-	resets = <&reset RESET_HDMITX_CAPB3>,
-		 <&reset RESET_HDMI_SYSTEM_RESET>,
-		 <&reset RESET_HDMI_TX>;
-	reset-names = "hdmitx_apb", "hdmitx", "hdmitx_phy";
-	clocks = <&clkc CLKID_HDMI_PCLK>,
-		 <&clkc CLKID_CLK81>,
-		 <&clkc CLKID_GCLK_VENCI_INT0>;
-	clock-names = "isfr", "iahb", "venci";
 };

@@ -154,4 +154,4 @@ free_clk:
 	return ret;
 }
 
-CLOCKSOURCE_OF_DECLARE(h8300_tpu, "renesas,tpu", h8300_tpu_init);
+TIMER_OF_DECLARE(h8300_tpu, "renesas,tpu", h8300_tpu_init);

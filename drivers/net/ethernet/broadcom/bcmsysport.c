@@ -1099,7 +1099,7 @@ static struct sk_buff *bcm_sysport_insert_tsb(struct sk_buff *skb,
 		skb = nskb;
 	}
 
-	tsb = (struct bcm_tsb *)skb_push(skb, sizeof(*tsb));
+	tsb = skb_push(skb, sizeof(*tsb));
 	/* Zero-out TSB by default */
 	memset(tsb, 0, sizeof(*tsb));
 

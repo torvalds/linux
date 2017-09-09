@@ -134,7 +134,9 @@ enum flag_bits {
 	Faulty,			/* device is known to have a fault */
 	In_sync,		/* device is in_sync with rest of array */
 	Bitmap_sync,		/* ..actually, not quite In_sync.  Need a
-				 * bitmap-based recovery to get fully in sync
+				 * bitmap-based recovery to get fully in sync.
+				 * The bit is only meaningful before device
+				 * has been passed to pers->hot_add_disk.
 				 */
 	WriteMostly,		/* Avoid reading if at all possible */
 	AutoDetected,		/* added by auto-detect */
@@ -444,6 +446,9 @@ struct mddev {
 	struct attribute_group		*to_remove;
 
 	struct bio_set			*bio_set;
+	struct bio_set			*sync_set; /* for sync operations like
+						   * metadata and bitmap writes
+						   */
 
 	/* Generic flush handling.
 	 * The last to finish preflush schedules a worker to submit
@@ -510,7 +515,7 @@ struct md_personality
 	int level;
 	struct list_head list;
 	struct module *owner;
-	void (*make_request)(struct mddev *mddev, struct bio *bio);
+	bool (*make_request)(struct mddev *mddev, struct bio *bio);
 	int (*run)(struct mddev *mddev);
 	void (*free)(struct mddev *mddev, void *priv);
 	void (*status)(struct seq_file *seq, struct mddev *mddev);
@@ -649,7 +654,7 @@ extern void md_wakeup_thread(struct md_thread *thread);
 extern void md_check_recovery(struct mddev *mddev);
 extern void md_reap_sync_thread(struct mddev *mddev);
 extern int mddev_init_writes_pending(struct mddev *mddev);
-extern void md_write_start(struct mddev *mddev, struct bio *bi);
+extern bool md_write_start(struct mddev *mddev, struct bio *bi);
 extern void md_write_inc(struct mddev *mddev, struct bio *bi);
 extern void md_write_end(struct mddev *mddev);
 extern void md_done_sync(struct mddev *mddev, int blocks, int ok);

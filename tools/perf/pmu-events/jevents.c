@@ -48,10 +48,6 @@
 #include "json.h"
 #include "jevents.h"
 
-#ifndef __maybe_unused
-#define __maybe_unused                  __attribute__((unused))
-#endif
-
 int verbose;
 char *prog;
 

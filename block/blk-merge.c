@@ -108,30 +108,8 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 	bool do_split = true;
 	struct bio *new = NULL;
 	const unsigned max_sectors = get_max_io_size(q, bio);
-	unsigned bvecs = 0;
 
 	bio_for_each_segment(bv, bio, iter) {
-		/*
-		 * With arbitrary bio size, the incoming bio may be very
-		 * big. We have to split the bio into small bios so that
-		 * each holds at most BIO_MAX_PAGES bvecs because
-		 * bio_clone() can fail to allocate big bvecs.
-		 *
-		 * It should have been better to apply the limit per
-		 * request queue in which bio_clone() is involved,
-		 * instead of globally. The biggest blocker is the
-		 * bio_clone() in bio bounce.
-		 *
-		 * If bio is splitted by this reason, we should have
-		 * allowed to continue bios merging, but don't do
-		 * that now for making the change simple.
-		 *
-		 * TODO: deal with bio bounce's bio_clone() gracefully
-		 * and convert the global limit into per-queue limit.
-		 */
-		if (bvecs++ >= BIO_MAX_PAGES)
-			goto split;
-
 		/*
 		 * If the queue doesn't support SG gaps and adding this
 		 * offset would create a gap, disallow it.
@@ -202,8 +180,7 @@ split:
 	return do_split ? new : NULL;
 }
 
-void blk_queue_split(struct request_queue *q, struct bio **bio,
-		     struct bio_set *bs)
+void blk_queue_split(struct request_queue *q, struct bio **bio)
 {
 	struct bio *split, *res;
 	unsigned nsegs;
@@ -211,13 +188,13 @@ void blk_queue_split(struct request_queue *q, struct bio **bio,
 	switch (bio_op(*bio)) {
 	case REQ_OP_DISCARD:
 	case REQ_OP_SECURE_ERASE:
-		split = blk_bio_discard_split(q, *bio, bs, &nsegs);
+		split = blk_bio_discard_split(q, *bio, q->bio_split, &nsegs);
 		break;
 	case REQ_OP_WRITE_ZEROES:
-		split = blk_bio_write_zeroes_split(q, *bio, bs, &nsegs);
+		split = blk_bio_write_zeroes_split(q, *bio, q->bio_split, &nsegs);
 		break;
 	case REQ_OP_WRITE_SAME:
-		split = blk_bio_write_same_split(q, *bio, bs, &nsegs);
+		split = blk_bio_write_same_split(q, *bio, q->bio_split, &nsegs);
 		break;
 	default:
 		split = blk_bio_segment_split(q, *bio, q->bio_split, &nsegs);
@@ -671,6 +648,9 @@ static void blk_account_io_merge(struct request *req)
 static struct request *attempt_merge(struct request_queue *q,
 				     struct request *req, struct request *next)
 {
+	if (!q->mq_ops)
+		lockdep_assert_held(q->queue_lock);
+
 	if (!rq_mergeable(req) || !rq_mergeable(next))
 		return NULL;
 
@@ -690,6 +670,13 @@ static struct request *attempt_merge(struct request_queue *q,
 
 	if (req_op(req) == REQ_OP_WRITE_SAME &&
 	    !blk_write_same_mergeable(req->bio, next->bio))
+		return NULL;
+
+	/*
+	 * Don't allow merge of different write hints, or for a hint with
+	 * non-hint IO.
+	 */
+	if (req->write_hint != next->write_hint)
 		return NULL;
 
 	/*
@@ -809,6 +796,13 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 	/* must be using the same buffer */
 	if (req_op(rq) == REQ_OP_WRITE_SAME &&
 	    !blk_write_same_mergeable(rq->bio, bio))
+		return false;
+
+	/*
+	 * Don't allow merge of different write hints, or for a hint with
+	 * non-hint IO.
+	 */
+	if (rq->write_hint != bio->bi_write_hint)
 		return false;
 
 	return true;

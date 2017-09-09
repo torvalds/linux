@@ -1070,7 +1070,7 @@ static s32 snto32(__u32 value, unsigned n)
 	case 16: return ((__s16)value);
 	case 32: return ((__s32)value);
 	}
-	return value & (1 << (n - 1)) ? value | (-1 << n) : value;
+	return value & (1 << (n - 1)) ? value | (~0U << n) : value;
 }
 
 s32 hid_snto32(__u32 value, unsigned n)
@@ -1774,6 +1774,94 @@ void hid_disconnect(struct hid_device *hdev)
 }
 EXPORT_SYMBOL_GPL(hid_disconnect);
 
+/**
+ * hid_hw_start - start underlying HW
+ * @hdev: hid device
+ * @connect_mask: which outputs to connect, see HID_CONNECT_*
+ *
+ * Call this in probe function *after* hid_parse. This will setup HW
+ * buffers and start the device (if not defeirred to device open).
+ * hid_hw_stop must be called if this was successful.
+ */
+int hid_hw_start(struct hid_device *hdev, unsigned int connect_mask)
+{
+	int error;
+
+	error = hdev->ll_driver->start(hdev);
+	if (error)
+		return error;
+
+	if (connect_mask) {
+		error = hid_connect(hdev, connect_mask);
+		if (error) {
+			hdev->ll_driver->stop(hdev);
+			return error;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hid_hw_start);
+
+/**
+ * hid_hw_stop - stop underlying HW
+ * @hdev: hid device
+ *
+ * This is usually called from remove function or from probe when something
+ * failed and hid_hw_start was called already.
+ */
+void hid_hw_stop(struct hid_device *hdev)
+{
+	hid_disconnect(hdev);
+	hdev->ll_driver->stop(hdev);
+}
+EXPORT_SYMBOL_GPL(hid_hw_stop);
+
+/**
+ * hid_hw_open - signal underlying HW to start delivering events
+ * @hdev: hid device
+ *
+ * Tell underlying HW to start delivering events from the device.
+ * This function should be called sometime after successful call
+ * to hid_hiw_start().
+ */
+int hid_hw_open(struct hid_device *hdev)
+{
+	int ret;
+
+	ret = mutex_lock_killable(&hdev->ll_open_lock);
+	if (ret)
+		return ret;
+
+	if (!hdev->ll_open_count++) {
+		ret = hdev->ll_driver->open(hdev);
+		if (ret)
+			hdev->ll_open_count--;
+	}
+
+	mutex_unlock(&hdev->ll_open_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(hid_hw_open);
+
+/**
+ * hid_hw_close - signal underlaying HW to stop delivering events
+ *
+ * @hdev: hid device
+ *
+ * This function indicates that we are not interested in the events
+ * from this device anymore. Delivery of events may or may not stop,
+ * depending on the number of users still outstanding.
+ */
+void hid_hw_close(struct hid_device *hdev)
+{
+	mutex_lock(&hdev->ll_open_lock);
+	if (!--hdev->ll_open_count)
+		hdev->ll_driver->close(hdev);
+	mutex_unlock(&hdev->ll_open_lock);
+}
+EXPORT_SYMBOL_GPL(hid_hw_close);
+
 /*
  * A list of devices for which there is a specialized driver on HID bus.
  *
@@ -1892,6 +1980,8 @@ static const struct hid_device_id hid_have_special_driver[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK, USB_DEVICE_ID_ASUSTEK_ROG_KEYBOARD1) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK, USB_DEVICE_ID_ASUSTEK_ROG_KEYBOARD2) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK, USB_DEVICE_ID_ASUSTEK_T100_KEYBOARD) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_JESS, USB_DEVICE_ID_ASUS_MD_5112) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_TURBOX, USB_DEVICE_ID_ASUS_MD_5110) },
 #endif
 #if IS_ENABLED(CONFIG_HID_AUREAL)
 	{ HID_USB_DEVICE(USB_VENDOR_ID_AUREAL, USB_DEVICE_ID_AUREAL_W01RN) },
@@ -1913,9 +2003,8 @@ static const struct hid_device_id hid_have_special_driver[] = {
 #if IS_ENABLED(CONFIG_HID_CHICONY)
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_CHICONY_TACTICAL_PAD) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_CHICONY_WIRELESS2) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_CHICONY_AK1D) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_ASUS_AK1D) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_CHICONY_ACER_SWITCH12) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_JESS, USB_DEVICE_ID_JESS_ZEN_AIO_KBD) },
 #endif
 #if IS_ENABLED(CONFIG_HID_CMEDIA)
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CMEDIA, USB_DEVICE_ID_CM6533) },
@@ -1983,6 +2072,9 @@ static const struct hid_device_id hid_have_special_driver[] = {
 #endif
 #if IS_ENABLED(CONFIG_HID_ICADE)
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_ION, USB_DEVICE_ID_ICADE) },
+#endif
+#if IS_ENABLED(CONFIG_HID_ITE)
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ITE, USB_DEVICE_ID_ITE8595) },
 #endif
 #if IS_ENABLED(CONFIG_HID_KENSINGTON)
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KENSINGTON, USB_DEVICE_ID_KS_SLIMBLADE) },
@@ -2151,6 +2243,9 @@ static const struct hid_device_id hid_have_special_driver[] = {
 #if IS_ENABLED(CONFIG_HID_PRODIKEYS)
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CREATIVELABS, USB_DEVICE_ID_PRODIKEYS_PCMIDI) },
 #endif
+#if IS_ENABLED(CONFIG_HID_RETRODE)
+	{ HID_USB_DEVICE(USB_VENDOR_ID_FUTURE_TECHNOLOGY, USB_DEVICE_ID_RETRODE2) },
+#endif
 #if IS_ENABLED(CONFIG_HID_RMI)
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_X1_COVER) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_RAZER, USB_DEVICE_ID_RAZER_BLADE_14) },
@@ -2307,7 +2402,7 @@ struct hid_dynid {
  * Adds a new dynamic hid device ID to this driver,
  * and causes the driver to probe for all devices again.
  */
-static ssize_t store_new_id(struct device_driver *drv, const char *buf,
+static ssize_t new_id_store(struct device_driver *drv, const char *buf,
 		size_t count)
 {
 	struct hid_driver *hdrv = to_hid_driver(drv);
@@ -2339,7 +2434,13 @@ static ssize_t store_new_id(struct device_driver *drv, const char *buf,
 
 	return ret ? : count;
 }
-static DRIVER_ATTR(new_id, S_IWUSR, NULL, store_new_id);
+static DRIVER_ATTR_WO(new_id);
+
+static struct attribute *hid_drv_attrs[] = {
+	&driver_attr_new_id.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(hid_drv);
 
 static void hid_free_dynids(struct hid_driver *hdrv)
 {
@@ -2503,6 +2604,7 @@ static int hid_uevent(struct device *dev, struct kobj_uevent_env *env)
 static struct bus_type hid_bus_type = {
 	.name		= "hid",
 	.dev_groups	= hid_dev_groups,
+	.drv_groups	= hid_drv_groups,
 	.match		= hid_bus_match,
 	.probe		= hid_device_probe,
 	.remove		= hid_device_remove,
@@ -2907,6 +3009,7 @@ struct hid_device *hid_allocate_device(void)
 	spin_lock_init(&hdev->debug_list_lock);
 	sema_init(&hdev->driver_lock, 1);
 	sema_init(&hdev->driver_input_lock, 1);
+	mutex_init(&hdev->ll_open_lock);
 
 	return hdev;
 }
@@ -2942,8 +3045,6 @@ EXPORT_SYMBOL_GPL(hid_destroy_device);
 int __hid_register_driver(struct hid_driver *hdrv, struct module *owner,
 		const char *mod_name)
 {
-	int ret;
-
 	hdrv->driver.name = hdrv->name;
 	hdrv->driver.bus = &hid_bus_type;
 	hdrv->driver.owner = owner;
@@ -2952,21 +3053,12 @@ int __hid_register_driver(struct hid_driver *hdrv, struct module *owner,
 	INIT_LIST_HEAD(&hdrv->dyn_list);
 	spin_lock_init(&hdrv->dyn_lock);
 
-	ret = driver_register(&hdrv->driver);
-	if (ret)
-		return ret;
-
-	ret = driver_create_file(&hdrv->driver, &driver_attr_new_id);
-	if (ret)
-		driver_unregister(&hdrv->driver);
-
-	return ret;
+	return driver_register(&hdrv->driver);
 }
 EXPORT_SYMBOL_GPL(__hid_register_driver);
 
 void hid_unregister_driver(struct hid_driver *hdrv)
 {
-	driver_remove_file(&hdrv->driver, &driver_attr_new_id);
 	driver_unregister(&hdrv->driver);
 	hid_free_dynids(hdrv);
 }

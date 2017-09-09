@@ -44,8 +44,7 @@ static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	wr_len = sizeof *res_wr + sizeof *res;
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
 
-	res_wr = (struct fw_ri_res_wr *)__skb_put(skb, wr_len);
-	memset(res_wr, 0, wr_len);
+	res_wr = __skb_put_zero(skb, wr_len);
 	res_wr->op_nres = cpu_to_be32(
 			FW_WR_OP_V(FW_RI_RES_WR) |
 			FW_RI_RES_WR_NRES_V(1) |
@@ -114,8 +113,7 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	}
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
 
-	res_wr = (struct fw_ri_res_wr *)__skb_put(skb, wr_len);
-	memset(res_wr, 0, wr_len);
+	res_wr = __skb_put_zero(skb, wr_len);
 	res_wr->op_nres = cpu_to_be32(
 			FW_WR_OP_V(FW_RI_RES_WR) |
 			FW_RI_RES_WR_NRES_V(1) |
@@ -965,6 +963,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 		goto err3;
 
 	if (ucontext) {
+		ret = -ENOMEM;
 		mm = kmalloc(sizeof *mm, GFP_KERNEL);
 		if (!mm)
 			goto err4;

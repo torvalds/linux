@@ -25,6 +25,14 @@ DEFINE_RAW_SPINLOCK(pci_lock);
 #define PCI_word_BAD (pos & 1)
 #define PCI_dword_BAD (pos & 3)
 
+#ifdef CONFIG_PCI_LOCKLESS_CONFIG
+# define pci_lock_config(f)	do { (void)(f); } while (0)
+# define pci_unlock_config(f)	do { (void)(f); } while (0)
+#else
+# define pci_lock_config(f)	raw_spin_lock_irqsave(&pci_lock, f)
+# define pci_unlock_config(f)	raw_spin_unlock_irqrestore(&pci_lock, f)
+#endif
+
 #define PCI_OP_READ(size, type, len) \
 int pci_bus_read_config_##size \
 	(struct pci_bus *bus, unsigned int devfn, int pos, type *value)	\
@@ -33,10 +41,10 @@ int pci_bus_read_config_##size \
 	unsigned long flags;						\
 	u32 data = 0;							\
 	if (PCI_##size##_BAD) return PCIBIOS_BAD_REGISTER_NUMBER;	\
-	raw_spin_lock_irqsave(&pci_lock, flags);			\
+	pci_lock_config(flags);						\
 	res = bus->ops->read(bus, devfn, pos, len, &data);		\
 	*value = (type)data;						\
-	raw_spin_unlock_irqrestore(&pci_lock, flags);		\
+	pci_unlock_config(flags);					\
 	return res;							\
 }
 
@@ -47,9 +55,9 @@ int pci_bus_write_config_##size \
 	int res;							\
 	unsigned long flags;						\
 	if (PCI_##size##_BAD) return PCIBIOS_BAD_REGISTER_NUMBER;	\
-	raw_spin_lock_irqsave(&pci_lock, flags);			\
+	pci_lock_config(flags);						\
 	res = bus->ops->write(bus, devfn, pos, len, value);		\
-	raw_spin_unlock_irqrestore(&pci_lock, flags);		\
+	pci_unlock_config(flags);					\
 	return res;							\
 }
 

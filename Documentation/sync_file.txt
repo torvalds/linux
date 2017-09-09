@@ -1,8 +1,8 @@
-			      Sync File API Guide
-			      ~~~~~~~~~~~~~~~~~~~
+===================
+Sync File API Guide
+===================
 
-				Gustavo Padovan
-			  <gustavo at padovan dot org>
+:Author: Gustavo Padovan <gustavo at padovan dot org>
 
 This document serves as a guide for device drivers writers on what the
 sync_file API is, and how drivers can support it. Sync file is the carrier of
@@ -46,16 +46,17 @@ Creating Sync Files
 
 When a driver needs to send an out-fence userspace it creates a sync_file.
 
-Interface:
+Interface::
+
 	struct sync_file *sync_file_create(struct dma_fence *fence);
 
 The caller pass the out-fence and gets back the sync_file. That is just the
 first step, next it needs to install an fd on sync_file->file. So it gets an
-fd:
+fd::
 
 	fd = get_unused_fd_flags(O_CLOEXEC);
 
-and installs it on sync_file->file:
+and installs it on sync_file->file::
 
 	fd_install(fd, sync_file->file);
 
@@ -71,7 +72,8 @@ When userspace needs to send an in-fence to the driver it passes file descriptor
 of the Sync File to the kernel. The kernel can then retrieve the fences
 from it.
 
-Interface:
+Interface::
+
 	struct dma_fence *sync_file_get_fence(int fd);
 
 
@@ -79,5 +81,6 @@ The returned reference is owned by the caller and must be disposed of
 afterwards using dma_fence_put(). In case of error, a NULL is returned instead.
 
 References:
-[1] struct sync_file in include/linux/sync_file.h
-[2] All interfaces mentioned above defined in include/linux/sync_file.h
+
+1. struct sync_file in include/linux/sync_file.h
+2. All interfaces mentioned above defined in include/linux/sync_file.h

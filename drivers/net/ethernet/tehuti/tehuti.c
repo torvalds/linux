@@ -654,6 +654,8 @@ static int bdx_ioctl_priv(struct net_device *ndev, struct ifreq *ifr, int cmd)
 			RET(-EFAULT);
 		}
 		DBG("%d 0x%x 0x%x\n", data[0], data[1], data[2]);
+	} else {
+		return -EOPNOTSUPP;
 	}
 
 	if (!capable(CAP_SYS_RAWIO))

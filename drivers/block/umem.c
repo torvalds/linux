@@ -454,7 +454,7 @@ static void process_page(unsigned long data)
 				PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
 		if (control & DMASCR_HARD_ERROR) {
 			/* error */
-			bio->bi_error = -EIO;
+			bio->bi_status = BLK_STS_IOERR;
 			dev_printk(KERN_WARNING, &card->dev->dev,
 				"I/O error on sector %d/%d\n",
 				le32_to_cpu(desc->local_addr)>>9,
@@ -529,7 +529,7 @@ static blk_qc_t mm_make_request(struct request_queue *q, struct bio *bio)
 		 (unsigned long long)bio->bi_iter.bi_sector,
 		 bio->bi_iter.bi_size);
 
-	blk_queue_split(q, &bio, q->bio_split);
+	blk_queue_split(q, &bio);
 
 	spin_lock_irq(&card->lock);
 	*card->biotail = bio;

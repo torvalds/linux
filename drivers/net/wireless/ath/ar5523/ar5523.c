@@ -829,8 +829,8 @@ static void ar5523_tx_work_locked(struct ar5523 *ar)
 		data->ar = ar;
 		data->urb = urb;
 
-		desc = (struct ar5523_tx_desc *)skb_push(skb, sizeof(*desc));
-		chunk = (struct ar5523_chunk *)skb_push(skb, sizeof(*chunk));
+		desc = skb_push(skb, sizeof(*desc));
+		chunk = skb_push(skb, sizeof(*chunk));
 
 		chunk->seqnum = 0;
 		chunk->flags = UATH_CFLAGS_FINAL;

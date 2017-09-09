@@ -182,7 +182,7 @@ security_initcall(integrity_iintcache_init);
  *
  */
 int integrity_kernel_read(struct file *file, loff_t offset,
-			  char *addr, unsigned long count)
+			  void *addr, unsigned long count)
 {
 	mm_segment_t old_fs;
 	char __user *buf = (char __user *)addr;

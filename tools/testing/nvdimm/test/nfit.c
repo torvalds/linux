@@ -1559,7 +1559,7 @@ static unsigned long nfit_ctl_handle;
 union acpi_object *result;
 
 static union acpi_object *nfit_test_evaluate_dsm(acpi_handle handle,
-		const u8 *uuid, u64 rev, u64 func, union acpi_object *argv4)
+		const guid_t *guid, u64 rev, u64 func, union acpi_object *argv4)
 {
 	if (handle != &nfit_ctl_handle)
 		return ERR_PTR(-ENXIO);
@@ -1943,7 +1943,7 @@ static __init int nfit_test_init(void)
 			nfit_test->setup = nfit_test0_setup;
 			break;
 		case 1:
-			nfit_test->num_pm = 1;
+			nfit_test->num_pm = 2;
 			nfit_test->dcr_idx = NUM_DCR;
 			nfit_test->num_dcr = 2;
 			nfit_test->alloc = nfit_test1_alloc;

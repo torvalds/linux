@@ -601,7 +601,7 @@ batadv_dat_select_candidates(struct batadv_priv *bat_priv, __be32 ip_dst,
 						    BATADV_DAT_ADDR_MAX);
 
 	batadv_dbg(BATADV_DBG_DAT, bat_priv,
-		   "dat_select_candidates(): IP=%pI4 hash(IP)=%u\n", &ip_dst,
+		   "%s(): IP=%pI4 hash(IP)=%u\n", __func__, &ip_dst,
 		   ip_key);
 
 	for (select = 0; select < BATADV_DAT_CANDIDATES_NUM; select++)

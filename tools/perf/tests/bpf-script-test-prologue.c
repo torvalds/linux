@@ -10,6 +10,15 @@
 
 #include <uapi/linux/fs.h>
 
+/*
+ * If CONFIG_PROFILE_ALL_BRANCHES is selected,
+ * 'if' is redefined after include kernel header.
+ * Recover 'if' for BPF object code.
+ */
+#ifdef if
+# undef if
+#endif
+
 #define FMODE_READ		0x1
 #define FMODE_WRITE		0x2
 

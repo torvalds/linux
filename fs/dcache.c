@@ -90,6 +90,11 @@ EXPORT_SYMBOL(rename_lock);
 
 static struct kmem_cache *dentry_cache __read_mostly;
 
+const struct qstr empty_name = QSTR_INIT("", 0);
+EXPORT_SYMBOL(empty_name);
+const struct qstr slash_name = QSTR_INIT("/", 1);
+EXPORT_SYMBOL(slash_name);
+
 /*
  * This is the single most critical data structure when it comes
  * to the dcache: the hashtable for lookups. Somebody should try
@@ -276,6 +281,33 @@ static inline int dname_external(const struct dentry *dentry)
 {
 	return dentry->d_name.name != dentry->d_iname;
 }
+
+void take_dentry_name_snapshot(struct name_snapshot *name, struct dentry *dentry)
+{
+	spin_lock(&dentry->d_lock);
+	if (unlikely(dname_external(dentry))) {
+		struct external_name *p = external_name(dentry);
+		atomic_inc(&p->u.count);
+		spin_unlock(&dentry->d_lock);
+		name->name = p->name;
+	} else {
+		memcpy(name->inline_name, dentry->d_iname, DNAME_INLINE_LEN);
+		spin_unlock(&dentry->d_lock);
+		name->name = name->inline_name;
+	}
+}
+EXPORT_SYMBOL(take_dentry_name_snapshot);
+
+void release_dentry_name_snapshot(struct name_snapshot *name)
+{
+	if (unlikely(name->name != name->inline_name)) {
+		struct external_name *p;
+		p = container_of(name->name, struct external_name, name[0]);
+		if (unlikely(atomic_dec_and_test(&p->u.count)))
+			kfree_rcu(p, u.head);
+	}
+}
+EXPORT_SYMBOL(release_dentry_name_snapshot);
 
 static inline void __d_set_inode_and_type(struct dentry *dentry,
 					  struct inode *inode,
@@ -1133,11 +1165,12 @@ void shrink_dcache_sb(struct super_block *sb)
 		LIST_HEAD(dispose);
 
 		freed = list_lru_walk(&sb->s_dentry_lru,
-			dentry_lru_isolate_shrink, &dispose, UINT_MAX);
+			dentry_lru_isolate_shrink, &dispose, 1024);
 
 		this_cpu_sub(nr_dentry_unused, freed);
 		shrink_dentry_list(&dispose);
-	} while (freed > 0);
+		cond_resched();
+	} while (list_lru_count(&sb->s_dentry_lru) > 0);
 }
 EXPORT_SYMBOL(shrink_dcache_sb);
 
@@ -1578,8 +1611,7 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 	 */
 	dentry->d_iname[DNAME_INLINE_LEN-1] = 0;
 	if (unlikely(!name)) {
-		static const struct qstr anon = QSTR_INIT("/", 1);
-		name = &anon;
+		name = &slash_name;
 		dname = dentry->d_iname;
 	} else if (name->len > DNAME_INLINE_LEN-1) {
 		size_t size = offsetof(struct external_name, name[1]);
@@ -3546,8 +3578,6 @@ __setup("dhash_entries=", set_dhash_entries);
 
 static void __init dcache_init_early(void)
 {
-	unsigned int loop;
-
 	/* If hashes are distributed across NUMA nodes, defer
 	 * hash allocation until vmalloc space is available.
 	 */
@@ -3559,24 +3589,19 @@ static void __init dcache_init_early(void)
 					sizeof(struct hlist_bl_head),
 					dhash_entries,
 					13,
-					HASH_EARLY,
+					HASH_EARLY | HASH_ZERO,
 					&d_hash_shift,
 					&d_hash_mask,
 					0,
 					0);
-
-	for (loop = 0; loop < (1U << d_hash_shift); loop++)
-		INIT_HLIST_BL_HEAD(dentry_hashtable + loop);
 }
 
 static void __init dcache_init(void)
 {
-	unsigned int loop;
-
-	/* 
+	/*
 	 * A constructor could be added for stable state like the lists,
 	 * but it is probably not worth it because of the cache nature
-	 * of the dcache. 
+	 * of the dcache.
 	 */
 	dentry_cache = KMEM_CACHE(dentry,
 		SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD|SLAB_ACCOUNT);
@@ -3590,14 +3615,11 @@ static void __init dcache_init(void)
 					sizeof(struct hlist_bl_head),
 					dhash_entries,
 					13,
-					0,
+					HASH_ZERO,
 					&d_hash_shift,
 					&d_hash_mask,
 					0,
 					0);
-
-	for (loop = 0; loop < (1U << d_hash_shift); loop++)
-		INIT_HLIST_BL_HEAD(dentry_hashtable + loop);
 }
 
 /* SLAB cache for __getname() consumers */
@@ -3608,6 +3630,11 @@ EXPORT_SYMBOL(d_genocide);
 
 void __init vfs_caches_init_early(void)
 {
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(in_lookup_hashtable); i++)
+		INIT_HLIST_BL_HEAD(&in_lookup_hashtable[i]);
+
 	dcache_init_early();
 	inode_init_early();
 }

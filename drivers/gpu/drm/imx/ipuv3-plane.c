@@ -54,7 +54,7 @@ static const uint32_t ipu_plane_formats[] = {
 	DRM_FORMAT_RGBA8888,
 	DRM_FORMAT_RGBX8888,
 	DRM_FORMAT_BGRA8888,
-	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_BGRX8888,
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_VYUY,
 	DRM_FORMAT_YUYV,
@@ -273,7 +273,7 @@ void ipu_plane_state_reset(struct drm_plane *plane)
 
 	if (ipu_state) {
 		ipu_state->base.plane = plane;
-		ipu_state->base.rotation = DRM_ROTATE_0;
+		ipu_state->base.rotation = DRM_MODE_ROTATE_0;
 	}
 
 	plane->state = &ipu_state->base;

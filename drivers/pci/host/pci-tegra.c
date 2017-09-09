@@ -233,8 +233,8 @@ struct tegra_msi {
 	struct msi_controller chip;
 	DECLARE_BITMAP(used, INT_PCI_MSI_NR);
 	struct irq_domain *domain;
-	unsigned long pages;
 	struct mutex lock;
+	u64 phys;
 	int irq;
 };
 
@@ -1448,9 +1448,8 @@ static int tegra_msi_setup_irq(struct msi_controller *chip,
 
 	irq_set_msi_desc(irq, desc);
 
-	msg.address_lo = virt_to_phys((void *)msi->pages);
-	/* 32 bit address only */
-	msg.address_hi = 0;
+	msg.address_lo = lower_32_bits(msi->phys);
+	msg.address_hi = upper_32_bits(msi->phys);
 	msg.data = hwirq;
 
 	pci_write_msi_msg(irq, &msg);
@@ -1499,7 +1498,6 @@ static int tegra_pcie_enable_msi(struct tegra_pcie *pcie)
 	const struct tegra_pcie_soc *soc = pcie->soc;
 	struct tegra_msi *msi = &pcie->msi;
 	struct device *dev = pcie->dev;
-	unsigned long base;
 	int err;
 	u32 reg;
 
@@ -1531,12 +1529,25 @@ static int tegra_pcie_enable_msi(struct tegra_pcie *pcie)
 		goto err;
 	}
 
-	/* setup AFI/FPCI range */
-	msi->pages = __get_free_pages(GFP_KERNEL, 0);
-	base = virt_to_phys((void *)msi->pages);
+	/*
+	 * The PCI host bridge on Tegra contains some logic that intercepts
+	 * MSI writes, which means that the MSI target address doesn't have
+	 * to point to actual physical memory. Rather than allocating one 4
+	 * KiB page of system memory that's never used, we can simply pick
+	 * an arbitrary address within an area reserved for system memory
+	 * in the FPCI address map.
+	 *
+	 * However, in order to avoid confusion, we pick an address that
+	 * doesn't map to physical memory. The FPCI address map reserves a
+	 * 1012 GiB region for system memory and memory-mapped I/O. Since
+	 * none of the Tegra SoCs that contain this PCI host bridge can
+	 * address more than 16 GiB of system memory, the last 4 KiB of
+	 * these 1012 GiB is a good candidate.
+	 */
+	msi->phys = 0xfcfffff000;
 
-	afi_writel(pcie, base >> soc->msi_base_shift, AFI_MSI_FPCI_BAR_ST);
-	afi_writel(pcie, base, AFI_MSI_AXI_BAR_ST);
+	afi_writel(pcie, msi->phys >> soc->msi_base_shift, AFI_MSI_FPCI_BAR_ST);
+	afi_writel(pcie, msi->phys, AFI_MSI_AXI_BAR_ST);
 	/* this register is in 4K increments */
 	afi_writel(pcie, 1, AFI_MSI_BAR_SZ);
 
@@ -1584,8 +1595,6 @@ static int tegra_pcie_disable_msi(struct tegra_pcie *pcie)
 	afi_writel(pcie, 0, AFI_MSI_EN_VEC5);
 	afi_writel(pcie, 0, AFI_MSI_EN_VEC6);
 	afi_writel(pcie, 0, AFI_MSI_EN_VEC7);
-
-	free_pages(msi->pages, 0);
 
 	if (msi->irq > 0)
 		free_irq(msi->irq, pcie);
@@ -2238,7 +2247,7 @@ static int tegra_pcie_probe(struct platform_device *pdev)
 	struct pci_bus *child;
 	int err;
 
-	host = pci_alloc_host_bridge(sizeof(*pcie));
+	host = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
 	if (!host)
 		return -ENOMEM;
 
@@ -2284,16 +2293,15 @@ static int tegra_pcie_probe(struct platform_device *pdev)
 	host->busnr = pcie->busn.start;
 	host->dev.parent = &pdev->dev;
 	host->ops = &tegra_pcie_ops;
+	host->map_irq = tegra_pcie_map_irq;
+	host->swizzle_irq = pci_common_swizzle;
 
-	err = pci_register_host_bridge(host);
+	err = pci_scan_root_bus_bridge(host);
 	if (err < 0) {
 		dev_err(dev, "failed to register host: %d\n", err);
 		goto disable_msi;
 	}
 
-	pci_scan_child_bus(host->bus);
-
-	pci_fixup_irqs(pci_common_swizzle, tegra_pcie_map_irq);
 	pci_bus_size_bridges(host->bus);
 	pci_bus_assign_resources(host->bus);
 

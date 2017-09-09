@@ -34,6 +34,13 @@ struct cht_int33fe_data {
 	struct i2c_client *pi3usb30532;
 };
 
+static const char * const max17047_suppliers[] = { "bq24190-charger" };
+
+static const struct property_entry max17047_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", max17047_suppliers),
+	{ }
+};
+
 static int cht_int33fe_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -70,6 +77,7 @@ static int cht_int33fe_probe(struct i2c_client *client)
 
 	memset(&board_info, 0, sizeof(board_info));
 	strlcpy(board_info.type, "max17047", I2C_NAME_SIZE);
+	board_info.properties = max17047_props;
 
 	data->max17047 = i2c_acpi_new_device(dev, 1, &board_info);
 	if (!data->max17047)

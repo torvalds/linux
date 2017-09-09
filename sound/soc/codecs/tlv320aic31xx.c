@@ -1210,7 +1210,7 @@ static const struct snd_soc_dai_ops aic31xx_dai_ops = {
 
 static struct snd_soc_dai_driver dac31xx_dai_driver[] = {
 	{
-		.name = "tlv32dac31xx-hifi",
+		.name = "tlv320dac31xx-hifi",
 		.playback = {
 			.stream_name	 = "Playback",
 			.channels_min	 = 2,

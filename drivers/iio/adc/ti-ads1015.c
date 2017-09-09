@@ -23,7 +23,7 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 
-#include <linux/i2c/ads1015.h>
+#include <linux/platform_data/ads1015.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/types.h>

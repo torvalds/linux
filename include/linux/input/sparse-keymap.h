@@ -51,7 +51,6 @@ struct key_entry *sparse_keymap_entry_from_keycode(struct input_dev *dev,
 int sparse_keymap_setup(struct input_dev *dev,
 			const struct key_entry *keymap,
 			int (*setup)(struct input_dev *, struct key_entry *));
-void sparse_keymap_free(struct input_dev *dev);
 
 void sparse_keymap_report_entry(struct input_dev *dev, const struct key_entry *ke,
 				unsigned int value, bool autorelease);

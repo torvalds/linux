@@ -179,7 +179,7 @@ int snd_seq_fifo_cell_out(struct snd_seq_fifo *f,
 {
 	struct snd_seq_event_cell *cell;
 	unsigned long flags;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 
 	if (snd_BUG_ON(!f))
 		return -EINVAL;

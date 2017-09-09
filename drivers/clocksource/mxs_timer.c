@@ -293,4 +293,4 @@ static int __init mxs_timer_init(struct device_node *np)
 
 	return setup_irq(irq, &mxs_timer_irq);
 }
-CLOCKSOURCE_OF_DECLARE(mxs, "fsl,timrot", mxs_timer_init);
+TIMER_OF_DECLARE(mxs, "fsl,timrot", mxs_timer_init);

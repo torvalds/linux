@@ -576,7 +576,7 @@ static struct attribute *lpss_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group lpss_attr_group = {
+static const struct attribute_group lpss_attr_group = {
 	.attrs = lpss_attrs,
 	.name = "lpss_ltr",
 };

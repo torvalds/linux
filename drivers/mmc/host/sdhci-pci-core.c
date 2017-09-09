@@ -347,8 +347,7 @@ static inline void sdhci_pci_remove_own_cd(struct sdhci_pci_slot *slot)
 static int mfd_emmc_probe_slot(struct sdhci_pci_slot *slot)
 {
 	slot->host->mmc->caps |= MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE;
-	slot->host->mmc->caps2 |= MMC_CAP2_BOOTPART_NOACC |
-				  MMC_CAP2_HC_ERASE_SZ;
+	slot->host->mmc->caps2 |= MMC_CAP2_BOOTPART_NOACC;
 	return 0;
 }
 
@@ -404,10 +403,9 @@ struct intel_host {
 	bool	d3_retune;
 };
 
-const u8 intel_dsm_uuid[] = {
-	0xA5, 0x3E, 0xC1, 0xF6, 0xCD, 0x65, 0x1F, 0x46,
-	0xAB, 0x7A, 0x29, 0xF7, 0xE8, 0xD5, 0xBD, 0x61,
-};
+static const guid_t intel_dsm_guid =
+	GUID_INIT(0xF6C13EA5, 0x65CD, 0x461F,
+		  0xAB, 0x7A, 0x29, 0xF7, 0xE8, 0xD5, 0xBD, 0x61);
 
 static int __intel_dsm(struct intel_host *intel_host, struct device *dev,
 		       unsigned int fn, u32 *result)
@@ -416,7 +414,7 @@ static int __intel_dsm(struct intel_host *intel_host, struct device *dev,
 	int err = 0;
 	size_t len;
 
-	obj = acpi_evaluate_dsm(ACPI_HANDLE(dev), intel_dsm_uuid, 0, fn, NULL);
+	obj = acpi_evaluate_dsm(ACPI_HANDLE(dev), &intel_dsm_guid, 0, fn, NULL);
 	if (!obj)
 		return -EOPNOTSUPP;
 
@@ -543,6 +541,23 @@ static void sdhci_intel_set_power(struct sdhci_host *host, unsigned char mode,
 	}
 }
 
+#define INTEL_HS400_ES_REG 0x78
+#define INTEL_HS400_ES_BIT BIT(0)
+
+static void intel_hs400_enhanced_strobe(struct mmc_host *mmc,
+					struct mmc_ios *ios)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	u32 val;
+
+	val = sdhci_readl(host, INTEL_HS400_ES_REG);
+	if (ios->enhanced_strobe)
+		val |= INTEL_HS400_ES_BIT;
+	else
+		val &= ~INTEL_HS400_ES_BIT;
+	sdhci_writel(host, val, INTEL_HS400_ES_REG);
+}
+
 static const struct sdhci_ops sdhci_intel_byt_ops = {
 	.set_clock		= sdhci_set_clock,
 	.set_power		= sdhci_intel_set_power,
@@ -570,13 +585,25 @@ static int byt_emmc_probe_slot(struct sdhci_pci_slot *slot)
 				 MMC_CAP_HW_RESET | MMC_CAP_1_8V_DDR |
 				 MMC_CAP_CMD_DURING_TFR |
 				 MMC_CAP_WAIT_WHILE_BUSY;
-	slot->host->mmc->caps2 |= MMC_CAP2_HC_ERASE_SZ;
 	slot->hw_reset = sdhci_pci_int_hw_reset;
 	if (slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_BSW_EMMC)
 		slot->host->timeout_clk = 1000; /* 1000 kHz i.e. 1 MHz */
 	slot->host->mmc_host_ops.select_drive_strength =
 						intel_select_drive_strength;
 	return 0;
+}
+
+static int glk_emmc_probe_slot(struct sdhci_pci_slot *slot)
+{
+	int ret = byt_emmc_probe_slot(slot);
+
+	if (slot->chip->pdev->device != PCI_DEVICE_ID_INTEL_GLK_EMMC) {
+		slot->host->mmc->caps2 |= MMC_CAP2_HS400_ES,
+		slot->host->mmc_host_ops.hs400_enhanced_strobe =
+						intel_hs400_enhanced_strobe;
+	}
+
+	return ret;
 }
 
 #ifdef CONFIG_ACPI
@@ -631,7 +658,7 @@ static int byt_sd_probe_slot(struct sdhci_pci_slot *slot)
 {
 	byt_read_dsm(slot);
 	slot->host->mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY |
-				 MMC_CAP_AGGRESSIVE_PM;
+				 MMC_CAP_AGGRESSIVE_PM | MMC_CAP_CD_WAKE;
 	slot->cd_idx = 0;
 	slot->cd_override_level = true;
 	if (slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_BXT_SD ||
@@ -652,6 +679,17 @@ static const struct sdhci_pci_fixes sdhci_intel_byt_emmc = {
 			  SDHCI_QUIRK2_STOP_WITH_TC,
 	.ops		= &sdhci_intel_byt_ops,
 	.priv_size	= sizeof(struct intel_host),
+};
+
+static const struct sdhci_pci_fixes sdhci_intel_glk_emmc = {
+	.allow_runtime_pm	= true,
+	.probe_slot		= glk_emmc_probe_slot,
+	.quirks			= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+	.quirks2		= SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
+				  SDHCI_QUIRK2_CAPS_BIT63_FOR_HS400 |
+				  SDHCI_QUIRK2_STOP_WITH_TC,
+	.ops			= &sdhci_intel_byt_ops,
+	.priv_size		= sizeof(struct intel_host),
 };
 
 static const struct sdhci_pci_fixes sdhci_ni_byt_sdio = {
@@ -1171,554 +1209,79 @@ static const struct sdhci_pci_fixes sdhci_amd = {
 };
 
 static const struct pci_device_id pci_ids[] = {
-	{
-		.vendor		= PCI_VENDOR_ID_RICOH,
-		.device		= PCI_DEVICE_ID_RICOH_R5C822,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_ricoh,
-	},
-
-	{
-		.vendor         = PCI_VENDOR_ID_RICOH,
-		.device         = 0x843,
-		.subvendor      = PCI_ANY_ID,
-		.subdevice      = PCI_ANY_ID,
-		.driver_data    = (kernel_ulong_t)&sdhci_ricoh_mmc,
-	},
-
-	{
-		.vendor         = PCI_VENDOR_ID_RICOH,
-		.device         = 0xe822,
-		.subvendor      = PCI_ANY_ID,
-		.subdevice      = PCI_ANY_ID,
-		.driver_data    = (kernel_ulong_t)&sdhci_ricoh_mmc,
-	},
-
-	{
-		.vendor         = PCI_VENDOR_ID_RICOH,
-		.device         = 0xe823,
-		.subvendor      = PCI_ANY_ID,
-		.subdevice      = PCI_ANY_ID,
-		.driver_data    = (kernel_ulong_t)&sdhci_ricoh_mmc,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_ENE,
-		.device		= PCI_DEVICE_ID_ENE_CB712_SD,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_ene_712,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_ENE,
-		.device		= PCI_DEVICE_ID_ENE_CB712_SD_2,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_ene_712,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_ENE,
-		.device		= PCI_DEVICE_ID_ENE_CB714_SD,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_ene_714,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_ENE,
-		.device		= PCI_DEVICE_ID_ENE_CB714_SD_2,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_ene_714,
-	},
-
-	{
-		.vendor         = PCI_VENDOR_ID_MARVELL,
-		.device         = PCI_DEVICE_ID_MARVELL_88ALP01_SD,
-		.subvendor      = PCI_ANY_ID,
-		.subdevice      = PCI_ANY_ID,
-		.driver_data    = (kernel_ulong_t)&sdhci_cafe,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_JMICRON,
-		.device		= PCI_DEVICE_ID_JMICRON_JMB38X_SD,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_jmicron,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_JMICRON,
-		.device		= PCI_DEVICE_ID_JMICRON_JMB38X_MMC,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_jmicron,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_JMICRON,
-		.device		= PCI_DEVICE_ID_JMICRON_JMB388_SD,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_jmicron,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_JMICRON,
-		.device		= PCI_DEVICE_ID_JMICRON_JMB388_ESD,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_jmicron,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_SYSKONNECT,
-		.device		= 0x8000,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_syskt,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_VIA,
-		.device		= 0x95d0,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_via,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_REALTEK,
-		.device		= 0x5250,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_rtsx,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_QRK_SD,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_qrk,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_MRST_SD0,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_mrst_hc0,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_MRST_SD1,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_mrst_hc1_hc2,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_MRST_SD2,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_mrst_hc1_hc2,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_MFD_SD,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_sd,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_MFD_SDIO1,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_sdio,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_MFD_SDIO2,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_sdio,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_MFD_EMMC0,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_emmc,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_MFD_EMMC1,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_emmc,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_PCH_SDIO0,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_pch_sdio,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_PCH_SDIO1,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_pch_sdio,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_BYT_EMMC,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_emmc,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_BYT_SDIO,
-		.subvendor	= PCI_VENDOR_ID_NI,
-		.subdevice	= 0x7884,
-		.driver_data	= (kernel_ulong_t)&sdhci_ni_byt_sdio,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_BYT_SDIO,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sdio,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_BYT_SD,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sd,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_BYT_EMMC2,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_emmc,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_BSW_EMMC,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_emmc,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_BSW_SDIO,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sdio,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_BSW_SD,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sd,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_CLV_SDIO0,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_sd,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_CLV_SDIO1,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_sdio,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_CLV_SDIO2,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_sdio,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_CLV_EMMC0,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_emmc,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_CLV_EMMC1,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_emmc,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_MRFLD_MMC,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_mrfld_mmc,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_SPT_EMMC,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_emmc,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_SPT_SDIO,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sdio,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_SPT_SD,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sd,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_DNV_EMMC,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_emmc,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_BXT_EMMC,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_emmc,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_BXT_SDIO,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sdio,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_BXT_SD,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sd,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_BXTM_EMMC,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_emmc,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_BXTM_SDIO,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sdio,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_BXTM_SD,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sd,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_APL_EMMC,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_emmc,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_APL_SDIO,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sdio,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_APL_SD,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sd,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_GLK_EMMC,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_emmc,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_GLK_SDIO,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sdio,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_GLK_SD,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sd,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_O2,
-		.device		= PCI_DEVICE_ID_O2_8120,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_o2,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_O2,
-		.device		= PCI_DEVICE_ID_O2_8220,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_o2,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_O2,
-		.device		= PCI_DEVICE_ID_O2_8221,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_o2,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_O2,
-		.device		= PCI_DEVICE_ID_O2_8320,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_o2,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_O2,
-		.device		= PCI_DEVICE_ID_O2_8321,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_o2,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_O2,
-		.device		= PCI_DEVICE_ID_O2_FUJIN2,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_o2,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_O2,
-		.device		= PCI_DEVICE_ID_O2_SDS0,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_o2,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_O2,
-		.device		= PCI_DEVICE_ID_O2_SDS1,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_o2,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_O2,
-		.device		= PCI_DEVICE_ID_O2_SEABIRD0,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_o2,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_O2,
-		.device		= PCI_DEVICE_ID_O2_SEABIRD1,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_o2,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_AMD,
-		.device		= PCI_ANY_ID,
-		.class		= PCI_CLASS_SYSTEM_SDHCI << 8,
-		.class_mask	= 0xFFFF00,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_amd,
-	},
-	{	/* Generic SD host controller */
-		PCI_DEVICE_CLASS((PCI_CLASS_SYSTEM_SDHCI << 8), 0xFFFF00)
-	},
-
+	SDHCI_PCI_DEVICE(RICOH, R5C822,  ricoh),
+	SDHCI_PCI_DEVICE(RICOH, R5C843,  ricoh_mmc),
+	SDHCI_PCI_DEVICE(RICOH, R5CE822, ricoh_mmc),
+	SDHCI_PCI_DEVICE(RICOH, R5CE823, ricoh_mmc),
+	SDHCI_PCI_DEVICE(ENE, CB712_SD,   ene_712),
+	SDHCI_PCI_DEVICE(ENE, CB712_SD_2, ene_712),
+	SDHCI_PCI_DEVICE(ENE, CB714_SD,   ene_714),
+	SDHCI_PCI_DEVICE(ENE, CB714_SD_2, ene_714),
+	SDHCI_PCI_DEVICE(MARVELL, 88ALP01_SD, cafe),
+	SDHCI_PCI_DEVICE(JMICRON, JMB38X_SD,  jmicron),
+	SDHCI_PCI_DEVICE(JMICRON, JMB38X_MMC, jmicron),
+	SDHCI_PCI_DEVICE(JMICRON, JMB388_SD,  jmicron),
+	SDHCI_PCI_DEVICE(JMICRON, JMB388_ESD, jmicron),
+	SDHCI_PCI_DEVICE(SYSKONNECT, 8000, syskt),
+	SDHCI_PCI_DEVICE(VIA, 95D0, via),
+	SDHCI_PCI_DEVICE(REALTEK, 5250, rtsx),
+	SDHCI_PCI_DEVICE(INTEL, QRK_SD,    intel_qrk),
+	SDHCI_PCI_DEVICE(INTEL, MRST_SD0,  intel_mrst_hc0),
+	SDHCI_PCI_DEVICE(INTEL, MRST_SD1,  intel_mrst_hc1_hc2),
+	SDHCI_PCI_DEVICE(INTEL, MRST_SD2,  intel_mrst_hc1_hc2),
+	SDHCI_PCI_DEVICE(INTEL, MFD_SD,    intel_mfd_sd),
+	SDHCI_PCI_DEVICE(INTEL, MFD_SDIO1, intel_mfd_sdio),
+	SDHCI_PCI_DEVICE(INTEL, MFD_SDIO2, intel_mfd_sdio),
+	SDHCI_PCI_DEVICE(INTEL, MFD_EMMC0, intel_mfd_emmc),
+	SDHCI_PCI_DEVICE(INTEL, MFD_EMMC1, intel_mfd_emmc),
+	SDHCI_PCI_DEVICE(INTEL, PCH_SDIO0, intel_pch_sdio),
+	SDHCI_PCI_DEVICE(INTEL, PCH_SDIO1, intel_pch_sdio),
+	SDHCI_PCI_DEVICE(INTEL, BYT_EMMC,  intel_byt_emmc),
+	SDHCI_PCI_SUBDEVICE(INTEL, BYT_SDIO, NI, 7884, ni_byt_sdio),
+	SDHCI_PCI_DEVICE(INTEL, BYT_SDIO,  intel_byt_sdio),
+	SDHCI_PCI_DEVICE(INTEL, BYT_SD,    intel_byt_sd),
+	SDHCI_PCI_DEVICE(INTEL, BYT_EMMC2, intel_byt_emmc),
+	SDHCI_PCI_DEVICE(INTEL, BSW_EMMC,  intel_byt_emmc),
+	SDHCI_PCI_DEVICE(INTEL, BSW_SDIO,  intel_byt_sdio),
+	SDHCI_PCI_DEVICE(INTEL, BSW_SD,    intel_byt_sd),
+	SDHCI_PCI_DEVICE(INTEL, CLV_SDIO0, intel_mfd_sd),
+	SDHCI_PCI_DEVICE(INTEL, CLV_SDIO1, intel_mfd_sdio),
+	SDHCI_PCI_DEVICE(INTEL, CLV_SDIO2, intel_mfd_sdio),
+	SDHCI_PCI_DEVICE(INTEL, CLV_EMMC0, intel_mfd_emmc),
+	SDHCI_PCI_DEVICE(INTEL, CLV_EMMC1, intel_mfd_emmc),
+	SDHCI_PCI_DEVICE(INTEL, MRFLD_MMC, intel_mrfld_mmc),
+	SDHCI_PCI_DEVICE(INTEL, SPT_EMMC,  intel_byt_emmc),
+	SDHCI_PCI_DEVICE(INTEL, SPT_SDIO,  intel_byt_sdio),
+	SDHCI_PCI_DEVICE(INTEL, SPT_SD,    intel_byt_sd),
+	SDHCI_PCI_DEVICE(INTEL, DNV_EMMC,  intel_byt_emmc),
+	SDHCI_PCI_DEVICE(INTEL, BXT_EMMC,  intel_byt_emmc),
+	SDHCI_PCI_DEVICE(INTEL, BXT_SDIO,  intel_byt_sdio),
+	SDHCI_PCI_DEVICE(INTEL, BXT_SD,    intel_byt_sd),
+	SDHCI_PCI_DEVICE(INTEL, BXTM_EMMC, intel_byt_emmc),
+	SDHCI_PCI_DEVICE(INTEL, BXTM_SDIO, intel_byt_sdio),
+	SDHCI_PCI_DEVICE(INTEL, BXTM_SD,   intel_byt_sd),
+	SDHCI_PCI_DEVICE(INTEL, APL_EMMC,  intel_byt_emmc),
+	SDHCI_PCI_DEVICE(INTEL, APL_SDIO,  intel_byt_sdio),
+	SDHCI_PCI_DEVICE(INTEL, APL_SD,    intel_byt_sd),
+	SDHCI_PCI_DEVICE(INTEL, GLK_EMMC,  intel_glk_emmc),
+	SDHCI_PCI_DEVICE(INTEL, GLK_SDIO,  intel_byt_sdio),
+	SDHCI_PCI_DEVICE(INTEL, GLK_SD,    intel_byt_sd),
+	SDHCI_PCI_DEVICE(INTEL, CNP_EMMC,  intel_glk_emmc),
+	SDHCI_PCI_DEVICE(INTEL, CNP_SD,    intel_byt_sd),
+	SDHCI_PCI_DEVICE(INTEL, CNPH_SD,   intel_byt_sd),
+	SDHCI_PCI_DEVICE(O2, 8120,     o2),
+	SDHCI_PCI_DEVICE(O2, 8220,     o2),
+	SDHCI_PCI_DEVICE(O2, 8221,     o2),
+	SDHCI_PCI_DEVICE(O2, 8320,     o2),
+	SDHCI_PCI_DEVICE(O2, 8321,     o2),
+	SDHCI_PCI_DEVICE(O2, FUJIN2,   o2),
+	SDHCI_PCI_DEVICE(O2, SDS0,     o2),
+	SDHCI_PCI_DEVICE(O2, SDS1,     o2),
+	SDHCI_PCI_DEVICE(O2, SEABIRD0, o2),
+	SDHCI_PCI_DEVICE(O2, SEABIRD1, o2),
+	SDHCI_PCI_DEVICE_CLASS(AMD, SYSTEM_SDHCI, PCI_CLASS_MASK, amd),
+	/* Generic SD host controller */
+	{PCI_DEVICE_CLASS(SYSTEM_SDHCI, PCI_CLASS_MASK)},
 	{ /* end: all zeroes */ },
 };
 

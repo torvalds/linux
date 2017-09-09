@@ -36,7 +36,6 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/i2c/twl.h>
-#include <linux/i2c/twl4030-madc.h>
 #include <linux/module.h>
 #include <linux/stddef.h>
 #include <linux/mutex.h>
@@ -49,8 +48,120 @@
 
 #include <linux/iio/iio.h>
 
+#define TWL4030_MADC_MAX_CHANNELS 16
+
+#define TWL4030_MADC_CTRL1		0x00
+#define TWL4030_MADC_CTRL2		0x01
+
+#define TWL4030_MADC_RTSELECT_LSB	0x02
+#define TWL4030_MADC_SW1SELECT_LSB	0x06
+#define TWL4030_MADC_SW2SELECT_LSB	0x0A
+
+#define TWL4030_MADC_RTAVERAGE_LSB	0x04
+#define TWL4030_MADC_SW1AVERAGE_LSB	0x08
+#define TWL4030_MADC_SW2AVERAGE_LSB	0x0C
+
+#define TWL4030_MADC_CTRL_SW1		0x12
+#define TWL4030_MADC_CTRL_SW2		0x13
+
+#define TWL4030_MADC_RTCH0_LSB		0x17
+#define TWL4030_MADC_GPCH0_LSB		0x37
+
+#define TWL4030_MADC_MADCON	(1 << 0)	/* MADC power on */
+#define TWL4030_MADC_BUSY	(1 << 0)	/* MADC busy */
+/* MADC conversion completion */
+#define TWL4030_MADC_EOC_SW	(1 << 1)
+/* MADC SWx start conversion */
+#define TWL4030_MADC_SW_START	(1 << 5)
+#define TWL4030_MADC_ADCIN0	(1 << 0)
+#define TWL4030_MADC_ADCIN1	(1 << 1)
+#define TWL4030_MADC_ADCIN2	(1 << 2)
+#define TWL4030_MADC_ADCIN3	(1 << 3)
+#define TWL4030_MADC_ADCIN4	(1 << 4)
+#define TWL4030_MADC_ADCIN5	(1 << 5)
+#define TWL4030_MADC_ADCIN6	(1 << 6)
+#define TWL4030_MADC_ADCIN7	(1 << 7)
+#define TWL4030_MADC_ADCIN8	(1 << 8)
+#define TWL4030_MADC_ADCIN9	(1 << 9)
+#define TWL4030_MADC_ADCIN10	(1 << 10)
+#define TWL4030_MADC_ADCIN11	(1 << 11)
+#define TWL4030_MADC_ADCIN12	(1 << 12)
+#define TWL4030_MADC_ADCIN13	(1 << 13)
+#define TWL4030_MADC_ADCIN14	(1 << 14)
+#define TWL4030_MADC_ADCIN15	(1 << 15)
+
+/* Fixed channels */
+#define TWL4030_MADC_BTEMP	TWL4030_MADC_ADCIN1
+#define TWL4030_MADC_VBUS	TWL4030_MADC_ADCIN8
+#define TWL4030_MADC_VBKB	TWL4030_MADC_ADCIN9
+#define TWL4030_MADC_ICHG	TWL4030_MADC_ADCIN10
+#define TWL4030_MADC_VCHG	TWL4030_MADC_ADCIN11
+#define TWL4030_MADC_VBAT	TWL4030_MADC_ADCIN12
+
+/* Step size and prescaler ratio */
+#define TEMP_STEP_SIZE          147
+#define TEMP_PSR_R              100
+#define CURR_STEP_SIZE		147
+#define CURR_PSR_R1		44
+#define CURR_PSR_R2		88
+
+#define TWL4030_BCI_BCICTL1	0x23
+#define TWL4030_BCI_CGAIN	0x020
+#define TWL4030_BCI_MESBAT	(1 << 1)
+#define TWL4030_BCI_TYPEN	(1 << 4)
+#define TWL4030_BCI_ITHEN	(1 << 3)
+
+#define REG_BCICTL2             0x024
+#define TWL4030_BCI_ITHSENS	0x007
+
+/* Register and bits for GPBR1 register */
+#define TWL4030_REG_GPBR1		0x0c
+#define TWL4030_GPBR1_MADC_HFCLK_EN	(1 << 7)
+
 #define TWL4030_USB_SEL_MADC_MCPC	(1<<3)
 #define TWL4030_USB_CARKIT_ANA_CTRL	0xBB
+
+struct twl4030_madc_conversion_method {
+	u8 sel;
+	u8 avg;
+	u8 rbase;
+	u8 ctrl;
+};
+
+/**
+ * struct twl4030_madc_request - madc request packet for channel conversion
+ * @channels:	16 bit bitmap for individual channels
+ * @do_avg:	sample the input channel for 4 consecutive cycles
+ * @method:	RT, SW1, SW2
+ * @type:	Polling or interrupt based method
+ * @active:	Flag if request is active
+ * @result_pending: Flag from irq handler, that result is ready
+ * @raw:	Return raw value, do not convert it
+ * @rbuf:	Result buffer
+ */
+struct twl4030_madc_request {
+	unsigned long channels;
+	bool do_avg;
+	u16 method;
+	u16 type;
+	bool active;
+	bool result_pending;
+	bool raw;
+	int rbuf[TWL4030_MADC_MAX_CHANNELS];
+};
+
+enum conversion_methods {
+	TWL4030_MADC_RT,
+	TWL4030_MADC_SW1,
+	TWL4030_MADC_SW2,
+	TWL4030_MADC_NUM_METHODS
+};
+
+enum sample_type {
+	TWL4030_MADC_WAIT,
+	TWL4030_MADC_IRQ_ONESHOT,
+	TWL4030_MADC_IRQ_REARM
+};
 
 /**
  * struct twl4030_madc_data - a container for madc info
@@ -72,6 +183,8 @@ struct twl4030_madc_data {
 	u8 isr;
 };
 
+static int twl4030_madc_conversion(struct twl4030_madc_request *req);
+
 static int twl4030_madc_read(struct iio_dev *iio_dev,
 			     const struct iio_chan_spec *chan,
 			     int *val, int *val2, long mask)
@@ -84,7 +197,6 @@ static int twl4030_madc_read(struct iio_dev *iio_dev,
 
 	req.channels = BIT(chan->channel);
 	req.active = false;
-	req.func_cb = NULL;
 	req.type = TWL4030_MADC_WAIT;
 	req.raw = !(mask == IIO_CHAN_INFO_PROCESSED);
 	req.do_avg = (mask == IIO_CHAN_INFO_AVERAGE_RAW);
@@ -341,37 +453,6 @@ static int twl4030_madc_read_channels(struct twl4030_madc_data *madc,
 }
 
 /*
- * Enables irq.
- * @madc - pointer to twl4030_madc_data struct
- * @id - irq number to be enabled
- * can take one of TWL4030_MADC_RT, TWL4030_MADC_SW1, TWL4030_MADC_SW2
- * corresponding to RT, SW1, SW2 conversion requests.
- * If the i2c read fails it returns an error else returns 0.
- */
-static int twl4030_madc_enable_irq(struct twl4030_madc_data *madc, u8 id)
-{
-	u8 val;
-	int ret;
-
-	ret = twl_i2c_read_u8(TWL4030_MODULE_MADC, &val, madc->imr);
-	if (ret) {
-		dev_err(madc->dev, "unable to read imr register 0x%X\n",
-			madc->imr);
-		return ret;
-	}
-
-	val &= ~(1 << id);
-	ret = twl_i2c_write_u8(TWL4030_MODULE_MADC, val, madc->imr);
-	if (ret) {
-		dev_err(madc->dev,
-			"unable to write imr register 0x%X\n", madc->imr);
-		return ret;
-	}
-
-	return 0;
-}
-
-/*
  * Disables irq.
  * @madc - pointer to twl4030_madc_data struct
  * @id - irq number to be disabled
@@ -440,11 +521,6 @@ static irqreturn_t twl4030_madc_threaded_irq_handler(int irq, void *_madc)
 		/* Read results */
 		len = twl4030_madc_read_channels(madc, method->rbase,
 						 r->channels, r->rbuf, r->raw);
-		/* Return results to caller */
-		if (r->func_cb != NULL) {
-			r->func_cb(len, r->channels, r->rbuf);
-			r->func_cb = NULL;
-		}
 		/* Free request */
 		r->result_pending = 0;
 		r->active = 0;
@@ -466,11 +542,6 @@ err_i2c:
 		/* Read results */
 		len = twl4030_madc_read_channels(madc, method->rbase,
 						 r->channels, r->rbuf, r->raw);
-		/* Return results to caller */
-		if (r->func_cb != NULL) {
-			r->func_cb(len, r->channels, r->rbuf);
-			r->func_cb = NULL;
-		}
 		/* Free request */
 		r->result_pending = 0;
 		r->active = 0;
@@ -478,23 +549,6 @@ err_i2c:
 	mutex_unlock(&madc->lock);
 
 	return IRQ_HANDLED;
-}
-
-static int twl4030_madc_set_irq(struct twl4030_madc_data *madc,
-				struct twl4030_madc_request *req)
-{
-	struct twl4030_madc_request *p;
-	int ret;
-
-	p = &madc->requests[req->method];
-	memcpy(p, req, sizeof(*req));
-	ret = twl4030_madc_enable_irq(madc, req->method);
-	if (ret < 0) {
-		dev_err(madc->dev, "enable irq failed!!\n");
-		return ret;
-	}
-
-	return 0;
 }
 
 /*
@@ -568,7 +622,7 @@ static int twl4030_madc_wait_conversion_ready(struct twl4030_madc_data *madc,
  * be a negative error value in the corresponding array element.
  * returns 0 if succeeds else error value
  */
-int twl4030_madc_conversion(struct twl4030_madc_request *req)
+static int twl4030_madc_conversion(struct twl4030_madc_request *req)
 {
 	const struct twl4030_madc_conversion_method *method;
 	int ret;
@@ -605,17 +659,6 @@ int twl4030_madc_conversion(struct twl4030_madc_request *req)
 			goto out;
 		}
 	}
-	if (req->type == TWL4030_MADC_IRQ_ONESHOT && req->func_cb != NULL) {
-		ret = twl4030_madc_set_irq(twl4030_madc, req);
-		if (ret < 0)
-			goto out;
-		ret = twl4030_madc_start_conversion(twl4030_madc, req->method);
-		if (ret < 0)
-			goto out;
-		twl4030_madc->requests[req->method].active = 1;
-		ret = 0;
-		goto out;
-	}
 	/* With RT method we should not be here anymore */
 	if (req->method == TWL4030_MADC_RT) {
 		ret = -EINVAL;
@@ -640,28 +683,6 @@ out:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(twl4030_madc_conversion);
-
-int twl4030_get_madc_conversion(int channel_no)
-{
-	struct twl4030_madc_request req;
-	int temp = 0;
-	int ret;
-
-	req.channels = (1 << channel_no);
-	req.method = TWL4030_MADC_SW2;
-	req.active = 0;
-	req.raw = 0;
-	req.func_cb = NULL;
-	ret = twl4030_madc_conversion(&req);
-	if (ret < 0)
-		return ret;
-	if (req.rbuf[channel_no] > 0)
-		temp = req.rbuf[channel_no];
-
-	return temp;
-}
-EXPORT_SYMBOL_GPL(twl4030_get_madc_conversion);
 
 /**
  * twl4030_madc_set_current_generator() - setup bias current

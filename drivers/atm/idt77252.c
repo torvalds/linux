@@ -724,7 +724,7 @@ push_on_scq(struct idt77252_dev *card, struct vc_map *vc, struct sk_buff *skb)
 		struct sock *sk = sk_atm(vcc);
 
 		vc->estimator->cells += (skb->len + 47) / 48;
-		if (atomic_read(&sk->sk_wmem_alloc) >
+		if (refcount_read(&sk->sk_wmem_alloc) >
 		    (sk->sk_sndbuf >> 1)) {
 			u32 cps = vc->estimator->maxcps;
 
@@ -1090,8 +1090,7 @@ dequeue_rx(struct idt77252_dev *card, struct rsq_entry *rsqe)
 
 			*((u32 *) sb->data) = aal0;
 			skb_put(sb, sizeof(u32));
-			memcpy(skb_put(sb, ATM_CELL_PAYLOAD),
-			       cell, ATM_CELL_PAYLOAD);
+			skb_put_data(sb, cell, ATM_CELL_PAYLOAD);
 
 			ATM_SKB(sb)->vcc = vcc;
 			__net_timestamp(sb);
@@ -1159,8 +1158,7 @@ dequeue_rx(struct idt77252_dev *card, struct rsq_entry *rsqe)
 				return;
 			}
 			skb_queue_walk(&rpp->queue, sb)
-				memcpy(skb_put(skb, sb->len),
-				       sb->data, sb->len);
+				skb_put_data(skb, sb->data, sb->len);
 
 			recycle_rx_pool_skb(card, rpp);
 
@@ -1322,8 +1320,7 @@ idt77252_rx_raw(struct idt77252_dev *card)
 
 		*((u32 *) sb->data) = header;
 		skb_put(sb, sizeof(u32));
-		memcpy(skb_put(sb, ATM_CELL_PAYLOAD), &(queue->data[16]),
-		       ATM_CELL_PAYLOAD);
+		skb_put_data(sb, &(queue->data[16]), ATM_CELL_PAYLOAD);
 
 		ATM_SKB(sb)->vcc = vcc;
 		__net_timestamp(sb);
@@ -2012,9 +2009,9 @@ idt77252_send_oam(struct atm_vcc *vcc, void *cell, int flags)
 		atomic_inc(&vcc->stats->tx_err);
 		return -ENOMEM;
 	}
-	atomic_add(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc);
+	refcount_add(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc);
 
-	memcpy(skb_put(skb, 52), cell, 52);
+	skb_put_data(skb, cell, 52);
 
 	return idt77252_send_skb(vcc, skb, 1);
 }

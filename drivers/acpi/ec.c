@@ -27,7 +27,7 @@
 
 /* Uncomment next line to get verbose printout */
 /* #define DEBUG */
-#define pr_fmt(fmt) "ACPI : EC: " fmt
+#define pr_fmt(fmt) "ACPI: EC: " fmt
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -147,7 +147,7 @@ static unsigned int ec_storm_threshold  __read_mostly = 8;
 module_param(ec_storm_threshold, uint, 0644);
 MODULE_PARM_DESC(ec_storm_threshold, "Maxim false GPE numbers not considered as GPE storm");
 
-static bool ec_freeze_events __read_mostly = true;
+static bool ec_freeze_events __read_mostly = false;
 module_param(ec_freeze_events, bool, 0644);
 MODULE_PARM_DESC(ec_freeze_events, "Disabling event handling during suspend/resume");
 
@@ -190,6 +190,7 @@ static struct workqueue_struct *ec_query_wq;
 
 static int EC_FLAGS_QUERY_HANDSHAKE; /* Needs QR_EC issued when SCI_EVT set */
 static int EC_FLAGS_CORRECT_ECDT; /* Needs ECDT port address correction */
+static int EC_FLAGS_IGNORE_DSDT_GPE; /* Needs ECDT GPE as correction setting */
 
 /* --------------------------------------------------------------------------
  *                           Logging/Debugging
@@ -316,7 +317,7 @@ static inline void acpi_ec_write_data(struct acpi_ec *ec, u8 data)
 	ec->timestamp = jiffies;
 }
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 static const char *acpi_ec_cmd_string(u8 cmd)
 {
 	switch (cmd) {
@@ -459,8 +460,10 @@ static bool acpi_ec_submit_flushable_request(struct acpi_ec *ec)
 
 static void acpi_ec_submit_query(struct acpi_ec *ec)
 {
-	if (acpi_ec_event_enabled(ec) &&
-	    !test_and_set_bit(EC_FLAGS_QUERY_PENDING, &ec->flags)) {
+	acpi_ec_set_storm(ec, EC_FLAGS_COMMAND_STORM);
+	if (!acpi_ec_event_enabled(ec))
+		return;
+	if (!test_and_set_bit(EC_FLAGS_QUERY_PENDING, &ec->flags)) {
 		ec_dbg_evt("Command(%s) submitted/blocked",
 			   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
 		ec->nr_pending_queries++;
@@ -470,11 +473,10 @@ static void acpi_ec_submit_query(struct acpi_ec *ec)
 
 static void acpi_ec_complete_query(struct acpi_ec *ec)
 {
-	if (test_bit(EC_FLAGS_QUERY_PENDING, &ec->flags)) {
-		clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags);
+	if (test_and_clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags))
 		ec_dbg_evt("Command(%s) unblocked",
 			   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
-	}
+	acpi_ec_clear_storm(ec, EC_FLAGS_COMMAND_STORM);
 }
 
 static inline void __acpi_ec_enable_event(struct acpi_ec *ec)
@@ -1362,13 +1364,23 @@ ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 				     ec_parse_io_ports, ec);
 	if (ACPI_FAILURE(status))
 		return status;
+	if (ec->data_addr == 0 || ec->command_addr == 0)
+		return AE_OK;
 
-	/* Get GPE bit assignment (EC events). */
-	/* TODO: Add support for _GPE returning a package */
-	status = acpi_evaluate_integer(handle, "_GPE", NULL, &tmp);
-	if (ACPI_FAILURE(status))
-		return status;
-	ec->gpe = tmp;
+	if (boot_ec && boot_ec_is_ecdt && EC_FLAGS_IGNORE_DSDT_GPE) {
+		/*
+		 * Always inherit the GPE number setting from the ECDT
+		 * EC.
+		 */
+		ec->gpe = boot_ec->gpe;
+	} else {
+		/* Get GPE bit assignment (EC events). */
+		/* TODO: Add support for _GPE returning a package */
+		status = acpi_evaluate_integer(handle, "_GPE", NULL, &tmp);
+		if (ACPI_FAILURE(status))
+			return status;
+		ec->gpe = tmp;
+	}
 	/* Use the global lock for all EC transactions? */
 	tmp = 0;
 	acpi_evaluate_integer(handle, "_GLK", NULL, &tmp);
@@ -1665,11 +1677,25 @@ static const struct acpi_device_id ec_device_ids[] = {
 	{"", 0},
 };
 
+/*
+ * This function is not Windows-compatible as Windows never enumerates the
+ * namespace EC before the main ACPI device enumeration process. It is
+ * retained for historical reason and will be deprecated in the future.
+ */
 int __init acpi_ec_dsdt_probe(void)
 {
 	acpi_status status;
 	struct acpi_ec *ec;
 	int ret;
+
+	/*
+	 * If a platform has ECDT, there is no need to proceed as the
+	 * following probe is not a part of the ACPI device enumeration,
+	 * executing _STA is not safe, and thus this probe may risk of
+	 * picking up an invalid EC device.
+	 */
+	if (boot_ec)
+		return -ENODEV;
 
 	ec = acpi_ec_alloc();
 	if (!ec)
@@ -1753,11 +1779,43 @@ static int ec_correct_ecdt(const struct dmi_system_id *id)
 	return 0;
 }
 
+/*
+ * Some DSDTs contain wrong GPE setting.
+ * Asus FX502VD/VE, GL702VMK, X550VXK, X580VD
+ * https://bugzilla.kernel.org/show_bug.cgi?id=195651
+ */
+static int ec_honor_ecdt_gpe(const struct dmi_system_id *id)
+{
+	pr_debug("Detected system needing ignore DSDT GPE setting.\n");
+	EC_FLAGS_IGNORE_DSDT_GPE = 1;
+	return 0;
+}
+
 static struct dmi_system_id ec_dmi_table[] __initdata = {
 	{
 	ec_correct_ecdt, "MSI MS-171F", {
 	DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star"),
 	DMI_MATCH(DMI_PRODUCT_NAME, "MS-171F"),}, NULL},
+	{
+	ec_honor_ecdt_gpe, "ASUS FX502VD", {
+	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+	DMI_MATCH(DMI_PRODUCT_NAME, "FX502VD"),}, NULL},
+	{
+	ec_honor_ecdt_gpe, "ASUS FX502VE", {
+	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+	DMI_MATCH(DMI_PRODUCT_NAME, "FX502VE"),}, NULL},
+	{
+	ec_honor_ecdt_gpe, "ASUS GL702VMK", {
+	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+	DMI_MATCH(DMI_PRODUCT_NAME, "GL702VMK"),}, NULL},
+	{
+	ec_honor_ecdt_gpe, "ASUS X550VXK", {
+	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+	DMI_MATCH(DMI_PRODUCT_NAME, "X550VXK"),}, NULL},
+	{
+	ec_honor_ecdt_gpe, "ASUS X580VD", {
+	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+	DMI_MATCH(DMI_PRODUCT_NAME, "X580VD"),}, NULL},
 	{},
 };
 
@@ -1812,30 +1870,12 @@ error:
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int acpi_ec_suspend_noirq(struct device *dev)
-{
-	struct acpi_ec *ec =
-		acpi_driver_data(to_acpi_device(dev));
-
-	acpi_ec_enter_noirq(ec);
-	return 0;
-}
-
-static int acpi_ec_resume_noirq(struct device *dev)
-{
-	struct acpi_ec *ec =
-		acpi_driver_data(to_acpi_device(dev));
-
-	acpi_ec_leave_noirq(ec);
-	return 0;
-}
-
 static int acpi_ec_suspend(struct device *dev)
 {
 	struct acpi_ec *ec =
 		acpi_driver_data(to_acpi_device(dev));
 
-	if (ec_freeze_events)
+	if (acpi_sleep_no_ec_events() && ec_freeze_events)
 		acpi_ec_disable_event(ec);
 	return 0;
 }
@@ -1851,7 +1891,6 @@ static int acpi_ec_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops acpi_ec_pm = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(acpi_ec_suspend_noirq, acpi_ec_resume_noirq)
 	SET_SYSTEM_SLEEP_PM_OPS(acpi_ec_suspend, acpi_ec_resume)
 };
 

@@ -90,7 +90,7 @@ cxgb_mk_tid_release(struct sk_buff *skb, u32 len, u32 tid, u16 chan)
 {
 	struct cpl_tid_release *req;
 
-	req = (struct cpl_tid_release *)__skb_put(skb, len);
+	req = __skb_put(skb, len);
 	memset(req, 0, len);
 
 	INIT_TP_WR(req, tid);
@@ -104,7 +104,7 @@ cxgb_mk_close_con_req(struct sk_buff *skb, u32 len, u32 tid, u16 chan,
 {
 	struct cpl_close_con_req *req;
 
-	req = (struct cpl_close_con_req *)__skb_put(skb, len);
+	req = __skb_put(skb, len);
 	memset(req, 0, len);
 
 	INIT_TP_WR(req, tid);
@@ -119,7 +119,7 @@ cxgb_mk_abort_req(struct sk_buff *skb, u32 len, u32 tid, u16 chan,
 {
 	struct cpl_abort_req *req;
 
-	req = (struct cpl_abort_req *)__skb_put(skb, len);
+	req = __skb_put(skb, len);
 	memset(req, 0, len);
 
 	INIT_TP_WR(req, tid);
@@ -134,7 +134,7 @@ cxgb_mk_abort_rpl(struct sk_buff *skb, u32 len, u32 tid, u16 chan)
 {
 	struct cpl_abort_rpl *rpl;
 
-	rpl = (struct cpl_abort_rpl *)__skb_put(skb, len);
+	rpl = __skb_put(skb, len);
 	memset(rpl, 0, len);
 
 	INIT_TP_WR(rpl, tid);
@@ -149,7 +149,7 @@ cxgb_mk_rx_data_ack(struct sk_buff *skb, u32 len, u32 tid, u16 chan,
 {
 	struct cpl_rx_data_ack *req;
 
-	req = (struct cpl_rx_data_ack *)__skb_put(skb, len);
+	req = __skb_put(skb, len);
 	memset(req, 0, len);
 
 	INIT_TP_WR(req, tid);

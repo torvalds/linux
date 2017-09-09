@@ -45,7 +45,7 @@ struct key_preparsed_payload {
 	size_t		datalen;	/* Raw datalen */
 	size_t		quotalen;	/* Quota length for proposed payload */
 	time_t		expiry;		/* Expiry time of key */
-};
+} __randomize_layout;
 
 typedef int (*request_key_actor_t)(struct key_construction *key,
 				   const char *op, void *aux);
@@ -158,7 +158,7 @@ struct key_type {
 	/* internal fields */
 	struct list_head	link;		/* link in types list */
 	struct lock_class_key	lock_class;	/* key->sem lock class */
-};
+} __randomize_layout;
 
 extern struct key_type key_type_keyring;
 

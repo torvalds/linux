@@ -39,6 +39,7 @@
 #include <linux/compat.h>
 #include <linux/cn_proc.h>
 #include <linux/compiler.h>
+#include <linux/posix-timers.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/signal.h>
@@ -637,7 +638,7 @@ int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
 		 * about to disable them again anyway.
 		 */
 		spin_unlock(&tsk->sighand->siglock);
-		do_schedule_next_timer(info);
+		posixtimer_rearm(info);
 		spin_lock(&tsk->sighand->siglock);
 	}
 #endif
@@ -1401,6 +1402,10 @@ static int kill_something_info(int sig, struct siginfo *info, pid_t pid)
 		return ret;
 	}
 
+	/* -INT_MIN is undefined.  Exclude this case to avoid a UBSAN warning */
+	if (pid == INT_MIN)
+		return -ESRCH;
+
 	read_lock(&tasklist_lock);
 	if (pid != -1) {
 		ret = __kill_pgrp_info(sig, info,
@@ -2100,7 +2105,6 @@ static void do_jobctl_trap(void)
 
 static int ptrace_signal(int signr, siginfo_t *info)
 {
-	ptrace_signal_deliver();
 	/*
 	 * We do not check sig_kernel_stop(signr) but set this marker
 	 * unconditionally because we do not know whether debugger will
@@ -2776,7 +2780,7 @@ int copy_siginfo_to_user(siginfo_t __user *to, const siginfo_t *from)
  *  @info: if non-null, the signal's siginfo is returned here
  *  @ts: upper bound on process time suspension
  */
-int do_sigtimedwait(const sigset_t *which, siginfo_t *info,
+static int do_sigtimedwait(const sigset_t *which, siginfo_t *info,
 		    const struct timespec *ts)
 {
 	ktime_t *to = NULL, timeout = KTIME_MAX;
@@ -2864,6 +2868,40 @@ SYSCALL_DEFINE4(rt_sigtimedwait, const sigset_t __user *, uthese,
 
 	return ret;
 }
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE4(rt_sigtimedwait, compat_sigset_t __user *, uthese,
+		struct compat_siginfo __user *, uinfo,
+		struct compat_timespec __user *, uts, compat_size_t, sigsetsize)
+{
+	compat_sigset_t s32;
+	sigset_t s;
+	struct timespec t;
+	siginfo_t info;
+	long ret;
+
+	if (sigsetsize != sizeof(sigset_t))
+		return -EINVAL;
+
+	if (copy_from_user(&s32, uthese, sizeof(compat_sigset_t)))
+		return -EFAULT;
+	sigset_from_compat(&s, &s32);
+
+	if (uts) {
+		if (compat_get_timespec(&t, uts))
+			return -EFAULT;
+	}
+
+	ret = do_sigtimedwait(&s, &info, uts ? &t : NULL);
+
+	if (ret > 0 && uinfo) {
+		if (copy_siginfo_to_user32(uinfo, &info))
+			ret = -EFAULT;
+	}
+
+	return ret;
+}
+#endif
 
 /**
  *  sys_kill - send a signal to a process
@@ -3121,78 +3159,68 @@ int do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
 }
 
 static int
-do_sigaltstack (const stack_t __user *uss, stack_t __user *uoss, unsigned long sp)
+do_sigaltstack (const stack_t *ss, stack_t *oss, unsigned long sp)
 {
-	stack_t oss;
-	int error;
+	struct task_struct *t = current;
 
-	oss.ss_sp = (void __user *) current->sas_ss_sp;
-	oss.ss_size = current->sas_ss_size;
-	oss.ss_flags = sas_ss_flags(sp) |
-		(current->sas_ss_flags & SS_FLAG_BITS);
+	if (oss) {
+		memset(oss, 0, sizeof(stack_t));
+		oss->ss_sp = (void __user *) t->sas_ss_sp;
+		oss->ss_size = t->sas_ss_size;
+		oss->ss_flags = sas_ss_flags(sp) |
+			(current->sas_ss_flags & SS_FLAG_BITS);
+	}
 
-	if (uss) {
-		void __user *ss_sp;
-		size_t ss_size;
-		unsigned ss_flags;
+	if (ss) {
+		void __user *ss_sp = ss->ss_sp;
+		size_t ss_size = ss->ss_size;
+		unsigned ss_flags = ss->ss_flags;
 		int ss_mode;
 
-		error = -EFAULT;
-		if (!access_ok(VERIFY_READ, uss, sizeof(*uss)))
-			goto out;
-		error = __get_user(ss_sp, &uss->ss_sp) |
-			__get_user(ss_flags, &uss->ss_flags) |
-			__get_user(ss_size, &uss->ss_size);
-		if (error)
-			goto out;
-
-		error = -EPERM;
-		if (on_sig_stack(sp))
-			goto out;
+		if (unlikely(on_sig_stack(sp)))
+			return -EPERM;
 
 		ss_mode = ss_flags & ~SS_FLAG_BITS;
-		error = -EINVAL;
-		if (ss_mode != SS_DISABLE && ss_mode != SS_ONSTACK &&
-				ss_mode != 0)
-			goto out;
+		if (unlikely(ss_mode != SS_DISABLE && ss_mode != SS_ONSTACK &&
+				ss_mode != 0))
+			return -EINVAL;
 
 		if (ss_mode == SS_DISABLE) {
 			ss_size = 0;
 			ss_sp = NULL;
 		} else {
-			error = -ENOMEM;
-			if (ss_size < MINSIGSTKSZ)
-				goto out;
+			if (unlikely(ss_size < MINSIGSTKSZ))
+				return -ENOMEM;
 		}
 
-		current->sas_ss_sp = (unsigned long) ss_sp;
-		current->sas_ss_size = ss_size;
-		current->sas_ss_flags = ss_flags;
+		t->sas_ss_sp = (unsigned long) ss_sp;
+		t->sas_ss_size = ss_size;
+		t->sas_ss_flags = ss_flags;
 	}
-
-	error = 0;
-	if (uoss) {
-		error = -EFAULT;
-		if (!access_ok(VERIFY_WRITE, uoss, sizeof(*uoss)))
-			goto out;
-		error = __put_user(oss.ss_sp, &uoss->ss_sp) |
-			__put_user(oss.ss_size, &uoss->ss_size) |
-			__put_user(oss.ss_flags, &uoss->ss_flags);
-	}
-
-out:
-	return error;
+	return 0;
 }
+
 SYSCALL_DEFINE2(sigaltstack,const stack_t __user *,uss, stack_t __user *,uoss)
 {
-	return do_sigaltstack(uss, uoss, current_user_stack_pointer());
+	stack_t new, old;
+	int err;
+	if (uss && copy_from_user(&new, uss, sizeof(stack_t)))
+		return -EFAULT;
+	err = do_sigaltstack(uss ? &new : NULL, uoss ? &old : NULL,
+			      current_user_stack_pointer());
+	if (!err && uoss && copy_to_user(uoss, &old, sizeof(stack_t)))
+		err = -EFAULT;
+	return err;
 }
 
 int restore_altstack(const stack_t __user *uss)
 {
-	int err = do_sigaltstack(uss, NULL, current_user_stack_pointer());
+	stack_t new;
+	if (copy_from_user(&new, uss, sizeof(stack_t)))
+		return -EFAULT;
+	(void)do_sigaltstack(&new, NULL, current_user_stack_pointer());
 	/* squash all but EFAULT for now */
-	return err == -EFAULT ? err : 0;
+	return 0;
 }
 
 int __save_altstack(stack_t __user *uss, unsigned long sp)
@@ -3215,29 +3243,24 @@ COMPAT_SYSCALL_DEFINE2(sigaltstack,
 {
 	stack_t uss, uoss;
 	int ret;
-	mm_segment_t seg;
 
 	if (uss_ptr) {
 		compat_stack_t uss32;
-
-		memset(&uss, 0, sizeof(stack_t));
 		if (copy_from_user(&uss32, uss_ptr, sizeof(compat_stack_t)))
 			return -EFAULT;
 		uss.ss_sp = compat_ptr(uss32.ss_sp);
 		uss.ss_flags = uss32.ss_flags;
 		uss.ss_size = uss32.ss_size;
 	}
-	seg = get_fs();
-	set_fs(KERNEL_DS);
-	ret = do_sigaltstack((stack_t __force __user *) (uss_ptr ? &uss : NULL),
-			     (stack_t __force __user *) &uoss,
+	ret = do_sigaltstack(uss_ptr ? &uss : NULL, &uoss,
 			     compat_user_stack_pointer());
-	set_fs(seg);
 	if (ret >= 0 && uoss_ptr)  {
-		if (!access_ok(VERIFY_WRITE, uoss_ptr, sizeof(compat_stack_t)) ||
-		    __put_user(ptr_to_compat(uoss.ss_sp), &uoss_ptr->ss_sp) ||
-		    __put_user(uoss.ss_flags, &uoss_ptr->ss_flags) ||
-		    __put_user(uoss.ss_size, &uoss_ptr->ss_size))
+		compat_stack_t old;
+		memset(&old, 0, sizeof(old));
+		old.ss_sp = ptr_to_compat(uoss.ss_sp);
+		old.ss_flags = uoss.ss_flags;
+		old.ss_size = uoss.ss_size;
+		if (copy_to_user(uoss_ptr, &old, sizeof(compat_stack_t)))
 			ret = -EFAULT;
 	}
 	return ret;
@@ -3276,6 +3299,18 @@ SYSCALL_DEFINE1(sigpending, old_sigset_t __user *, set)
 {
 	return sys_rt_sigpending((sigset_t __user *)set, sizeof(old_sigset_t)); 
 }
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE1(sigpending, compat_old_sigset_t __user *, set32)
+{
+	sigset_t set;
+	int err = do_sigpending(&set, sizeof(old_sigset_t)); 
+	if (err == 0)
+		if (copy_to_user(set32, &set, sizeof(old_sigset_t)))
+			err = -EFAULT;
+	return err;
+}
+#endif
 
 #endif
 

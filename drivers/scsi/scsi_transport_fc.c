@@ -1692,7 +1692,7 @@ fc_private_host_rd_attr(npiv_vports_inuse, "%u\n", 20);
  * Host Statistics Management
  */
 
-/* Show a given an attribute in the statistics group */
+/* Show a given attribute in the statistics group */
 static ssize_t
 fc_stat_show(const struct device *dev, char *buf, unsigned long offset)
 {
@@ -2914,16 +2914,18 @@ EXPORT_SYMBOL(fc_remote_port_add);
  * port is no longer part of the topology. Note: Although a port
  * may no longer be part of the topology, it may persist in the remote
  * ports displayed by the fc_host. We do this under 2 conditions:
+ *
  * 1) If the port was a scsi target, we delay its deletion by "blocking" it.
- *   This allows the port to temporarily disappear, then reappear without
- *   disrupting the SCSI device tree attached to it. During the "blocked"
- *   period the port will still exist.
+ *    This allows the port to temporarily disappear, then reappear without
+ *    disrupting the SCSI device tree attached to it. During the "blocked"
+ *    period the port will still exist.
+ *
  * 2) If the port was a scsi target and disappears for longer than we
- *   expect, we'll delete the port and the tear down the SCSI device tree
- *   attached to it. However, we want to semi-persist the target id assigned
- *   to that port if it eventually does exist. The port structure will
- *   remain (although with minimal information) so that the target id
- *   bindings remails.
+ *    expect, we'll delete the port and the tear down the SCSI device tree
+ *    attached to it. However, we want to semi-persist the target id assigned
+ *    to that port if it eventually does exist. The port structure will
+ *    remain (although with minimal information) so that the target id
+ *    bindings also remain.
  *
  * If the remote port is not an FCP Target, it will be fully torn down
  * and deallocated, including the fc_remote_port class device.
@@ -2937,7 +2939,7 @@ EXPORT_SYMBOL(fc_remote_port_add);
  *   If the remote port does not return (signaled by a LLDD call to
  *   fc_remote_port_add()) within the dev_loss_tmo timeout, then the
  *   scsi target is removed - killing all outstanding i/o and removing the
- *   scsi devices attached ot it. The port structure will be marked Not
+ *   scsi devices attached to it. The port structure will be marked Not
  *   Present and be partially cleared, leaving only enough information to
  *   recognize the remote port relative to the scsi target id binding if
  *   it later appears.  The port will remain as long as there is a valid
@@ -3056,7 +3058,7 @@ fc_remote_port_rolechg(struct fc_rport  *rport, u32 roles)
 		 * There may have been a delete timer running on the
 		 * port. Ensure that it is cancelled as we now know
 		 * the port is an FCP Target.
-		 * Note: we know the rport is exists and in an online
+		 * Note: we know the rport exists and is in an online
 		 *  state as the LLDD would not have had an rport
 		 *  reference to pass us.
 		 *
@@ -3317,7 +3319,7 @@ EXPORT_SYMBOL(fc_block_scsi_eh);
  * @ret_vport:	The pointer to the created vport.
  *
  * Allocates and creates the vport structure, calls the parent host
- * to instantiate the vport, the completes w/ class and sysfs creation.
+ * to instantiate the vport, this completes w/ class and sysfs creation.
  *
  * Notes:
  *	This routine assumes no locks are held on entry.
@@ -3397,7 +3399,7 @@ fc_vport_setup(struct Scsi_Host *shost, int channel, struct device *pdev,
 
 	/*
 	 * if the parent isn't the physical adapter's Scsi_Host, ensure
-	 * the Scsi_Host at least contains ia symlink to the vport.
+	 * the Scsi_Host at least contains a symlink to the vport.
 	 */
 	if (pdev != &shost->shost_gendev) {
 		error = sysfs_create_link(&shost->shost_gendev.kobj,

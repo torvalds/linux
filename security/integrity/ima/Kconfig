@@ -96,19 +96,19 @@ choice
 
 	config IMA_DEFAULT_HASH_SHA1
 		bool "SHA1 (default)"
-		depends on CRYPTO_SHA1
+		depends on CRYPTO_SHA1=y
 
 	config IMA_DEFAULT_HASH_SHA256
 		bool "SHA256"
-		depends on CRYPTO_SHA256 && !IMA_TEMPLATE
+		depends on CRYPTO_SHA256=y && !IMA_TEMPLATE
 
 	config IMA_DEFAULT_HASH_SHA512
 		bool "SHA512"
-		depends on CRYPTO_SHA512 && !IMA_TEMPLATE
+		depends on CRYPTO_SHA512=y && !IMA_TEMPLATE
 
 	config IMA_DEFAULT_HASH_WP512
 		bool "WP512"
-		depends on CRYPTO_WP512 && !IMA_TEMPLATE
+		depends on CRYPTO_WP512=y && !IMA_TEMPLATE
 endchoice
 
 config IMA_DEFAULT_HASH
@@ -154,6 +154,14 @@ config IMA_APPRAISE
 	  For more information on integrity appraisal refer to:
 	  <http://linux-ima.sourceforge.net>
 	  If unsure, say N.
+
+config IMA_APPRAISE_BOOTPARAM
+	bool "ima_appraise boot parameter"
+	depends on IMA_APPRAISE
+	default y
+	help
+	  This option enables the different "ima_appraise=" modes
+	  (eg. fix, log) from the boot command line.
 
 config IMA_TRUSTED_KEYRING
 	bool "Require all keys on the .ima keyring be signed (deprecated)"

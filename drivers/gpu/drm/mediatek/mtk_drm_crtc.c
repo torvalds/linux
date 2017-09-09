@@ -221,6 +221,7 @@ static int mtk_crtc_ddp_hw_init(struct mtk_drm_crtc *mtk_crtc)
 	struct drm_crtc *crtc = &mtk_crtc->base;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
+	struct drm_connector_list_iter conn_iter;
 	unsigned int width, height, vrefresh, bpc = MTK_MAX_BPC;
 	int ret;
 	int i;
@@ -237,13 +238,15 @@ static int mtk_crtc_ddp_hw_init(struct mtk_drm_crtc *mtk_crtc)
 		if (encoder->crtc != crtc)
 			continue;
 
-		drm_for_each_connector(connector, crtc->dev) {
+		drm_connector_list_iter_begin(crtc->dev, &conn_iter);
+		drm_for_each_connector_iter(connector, &conn_iter) {
 			if (connector->encoder != encoder)
 				continue;
 			if (connector->display_info.bpc != 0 &&
 			    bpc > connector->display_info.bpc)
 				bpc = connector->display_info.bpc;
 		}
+		drm_connector_list_iter_end(&conn_iter);
 	}
 
 	ret = pm_runtime_get_sync(crtc->dev->dev);
@@ -556,6 +559,8 @@ int mtk_drm_crtc_create(struct drm_device *drm_dev,
 	mtk_crtc->ddp_comp = devm_kmalloc_array(dev, mtk_crtc->ddp_comp_nr,
 						sizeof(*mtk_crtc->ddp_comp),
 						GFP_KERNEL);
+	if (!mtk_crtc->ddp_comp)
+		return -ENOMEM;
 
 	mtk_crtc->mutex = mtk_disp_mutex_get(priv->mutex_dev, pipe);
 	if (IS_ERR(mtk_crtc->mutex)) {

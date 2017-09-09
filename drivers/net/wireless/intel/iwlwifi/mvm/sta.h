@@ -341,12 +341,6 @@ struct iwl_mvm_tid_data {
 	bool is_tid_active;
 };
 
-static inline u16 iwl_mvm_tid_queued(struct iwl_mvm_tid_data *tid_data)
-{
-	return ieee80211_sn_sub(IEEE80211_SEQ_TO_SN(tid_data->seq_number),
-				tid_data->next_reclaimed);
-}
-
 struct iwl_mvm_key_pn {
 	struct rcu_head rcu_head;
 	struct {
@@ -447,6 +441,8 @@ struct iwl_mvm_sta {
 	u8 avg_energy;
 };
 
+u16 iwl_mvm_tid_queued(struct iwl_mvm *mvm, struct iwl_mvm_tid_data *tid_data);
+
 static inline struct iwl_mvm_sta *
 iwl_mvm_sta_from_mac80211(struct ieee80211_sta *sta)
 {
@@ -489,6 +485,8 @@ static inline int iwl_mvm_update_sta(struct iwl_mvm *mvm,
 	return iwl_mvm_sta_send_to_fw(mvm, sta, true, 0);
 }
 
+int iwl_mvm_wait_sta_queues_empty(struct iwl_mvm *mvm,
+				  struct iwl_mvm_sta *mvm_sta);
 int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		   struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta);

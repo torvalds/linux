@@ -134,6 +134,7 @@ static void init_amd_k6(struct cpuinfo_x86 *c)
 
 		n = K6_BUG_LOOP;
 		f_vide = vide;
+		OPTIMIZER_HIDE_VAR(f_vide);
 		d = rdtsc();
 		while (n--)
 			f_vide();

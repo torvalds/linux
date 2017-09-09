@@ -225,14 +225,6 @@ static bool assert_pin_valid(const struct i915_vma *vma,
 }
 
 __maybe_unused
-static bool assert_pin_e2big(const struct i915_vma *vma,
-			     const struct pin_mode *mode,
-			     int result)
-{
-	return result == -E2BIG;
-}
-
-__maybe_unused
 static bool assert_pin_enospc(const struct i915_vma *vma,
 			      const struct pin_mode *mode,
 			      int result)
@@ -255,7 +247,6 @@ static int igt_vma_pin1(void *arg)
 #define VALID(sz, fl) { .size = (sz), .flags = (fl), .assert = assert_pin_valid, .string = #sz ", " #fl ", (valid) " }
 #define __INVALID(sz, fl, check, eval) { .size = (sz), .flags = (fl), .assert = (check), .string = #sz ", " #fl ", (invalid " #eval ")" }
 #define INVALID(sz, fl) __INVALID(sz, fl, assert_pin_einval, EINVAL)
-#define TOOBIG(sz, fl) __INVALID(sz, fl, assert_pin_e2big, E2BIG)
 #define NOSPACE(sz, fl) __INVALID(sz, fl, assert_pin_enospc, ENOSPC)
 		VALID(0, PIN_GLOBAL),
 		VALID(0, PIN_GLOBAL | PIN_MAPPABLE),
@@ -276,11 +267,11 @@ static int igt_vma_pin1(void *arg)
 		VALID(8192, PIN_GLOBAL),
 		VALID(i915->ggtt.mappable_end - 4096, PIN_GLOBAL | PIN_MAPPABLE),
 		VALID(i915->ggtt.mappable_end, PIN_GLOBAL | PIN_MAPPABLE),
-		TOOBIG(i915->ggtt.mappable_end + 4096, PIN_GLOBAL | PIN_MAPPABLE),
+		NOSPACE(i915->ggtt.mappable_end + 4096, PIN_GLOBAL | PIN_MAPPABLE),
 		VALID(i915->ggtt.base.total - 4096, PIN_GLOBAL),
 		VALID(i915->ggtt.base.total, PIN_GLOBAL),
-		TOOBIG(i915->ggtt.base.total + 4096, PIN_GLOBAL),
-		TOOBIG(round_down(U64_MAX, PAGE_SIZE), PIN_GLOBAL),
+		NOSPACE(i915->ggtt.base.total + 4096, PIN_GLOBAL),
+		NOSPACE(round_down(U64_MAX, PAGE_SIZE), PIN_GLOBAL),
 		INVALID(8192, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_FIXED | (i915->ggtt.mappable_end - 4096)),
 		INVALID(8192, PIN_GLOBAL | PIN_OFFSET_FIXED | (i915->ggtt.base.total - 4096)),
 		INVALID(8192, PIN_GLOBAL | PIN_OFFSET_FIXED | (round_down(U64_MAX, PAGE_SIZE) - 4096)),
@@ -300,7 +291,6 @@ static int igt_vma_pin1(void *arg)
 #endif
 		{ },
 #undef NOSPACE
-#undef TOOBIG
 #undef INVALID
 #undef __INVALID
 #undef VALID

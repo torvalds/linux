@@ -1296,7 +1296,6 @@ ssize_t ib_uverbs_destroy_cq(struct ib_uverbs_file *file,
 	struct ib_uobject		*uobj;
 	struct ib_cq               	*cq;
 	struct ib_ucq_object        	*obj;
-	struct ib_uverbs_event_queue	*ev_queue;
 	int                        	 ret = -EINVAL;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
@@ -1313,7 +1312,6 @@ ssize_t ib_uverbs_destroy_cq(struct ib_uverbs_file *file,
 	 */
 	uverbs_uobject_get(uobj);
 	cq      = uobj->object;
-	ev_queue = cq->cq_context;
 	obj     = container_of(cq->uobject, struct ib_ucq_object, uobject);
 
 	memset(&resp, 0, sizeof(resp));
@@ -1508,6 +1506,10 @@ static int create_qp(struct ib_uverbs_file *file,
 	}
 
 	if (cmd->qp_type != IB_QPT_XRC_TGT) {
+		ret = ib_create_qp_security(qp, device);
+		if (ret)
+			goto err_cb;
+
 		qp->real_qp	  = qp;
 		qp->device	  = device;
 		qp->pd		  = pd;
@@ -1931,6 +1933,12 @@ static int modify_qp(struct ib_uverbs_file *file,
 		goto out;
 	}
 
+	if ((cmd->base.attr_mask & IB_QP_PORT) &&
+	    !rdma_is_port_valid(qp->device, cmd->base.port_num)) {
+		ret = -EINVAL;
+		goto release_qp;
+	}
+
 	attr->qp_state		  = cmd->base.qp_state;
 	attr->cur_qp_state	  = cmd->base.cur_qp_state;
 	attr->path_mtu		  = cmd->base.path_mtu;
@@ -1996,25 +2004,13 @@ static int modify_qp(struct ib_uverbs_file *file,
 	rdma_ah_set_port_num(&attr->alt_ah_attr,
 			     cmd->base.alt_dest.port_num);
 
-	if (qp->real_qp == qp) {
-		if (cmd->base.attr_mask & IB_QP_AV) {
-			ret = ib_resolve_eth_dmac(qp->device, &attr->ah_attr);
-			if (ret)
-				goto release_qp;
-		}
-		ret = qp->device->modify_qp(qp, attr,
-					    modify_qp_mask(qp->qp_type,
-							   cmd->base.attr_mask),
-					    udata);
-	} else {
-		ret = ib_modify_qp(qp, attr,
-				   modify_qp_mask(qp->qp_type,
-						  cmd->base.attr_mask));
-	}
+	ret = ib_modify_qp_with_udata(qp, attr,
+				      modify_qp_mask(qp->qp_type,
+						     cmd->base.attr_mask),
+				      udata);
 
 release_qp:
 	uobj_put_obj_read(qp);
-
 out:
 	kfree(attr);
 
@@ -2091,7 +2087,6 @@ ssize_t ib_uverbs_destroy_qp(struct ib_uverbs_file *file,
 	struct ib_uverbs_destroy_qp      cmd;
 	struct ib_uverbs_destroy_qp_resp resp;
 	struct ib_uobject		*uobj;
-	struct ib_qp               	*qp;
 	struct ib_uqp_object        	*obj;
 	int                        	 ret = -EINVAL;
 
@@ -2105,7 +2100,6 @@ ssize_t ib_uverbs_destroy_qp(struct ib_uverbs_file *file,
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	qp  = uobj->object;
 	obj = container_of(uobj, struct ib_uqp_object, uevent.uobject);
 	/*
 	 * Make sure we don't free the memory in remove_commit as we still
@@ -2540,6 +2534,9 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
+
+	if (!rdma_is_port_valid(ib_dev, cmd.attr.port_num))
+		return -EINVAL;
 
 	INIT_UDATA(&udata, buf + sizeof(cmd),
 		   (unsigned long)cmd.response + sizeof(resp),
@@ -3004,7 +3001,6 @@ int ib_uverbs_ex_destroy_wq(struct ib_uverbs_file *file,
 {
 	struct ib_uverbs_ex_destroy_wq	cmd = {};
 	struct ib_uverbs_ex_destroy_wq_resp	resp = {};
-	struct ib_wq			*wq;
 	struct ib_uobject		*uobj;
 	struct ib_uwq_object		*obj;
 	size_t required_cmd_sz;
@@ -3038,7 +3034,6 @@ int ib_uverbs_ex_destroy_wq(struct ib_uverbs_file *file,
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	wq = uobj->object;
 	obj = container_of(uobj, struct ib_uwq_object, uevent.uobject);
 	/*
 	 * Make sure we don't free the memory in remove_commit as we still
@@ -3728,10 +3723,8 @@ ssize_t ib_uverbs_destroy_srq(struct ib_uverbs_file *file,
 	struct ib_uverbs_destroy_srq      cmd;
 	struct ib_uverbs_destroy_srq_resp resp;
 	struct ib_uobject		 *uobj;
-	struct ib_srq               	 *srq;
 	struct ib_uevent_object        	 *obj;
 	int                         	  ret = -EINVAL;
-	enum ib_srq_type		  srq_type;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
@@ -3741,9 +3734,7 @@ ssize_t ib_uverbs_destroy_srq(struct ib_uverbs_file *file,
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	srq = uobj->object;
 	obj = container_of(uobj, struct ib_uevent_object, uobject);
-	srq_type = srq->srq_type;
 	/*
 	 * Make sure we don't free the memory in remove_commit as we still
 	 * needs the uobject memory to create the response.

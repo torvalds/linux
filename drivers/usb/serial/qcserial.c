@@ -158,6 +158,7 @@ static const struct usb_device_id id_table[] = {
 	{DEVICE_SWI(0x1199, 0x9056)},	/* Sierra Wireless Modem */
 	{DEVICE_SWI(0x1199, 0x9060)},	/* Sierra Wireless Modem */
 	{DEVICE_SWI(0x1199, 0x9061)},	/* Sierra Wireless Modem */
+	{DEVICE_SWI(0x1199, 0x9063)},	/* Sierra Wireless EM7305 */
 	{DEVICE_SWI(0x1199, 0x9070)},	/* Sierra Wireless MC74xx */
 	{DEVICE_SWI(0x1199, 0x9071)},	/* Sierra Wireless MC74xx */
 	{DEVICE_SWI(0x1199, 0x9078)},	/* Sierra Wireless EM74xx */
@@ -454,6 +455,8 @@ static struct usb_serial_driver qcdevice = {
 	.write		     = usb_wwan_write,
 	.write_room	     = usb_wwan_write_room,
 	.chars_in_buffer     = usb_wwan_chars_in_buffer,
+	.tiocmget            = usb_wwan_tiocmget,
+	.tiocmset            = usb_wwan_tiocmset,
 	.attach              = qc_attach,
 	.release	     = qc_release,
 	.port_probe          = usb_wwan_port_probe,

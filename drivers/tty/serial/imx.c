@@ -207,9 +207,6 @@ struct imx_port {
 	unsigned int		have_rtscts:1;
 	unsigned int		have_rtsgpio:1;
 	unsigned int		dte_mode:1;
-	unsigned int		irda_inv_rx:1;
-	unsigned int		irda_inv_tx:1;
-	unsigned short		trcv_delay; /* transceiver delay */
 	struct clk		*clk_ipg;
 	struct clk		*clk_per;
 	const struct imx_uart_data *devdata;
@@ -461,7 +458,7 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 		}
 	}
 
-	while (!uart_circ_empty(xmit) &&
+	while (!uart_circ_empty(xmit) && !sport->dma_is_txing &&
 	       !(readl(sport->port.membase + uts_reg(sport)) & UTS_TXFULL)) {
 		/* send xmit->buf[xmit->tail]
 		 * out the port here */
@@ -1302,7 +1299,9 @@ static int imx_startup(struct uart_port *port)
 		imx_enable_dma(sport);
 
 	temp = readl(sport->port.membase + UCR1);
-	temp |= UCR1_RRDYEN | UCR1_RTSDEN | UCR1_UARTEN;
+	temp |= UCR1_RRDYEN | UCR1_UARTEN;
+	if (sport->have_rtscts)
+			temp |= UCR1_RTSDEN;
 
 	writel(temp, sport->port.membase + UCR1);
 
@@ -1340,29 +1339,13 @@ static int imx_startup(struct uart_port *port)
 	imx_enable_ms(&sport->port);
 
 	/*
-	 * If the serial port is opened for reading start RX DMA immediately
-	 * instead of waiting for RX FIFO interrupts. In our iMX53 the average
-	 * delay for the first reception dropped from approximately 35000
-	 * microseconds to 1000 microseconds.
+	 * Start RX DMA immediately instead of waiting for RX FIFO interrupts.
+	 * In our iMX53 the average delay for the first reception dropped from
+	 * approximately 35000 microseconds to 1000 microseconds.
 	 */
 	if (sport->dma_is_enabled) {
-		struct tty_struct *tty = sport->port.state->port.tty;
-		struct tty_file_private *file_priv;
-		int readcnt = 0;
-
-		spin_lock(&tty->files_lock);
-
-		if (!list_empty(&tty->tty_files))
-			list_for_each_entry(file_priv, &tty->tty_files, list)
-				if (!(file_priv->file->f_flags & O_WRONLY))
-					readcnt++;
-
-		spin_unlock(&tty->files_lock);
-
-		if (readcnt > 0) {
-			imx_disable_rx_int(sport);
-			start_rx_dma(sport);
-		}
+		imx_disable_rx_int(sport);
+		start_rx_dma(sport);
 	}
 
 	spin_unlock_irqrestore(&sport->port.lock, flags);

@@ -499,7 +499,7 @@ static unsigned long __init xen_foreach_remap_area(unsigned long nr_pages,
 void __init xen_remap_memory(void)
 {
 	unsigned long buf = (unsigned long)&xen_remap_buf;
-	unsigned long mfn_save, mfn, pfn;
+	unsigned long mfn_save, pfn;
 	unsigned long remapped = 0;
 	unsigned int i;
 	unsigned long pfn_s = ~0UL;
@@ -515,8 +515,7 @@ void __init xen_remap_memory(void)
 
 		pfn = xen_remap_buf.target_pfn;
 		for (i = 0; i < xen_remap_buf.size; i++) {
-			mfn = xen_remap_buf.mfns[i];
-			xen_update_mem_tables(pfn, mfn);
+			xen_update_mem_tables(pfn, xen_remap_buf.mfns[i]);
 			remapped++;
 			pfn++;
 		}
@@ -530,8 +529,6 @@ void __init xen_remap_memory(void)
 			pfn_s = xen_remap_buf.target_pfn;
 			len = xen_remap_buf.size;
 		}
-
-		mfn = xen_remap_mfn;
 		xen_remap_mfn = xen_remap_buf.next_area_mfn;
 	}
 

@@ -7,7 +7,7 @@ menu "Near Field Communication (NFC) devices"
 
 config NFC_TRF7970A
 	tristate "Texas Instruments TRF7970a NFC driver"
-	depends on SPI && NFC_DIGITAL
+	depends on SPI && NFC_DIGITAL && GPIOLIB
 	help
 	  This option enables the NFC driver for Texas Instruments' TRF7970a
 	  device. Such device supports 5 different protocols: ISO14443A,

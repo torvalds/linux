@@ -70,6 +70,8 @@ enum cpupower_cpu_vendor {X86_VENDOR_UNKNOWN = 0, X86_VENDOR_INTEL,
 #define CPUPOWER_CAP_IS_SNB		0x00000020
 #define CPUPOWER_CAP_INTEL_IDA		0x00000040
 
+#define CPUPOWER_AMD_CPBDIS		0x02000000
+
 #define MAX_HW_PSTATES 10
 
 struct cpupower_cpu_info {

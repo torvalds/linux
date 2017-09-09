@@ -18,10 +18,16 @@
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-ioctl.h>
+#include <media/i2c/tvp514x.h>
+#include <media/v4l2-mediabus.h>
+
+#include <linux/videodev2.h>
 
 #include "vpif.h"
 #include "vpif_capture.h"
@@ -385,7 +391,8 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 		common = &ch->common[i];
 		/* skip If streaming is not started in this channel */
 		/* Check the field format */
-		if (1 == ch->vpifparams.std_info.frm_fmt) {
+		if (1 == ch->vpifparams.std_info.frm_fmt ||
+		    common->fmt.fmt.pix.field == V4L2_FIELD_NONE) {
 			/* Progressive mode */
 			spin_lock(&common->irqlock);
 			if (list_empty(&common->dma_queue)) {
@@ -466,8 +473,37 @@ static int vpif_update_std_info(struct channel_obj *ch)
 	struct vpif_channel_config_params *std_info = &vpifparams->std_info;
 	struct video_obj *vid_ch = &ch->video;
 	int index;
+	struct v4l2_pix_format *pixfmt = &common->fmt.fmt.pix;
 
 	vpif_dbg(2, debug, "vpif_update_std_info\n");
+
+	/*
+	 * if called after try_fmt or g_fmt, there will already be a size
+	 * so use that by default.
+	 */
+	if (pixfmt->width && pixfmt->height) {
+		if (pixfmt->field == V4L2_FIELD_ANY ||
+		    pixfmt->field == V4L2_FIELD_NONE)
+			pixfmt->field = V4L2_FIELD_NONE;
+
+		vpifparams->iface.if_type = VPIF_IF_BT656;
+		if (pixfmt->pixelformat == V4L2_PIX_FMT_SGRBG10 ||
+		    pixfmt->pixelformat == V4L2_PIX_FMT_SBGGR8)
+			vpifparams->iface.if_type = VPIF_IF_RAW_BAYER;
+
+		if (pixfmt->pixelformat == V4L2_PIX_FMT_SGRBG10)
+			vpifparams->params.data_sz = 1; /* 10 bits/pixel.  */
+
+		/*
+		 * For raw formats from camera sensors, we don't need
+		 * the std_info from table lookup, so nothing else to do here.
+		 */
+		if (vpifparams->iface.if_type == VPIF_IF_RAW_BAYER) {
+			memset(std_info, 0, sizeof(struct vpif_channel_config_params));
+			vpifparams->std_info.capture_format = 1; /* CCD/raw mode */
+			return 0;
+		}
+	}
 
 	for (index = 0; index < vpif_ch_params_count; index++) {
 		config = &vpif_ch_params[index];
@@ -513,7 +549,7 @@ static int vpif_update_std_info(struct channel_obj *ch)
 	if (ch->vpifparams.iface.if_type == VPIF_IF_RAW_BAYER)
 		common->fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_SBGGR8;
 	else
-		common->fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUV422P;
+		common->fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_NV16;
 
 	common->fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
@@ -655,7 +691,7 @@ static int vpif_input_to_subdev(
 	/* loop through the sub device list to get the sub device info */
 	for (i = 0; i < vpif_cfg->subdev_count; i++) {
 		subdev_info = &vpif_cfg->subdev_info[i];
-		if (!strcmp(subdev_info->name, subdev_name))
+		if (subdev_info && !strcmp(subdev_info->name, subdev_name))
 			return i;
 	}
 	return -1;
@@ -917,8 +953,8 @@ static int vpif_enum_fmt_vid_cap(struct file *file, void  *priv,
 		fmt->pixelformat = V4L2_PIX_FMT_SBGGR8;
 	} else {
 		fmt->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		strcpy(fmt->description, "YCbCr4:2:2 YC Planar");
-		fmt->pixelformat = V4L2_PIX_FMT_YUV422P;
+		strcpy(fmt->description, "YCbCr4:2:2 Semi-Planar");
+		fmt->pixelformat = V4L2_PIX_FMT_NV16;
 	}
 	return 0;
 }
@@ -936,22 +972,8 @@ static int vpif_try_fmt_vid_cap(struct file *file, void *priv,
 	struct channel_obj *ch = video_get_drvdata(vdev);
 	struct v4l2_pix_format *pixfmt = &fmt->fmt.pix;
 	struct common_obj *common = &(ch->common[VPIF_VIDEO_INDEX]);
-	struct vpif_params *vpif_params = &ch->vpifparams;
 
-	/*
-	 * to supress v4l-compliance warnings silently correct
-	 * the pixelformat
-	 */
-	if (vpif_params->iface.if_type == VPIF_IF_RAW_BAYER) {
-		if (pixfmt->pixelformat != V4L2_PIX_FMT_SBGGR8)
-			pixfmt->pixelformat = V4L2_PIX_FMT_SBGGR8;
-	} else {
-		if (pixfmt->pixelformat != V4L2_PIX_FMT_YUV422P)
-			pixfmt->pixelformat = V4L2_PIX_FMT_YUV422P;
-	}
-
-	common->fmt.fmt.pix.pixelformat = pixfmt->pixelformat;
-
+	common->fmt = *fmt;
 	vpif_update_std_info(ch);
 
 	pixfmt->field = common->fmt.fmt.pix.field;
@@ -960,7 +982,16 @@ static int vpif_try_fmt_vid_cap(struct file *file, void *priv,
 	pixfmt->width = common->fmt.fmt.pix.width;
 	pixfmt->height = common->fmt.fmt.pix.height;
 	pixfmt->sizeimage = pixfmt->bytesperline * pixfmt->height * 2;
+	if (pixfmt->pixelformat == V4L2_PIX_FMT_SGRBG10) {
+		pixfmt->bytesperline = common->fmt.fmt.pix.width * 2;
+		pixfmt->sizeimage = pixfmt->bytesperline * pixfmt->height;
+	}
 	pixfmt->priv = 0;
+
+	dev_dbg(vpif_dev, "%s: %d x %d; pitch=%d pixelformat=0x%08x, field=%d, size=%d\n", __func__,
+		pixfmt->width, pixfmt->height,
+		pixfmt->bytesperline, pixfmt->pixelformat,
+		pixfmt->field, pixfmt->sizeimage);
 
 	return 0;
 }
@@ -978,13 +1009,47 @@ static int vpif_g_fmt_vid_cap(struct file *file, void *priv,
 	struct video_device *vdev = video_devdata(file);
 	struct channel_obj *ch = video_get_drvdata(vdev);
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
+	struct v4l2_pix_format *pix_fmt = &fmt->fmt.pix;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_mbus_framefmt *mbus_fmt = &format.format;
+	int ret;
 
 	/* Check the validity of the buffer type */
 	if (common->fmt.type != fmt->type)
 		return -EINVAL;
 
-	/* Fill in the information about format */
+	/* By default, use currently set fmt */
 	*fmt = common->fmt;
+
+	/* If subdev has get_fmt, use that to override */
+	ret = v4l2_subdev_call(ch->sd, pad, get_fmt, NULL, &format);
+	if (!ret && mbus_fmt->code) {
+		v4l2_fill_pix_format(pix_fmt, mbus_fmt);
+		pix_fmt->bytesperline = pix_fmt->width;
+		if (mbus_fmt->code == MEDIA_BUS_FMT_SGRBG10_1X10) {
+			/* e.g. mt9v032 */
+			pix_fmt->pixelformat = V4L2_PIX_FMT_SGRBG10;
+			pix_fmt->bytesperline = pix_fmt->width * 2;
+		} else if (mbus_fmt->code == MEDIA_BUS_FMT_UYVY8_2X8) {
+			/* e.g. tvp514x */
+			pix_fmt->pixelformat = V4L2_PIX_FMT_NV16;
+			pix_fmt->bytesperline = pix_fmt->width * 2;
+		} else {
+			dev_warn(vpif_dev, "%s: Unhandled media-bus format 0x%x\n",
+				 __func__, mbus_fmt->code);
+		}
+		pix_fmt->sizeimage = pix_fmt->bytesperline * pix_fmt->height;
+		dev_dbg(vpif_dev, "%s: %d x %d; pitch=%d, pixelformat=0x%08x, code=0x%x, field=%d, size=%d\n", __func__,
+			pix_fmt->width, pix_fmt->height,
+			pix_fmt->bytesperline, pix_fmt->pixelformat,
+			mbus_fmt->code, pix_fmt->field, pix_fmt->sizeimage);
+
+		common->fmt = *fmt;
+		vpif_update_std_info(ch);
+	}
+
 	return 0;
 }
 
@@ -1323,6 +1388,22 @@ static int vpif_async_bound(struct v4l2_async_notifier *notifier,
 {
 	int i;
 
+	for (i = 0; i < vpif_obj.config->asd_sizes[0]; i++) {
+		struct v4l2_async_subdev *_asd = vpif_obj.config->asd[i];
+		const struct fwnode_handle *fwnode = _asd->match.fwnode.fwnode;
+
+		if (fwnode == subdev->fwnode) {
+			vpif_obj.sd[i] = subdev;
+			vpif_obj.config->chan_config->inputs[i].subdev_name =
+				(char *)to_of_node(subdev->fwnode)->full_name;
+			vpif_dbg(2, debug,
+				 "%s: setting input %d subdev_name = %s\n",
+				 __func__, i,
+				 to_of_node(subdev->fwnode)->full_name);
+			return 0;
+		}
+	}
+
 	for (i = 0; i < vpif_obj.config->subdev_count; i++)
 		if (!strcmp(vpif_obj.config->subdev_info[i].name,
 			    subdev->name)) {
@@ -1356,6 +1437,7 @@ static int vpif_probe_complete(void)
 		/* set initial format */
 		ch->video.stdid = V4L2_STD_525_60;
 		memset(&ch->video.dv_timings, 0, sizeof(ch->video.dv_timings));
+		common->fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		vpif_update_std_info(ch);
 
 		/* Initialize vb2 queue */
@@ -1418,6 +1500,106 @@ static int vpif_async_complete(struct v4l2_async_notifier *notifier)
 	return vpif_probe_complete();
 }
 
+static struct vpif_capture_config *
+vpif_capture_get_pdata(struct platform_device *pdev)
+{
+	struct device_node *endpoint = NULL;
+	struct v4l2_fwnode_endpoint bus_cfg;
+	struct vpif_capture_config *pdata;
+	struct vpif_subdev_info *sdinfo;
+	struct vpif_capture_chan_config *chan;
+	unsigned int i;
+
+	/*
+	 * DT boot: OF node from parent device contains
+	 * video ports & endpoints data.
+	 */
+	if (pdev->dev.parent && pdev->dev.parent->of_node)
+		pdev->dev.of_node = pdev->dev.parent->of_node;
+	if (!IS_ENABLED(CONFIG_OF) || !pdev->dev.of_node)
+		return pdev->dev.platform_data;
+
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return NULL;
+	pdata->subdev_info =
+		devm_kzalloc(&pdev->dev, sizeof(*pdata->subdev_info) *
+			     VPIF_CAPTURE_NUM_CHANNELS, GFP_KERNEL);
+
+	if (!pdata->subdev_info)
+		return NULL;
+
+	for (i = 0; i < VPIF_CAPTURE_NUM_CHANNELS; i++) {
+		struct device_node *rem;
+		unsigned int flags;
+		int err;
+
+		endpoint = of_graph_get_next_endpoint(pdev->dev.of_node,
+						      endpoint);
+		if (!endpoint)
+			break;
+
+		sdinfo = &pdata->subdev_info[i];
+		chan = &pdata->chan_config[i];
+		chan->inputs = devm_kzalloc(&pdev->dev,
+					    sizeof(*chan->inputs) *
+					    VPIF_CAPTURE_NUM_CHANNELS,
+					    GFP_KERNEL);
+
+		chan->input_count++;
+		chan->inputs[i].input.type = V4L2_INPUT_TYPE_CAMERA;
+		chan->inputs[i].input.std = V4L2_STD_ALL;
+		chan->inputs[i].input.capabilities = V4L2_IN_CAP_STD;
+
+		err = v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint),
+						 &bus_cfg);
+		if (err) {
+			dev_err(&pdev->dev, "Could not parse the endpoint\n");
+			goto done;
+		}
+		dev_dbg(&pdev->dev, "Endpoint %s, bus_width = %d\n",
+			endpoint->full_name, bus_cfg.bus.parallel.bus_width);
+		flags = bus_cfg.bus.parallel.flags;
+
+		if (flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH)
+			chan->vpif_if.hd_pol = 1;
+
+		if (flags & V4L2_MBUS_VSYNC_ACTIVE_HIGH)
+			chan->vpif_if.vd_pol = 1;
+
+		rem = of_graph_get_remote_port_parent(endpoint);
+		if (!rem) {
+			dev_dbg(&pdev->dev, "Remote device at %s not found\n",
+				endpoint->full_name);
+			goto done;
+		}
+
+		dev_dbg(&pdev->dev, "Remote device %s, %s found\n",
+			rem->name, rem->full_name);
+		sdinfo->name = rem->full_name;
+
+		pdata->asd[i] = devm_kzalloc(&pdev->dev,
+					     sizeof(struct v4l2_async_subdev),
+					     GFP_KERNEL);
+		if (!pdata->asd[i]) {
+			of_node_put(rem);
+			pdata = NULL;
+			goto done;
+		}
+
+		pdata->asd[i]->match_type = V4L2_ASYNC_MATCH_FWNODE;
+		pdata->asd[i]->match.fwnode.fwnode = of_fwnode_handle(rem);
+		of_node_put(rem);
+	}
+
+done:
+	pdata->asd_sizes[0] = i;
+	pdata->subdev_count = i;
+	pdata->card_name = "DA850/OMAP-L138 Video Capture";
+
+	return pdata;
+}
+
 /**
  * vpif_probe : This function probes the vpif capture driver
  * @pdev: platform device pointer
@@ -1433,6 +1615,12 @@ static __init int vpif_probe(struct platform_device *pdev)
 	int subdev_count;
 	int res_idx = 0;
 	int i, err;
+
+	pdev->dev.platform_data = vpif_capture_get_pdata(pdev);
+	if (!pdev->dev.platform_data) {
+		dev_warn(&pdev->dev, "Missing platform data.  Giving up.\n");
+		return -EINVAL;
+	}
 
 	if (!pdev->dev.platform_data) {
 		dev_warn(&pdev->dev, "Missing platform data.  Giving up.\n");
@@ -1474,7 +1662,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 		goto vpif_unregister;
 	}
 
-	if (!vpif_obj.config->asd_sizes) {
+	if (!vpif_obj.config->asd_sizes[0]) {
 		int i2c_id = vpif_obj.config->i2c_adapter_id;
 
 		i2c_adap = i2c_get_adapter(i2c_id);

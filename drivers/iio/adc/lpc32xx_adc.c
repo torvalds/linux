@@ -76,10 +76,14 @@ static int lpc32xx_read_raw(struct iio_dev *indio_dev,
 			    long mask)
 {
 	struct lpc32xx_adc_state *st = iio_priv(indio_dev);
-
+	int ret;
 	if (mask == IIO_CHAN_INFO_RAW) {
 		mutex_lock(&indio_dev->mlock);
-		clk_prepare_enable(st->clk);
+		ret = clk_prepare_enable(st->clk);
+		if (ret) {
+			mutex_unlock(&indio_dev->mlock);
+			return ret;
+		}
 		/* Measurement setup */
 		__raw_writel(LPC32XXAD_INTERNAL | (chan->address) |
 			     LPC32XXAD_REFp | LPC32XXAD_REFm,

@@ -39,7 +39,7 @@ struct ls_pcie_drvdata {
 	u32 lut_offset;
 	u32 ltssm_shift;
 	u32 lut_dbg;
-	struct dw_pcie_host_ops *ops;
+	const struct dw_pcie_host_ops *ops;
 	const struct dw_pcie_ops *dw_pcie_ops;
 };
 
@@ -185,12 +185,12 @@ static int ls_pcie_msi_host_init(struct pcie_port *pp,
 	return 0;
 }
 
-static struct dw_pcie_host_ops ls1021_pcie_host_ops = {
+static const struct dw_pcie_host_ops ls1021_pcie_host_ops = {
 	.host_init = ls1021_pcie_host_init,
 	.msi_host_init = ls_pcie_msi_host_init,
 };
 
-static struct dw_pcie_host_ops ls_pcie_host_ops = {
+static const struct dw_pcie_host_ops ls_pcie_host_ops = {
 	.host_init = ls_pcie_host_init,
 	.msi_host_init = ls_pcie_msi_host_init,
 };

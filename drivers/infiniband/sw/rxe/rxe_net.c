@@ -441,6 +441,8 @@ static void rxe_skb_tx_dtor(struct sk_buff *skb)
 	if (unlikely(qp->need_req_skb &&
 		     skb_out < RXE_INFLIGHT_SKBS_PER_QP_LOW))
 		rxe_run_task(&qp->req.task, 1);
+
+	rxe_drop_ref(qp);
 }
 
 int rxe_send(struct rxe_dev *rxe, struct rxe_pkt_info *pkt, struct sk_buff *skb)
@@ -473,6 +475,7 @@ int rxe_send(struct rxe_dev *rxe, struct rxe_pkt_info *pkt, struct sk_buff *skb)
 		return -EAGAIN;
 	}
 
+	rxe_add_ref(pkt->qp);
 	atomic_inc(&pkt->qp->skb_out);
 	kfree_skb(skb);
 

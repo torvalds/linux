@@ -17,6 +17,7 @@
 
 /*
  * This file contains definitions relative to FC-NVME r1.14 (16-020vB).
+ * The fcnvme_lsdesc_cr_assoc_cmd struct reflects expected r1.16 content.
  */
 
 #ifndef _NVME_FC_H
@@ -177,7 +178,6 @@ struct fcnvme_lsdesc_rjt {
 };
 
 
-#define FCNVME_ASSOC_HOSTID_LEN		16
 #define FCNVME_ASSOC_HOSTNQN_LEN	256
 #define FCNVME_ASSOC_SUBNQN_LEN		256
 
@@ -191,11 +191,23 @@ struct fcnvme_lsdesc_cr_assoc_cmd {
 	__be16	cntlid;
 	__be16	sqsize;
 	__be32	rsvd52;
-	u8	hostid[FCNVME_ASSOC_HOSTID_LEN];
+	uuid_t	hostid;
 	u8	hostnqn[FCNVME_ASSOC_HOSTNQN_LEN];
 	u8	subnqn[FCNVME_ASSOC_SUBNQN_LEN];
-	u8	rsvd632[384];
+	__be32	rsvd584[108];		/* pad to 1016 bytes,
+					 * which makes overall LS rqst
+					 * payload 1024 bytes
+					 */
 };
+
+#define FCNVME_LSDESC_CRA_CMD_DESC_MINLEN	\
+		offsetof(struct fcnvme_lsdesc_cr_assoc_cmd, rsvd584)
+
+#define FCNVME_LSDESC_CRA_CMD_DESC_MIN_DESCLEN	\
+		(FCNVME_LSDESC_CRA_CMD_DESC_MINLEN - \
+		 offsetof(struct fcnvme_lsdesc_cr_assoc_cmd, ersp_ratio))
+
+
 
 /* FCNVME_LSDESC_CREATE_CONN_CMD */
 struct fcnvme_lsdesc_cr_conn_cmd {
@@ -273,6 +285,14 @@ struct fcnvme_ls_cr_assoc_rqst {
 	__be32					desc_list_len;
 	struct fcnvme_lsdesc_cr_assoc_cmd	assoc_cmd;
 };
+
+#define FCNVME_LSDESC_CRA_RQST_MINLEN	\
+		(offsetof(struct fcnvme_ls_cr_assoc_rqst, assoc_cmd) + \
+			FCNVME_LSDESC_CRA_CMD_DESC_MINLEN)
+
+#define FCNVME_LSDESC_CRA_RQST_MIN_LISTLEN	\
+		FCNVME_LSDESC_CRA_CMD_DESC_MINLEN
+
 
 struct fcnvme_ls_cr_assoc_acc {
 	struct fcnvme_ls_acc_hdr		hdr;

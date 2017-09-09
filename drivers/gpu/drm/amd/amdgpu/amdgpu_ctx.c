@@ -52,11 +52,19 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev, struct amdgpu_ctx *ctx)
 		struct amd_sched_rq *rq;
 
 		rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_NORMAL];
+
+		if (ring == &adev->gfx.kiq.ring)
+			continue;
+
 		r = amd_sched_entity_init(&ring->sched, &ctx->rings[i].entity,
 					  rq, amdgpu_sched_jobs);
 		if (r)
 			goto failed;
 	}
+
+	r = amdgpu_queue_mgr_init(adev, &ctx->queue_mgr);
+	if (r)
+		goto failed;
 
 	return 0;
 
@@ -86,6 +94,8 @@ static void amdgpu_ctx_fini(struct amdgpu_ctx *ctx)
 	for (i = 0; i < adev->num_rings; i++)
 		amd_sched_entity_fini(&adev->rings[i]->sched,
 				      &ctx->rings[i].entity);
+
+	amdgpu_queue_mgr_fini(adev, &ctx->queue_mgr);
 }
 
 static int amdgpu_ctx_alloc(struct amdgpu_device *adev,

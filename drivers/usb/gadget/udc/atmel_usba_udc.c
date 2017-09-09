@@ -152,7 +152,7 @@ static int regs_dbg_open(struct inode *inode, struct file *file)
 
 	spin_lock_irq(&udc->lock);
 	for (i = 0; i < inode->i_size / 4; i++)
-		data[i] = usba_io_readl(udc->regs + i * 4);
+		data[i] = readl_relaxed(udc->regs + i * 4);
 	spin_unlock_irq(&udc->lock);
 
 	file->private_data = data;
@@ -1369,7 +1369,7 @@ static int handle_ep0_setup(struct usba_udc *udc, struct usba_ep *ep,
 		if (crq->wLength != cpu_to_le16(sizeof(status)))
 			goto stall;
 		ep->state = DATA_STAGE_IN;
-		usba_io_writew(status, ep->fifo);
+		writew_relaxed(status, ep->fifo);
 		usba_ep_writel(ep, SET_STA, USBA_TX_PK_RDY);
 		break;
 	}

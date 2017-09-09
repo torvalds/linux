@@ -201,7 +201,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec>;
 	phy-mode = "rmii";
-	phy-reset-gpios = <&gpio7 6 GPIO_ACTIVE_HIGH>;
+	phy-reset-gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
 	phy-handle = <&phy0>;
 	mac-address = [000000000000]; /* placeholder; will be overwritten by bootloader */
 	status = "okay";

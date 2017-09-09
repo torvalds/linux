@@ -145,8 +145,8 @@ struct dm_buffer {
 	enum data_mode data_mode;
 	unsigned char list_mode;		/* LIST_* */
 	unsigned hold_count;
-	int read_error;
-	int write_error;
+	blk_status_t read_error;
+	blk_status_t write_error;
 	unsigned long state;
 	unsigned long last_accessed;
 	struct dm_bufio_client *c;
@@ -555,7 +555,7 @@ static void dmio_complete(unsigned long error, void *context)
 {
 	struct dm_buffer *b = context;
 
-	b->bio.bi_error = error ? -EIO : 0;
+	b->bio.bi_status = error ? BLK_STS_IOERR : 0;
 	b->bio.bi_end_io(&b->bio);
 }
 
@@ -588,7 +588,7 @@ static void use_dmio(struct dm_buffer *b, int rw, sector_t sector,
 
 	r = dm_io(&io_req, 1, &region, NULL);
 	if (r) {
-		b->bio.bi_error = r;
+		b->bio.bi_status = errno_to_blk_status(r);
 		end_io(&b->bio);
 	}
 }
@@ -596,7 +596,7 @@ static void use_dmio(struct dm_buffer *b, int rw, sector_t sector,
 static void inline_endio(struct bio *bio)
 {
 	bio_end_io_t *end_fn = bio->bi_private;
-	int error = bio->bi_error;
+	blk_status_t status = bio->bi_status;
 
 	/*
 	 * Reset the bio to free any attached resources
@@ -604,7 +604,7 @@ static void inline_endio(struct bio *bio)
 	 */
 	bio_reset(bio);
 
-	bio->bi_error = error;
+	bio->bi_status = status;
 	end_fn(bio);
 }
 
@@ -685,11 +685,12 @@ static void write_endio(struct bio *bio)
 {
 	struct dm_buffer *b = container_of(bio, struct dm_buffer, bio);
 
-	b->write_error = bio->bi_error;
-	if (unlikely(bio->bi_error)) {
+	b->write_error = bio->bi_status;
+	if (unlikely(bio->bi_status)) {
 		struct dm_bufio_client *c = b->c;
-		int error = bio->bi_error;
-		(void)cmpxchg(&c->async_write_error, 0, error);
+
+		(void)cmpxchg(&c->async_write_error, 0,
+				blk_status_to_errno(bio->bi_status));
 	}
 
 	BUG_ON(!test_bit(B_WRITING, &b->state));
@@ -1063,7 +1064,7 @@ static void read_endio(struct bio *bio)
 {
 	struct dm_buffer *b = container_of(bio, struct dm_buffer, bio);
 
-	b->read_error = bio->bi_error;
+	b->read_error = bio->bi_status;
 
 	BUG_ON(!test_bit(B_READING, &b->state));
 
@@ -1107,7 +1108,7 @@ static void *new_read(struct dm_bufio_client *c, sector_t block,
 	wait_on_bit_io(&b->state, B_READING, TASK_UNINTERRUPTIBLE);
 
 	if (b->read_error) {
-		int error = b->read_error;
+		int error = blk_status_to_errno(b->read_error);
 
 		dm_bufio_release(b);
 
@@ -1257,7 +1258,8 @@ EXPORT_SYMBOL_GPL(dm_bufio_write_dirty_buffers_async);
  */
 int dm_bufio_write_dirty_buffers(struct dm_bufio_client *c)
 {
-	int a, f;
+	blk_status_t a;
+	int f;
 	unsigned long buffers_processed = 0;
 	struct dm_buffer *b, *tmp;
 

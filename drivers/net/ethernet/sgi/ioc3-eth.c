@@ -90,16 +90,12 @@ struct ioc3_private {
 	spinlock_t ioc3_lock;
 	struct mii_if_info mii;
 
+	struct net_device *dev;
 	struct pci_dev *pdev;
 
 	/* Members used by autonegotiation  */
 	struct timer_list ioc3_timer;
 };
-
-static inline struct net_device *priv_netdev(struct ioc3_private *dev)
-{
-	return (void *)dev - ((sizeof(struct net_device) + 31) & ~31);
-}
 
 static int ioc3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static void ioc3_set_multicast_list(struct net_device *dev);
@@ -427,7 +423,7 @@ static void ioc3_get_eaddr_nic(struct ioc3_private *ip)
 		nic[i] = nic_read_byte(ioc3);
 
 	for (i = 2; i < 8; i++)
-		priv_netdev(ip)->dev_addr[i - 2] = nic[i];
+		ip->dev->dev_addr[i - 2] = nic[i];
 }
 
 /*
@@ -439,7 +435,7 @@ static void ioc3_get_eaddr(struct ioc3_private *ip)
 {
 	ioc3_get_eaddr_nic(ip);
 
-	printk("Ethernet address is %pM.\n", priv_netdev(ip)->dev_addr);
+	printk("Ethernet address is %pM.\n", ip->dev->dev_addr);
 }
 
 static void __ioc3_set_mac_address(struct net_device *dev)
@@ -790,13 +786,12 @@ static void ioc3_timer(unsigned long data)
  */
 static int ioc3_mii_init(struct ioc3_private *ip)
 {
-	struct net_device *dev = priv_netdev(ip);
 	int i, found = 0, res = 0;
 	int ioc3_phy_workaround = 1;
 	u16 word;
 
 	for (i = 0; i < 32; i++) {
-		word = ioc3_mdio_read(dev, i, MII_PHYSID1);
+		word = ioc3_mdio_read(ip->dev, i, MII_PHYSID1);
 
 		if (word != 0xffff && word != 0x0000) {
 			found = 1;
@@ -1276,6 +1271,7 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	ip = netdev_priv(dev);
+	ip->dev = dev;
 
 	dev->irq = pdev->irq;
 
@@ -1562,13 +1558,12 @@ static int ioc3_get_link_ksettings(struct net_device *dev,
 				   struct ethtool_link_ksettings *cmd)
 {
 	struct ioc3_private *ip = netdev_priv(dev);
-	int rc;
 
 	spin_lock_irq(&ip->ioc3_lock);
-	rc = mii_ethtool_get_link_ksettings(&ip->mii, cmd);
+	mii_ethtool_get_link_ksettings(&ip->mii, cmd);
 	spin_unlock_irq(&ip->ioc3_lock);
 
-	return rc;
+	return 0;
 }
 
 static int ioc3_set_link_ksettings(struct net_device *dev,

@@ -40,49 +40,17 @@ Enjoy!
 Docs at the Linux Kernel tree
 -----------------------------
 
-The DocBook books should be built with ``make {htmldocs | psdocs | pdfdocs}``.
 The Sphinx books should be built with ``make {htmldocs | pdfdocs | epubdocs}``.
 
     * Name: **linux/Documentation**
 
       :Author: Many.
       :Location: Documentation/
-      :Keywords: text files, Sphinx, DocBook.
+      :Keywords: text files, Sphinx.
       :Description: Documentation that comes with the kernel sources,
         inside the Documentation directory. Some pages from this document
         (including this document itself) have been moved there, and might
         be more up to date than the web version.
-
-    * Title: **The Kernel Hacking HOWTO**
-
-      :Author: Various Talented People, and Rusty.
-      :Location: Documentation/DocBook/kernel-hacking.tmpl
-      :Keywords: HOWTO, kernel contexts, deadlock, locking, modules,
-        symbols, return conventions.
-      :Description: From the Introduction: "Please understand that I
-        never wanted to write this document, being grossly underqualified,
-        but I always wanted to read it, and this was the only way. I
-        simply explain some best practices, and give reading entry-points
-        into the kernel sources. I avoid implementation details: that's
-        what the code is for, and I ignore whole tracts of useful
-        routines. This document assumes familiarity with C, and an
-        understanding of what the kernel is, and how it is used. It was
-        originally written for the 2.3 kernels, but nearly all of it
-        applies to 2.2 too; 2.0 is slightly different".
-
-    * Title: **Linux Kernel Locking HOWTO**
-
-      :Author: Various Talented People, and Rusty.
-      :Location: Documentation/DocBook/kernel-locking.tmpl
-      :Keywords: locks, locking, spinlock, semaphore, atomic, race
-        condition, bottom halves, tasklets, softirqs.
-      :Description: The title says it all: document describing the
-        locking system in the Linux Kernel either in uniprocessor or SMP
-        systems.
-      :Notes: "It was originally written for the later (>2.3.47) 2.3
-        kernels, but most of it applies to 2.2 too; 2.0 is slightly
-        different". Freely redistributable under the conditions of the GNU
-        General Public License.
 
 On-line docs
 ------------

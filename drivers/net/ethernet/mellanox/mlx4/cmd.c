@@ -3280,7 +3280,7 @@ int mlx4_set_vf_link_state(struct mlx4_dev *dev, int port, int vf, int link_stat
 
 	if (mlx4_master_immediate_activate_vlan_qos(priv, slave, port))
 		mlx4_dbg(dev,
-			 "updating vf %d port %d no link state HW enforcment\n",
+			 "updating vf %d port %d no link state HW enforcement\n",
 			 vf, port);
 	return 0;
 }

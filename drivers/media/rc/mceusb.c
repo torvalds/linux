@@ -36,18 +36,18 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 #include <linux/usb.h>
 #include <linux/usb/input.h>
 #include <linux/pm_wakeup.h>
 #include <media/rc-core.h>
 
-#define DRIVER_VERSION	"1.92"
+#define DRIVER_VERSION	"1.93"
 #define DRIVER_AUTHOR	"Jarod Wilson <jarod@redhat.com>"
 #define DRIVER_DESC	"Windows Media Center Ed. eHome Infrared Transceiver " \
 			"device driver"
 #define DRIVER_NAME	"mceusb"
 
-#define USB_BUFLEN		32 /* USB reception buffer length */
 #define USB_CTRL_MSG_SZ		2  /* Size of usb ctrl msg on gen1 hw */
 #define MCE_G1_INIT_MSGS	40 /* Init messages on gen1 hw to throw out */
 
@@ -417,7 +417,9 @@ struct mceusb_dev {
 	/* usb */
 	struct usb_device *usbdev;
 	struct urb *urb_in;
+	unsigned int pipe_in;
 	struct usb_endpoint_descriptor *usb_ep_out;
+	unsigned int pipe_out;
 
 	/* buffers and dma */
 	unsigned char *buf_in;
@@ -454,6 +456,16 @@ struct mceusb_dev {
 	u8 num_rxports;		/* number of receive sensors */
 	u8 txports_cabled;	/* bitmask of transmitters with cable */
 	u8 rxports_active;	/* bitmask of active receive sensors */
+
+	/*
+	 * support for async error handler mceusb_deferred_kevent()
+	 * where usb_clear_halt(), usb_reset_configuration(),
+	 * usb_reset_device(), etc. must be done in process context
+	 */
+	struct work_struct kevent;
+	unsigned long kevent_flags;
+#		define EVENT_TX_HALT	0
+#		define EVENT_RX_HALT	1
 };
 
 /* MCE Device Command Strings, generally a port and command pair */
@@ -527,7 +539,7 @@ static int mceusb_cmd_datasize(u8 cmd, u8 subcmd)
 }
 
 static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
-				 int offset, int len, bool out)
+				 int buf_len, int offset, int len, bool out)
 {
 #if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 	char *inout;
@@ -544,7 +556,8 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 		return;
 
 	dev_dbg(dev, "%cx data: %*ph (length=%d)",
-		(out ? 't' : 'r'), min(len, USB_BUFLEN), buf, len);
+		(out ? 't' : 'r'),
+		min(len, buf_len - offset), buf + offset, len);
 
 	inout = out ? "Request" : "Got";
 
@@ -686,6 +699,21 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 #endif
 }
 
+/*
+ * Schedule work that can't be done in interrupt handlers
+ * (mceusb_dev_recv() and mce_async_callback()) nor tasklets.
+ * Invokes mceusb_deferred_kevent() for recovering from
+ * error events specified by the kevent bit field.
+ */
+static void mceusb_defer_kevent(struct mceusb_dev *ir, int kevent)
+{
+	set_bit(kevent, &ir->kevent_flags);
+	if (!schedule_work(&ir->kevent))
+		dev_err(ir->dev, "kevent %d may have been dropped", kevent);
+	else
+		dev_dbg(ir->dev, "kevent %d scheduled", kevent);
+}
+
 static void mce_async_callback(struct urb *urb)
 {
 	struct mceusb_dev *ir;
@@ -701,7 +729,8 @@ static void mce_async_callback(struct urb *urb)
 	case 0:
 		len = urb->actual_length;
 
-		mceusb_dev_printdata(ir, urb->transfer_buffer, 0, len, true);
+		mceusb_dev_printdata(ir, urb->transfer_buffer, len,
+				     0, len, true);
 		break;
 
 	case -ECONNRESET:
@@ -711,6 +740,11 @@ static void mce_async_callback(struct urb *urb)
 		break;
 
 	case -EPIPE:
+		dev_err(ir->dev, "Error: request urb status = %d (TX HALT)",
+			urb->status);
+		mceusb_defer_kevent(ir, EVENT_TX_HALT);
+		break;
+
 	default:
 		dev_err(ir->dev, "Error: request urb status = %d", urb->status);
 		break;
@@ -721,18 +755,18 @@ static void mce_async_callback(struct urb *urb)
 	usb_free_urb(urb);
 }
 
-/* request incoming or send outgoing usb packet - used to initialize remote */
+/* request outgoing (send) usb packet - used to initialize remote */
 static void mce_request_packet(struct mceusb_dev *ir, unsigned char *data,
 								int size)
 {
-	int res, pipe;
+	int res;
 	struct urb *async_urb;
 	struct device *dev = ir->dev;
 	unsigned char *async_buf;
 
 	async_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (unlikely(!async_urb)) {
-		dev_err(dev, "Error, couldn't allocate urb!\n");
+		dev_err(dev, "Error, couldn't allocate urb!");
 		return;
 	}
 
@@ -743,32 +777,26 @@ static void mce_request_packet(struct mceusb_dev *ir, unsigned char *data,
 	}
 
 	/* outbound data */
-	if (usb_endpoint_xfer_int(ir->usb_ep_out)) {
-		pipe = usb_sndintpipe(ir->usbdev,
-				 ir->usb_ep_out->bEndpointAddress);
-		usb_fill_int_urb(async_urb, ir->usbdev, pipe, async_buf,
-				 size, mce_async_callback, ir,
+	if (usb_endpoint_xfer_int(ir->usb_ep_out))
+		usb_fill_int_urb(async_urb, ir->usbdev, ir->pipe_out,
+				 async_buf, size, mce_async_callback, ir,
 				 ir->usb_ep_out->bInterval);
-	} else {
-		pipe = usb_sndbulkpipe(ir->usbdev,
-				 ir->usb_ep_out->bEndpointAddress);
-		usb_fill_bulk_urb(async_urb, ir->usbdev, pipe,
-				 async_buf, size, mce_async_callback,
-				 ir);
-	}
+	else
+		usb_fill_bulk_urb(async_urb, ir->usbdev, ir->pipe_out,
+				  async_buf, size, mce_async_callback, ir);
+
 	memcpy(async_buf, data, size);
 
-	dev_dbg(dev, "receive request called (size=%#x)", size);
-
-	async_urb->transfer_buffer_length = size;
-	async_urb->dev = ir->usbdev;
+	dev_dbg(dev, "send request called (size=%#x)", size);
 
 	res = usb_submit_urb(async_urb, GFP_ATOMIC);
 	if (res) {
-		dev_err(dev, "receive request FAILED! (res=%d)", res);
+		dev_err(dev, "send request FAILED! (res=%d)", res);
+		kfree(async_buf);
+		usb_free_urb(async_urb);
 		return;
 	}
-	dev_dbg(dev, "receive request complete (res=%d)", res);
+	dev_dbg(dev, "send request complete (res=%d)", res);
 }
 
 static void mce_async_out(struct mceusb_dev *ir, unsigned char *data, int size)
@@ -974,7 +1002,7 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 		switch (ir->parser_state) {
 		case SUBCMD:
 			ir->rem = mceusb_cmd_datasize(ir->cmd, ir->buf_in[i]);
-			mceusb_dev_printdata(ir, ir->buf_in, i - 1,
+			mceusb_dev_printdata(ir, ir->buf_in, buf_len, i - 1,
 					     ir->rem + 2, false);
 			mceusb_handle_command(ir, i);
 			ir->parser_state = CMD_DATA;
@@ -986,7 +1014,7 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 			rawir.duration = (ir->buf_in[i] & MCE_PULSE_MASK)
 					 * US_TO_NS(MCE_TIME_UNIT);
 
-			dev_dbg(ir->dev, "Storing %s with duration %d",
+			dev_dbg(ir->dev, "Storing %s with duration %u",
 				rawir.pulse ? "pulse" : "space",
 				rawir.duration);
 
@@ -1007,7 +1035,7 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 				continue;
 			}
 			ir->rem = (ir->cmd & MCE_PACKET_LENGTH_MASK);
-			mceusb_dev_printdata(ir, ir->buf_in,
+			mceusb_dev_printdata(ir, ir->buf_in, buf_len,
 					     i, ir->rem + 1, false);
 			if (ir->rem)
 				ir->parser_state = PARSE_IRDATA;
@@ -1052,6 +1080,11 @@ static void mceusb_dev_recv(struct urb *urb)
 		return;
 
 	case -EPIPE:
+		dev_err(ir->dev, "Error: urb status = %d (RX HALT)",
+			urb->status);
+		mceusb_defer_kevent(ir, EVENT_RX_HALT);
+		return;
+
 	default:
 		dev_err(ir->dev, "Error: urb status = %d", urb->status);
 		break;
@@ -1168,6 +1201,45 @@ static void mceusb_flash_led(struct mceusb_dev *ir)
 		return;
 
 	mce_async_out(ir, FLASH_LED, sizeof(FLASH_LED));
+}
+
+/*
+ * Workqueue function
+ * for resetting or recovering device after occurrence of error events
+ * specified in ir->kevent bit field.
+ * Function runs (via schedule_work()) in non-interrupt context, for
+ * calls here (such as usb_clear_halt()) requiring non-interrupt context.
+ */
+static void mceusb_deferred_kevent(struct work_struct *work)
+{
+	struct mceusb_dev *ir =
+		container_of(work, struct mceusb_dev, kevent);
+	int status;
+
+	if (test_bit(EVENT_RX_HALT, &ir->kevent_flags)) {
+		usb_unlink_urb(ir->urb_in);
+		status = usb_clear_halt(ir->usbdev, ir->pipe_in);
+		if (status < 0) {
+			dev_err(ir->dev, "rx clear halt error %d",
+				status);
+		}
+		clear_bit(EVENT_RX_HALT, &ir->kevent_flags);
+		if (status == 0) {
+			status = usb_submit_urb(ir->urb_in, GFP_KERNEL);
+			if (status < 0) {
+				dev_err(ir->dev,
+					"rx unhalt submit urb error %d",
+					status);
+			}
+		}
+	}
+
+	if (test_bit(EVENT_TX_HALT, &ir->kevent_flags)) {
+		status = usb_clear_halt(ir->usbdev, ir->pipe_out);
+		if (status < 0)
+			dev_err(ir->dev, "tx clear halt error %d", status);
+		clear_bit(EVENT_TX_HALT, &ir->kevent_flags);
+	}
 }
 
 static struct rc_dev *mceusb_init_rc_dev(struct mceusb_dev *ir)
@@ -1303,6 +1375,7 @@ static int mceusb_dev_probe(struct usb_interface *intf,
 	if (!ir)
 		goto mem_alloc_fail;
 
+	ir->pipe_in = pipe;
 	ir->buf_in = usb_alloc_coherent(dev, maxp, GFP_ATOMIC, &ir->dma_in);
 	if (!ir->buf_in)
 		goto buf_in_alloc_fail;
@@ -1321,6 +1394,12 @@ static int mceusb_dev_probe(struct usb_interface *intf,
 
 	/* Saving usb interface data for use by the transmitter routine */
 	ir->usb_ep_out = ep_out;
+	if (usb_endpoint_xfer_int(ep_out))
+		ir->pipe_out = usb_sndintpipe(ir->usbdev,
+					      ep_out->bEndpointAddress);
+	else
+		ir->pipe_out = usb_sndbulkpipe(ir->usbdev,
+					       ep_out->bEndpointAddress);
 
 	if (dev->descriptor.iManufacturer
 	    && usb_string(dev, dev->descriptor.iManufacturer,
@@ -1332,21 +1411,32 @@ static int mceusb_dev_probe(struct usb_interface *intf,
 		snprintf(name + strlen(name), sizeof(name) - strlen(name),
 			 " %s", buf);
 
+	/*
+	 * Initialize async USB error handler before registering
+	 * or activating any mceusb RX and TX functions
+	 */
+	INIT_WORK(&ir->kevent, mceusb_deferred_kevent);
+
 	ir->rc = mceusb_init_rc_dev(ir);
 	if (!ir->rc)
 		goto rc_dev_fail;
 
 	/* wire up inbound data handler */
-	usb_fill_int_urb(ir->urb_in, dev, pipe, ir->buf_in, maxp,
-				mceusb_dev_recv, ir, ep_in->bInterval);
+	if (usb_endpoint_xfer_int(ep_in))
+		usb_fill_int_urb(ir->urb_in, dev, pipe, ir->buf_in, maxp,
+				 mceusb_dev_recv, ir, ep_in->bInterval);
+	else
+		usb_fill_bulk_urb(ir->urb_in, dev, pipe, ir->buf_in, maxp,
+				  mceusb_dev_recv, ir);
+
 	ir->urb_in->transfer_dma = ir->dma_in;
 	ir->urb_in->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	/* flush buffers on the device */
-	dev_dbg(&intf->dev, "Flushing receive buffers\n");
+	dev_dbg(&intf->dev, "Flushing receive buffers");
 	res = usb_submit_urb(ir->urb_in, GFP_KERNEL);
 	if (res)
-		dev_err(&intf->dev, "failed to flush buffers: %d\n", res);
+		dev_err(&intf->dev, "failed to flush buffers: %d", res);
 
 	/* figure out which firmware/emulator version this hardware has */
 	mceusb_get_emulator_version(ir);
@@ -1380,6 +1470,7 @@ static int mceusb_dev_probe(struct usb_interface *intf,
 
 	/* Error-handling path */
 rc_dev_fail:
+	cancel_work_sync(&ir->kevent);
 	usb_put_dev(ir->usbdev);
 	usb_kill_urb(ir->urb_in);
 	usb_free_urb(ir->urb_in);
@@ -1405,6 +1496,7 @@ static void mceusb_dev_disconnect(struct usb_interface *intf)
 		return;
 
 	ir->usbdev = NULL;
+	cancel_work_sync(&ir->kevent);
 	rc_unregister_device(ir->rc);
 	usb_kill_urb(ir->urb_in);
 	usb_free_urb(ir->urb_in);

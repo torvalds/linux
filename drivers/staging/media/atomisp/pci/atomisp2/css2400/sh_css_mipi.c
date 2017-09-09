@@ -681,7 +681,7 @@ send_mipi_frames(struct ia_css_pipe *pipe)
 	unsigned int port = 0;
 #endif
 
-	IA_CSS_ENTER_PRIVATE("pipe=%d", pipe);
+	IA_CSS_ENTER_PRIVATE("pipe=%p", pipe);
 
 	assert(pipe != NULL);
 	assert(pipe->stream != NULL);

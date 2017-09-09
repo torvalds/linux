@@ -30,7 +30,8 @@ Required properties:
 
   - gpio-controller : Indicates this device is a GPIO controller.
   - #gpio-cells : Must be 2. The first cell is the pin number and the
-    second cell is used to specify optional parameters (currently unused).
+    second cell is used to specify optional parameters, see ../gpio/gpio.txt
+    for details.
 
   - AVDD-supply, DBVDD1-supply, CPVDD-supply : Power supplies for the device,
     as covered in Documentation/devicetree/bindings/regulator/regulator.txt

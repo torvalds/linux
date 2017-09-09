@@ -43,8 +43,8 @@
 #include <linux/types.h>
 
 #include "qca_7k.h"
+#include "qca_7k_common.h"
 #include "qca_debug.h"
-#include "qca_framing.h"
 #include "qca_spi.h"
 
 #define MAX_DMA_BURST_LEN 5000
@@ -69,7 +69,6 @@ static int qcaspi_pluggable = QCASPI_PLUGGABLE_MIN;
 module_param(qcaspi_pluggable, int, 0);
 MODULE_PARM_DESC(qcaspi_pluggable, "Pluggable SPI connection (yes/no).");
 
-#define QCASPI_MTU QCAFRM_ETHMAXMTU
 #define QCASPI_TX_TIMEOUT (1 * HZ)
 #define QCASPI_QCA7K_REBOOT_TIME_MS 1000
 
@@ -190,6 +189,30 @@ qcaspi_read_legacy(struct qcaspi *qca, u8 *dst, u32 len)
 	}
 
 	return len;
+}
+
+static int
+qcaspi_tx_cmd(struct qcaspi *qca, u16 cmd)
+{
+	__be16 tx_data;
+	struct spi_message *msg = &qca->spi_msg1;
+	struct spi_transfer *transfer = &qca->spi_xfer1;
+	int ret;
+
+	tx_data = cpu_to_be16(cmd);
+	transfer->len = sizeof(tx_data);
+	transfer->tx_buf = &tx_data;
+	transfer->rx_buf = NULL;
+
+	ret = spi_sync(qca->spi_dev, msg);
+
+	if (!ret)
+		ret = msg->status;
+
+	if (ret)
+		qcaspi_spi_error(qca);
+
+	return ret;
 }
 
 static int
@@ -403,7 +426,7 @@ qcaspi_tx_ring_has_space(struct tx_ring *txr)
 	if (txr->skb[txr->tail])
 		return 0;
 
-	return (txr->size + QCAFRM_ETHMAXLEN < QCASPI_HW_BUF_LEN) ? 1 : 0;
+	return (txr->size + QCAFRM_MAX_LEN < QCASPI_HW_BUF_LEN) ? 1 : 0;
 }
 
 /*   Flush the tx ring. This function is only safe to
@@ -603,7 +626,7 @@ qcaspi_intr_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-int
+static int
 qcaspi_netdev_open(struct net_device *dev)
 {
 	struct qcaspi *qca = netdev_priv(dev);
@@ -615,7 +638,7 @@ qcaspi_netdev_open(struct net_device *dev)
 	qca->intr_req = 1;
 	qca->intr_svc = 0;
 	qca->sync = QCASPI_SYNC_UNKNOWN;
-	qcafrm_fsm_init(&qca->frm_handle);
+	qcafrm_fsm_init_spi(&qca->frm_handle);
 
 	qca->spi_thread = kthread_run((void *)qcaspi_spi_thread,
 				      qca, "%s", dev->name);
@@ -640,7 +663,7 @@ qcaspi_netdev_open(struct net_device *dev)
 	return 0;
 }
 
-int
+static int
 qcaspi_netdev_close(struct net_device *dev)
 {
 	struct qcaspi *qca = netdev_priv(dev);
@@ -667,8 +690,8 @@ qcaspi_netdev_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct sk_buff *tskb;
 	u8 pad_len = 0;
 
-	if (skb->len < QCAFRM_ETHMINLEN)
-		pad_len = QCAFRM_ETHMINLEN - skb->len;
+	if (skb->len < QCAFRM_MIN_LEN)
+		pad_len = QCAFRM_MIN_LEN - skb->len;
 
 	if (qca->txr.skb[qca->txr.tail]) {
 		netdev_warn(qca->net_dev, "queue was unexpectedly full!\n");
@@ -696,8 +719,7 @@ qcaspi_netdev_xmit(struct sk_buff *skb, struct net_device *dev)
 	qcafrm_create_header(ptmp, frame_len);
 
 	if (pad_len) {
-		ptmp = skb_put(skb, pad_len);
-		memset(ptmp, 0, pad_len);
+		ptmp = skb_put_zero(skb, pad_len);
 	}
 
 	ptmp = skb_put(skb, QCAFRM_FOOTER_LEN);
@@ -746,7 +768,7 @@ qcaspi_netdev_init(struct net_device *dev)
 {
 	struct qcaspi *qca = netdev_priv(dev);
 
-	dev->mtu = QCASPI_MTU;
+	dev->mtu = QCAFRM_MAX_MTU;
 	dev->type = ARPHRD_ETHER;
 	qca->clkspeed = qcaspi_clkspeed;
 	qca->burst_len = qcaspi_burst_len;
@@ -805,8 +827,8 @@ qcaspi_netdev_setup(struct net_device *dev)
 	dev->tx_queue_len = 100;
 
 	/* MTU range: 46 - 1500 */
-	dev->min_mtu = QCAFRM_ETHMINMTU;
-	dev->max_mtu = QCAFRM_ETHMAXMTU;
+	dev->min_mtu = QCAFRM_MIN_MTU;
+	dev->max_mtu = QCAFRM_MAX_MTU;
 
 	qca = netdev_priv(dev);
 	memset(qca, 0, sizeof(struct qcaspi));
@@ -894,6 +916,7 @@ qca_spi_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	qcaspi_netdev_setup(qcaspi_devs);
+	SET_NETDEV_DEV(qcaspi_devs, &spi->dev);
 
 	qca = netdev_priv(qcaspi_devs);
 	if (!qca) {
@@ -975,7 +998,7 @@ static struct spi_driver qca_spi_driver = {
 };
 module_spi_driver(qca_spi_driver);
 
-MODULE_DESCRIPTION("Qualcomm Atheros SPI Driver");
+MODULE_DESCRIPTION("Qualcomm Atheros QCA7000 SPI Driver");
 MODULE_AUTHOR("Qualcomm Atheros Communications");
 MODULE_AUTHOR("Stefan Wahren <stefan.wahren@i2se.com>");
 MODULE_LICENSE("Dual BSD/GPL");

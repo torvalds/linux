@@ -667,12 +667,14 @@ enum {
 
 enum {
 	OPAL_PHB_ERROR_DATA_TYPE_P7IOC = 1,
-	OPAL_PHB_ERROR_DATA_TYPE_PHB3 = 2
+	OPAL_PHB_ERROR_DATA_TYPE_PHB3 = 2,
+	OPAL_PHB_ERROR_DATA_TYPE_PHB4 = 3
 };
 
 enum {
 	OPAL_P7IOC_NUM_PEST_REGS = 128,
-	OPAL_PHB3_NUM_PEST_REGS = 256
+	OPAL_PHB3_NUM_PEST_REGS = 256,
+	OPAL_PHB4_NUM_PEST_REGS = 512
 };
 
 struct OpalIoPhbErrorCommon {
@@ -802,9 +804,87 @@ struct OpalIoPhb3ErrorData {
 	__be64 pestB[OPAL_PHB3_NUM_PEST_REGS];
 };
 
+struct OpalIoPhb4ErrorData {
+	struct OpalIoPhbErrorCommon common;
+
+	__be32 brdgCtl;
+
+	/* PHB4 cfg regs */
+	__be32 deviceStatus;
+	__be32 slotStatus;
+	__be32 linkStatus;
+	__be32 devCmdStatus;
+	__be32 devSecStatus;
+
+	/* cfg AER regs */
+	__be32 rootErrorStatus;
+	__be32 uncorrErrorStatus;
+	__be32 corrErrorStatus;
+	__be32 tlpHdr1;
+	__be32 tlpHdr2;
+	__be32 tlpHdr3;
+	__be32 tlpHdr4;
+	__be32 sourceId;
+
+	/* PHB4 ETU Error Regs */
+	__be64 nFir;				/* 000 */
+	__be64 nFirMask;			/* 003 */
+	__be64 nFirWOF;				/* 008 */
+	__be64 phbPlssr;			/* 120 */
+	__be64 phbCsr;				/* 110 */
+	__be64 lemFir;				/* C00 */
+	__be64 lemErrorMask;			/* C18 */
+	__be64 lemWOF;				/* C40 */
+	__be64 phbErrorStatus;			/* C80 */
+	__be64 phbFirstErrorStatus;		/* C88 */
+	__be64 phbErrorLog0;			/* CC0 */
+	__be64 phbErrorLog1;			/* CC8 */
+	__be64 phbTxeErrorStatus;		/* D00 */
+	__be64 phbTxeFirstErrorStatus;		/* D08 */
+	__be64 phbTxeErrorLog0;			/* D40 */
+	__be64 phbTxeErrorLog1;			/* D48 */
+	__be64 phbRxeArbErrorStatus;		/* D80 */
+	__be64 phbRxeArbFirstErrorStatus;	/* D88 */
+	__be64 phbRxeArbErrorLog0;		/* DC0 */
+	__be64 phbRxeArbErrorLog1;		/* DC8 */
+	__be64 phbRxeMrgErrorStatus;		/* E00 */
+	__be64 phbRxeMrgFirstErrorStatus;	/* E08 */
+	__be64 phbRxeMrgErrorLog0;		/* E40 */
+	__be64 phbRxeMrgErrorLog1;		/* E48 */
+	__be64 phbRxeTceErrorStatus;		/* E80 */
+	__be64 phbRxeTceFirstErrorStatus;	/* E88 */
+	__be64 phbRxeTceErrorLog0;		/* EC0 */
+	__be64 phbRxeTceErrorLog1;		/* EC8 */
+
+	/* PHB4 REGB Error Regs */
+	__be64 phbPblErrorStatus;		/* 1900 */
+	__be64 phbPblFirstErrorStatus;		/* 1908 */
+	__be64 phbPblErrorLog0;			/* 1940 */
+	__be64 phbPblErrorLog1;			/* 1948 */
+	__be64 phbPcieDlpErrorLog1;		/* 1AA0 */
+	__be64 phbPcieDlpErrorLog2;		/* 1AA8 */
+	__be64 phbPcieDlpErrorStatus;		/* 1AB0 */
+	__be64 phbRegbErrorStatus;		/* 1C00 */
+	__be64 phbRegbFirstErrorStatus;		/* 1C08 */
+	__be64 phbRegbErrorLog0;		/* 1C40 */
+	__be64 phbRegbErrorLog1;		/* 1C48 */
+
+	__be64 pestA[OPAL_PHB4_NUM_PEST_REGS];
+	__be64 pestB[OPAL_PHB4_NUM_PEST_REGS];
+};
+
 enum {
 	OPAL_REINIT_CPUS_HILE_BE	= (1 << 0),
 	OPAL_REINIT_CPUS_HILE_LE	= (1 << 1),
+
+	/* These two define the base MMU mode of the host on P9
+	 *
+	 * On P9 Nimbus DD2.0 and Cumlus (and later), KVM can still
+	 * create hash guests in "radix" mode with care (full core
+	 * switch only).
+	 */
+	OPAL_REINIT_CPUS_MMU_HASH	= (1 << 2),
+	OPAL_REINIT_CPUS_MMU_RADIX	= (1 << 3),
 };
 
 typedef struct oppanel_line {
@@ -877,6 +957,7 @@ enum {
 	OPAL_PHB_CAPI_MODE_SNOOP_OFF    = 2,
 	OPAL_PHB_CAPI_MODE_SNOOP_ON	= 3,
 	OPAL_PHB_CAPI_MODE_DMA		= 4,
+	OPAL_PHB_CAPI_MODE_DMA_TVT1	= 5,
 };
 
 /* OPAL I2C request */

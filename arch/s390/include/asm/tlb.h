@@ -137,6 +137,21 @@ static inline void pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
 }
 
 /*
+ * p4d_free_tlb frees a pud table and clears the CRSTE for the
+ * region second table entry from the tlb.
+ * If the mm uses a four level page table the single p4d is freed
+ * as the pgd. p4d_free_tlb checks the asce_limit against 8PB
+ * to avoid the double free of the p4d in this case.
+ */
+static inline void p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d,
+				unsigned long address)
+{
+	if (tlb->mm->context.asce_limit <= (1UL << 53))
+		return;
+	tlb_remove_table(tlb, p4d);
+}
+
+/*
  * pud_free_tlb frees a pud table and clears the CRSTE for the
  * region third table entry from the tlb.
  * If the mm uses a three level page table the single pud is freed

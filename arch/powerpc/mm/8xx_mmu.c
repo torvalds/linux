@@ -88,7 +88,7 @@ static void mmu_mapin_immr(void)
 	int offset;
 
 	for (offset = 0; offset < IMMR_SIZE; offset += PAGE_SIZE)
-		map_page(v + offset, p + offset, f);
+		map_kernel_page(v + offset, p + offset, f);
 }
 
 /* Address of instructions to patch */

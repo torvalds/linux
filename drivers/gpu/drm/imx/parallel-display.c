@@ -237,7 +237,7 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 
 	/* port@1 is the output port */
 	ret = drm_of_find_panel_or_bridge(np, 1, 0, &imxpd->panel, &imxpd->bridge);
-	if (ret)
+	if (ret && ret != -ENODEV)
 		return ret;
 
 	imxpd->dev = dev;

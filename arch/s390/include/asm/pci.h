@@ -70,11 +70,10 @@ struct zpci_fmb {
 } __packed __aligned(128);
 
 enum zpci_state {
-	ZPCI_FN_STATE_RESERVED,
-	ZPCI_FN_STATE_STANDBY,
-	ZPCI_FN_STATE_CONFIGURED,
-	ZPCI_FN_STATE_ONLINE,
-	NR_ZPCI_FN_STATES,
+	ZPCI_FN_STATE_STANDBY = 0,
+	ZPCI_FN_STATE_CONFIGURED = 1,
+	ZPCI_FN_STATE_RESERVED = 2,
+	ZPCI_FN_STATE_ONLINE = 3,
 };
 
 struct zpci_bar_struct {
@@ -109,7 +108,7 @@ struct zpci_dev {
 	u64		msi_addr;	/* MSI address */
 	unsigned int	max_msi;	/* maximum number of MSI's */
 	struct airq_iv *aibv;		/* adapter interrupt bit vector */
-	unsigned int	aisb;		/* number of the summary bit */
+	unsigned long	aisb;		/* number of the summary bit */
 
 	/* DMA stuff */
 	unsigned long	*dma_table;
@@ -159,11 +158,12 @@ extern const struct attribute_group *zpci_attr_groups[];
 ----------------------------------------------------------------------------- */
 /* Base stuff */
 int zpci_create_device(struct zpci_dev *);
+void zpci_remove_device(struct zpci_dev *zdev);
 int zpci_enable_device(struct zpci_dev *);
 int zpci_disable_device(struct zpci_dev *);
-void zpci_stop_device(struct zpci_dev *);
 int zpci_register_ioat(struct zpci_dev *, u8, u64, u64, u64);
 int zpci_unregister_ioat(struct zpci_dev *, u8);
+void zpci_remove_reserved_devices(void);
 
 /* CLP */
 int clp_scan_pci_devices(void);
@@ -172,6 +172,7 @@ int clp_rescan_pci_devices_simple(void);
 int clp_add_pci_device(u32, u32, int);
 int clp_enable_fh(struct zpci_dev *, u8);
 int clp_disable_fh(struct zpci_dev *);
+int clp_get_state(u32 fid, enum zpci_state *state);
 
 #ifdef CONFIG_PCI
 /* Error handling and recovery */

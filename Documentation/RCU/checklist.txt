@@ -413,11 +413,11 @@ over a rather long period of time, but improvements are always welcome!
 	read-side critical sections.  It is the responsibility of the
 	RCU update-side primitives to deal with this.
 
-17.	Use CONFIG_PROVE_RCU, CONFIG_DEBUG_OBJECTS_RCU_HEAD, and the
-	__rcu sparse checks (enabled by CONFIG_SPARSE_RCU_POINTER) to
-	validate your RCU code.  These can help find problems as follows:
+17.	Use CONFIG_PROVE_LOCKING, CONFIG_DEBUG_OBJECTS_RCU_HEAD, and the
+	__rcu sparse checks to validate your RCU code.	These can help
+	find problems as follows:
 
-	CONFIG_PROVE_RCU: check that accesses to RCU-protected data
+	CONFIG_PROVE_LOCKING: check that accesses to RCU-protected data
 		structures are carried out under the proper RCU
 		read-side critical section, while holding the right
 		combination of locks, or whatever other conditions

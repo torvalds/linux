@@ -163,7 +163,7 @@ int register_qdisc(struct Qdisc_ops *qops)
 		if (!(cops->get && cops->put && cops->walk && cops->leaf))
 			goto out_einval;
 
-		if (cops->tcf_chain && !(cops->bind_tcf && cops->unbind_tcf))
+		if (cops->tcf_block && !(cops->bind_tcf && cops->unbind_tcf))
 			goto out_einval;
 	}
 
@@ -839,7 +839,7 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 
 			old = dev_graft_qdisc(dev_queue, new);
 			if (new && i > 0)
-				atomic_inc(&new->refcnt);
+				refcount_inc(&new->refcnt);
 
 			if (!ingress)
 				qdisc_destroy(old);
@@ -850,7 +850,7 @@ skip:
 			notify_and_destroy(net, skb, n, classid,
 					   dev->qdisc, new);
 			if (new && !new->ops->attach)
-				atomic_inc(&new->refcnt);
+				refcount_inc(&new->refcnt);
 			dev->qdisc = new ? : &noop_qdisc;
 
 			if (new && new->ops->attach)
@@ -1259,7 +1259,7 @@ replay:
 				if (q == p ||
 				    (p && check_loop(q, p, 0)))
 					return -ELOOP;
-				atomic_inc(&q->refcnt);
+				refcount_inc(&q->refcnt);
 				goto graft;
 			} else {
 				if (!q)
@@ -1374,7 +1374,7 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 	tcm->tcm_ifindex = qdisc_dev(q)->ifindex;
 	tcm->tcm_parent = clid;
 	tcm->tcm_handle = q->handle;
-	tcm->tcm_info = atomic_read(&q->refcnt);
+	tcm->tcm_info = refcount_read(&q->refcnt);
 	if (nla_put_string(skb, TCA_KIND, q->ops->id))
 		goto nla_put_failure;
 	if (q->ops->dump && q->ops->dump(q, skb) < 0)
@@ -1878,54 +1878,6 @@ done:
 	dev_put(dev);
 	return skb->len;
 }
-
-/* Main classifier routine: scans classifier chain attached
- * to this qdisc, (optionally) tests for protocol and asks
- * specific classifiers.
- */
-int tc_classify(struct sk_buff *skb, const struct tcf_proto *tp,
-		struct tcf_result *res, bool compat_mode)
-{
-	__be16 protocol = tc_skb_protocol(skb);
-#ifdef CONFIG_NET_CLS_ACT
-	const int max_reclassify_loop = 4;
-	const struct tcf_proto *old_tp = tp;
-	int limit = 0;
-
-reclassify:
-#endif
-	for (; tp; tp = rcu_dereference_bh(tp->next)) {
-		int err;
-
-		if (tp->protocol != protocol &&
-		    tp->protocol != htons(ETH_P_ALL))
-			continue;
-
-		err = tp->classify(skb, tp, res);
-#ifdef CONFIG_NET_CLS_ACT
-		if (unlikely(err == TC_ACT_RECLASSIFY && !compat_mode))
-			goto reset;
-#endif
-		if (err >= 0)
-			return err;
-	}
-
-	return TC_ACT_UNSPEC; /* signal: continue lookup */
-#ifdef CONFIG_NET_CLS_ACT
-reset:
-	if (unlikely(limit++ >= max_reclassify_loop)) {
-		net_notice_ratelimited("%s: reclassify loop, rule prio %u, protocol %02x\n",
-				       tp->q->ops->id, tp->prio & 0xffff,
-				       ntohs(tp->protocol));
-		return TC_ACT_SHOT;
-	}
-
-	tp = old_tp;
-	protocol = tc_skb_protocol(skb);
-	goto reclassify;
-#endif
-}
-EXPORT_SYMBOL(tc_classify);
 
 #ifdef CONFIG_PROC_FS
 static int psched_show(struct seq_file *seq, void *v)

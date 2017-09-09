@@ -185,7 +185,7 @@ static int start_readonly;
 static bool create_on_open = true;
 
 /* bio_clone_mddev
- * like bio_clone, but with a local bio set
+ * like bio_clone_bioset, but with a local bio set
  */
 
 struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
@@ -202,6 +202,14 @@ struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
 	return b;
 }
 EXPORT_SYMBOL_GPL(bio_alloc_mddev);
+
+static struct bio *md_bio_alloc_sync(struct mddev *mddev)
+{
+	if (!mddev || !mddev->sync_set)
+		return bio_alloc(GFP_NOIO, 1);
+
+	return bio_alloc_bioset(GFP_NOIO, 1, mddev->sync_set);
+}
 
 /*
  * We have a system wide 'event count' that is incremented
@@ -265,7 +273,7 @@ static blk_qc_t md_make_request(struct request_queue *q, struct bio *bio)
 	unsigned int sectors;
 	int cpu;
 
-	blk_queue_split(q, &bio, q->bio_split);
+	blk_queue_split(q, &bio);
 
 	if (mddev == NULL || mddev->pers == NULL) {
 		bio_io_error(bio);
@@ -273,11 +281,11 @@ static blk_qc_t md_make_request(struct request_queue *q, struct bio *bio)
 	}
 	if (mddev->ro == 1 && unlikely(rw == WRITE)) {
 		if (bio_sectors(bio) != 0)
-			bio->bi_error = -EROFS;
+			bio->bi_status = BLK_STS_IOERR;
 		bio_endio(bio);
 		return BLK_QC_T_NONE;
 	}
-	smp_rmb(); /* Ensure implications of  'active' are visible */
+check_suspended:
 	rcu_read_lock();
 	if (mddev->suspended) {
 		DEFINE_WAIT(__wait);
@@ -302,7 +310,11 @@ static blk_qc_t md_make_request(struct request_queue *q, struct bio *bio)
 	sectors = bio_sectors(bio);
 	/* bio could be mergeable after passing to underlayer */
 	bio->bi_opf &= ~REQ_NOMERGE;
-	mddev->pers->make_request(mddev, bio);
+	if (!mddev->pers->make_request(mddev, bio)) {
+		atomic_dec(&mddev->active_io);
+		wake_up(&mddev->sb_wait);
+		goto check_suspended;
+	}
 
 	cpu = part_stat_lock();
 	part_stat_inc(cpu, &mddev->gendisk->part0, ios[rw]);
@@ -327,6 +339,7 @@ void mddev_suspend(struct mddev *mddev)
 	if (mddev->suspended++)
 		return;
 	synchronize_rcu();
+	wake_up(&mddev->sb_wait);
 	wait_event(mddev->sb_wait, atomic_read(&mddev->active_io) == 0);
 	mddev->pers->quiesce(mddev, 1);
 
@@ -462,7 +475,7 @@ static void mddev_delayed_delete(struct work_struct *ws);
 
 static void mddev_put(struct mddev *mddev)
 {
-	struct bio_set *bs = NULL;
+	struct bio_set *bs = NULL, *sync_bs = NULL;
 
 	if (!atomic_dec_and_lock(&mddev->active, &all_mddevs_lock))
 		return;
@@ -472,7 +485,9 @@ static void mddev_put(struct mddev *mddev)
 		 * so destroy it */
 		list_del_init(&mddev->all_mddevs);
 		bs = mddev->bio_set;
+		sync_bs = mddev->sync_set;
 		mddev->bio_set = NULL;
+		mddev->sync_set = NULL;
 		if (mddev->gendisk) {
 			/* We did a probe so need to clean up.  Call
 			 * queue_work inside the spinlock so that
@@ -487,6 +502,8 @@ static void mddev_put(struct mddev *mddev)
 	spin_unlock(&all_mddevs_lock);
 	if (bs)
 		bioset_free(bs);
+	if (sync_bs)
+		bioset_free(sync_bs);
 }
 
 static void md_safemode_timeout(unsigned long data);
@@ -719,8 +736,8 @@ static void super_written(struct bio *bio)
 	struct md_rdev *rdev = bio->bi_private;
 	struct mddev *mddev = rdev->mddev;
 
-	if (bio->bi_error) {
-		pr_err("md: super_written gets error=%d\n", bio->bi_error);
+	if (bio->bi_status) {
+		pr_err("md: super_written gets error=%d\n", bio->bi_status);
 		md_error(mddev, rdev);
 		if (!test_bit(Faulty, &rdev->flags)
 		    && (bio->bi_opf & MD_FAILFAST)) {
@@ -751,7 +768,7 @@ void md_super_write(struct mddev *mddev, struct md_rdev *rdev,
 	if (test_bit(Faulty, &rdev->flags))
 		return;
 
-	bio = bio_alloc_mddev(GFP_NOIO, 1, mddev);
+	bio = md_bio_alloc_sync(mddev);
 
 	atomic_inc(&rdev->nr_pending);
 
@@ -783,7 +800,7 @@ int md_super_wait(struct mddev *mddev)
 int sync_page_io(struct md_rdev *rdev, sector_t sector, int size,
 		 struct page *page, int op, int op_flags, bool metadata_op)
 {
-	struct bio *bio = bio_alloc_mddev(GFP_NOIO, 1, rdev->mddev);
+	struct bio *bio = md_bio_alloc_sync(rdev->mddev);
 	int ret;
 
 	bio->bi_bdev = (metadata_op && rdev->meta_bdev) ?
@@ -801,7 +818,7 @@ int sync_page_io(struct md_rdev *rdev, sector_t sector, int size,
 
 	submit_bio_wait(bio);
 
-	ret = !bio->bi_error;
+	ret = !bio->bi_status;
 	bio_put(bio);
 	return ret;
 }
@@ -825,7 +842,7 @@ fail:
 	return -EINVAL;
 }
 
-static int uuid_equal(mdp_super_t *sb1, mdp_super_t *sb2)
+static int md_uuid_equal(mdp_super_t *sb1, mdp_super_t *sb2)
 {
 	return	sb1->set_uuid0 == sb2->set_uuid0 &&
 		sb1->set_uuid1 == sb2->set_uuid1 &&
@@ -833,7 +850,7 @@ static int uuid_equal(mdp_super_t *sb1, mdp_super_t *sb2)
 		sb1->set_uuid3 == sb2->set_uuid3;
 }
 
-static int sb_equal(mdp_super_t *sb1, mdp_super_t *sb2)
+static int md_sb_equal(mdp_super_t *sb1, mdp_super_t *sb2)
 {
 	int ret;
 	mdp_super_t *tmp1, *tmp2;
@@ -1025,12 +1042,12 @@ static int super_90_load(struct md_rdev *rdev, struct md_rdev *refdev, int minor
 	} else {
 		__u64 ev1, ev2;
 		mdp_super_t *refsb = page_address(refdev->sb_page);
-		if (!uuid_equal(refsb, sb)) {
+		if (!md_uuid_equal(refsb, sb)) {
 			pr_warn("md: %s has different UUID to %s\n",
 				b, bdevname(refdev->bdev,b2));
 			goto abort;
 		}
-		if (!sb_equal(refsb, sb)) {
+		if (!md_sb_equal(refsb, sb)) {
 			pr_warn("md: %s has same UUID but different superblock to %s\n",
 				b, bdevname(refdev->bdev, b2));
 			goto abort;
@@ -1852,7 +1869,7 @@ retry:
 		max_dev = le32_to_cpu(sb->max_dev);
 
 	for (i=0; i<max_dev;i++)
-		sb->dev_roles[i] = cpu_to_le16(MD_DISK_ROLE_FAULTY);
+		sb->dev_roles[i] = cpu_to_le16(MD_DISK_ROLE_SPARE);
 
 	if (test_bit(MD_HAS_JOURNAL, &mddev->flags))
 		sb->feature_map |= cpu_to_le32(MD_FEATURE_JOURNAL);
@@ -5428,8 +5445,13 @@ int md_run(struct mddev *mddev)
 	}
 
 	if (mddev->bio_set == NULL) {
-		mddev->bio_set = bioset_create(BIO_POOL_SIZE, 0);
+		mddev->bio_set = bioset_create(BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS);
 		if (!mddev->bio_set)
+			return -ENOMEM;
+	}
+	if (mddev->sync_set == NULL) {
+		mddev->sync_set = bioset_create(BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS);
+		if (!mddev->sync_set)
 			return -ENOMEM;
 	}
 
@@ -7950,12 +7972,14 @@ EXPORT_SYMBOL(md_done_sync);
  * If we need to update some array metadata (e.g. 'active' flag
  * in superblock) before writing, schedule a superblock update
  * and wait for it to complete.
+ * A return value of 'false' means that the write wasn't recorded
+ * and cannot proceed as the array is being suspend.
  */
-void md_write_start(struct mddev *mddev, struct bio *bi)
+bool md_write_start(struct mddev *mddev, struct bio *bi)
 {
 	int did_change = 0;
 	if (bio_data_dir(bi) != WRITE)
-		return;
+		return true;
 
 	BUG_ON(mddev->ro == 1);
 	if (mddev->ro == 2) {
@@ -7987,7 +8011,12 @@ void md_write_start(struct mddev *mddev, struct bio *bi)
 	if (did_change)
 		sysfs_notify_dirent_safe(mddev->sysfs_state);
 	wait_event(mddev->sb_wait,
-		   !test_bit(MD_SB_CHANGE_PENDING, &mddev->sb_flags));
+		   !test_bit(MD_SB_CHANGE_PENDING, &mddev->sb_flags) && !mddev->suspended);
+	if (test_bit(MD_SB_CHANGE_PENDING, &mddev->sb_flags)) {
+		percpu_ref_put(&mddev->writes_pending);
+		return false;
+	}
+	return true;
 }
 EXPORT_SYMBOL(md_write_start);
 

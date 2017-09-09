@@ -85,6 +85,7 @@ extern const char *acpi_gbl_bpb_decode[];
 extern const char *acpi_gbl_sb_decode[];
 extern const char *acpi_gbl_fc_decode[];
 extern const char *acpi_gbl_pt_decode[];
+extern const char *acpi_gbl_ptyp_decode[];
 #endif
 
 /*

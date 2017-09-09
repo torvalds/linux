@@ -266,6 +266,7 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x0cf3, 0xe301), .driver_info = BTUSB_QCA_ROME },
 	{ USB_DEVICE(0x0cf3, 0xe360), .driver_info = BTUSB_QCA_ROME },
 	{ USB_DEVICE(0x0489, 0xe092), .driver_info = BTUSB_QCA_ROME },
+	{ USB_DEVICE(0x0489, 0xe0a2), .driver_info = BTUSB_QCA_ROME },
 	{ USB_DEVICE(0x04ca, 0x3011), .driver_info = BTUSB_QCA_ROME },
 
 	/* Broadcom BCM2035 */
@@ -336,6 +337,7 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x8087, 0x0a2a), .driver_info = BTUSB_INTEL },
 	{ USB_DEVICE(0x8087, 0x0a2b), .driver_info = BTUSB_INTEL_NEW },
 	{ USB_DEVICE(0x8087, 0x0aa7), .driver_info = BTUSB_INTEL },
+	{ USB_DEVICE(0x8087, 0x0aaa), .driver_info = BTUSB_INTEL_NEW },
 
 	/* Other Intel Bluetooth devices */
 	{ USB_VENDOR_AND_INTERFACE_INFO(0x8087, 0xe0, 0x01, 0x01),
@@ -476,7 +478,7 @@ static int btusb_recv_intr(struct btusb_data *data, void *buffer, int count)
 		}
 
 		len = min_t(uint, hci_skb_expect(skb), count);
-		memcpy(skb_put(skb, len), buffer, len);
+		skb_put_data(skb, buffer, len);
 
 		count -= len;
 		buffer += len;
@@ -531,7 +533,7 @@ static int btusb_recv_bulk(struct btusb_data *data, void *buffer, int count)
 		}
 
 		len = min_t(uint, hci_skb_expect(skb), count);
-		memcpy(skb_put(skb, len), buffer, len);
+		skb_put_data(skb, buffer, len);
 
 		count -= len;
 		buffer += len;
@@ -588,7 +590,7 @@ static int btusb_recv_isoc(struct btusb_data *data, void *buffer, int count)
 		}
 
 		len = min_t(uint, hci_skb_expect(skb), count);
-		memcpy(skb_put(skb, len), buffer, len);
+		skb_put_data(skb, buffer, len);
 
 		count -= len;
 		buffer += len;
@@ -932,8 +934,8 @@ static void btusb_diag_complete(struct urb *urb)
 
 		skb = bt_skb_alloc(urb->actual_length, GFP_ATOMIC);
 		if (skb) {
-			memcpy(skb_put(skb, urb->actual_length),
-			       urb->transfer_buffer, urb->actual_length);
+			skb_put_data(skb, urb->transfer_buffer,
+				     urb->actual_length);
 			hci_recv_diag(hdev, skb);
 		}
 	} else if (urb->status == -ENOENT) {
@@ -1834,15 +1836,15 @@ static int inject_cmd_complete(struct hci_dev *hdev, __u16 opcode)
 	if (!skb)
 		return -ENOMEM;
 
-	hdr = (struct hci_event_hdr *)skb_put(skb, sizeof(*hdr));
+	hdr = skb_put(skb, sizeof(*hdr));
 	hdr->evt = HCI_EV_CMD_COMPLETE;
 	hdr->plen = sizeof(*evt) + 1;
 
-	evt = (struct hci_ev_cmd_complete *)skb_put(skb, sizeof(*evt));
+	evt = skb_put(skb, sizeof(*evt));
 	evt->ncmd = 0x01;
 	evt->opcode = cpu_to_le16(opcode);
 
-	*skb_put(skb, 1) = 0x00;
+	skb_put_u8(skb, 0x00);
 
 	hci_skb_pkt_type(skb) = HCI_EVENT_PKT;
 
@@ -2036,6 +2038,7 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	switch (ver.hw_variant) {
 	case 0x0b:	/* SfP */
 	case 0x0c:	/* WsP */
+	case 0x11:	/* JfP */
 	case 0x12:	/* ThP */
 		break;
 	default:
@@ -2138,6 +2141,8 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	 * Currently the supported hardware variants are:
 	 *   11 (0x0b) for iBT3.0 (LnP/SfP)
 	 *   12 (0x0c) for iBT3.5 (WsP)
+	 *   17 (0x11) for iBT3.5 (JfP)
+	 *   18 (0x12) for iBT3.5 (ThP)
 	 */
 	snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u.sfi",
 		 le16_to_cpu(ver.hw_variant),
@@ -2390,7 +2395,7 @@ static int marvell_config_oob_wake(struct hci_dev *hdev)
 		return -ENOMEM;
 	}
 
-	memcpy(skb_put(skb, sizeof(cmd)), cmd, sizeof(cmd));
+	skb_put_data(skb, cmd, sizeof(cmd));
 	hci_skb_pkt_type(skb) = HCI_COMMAND_PKT;
 
 	ret = btusb_send_frame(hdev, skb);
@@ -2762,8 +2767,8 @@ static struct urb *alloc_diag_urb(struct hci_dev *hdev, bool enable)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	*skb_put(skb, 1) = 0xf0;
-	*skb_put(skb, 1) = enable;
+	skb_put_u8(skb, 0xf0);
+	skb_put_u8(skb, enable);
 
 	pipe = usb_sndbulkpipe(data->udev, data->diag_tx_ep->bEndpointAddress);
 

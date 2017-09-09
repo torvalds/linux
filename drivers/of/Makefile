@@ -1,4 +1,4 @@
-obj-y = base.o device.o platform.o
+obj-y = base.o device.o platform.o property.o
 obj-$(CONFIG_OF_DYNAMIC) += dynamic.o
 obj-$(CONFIG_OF_FLATTREE) += fdt.o
 obj-$(CONFIG_OF_EARLY_FLATTREE) += fdt_address.o

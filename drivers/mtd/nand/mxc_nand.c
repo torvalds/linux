@@ -152,9 +152,8 @@ struct mxc_nand_devtype_data {
 	void (*select_chip)(struct mtd_info *mtd, int chip);
 	int (*correct_data)(struct mtd_info *mtd, u_char *dat,
 			u_char *read_ecc, u_char *calc_ecc);
-	int (*setup_data_interface)(struct mtd_info *mtd,
-				    const struct nand_data_interface *conf,
-				    bool check_only);
+	int (*setup_data_interface)(struct mtd_info *mtd, int csline,
+				    const struct nand_data_interface *conf);
 
 	/*
 	 * On i.MX21 the CONFIG2:INT bit cannot be read if interrupts are masked
@@ -1015,9 +1014,8 @@ static void preset_v1(struct mtd_info *mtd)
 	writew(0x4, NFC_V1_V2_WRPROT);
 }
 
-static int mxc_nand_v2_setup_data_interface(struct mtd_info *mtd,
-					const struct nand_data_interface *conf,
-					bool check_only)
+static int mxc_nand_v2_setup_data_interface(struct mtd_info *mtd, int csline,
+					const struct nand_data_interface *conf)
 {
 	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_get_controller_data(nand_chip);
@@ -1075,7 +1073,7 @@ static int mxc_nand_v2_setup_data_interface(struct mtd_info *mtd,
 		return -EINVAL;
 	}
 
-	if (check_only)
+	if (csline == NAND_DATA_IFACE_CHECK_ONLY)
 		return 0;
 
 	ret = clk_set_rate(host->clk, rate);

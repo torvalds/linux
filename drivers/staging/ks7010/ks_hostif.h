@@ -62,27 +62,27 @@
  */
 
 struct hostif_hdr {
-	u16 size;
-	u16 event;
+	__le16 size;
+	__le16 event;
 } __packed;
 
 struct hostif_data_request_t {
 	struct hostif_hdr header;
-	u16 auth_type;
+	__le16 auth_type;
 #define TYPE_DATA 0x0000
 #define TYPE_AUTH 0x0001
-	u16 reserved;
+	__le16 reserved;
 	u8 data[0];
 } __packed;
 
 struct hostif_data_indication_t {
 	struct hostif_hdr header;
-	u16 auth_type;
+	__le16 auth_type;
 /* #define TYPE_DATA 0x0000 */
 #define TYPE_PMK1 0x0001
 #define TYPE_GMK1 0x0002
 #define TYPE_GMK2 0x0003
-	u16 reserved;
+	__le16 reserved;
 	u8 data[0];
 } __packed;
 
@@ -143,12 +143,12 @@ struct channel_list_t {
 
 struct hostif_mib_get_request_t {
 	struct hostif_hdr header;
-	u32 mib_attribute;
+	__le32 mib_attribute;
 } __packed;
 
 struct hostif_mib_value_t {
-	u16 size;
-	u16 type;
+	__le16 size;
+	__le16 type;
 #define MIB_VALUE_TYPE_NULL     0
 #define MIB_VALUE_TYPE_INT      1
 #define MIB_VALUE_TYPE_BOOL     2
@@ -159,36 +159,36 @@ struct hostif_mib_value_t {
 
 struct hostif_mib_get_confirm_t {
 	struct hostif_hdr header;
-	u32 mib_status;
+	__le32 mib_status;
 #define MIB_SUCCESS    0
 #define MIB_INVALID    1
 #define MIB_READ_ONLY  2
 #define MIB_WRITE_ONLY 3
-	u32 mib_attribute;
+	__le32 mib_attribute;
 	struct hostif_mib_value_t mib_value;
 } __packed;
 
 struct hostif_mib_set_request_t {
 	struct hostif_hdr header;
-	u32 mib_attribute;
+	__le32 mib_attribute;
 	struct hostif_mib_value_t mib_value;
 } __packed;
 
 struct hostif_mib_set_confirm_t {
 	struct hostif_hdr header;
-	u32 mib_status;
-	u32 mib_attribute;
+	__le32 mib_status;
+	__le32 mib_attribute;
 } __packed;
 
 struct hostif_power_mgmt_request_t {
 	struct hostif_hdr header;
-	u32 mode;
+	__le32 mode;
 #define POWER_ACTIVE  1
 #define POWER_SAVE    2
-	u32 wake_up;
+	__le32 wake_up;
 #define SLEEP_FALSE 0
 #define SLEEP_TRUE  1	/* not used */
-	u32 receiveDTIMs;
+	__le32 receive_dtims;
 #define DTIM_FALSE 0
 #define DTIM_TRUE  1
 } __packed;
@@ -207,12 +207,12 @@ enum power_mgmt_mode_type {
 
 struct hostif_power_mgmt_confirm_t {
 	struct hostif_hdr header;
-	u16 result_code;
+	__le16 result_code;
 } __packed;
 
 struct hostif_start_request_t {
 	struct hostif_hdr header;
-	u16 mode;
+	__le16 mode;
 #define MODE_PSEUDO_ADHOC   0
 #define MODE_INFRASTRUCTURE 1
 #define MODE_AP             2	/* not used */
@@ -221,7 +221,7 @@ struct hostif_start_request_t {
 
 struct hostif_start_confirm_t {
 	struct hostif_hdr header;
-	u16 result_code;
+	__le16 result_code;
 } __packed;
 
 #define SSID_MAX_SIZE 32
@@ -238,26 +238,26 @@ struct rate_set8_t {
 	u8 rate_pad;
 } __packed;
 
-struct FhParms_t {
-	u16 dwellTime;
-	u8 hopSet;
-	u8 hopPattern;
-	u8 hopIndex;
+struct fh_parms_t {
+	__le16 dwell_time;
+	u8 hop_set;
+	u8 hop_pattern;
+	u8 hop_index;
 } __packed;
 
-struct DsParms_t {
+struct ds_parms_t {
 	u8 channel;
 } __packed;
 
-struct CfParms_t {
+struct cf_parms_t {
 	u8 count;
 	u8 period;
-	u16 maxDuration;
-	u16 durRemaining;
+	__le16 max_duration;
+	__le16 dur_remaining;
 } __packed;
 
-struct IbssParms_t {
-	u16 atimWindow;
+struct ibss_parms_t {
+	__le16 atim_window;
 } __packed;
 
 struct rsn_t {
@@ -266,7 +266,7 @@ struct rsn_t {
 	u8 body[RSN_BODY_SIZE];
 } __packed;
 
-struct ErpParams_t {
+struct erp_params_t {
 	u8 erp_info;
 } __packed;
 
@@ -282,8 +282,8 @@ struct ap_info_t {
 	u8 sq;	/* +07 */
 	u8 noise;	/* +08 */
 	u8 pad0;	/* +09 */
-	u16 beacon_period;	/* +10 */
-	u16 capability;	/* +12 */
+	__le16 beacon_period;	/* +10 */
+	__le16 capability;	/* +12 */
 #define BSS_CAP_ESS             BIT(0)
 #define BSS_CAP_IBSS            BIT(1)
 #define BSS_CAP_CF_POLABLE      BIT(2)
@@ -298,7 +298,7 @@ struct ap_info_t {
 	u8 ch_info;	/* +15 */
 #define FRAME_TYPE_BEACON	0x80
 #define FRAME_TYPE_PROBE_RESP	0x50
-	u16 body_size;	/* +16 */
+	__le16 body_size;	/* +16 */
 	u8 body[1024];	/* +18 */
 	/* +1032 */
 } __packed;
@@ -309,14 +309,14 @@ struct link_ap_info_t {
 	u8 sq;	/* +07 */
 	u8 noise;	/* +08 */
 	u8 pad0;	/* +09 */
-	u16 beacon_period;	/* +10 */
-	u16 capability;	/* +12 */
+	__le16 beacon_period;	/* +10 */
+	__le16 capability;	/* +12 */
 	struct rate_set8_t rate_set;	/* +14 */
-	struct FhParms_t fh_parameter;	/* +24 */
-	struct DsParms_t ds_parameter;	/* +29 */
-	struct CfParms_t cf_parameter;	/* +30 */
-	struct IbssParms_t ibss_parameter;	/* +36 */
-	struct ErpParams_t erp_parameter;	/* +38 */
+	struct fh_parms_t fh_parameter;	/* +24 */
+	struct ds_parms_t ds_parameter;	/* +29 */
+	struct cf_parms_t cf_parameter;	/* +30 */
+	struct ibss_parms_t ibss_parameter;	/* +36 */
+	struct erp_params_t erp_parameter;	/* +38 */
 	u8 pad1;	/* +39 */
 	struct rate_set8_t ext_rate_set;	/* +40 */
 	u8 DTIM_period;	/* +50 */
@@ -332,7 +332,7 @@ struct link_ap_info_t {
 
 struct hostif_connect_indication_t {
 	struct hostif_hdr header;
-	u16 connect_code;
+	__le16 connect_code;
 #define RESULT_CONNECT    0
 #define RESULT_DISCONNECT 1
 	struct link_ap_info_t link_ap_info;
@@ -344,7 +344,7 @@ struct hostif_stop_request_t {
 
 struct hostif_stop_confirm_t {
 	struct hostif_hdr header;
-	u16 result_code;
+	__le16 result_code;
 } __packed;
 
 /**
@@ -356,23 +356,23 @@ struct hostif_stop_confirm_t {
  */
 struct hostif_ps_adhoc_set_request_t {
 	struct hostif_hdr header;
-	u16 phy_type;
+	__le16 phy_type;
 #define D_11B_ONLY_MODE		0
 #define D_11G_ONLY_MODE		1
 #define D_11BG_COMPATIBLE_MODE	2
 #define D_11A_ONLY_MODE		3
-	u16 cts_mode;
+	__le16 cts_mode;
 #define CTS_MODE_FALSE	0
 #define CTS_MODE_TRUE	1
-	u16 channel;
+	__le16 channel;
 	struct rate_set16_t rate_set;
-	u16 capability;
-	u16 scan_type;
+	__le16 capability;
+	__le16 scan_type;
 } __packed;
 
 struct hostif_ps_adhoc_set_confirm_t {
 	struct hostif_hdr header;
-	u16 result_code;
+	__le16 result_code;
 } __packed;
 
 /**
@@ -384,17 +384,17 @@ struct hostif_ps_adhoc_set_confirm_t {
  */
 struct hostif_infrastructure_set_request_t {
 	struct hostif_hdr header;
-	u16 phy_type;
-	u16 cts_mode;
+	__le16 phy_type;
+	__le16 cts_mode;
 	struct rate_set16_t rate_set;
 	struct ssid_t ssid;
-	u16 capability;
-	u16 beacon_lost_count;
-	u16 auth_type;
+	__le16 capability;
+	__le16 beacon_lost_count;
+	__le16 auth_type;
 #define AUTH_TYPE_OPEN_SYSTEM 0
 #define AUTH_TYPE_SHARED_KEY  1
 	struct channel_list_t channel_list;
-	u16 scan_type;
+	__le16 scan_type;
 } __packed;
 
 /**
@@ -406,23 +406,23 @@ struct hostif_infrastructure_set_request_t {
  */
 struct hostif_infrastructure_set2_request_t {
 	struct hostif_hdr header;
-	u16 phy_type;
-	u16 cts_mode;
+	__le16 phy_type;
+	__le16 cts_mode;
 	struct rate_set16_t rate_set;
 	struct ssid_t ssid;
-	u16 capability;
-	u16 beacon_lost_count;
-	u16 auth_type;
+	__le16 capability;
+	__le16 beacon_lost_count;
+	__le16 auth_type;
 #define AUTH_TYPE_OPEN_SYSTEM 0
 #define AUTH_TYPE_SHARED_KEY  1
 	struct channel_list_t channel_list;
-	u16 scan_type;
+	__le16 scan_type;
 	u8 bssid[ETH_ALEN];
 } __packed;
 
 struct hostif_infrastructure_set_confirm_t {
 	struct hostif_hdr header;
-	u16 result_code;
+	__le16 result_code;
 } __packed;
 
 /**
@@ -434,13 +434,13 @@ struct hostif_infrastructure_set_confirm_t {
  */
 struct hostif_adhoc_set_request_t {
 	struct hostif_hdr header;
-	u16 phy_type;
-	u16 cts_mode;
-	u16 channel;
+	__le16 phy_type;
+	__le16 cts_mode;
+	__le16 channel;
 	struct rate_set16_t rate_set;
 	struct ssid_t ssid;
-	u16 capability;
-	u16 scan_type;
+	__le16 capability;
+	__le16 scan_type;
 } __packed;
 
 /**
@@ -452,20 +452,20 @@ struct hostif_adhoc_set_request_t {
  */
 struct hostif_adhoc_set2_request_t {
 	struct hostif_hdr header;
-	u16 phy_type;
-	u16 cts_mode;
-	u16 reserved;
+	__le16 phy_type;
+	__le16 cts_mode;
+	__le16 reserved;
 	struct rate_set16_t rate_set;
 	struct ssid_t ssid;
-	u16 capability;
-	u16 scan_type;
+	__le16 capability;
+	__le16 scan_type;
 	struct channel_list_t channel_list;
 	u8 bssid[ETH_ALEN];
 } __packed;
 
 struct hostif_adhoc_set_confirm_t {
 	struct hostif_hdr header;
-	u16 result_code;
+	__le16 result_code;
 } __packed;
 
 struct last_associate_t {
@@ -478,10 +478,10 @@ struct association_request_t {
 #define FRAME_TYPE_ASSOC_REQ	0x00
 #define FRAME_TYPE_REASSOC_REQ	0x20
 	u8 pad;
-	u16 capability;
-	u16 listen_interval;
+	__le16 capability;
+	__le16 listen_interval;
 	u8 ap_address[6];
-	u16 reqIEs_size;
+	__le16 req_ies_size;
 } __packed;
 
 struct association_response_t {
@@ -489,17 +489,17 @@ struct association_response_t {
 #define FRAME_TYPE_ASSOC_RESP	0x10
 #define FRAME_TYPE_REASSOC_RESP	0x30
 	u8 pad;
-	u16 capability;
-	u16 status;
-	u16 association_id;
-	u16 respIEs_size;
+	__le16 capability;
+	__le16 status;
+	__le16 association_id;
+	__le16 resp_ies_size;
 } __packed;
 
 struct hostif_associate_indication_t {
 	struct hostif_hdr header;
 	struct association_request_t assoc_req;
 	struct association_response_t assoc_resp;
-	/* followed by (reqIEs_size + respIEs_size) octets of data */
+	/* followed by (req_ies_size + resp_ies_size) octets of data */
 	/* reqIEs data *//* respIEs data */
 } __packed;
 
@@ -509,24 +509,24 @@ struct hostif_bss_scan_request_t {
 #define ACTIVE_SCAN  0
 #define PASSIVE_SCAN 1
 	u8 pad[3];
-	u32 ch_time_min;
-	u32 ch_time_max;
+	__le32 ch_time_min;
+	__le32 ch_time_max;
 	struct channel_list_t channel_list;
 	struct ssid_t ssid;
 } __packed;
 
 struct hostif_bss_scan_confirm_t {
 	struct hostif_hdr header;
-	u16 result_code;
-	u16 reserved;
+	__le16 result_code;
+	__le16 reserved;
 } __packed;
 
 struct hostif_phy_information_request_t {
 	struct hostif_hdr header;
-	u16 type;
+	__le16 type;
 #define NORMAL_TYPE	0
 #define TIME_TYPE	1
-	u16 time;	/* unit 100ms */
+	__le16 time;	/* unit 100ms */
 } __packed;
 
 struct hostif_phy_information_confirm_t {
@@ -535,10 +535,10 @@ struct hostif_phy_information_confirm_t {
 	u8 sq;
 	u8 noise;
 	u8 link_speed;
-	u32 tx_frame;
-	u32 rx_frame;
-	u32 tx_error;
-	u32 rx_error;
+	__le32 tx_frame;
+	__le32 rx_frame;
+	__le32 tx_error;
+	__le32 rx_error;
 } __packed;
 
 enum sleep_mode_type {
@@ -552,18 +552,18 @@ struct hostif_sleep_request_t {
 
 struct hostif_sleep_confirm_t {
 	struct hostif_hdr header;
-	u16 result_code;
+	__le16 result_code;
 } __packed;
 
 struct hostif_mic_failure_request_t {
 	struct hostif_hdr header;
-	u16 failure_count;
-	u16 timer;
+	__le16 failure_count;
+	__le16 timer;
 } __packed;
 
 struct hostif_mic_failure_confirm_t {
 	struct hostif_hdr header;
-	u16 result_code;
+	__le16 result_code;
 } __packed;
 
 #define BASIC_RATE	0x80

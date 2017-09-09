@@ -879,7 +879,7 @@ int nfs_show_stats(struct seq_file *m, struct dentry *root)
 	if (nfss->options & NFS_OPTION_FSCACHE) {
 		seq_printf(m, "\n\tfsc:\t");
 		for (i = 0; i < __NFSIOS_FSCACHEMAX; i++)
-			seq_printf(m, "%Lu ", totals.bytes[i]);
+			seq_printf(m, "%Lu ", totals.fscache[i]);
 	}
 #endif
 	seq_printf(m, "\n");
@@ -2339,6 +2339,7 @@ void nfs_fill_super(struct super_block *sb, struct nfs_mount_info *mount_info)
 		 */
 		sb->s_flags |= MS_POSIXACL;
 		sb->s_time_gran = 1;
+		sb->s_export_op = &nfs_export_ops;
 	}
 
  	nfs_initialise_sb(sb);
@@ -2360,6 +2361,7 @@ static void nfs_clone_super(struct super_block *sb,
 	sb->s_xattr = old_sb->s_xattr;
 	sb->s_op = old_sb->s_op;
 	sb->s_time_gran = 1;
+	sb->s_export_op = old_sb->s_export_op;
 
 	if (server->nfs_client->rpc_ops->version != 2) {
 		/* The VFS shouldn't apply the umask to mode bits. We will do
@@ -2545,10 +2547,25 @@ EXPORT_SYMBOL_GPL(nfs_set_sb_security);
 int nfs_clone_sb_security(struct super_block *s, struct dentry *mntroot,
 			  struct nfs_mount_info *mount_info)
 {
+	int error;
+	unsigned long kflags = 0, kflags_out = 0;
+
 	/* clone any lsm security options from the parent to the new sb */
 	if (d_inode(mntroot)->i_op != NFS_SB(s)->nfs_client->rpc_ops->dir_inode_ops)
 		return -ESTALE;
-	return security_sb_clone_mnt_opts(mount_info->cloned->sb, s);
+
+	if (NFS_SB(s)->caps & NFS_CAP_SECURITY_LABEL)
+		kflags |= SECURITY_LSM_NATIVE_LABELS;
+
+	error = security_sb_clone_mnt_opts(mount_info->cloned->sb, s, kflags,
+			&kflags_out);
+	if (error)
+		return error;
+
+	if (NFS_SB(s)->caps & NFS_CAP_SECURITY_LABEL &&
+		!(kflags_out & SECURITY_LSM_NATIVE_LABELS))
+		NFS_SB(s)->caps &= ~NFS_CAP_SECURITY_LABEL;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(nfs_clone_sb_security);
 

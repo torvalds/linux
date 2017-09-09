@@ -54,6 +54,7 @@
 	aliases {
 		serial0 = &uart0;
 		/* ethernet0 is the H3 emac, defined in sun8i-h3.dtsi */
+		ethernet0 = &emac;
 		ethernet1 = &rtl8189;
 	};
 
@@ -104,7 +105,23 @@
 	};
 };
 
+&codec {
+	allwinner,pa-gpios = <&pio 0 16 GPIO_ACTIVE_HIGH>; /* PA16 */
+	allwinner,audio-routing =
+		"Speaker", "LINEOUT",
+		"MIC1", "Mic",
+		"Mic",  "MBIAS";
+	status = "okay";
+};
+
 &ehci1 {
+	status = "okay";
+};
+
+&emac {
+	phy-handle = <&int_mii_phy>;
+	phy-mode = "mii";
+	allwinner,leds-active-low;
 	status = "okay";
 };
 
@@ -193,10 +210,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_pins>;
 	status = "disabled";
-};
-
-&usb1_vbus_pin_a {
-	pins = "PG13";
 };
 
 &usbphy {

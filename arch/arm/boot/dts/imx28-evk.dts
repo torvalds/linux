@@ -203,7 +203,7 @@
 				};
 
 				at24@51 {
-					compatible = "at24,24c32";
+					compatible = "atmel,24c32";
 					pagesize = <32>;
 					reg = <0x51>;
 				};
@@ -262,7 +262,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&mac0_pins_a>;
 			phy-supply = <&reg_fec_3v3>;
-			phy-reset-gpios = <&gpio4 13 0>;
+			phy-reset-gpios = <&gpio4 13 GPIO_ACTIVE_LOW>;
 			phy-reset-duration = <100>;
 			status = "okay";
 		};

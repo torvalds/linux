@@ -126,6 +126,7 @@ struct sfq_sched_data {
 	u8		flags;
 	unsigned short  scaled_quantum; /* SFQ_ALLOT_SIZE(quantum) */
 	struct tcf_proto __rcu *filter_list;
+	struct tcf_block *block;
 	sfq_index	*ht;		/* Hash table ('divisor' slots) */
 	struct sfq_slot	*slots;		/* Flows table ('maxflows' entries) */
 
@@ -180,12 +181,13 @@ static unsigned int sfq_classify(struct sk_buff *skb, struct Qdisc *sch,
 		return sfq_hash(q, skb) + 1;
 
 	*qerr = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
-	result = tc_classify(skb, fl, &res, false);
+	result = tcf_classify(skb, fl, &res, false);
 	if (result >= 0) {
 #ifdef CONFIG_NET_CLS_ACT
 		switch (result) {
 		case TC_ACT_STOLEN:
 		case TC_ACT_QUEUED:
+		case TC_ACT_TRAP:
 			*qerr = NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
 		case TC_ACT_SHOT:
 			return 0;
@@ -697,7 +699,7 @@ static void sfq_destroy(struct Qdisc *sch)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
 
-	tcf_destroy_chain(&q->filter_list);
+	tcf_block_put(q->block);
 	q->perturb_period = 0;
 	del_timer_sync(&q->perturb_timer);
 	sfq_free(q->ht);
@@ -709,6 +711,11 @@ static int sfq_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
 	int i;
+	int err;
+
+	err = tcf_block_get(&q->block, &q->filter_list);
+	if (err)
+		return err;
 
 	setup_deferrable_timer(&q->perturb_timer, sfq_perturbation,
 			       (unsigned long)sch);
@@ -815,14 +822,13 @@ static void sfq_put(struct Qdisc *q, unsigned long cl)
 {
 }
 
-static struct tcf_proto __rcu **sfq_find_tcf(struct Qdisc *sch,
-					     unsigned long cl)
+static struct tcf_block *sfq_tcf_block(struct Qdisc *sch, unsigned long cl)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
 
 	if (cl)
 		return NULL;
-	return &q->filter_list;
+	return q->block;
 }
 
 static int sfq_dump_class(struct Qdisc *sch, unsigned long cl,
@@ -878,7 +884,7 @@ static const struct Qdisc_class_ops sfq_class_ops = {
 	.leaf		=	sfq_leaf,
 	.get		=	sfq_get,
 	.put		=	sfq_put,
-	.tcf_chain	=	sfq_find_tcf,
+	.tcf_block	=	sfq_tcf_block,
 	.bind_tcf	=	sfq_bind,
 	.unbind_tcf	=	sfq_put,
 	.dump		=	sfq_dump_class,

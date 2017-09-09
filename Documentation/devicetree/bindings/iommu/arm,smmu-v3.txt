@@ -26,6 +26,12 @@ the PCIe specification.
                       * "priq"      - PRI Queue not empty
                       * "cmdq-sync" - CMD_SYNC complete
                       * "gerror"    - Global Error activated
+                      * "combined"  - The combined interrupt is optional,
+				      and should only be provided if the
+				      hardware supports just a single,
+				      combined interrupt line.
+				      If provided, then the combined interrupt
+				      will be used in preference to any others.
 
 - #iommu-cells      : See the generic IOMMU binding described in
                         devicetree/bindings/pci/pci-iommu.txt
@@ -48,6 +54,12 @@ the PCIe specification.
 
 - hisilicon,broken-prefetch-cmd
                     : Avoid sending CMD_PREFETCH_* commands to the SMMU.
+
+- cavium,cn9900-broken-page1-regspace
+                    : Replaces all page 1 offsets used for EVTQ_PROD/CONS,
+		      PRIQ_PROD/CONS register access with page 0 offsets.
+		      Set for Cavium ThunderX2 silicon that doesn't support
+		      SMMU page1 register space.
 
 ** Example
 

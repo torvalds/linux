@@ -198,9 +198,6 @@ config HAVE_KPROBES_ON_FTRACE
 config HAVE_NMI
 	bool
 
-config HAVE_NMI_WATCHDOG
-	depends on HAVE_NMI
-	bool
 #
 # An arch should select this if it provides all these things:
 #
@@ -225,6 +222,12 @@ config GENERIC_SMP_IDLE_THREAD
 
 config GENERIC_IDLE_POLL_SETUP
        bool
+
+config ARCH_HAS_FORTIFY_SOURCE
+	bool
+	help
+	  An architecture should select this when it can successfully
+	  build and run with CONFIG_FORTIFY_SOURCE.
 
 # Select if arch has all set_memory_ro/rw/x/nx() functions in asm/cacheflush.h
 config ARCH_HAS_SET_MEMORY
@@ -287,6 +290,28 @@ config HAVE_PERF_EVENTS_NMI
 	  System hardware can generate an NMI using the perf event
 	  subsystem.  Also has support for calculating CPU cycle events
 	  to determine how many clock cycles in a given period.
+
+config HAVE_HARDLOCKUP_DETECTOR_PERF
+	bool
+	depends on HAVE_PERF_EVENTS_NMI
+	help
+	  The arch chooses to use the generic perf-NMI-based hardlockup
+	  detector. Must define HAVE_PERF_EVENTS_NMI.
+
+config HAVE_NMI_WATCHDOG
+	depends on HAVE_NMI
+	bool
+	help
+	  The arch provides a low level NMI watchdog. It provides
+	  asm/nmi.h, and defines its own arch_touch_nmi_watchdog().
+
+config HAVE_HARDLOCKUP_DETECTOR_ARCH
+	bool
+	select HAVE_NMI_WATCHDOG
+	help
+	  The arch chooses to provide its own hardlockup detector, which is
+	  a superset of the HAVE_NMI_WATCHDOG. It also conforms to config
+	  interfaces and parameters provided by hardlockup detector subsystem.
 
 config HAVE_PERF_REGS
 	bool
@@ -425,7 +450,7 @@ config GCC_PLUGIN_STRUCTLEAK
 	bool "Force initialization of variables containing userspace addresses"
 	depends on GCC_PLUGINS
 	help
-	  This plugin zero-initializes any structures that containing a
+	  This plugin zero-initializes any structures containing a
 	  __user attribute. This can prevent some classes of information
 	  exposures.
 
@@ -442,6 +467,45 @@ config GCC_PLUGIN_STRUCTLEAK_VERBOSE
 	  structleak plugin finds a variable it thinks needs to be
 	  initialized. Since not all existing initializers are detected
 	  by the plugin, this can produce false positive warnings.
+
+config GCC_PLUGIN_RANDSTRUCT
+	bool "Randomize layout of sensitive kernel structures"
+	depends on GCC_PLUGINS
+	select MODVERSIONS if MODULES
+	help
+	  If you say Y here, the layouts of structures explicitly
+	  marked by __randomize_layout will be randomized at
+	  compile-time.  This can introduce the requirement of an
+	  additional information exposure vulnerability for exploits
+	  targeting these structure types.
+
+	  Enabling this feature will introduce some performance impact,
+	  slightly increase memory usage, and prevent the use of forensic
+	  tools like Volatility against the system (unless the kernel
+	  source tree isn't cleaned after kernel installation).
+
+	  The seed used for compilation is located at
+	  scripts/gcc-plgins/randomize_layout_seed.h.  It remains after
+	  a make clean to allow for external modules to be compiled with
+	  the existing seed and will be removed by a make mrproper or
+	  make distclean.
+
+	  Note that the implementation requires gcc 4.7 or newer.
+
+	  This plugin was ported from grsecurity/PaX. More information at:
+	   * https://grsecurity.net/
+	   * https://pax.grsecurity.net/
+
+config GCC_PLUGIN_RANDSTRUCT_PERFORMANCE
+	bool "Use cacheline-aware structure randomization"
+	depends on GCC_PLUGIN_RANDSTRUCT
+	depends on !COMPILE_TEST
+	help
+	  If you say Y here, the RANDSTRUCT randomization will make a
+	  best effort at restricting randomization to cacheline-sized
+	  groups of elements.  It will further not randomize bitfields
+	  in structures.  This reduces the performance hit of RANDSTRUCT
+	  at the cost of weakened randomization.
 
 config HAVE_CC_STACKPROTECTOR
 	bool
@@ -511,7 +575,7 @@ config CC_STACKPROTECTOR_STRONG
 endchoice
 
 config THIN_ARCHIVES
-	bool
+	def_bool y
 	help
 	  Select this if the architecture wants to use thin archives
 	  instead of ld -r to create the built-in.o files.
@@ -866,5 +930,14 @@ config STRICT_MODULE_RWX
 
 config ARCH_WANT_RELAX_ORDER
 	bool
+
+config REFCOUNT_FULL
+	bool "Perform full reference count validation at the expense of speed"
+	help
+	  Enabling this switches the refcounting infrastructure from a fast
+	  unchecked atomic_t implementation to a fully state checked
+	  implementation, which can be (slightly) slower but provides protections
+	  against various use-after-free conditions that can be used in
+	  security flaw exploits.
 
 source "kernel/gcov/Kconfig"

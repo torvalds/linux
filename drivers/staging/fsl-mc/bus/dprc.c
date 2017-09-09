@@ -29,9 +29,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include "../include/mc-sys.h"
-#include "../include/mc-cmd.h"
-#include "../include/dprc.h"
+#include <linux/kernel.h>
+#include "../include/mc.h"
+#include "dprc.h"
 
 #include "dprc-cmd.h"
 
@@ -496,7 +496,7 @@ int dprc_get_obj(struct fsl_mc_io *mc_io,
 		 u32 cmd_flags,
 		 u16 token,
 		 int obj_index,
-		 struct dprc_obj_desc *obj_desc)
+		 struct fsl_mc_obj_desc *obj_desc)
 {
 	struct mc_command cmd = { 0 };
 	struct dprc_cmd_get_obj *cmd_params;

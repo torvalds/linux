@@ -493,13 +493,13 @@ static inline void nfs4_unregister_sysctl(void)
 #endif
 
 /* nfs4xdr.c */
-extern struct rpc_procinfo nfs4_procedures[];
+extern const struct rpc_procinfo nfs4_procedures[];
 
 struct nfs4_mount_data;
 
 /* callback_xdr.c */
-extern struct svc_version nfs4_callback_version1;
-extern struct svc_version nfs4_callback_version4;
+extern const struct svc_version nfs4_callback_version1;
+extern const struct svc_version nfs4_callback_version4;
 
 static inline void nfs4_stateid_copy(nfs4_stateid *dst, const nfs4_stateid *src)
 {

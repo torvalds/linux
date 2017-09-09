@@ -2064,6 +2064,15 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 	case HostCmd_CMD_11AC_CFG:
 		ret = mwifiex_cmd_11ac_cfg(priv, cmd_ptr, cmd_action, data_buf);
 		break;
+	case HostCmd_CMD_PACKET_AGGR_CTRL:
+		cmd_ptr->command = cpu_to_le16(cmd_no);
+		cmd_ptr->params.pkt_aggr_ctrl.action = cpu_to_le16(cmd_action);
+		cmd_ptr->params.pkt_aggr_ctrl.enable =
+						cpu_to_le16(*(u16 *)data_buf);
+		cmd_ptr->size =
+			cpu_to_le16(sizeof(struct host_cmd_ds_pkt_aggr_ctrl) +
+				    S_DS_GEN);
+		break;
 	case HostCmd_CMD_P2P_MODE_CFG:
 		cmd_ptr->command = cpu_to_le16(cmd_no);
 		cmd_ptr->params.mode_cfg.action = cpu_to_le16(cmd_action);
@@ -2241,6 +2250,7 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 	enum state_11d_t state_11d;
 	struct mwifiex_ds_11n_tx_cfg tx_cfg;
 	u8 sdio_sp_rx_aggr_enable;
+	u16 packet_aggr_enable;
 	int data;
 
 	if (first_sta) {
@@ -2385,6 +2395,14 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 		if (ret)
 			mwifiex_dbg(priv->adapter, ERROR,
 				    "11D: failed to enable 11D\n");
+	}
+
+	/* Pacekt aggregation handshake with firmware */
+	if (aggr_ctrl) {
+		packet_aggr_enable = true;
+		mwifiex_send_cmd(priv, HostCmd_CMD_PACKET_AGGR_CTRL,
+				 HostCmd_ACT_GEN_SET, 0,
+				 &packet_aggr_enable, true);
 	}
 
 	/* Send cmd to FW to configure 11n specific configuration

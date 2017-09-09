@@ -87,20 +87,20 @@
 #define CLKID_PERIPHS		20
 #define CLKID_SPICC		21
 #define CLKID_I2C		22
-#define CLKID_SAR_ADC		23
+/* #define CLKID_SAR_ADC */
 #define CLKID_SMART_CARD	24
-#define CLKID_RNG0		25
+/* #define CLKID_RNG0 */
 #define CLKID_UART0		26
 #define CLKID_SDHC		27
 #define CLKID_STREAM		28
 #define CLKID_ASYNC_FIFO	29
-#define CLKID_SDIO		30
+/* #define CLKID_SDIO */
 #define CLKID_ABUF		31
 #define CLKID_HIU_IFACE		32
 #define CLKID_ASSIST_MISC	33
 #define CLKID_SPI		34
 #define CLKID_I2S_SPDIF		35
-#define CLKID_ETH		36
+/* #define CLKID_ETH */
 #define CLKID_DEMUX		37
 #define CLKID_AIU_GLUE		38
 #define CLKID_IEC958		39
@@ -114,12 +114,12 @@
 #define CLKID_AIU		47
 #define CLKID_UART1		48
 #define CLKID_G2D		49
-#define CLKID_USB0		50
-#define CLKID_USB1		51
+/* #define CLKID_USB0 */
+/* #define CLKID_USB1 */
 #define CLKID_RESET		52
 #define CLKID_NAND		53
 #define CLKID_DOS_PARSER	54
-#define CLKID_USB		55
+/* #define CLKID_USB */
 #define CLKID_VDIN1		56
 #define CLKID_AHB_ARB0		57
 #define CLKID_EFUSE		58
@@ -128,12 +128,12 @@
 #define CLKID_AHB_CTRL_BUS	61
 #define CLKID_HDMI_INTR_SYNC	62
 #define CLKID_HDMI_PCLK		63
-#define CLKID_USB1_DDR_BRIDGE	64
-#define CLKID_USB0_DDR_BRIDGE	65
+/* CLKID_USB1_DDR_BRIDGE */
+/* CLKID_USB0_DDR_BRIDGE */
 #define CLKID_MMC_PCLK		66
 #define CLKID_DVIN		67
 #define CLKID_UART2		68
-#define CLKID_SANA		69
+/* #define CLKID_SANA */
 #define CLKID_VPU_INTR		70
 #define CLKID_SEC_AHB_AHB3_BRIDGE	71
 #define CLKID_CLK81_A9		72

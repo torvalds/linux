@@ -34,7 +34,7 @@ void vivid_cec_bus_free_work(struct vivid_dev *dev)
 		cancel_delayed_work_sync(&cw->work);
 		spin_lock(&dev->cec_slock);
 		list_del(&cw->list);
-		cec_transmit_done(cw->adap, CEC_TX_STATUS_LOW_DRIVE, 0, 0, 1, 0);
+		cec_transmit_attempt_done(cw->adap, CEC_TX_STATUS_LOW_DRIVE);
 		kfree(cw);
 	}
 	spin_unlock(&dev->cec_slock);
@@ -84,7 +84,7 @@ static void vivid_cec_xfer_done_worker(struct work_struct *work)
 	dev->cec_xfer_start_jiffies = 0;
 	list_del(&cw->list);
 	spin_unlock(&dev->cec_slock);
-	cec_transmit_done(cw->adap, cw->tx_status, 0, valid_dest ? 0 : 1, 0, 0);
+	cec_transmit_attempt_done(cw->adap, cw->tx_status);
 
 	/* Broadcast message */
 	if (adap != dev->cec_rx_adap)
@@ -105,7 +105,7 @@ static void vivid_cec_xfer_try_worker(struct work_struct *work)
 	if (dev->cec_xfer_time_jiffies) {
 		list_del(&cw->list);
 		spin_unlock(&dev->cec_slock);
-		cec_transmit_done(cw->adap, CEC_TX_STATUS_ARB_LOST, 1, 0, 0, 0);
+		cec_transmit_attempt_done(cw->adap, CEC_TX_STATUS_ARB_LOST);
 		kfree(cw);
 	} else {
 		INIT_DELAYED_WORK(&cw->work, vivid_cec_xfer_done_worker);

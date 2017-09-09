@@ -683,7 +683,7 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 	int ret;
 
 	rt_mutex_lock(&isp->mutex);
-	if (input >= ATOM_ISP_MAX_INPUTS || input > isp->input_cnt) {
+	if (input >= ATOM_ISP_MAX_INPUTS || input >= isp->input_cnt) {
 		dev_dbg(isp->dev, "input_cnt: %d\n", isp->input_cnt);
 		ret = -EINVAL;
 		goto error;

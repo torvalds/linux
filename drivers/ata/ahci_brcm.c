@@ -39,7 +39,6 @@
  #define PIODATA_ENDIAN_SHIFT				6
   #define ENDIAN_SWAP_NONE				0
   #define ENDIAN_SWAP_FULL				2
- #define OVERRIDE_HWINIT				BIT(16)
 #define SATA_TOP_CTRL_TP_CTRL				0x8
 #define SATA_TOP_CTRL_PHY_CTRL				0xc
  #define SATA_TOP_CTRL_PHY_CTRL_1			0x0
@@ -126,17 +125,13 @@ static inline void brcm_sata_writereg(u32 val, void __iomem *addr)
 static void brcm_sata_alpm_init(struct ahci_host_priv *hpriv)
 {
 	struct brcm_ahci_priv *priv = hpriv->plat_data;
-	u32 bus_ctrl, port_ctrl, host_caps;
+	u32 port_ctrl, host_caps;
 	int i;
 
 	/* Enable support for ALPM */
-	bus_ctrl = brcm_sata_readreg(priv->top_ctrl +
-				     SATA_TOP_CTRL_BUS_CTRL);
-	brcm_sata_writereg(bus_ctrl | OVERRIDE_HWINIT,
-			   priv->top_ctrl + SATA_TOP_CTRL_BUS_CTRL);
 	host_caps = readl(hpriv->mmio + HOST_CAP);
-	writel(host_caps | HOST_CAP_ALPM, hpriv->mmio);
-	brcm_sata_writereg(bus_ctrl, priv->top_ctrl + SATA_TOP_CTRL_BUS_CTRL);
+	if (!(host_caps & HOST_CAP_ALPM))
+		hpriv->flags |= AHCI_HFLAG_YES_ALPM;
 
 	/*
 	 * Adjust timeout to allow PLL sufficient time to lock while waking
@@ -360,6 +355,7 @@ static int brcm_ahci_probe(struct platform_device *pdev)
 
 	if (priv->quirks & BRCM_AHCI_QUIRK_NO_NCQ)
 		hpriv->flags |= AHCI_HFLAG_NO_NCQ;
+	hpriv->flags |= AHCI_HFLAG_NO_WRITE_TO_RO;
 
 	ret = ahci_platform_init_host(pdev, hpriv, &ahci_brcm_port_info,
 				      &ahci_platform_sht);

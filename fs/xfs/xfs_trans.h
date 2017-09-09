@@ -105,10 +105,6 @@ typedef struct xfs_trans {
 	unsigned int		t_rtx_res;	/* # of rt extents resvd */
 	unsigned int		t_rtx_res_used;	/* # of resvd rt extents used */
 	struct xlog_ticket	*t_ticket;	/* log mgr ticket */
-	xfs_lsn_t		t_lsn;		/* log seq num of start of
-						 * transaction. */
-	xfs_lsn_t		t_commit_lsn;	/* log seq num of end of
-						 * transaction. */
 	struct xfs_mount	*t_mountp;	/* ptr to fs mount struct */
 	struct xfs_dquot_acct   *t_dqinfo;	/* acctg info for dquots */
 	unsigned int		t_flags;	/* misc flags */
@@ -249,7 +245,7 @@ struct xfs_rud_log_item *xfs_trans_get_rud(struct xfs_trans *tp,
 		struct xfs_rui_log_item *ruip);
 int xfs_trans_log_finish_rmap_update(struct xfs_trans *tp,
 		struct xfs_rud_log_item *rudp, enum xfs_rmap_intent_type type,
-		__uint64_t owner, int whichfork, xfs_fileoff_t startoff,
+		uint64_t owner, int whichfork, xfs_fileoff_t startoff,
 		xfs_fsblock_t startblock, xfs_filblks_t blockcount,
 		xfs_exntst_t state, struct xfs_btree_cur **pcur);
 
@@ -275,6 +271,6 @@ int xfs_trans_log_finish_bmap_update(struct xfs_trans *tp,
 		struct xfs_bud_log_item *rudp, struct xfs_defer_ops *dfops,
 		enum xfs_bmap_intent_type type, struct xfs_inode *ip,
 		int whichfork, xfs_fileoff_t startoff, xfs_fsblock_t startblock,
-		xfs_filblks_t blockcount, xfs_exntst_t state);
+		xfs_filblks_t *blockcount, xfs_exntst_t state);
 
 #endif	/* __XFS_TRANS_H__ */

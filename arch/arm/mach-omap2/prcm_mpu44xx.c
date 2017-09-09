@@ -24,7 +24,7 @@
  * prcm_mpu_base: the virtual address of the start of the PRCM_MPU IP
  *   block registers
  */
-void __iomem *prcm_mpu_base;
+struct omap_domain_base prcm_mpu_base;
 
 /* PRCM_MPU low-level functions */
 
@@ -58,5 +58,5 @@ u32 omap4_prcm_mpu_rmw_inst_reg_bits(u32 mask, u32 bits, s16 inst, s16 reg)
  */
 void __init omap2_set_globals_prcm_mpu(void __iomem *prcm_mpu)
 {
-	prcm_mpu_base = prcm_mpu;
+	prcm_mpu_base.va = prcm_mpu;
 }

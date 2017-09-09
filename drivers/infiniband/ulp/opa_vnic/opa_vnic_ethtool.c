@@ -146,15 +146,15 @@ static void vnic_get_ethtool_stats(struct net_device *netdev,
 	int i;
 
 	memset(&vstats, 0, sizeof(vstats));
-	mutex_lock(&adapter->stats_lock);
+	spin_lock(&adapter->stats_lock);
 	adapter->rn_ops->ndo_get_stats64(netdev, &vstats.netstats);
+	spin_unlock(&adapter->stats_lock);
 	for (i = 0; i < VNIC_STATS_LEN; i++) {
 		char *p = (char *)&vstats + vnic_gstrings_stats[i].stat_offset;
 
 		data[i] = (vnic_gstrings_stats[i].sizeof_stat ==
 			   sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
-	mutex_unlock(&adapter->stats_lock);
 }
 
 /* vnic_get_strings - get strings */

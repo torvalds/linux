@@ -2301,7 +2301,7 @@ static int sh_mobile_lcdc_check_fb(struct backlight_device *bdev,
 	return (info->bl_dev == bdev);
 }
 
-static struct backlight_ops sh_mobile_lcdc_bl_ops = {
+static const struct backlight_ops sh_mobile_lcdc_bl_ops = {
 	.options	= BL_CORE_SUSPENDRESUME,
 	.update_status	= sh_mobile_lcdc_update_bl,
 	.get_brightness	= sh_mobile_lcdc_get_brightness,

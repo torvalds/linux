@@ -62,7 +62,7 @@ MODULE_SUPPORTED_DEVICE("{{Creative Labs,SB AWE 32},"
 #define SNDRV_DEBUG_IRQ
 #endif
 
-#if defined(SNDRV_SBAWE) && (defined(CONFIG_SND_SEQUENCER) || (defined(MODULE) && defined(CONFIG_SND_SEQUENCER_MODULE)))
+#if defined(SNDRV_SBAWE) && IS_ENABLED(CONFIG_SND_SEQUENCER)
 #define SNDRV_SBAWE_EMU8000
 #endif
 

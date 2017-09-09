@@ -99,7 +99,7 @@ struct kyber_hctx_data {
 	struct list_head rqs[KYBER_NUM_DOMAINS];
 	unsigned int cur_domain;
 	unsigned int batching;
-	wait_queue_t domain_wait[KYBER_NUM_DOMAINS];
+	wait_queue_entry_t domain_wait[KYBER_NUM_DOMAINS];
 	atomic_t wait_index[KYBER_NUM_DOMAINS];
 };
 
@@ -385,7 +385,7 @@ static int kyber_init_hctx(struct blk_mq_hw_ctx *hctx, unsigned int hctx_idx)
 
 	for (i = 0; i < KYBER_NUM_DOMAINS; i++) {
 		INIT_LIST_HEAD(&khd->rqs[i]);
-		INIT_LIST_HEAD(&khd->domain_wait[i].task_list);
+		INIT_LIST_HEAD(&khd->domain_wait[i].entry);
 		atomic_set(&khd->wait_index[i], 0);
 	}
 
@@ -426,33 +426,29 @@ static void rq_clear_domain_token(struct kyber_queue_data *kqd,
 	}
 }
 
-static struct request *kyber_get_request(struct request_queue *q,
-					 unsigned int op,
-					 struct blk_mq_alloc_data *data)
+static void kyber_limit_depth(unsigned int op, struct blk_mq_alloc_data *data)
 {
-	struct kyber_queue_data *kqd = q->elevator->elevator_data;
-	struct request *rq;
-
 	/*
 	 * We use the scheduler tags as per-hardware queue queueing tokens.
 	 * Async requests can be limited at this stage.
 	 */
-	if (!op_is_sync(op))
-		data->shallow_depth = kqd->async_depth;
+	if (!op_is_sync(op)) {
+		struct kyber_queue_data *kqd = data->q->elevator->elevator_data;
 
-	rq = __blk_mq_alloc_request(data, op);
-	if (rq)
-		rq_set_domain_token(rq, -1);
-	return rq;
+		data->shallow_depth = kqd->async_depth;
+	}
 }
 
-static void kyber_put_request(struct request *rq)
+static void kyber_prepare_request(struct request *rq, struct bio *bio)
 {
-	struct request_queue *q = rq->q;
-	struct kyber_queue_data *kqd = q->elevator->elevator_data;
+	rq_set_domain_token(rq, -1);
+}
+
+static void kyber_finish_request(struct request *rq)
+{
+	struct kyber_queue_data *kqd = rq->q->elevator->elevator_data;
 
 	rq_clear_domain_token(kqd, rq);
-	blk_mq_finish_request(rq);
 }
 
 static void kyber_completed_request(struct request *rq)
@@ -507,12 +503,12 @@ static void kyber_flush_busy_ctxs(struct kyber_hctx_data *khd,
 	}
 }
 
-static int kyber_domain_wake(wait_queue_t *wait, unsigned mode, int flags,
+static int kyber_domain_wake(wait_queue_entry_t *wait, unsigned mode, int flags,
 			     void *key)
 {
 	struct blk_mq_hw_ctx *hctx = READ_ONCE(wait->private);
 
-	list_del_init(&wait->task_list);
+	list_del_init(&wait->entry);
 	blk_mq_run_hw_queue(hctx, true);
 	return 1;
 }
@@ -523,7 +519,7 @@ static int kyber_get_domain_token(struct kyber_queue_data *kqd,
 {
 	unsigned int sched_domain = khd->cur_domain;
 	struct sbitmap_queue *domain_tokens = &kqd->domain_tokens[sched_domain];
-	wait_queue_t *wait = &khd->domain_wait[sched_domain];
+	wait_queue_entry_t *wait = &khd->domain_wait[sched_domain];
 	struct sbq_wait_state *ws;
 	int nr;
 
@@ -536,7 +532,7 @@ static int kyber_get_domain_token(struct kyber_queue_data *kqd,
 	 * run when one becomes available. Note that this is serialized on
 	 * khd->lock, but we still need to be careful about the waker.
 	 */
-	if (list_empty_careful(&wait->task_list)) {
+	if (list_empty_careful(&wait->entry)) {
 		init_waitqueue_func_entry(wait, kyber_domain_wake);
 		wait->private = hctx;
 		ws = sbq_wait_ptr(domain_tokens,
@@ -734,9 +730,9 @@ static int kyber_##name##_waiting_show(void *data, struct seq_file *m)	\
 {									\
 	struct blk_mq_hw_ctx *hctx = data;				\
 	struct kyber_hctx_data *khd = hctx->sched_data;			\
-	wait_queue_t *wait = &khd->domain_wait[domain];			\
+	wait_queue_entry_t *wait = &khd->domain_wait[domain];		\
 									\
-	seq_printf(m, "%d\n", !list_empty_careful(&wait->task_list));	\
+	seq_printf(m, "%d\n", !list_empty_careful(&wait->entry));	\
 	return 0;							\
 }
 KYBER_DEBUGFS_DOMAIN_ATTRS(KYBER_READ, read)
@@ -815,8 +811,9 @@ static struct elevator_type kyber_sched = {
 		.exit_sched = kyber_exit_sched,
 		.init_hctx = kyber_init_hctx,
 		.exit_hctx = kyber_exit_hctx,
-		.get_request = kyber_get_request,
-		.put_request = kyber_put_request,
+		.limit_depth = kyber_limit_depth,
+		.prepare_request = kyber_prepare_request,
+		.finish_request = kyber_finish_request,
 		.completed_request = kyber_completed_request,
 		.dispatch_request = kyber_dispatch_request,
 		.has_work = kyber_has_work,

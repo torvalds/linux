@@ -3,6 +3,7 @@ config ARM64
 	select ACPI_CCA_REQUIRED if ACPI
 	select ACPI_GENERIC_GSI if ACPI
 	select ACPI_GTDT if ACPI
+	select ACPI_IORT if ACPI
 	select ACPI_REDUCED_HARDWARE_ONLY if ACPI
 	select ACPI_MCFG if ACPI
 	select ACPI_SPCR_TABLE if ACPI
@@ -11,15 +12,18 @@ config ARM64
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ACPI_TABLE_UPGRADE if ACPI
 	select ARCH_HAS_ELF_RANDOMIZE
+	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_GCOV_PROFILE_ALL
-	select ARCH_HAS_GIGANTIC_PAGE
+	select ARCH_HAS_GIGANTIC_PAGE if (MEMORY_ISOLATION && COMPACTION) || CMA
 	select ARCH_HAS_KCOV
 	select ARCH_HAS_SET_MEMORY
 	select ARCH_HAS_SG_CHAIN
 	select ARCH_HAS_STRICT_KERNEL_RWX
 	select ARCH_HAS_STRICT_MODULE_RWX
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG if ACPI_APEI_SEA
 	select ARCH_USE_CMPXCHG_LOCKREF
+	select ARCH_SUPPORTS_MEMORY_FAILURE
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select ARCH_WANT_COMPAT_IPC_PARSE_VERSION
@@ -41,6 +45,7 @@ config ARM64
 	select EDAC_SUPPORT
 	select FRAME_POINTER
 	select GENERIC_ALLOCATOR
+	select GENERIC_ARCH_TOPOLOGY
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CLOCKEVENTS_BROADCAST
 	select GENERIC_CPU_AUTOPROBE
@@ -92,6 +97,7 @@ config ARM64
 	select HAVE_IRQ_TIME_ACCOUNTING
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP if NUMA
+	select HAVE_NMI if ACPI_APEI_SEA
 	select HAVE_PATA_PLATFORM
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_REGS
@@ -205,7 +211,7 @@ config GENERIC_CALIBRATE_DELAY
 config ZONE_DMA
 	def_bool y
 
-config HAVE_GENERIC_RCU_GUP
+config HAVE_GENERIC_GUP
 	def_bool y
 
 config ARCH_DMA_ADDR_T_64BIT
@@ -242,6 +248,9 @@ config PGTABLE_LEVELS
 	default 4 if !ARM64_64K_PAGES && ARM64_VA_BITS_48
 
 config ARCH_SUPPORTS_UPROBES
+	def_bool y
+
+config ARCH_PROC_KCORE_TEXT
 	def_bool y
 
 source "init/Kconfig"
@@ -477,6 +486,17 @@ config CAVIUM_ERRATUM_27456
 	  instructions may cause the icache to become corrupted if it
 	  contains data for a non-current ASID.  The fix is to
 	  invalidate the icache when changing the mm context.
+
+	  If unsure, say Y.
+
+config CAVIUM_ERRATUM_30115
+	bool "Cavium erratum 30115: Guest may disable interrupts in host"
+	default y
+	help
+	  On ThunderX T88 pass 1.x through 2.2, T81 pass 1.0 through
+	  1.2, and T83 Pass 1.0, KVM guest execution may disable
+	  interrupts in host. Trapping both GICv3 group-0 and group-1
+	  accesses sidesteps the issue.
 
 	  If unsure, say Y.
 
@@ -982,7 +1002,7 @@ config RANDOMIZE_BASE
 
 config RANDOMIZE_MODULE_REGION_FULL
 	bool "Randomize the module region independently from the core kernel"
-	depends on RANDOMIZE_BASE && !DYNAMIC_FTRACE
+	depends on RANDOMIZE_BASE
 	default y
 	help
 	  Randomizes the location of the module region without considering the
