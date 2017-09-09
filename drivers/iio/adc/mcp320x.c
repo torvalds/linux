@@ -76,10 +76,6 @@ static int mcp320x_channel_to_tx_data(int device_index,
 	int start_bit = 1;
 
 	switch (device_index) {
-	case mcp3001:
-	case mcp3201:
-	case mcp3301:
-		return 0;
 	case mcp3002:
 	case mcp3202:
 		return ((start_bit << 4) | (!differential << 3) |
@@ -100,20 +96,14 @@ static int mcp320x_adc_conversion(struct mcp320x *adc, u8 channel,
 {
 	int ret;
 
-	adc->rx_buf[0] = 0;
-	adc->rx_buf[1] = 0;
-	adc->tx_buf = mcp320x_channel_to_tx_data(device_index,
-						channel, differential);
+	memset(&adc->rx_buf, 0, sizeof(adc->rx_buf));
+	if (adc->chip_info->num_channels > 1)
+		adc->tx_buf = mcp320x_channel_to_tx_data(device_index, channel,
+							 differential);
 
-	if (device_index != mcp3001 && device_index != mcp3201 && device_index != mcp3301) {
-		ret = spi_sync(adc->spi, &adc->msg);
-		if (ret < 0)
-			return ret;
-	} else {
-		ret = spi_read(adc->spi, &adc->rx_buf, sizeof(adc->rx_buf));
-		if (ret < 0)
-			return ret;
-	}
+	ret = spi_sync(adc->spi, &adc->msg);
+	if (ret < 0)
+		return ret;
 
 	switch (device_index) {
 	case mcp3001:
@@ -322,9 +312,13 @@ static int mcp320x_probe(struct spi_device *spi)
 	adc->transfer[0].len = sizeof(adc->tx_buf);
 	adc->transfer[1].rx_buf = adc->rx_buf;
 	adc->transfer[1].len = sizeof(adc->rx_buf);
-
-	spi_message_init_with_transfers(&adc->msg, adc->transfer,
-					ARRAY_SIZE(adc->transfer));
+	if (chip_info->num_channels == 1)
+		/* single-channel converters are rx only (no MOSI pin) */
+		spi_message_init_with_transfers(&adc->msg,
+						&adc->transfer[1], 1);
+	else
+		spi_message_init_with_transfers(&adc->msg, adc->transfer,
+						ARRAY_SIZE(adc->transfer));
 
 	adc->reg = devm_regulator_get(&spi->dev, "vref");
 	if (IS_ERR(adc->reg))
