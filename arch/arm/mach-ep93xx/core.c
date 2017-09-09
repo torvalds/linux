@@ -31,7 +31,7 @@
 #include <linux/amba/serial.h>
 #include <linux/mtd/physmap.h>
 #include <linux/i2c.h>
-#include <linux/i2c-gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/spi/spi.h>
 #include <linux/export.h>
 #include <linux/irqchip/arm-vic.h>
@@ -320,42 +320,45 @@ void __init ep93xx_register_eth(struct ep93xx_eth_data *data, int copy_addr)
 /*************************************************************************
  * EP93xx i2c peripheral handling
  *************************************************************************/
-static struct i2c_gpio_platform_data ep93xx_i2c_data;
+
+/* All EP93xx devices use the same two GPIO pins for I2C bit-banging */
+static struct gpiod_lookup_table ep93xx_i2c_gpiod_table = {
+	.dev_id		= "i2c-gpio",
+	.table		= {
+		/* Use local offsets on gpiochip/port "G" */
+		GPIO_LOOKUP_IDX("G", 1, NULL, 0, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("G", 0, NULL, 1, GPIO_ACTIVE_HIGH),
+	},
+};
 
 static struct platform_device ep93xx_i2c_device = {
 	.name		= "i2c-gpio",
 	.id		= 0,
 	.dev		= {
-		.platform_data	= &ep93xx_i2c_data,
+		.platform_data	= NULL,
 	},
 };
 
 /**
  * ep93xx_register_i2c - Register the i2c platform device.
- * @data:	platform specific i2c-gpio configuration (__initdata)
  * @devices:	platform specific i2c bus device information (__initdata)
  * @num:	the number of devices on the i2c bus
  */
-void __init ep93xx_register_i2c(struct i2c_gpio_platform_data *data,
-				struct i2c_board_info *devices, int num)
+void __init ep93xx_register_i2c(struct i2c_board_info *devices, int num)
 {
 	/*
-	 * Set the EEPROM interface pin drive type control.
-	 * Defines the driver type for the EECLK and EEDAT pins as either
-	 * open drain, which will require an external pull-up, or a normal
-	 * CMOS driver.
+	 * FIXME: this just sets the two pins as non-opendrain, as no
+	 * platforms tries to do that anyway. Flag the applicable lines
+	 * as open drain in the GPIO_LOOKUP above and the driver or
+	 * gpiolib will handle open drain/open drain emulation as need
+	 * be. Right now i2c-gpio emulates open drain which is not
+	 * optimal.
 	 */
-	if (data->sda_is_open_drain && data->sda_pin != EP93XX_GPIO_LINE_EEDAT)
-		pr_warning("sda != EEDAT, open drain has no effect\n");
-	if (data->scl_is_open_drain && data->scl_pin != EP93XX_GPIO_LINE_EECLK)
-		pr_warning("scl != EECLK, open drain has no effect\n");
-
-	__raw_writel((data->sda_is_open_drain << 1) |
-		     (data->scl_is_open_drain << 0),
+	__raw_writel((0 << 1) | (0 << 0),
 		     EP93XX_GPIO_EEDRIVE);
 
-	ep93xx_i2c_data = *data;
 	i2c_register_board_info(0, devices, num);
+	gpiod_add_lookup_table(&ep93xx_i2c_gpiod_table);
 	platform_device_register(&ep93xx_i2c_device);
 }
 

@@ -16,6 +16,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
 #include <linux/gpio/driver.h>
+#include <linux/gpio/machine.h>
 
 #include <mach/hardware.h>
 #include <asm/setup.h>
@@ -323,9 +324,15 @@ static struct platform_device simpad_gpio_leds = {
 /*
  * i2c
  */
+static struct gpiod_lookup_table simpad_i2c_gpiod_table = {
+	.dev_id = "i2c-gpio",
+	.table = {
+		GPIO_LOOKUP_IDX("gpio", GPIO_GPIO21, NULL, 0, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("gpio", GPIO_GPIO25, NULL, 1, GPIO_ACTIVE_HIGH),
+	},
+};
+
 static struct i2c_gpio_platform_data simpad_i2c_data = {
-	.sda_pin = GPIO_GPIO21,
-	.scl_pin = GPIO_GPIO25,
 	.udelay = 10,
 	.timeout = HZ,
 };
@@ -380,6 +387,7 @@ static int __init simpad_init(void)
 			      ARRAY_SIZE(simpad_flash_resources));
 	sa11x0_register_mcp(&simpad_mcp_data);
 
+	gpiod_add_lookup_table(&simpad_i2c_gpiod_table);
 	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	if(ret)
 		printk(KERN_WARNING "simpad: Unable to register mq200 framebuffer device");

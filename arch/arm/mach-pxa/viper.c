@@ -36,6 +36,7 @@
 #include <linux/gpio.h>
 #include <linux/jiffies.h>
 #include <linux/i2c-gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/i2c/pxa-i2c.h>
 #include <linux/serial_8250.h>
 #include <linux/smc91x.h>
@@ -458,9 +459,17 @@ static struct platform_device smc91x_device = {
 };
 
 /* i2c */
+static struct gpiod_lookup_table viper_i2c_gpiod_table = {
+	.dev_id		= "i2c-gpio",
+	.table		= {
+		GPIO_LOOKUP_IDX("gpio-pxa", VIPER_RTC_I2C_SDA_GPIO,
+				NULL, 0, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("gpio-pxa", VIPER_RTC_I2C_SCL_GPIO,
+				NULL, 1, GPIO_ACTIVE_HIGH),
+	},
+};
+
 static struct i2c_gpio_platform_data i2c_bus_data = {
-	.sda_pin = VIPER_RTC_I2C_SDA_GPIO,
-	.scl_pin = VIPER_RTC_I2C_SCL_GPIO,
 	.udelay  = 10,
 	.timeout = HZ,
 };
@@ -779,12 +788,20 @@ static int __init viper_tpm_setup(char *str)
 
 __setup("tpm=", viper_tpm_setup);
 
+struct gpiod_lookup_table viper_tpm_i2c_gpiod_table = {
+	.dev_id = "i2c-gpio",
+	.table = {
+		GPIO_LOOKUP_IDX("gpio-pxa", VIPER_TPM_I2C_SDA_GPIO,
+				NULL, 0, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("gpio-pxa", VIPER_TPM_I2C_SCL_GPIO,
+				NULL, 1, GPIO_ACTIVE_HIGH),
+	},
+};
+
 static void __init viper_tpm_init(void)
 {
 	struct platform_device *tpm_device;
 	struct i2c_gpio_platform_data i2c_tpm_data = {
-		.sda_pin = VIPER_TPM_I2C_SDA_GPIO,
-		.scl_pin = VIPER_TPM_I2C_SCL_GPIO,
 		.udelay  = 10,
 		.timeout = HZ,
 	};
@@ -794,6 +811,7 @@ static void __init viper_tpm_init(void)
 	if (!viper_tpm)
 		return;
 
+	gpiod_add_lookup_table(&viper_tpm_i2c_gpiod_table);
 	tpm_device = platform_device_alloc("i2c-gpio", 2);
 	if (tpm_device) {
 		if (!platform_device_add_data(tpm_device,
@@ -943,6 +961,7 @@ static void __init viper_init(void)
 		smc91x_device.num_resources--;
 
 	pxa_set_i2c_info(NULL);
+	gpiod_add_lookup_table(&viper_i2c_gpiod_table);
 	pwm_add_table(viper_pwm_lookup, ARRAY_SIZE(viper_pwm_lookup));
 	platform_add_devices(viper_devs, ARRAY_SIZE(viper_devs));
 

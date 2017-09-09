@@ -22,6 +22,7 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
+#include <linux/gpio/machine.h>
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
 #include <asm/portmux.h>
@@ -362,11 +363,17 @@ static struct platform_device bfin_device_gpiokeys = {
 #if IS_ENABLED(CONFIG_I2C_GPIO)
 #include <linux/i2c-gpio.h>
 
+static struct gpiod_lookup_table bfin_i2c_gpiod_table = {
+	.dev_id = "i2c-gpio",
+	.table = {
+		GPIO_LOOKUP_IDX("BFIN-GPIO", GPIO_PF8, NULL, 0,
+				GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("BFIN-GPIO", GPIO_PF9, NULL, 1,
+				GPIO_ACTIVE_HIGH),
+	},
+};
+
 static struct i2c_gpio_platform_data i2c_gpio_data = {
-	.sda_pin		= GPIO_PF8,
-	.scl_pin		= GPIO_PF9,
-	.sda_is_open_drain	= 0,
-	.scl_is_open_drain	= 0,
 	.udelay			= 40,
 }; /* This hasn't actually been used these pins
     * are (currently) free pins on the expansion connector */
@@ -462,7 +469,9 @@ static int __init blackstamp_init(void)
 	int ret;
 
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
-
+#if IS_ENABLED(CONFIG_I2C_GPIO)
+	gpiod_add_lookup_table(&bfin_i2c_gpiod_table);
+#endif
 	i2c_register_board_info(0, bfin_i2c_board_info,
 				ARRAY_SIZE(bfin_i2c_board_info));
 

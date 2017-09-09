@@ -14,11 +14,12 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 
 struct i2c_gpio_private_data {
+	struct gpio_desc *sda;
+	struct gpio_desc *scl;
 	struct i2c_adapter adap;
 	struct i2c_algo_bit_data bit_data;
 	struct i2c_gpio_platform_data pdata;
@@ -27,12 +28,18 @@ struct i2c_gpio_private_data {
 /* Toggle SDA by changing the direction of the pin */
 static void i2c_gpio_setsda_dir(void *data, int state)
 {
-	struct i2c_gpio_platform_data *pdata = data;
+	struct i2c_gpio_private_data *priv = data;
 
+	/*
+	 * This is a way of saying "do not drive
+	 * me actively high" which means emulating open drain.
+	 * The right way to do this is for gpiolib to
+	 * handle this, by the function below.
+	 */
 	if (state)
-		gpio_direction_input(pdata->sda_pin);
+		gpiod_direction_input(priv->sda);
 	else
-		gpio_direction_output(pdata->sda_pin, 0);
+		gpiod_direction_output(priv->sda, 0);
 }
 
 /*
@@ -42,20 +49,20 @@ static void i2c_gpio_setsda_dir(void *data, int state)
  */
 static void i2c_gpio_setsda_val(void *data, int state)
 {
-	struct i2c_gpio_platform_data *pdata = data;
+	struct i2c_gpio_private_data *priv = data;
 
-	gpio_set_value(pdata->sda_pin, state);
+	gpiod_set_value(priv->sda, state);
 }
 
 /* Toggle SCL by changing the direction of the pin. */
 static void i2c_gpio_setscl_dir(void *data, int state)
 {
-	struct i2c_gpio_platform_data *pdata = data;
+	struct i2c_gpio_private_data *priv = data;
 
 	if (state)
-		gpio_direction_input(pdata->scl_pin);
+		gpiod_direction_input(priv->scl);
 	else
-		gpio_direction_output(pdata->scl_pin, 0);
+		gpiod_direction_output(priv->scl, 0);
 }
 
 /*
@@ -66,44 +73,23 @@ static void i2c_gpio_setscl_dir(void *data, int state)
  */
 static void i2c_gpio_setscl_val(void *data, int state)
 {
-	struct i2c_gpio_platform_data *pdata = data;
+	struct i2c_gpio_private_data *priv = data;
 
-	gpio_set_value(pdata->scl_pin, state);
+	gpiod_set_value(priv->scl, state);
 }
 
 static int i2c_gpio_getsda(void *data)
 {
-	struct i2c_gpio_platform_data *pdata = data;
+	struct i2c_gpio_private_data *priv = data;
 
-	return gpio_get_value(pdata->sda_pin);
+	return gpiod_get_value(priv->sda);
 }
 
 static int i2c_gpio_getscl(void *data)
 {
-	struct i2c_gpio_platform_data *pdata = data;
+	struct i2c_gpio_private_data *priv = data;
 
-	return gpio_get_value(pdata->scl_pin);
-}
-
-static int of_i2c_gpio_get_pins(struct device_node *np,
-				unsigned int *sda_pin, unsigned int *scl_pin)
-{
-	if (of_gpio_count(np) < 2)
-		return -ENODEV;
-
-	*sda_pin = of_get_gpio(np, 0);
-	*scl_pin = of_get_gpio(np, 1);
-
-	if (*sda_pin == -EPROBE_DEFER || *scl_pin == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
-
-	if (!gpio_is_valid(*sda_pin) || !gpio_is_valid(*scl_pin)) {
-		pr_err("%pOF: invalid GPIO pins, sda=%d/scl=%d\n",
-		       np, *sda_pin, *scl_pin);
-		return -ENODEV;
-	}
-
-	return 0;
+	return gpiod_get_value(priv->scl);
 }
 
 static void of_i2c_gpio_get_props(struct device_node *np,
@@ -130,64 +116,65 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	struct i2c_gpio_platform_data *pdata;
 	struct i2c_algo_bit_data *bit_data;
 	struct i2c_adapter *adap;
-	unsigned int sda_pin, scl_pin;
 	int ret;
-
-	/* First get the GPIO pins; if it fails, we'll defer the probe. */
-	if (pdev->dev.of_node) {
-		ret = of_i2c_gpio_get_pins(pdev->dev.of_node,
-					   &sda_pin, &scl_pin);
-		if (ret)
-			return ret;
-	} else {
-		if (!dev_get_platdata(&pdev->dev))
-			return -ENXIO;
-		pdata = dev_get_platdata(&pdev->dev);
-		sda_pin = pdata->sda_pin;
-		scl_pin = pdata->scl_pin;
-	}
-
-	ret = devm_gpio_request(&pdev->dev, sda_pin, "sda");
-	if (ret) {
-		if (ret == -EINVAL)
-			ret = -EPROBE_DEFER;	/* Try again later */
-		return ret;
-	}
-	ret = devm_gpio_request(&pdev->dev, scl_pin, "scl");
-	if (ret) {
-		if (ret == -EINVAL)
-			ret = -EPROBE_DEFER;	/* Try again later */
-		return ret;
-	}
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	/* First get the GPIO pins; if it fails, we'll defer the probe. */
+	priv->sda = devm_gpiod_get_index(&pdev->dev, NULL, 0, GPIOD_OUT_HIGH);
+	if (IS_ERR(priv->sda)) {
+		ret = PTR_ERR(priv->sda);
+		/* FIXME: hack in the old code, is this really necessary? */
+		if (ret == -EINVAL)
+			ret = -EPROBE_DEFER;
+		return ret;
+	}
+	priv->scl = devm_gpiod_get_index(&pdev->dev, NULL, 1, GPIOD_OUT_LOW);
+	if (IS_ERR(priv->scl)) {
+		ret = PTR_ERR(priv->scl);
+		/* FIXME: hack in the old code, is this really necessary? */
+		if (ret == -EINVAL)
+			ret = -EPROBE_DEFER;
+		return ret;
+	}
+
 	adap = &priv->adap;
 	bit_data = &priv->bit_data;
 	pdata = &priv->pdata;
 
 	if (pdev->dev.of_node) {
-		pdata->sda_pin = sda_pin;
-		pdata->scl_pin = scl_pin;
 		of_i2c_gpio_get_props(pdev->dev.of_node, pdata);
 	} else {
-		memcpy(pdata, dev_get_platdata(&pdev->dev), sizeof(*pdata));
+		/*
+		 * If all platform data settings are zero it is OK
+		 * to not provide any platform data from the board.
+		 */
+		if (dev_get_platdata(&pdev->dev))
+			memcpy(pdata, dev_get_platdata(&pdev->dev),
+			       sizeof(*pdata));
 	}
 
+	/*
+	 * FIXME: this is a hack emulating the open drain emulation
+	 * that gpiolib can already do for us. Make all clients properly
+	 * flag their lines as open drain and get rid of this property
+	 * and the special callback.
+	 */
 	if (pdata->sda_is_open_drain) {
-		gpio_direction_output(pdata->sda_pin, 1);
+		gpiod_direction_output(priv->sda, 1);
 		bit_data->setsda = i2c_gpio_setsda_val;
 	} else {
-		gpio_direction_input(pdata->sda_pin);
+		gpiod_direction_input(priv->sda);
 		bit_data->setsda = i2c_gpio_setsda_dir;
 	}
 
 	if (pdata->scl_is_open_drain || pdata->scl_is_output_only) {
-		gpio_direction_output(pdata->scl_pin, 1);
+		gpiod_direction_output(priv->scl, 1);
 		bit_data->setscl = i2c_gpio_setscl_val;
 	} else {
-		gpio_direction_input(pdata->scl_pin);
+		gpiod_direction_input(priv->scl);
 		bit_data->setscl = i2c_gpio_setscl_dir;
 	}
 
@@ -207,7 +194,7 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	else
 		bit_data->timeout = HZ / 10;		/* 100 ms */
 
-	bit_data->data = pdata;
+	bit_data->data = priv;
 
 	adap->owner = THIS_MODULE;
 	if (pdev->dev.of_node)
@@ -227,8 +214,13 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	dev_info(&pdev->dev, "using pins %u (SDA) and %u (SCL%s)\n",
-		 pdata->sda_pin, pdata->scl_pin,
+	/*
+	 * FIXME: using global GPIO numbers is not helpful. If/when we
+	 * get accessors to get the actual name of the GPIO line,
+	 * from the descriptor, then provide that instead.
+	 */
+	dev_info(&pdev->dev, "using lines %u (SDA) and %u (SCL%s)\n",
+		 desc_to_gpio(priv->sda), desc_to_gpio(priv->scl),
 		 pdata->scl_is_output_only
 		 ? ", no clock stretching" : "");
 

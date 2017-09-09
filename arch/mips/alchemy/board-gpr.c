@@ -30,6 +30,7 @@
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
+#include <linux/gpio/machine.h>
 #include <asm/bootinfo.h>
 #include <asm/idle.h>
 #include <asm/reboot.h>
@@ -218,10 +219,23 @@ static struct platform_device gpr_led_devices = {
 /*
  * I2C
  */
+static struct gpiod_lookup_table gpr_i2c_gpiod_table = {
+	.dev_id = "i2c-gpio",
+	.table = {
+		/*
+		 * This should be on "GPIO2" which has base at 200 so
+		 * the global numbers 209 and 210 should correspond to
+		 * local offsets 9 and 10.
+		 */
+		GPIO_LOOKUP_IDX("alchemy-gpio2", 9, NULL, 0,
+				GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("alchemy-gpio2", 10, NULL, 1,
+				GPIO_ACTIVE_HIGH),
+	},
+};
+
 static struct i2c_gpio_platform_data gpr_i2c_data = {
-	.sda_pin		= 209,
 	.sda_is_open_drain	= 1,
-	.scl_pin		= 210,
 	.scl_is_open_drain	= 1,
 	.udelay			= 2,		/* ~100 kHz */
 	.timeout		= HZ,
@@ -295,6 +309,7 @@ arch_initcall(gpr_pci_init);
 
 static int __init gpr_dev_init(void)
 {
+	gpiod_add_lookup_table(&gpr_i2c_gpiod_table);
 	i2c_register_board_info(0, gpr_i2c_info, ARRAY_SIZE(gpr_i2c_info));
 
 	return platform_add_devices(gpr_devices, ARRAY_SIZE(gpr_devices));

@@ -19,7 +19,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
-#include <linux/i2c-gpio.h>
 #include <linux/mmc/host.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/mmc_spi.h>
@@ -129,15 +128,6 @@ static struct ep93xx_spi_info simone_spi_info __initdata = {
 	.use_dma = 1,
 };
 
-static struct i2c_gpio_platform_data __initdata simone_i2c_gpio_data = {
-	.sda_pin		= EP93XX_GPIO_LINE_EEDAT,
-	.sda_is_open_drain	= 0,
-	.scl_pin		= EP93XX_GPIO_LINE_EECLK,
-	.scl_is_open_drain	= 0,
-	.udelay			= 0,
-	.timeout		= 0,
-};
-
 static struct i2c_board_info __initdata simone_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("ds1337", 0x68),
@@ -161,7 +151,7 @@ static void __init simone_init_machine(void)
 	ep93xx_register_flash(2, EP93XX_CS6_PHYS_BASE, SZ_8M);
 	ep93xx_register_eth(&simone_eth_data, 1);
 	ep93xx_register_fb(&simone_fb_info);
-	ep93xx_register_i2c(&simone_i2c_gpio_data, simone_i2c_board_info,
+	ep93xx_register_i2c(simone_i2c_board_info,
 			    ARRAY_SIZE(simone_i2c_board_info));
 	ep93xx_register_spi(&simone_spi_info, simone_spi_devices,
 			    ARRAY_SIZE(simone_spi_devices));
