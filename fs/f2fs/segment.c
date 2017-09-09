@@ -17,6 +17,7 @@
 #include <linux/swap.h>
 #include <linux/timer.h>
 #include <linux/freezer.h>
+#include <linux/sched/signal.h>
 
 #include "f2fs.h"
 #include "segment.h"
@@ -1061,6 +1062,9 @@ static int __issue_discard_cmd(struct f2fs_sb_info *sbi, bool issue_cond)
 			if (dcc->pend_list_tag[i] & P_TRIM) {
 				__submit_discard_cmd(sbi, dc);
 				issued++;
+
+				if (fatal_signal_pending(current))
+					break;
 				continue;
 			}
 
@@ -1177,7 +1181,7 @@ void stop_discard_thread(struct f2fs_sb_info *sbi)
 	}
 }
 
-/* This comes from f2fs_put_super */
+/* This comes from f2fs_put_super and f2fs_trim_fs */
 void f2fs_wait_discard_bios(struct f2fs_sb_info *sbi)
 {
 	__issue_discard_cmd(sbi, false);
@@ -2212,6 +2216,7 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
 	}
 	/* It's time to issue all the filed discards */
 	mark_discard_range_all(sbi);
+	f2fs_wait_discard_bios(sbi);
 out:
 	range->len = F2FS_BLK_TO_BYTES(cpc.trimmed);
 	return err;
