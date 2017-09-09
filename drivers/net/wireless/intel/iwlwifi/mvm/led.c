@@ -92,7 +92,8 @@ static void iwl_mvm_send_led_fw_cmd(struct iwl_mvm *mvm, bool on)
 
 static void iwl_mvm_led_set(struct iwl_mvm *mvm, bool on)
 {
-	if (mvm->cfg->device_family >= IWL_DEVICE_FAMILY_8000) {
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_LED_CMD_SUPPORT)) {
 		iwl_mvm_send_led_fw_cmd(mvm, on);
 		return;
 	}

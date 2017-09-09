@@ -618,8 +618,8 @@ void ip_md_tunnel_xmit(struct sk_buff *skb, struct net_device *dev, u8 proto)
 		ip_rt_put(rt);
 		goto tx_dropped;
 	}
-	iptunnel_xmit(NULL, rt, skb, fl4.saddr, fl4.daddr, proto, key->tos,
-		      key->ttl, df, !net_eq(tunnel->net, dev_net(dev)));
+	iptunnel_xmit(NULL, rt, skb, fl4.saddr, fl4.daddr, proto, tos, ttl,
+		      df, !net_eq(tunnel->net, dev_net(dev)));
 	return;
 tx_error:
 	dev->stats.tx_errors++;

@@ -637,7 +637,7 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 		break;
 	case NETDEV_UNREGISTER:
 	case NETDEV_CHANGENAME:
-		bearer_disable(dev_net(dev), b);
+		bearer_disable(net, b);
 		break;
 	}
 	return NOTIFY_OK;
