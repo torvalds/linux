@@ -435,6 +435,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-nitrogen6_som2.dtb \
 	imx6q-novena.dtb \
 	imx6q-phytec-pbab01.dtb \
+	imx6q-pistachio.dtb \
 	imx6q-rex-pro.dtb \
 	imx6q-sabreauto.dtb \
 	imx6q-sabrelite.dtb \
