@@ -99,8 +99,8 @@
 	gpio-i2c {
 		compatible = "i2c-gpio";
 		/* Collides with ICE */
-		gpios = <&gpio0 5 0>, /* SDA */
-			<&gpio0 6 0>; /* SCL */
+		sda-gpios = <&gpio0 5 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpio0 6 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
