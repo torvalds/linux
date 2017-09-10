@@ -122,9 +122,11 @@ static pte_t *kaiser_pagetable_walk(unsigned long address, bool is_atomic)
 		if (!new_pmd_page)
 			return NULL;
 		spin_lock(&shadow_table_allocation_lock);
-		if (pud_none(*pud))
+		if (pud_none(*pud)) {
 			set_pud(pud, __pud(_KERNPG_TABLE | __pa(new_pmd_page)));
-		else
+			__inc_zone_page_state(virt_to_page((void *)
+						new_pmd_page), NR_KAISERTABLE);
+		} else
 			free_page(new_pmd_page);
 		spin_unlock(&shadow_table_allocation_lock);
 	}
@@ -140,9 +142,11 @@ static pte_t *kaiser_pagetable_walk(unsigned long address, bool is_atomic)
 		if (!new_pte_page)
 			return NULL;
 		spin_lock(&shadow_table_allocation_lock);
-		if (pmd_none(*pmd))
+		if (pmd_none(*pmd)) {
 			set_pmd(pmd, __pmd(_KERNPG_TABLE | __pa(new_pte_page)));
-		else
+			__inc_zone_page_state(virt_to_page((void *)
+						new_pte_page), NR_KAISERTABLE);
+		} else
 			free_page(new_pte_page);
 		spin_unlock(&shadow_table_allocation_lock);
 	}
@@ -206,11 +210,13 @@ static void __init kaiser_init_all_pgds(void)
 	pgd = native_get_shadow_pgd(pgd_offset_k((unsigned long )0));
 	for (i = PTRS_PER_PGD / 2; i < PTRS_PER_PGD; i++) {
 		pgd_t new_pgd;
-		pud_t *pud = pud_alloc_one(&init_mm, PAGE_OFFSET + i * PGDIR_SIZE);
+		pud_t *pud = pud_alloc_one(&init_mm,
+					   PAGE_OFFSET + i * PGDIR_SIZE);
 		if (!pud) {
 			WARN_ON(1);
 			break;
 		}
+		inc_zone_page_state(virt_to_page(pud), NR_KAISERTABLE);
 		new_pgd = __pgd(_KERNPG_TABLE |__pa(pud));
 		/*
 		 * Make sure not to stomp on some other pgd entry.
