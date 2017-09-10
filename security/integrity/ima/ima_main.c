@@ -405,6 +405,10 @@ int ima_post_read_file(struct file *file, void *buf, loff_t size,
 	if (!file && read_id == READING_MODULE) /* MODULE_SIG_FORCE enabled */
 		return 0;
 
+	/* permit signed certs */
+	if (!file && read_id == READING_X509_CERTIFICATE)
+		return 0;
+
 	if (!file || !buf || size == 0) { /* should never happen */
 		if (ima_appraise & IMA_APPRAISE_ENFORCE)
 			return -EACCES;
