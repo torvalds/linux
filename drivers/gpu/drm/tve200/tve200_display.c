@@ -333,8 +333,5 @@ int tve200_display_init(struct drm_device *drm)
 	if (ret)
 		return ret;
 
-	/* We need the encoder to attach the bridge */
-	priv->encoder = &priv->pipe.encoder;
-
 	return 0;
 }

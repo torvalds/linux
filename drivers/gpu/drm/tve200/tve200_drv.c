@@ -87,6 +87,14 @@ static int tve200_modeset_init(struct drm_device *dev)
 			ret = PTR_ERR(bridge);
 			goto out_bridge;
 		}
+	} else {
+		/*
+		 * TODO: when we are using a different bridge than a panel
+		 * (such as a dumb VGA connector) we need to devise a different
+		 * method to get the connector out of the bridge.
+		 */
+		dev_err(dev->dev, "the bridge is not a panel\n");
+		goto out_bridge;
 	}
 
 	ret = tve200_display_init(dev);
@@ -95,21 +103,13 @@ static int tve200_modeset_init(struct drm_device *dev)
 		goto out_bridge;
 	}
 
-	if (bridge) {
-		ret = drm_bridge_attach(priv->encoder, bridge, NULL);
-		if (ret)
-			goto out_bridge;
-	}
-
-	/*
-	 * TODO: when we are using a different bridge than a panel
-	 * (such as a dumb VGA connector) we need to devise a different
-	 * method to get the connector out of the bridge.
-	 */
-	if (!panel) {
-		dev_err(dev->dev, "the bridge is not a panel\n");
+	ret = drm_simple_display_pipe_attach_bridge(&priv->pipe,
+						    bridge);
+	if (ret) {
+		dev_err(dev->dev, "failed to attach bridge\n");
 		goto out_bridge;
 	}
+
 	priv->panel = panel;
 	priv->connector = panel->connector;
 	priv->bridge = bridge;
@@ -138,8 +138,6 @@ static int tve200_modeset_init(struct drm_device *dev)
 out_bridge:
 	if (panel)
 		drm_panel_bridge_remove(bridge);
-	else
-		drm_bridge_remove(bridge);
 	drm_mode_config_cleanup(dev);
 finish:
 	return ret;
@@ -275,8 +273,6 @@ static int tve200_remove(struct platform_device *pdev)
 		drm_fbdev_cma_fini(priv->fbdev);
 	if (priv->panel)
 		drm_panel_bridge_remove(priv->bridge);
-	else
-		drm_bridge_remove(priv->bridge);
 	drm_mode_config_cleanup(drm);
 	clk_disable_unprepare(priv->pclk);
 	drm_dev_unref(drm);
