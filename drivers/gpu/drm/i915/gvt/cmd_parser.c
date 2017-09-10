@@ -2619,21 +2619,21 @@ static int shadow_workload_ring_buffer(struct intel_vgpu_workload *workload)
 	gma_tail = workload->rb_start + workload->rb_tail;
 	gma_top = workload->rb_start + guest_rb_size;
 
-	if (workload->rb_len > vgpu->reserve_ring_buffer_size[ring_id]) {
-		void *va, *p;
+	if (workload->rb_len > vgpu->ring_scan_buffer_size[ring_id]) {
+		void *p;
 
 		/* realloc the new ring buffer if needed */
-		va = vgpu->reserve_ring_buffer_va[ring_id];
-		p = krealloc(va, workload->rb_len, GFP_KERNEL);
+		p = krealloc(vgpu->ring_scan_buffer[ring_id], workload->rb_len,
+				GFP_KERNEL);
 		if (!p) {
-			gvt_vgpu_err("fail to alloc reserve ring buffer\n");
+			gvt_vgpu_err("fail to re-alloc ring scan buffer\n");
 			return -ENOMEM;
 		}
-		vgpu->reserve_ring_buffer_va[ring_id] = p;
-		vgpu->reserve_ring_buffer_size[ring_id] = workload->rb_len;
+		vgpu->ring_scan_buffer[ring_id] = p;
+		vgpu->ring_scan_buffer_size[ring_id] = workload->rb_len;
 	}
 
-	shadow_ring_buffer_va = vgpu->reserve_ring_buffer_va[ring_id];
+	shadow_ring_buffer_va = vgpu->ring_scan_buffer[ring_id];
 
 	/* get shadow ring buffer va */
 	workload->shadow_ring_buffer_va = shadow_ring_buffer_va;
