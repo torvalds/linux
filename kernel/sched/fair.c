@@ -7719,7 +7719,7 @@ next_group:
  * number.
  *
  * Return: 1 when packing is required and a task should be moved to
- * this CPU.  The amount of the imbalance is returned in *imbalance.
+ * this CPU.  The amount of the imbalance is returned in env->imbalance.
  *
  * @env: The load balancing environment.
  * @sds: Statistics of the sched_domain which is to be packed
