@@ -72,10 +72,6 @@ static struct ipv6_sr_hdr *get_srh(struct sk_buff *skb)
 
 	srh = (struct ipv6_sr_hdr *)(skb->data + srhoff);
 
-	/* make sure it's a Segment Routing header (Routing Type 4) */
-	if (srh->type != IPV6_SRCRT_TYPE_4)
-		return NULL;
-
 	len = (srh->hdrlen + 1) << 3;
 
 	if (!pskb_may_pull(skb, srhoff + len))
