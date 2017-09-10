@@ -222,7 +222,7 @@ MODULE_PARM_DESC(rtw_phy_file_path, "The path of phy parameter");
 /*  BIT4 - RF,					0: non-support, 1: support */
 /*  BIT5 - RF_TXPWR_TRACK,	0: non-support, 1: support */
 /*  BIT6 - RF_TXPWR_LMT,		0: non-support, 1: support */
-static int rtw_load_phy_file = (BIT2|BIT6);
+static int rtw_load_phy_file = (BIT2 | BIT6);
 module_param(rtw_load_phy_file, int, 0644);
 MODULE_PARM_DESC(rtw_load_phy_file,"PHY File Bit Map");
 static int rtw_decrypt_phy_file;
@@ -440,12 +440,12 @@ u16 rtw_recv_select_queue(struct sk_buff *skb)
 	u32 priority;
 	u8 *pdata = skb->data;
 
-	memcpy(&eth_type, pdata+(ETH_ALEN<<1), 2);
+	memcpy(&eth_type, pdata + (ETH_ALEN << 1), 2);
 
 	switch (be16_to_cpu(eth_type)) {
 		case ETH_P_IP:
 
-			piphdr = (struct iphdr *)(pdata+ETH_HLEN);
+			piphdr = (struct iphdr *)(pdata + ETH_HLEN);
 
 			dscp = piphdr->tos & 0xfc;
 
@@ -561,7 +561,7 @@ struct net_device *rtw_init_netdev(struct adapter *old_padapter)
 	pnetdev->netdev_ops = &rtw_netdev_ops;
 
 	/* pnetdev->tx_timeout = NULL; */
-	pnetdev->watchdog_timeo = HZ*3; /* 3 second timeout */
+	pnetdev->watchdog_timeo = HZ * 3; /* 3 second timeout */
 	pnetdev->wireless_handlers = (struct iw_handler_def *)&rtw_handlers_def;
 
 	/* step 2. */
@@ -749,7 +749,7 @@ u8 rtw_reset_drv_sw(struct adapter *padapter)
 	pmlmepriv->LinkDetectInfo.TrafficTransitionCount = 0;
 	pmlmepriv->LinkDetectInfo.LowPowerTransitionCount = 0;
 
-	_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY |_FW_UNDER_LINKING);
+	_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY | _FW_UNDER_LINKING);
 
 	pwrctrlpriv->pwr_state_check_cnts = 0;
 
@@ -936,7 +936,7 @@ static int _rtw_drv_register_netdev(struct adapter *padapter, char *name)
 		goto error_register_netdev;
 	}
 
-	DBG_871X("%s, MAC Address (if%d) = " MAC_FMT "\n", __func__, (padapter->iface_id+1), MAC_ARG(pnetdev->dev_addr));
+	DBG_871X("%s, MAC Address (if%d) = " MAC_FMT "\n", __func__, (padapter->iface_id + 1), MAC_ARG(pnetdev->dev_addr));
 
 	return ret;
 
