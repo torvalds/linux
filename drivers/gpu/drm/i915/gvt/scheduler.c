@@ -719,6 +719,7 @@ err:
 void intel_vgpu_clean_submission(struct intel_vgpu *vgpu)
 {
 	i915_gem_context_put(vgpu->shadow_ctx);
+	kmem_cache_destroy(vgpu->workloads);
 }
 
 /**
@@ -733,7 +734,9 @@ void intel_vgpu_clean_submission(struct intel_vgpu *vgpu)
  */
 int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 {
-	atomic_set(&vgpu->running_workload_num, 0);
+	enum intel_engine_id i;
+	struct intel_engine_cs *engine;
+	int ret;
 
 	vgpu->shadow_ctx = i915_gem_context_create_gvt(
 			&vgpu->gvt->dev_priv->drm);
@@ -742,5 +745,24 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 
 	bitmap_zero(vgpu->shadow_ctx_desc_updated, I915_NUM_ENGINES);
 
+	vgpu->workloads = kmem_cache_create("gvt-g_vgpu_workload",
+			sizeof(struct intel_vgpu_workload), 0,
+			SLAB_HWCACHE_ALIGN,
+			NULL);
+
+	if (!vgpu->workloads) {
+		ret = -ENOMEM;
+		goto out_shadow_ctx;
+	}
+
+	for_each_engine(engine, vgpu->gvt->dev_priv, i)
+		INIT_LIST_HEAD(&vgpu->workload_q_head[i]);
+
+	atomic_set(&vgpu->running_workload_num, 0);
+
 	return 0;
+
+out_shadow_ctx:
+	i915_gem_context_put(vgpu->shadow_ctx);
+	return ret;
 }

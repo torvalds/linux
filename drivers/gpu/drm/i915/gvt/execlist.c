@@ -856,14 +856,12 @@ void intel_vgpu_clean_execlist(struct intel_vgpu *vgpu)
 	struct intel_engine_cs *engine;
 
 	clean_workloads(vgpu, ALL_ENGINES);
-	kmem_cache_destroy(vgpu->workloads);
 
 	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
 		kfree(vgpu->reserve_ring_buffer_va[i]);
 		vgpu->reserve_ring_buffer_va[i] = NULL;
 		vgpu->reserve_ring_buffer_size[i] = 0;
 	}
-
 }
 
 #define RESERVE_RING_BUFFER_SIZE		((1 * PAGE_SIZE)/8)
@@ -872,19 +870,8 @@ int intel_vgpu_init_execlist(struct intel_vgpu *vgpu)
 	enum intel_engine_id i;
 	struct intel_engine_cs *engine;
 
-	/* each ring has a virtual execlist engine */
-	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
+	for_each_engine(engine, vgpu->gvt->dev_priv, i)
 		init_vgpu_execlist(vgpu, i);
-		INIT_LIST_HEAD(&vgpu->workload_q_head[i]);
-	}
-
-	vgpu->workloads = kmem_cache_create("gvt-g_vgpu_workload",
-			sizeof(struct intel_vgpu_workload), 0,
-			SLAB_HWCACHE_ALIGN,
-			NULL);
-
-	if (!vgpu->workloads)
-		return -ENOMEM;
 
 	/* each ring has a shadow ring buffer until vgpu destroyed */
 	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
