@@ -709,12 +709,29 @@ err:
 	return ret;
 }
 
-void intel_vgpu_clean_gvt_context(struct intel_vgpu *vgpu)
+/**
+ * intel_vgpu_clean_submission - free submission-related resource for vGPU
+ * @vgpu: a vGPU
+ *
+ * This function is called when a vGPU is being destroyed.
+ *
+ */
+void intel_vgpu_clean_submission(struct intel_vgpu *vgpu)
 {
 	i915_gem_context_put(vgpu->shadow_ctx);
 }
 
-int intel_vgpu_init_gvt_context(struct intel_vgpu *vgpu)
+/**
+ * intel_vgpu_setup_submission - setup submission-related resource for vGPU
+ * @vgpu: a vGPU
+ *
+ * This function is called when a vGPU is being created.
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ *
+ */
+int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 {
 	atomic_set(&vgpu->running_workload_num, 0);
 

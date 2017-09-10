@@ -137,9 +137,9 @@ void intel_gvt_clean_workload_scheduler(struct intel_gvt *gvt);
 
 void intel_gvt_wait_vgpu_idle(struct intel_vgpu *vgpu);
 
-int intel_vgpu_init_gvt_context(struct intel_vgpu *vgpu);
+int intel_vgpu_setup_submission(struct intel_vgpu *vgpu);
 
-void intel_vgpu_clean_gvt_context(struct intel_vgpu *vgpu);
+void intel_vgpu_clean_submission(struct intel_vgpu *vgpu);
 
 void release_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx);
 #endif
