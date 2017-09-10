@@ -118,7 +118,7 @@ static int mlx5e_vport_context_update_vlans(struct mlx5e_priv *priv)
 	int i;
 
 	list_size = 0;
-	for_each_set_bit(vlan, priv->fs.vlan.active_vlans, VLAN_N_VID)
+	for_each_set_bit(vlan, priv->fs.vlan.active_cvlans, VLAN_N_VID)
 		list_size++;
 
 	max_list_size = 1 << MLX5_CAP_GEN(priv->mdev, log_max_vlan_list);
@@ -135,7 +135,7 @@ static int mlx5e_vport_context_update_vlans(struct mlx5e_priv *priv)
 		return -ENOMEM;
 
 	i = 0;
-	for_each_set_bit(vlan, priv->fs.vlan.active_vlans, VLAN_N_VID) {
+	for_each_set_bit(vlan, priv->fs.vlan.active_cvlans, VLAN_N_VID) {
 		if (i >= list_size)
 			break;
 		vlans[i++] = vlan;
@@ -154,7 +154,7 @@ enum mlx5e_vlan_rule_type {
 	MLX5E_VLAN_RULE_TYPE_UNTAGGED,
 	MLX5E_VLAN_RULE_TYPE_ANY_CTAG_VID,
 	MLX5E_VLAN_RULE_TYPE_ANY_STAG_VID,
-	MLX5E_VLAN_RULE_TYPE_MATCH_VID,
+	MLX5E_VLAN_RULE_TYPE_MATCH_CTAG_VID,
 };
 
 static int __mlx5e_add_vlan_rule(struct mlx5e_priv *priv,
@@ -190,8 +190,8 @@ static int __mlx5e_add_vlan_rule(struct mlx5e_priv *priv,
 				 outer_headers.svlan_tag);
 		MLX5_SET(fte_match_param, spec->match_value, outer_headers.svlan_tag, 1);
 		break;
-	default: /* MLX5E_VLAN_RULE_TYPE_MATCH_VID */
-		rule_p = &priv->fs.vlan.active_vlans_rule[vid];
+	default: /* MLX5E_VLAN_RULE_TYPE_MATCH_CTAG_VID */
+		rule_p = &priv->fs.vlan.active_cvlans_rule[vid];
 		MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria,
 				 outer_headers.cvlan_tag);
 		MLX5_SET(fte_match_param, spec->match_value, outer_headers.cvlan_tag, 1);
@@ -223,7 +223,7 @@ static int mlx5e_add_vlan_rule(struct mlx5e_priv *priv,
 	if (!spec)
 		return -ENOMEM;
 
-	if (rule_type == MLX5E_VLAN_RULE_TYPE_MATCH_VID)
+	if (rule_type == MLX5E_VLAN_RULE_TYPE_MATCH_CTAG_VID)
 		mlx5e_vport_context_update_vlans(priv);
 
 	err = __mlx5e_add_vlan_rule(priv, rule_type, vid, spec);
@@ -255,11 +255,11 @@ static void mlx5e_del_vlan_rule(struct mlx5e_priv *priv,
 			priv->fs.vlan.any_svlan_rule = NULL;
 		}
 		break;
-	case MLX5E_VLAN_RULE_TYPE_MATCH_VID:
+	case MLX5E_VLAN_RULE_TYPE_MATCH_CTAG_VID:
 		mlx5e_vport_context_update_vlans(priv);
-		if (priv->fs.vlan.active_vlans_rule[vid]) {
-			mlx5_del_flow_rules(priv->fs.vlan.active_vlans_rule[vid]);
-			priv->fs.vlan.active_vlans_rule[vid] = NULL;
+		if (priv->fs.vlan.active_cvlans_rule[vid]) {
+			mlx5_del_flow_rules(priv->fs.vlan.active_cvlans_rule[vid]);
+			priv->fs.vlan.active_cvlans_rule[vid] = NULL;
 		}
 		mlx5e_vport_context_update_vlans(priv);
 		break;
@@ -283,23 +283,23 @@ static int mlx5e_add_any_vid_rules(struct mlx5e_priv *priv)
 	return mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_STAG_VID, 0);
 }
 
-void mlx5e_enable_vlan_filter(struct mlx5e_priv *priv)
+void mlx5e_enable_cvlan_filter(struct mlx5e_priv *priv)
 {
-	if (!priv->fs.vlan.filter_disabled)
+	if (!priv->fs.vlan.cvlan_filter_disabled)
 		return;
 
-	priv->fs.vlan.filter_disabled = false;
+	priv->fs.vlan.cvlan_filter_disabled = false;
 	if (priv->netdev->flags & IFF_PROMISC)
 		return;
 	mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_CTAG_VID, 0);
 }
 
-void mlx5e_disable_vlan_filter(struct mlx5e_priv *priv)
+void mlx5e_disable_cvlan_filter(struct mlx5e_priv *priv)
 {
-	if (priv->fs.vlan.filter_disabled)
+	if (priv->fs.vlan.cvlan_filter_disabled)
 		return;
 
-	priv->fs.vlan.filter_disabled = true;
+	priv->fs.vlan.cvlan_filter_disabled = true;
 	if (priv->netdev->flags & IFF_PROMISC)
 		return;
 	mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_CTAG_VID, 0);
@@ -310,9 +310,9 @@ int mlx5e_vlan_rx_add_vid(struct net_device *dev, __always_unused __be16 proto,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
-	set_bit(vid, priv->fs.vlan.active_vlans);
+	set_bit(vid, priv->fs.vlan.active_cvlans);
 
-	return mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID, vid);
+	return mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_CTAG_VID, vid);
 }
 
 int mlx5e_vlan_rx_kill_vid(struct net_device *dev, __always_unused __be16 proto,
@@ -320,9 +320,9 @@ int mlx5e_vlan_rx_kill_vid(struct net_device *dev, __always_unused __be16 proto,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
-	clear_bit(vid, priv->fs.vlan.active_vlans);
+	clear_bit(vid, priv->fs.vlan.active_cvlans);
 
-	mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID, vid);
+	mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_CTAG_VID, vid);
 
 	return 0;
 }
@@ -333,11 +333,11 @@ static void mlx5e_add_vlan_rules(struct mlx5e_priv *priv)
 
 	mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_UNTAGGED, 0);
 
-	for_each_set_bit(i, priv->fs.vlan.active_vlans, VLAN_N_VID) {
-		mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID, i);
+	for_each_set_bit(i, priv->fs.vlan.active_cvlans, VLAN_N_VID) {
+		mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_CTAG_VID, i);
 	}
 
-	if (priv->fs.vlan.filter_disabled &&
+	if (priv->fs.vlan.cvlan_filter_disabled &&
 	    !(priv->netdev->flags & IFF_PROMISC))
 		mlx5e_add_any_vid_rules(priv);
 }
@@ -348,11 +348,11 @@ static void mlx5e_del_vlan_rules(struct mlx5e_priv *priv)
 
 	mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_UNTAGGED, 0);
 
-	for_each_set_bit(i, priv->fs.vlan.active_vlans, VLAN_N_VID) {
-		mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID, i);
+	for_each_set_bit(i, priv->fs.vlan.active_cvlans, VLAN_N_VID) {
+		mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_CTAG_VID, i);
 	}
 
-	if (priv->fs.vlan.filter_disabled &&
+	if (priv->fs.vlan.cvlan_filter_disabled &&
 	    !(priv->netdev->flags & IFF_PROMISC))
 		mlx5e_del_any_vid_rules(priv);
 }
@@ -546,7 +546,7 @@ void mlx5e_set_rx_mode_work(struct work_struct *work)
 
 	if (enable_promisc) {
 		mlx5e_add_l2_flow_rule(priv, &ea->promisc, MLX5E_PROMISC);
-		if (!priv->fs.vlan.filter_disabled)
+		if (!priv->fs.vlan.cvlan_filter_disabled)
 			mlx5e_add_any_vid_rules(priv);
 	}
 	if (enable_allmulti)
@@ -561,7 +561,7 @@ void mlx5e_set_rx_mode_work(struct work_struct *work)
 	if (disable_allmulti)
 		mlx5e_del_l2_flow_rule(priv, &ea->allmulti);
 	if (disable_promisc) {
-		if (!priv->fs.vlan.filter_disabled)
+		if (!priv->fs.vlan.cvlan_filter_disabled)
 			mlx5e_del_any_vid_rules(priv);
 		mlx5e_del_l2_flow_rule(priv, &ea->promisc);
 	}
