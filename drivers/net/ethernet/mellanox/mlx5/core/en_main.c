@@ -3395,6 +3395,25 @@ static int mlx5e_set_features(struct net_device *netdev,
 	return err ? -EINVAL : 0;
 }
 
+static netdev_features_t mlx5e_fix_features(struct net_device *netdev,
+					    netdev_features_t features)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	mutex_lock(&priv->state_lock);
+	if (!bitmap_empty(priv->fs.vlan.active_svlans, VLAN_N_VID)) {
+		/* HW strips the outer C-tag header, this is a problem
+		 * for S-tag traffic.
+		 */
+		features &= ~NETIF_F_HW_VLAN_CTAG_RX;
+		if (!priv->channels.params.vlan_strip_disable)
+			netdev_warn(netdev, "Dropping C-tag vlan stripping offload due to S-tag vlan\n");
+	}
+	mutex_unlock(&priv->state_lock);
+
+	return features;
+}
+
 static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
@@ -3872,6 +3891,7 @@ static const struct net_device_ops mlx5e_netdev_ops = {
 	.ndo_vlan_rx_add_vid     = mlx5e_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid    = mlx5e_vlan_rx_kill_vid,
 	.ndo_set_features        = mlx5e_set_features,
+	.ndo_fix_features        = mlx5e_fix_features,
 	.ndo_change_mtu          = mlx5e_change_mtu,
 	.ndo_do_ioctl            = mlx5e_ioctl,
 	.ndo_set_tx_maxrate      = mlx5e_set_tx_maxrate,
@@ -4231,6 +4251,7 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	}
 
 	netdev->features         |= NETIF_F_HIGHDMA;
+	netdev->features         |= NETIF_F_HW_VLAN_STAG_FILTER;
 
 	netdev->priv_flags       |= IFF_UNICAST_FLT;
 
