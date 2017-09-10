@@ -41,8 +41,10 @@
 static struct gpiod_lookup_table acs5k_i2c_gpiod_table = {
 	.dev_id		= "i2c-gpio",
 	.table		= {
-		GPIO_LOOKUP_IDX("KS8695", 4, NULL, 0, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX("KS8695", 5, NULL, 1, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("KS8695", 4, NULL, 0,
+				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+		GPIO_LOOKUP_IDX("KS8695", 5, NULL, 1,
+				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
 	},
 };
 

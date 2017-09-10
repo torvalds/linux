@@ -367,9 +367,9 @@ static struct gpiod_lookup_table bfin_i2c_gpiod_table = {
 	.dev_id = "i2c-gpio",
 	.table = {
 		GPIO_LOOKUP_IDX("BFIN-GPIO", GPIO_PF8, NULL, 0,
-				GPIO_ACTIVE_HIGH),
+				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
 		GPIO_LOOKUP_IDX("BFIN-GPIO", GPIO_PF9, NULL, 1,
-				GPIO_ACTIVE_HIGH),
+				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
 	},
 };
 

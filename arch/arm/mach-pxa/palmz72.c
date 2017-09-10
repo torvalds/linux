@@ -324,8 +324,10 @@ static struct soc_camera_link palmz72_iclink = {
 static struct gpiod_lookup_table palmz72_i2c_gpiod_table = {
 	.dev_id		= "i2c-gpio",
 	.table		= {
-		GPIO_LOOKUP_IDX("gpio-pxa", 118, NULL, 0, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX("gpio-pxa", 117, NULL, 1, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("gpio-pxa", 118, NULL, 0,
+				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+		GPIO_LOOKUP_IDX("gpio-pxa", 117, NULL, 1,
+				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
 	},
 };
 

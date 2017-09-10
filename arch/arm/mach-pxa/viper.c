@@ -463,9 +463,9 @@ static struct gpiod_lookup_table viper_i2c_gpiod_table = {
 	.dev_id		= "i2c-gpio",
 	.table		= {
 		GPIO_LOOKUP_IDX("gpio-pxa", VIPER_RTC_I2C_SDA_GPIO,
-				NULL, 0, GPIO_ACTIVE_HIGH),
+				NULL, 0, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
 		GPIO_LOOKUP_IDX("gpio-pxa", VIPER_RTC_I2C_SCL_GPIO,
-				NULL, 1, GPIO_ACTIVE_HIGH),
+				NULL, 1, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
 	},
 };
 
@@ -792,9 +792,9 @@ struct gpiod_lookup_table viper_tpm_i2c_gpiod_table = {
 	.dev_id = "i2c-gpio",
 	.table = {
 		GPIO_LOOKUP_IDX("gpio-pxa", VIPER_TPM_I2C_SDA_GPIO,
-				NULL, 0, GPIO_ACTIVE_HIGH),
+				NULL, 0, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
 		GPIO_LOOKUP_IDX("gpio-pxa", VIPER_TPM_I2C_SCL_GPIO,
-				NULL, 1, GPIO_ACTIVE_HIGH),
+				NULL, 1, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
 	},
 };
 

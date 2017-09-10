@@ -126,9 +126,9 @@ static struct gpiod_lookup_table ixdp425_i2c_gpiod_table = {
 	.dev_id		= "i2c-gpio",
 	.table		= {
 		GPIO_LOOKUP_IDX("IXP4XX_GPIO_CHIP", IXDP425_SDA_PIN,
-				NULL, 0, GPIO_ACTIVE_HIGH),
+				NULL, 0, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
 		GPIO_LOOKUP_IDX("IXP4XX_GPIO_CHIP", IXDP425_SCL_PIN,
-				NULL, 1, GPIO_ACTIVE_HIGH),
+				NULL, 1, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
 	},
 };
 

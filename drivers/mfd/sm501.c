@@ -1152,7 +1152,7 @@ static int sm501_register_gpio_i2c_instance(struct sm501_devdata *sm,
 	lookup->table[0].chip_hwnum = iic->pin_sda % 32;
 	lookup->table[0].con_id = NULL;
 	lookup->table[0].idx = 0;
-	lookup->table[0].flags = GPIO_ACTIVE_HIGH;
+	lookup->table[0].flags = GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN;
 	if (iic->pin_scl < 32)
 		lookup->table[1].chip_label = "SM501-LOW";
 	else
@@ -1160,7 +1160,7 @@ static int sm501_register_gpio_i2c_instance(struct sm501_devdata *sm,
 	lookup->table[1].chip_hwnum = iic->pin_scl % 32;
 	lookup->table[1].con_id = NULL;
 	lookup->table[1].idx = 1;
-	lookup->table[1].flags = GPIO_ACTIVE_HIGH;
+	lookup->table[1].flags = GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN;
 	gpiod_add_lookup_table(lookup);
 
 	icd = dev_get_platdata(&pdev->dev);

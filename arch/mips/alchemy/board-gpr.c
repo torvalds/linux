@@ -235,6 +235,10 @@ static struct gpiod_lookup_table gpr_i2c_gpiod_table = {
 };
 
 static struct i2c_gpio_platform_data gpr_i2c_data = {
+	/*
+	 * The open drain mode is hardwired somewhere or an electrical
+	 * property of the alchemy GPIO controller.
+	 */
 	.sda_is_open_drain	= 1,
 	.scl_is_open_drain	= 1,
 	.udelay			= 2,		/* ~100 kHz */
