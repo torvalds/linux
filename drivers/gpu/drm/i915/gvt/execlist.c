@@ -864,15 +864,18 @@ void intel_vgpu_clean_execlist(struct intel_vgpu *vgpu)
 	clean_workloads(vgpu, ALL_ENGINES);
 
 	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
-		kfree(vgpu->ring_scan_buffer[i]);
-		vgpu->ring_scan_buffer[i] = NULL;
-		vgpu->ring_scan_buffer_size[i] = 0;
+		struct intel_vgpu_submission *s = &vgpu->submission;
+
+		kfree(s->ring_scan_buffer[i]);
+		s->ring_scan_buffer[i] = NULL;
+		s->ring_scan_buffer_size[i] = 0;
 	}
 }
 
 #define RESERVE_RING_BUFFER_SIZE		((1 * PAGE_SIZE)/8)
 int intel_vgpu_init_execlist(struct intel_vgpu *vgpu)
 {
+	struct intel_vgpu_submission *s = &vgpu->submission;
 	enum intel_engine_id i;
 	struct intel_engine_cs *engine;
 
@@ -881,21 +884,21 @@ int intel_vgpu_init_execlist(struct intel_vgpu *vgpu)
 
 	/* each ring has a shadow ring buffer until vgpu destroyed */
 	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
-		vgpu->ring_scan_buffer[i] =
+		s->ring_scan_buffer[i] =
 			kmalloc(RESERVE_RING_BUFFER_SIZE, GFP_KERNEL);
-		if (!vgpu->ring_scan_buffer[i]) {
+		if (!s->ring_scan_buffer[i]) {
 			gvt_vgpu_err("fail to alloc ring scan buffer\n");
 			goto out;
 		}
-		vgpu->ring_scan_buffer_size[i] = RESERVE_RING_BUFFER_SIZE;
+		s->ring_scan_buffer_size[i] = RESERVE_RING_BUFFER_SIZE;
 	}
 	return 0;
 out:
 	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
-		if (vgpu->ring_scan_buffer_size[i]) {
-			kfree(vgpu->ring_scan_buffer[i]);
-			vgpu->ring_scan_buffer[i] = NULL;
-			vgpu->ring_scan_buffer_size[i] = 0;
+		if (s->ring_scan_buffer_size[i]) {
+			kfree(s->ring_scan_buffer[i]);
+			s->ring_scan_buffer[i] = NULL;
+			s->ring_scan_buffer_size[i] = 0;
 		}
 	}
 	return -ENOMEM;

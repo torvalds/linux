@@ -150,6 +150,9 @@ struct intel_vgpu_submission {
 	struct i915_gem_context *shadow_ctx;
 	DECLARE_BITMAP(shadow_ctx_desc_updated, I915_NUM_ENGINES);
 	DECLARE_BITMAP(tlb_handle_pending, I915_NUM_ENGINES);
+	/* 1/2K for each engine */
+	void *ring_scan_buffer[I915_NUM_ENGINES];
+	int ring_scan_buffer_size[I915_NUM_ENGINES];
 };
 
 struct intel_vgpu {
@@ -172,10 +175,6 @@ struct intel_vgpu {
 	struct intel_vgpu_opregion opregion;
 	struct intel_vgpu_display display;
 	struct intel_vgpu_submission submission;
-	/* 1/2K for each engine */
-	void *ring_scan_buffer[I915_NUM_ENGINES];
-	int ring_scan_buffer_size[I915_NUM_ENGINES];
-
 
 #if IS_ENABLED(CONFIG_DRM_I915_GVT_KVMGT)
 	struct {
