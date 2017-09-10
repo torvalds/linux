@@ -454,7 +454,6 @@ u16 rtw_recv_select_queue(struct sk_buff *skb)
 	}
 
 	return rtw_1d_to_queue[priority];
-
 }
 
 static int rtw_ndev_notifier_call(struct notifier_block * nb, unsigned long state, void *ptr)
@@ -1025,7 +1024,6 @@ netdev_open_error:
 	DBG_871X("-871x_drv - drv_open fail, bup =%d\n", padapter->bup);
 
 	return (-1);
-
 }
 
 int netdev_open(struct net_device *pnetdev)
@@ -1092,7 +1090,6 @@ int rtw_ips_pwr_up(struct adapter *padapter)
 
 	DBG_871X("<===  rtw_ips_pwr_up..............\n");
 	return result;
-
 }
 
 void rtw_ips_pwr_down(struct adapter *padapter)
@@ -1114,7 +1111,6 @@ void rtw_ips_dev_unload(struct adapter *padapter)
 
 	if (padapter->bSurpriseRemoved == false)
 		rtw_hal_deinit(padapter);
-
 }
 
 
@@ -1187,7 +1183,6 @@ static int netdev_close(struct net_device *pnetdev)
 	DBG_871X("-871x_drv - drv_close, bup =%d\n", padapter->bup);
 
 	return 0;
-
 }
 
 void rtw_ndev_destructor(struct net_device *ndev)
@@ -1391,7 +1386,6 @@ int rtw_suspend_wow(struct adapter *padapter)
 			DBG_871X_LEVEL(_drv_always_, "%s: pno: %d\n", __func__, pwrpriv->wowlan_pno_enable);
 		else
 			rtw_set_ps_mode(padapter, PS_MODE_DTIM, 0, 0, "WOWLAN");
-
 	}
 	else {
 		DBG_871X_LEVEL(_drv_always_, "%s: ### ERROR ### wowlan_mode =%d\n", __func__, pwrpriv->wowlan_mode);
@@ -1471,7 +1465,6 @@ static int rtw_suspend_normal(struct adapter *padapter)
 	if ((rtw_hal_check_ips_status(padapter) == true)
 		|| (adapter_to_pwrctl(padapter)->rf_pwrstate == rf_off)) {
 		DBG_871X_LEVEL(_drv_always_, "%s: ### ERROR #### driver in IPS ####ERROR###!!!\n", __func__);
-
 	}
 
 	rtw_dev_unload(padapter);
@@ -1645,7 +1638,6 @@ int rtw_resume_process_wow(struct adapter *padapter)
 		}
 	}
 	else {
-
 		DBG_871X_LEVEL(_drv_always_, "%s: ### ERROR ### wowlan_mode =%d\n", __func__, pwrpriv->wowlan_mode);
 	}
 
@@ -1658,7 +1650,6 @@ int rtw_resume_process_wow(struct adapter *padapter)
 		if (pwrpriv->wowlan_wake_reason == FWDecisionDisconnect ||
 			pwrpriv->wowlan_wake_reason == Rx_DisAssoc ||
 			pwrpriv->wowlan_wake_reason == Rx_DeAuth) {
-
 			DBG_871X("%s: disconnect reason: %02x\n", __func__,
 						pwrpriv->wowlan_wake_reason);
 			rtw_indicate_disconnect(padapter);
