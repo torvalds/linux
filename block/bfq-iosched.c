@@ -239,7 +239,7 @@ static int T_slow[2];
 static int T_fast[2];
 static int device_speed_thresh[2];
 
-#define RQ_BIC(rq)		((struct bfq_io_cq *) (rq)->elv.priv[0])
+#define RQ_BIC(rq)		icq_to_bic((rq)->elv.priv[0])
 #define RQ_BFQQ(rq)		((rq)->elv.priv[1])
 
 struct bfq_queue *bic_to_bfqq(struct bfq_io_cq *bic, bool is_sync)
@@ -720,7 +720,7 @@ static void bfq_updated_next_req(struct bfq_data *bfqd,
 		entity->budget = new_budget;
 		bfq_log_bfqq(bfqd, bfqq, "updated next rq: new budget %lu",
 					 new_budget);
-		bfq_requeue_bfqq(bfqd, bfqq);
+		bfq_requeue_bfqq(bfqd, bfqq, false);
 	}
 }
 
@@ -2563,7 +2563,7 @@ static void __bfq_bfqq_expire(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 
 		bfq_del_bfqq_busy(bfqd, bfqq, true);
 	} else {
-		bfq_requeue_bfqq(bfqd, bfqq);
+		bfq_requeue_bfqq(bfqd, bfqq, true);
 		/*
 		 * Resort priority tree of potential close cooperators.
 		 */
@@ -3780,6 +3780,7 @@ bfq_set_next_ioprio_data(struct bfq_queue *bfqq, struct bfq_io_cq *bic)
 	default:
 		dev_err(bfqq->bfqd->queue->backing_dev_info->dev,
 			"bfq: bad prio class %d\n", ioprio_class);
+		/* fall through */
 	case IOPRIO_CLASS_NONE:
 		/*
 		 * No prio set, inherit CPU scheduling settings.
@@ -4801,13 +4802,15 @@ static ssize_t bfq_var_show(unsigned int var, char *page)
 	return sprintf(page, "%u\n", var);
 }
 
-static void bfq_var_store(unsigned long *var, const char *page)
+static int bfq_var_store(unsigned long *var, const char *page)
 {
 	unsigned long new_val;
 	int ret = kstrtoul(page, 10, &new_val);
 
-	if (ret == 0)
-		*var = new_val;
+	if (ret)
+		return ret;
+	*var = new_val;
+	return 0;
 }
 
 #define SHOW_FUNCTION(__FUNC, __VAR, __CONV)				\
@@ -4848,12 +4851,16 @@ static ssize_t								\
 __FUNC(struct elevator_queue *e, const char *page, size_t count)	\
 {									\
 	struct bfq_data *bfqd = e->elevator_data;			\
-	unsigned long uninitialized_var(__data);			\
-	bfq_var_store(&__data, (page));					\
-	if (__data < (MIN))						\
-		__data = (MIN);						\
-	else if (__data > (MAX))					\
-		__data = (MAX);						\
+	unsigned long __data, __min = (MIN), __max = (MAX);		\
+	int ret;							\
+									\
+	ret = bfq_var_store(&__data, (page));				\
+	if (ret)							\
+		return ret;						\
+	if (__data < __min)						\
+		__data = __min;						\
+	else if (__data > __max)					\
+		__data = __max;						\
 	if (__CONV == 1)						\
 		*(__PTR) = msecs_to_jiffies(__data);			\
 	else if (__CONV == 2)						\
@@ -4876,12 +4883,16 @@ STORE_FUNCTION(bfq_slice_idle_store, &bfqd->bfq_slice_idle, 0, INT_MAX, 2);
 static ssize_t __FUNC(struct elevator_queue *e, const char *page, size_t count)\
 {									\
 	struct bfq_data *bfqd = e->elevator_data;			\
-	unsigned long uninitialized_var(__data);			\
-	bfq_var_store(&__data, (page));					\
-	if (__data < (MIN))						\
-		__data = (MIN);						\
-	else if (__data > (MAX))					\
-		__data = (MAX);						\
+	unsigned long __data, __min = (MIN), __max = (MAX);		\
+	int ret;							\
+									\
+	ret = bfq_var_store(&__data, (page));				\
+	if (ret)							\
+		return ret;						\
+	if (__data < __min)						\
+		__data = __min;						\
+	else if (__data > __max)					\
+		__data = __max;						\
 	*(__PTR) = (u64)__data * NSEC_PER_USEC;				\
 	return count;							\
 }
@@ -4893,9 +4904,12 @@ static ssize_t bfq_max_budget_store(struct elevator_queue *e,
 				    const char *page, size_t count)
 {
 	struct bfq_data *bfqd = e->elevator_data;
-	unsigned long uninitialized_var(__data);
+	unsigned long __data;
+	int ret;
 
-	bfq_var_store(&__data, (page));
+	ret = bfq_var_store(&__data, (page));
+	if (ret)
+		return ret;
 
 	if (__data == 0)
 		bfqd->bfq_max_budget = bfq_calc_max_budget(bfqd);
@@ -4918,9 +4932,12 @@ static ssize_t bfq_timeout_sync_store(struct elevator_queue *e,
 				      const char *page, size_t count)
 {
 	struct bfq_data *bfqd = e->elevator_data;
-	unsigned long uninitialized_var(__data);
+	unsigned long __data;
+	int ret;
 
-	bfq_var_store(&__data, (page));
+	ret = bfq_var_store(&__data, (page));
+	if (ret)
+		return ret;
 
 	if (__data < 1)
 		__data = 1;
@@ -4938,9 +4955,12 @@ static ssize_t bfq_strict_guarantees_store(struct elevator_queue *e,
 				     const char *page, size_t count)
 {
 	struct bfq_data *bfqd = e->elevator_data;
-	unsigned long uninitialized_var(__data);
+	unsigned long __data;
+	int ret;
 
-	bfq_var_store(&__data, (page));
+	ret = bfq_var_store(&__data, (page));
+	if (ret)
+		return ret;
 
 	if (__data > 1)
 		__data = 1;
@@ -4957,9 +4977,12 @@ static ssize_t bfq_low_latency_store(struct elevator_queue *e,
 				     const char *page, size_t count)
 {
 	struct bfq_data *bfqd = e->elevator_data;
-	unsigned long uninitialized_var(__data);
+	unsigned long __data;
+	int ret;
 
-	bfq_var_store(&__data, (page));
+	ret = bfq_var_store(&__data, (page));
+	if (ret)
+		return ret;
 
 	if (__data > 1)
 		__data = 1;

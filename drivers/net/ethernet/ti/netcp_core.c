@@ -2145,7 +2145,6 @@ static void netcp_delete_interface(struct netcp_device *netcp_device,
 
 	of_node_put(netcp->node_interface);
 	unregister_netdev(ndev);
-	netif_napi_del(&netcp->rx_napi);
 	free_netdev(ndev);
 }
 

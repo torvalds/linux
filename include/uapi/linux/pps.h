@@ -95,8 +95,8 @@ struct pps_kparams {
 #define PPS_CAPTURECLEAR	0x02	/* capture clear events */
 #define PPS_CAPTUREBOTH		0x03	/* capture assert and clear events */
 
-#define PPS_OFFSETASSERT	0x10	/* apply compensation for assert ev. */
-#define PPS_OFFSETCLEAR		0x20	/* apply compensation for clear ev. */
+#define PPS_OFFSETASSERT	0x10	/* apply compensation for assert event */
+#define PPS_OFFSETCLEAR		0x20	/* apply compensation for clear event */
 
 #define PPS_CANWAIT		0x100	/* can we wait for an event? */
 #define PPS_CANPOLL		0x200	/* bit reserved for future use */

@@ -89,6 +89,22 @@ config SPI_NXP_SPIFI
 config SPI_INTEL_SPI
 	tristate
 
+config SPI_INTEL_SPI_PCI
+	tristate "Intel PCH/PCU SPI flash PCI driver" if EXPERT
+	depends on X86 && PCI
+	select SPI_INTEL_SPI
+	help
+	  This enables PCI support for the Intel PCH/PCU SPI controller in
+	  master mode. This controller is present in modern Intel hardware
+	  and is used to hold BIOS and other persistent settings. Using
+	  this driver it is possible to upgrade BIOS directly from Linux.
+
+	  Say N here unless you know what you are doing. Overwriting the
+	  SPI flash may render the system unbootable.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called intel-spi-pci.
+
 config SPI_INTEL_SPI_PLATFORM
 	tristate "Intel PCH/PCU SPI flash platform driver" if EXPERT
 	depends on X86

@@ -58,11 +58,11 @@ enum {
 };
 
 static const char *gpio_of_names[] = {
-	"moddef0",
+	"mod-def0",
 	"los",
 	"tx-fault",
 	"tx-disable",
-	"rate-select",
+	"rate-select0",
 };
 
 static const enum gpiod_flags gpio_flags[] = {

@@ -710,14 +710,11 @@ EXPORT_SYMBOL(consume_skb);
  *	consume_stateless_skb - free an skbuff, assuming it is stateless
  *	@skb: buffer to free
  *
- *	Works like consume_skb(), but this variant assumes that all the head
- *	states have been already dropped.
+ *	Alike consume_skb(), but this variant assumes that this is the last
+ *	skb reference and all the head states have been already dropped
  */
-void consume_stateless_skb(struct sk_buff *skb)
+void __consume_stateless_skb(struct sk_buff *skb)
 {
-	if (!skb_unref(skb))
-		return;
-
 	trace_consume_skb(skb);
 	skb_release_data(skb);
 	kfree_skbmem(skb);

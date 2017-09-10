@@ -194,15 +194,6 @@ endef
 
 ifdef REGENERATE_PARSERS
 
-# GPERF
-# ---------------------------------------------------------------------------
-quiet_cmd_gperf = GPERF $@
-      cmd_gperf = gperf -t --output-file $@ -a -C -E -g -k 1,3,$$ -p -t $<
-
-.PRECIOUS: $(src)/%.hash.c_shipped
-$(src)/%.hash.c_shipped: $(src)/%.gperf
-	$(call cmd,gperf)
-
 # LEX
 # ---------------------------------------------------------------------------
 LEX_PREFIX = $(if $(LEX_PREFIX_${baseprereq}),$(LEX_PREFIX_${baseprereq}),yy)

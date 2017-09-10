@@ -35,6 +35,7 @@
 #include <linux/netfilter_ipv6/ip6_tables.h>
 #include <linux/netfilter/xt_hashlimit.h>
 #include <linux/mutex.h>
+#include <linux/kernel.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
@@ -279,7 +280,7 @@ static int htable_create(struct net *net, struct hashlimit_cfg3 *cfg,
 		size = cfg->size;
 	} else {
 		size = (totalram_pages << PAGE_SHIFT) / 16384 /
-		       sizeof(struct list_head);
+		       sizeof(struct hlist_head);
 		if (totalram_pages > 1024 * 1024 * 1024 / PAGE_SIZE)
 			size = 8192;
 		if (size < 16)
@@ -287,7 +288,7 @@ static int htable_create(struct net *net, struct hashlimit_cfg3 *cfg,
 	}
 	/* FIXME: don't use vmalloc() here or anywhere else -HW */
 	hinfo = vmalloc(sizeof(struct xt_hashlimit_htable) +
-	                sizeof(struct list_head) * size);
+	                sizeof(struct hlist_head) * size);
 	if (hinfo == NULL)
 		return -ENOMEM;
 	*out_hinfo = hinfo;
@@ -527,12 +528,12 @@ static u64 user2rate(u64 user)
 	}
 }
 
-static u64 user2rate_bytes(u64 user)
+static u64 user2rate_bytes(u32 user)
 {
 	u64 r;
 
-	r = user ? 0xFFFFFFFFULL / user : 0xFFFFFFFFULL;
-	r = (r - 1) << 4;
+	r = user ? U32_MAX / user : U32_MAX;
+	r = (r - 1) << XT_HASHLIMIT_BYTE_SHIFT;
 	return r;
 }
 
@@ -588,7 +589,8 @@ static void rateinfo_init(struct dsthash_ent *dh,
 		dh->rateinfo.prev_window = 0;
 		dh->rateinfo.current_rate = 0;
 		if (hinfo->cfg.mode & XT_HASHLIMIT_BYTES) {
-			dh->rateinfo.rate = user2rate_bytes(hinfo->cfg.avg);
+			dh->rateinfo.rate =
+				user2rate_bytes((u32)hinfo->cfg.avg);
 			if (hinfo->cfg.burst)
 				dh->rateinfo.burst =
 					hinfo->cfg.burst * dh->rateinfo.rate;
@@ -870,7 +872,7 @@ static int hashlimit_mt_check_common(const struct xt_mtchk_param *par,
 
 	/* Check for overflow. */
 	if (revision >= 3 && cfg->mode & XT_HASHLIMIT_RATE_MATCH) {
-		if (cfg->avg == 0) {
+		if (cfg->avg == 0 || cfg->avg > U32_MAX) {
 			pr_info("hashlimit invalid rate\n");
 			return -ERANGE;
 		}

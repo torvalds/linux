@@ -1436,7 +1436,7 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_local *local,
 			WLAN_EID_SSID_LIST,
 			WLAN_EID_CHANNEL_USAGE,
 			WLAN_EID_INTERWORKING,
-			/* mesh ID can't happen here */
+			WLAN_EID_MESH_ID,
 			/* 60 GHz can't happen here right now */
 		};
 		noffset = ieee80211_ie_split(ie, ie_len,

@@ -3981,8 +3981,13 @@ static int netif_rx_internal(struct sk_buff *skb)
 	trace_netif_rx(skb);
 
 	if (static_key_false(&generic_xdp_needed)) {
-		int ret = do_xdp_generic(rcu_dereference(skb->dev->xdp_prog),
-					 skb);
+		int ret;
+
+		preempt_disable();
+		rcu_read_lock();
+		ret = do_xdp_generic(rcu_dereference(skb->dev->xdp_prog), skb);
+		rcu_read_unlock();
+		preempt_enable();
 
 		/* Consider XDP consuming the packet a success from
 		 * the netdev point of view we do not want to count
@@ -4500,18 +4505,20 @@ static int netif_receive_skb_internal(struct sk_buff *skb)
 	if (skb_defer_rx_timestamp(skb))
 		return NET_RX_SUCCESS;
 
-	rcu_read_lock();
-
 	if (static_key_false(&generic_xdp_needed)) {
-		int ret = do_xdp_generic(rcu_dereference(skb->dev->xdp_prog),
-					 skb);
+		int ret;
 
-		if (ret != XDP_PASS) {
-			rcu_read_unlock();
+		preempt_disable();
+		rcu_read_lock();
+		ret = do_xdp_generic(rcu_dereference(skb->dev->xdp_prog), skb);
+		rcu_read_unlock();
+		preempt_enable();
+
+		if (ret != XDP_PASS)
 			return NET_RX_DROP;
-		}
 	}
 
+	rcu_read_lock();
 #ifdef CONFIG_RPS
 	if (static_key_false(&rps_needed)) {
 		struct rps_dev_flow voidflow, *rflow = &voidflow;

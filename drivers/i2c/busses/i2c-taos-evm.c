@@ -291,7 +291,7 @@ static void taos_disconnect(struct serio *serio)
 	dev_info(&serio->dev, "Disconnected from TAOS EVM\n");
 }
 
-static struct serio_device_id taos_serio_ids[] = {
+static const struct serio_device_id taos_serio_ids[] = {
 	{
 		.type	= SERIO_RS232,
 		.proto	= SERIO_TAOSEVM,

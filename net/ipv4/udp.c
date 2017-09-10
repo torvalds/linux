@@ -1397,12 +1397,15 @@ void skb_consume_udp(struct sock *sk, struct sk_buff *skb, int len)
 		unlock_sock_fast(sk, slow);
 	}
 
+	if (!skb_unref(skb))
+		return;
+
 	/* In the more common cases we cleared the head states previously,
 	 * see __udp_queue_rcv_skb().
 	 */
 	if (unlikely(udp_skb_has_head_state(skb)))
 		skb_release_head_state(skb);
-	consume_stateless_skb(skb);
+	__consume_stateless_skb(skb);
 }
 EXPORT_SYMBOL_GPL(skb_consume_udp);
 

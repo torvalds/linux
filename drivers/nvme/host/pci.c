@@ -556,8 +556,10 @@ static blk_status_t nvme_setup_prps(struct nvme_dev *dev, struct request *req)
 	int nprps, i;
 
 	length -= (page_size - offset);
-	if (length <= 0)
+	if (length <= 0) {
+		iod->first_dma = 0;
 		return BLK_STS_OK;
+	}
 
 	dma_len -= (page_size - offset);
 	if (dma_len) {
@@ -667,7 +669,7 @@ static blk_status_t nvme_map_data(struct nvme_dev *dev, struct request *req,
 		if (blk_rq_map_integrity_sg(q, req->bio, &iod->meta_sg) != 1)
 			goto out_unmap;
 
-		if (rq_data_dir(req))
+		if (req_op(req) == REQ_OP_WRITE)
 			nvme_dif_remap(req, nvme_dif_prep);
 
 		if (!dma_map_sg(dev->dev, &iod->meta_sg, 1, dma_dir))
@@ -695,7 +697,7 @@ static void nvme_unmap_data(struct nvme_dev *dev, struct request *req)
 	if (iod->nents) {
 		dma_unmap_sg(dev->dev, iod->sg, iod->nents, dma_dir);
 		if (blk_integrity_rq(req)) {
-			if (!rq_data_dir(req))
+			if (req_op(req) == REQ_OP_READ)
 				nvme_dif_remap(req, nvme_dif_complete);
 			dma_unmap_sg(dev->dev, &iod->meta_sg, 1, dma_dir);
 		}
@@ -1377,6 +1379,7 @@ static int nvme_alloc_admin_tags(struct nvme_dev *dev)
 
 		if (blk_mq_alloc_tag_set(&dev->admin_tagset))
 			return -ENOMEM;
+		dev->ctrl.admin_tagset = &dev->admin_tagset;
 
 		dev->ctrl.admin_q = blk_mq_init_queue(&dev->admin_tagset);
 		if (IS_ERR(dev->ctrl.admin_q)) {

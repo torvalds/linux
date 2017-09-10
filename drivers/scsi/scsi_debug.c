@@ -5465,7 +5465,7 @@ static int sdebug_driver_probe(struct device * dev)
 		return error;
 	}
 	if (submit_queues > nr_cpu_ids) {
-		pr_warn("%s: trim submit_queues (was %d) to nr_cpu_ids=%d\n",
+		pr_warn("%s: trim submit_queues (was %d) to nr_cpu_ids=%u\n",
 			my_name, submit_queues, nr_cpu_ids);
 		submit_queues = nr_cpu_ids;
 	}
