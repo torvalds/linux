@@ -603,10 +603,10 @@ niagara_tlb_fixup:
 	be,pt	%xcc, niagara4_patch
 	 nop
 	cmp	%g1, SUN4V_CHIP_SPARC_M7
-	be,pt	%xcc, niagara4_patch
+	be,pt	%xcc, sparc_m7_patch
 	 nop
 	cmp	%g1, SUN4V_CHIP_SPARC_M8
-	be,pt	%xcc, niagara4_patch
+	be,pt	%xcc, sparc_m7_patch
 	 nop
 	cmp	%g1, SUN4V_CHIP_SPARC_SN
 	be,pt	%xcc, niagara4_patch
@@ -621,6 +621,18 @@ niagara_tlb_fixup:
 
 	ba,a,pt	%xcc, 80f
 	 nop
+
+sparc_m7_patch:
+	call	m7_patch_copyops
+	 nop
+	call	m7_patch_bzero
+	 nop
+	call	m7_patch_pageops
+	 nop
+
+	ba,a,pt	%xcc, 80f
+	 nop
+
 niagara4_patch:
 	call	niagara4_patch_copyops
 	 nop
@@ -881,7 +893,6 @@ sparc64_boot_end:
 #include "misctrap.S"
 #include "syscalls.S"
 #include "helpers.S"
-#include "hvcalls.S"
 #include "sun4v_tlb_miss.S"
 #include "sun4v_ivec.S"
 #include "ktlb.S"
@@ -926,6 +937,7 @@ swapper_4m_tsb:
 
 ! 0x0000000000428000
 
+#include "hvcalls.S"
 #include "systbls_64.S"
 
 	.data
