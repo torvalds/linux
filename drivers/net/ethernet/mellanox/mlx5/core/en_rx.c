@@ -685,9 +685,11 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 	if (likely(netdev->features & NETIF_F_RXHASH))
 		mlx5e_skb_set_hash(cqe, skb);
 
-	if (cqe_has_vlan(cqe))
+	if (cqe_has_vlan(cqe)) {
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 				       be16_to_cpu(cqe->vlan_info));
+		rq->stats.removed_vlan_packets++;
+	}
 
 	skb->mark = be32_to_cpu(cqe->sop_drop_qpn) & MLX5E_TC_FLOW_ID_MASK;
 
