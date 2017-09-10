@@ -1141,7 +1141,7 @@ static int pm_netdev_open(struct net_device *pnetdev, u8 bnormal)
 		}
 	}
 	else
-		status =  (_SUCCESS == ips_netdrv_open(padapter))?(0):(-1);
+		status =  (_SUCCESS == ips_netdrv_open(padapter)) ? (0) : (-1);
 
 	return status;
 }
@@ -1263,7 +1263,7 @@ void rtw_dev_unload(struct adapter *padapter)
 			rtw_btcoex_IpsNotify(padapter, pwrctl->ips_mode_req);
 #ifdef CONFIG_WOWLAN
 			if (pwrctl->bSupportRemoteWakeup == true &&
-				pwrctl->wowlan_mode ==true) {
+				pwrctl->wowlan_mode == true) {
 				DBG_871X_LEVEL(_drv_always_, "%s bSupportRemoteWakeup ==true  do not run rtw_hal_deinit()\n", __func__);
 			}
 			else
@@ -1525,7 +1525,7 @@ int rtw_suspend_common(struct adapter *padapter)
 	while (pwrpriv->bips_processing == true)
 		msleep(1);
 
-	if ((!padapter->bup) || (padapter->bDriverStopped)||(padapter->bSurpriseRemoved))
+	if ((!padapter->bup) || (padapter->bDriverStopped) || (padapter->bSurpriseRemoved))
 	{
 		DBG_871X("%s bup =%d bDriverStopped =%d bSurpriseRemoved = %d\n", __func__
 			, padapter->bup, padapter->bDriverStopped, padapter->bSurpriseRemoved);
@@ -1672,7 +1672,7 @@ int rtw_resume_process_wow(struct adapter *padapter)
 		DBG_871X_LEVEL(_drv_always_, "%s: ### ERROR ### wowlan_mode =%d\n", __func__, pwrpriv->wowlan_mode);
 	}
 
-	if (padapter->pid[1]!= 0) {
+	if (padapter->pid[1] != 0) {
 		DBG_871X("pid[1]:%d\n", padapter->pid[1]);
 		rtw_signal_process(padapter->pid[1], SIGUSR2);
 	}
@@ -1775,7 +1775,7 @@ int rtw_resume_process_ap_wow(struct adapter *padapter)
 			rtw_netif_wake_queue(pnetdev);
 	}
 
-	if (padapter->pid[1]!= 0) {
+	if (padapter->pid[1] != 0) {
 		DBG_871X("pid[1]:%d\n", padapter->pid[1]);
 		rtw_signal_process(padapter->pid[1], SIGUSR2);
 	}
@@ -1843,7 +1843,7 @@ static int rtw_resume_process_normal(struct adapter *padapter)
 	netif_device_attach(pnetdev);
 	netif_carrier_on(pnetdev);
 
-	if (padapter->pid[1]!= 0) {
+	if (padapter->pid[1] != 0) {
 		DBG_871X("pid[1]:%d\n", padapter->pid[1]);
 		rtw_signal_process(padapter->pid[1], SIGUSR2);
 	}
