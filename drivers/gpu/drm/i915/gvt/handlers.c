@@ -1451,7 +1451,7 @@ static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	if (WARN_ON(ring_id < 0 || ring_id > I915_NUM_ENGINES - 1))
 		return -EINVAL;
 
-	execlist = &vgpu->execlist[ring_id];
+	execlist = &vgpu->submission.execlist[ring_id];
 
 	execlist->elsp_dwords.data[3 - execlist->elsp_dwords.index] = data;
 	if (execlist->elsp_dwords.index == 3) {

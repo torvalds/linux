@@ -226,7 +226,7 @@ void intel_gvt_deactivate_vgpu(struct intel_vgpu *vgpu)
 
 	vgpu->active = false;
 
-	if (atomic_read(&vgpu->running_workload_num)) {
+	if (atomic_read(&vgpu->submission.running_workload_num)) {
 		mutex_unlock(&gvt->lock);
 		intel_gvt_wait_vgpu_idle(vgpu);
 		mutex_lock(&gvt->lock);
@@ -293,7 +293,7 @@ struct intel_vgpu *intel_gvt_create_idle_vgpu(struct intel_gvt *gvt)
 	vgpu->gvt = gvt;
 
 	for (i = 0; i < I915_NUM_ENGINES; i++)
-		INIT_LIST_HEAD(&vgpu->workload_q_head[i]);
+		INIT_LIST_HEAD(&vgpu->submission.workload_q_head[i]);
 
 	ret = intel_vgpu_init_sched_policy(vgpu);
 	if (ret)

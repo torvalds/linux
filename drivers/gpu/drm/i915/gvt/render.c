@@ -261,14 +261,15 @@ static void restore_mocs(struct intel_vgpu *vgpu, int ring_id)
 static void switch_mmio_to_vgpu(struct intel_vgpu *vgpu, int ring_id)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
-	struct render_mmio *mmio;
-	u32 v;
-	int i, array_size;
-	u32 *reg_state = vgpu->shadow_ctx->engine[ring_id].lrc_reg_state;
+	struct intel_vgpu_submission *s = &vgpu->submission;
+	u32 *reg_state = s->shadow_ctx->engine[ring_id].lrc_reg_state;
 	u32 ctx_ctrl = reg_state[CTX_CONTEXT_CONTROL_VAL];
 	u32 inhibit_mask =
 		_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
 	i915_reg_t last_reg = _MMIO(0);
+	struct render_mmio *mmio;
+	u32 v;
+	int i, array_size;
 
 	if (IS_SKYLAKE(vgpu->gvt->dev_priv)
 		|| IS_KABYLAKE(vgpu->gvt->dev_priv)) {

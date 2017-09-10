@@ -142,6 +142,15 @@ struct vgpu_sched_ctl {
 	int weight;
 };
 
+struct intel_vgpu_submission {
+	struct intel_vgpu_execlist execlist[I915_NUM_ENGINES];
+	struct list_head workload_q_head[I915_NUM_ENGINES];
+	struct kmem_cache *workloads;
+	atomic_t running_workload_num;
+	struct i915_gem_context *shadow_ctx;
+	DECLARE_BITMAP(shadow_ctx_desc_updated, I915_NUM_ENGINES);
+};
+
 struct intel_vgpu {
 	struct intel_gvt *gvt;
 	int id;
@@ -161,16 +170,12 @@ struct intel_vgpu {
 	struct intel_vgpu_gtt gtt;
 	struct intel_vgpu_opregion opregion;
 	struct intel_vgpu_display display;
-	struct intel_vgpu_execlist execlist[I915_NUM_ENGINES];
-	struct list_head workload_q_head[I915_NUM_ENGINES];
-	struct kmem_cache *workloads;
-	atomic_t running_workload_num;
+	struct intel_vgpu_submission submission;
 	/* 1/2K for each reserve ring buffer */
 	void *reserve_ring_buffer_va[I915_NUM_ENGINES];
 	int reserve_ring_buffer_size[I915_NUM_ENGINES];
 	DECLARE_BITMAP(tlb_handle_pending, I915_NUM_ENGINES);
-	struct i915_gem_context *shadow_ctx;
-	DECLARE_BITMAP(shadow_ctx_desc_updated, I915_NUM_ENGINES);
+
 
 #if IS_ENABLED(CONFIG_DRM_I915_GVT_KVMGT)
 	struct {
