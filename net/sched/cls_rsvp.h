@@ -389,7 +389,7 @@ static unsigned int gen_handle(struct tcf_proto *tp, unsigned salt)
 		if ((data->hgenerator += 0x10000) == 0)
 			data->hgenerator = 0x10000;
 		h = data->hgenerator|salt;
-		if (rsvp_get(tp, h) == 0)
+		if (!rsvp_get(tp, h))
 			return h;
 	}
 	return 0;
