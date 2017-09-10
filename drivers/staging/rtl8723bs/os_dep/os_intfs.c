@@ -597,7 +597,7 @@ u32 rtw_start_drv_threads(struct adapter *padapter)
 		_status = _FAIL;
 
 	padapter->cmdThread = kthread_run(rtw_cmd_thread, padapter, "RTW_CMD_THREAD");
-        if (IS_ERR(padapter->cmdThread))
+	if (IS_ERR(padapter->cmdThread))
 		_status = _FAIL;
 	else
 		down(&padapter->cmdpriv.terminate_cmdthread_sema); /* wait for cmd_thread to run */
