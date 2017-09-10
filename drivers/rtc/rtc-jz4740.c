@@ -368,7 +368,7 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 		ret = jz4740_rtc_reg_write(rtc, JZ_REG_RTC_SCRATCHPAD, 0x12345678);
 		ret = jz4740_rtc_reg_write(rtc, JZ_REG_RTC_SEC, 0);
 		if (ret) {
-			dev_err(&pdev->dev, "Could not write write to RTC registers\n");
+			dev_err(&pdev->dev, "Could not write to RTC registers\n");
 			return ret;
 		}
 	}
