@@ -1453,7 +1453,7 @@ static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 
 	execlist = &vgpu->execlist[ring_id];
 
-	execlist->elsp_dwords.data[execlist->elsp_dwords.index] = data;
+	execlist->elsp_dwords.data[3 - execlist->elsp_dwords.index] = data;
 	if (execlist->elsp_dwords.index == 3) {
 		ret = intel_vgpu_submit_execlist(vgpu, ring_id);
 		if(ret)

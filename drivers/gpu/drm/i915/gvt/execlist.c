@@ -511,8 +511,8 @@ static int prepare_execlist_workload(struct intel_vgpu_workload *workload)
 	if (!workload->emulate_schedule_in)
 		return 0;
 
-	ctx[0] = *get_desc_from_elsp_dwords(&workload->elsp_dwords, 1);
-	ctx[1] = *get_desc_from_elsp_dwords(&workload->elsp_dwords, 0);
+	ctx[0] = *get_desc_from_elsp_dwords(&workload->elsp_dwords, 0);
+	ctx[1] = *get_desc_from_elsp_dwords(&workload->elsp_dwords, 1);
 
 	ret = emulate_execlist_schedule_in(&vgpu->execlist[ring_id], ctx);
 	if (!ret)
@@ -770,21 +770,21 @@ static int submit_context(struct intel_vgpu *vgpu, int ring_id,
 int intel_vgpu_submit_execlist(struct intel_vgpu *vgpu, int ring_id)
 {
 	struct intel_vgpu_execlist *execlist = &vgpu->execlist[ring_id];
-	struct execlist_ctx_descriptor_format desc[2];
+	struct execlist_ctx_descriptor_format *desc[2];
 	int i, ret;
 
-	desc[0] = *get_desc_from_elsp_dwords(&execlist->elsp_dwords, 1);
-	desc[1] = *get_desc_from_elsp_dwords(&execlist->elsp_dwords, 0);
+	desc[0] = get_desc_from_elsp_dwords(&execlist->elsp_dwords, 0);
+	desc[1] = get_desc_from_elsp_dwords(&execlist->elsp_dwords, 1);
 
-	if (!desc[0].valid) {
+	if (!desc[0]->valid) {
 		gvt_vgpu_err("invalid elsp submission, desc0 is invalid\n");
 		goto inv_desc;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(desc); i++) {
-		if (!desc[i].valid)
+		if (!desc[i]->valid)
 			continue;
-		if (!desc[i].privilege_access) {
+		if (!desc[i]->privilege_access) {
 			gvt_vgpu_err("unexpected GGTT elsp submission\n");
 			goto inv_desc;
 		}
@@ -792,9 +792,9 @@ int intel_vgpu_submit_execlist(struct intel_vgpu *vgpu, int ring_id)
 
 	/* submit workload */
 	for (i = 0; i < ARRAY_SIZE(desc); i++) {
-		if (!desc[i].valid)
+		if (!desc[i]->valid)
 			continue;
-		ret = submit_context(vgpu, ring_id, &desc[i], i == 0);
+		ret = submit_context(vgpu, ring_id, desc[i], i == 0);
 		if (ret) {
 			gvt_vgpu_err("failed to submit desc %d\n", i);
 			return ret;
@@ -805,7 +805,7 @@ int intel_vgpu_submit_execlist(struct intel_vgpu *vgpu, int ring_id)
 
 inv_desc:
 	gvt_vgpu_err("descriptors content: desc0 %08x %08x desc1 %08x %08x\n",
-		     desc[0].udw, desc[0].ldw, desc[1].udw, desc[1].ldw);
+		     desc[0]->udw, desc[0]->ldw, desc[1]->udw, desc[1]->ldw);
 	return -EINVAL;
 }
 
