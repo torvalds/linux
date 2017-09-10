@@ -1292,7 +1292,7 @@ ENTRY(nmi)
 	movq	%cr3, %rax
 	pushq	%rax
 #ifdef CONFIG_KAISER_REAL_SWITCH
-	andq	$(~0x1000), %rax
+	andq	$(~KAISER_SHADOW_PGD_OFFSET), %rax
 #endif
 	movq	%rax, %cr3
 #endif
@@ -1535,7 +1535,7 @@ end_repeat_nmi:
 	movq	%cr3, %rax
 	pushq	%rax
 #ifdef CONFIG_KAISER_REAL_SWITCH
-	andq	$(~0x1000), %rax
+	andq	$(~KAISER_SHADOW_PGD_OFFSET), %rax
 #endif
 	movq	%rax, %cr3
 #endif
