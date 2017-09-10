@@ -147,6 +147,7 @@ static u32 gen9_render_mocs_L3[32];
 static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct intel_vgpu_submission *s = &vgpu->submission;
 	enum forcewake_domains fw;
 	i915_reg_t reg;
 	u32 regs[] = {
@@ -160,7 +161,7 @@ static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 	if (WARN_ON(ring_id >= ARRAY_SIZE(regs)))
 		return;
 
-	if (!test_and_clear_bit(ring_id, (void *)vgpu->tlb_handle_pending))
+	if (!test_and_clear_bit(ring_id, (void *)s->tlb_handle_pending))
 		return;
 
 	reg = _MMIO(regs[ring_id]);

@@ -149,6 +149,7 @@ struct intel_vgpu_submission {
 	atomic_t running_workload_num;
 	struct i915_gem_context *shadow_ctx;
 	DECLARE_BITMAP(shadow_ctx_desc_updated, I915_NUM_ENGINES);
+	DECLARE_BITMAP(tlb_handle_pending, I915_NUM_ENGINES);
 };
 
 struct intel_vgpu {
@@ -174,7 +175,6 @@ struct intel_vgpu {
 	/* 1/2K for each reserve ring buffer */
 	void *reserve_ring_buffer_va[I915_NUM_ENGINES];
 	int reserve_ring_buffer_size[I915_NUM_ENGINES];
-	DECLARE_BITMAP(tlb_handle_pending, I915_NUM_ENGINES);
 
 
 #if IS_ENABLED(CONFIG_DRM_I915_GVT_KVMGT)

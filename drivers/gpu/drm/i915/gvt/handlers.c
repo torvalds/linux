@@ -1526,7 +1526,7 @@ static int gvt_reg_tlb_control_handler(struct intel_vgpu *vgpu,
 	default:
 		return -EINVAL;
 	}
-	set_bit(id, (void *)vgpu->tlb_handle_pending);
+	set_bit(id, (void *)vgpu->submission.tlb_handle_pending);
 
 	return 0;
 }

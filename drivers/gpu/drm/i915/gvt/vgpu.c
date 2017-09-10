@@ -346,7 +346,6 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	vgpu->handle = param->handle;
 	vgpu->gvt = gvt;
 	vgpu->sched_ctl.weight = param->weight;
-	bitmap_zero(vgpu->tlb_handle_pending, I915_NUM_ENGINES);
 
 	intel_vgpu_init_cfg_space(vgpu, param->primary);
 

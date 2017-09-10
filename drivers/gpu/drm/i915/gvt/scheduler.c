@@ -766,6 +766,7 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 		INIT_LIST_HEAD(&s->workload_q_head[i]);
 
 	atomic_set(&s->running_workload_num, 0);
+	bitmap_zero(s->tlb_handle_pending, I915_NUM_ENGINES);
 
 	return 0;
 
