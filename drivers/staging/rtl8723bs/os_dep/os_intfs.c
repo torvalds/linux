@@ -121,7 +121,7 @@ static int rtw_antdiv_type; /* 0:decide by efuse  1: for 88EE, 1Tx and 1RxCG are
 
 static int rtw_enusbss;/* 0:disable, 1:enable */
 
-static int rtw_hwpdn_mode =2;/* 0:disable, 1:enable, 2: by EFUSE config */
+static int rtw_hwpdn_mode = 2;/* 0:disable, 1:enable, 2: by EFUSE config */
 
 #ifdef CONFIG_HW_PWRP_DETECTION
 static int rtw_hwpwrp_detect = 1;
@@ -183,7 +183,7 @@ module_param(rtw_hwpwrp_detect, int, 0644);
 
 module_param(rtw_hw_wps_pbc, int, 0644);
 
-static uint rtw_max_roaming_times =2;
+static uint rtw_max_roaming_times = 2;
 module_param(rtw_max_roaming_times, uint, 0644);
 MODULE_PARM_DESC(rtw_max_roaming_times,"The max roaming times to try");
 
@@ -255,8 +255,8 @@ static uint loadparam(struct adapter *padapter, _nic_hdl pnetdev)
 
 	registry_par->vrtl_carrier_sense = (u8)rtw_vrtl_carrier_sense ;
 	registry_par->vcs_type = (u8)rtw_vcs_type;
-	registry_par->rts_thresh =(u16)rtw_rts_thresh;
-	registry_par->frag_thresh =(u16)rtw_frag_thresh;
+	registry_par->rts_thresh = (u16)rtw_rts_thresh;
+	registry_par->frag_thresh = (u16)rtw_frag_thresh;
 	registry_par->preamble = (u8)rtw_preamble;
 	registry_par->scan_mode = (u8)rtw_scan_mode;
 	registry_par->adhoc_tx_pwr = (u8)rtw_adhoc_tx_pwr;
@@ -652,8 +652,8 @@ static u8 rtw_init_default_value(struct adapter *padapter)
 #ifdef CONFIG_GTK_OL
 	psecuritypriv->binstallKCK_KEK = _FAIL;
 #endif /* CONFIG_GTK_OL */
-	psecuritypriv->sw_encrypt =pregistrypriv->software_encrypt;
-	psecuritypriv->sw_decrypt =pregistrypriv->software_decrypt;
+	psecuritypriv->sw_encrypt = pregistrypriv->software_encrypt;
+	psecuritypriv->sw_decrypt = pregistrypriv->software_decrypt;
 
 	psecuritypriv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open; /* open system */
 	psecuritypriv->dot11PrivacyAlgrthm = _NO_PRIVACY_;
@@ -778,7 +778,7 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 		goto exit;
 	}
 
-	padapter->cmdpriv.padapter =padapter;
+	padapter->cmdpriv.padapter = padapter;
 
 	if ((rtw_init_evt_priv(&padapter->evtpriv)) == _FAIL) {
 		RT_TRACE(_module_os_intfs_c_, _drv_err_, ("\n Can't init evt_priv\n"));
@@ -987,7 +987,7 @@ int _netdev_open(struct net_device *pnetdev)
 
 		DBG_871X("MAC Address = "MAC_FMT"\n", MAC_ARG(pnetdev->dev_addr));
 
-		status =rtw_start_drv_threads(padapter);
+		status = rtw_start_drv_threads(padapter);
 		if (status == _FAIL) {
 			DBG_871X("Initialize driver software resource Failed!\n");
 			goto netdev_open_error;
@@ -1642,7 +1642,7 @@ int rtw_resume_process_wow(struct adapter *padapter)
 		}
 
 		/* Disable WOW, set H2C command */
-		poidparam.subcode =WOWLAN_DISABLE;
+		poidparam.subcode = WOWLAN_DISABLE;
 		padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_WOWLAN, (u8 *)&poidparam);
 
 		psta = rtw_get_stainfo(&padapter->stapriv, get_bssid(&padapter->mlmepriv));
@@ -1706,7 +1706,7 @@ int rtw_resume_process_wow(struct adapter *padapter)
 		DBG_871X_LEVEL(_drv_always_, "do not reset timer\n");
 	}
 
-	pwrpriv->wowlan_mode =false;
+	pwrpriv->wowlan_mode = false;
 
 	/* clean driver side wake up reason. */
 	pwrpriv->wowlan_wake_reason = 0;
