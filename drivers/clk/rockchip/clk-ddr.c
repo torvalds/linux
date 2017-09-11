@@ -53,14 +53,13 @@ static int rk_drm_get_lcdc_type(void)
 	if (drm) {
 		struct drm_connector *conn;
 
-		drm_modeset_lock(&drm->mode_config.connection_mutex, NULL);
-		drm_for_each_connector(conn, drm) {
+		list_for_each_entry(conn, &drm->mode_config.connector_list,
+				    head) {
 			if (conn->encoder) {
 				lcdc_type = conn->connector_type;
 				break;
 			}
 		}
-		drm_modeset_unlock(&drm->mode_config.connection_mutex);
 	}
 
 	switch (lcdc_type) {
