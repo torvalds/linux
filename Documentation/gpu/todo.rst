@@ -75,17 +75,6 @@ helpers.
 
 Contact: Ville Syrjälä, Daniel Vetter, driver maintainers
 
-Implement deferred fbdev setup in the helper
---------------------------------------------
-
-Many (especially embedded drivers) want to delay fbdev setup until there's a
-real screen plugged in. This is to avoid the dreaded fallback to the low-res
-fbdev default. Many drivers have a hacked-up (and often broken) version of this,
-better to do it once in the shared helpers. Thierry has a patch series, but that
-one needs to be rebased and final polish applied.
-
-Contact: Thierry Reding, Daniel Vetter, driver maintainers
-
 Convert early atomic drivers to async commit helpers
 ----------------------------------------------------
 
@@ -138,6 +127,8 @@ interfaces to fix these issues:
   the acquire context explicitly on stack and then also pass it down into
   drivers explicitly so that the legacy-on-atomic functions can use them.
 
+  Except for some driver code this is done.
+
 * A bunch of the vtable hooks are now in the wrong place: DRM has a split
   between core vfunc tables (named ``drm_foo_funcs``), which are used to
   implement the userspace ABI. And then there's the optional hooks for the
@@ -150,6 +141,8 @@ interfaces to fix these issues:
   used by all atomic drivers which don't select the encoder for a given
   connector at runtime. That's almost all of them, and would allow us to get
   rid of a lot of ``best_encoder`` boilerplate in drivers.
+
+  This was almost done, but new drivers added a few more cases again.
 
 Contact: Daniel Vetter
 
