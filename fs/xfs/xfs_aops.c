@@ -80,6 +80,19 @@ xfs_find_bdev_for_inode(
 		return mp->m_ddev_targp->bt_bdev;
 }
 
+struct dax_device *
+xfs_find_daxdev_for_inode(
+	struct inode		*inode)
+{
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
+
+	if (XFS_IS_REALTIME_INODE(ip))
+		return mp->m_rtdev_targp->bt_daxdev;
+	else
+		return mp->m_ddev_targp->bt_daxdev;
+}
+
 /*
  * We're now finished for good with this page.  Update the page state via the
  * associated buffer_heads, paying attention to the start and end offsets that
