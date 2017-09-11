@@ -45,7 +45,6 @@ struct amdgpu_cgs_device {
 static int amdgpu_cgs_alloc_gpu_mem(struct cgs_device *cgs_device,
 				    enum cgs_gpu_mem_type type,
 				    uint64_t size, uint64_t align,
-				    uint64_t min_offset, uint64_t max_offset,
 				    cgs_handle_t *handle)
 {
 	CGS_FUNC_ADEV;
@@ -53,13 +52,6 @@ static int amdgpu_cgs_alloc_gpu_mem(struct cgs_device *cgs_device,
 	int ret = 0;
 	uint32_t domain = 0;
 	struct amdgpu_bo *obj;
-	struct ttm_placement placement;
-	struct ttm_place place;
-
-	if (min_offset > max_offset) {
-		BUG_ON(1);
-		return -EINVAL;
-	}
 
 	/* fail if the alignment is not a power of 2 */
 	if (((align != 1) && (align & (align - 1)))
@@ -73,41 +65,19 @@ static int amdgpu_cgs_alloc_gpu_mem(struct cgs_device *cgs_device,
 		flags = AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
 			AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
 		domain = AMDGPU_GEM_DOMAIN_VRAM;
-		if (max_offset > adev->mc.real_vram_size)
-			return -EINVAL;
-		place.fpfn = min_offset >> PAGE_SHIFT;
-		place.lpfn = max_offset >> PAGE_SHIFT;
-		place.flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
-			TTM_PL_FLAG_VRAM;
 		break;
 	case CGS_GPU_MEM_TYPE__INVISIBLE_CONTIG_FB:
 	case CGS_GPU_MEM_TYPE__INVISIBLE_FB:
 		flags = AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
 			AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
 		domain = AMDGPU_GEM_DOMAIN_VRAM;
-		if (adev->mc.visible_vram_size < adev->mc.real_vram_size) {
-			place.fpfn =
-				max(min_offset, adev->mc.visible_vram_size) >> PAGE_SHIFT;
-			place.lpfn =
-				min(max_offset, adev->mc.real_vram_size) >> PAGE_SHIFT;
-			place.flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
-				TTM_PL_FLAG_VRAM;
-		}
-
 		break;
 	case CGS_GPU_MEM_TYPE__GART_CACHEABLE:
 		domain = AMDGPU_GEM_DOMAIN_GTT;
-		place.fpfn = min_offset >> PAGE_SHIFT;
-		place.lpfn = max_offset >> PAGE_SHIFT;
-		place.flags = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_TT;
 		break;
 	case CGS_GPU_MEM_TYPE__GART_WRITECOMBINE:
 		flags = AMDGPU_GEM_CREATE_CPU_GTT_USWC;
 		domain = AMDGPU_GEM_DOMAIN_GTT;
-		place.fpfn = min_offset >> PAGE_SHIFT;
-		place.lpfn = max_offset >> PAGE_SHIFT;
-		place.flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_TT |
-			TTM_PL_FLAG_UNCACHED;
 		break;
 	default:
 		return -EINVAL;
@@ -116,15 +86,8 @@ static int amdgpu_cgs_alloc_gpu_mem(struct cgs_device *cgs_device,
 
 	*handle = 0;
 
-	placement.placement = &place;
-	placement.num_placement = 1;
-	placement.busy_placement = &place;
-	placement.num_busy_placement = 1;
-
-	ret = amdgpu_bo_create_restricted(adev, size, align,
-					  true, domain, flags,
-					  NULL, &placement, NULL,
-					  0, &obj);
+	ret = amdgpu_bo_create(adev, size, align, true, domain, flags,
+			       NULL, NULL, 0, &obj);
 	if (ret) {
 		DRM_ERROR("(%d) bo create failed\n", ret);
 		return ret;
@@ -155,19 +118,14 @@ static int amdgpu_cgs_gmap_gpu_mem(struct cgs_device *cgs_device, cgs_handle_t h
 				   uint64_t *mcaddr)
 {
 	int r;
-	u64 min_offset, max_offset;
 	struct amdgpu_bo *obj = (struct amdgpu_bo *)handle;
 
 	WARN_ON_ONCE(obj->placement.num_placement > 1);
 
-	min_offset = obj->placements[0].fpfn << PAGE_SHIFT;
-	max_offset = obj->placements[0].lpfn << PAGE_SHIFT;
-
 	r = amdgpu_bo_reserve(obj, true);
 	if (unlikely(r != 0))
 		return r;
-	r = amdgpu_bo_pin_restricted(obj, obj->preferred_domains,
-				     min_offset, max_offset, mcaddr);
+	r = amdgpu_bo_pin(obj, obj->preferred_domains, mcaddr);
 	amdgpu_bo_unreserve(obj);
 	return r;
 }

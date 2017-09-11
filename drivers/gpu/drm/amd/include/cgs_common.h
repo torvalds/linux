@@ -193,8 +193,6 @@ struct cgs_acpi_method_info {
  * @type:	memory type
  * @size:	size in bytes
  * @align:	alignment in bytes
- * @min_offset: minimum offset from start of heap
- * @max_offset: maximum offset from start of heap
  * @handle:	memory handle (output)
  *
  * The memory types CGS_GPU_MEM_TYPE_*_CONTIG_FB force contiguous
@@ -216,7 +214,6 @@ struct cgs_acpi_method_info {
  */
 typedef int (*cgs_alloc_gpu_mem_t)(struct cgs_device *cgs_device, enum cgs_gpu_mem_type type,
 				   uint64_t size, uint64_t align,
-				   uint64_t min_offset, uint64_t max_offset,
 				   cgs_handle_t *handle);
 
 /**
@@ -479,8 +476,8 @@ struct cgs_device
 #define CGS_OS_CALL(func,dev,...) \
 	(((struct cgs_device *)dev)->os_ops->func(dev, ##__VA_ARGS__))
 
-#define cgs_alloc_gpu_mem(dev,type,size,align,min_off,max_off,handle)	\
-	CGS_CALL(alloc_gpu_mem,dev,type,size,align,min_off,max_off,handle)
+#define cgs_alloc_gpu_mem(dev,type,size,align,handle)	\
+	CGS_CALL(alloc_gpu_mem,dev,type,size,align,handle)
 #define cgs_free_gpu_mem(dev,handle)		\
 	CGS_CALL(free_gpu_mem,dev,handle)
 #define cgs_gmap_gpu_mem(dev,handle,mcaddr)	\

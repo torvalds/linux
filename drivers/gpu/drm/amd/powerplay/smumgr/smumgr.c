@@ -316,7 +316,7 @@ int smu_allocate_memory(void *device, uint32_t size,
 		return -EINVAL;
 
 	ret = cgs_alloc_gpu_mem(device, type, size, byte_align,
-				0, 0, (cgs_handle_t *)handle);
+				(cgs_handle_t *)handle);
 	if (ret)
 		return -ENOMEM;
 
