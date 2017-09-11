@@ -43,13 +43,6 @@ asmlinkage void ret_from_fork(void) asm ("ret_from_fork");
 
 extern void kernel_thread_starter(void);
 
-/*
- * Free current thread data structures etc..
- */
-void exit_thread(struct task_struct *tsk)
-{
-}
-
 void flush_thread(void)
 {
 }
