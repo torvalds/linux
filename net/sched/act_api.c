@@ -53,10 +53,13 @@ static void tcf_action_goto_chain_exec(const struct tc_action *a,
 	res->goto_tp = rcu_dereference_bh(chain->filter_chain);
 }
 
-static void free_tcf(struct rcu_head *head)
+/* XXX: For standalone actions, we don't need a RCU grace period either, because
+ * actions are always connected to filters and filters are already destroyed in
+ * RCU callbacks, so after a RCU grace period actions are already disconnected
+ * from filters. Readers later can not find us.
+ */
+static void free_tcf(struct tc_action *p)
 {
-	struct tc_action *p = container_of(head, struct tc_action, tcfa_rcu);
-
 	free_percpu(p->cpu_bstats);
 	free_percpu(p->cpu_qstats);
 
@@ -76,11 +79,7 @@ static void tcf_idr_remove(struct tcf_idrinfo *idrinfo, struct tc_action *p)
 	idr_remove_ext(&idrinfo->action_idr, p->tcfa_index);
 	spin_unlock_bh(&idrinfo->lock);
 	gen_kill_estimator(&p->tcfa_rate_est);
-	/*
-	 * gen_estimator est_timer() might access p->tcfa_lock
-	 * or bstats, wait a RCU grace period before freeing p
-	 */
-	call_rcu(&p->tcfa_rcu, free_tcf);
+	free_tcf(p);
 }
 
 int __tcf_idr_release(struct tc_action *p, bool bind, bool strict)
@@ -259,7 +258,7 @@ void tcf_idr_cleanup(struct tc_action *a, struct nlattr *est)
 {
 	if (est)
 		gen_kill_estimator(&a->tcfa_rate_est);
-	call_rcu(&a->tcfa_rcu, free_tcf);
+	free_tcf(a);
 }
 EXPORT_SYMBOL(tcf_idr_cleanup);
 
