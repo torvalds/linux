@@ -154,7 +154,7 @@ drm_gem_fb_create_with_funcs(struct drm_device *dev, struct drm_file *file,
 
 		objs[i] = drm_gem_object_lookup(file, mode_cmd->handles[i]);
 		if (!objs[i]) {
-			DRM_DEV_ERROR(dev->dev, "Failed to lookup GEM\n");
+			DRM_DEBUG_KMS("Failed to lookup GEM object\n");
 			ret = -ENOENT;
 			goto err_gem_object_put;
 		}
@@ -232,7 +232,7 @@ int drm_gem_fb_prepare_fb(struct drm_plane *plane,
 	struct dma_buf *dma_buf;
 	struct dma_fence *fence;
 
-	if ((plane->state->fb == state->fb) || !state->fb)
+	if (plane->state->fb == state->fb || !state->fb)
 		return 0;
 
 	dma_buf = drm_gem_fb_get_obj(state->fb, 0)->dma_buf;
