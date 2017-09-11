@@ -1447,7 +1447,7 @@ static void prism2sta_inf_linkstatus(struct wlandevice *wlandev,
 {
 	struct hfa384x *hw = wlandev->priv;
 
-	hw->link_status_new = inf->info.linkstatus.linkstatus;
+	hw->link_status_new = le16_to_cpu(inf->info.linkstatus.linkstatus);
 
 	schedule_work(&hw->link_bh);
 }
