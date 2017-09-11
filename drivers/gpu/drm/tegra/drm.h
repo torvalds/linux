@@ -119,6 +119,8 @@ void *tegra_drm_alloc(struct tegra_drm *tegra, size_t size, dma_addr_t *iova);
 void tegra_drm_free(struct tegra_drm *tegra, size_t size, void *virt,
 		    dma_addr_t iova);
 
+struct cec_notifier;
+
 struct tegra_output {
 	struct device_node *of_node;
 	struct device *dev;
@@ -126,6 +128,7 @@ struct tegra_output {
 	struct drm_panel *panel;
 	struct i2c_adapter *ddc;
 	const struct edid *edid;
+	struct cec_notifier *notifier;
 	unsigned int hpd_irq;
 	int hpd_gpio;
 	enum of_gpio_flags hpd_gpio_flags;
