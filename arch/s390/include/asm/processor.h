@@ -220,8 +220,8 @@ void show_cacheinfo(struct seq_file *m);
 /* Free all resources held by a thread. */
 static inline void release_thread(struct task_struct *tsk) { }
 
-/* Free guarded storage control block for current */
-void exit_thread_gs(void);
+/* Free guarded storage control block */
+void guarded_storage_release(struct task_struct *tsk);
 
 unsigned long get_wchan(struct task_struct *p);
 #define task_pt_regs(tsk) ((struct pt_regs *) \
