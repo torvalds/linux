@@ -12,6 +12,7 @@
 #include <asm/setup.h>
 
 const struct kexec_file_ops * const kexec_file_loaders[] = {
+	&s390_kexec_elf_ops,
 	&s390_kexec_image_ops,
 	NULL,
 };

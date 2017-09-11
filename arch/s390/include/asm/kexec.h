@@ -67,5 +67,6 @@ int *kexec_file_update_kernel(struct kimage *iamge,
 			      struct s390_load_data *data);
 
 extern const struct kexec_file_ops s390_kexec_image_ops;
+extern const struct kexec_file_ops s390_kexec_elf_ops;
 
 #endif /*_S390_KEXEC_H */
