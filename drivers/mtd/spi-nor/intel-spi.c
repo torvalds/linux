@@ -290,6 +290,7 @@ static int intel_spi_init(struct intel_spi *ispi)
 		ispi->pregs = ispi->base + BYT_PR;
 		ispi->nregions = BYT_FREG_NUM;
 		ispi->pr_num = BYT_PR_NUM;
+		ispi->swseq = true;
 
 		if (writeable) {
 			/* Disable write protection */
@@ -310,6 +311,7 @@ static int intel_spi_init(struct intel_spi *ispi)
 		ispi->pregs = ispi->base + LPT_PR;
 		ispi->nregions = LPT_FREG_NUM;
 		ispi->pr_num = LPT_PR_NUM;
+		ispi->swseq = true;
 		break;
 
 	case INTEL_SPI_BXT:
@@ -324,10 +326,22 @@ static int intel_spi_init(struct intel_spi *ispi)
 		return -EINVAL;
 	}
 
-	/* Disable #SMI generation */
+	/* Disable #SMI generation from HW sequencer */
 	val = readl(ispi->base + HSFSTS_CTL);
 	val &= ~HSFSTS_CTL_FSMIE;
 	writel(val, ispi->base + HSFSTS_CTL);
+
+	/*
+	 * Some controllers can only do basic operations using hardware
+	 * sequencer. All other operations are supposed to be carried out
+	 * using software sequencer.
+	 */
+	if (ispi->swseq) {
+		/* Disable #SMI generation from SW sequencer */
+		val = readl(ispi->sregs + SSFSTS_CTL);
+		val &= ~SSFSTS_CTL_FSMIE;
+		writel(val, ispi->sregs + SSFSTS_CTL);
+	}
 
 	/*
 	 * BIOS programs allowed opcodes and then locks down the register.
@@ -337,13 +351,6 @@ static int intel_spi_init(struct intel_spi *ispi)
 	opmenu0 = readl(ispi->sregs + OPMENU0);
 	opmenu1 = readl(ispi->sregs + OPMENU1);
 
-	/*
-	 * Some controllers can only do basic operations using hardware
-	 * sequencer. All other operations are supposed to be carried out
-	 * using software sequencer. If we find that BIOS has programmed
-	 * opcodes for the software sequencer we use that over the hardware
-	 * sequencer.
-	 */
 	if (opmenu0 && opmenu1) {
 		for (i = 0; i < ARRAY_SIZE(ispi->opcodes) / 2; i++) {
 			ispi->opcodes[i] = opmenu0 >> i * 8;
@@ -353,13 +360,6 @@ static int intel_spi_init(struct intel_spi *ispi)
 		val = readl(ispi->sregs + PREOP_OPTYPE);
 		ispi->preopcodes[0] = val;
 		ispi->preopcodes[1] = val >> 8;
-
-		/* Disable #SMI generation from SW sequencer */
-		val = readl(ispi->sregs + SSFSTS_CTL);
-		val &= ~SSFSTS_CTL_FSMIE;
-		writel(val, ispi->sregs + SSFSTS_CTL);
-
-		ispi->swseq = true;
 	}
 
 	intel_spi_dump_regs(ispi);
