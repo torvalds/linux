@@ -6,7 +6,6 @@ System reset
 
 Required properties:
 - compatible: should be one of the following:
-    "socionext,uniphier-sld3-reset" - for sLD3 SoC
     "socionext,uniphier-ld4-reset"  - for LD4 SoC
     "socionext,uniphier-pro4-reset" - for Pro4 SoC
     "socionext,uniphier-sld8-reset" - for sLD8 SoC
@@ -37,7 +36,6 @@ Media I/O (MIO) reset, SD reset
 
 Required properties:
 - compatible: should be one of the following:
-    "socionext,uniphier-sld3-mio-reset" - for sLD3 SoC
     "socionext,uniphier-ld4-mio-reset"  - for LD4 SoC
     "socionext,uniphier-pro4-mio-reset" - for Pro4 SoC
     "socionext,uniphier-sld8-mio-reset" - for sLD8 SoC
@@ -87,6 +85,31 @@ Example:
 
 		reset {
 			compatible = "socionext,uniphier-ld11-peri-reset";
+			#reset-cells = <1>;
+		};
+
+		other nodes ...
+	};
+
+
+Analog signal amplifier reset
+-----------------------------
+
+Required properties:
+- compatible: should be one of the following:
+    "socionext,uniphier-ld11-adamv-reset" - for LD11 SoC
+    "socionext,uniphier-ld20-adamv-reset" - for LD20 SoC
+- #reset-cells: should be 1.
+
+Example:
+
+	adamv@57920000 {
+		compatible = "socionext,uniphier-ld11-adamv",
+			     "simple-mfd", "syscon";
+		reg = <0x57920000 0x1000>;
+
+		adamv_rst: reset {
+			compatible = "socionext,uniphier-ld11-adamv-reset";
 			#reset-cells = <1>;
 		};
 

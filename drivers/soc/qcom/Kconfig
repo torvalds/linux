@@ -1,6 +1,8 @@
 #
 # QCOM Soc drivers
 #
+menu "Qualcomm SoC drivers"
+
 config QCOM_GLINK_SSR
 	tristate "Qualcomm Glink SSR driver"
 	depends on RPMSG
@@ -83,3 +85,5 @@ config QCOM_WCNSS_CTRL
 	help
 	  Client driver for the WCNSS_CTRL SMD channel, used to download nv
 	  firmware to a newly booted WCNSS chip.
+
+endmenu

@@ -55,7 +55,7 @@ static int zx2967_reset_deassert(struct reset_controller_dev *rcdev,
 	return zx2967_reset_act(rcdev, id, false);
 }
 
-static struct reset_control_ops zx2967_reset_ops = {
+static const struct reset_control_ops zx2967_reset_ops = {
 	.assert		= zx2967_reset_assert,
 	.deassert	= zx2967_reset_deassert,
 };
