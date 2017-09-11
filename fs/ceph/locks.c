@@ -332,6 +332,37 @@ void ceph_count_locks(struct inode *inode, int *fcntl_count, int *flock_count)
 	     *flock_count, *fcntl_count);
 }
 
+/*
+ * Given a pointer to a lock, convert it to a ceph filelock
+ */
+static int lock_to_ceph_filelock(struct file_lock *lock,
+				 struct ceph_filelock *cephlock)
+{
+	int err = 0;
+	cephlock->start = cpu_to_le64(lock->fl_start);
+	cephlock->length = cpu_to_le64(lock->fl_end - lock->fl_start + 1);
+	cephlock->client = cpu_to_le64(0);
+	cephlock->pid = cpu_to_le64((u64)lock->fl_pid);
+	cephlock->owner = cpu_to_le64(secure_addr(lock->fl_owner));
+
+	switch (lock->fl_type) {
+	case F_RDLCK:
+		cephlock->type = CEPH_LOCK_SHARED;
+		break;
+	case F_WRLCK:
+		cephlock->type = CEPH_LOCK_EXCL;
+		break;
+	case F_UNLCK:
+		cephlock->type = CEPH_LOCK_UNLOCK;
+		break;
+	default:
+		dout("Have unknown lock type %d", lock->fl_type);
+		err = -EINVAL;
+	}
+
+	return err;
+}
+
 /**
  * Encode the flock and fcntl locks for the given inode into the ceph_filelock
  * array. Must be called with inode->i_lock already held.
@@ -414,36 +445,5 @@ int ceph_locks_to_pagelist(struct ceph_filelock *flocks,
 				   &flocks[num_fcntl_locks],
 				   num_flock_locks * sizeof(*flocks));
 out_fail:
-	return err;
-}
-
-/*
- * Given a pointer to a lock, convert it to a ceph filelock
- */
-int lock_to_ceph_filelock(struct file_lock *lock,
-			  struct ceph_filelock *cephlock)
-{
-	int err = 0;
-	cephlock->start = cpu_to_le64(lock->fl_start);
-	cephlock->length = cpu_to_le64(lock->fl_end - lock->fl_start + 1);
-	cephlock->client = cpu_to_le64(0);
-	cephlock->pid = cpu_to_le64((u64)lock->fl_pid);
-	cephlock->owner = cpu_to_le64(secure_addr(lock->fl_owner));
-
-	switch (lock->fl_type) {
-	case F_RDLCK:
-		cephlock->type = CEPH_LOCK_SHARED;
-		break;
-	case F_WRLCK:
-		cephlock->type = CEPH_LOCK_EXCL;
-		break;
-	case F_UNLCK:
-		cephlock->type = CEPH_LOCK_UNLOCK;
-		break;
-	default:
-		dout("Have unknown lock type %d", lock->fl_type);
-		err = -EINVAL;
-	}
-
 	return err;
 }

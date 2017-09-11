@@ -1012,7 +1012,6 @@ extern int ceph_encode_locks_to_buffer(struct inode *inode,
 extern int ceph_locks_to_pagelist(struct ceph_filelock *flocks,
 				  struct ceph_pagelist *pagelist,
 				  int num_fcntl_locks, int num_flock_locks);
-extern int lock_to_ceph_filelock(struct file_lock *fl, struct ceph_filelock *c);
 
 /* debugfs.c */
 extern int ceph_fs_debugfs_init(struct ceph_fs_client *client);
