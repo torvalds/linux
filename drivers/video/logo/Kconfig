@@ -31,6 +31,14 @@ config LOGO_VIM_CLUT224
 	bool "224-color Vi IMproved (vim) logo"
 	default y
 
+config LOGO_NAXTU_CLUT224
+	bool "224-color NAXTU logo"
+	default y
+	help
+  	  Say Y here if you want to see the NAXTU face.
+	  "It's too awesome!! I'm coming, I'm coming, I'm coming, I'm coming...
+	   Ah...! Hmmm, Ahhhhhh!!"
+
 config LOGO_BLACKFIN_VGA16
 	bool "16-colour Blackfin Processor Linux logo"
 	depends on BLACKFIN
