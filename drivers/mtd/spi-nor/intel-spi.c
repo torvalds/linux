@@ -126,7 +126,7 @@
  * @pr_num: Maximum number of protected range registers
  * @writeable: Is the chip writeable
  * @locked: Is SPI setting locked
- * @swseq: Use SW sequencer in register reads/writes
+ * @swseq_reg: Use SW sequencer in register reads/writes
  * @erase_64k: 64k erase supported
  * @opcodes: Opcodes which are supported. This are programmed by BIOS
  *           before it locks down the controller.
@@ -143,7 +143,7 @@ struct intel_spi {
 	size_t pr_num;
 	bool writeable;
 	bool locked;
-	bool swseq;
+	bool swseq_reg;
 	bool erase_64k;
 	u8 opcodes[8];
 	u8 preopcodes[2];
@@ -224,7 +224,7 @@ static void intel_spi_dump_regs(struct intel_spi *ispi)
 	}
 
 	dev_dbg(ispi->dev, "Using %cW sequencer for register access\n",
-		ispi->swseq ? 'S' : 'H');
+		ispi->swseq_reg ? 'S' : 'H');
 }
 
 /* Reads max INTEL_SPI_FIFO_SZ bytes from the device fifo */
@@ -297,7 +297,7 @@ static int intel_spi_init(struct intel_spi *ispi)
 		ispi->pregs = ispi->base + BYT_PR;
 		ispi->nregions = BYT_FREG_NUM;
 		ispi->pr_num = BYT_PR_NUM;
-		ispi->swseq = true;
+		ispi->swseq_reg = true;
 
 		if (writeable) {
 			/* Disable write protection */
@@ -318,7 +318,7 @@ static int intel_spi_init(struct intel_spi *ispi)
 		ispi->pregs = ispi->base + LPT_PR;
 		ispi->nregions = LPT_FREG_NUM;
 		ispi->pr_num = LPT_PR_NUM;
-		ispi->swseq = true;
+		ispi->swseq_reg = true;
 		break;
 
 	case INTEL_SPI_BXT:
@@ -343,7 +343,7 @@ static int intel_spi_init(struct intel_spi *ispi)
 	 * sequencer. All other operations are supposed to be carried out
 	 * using software sequencer.
 	 */
-	if (ispi->swseq) {
+	if (ispi->swseq_reg) {
 		/* Disable #SMI generation from SW sequencer */
 		val = readl(ispi->sregs + SSFSTS_CTL);
 		val &= ~SSFSTS_CTL_FSMIE;
@@ -493,7 +493,7 @@ static int intel_spi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 	/* Address of the first chip */
 	writel(0, ispi->base + FADDR);
 
-	if (ispi->swseq)
+	if (ispi->swseq_reg)
 		ret = intel_spi_sw_cycle(ispi, opcode, len,
 					 OPTYPE_READ_NO_ADDR);
 	else
@@ -529,7 +529,7 @@ static int intel_spi_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 	if (ret)
 		return ret;
 
-	if (ispi->swseq)
+	if (ispi->swseq_reg)
 		return intel_spi_sw_cycle(ispi, opcode, len,
 					  OPTYPE_WRITE_NO_ADDR);
 	return intel_spi_hw_cycle(ispi, opcode, len);
