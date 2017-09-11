@@ -426,7 +426,7 @@ static int intel_spi_sw_cycle(struct intel_spi *ispi, u8 opcode, int len)
 	if (ret < 0)
 		return ret;
 
-	val = (len << SSFSTS_CTL_DBC_SHIFT) | SSFSTS_CTL_DS;
+	val = ((len - 1) << SSFSTS_CTL_DBC_SHIFT) | SSFSTS_CTL_DS;
 	val |= ret << SSFSTS_CTL_COP_SHIFT;
 	val |= SSFSTS_CTL_FCERR | SSFSTS_CTL_FDONE;
 	val |= SSFSTS_CTL_SCGO;
@@ -436,7 +436,7 @@ static int intel_spi_sw_cycle(struct intel_spi *ispi, u8 opcode, int len)
 	if (ret)
 		return ret;
 
-	status = readl(ispi->base + SSFSTS_CTL);
+	status = readl(ispi->sregs + SSFSTS_CTL);
 	if (status & SSFSTS_CTL_FCERR)
 		return -EIO;
 	else if (status & SSFSTS_CTL_AEL)
