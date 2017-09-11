@@ -35,7 +35,8 @@ static __always_inline long gettimeofday_fallback(struct timeval *_tv,
 	"       syscall\n"
 	: "=r" (ret), "=r" (error)
 	: "r" (tv), "r" (tz), "r" (nr)
-	: "memory");
+	: "$1", "$3", "$8", "$9", "$10", "$11", "$12", "$13",
+	  "$14", "$15", "$24", "$25", "hi", "lo", "memory");
 
 	return error ? -ret : ret;
 }
@@ -55,7 +56,8 @@ static __always_inline long clock_gettime_fallback(clockid_t _clkid,
 	"       syscall\n"
 	: "=r" (ret), "=r" (error)
 	: "r" (clkid), "r" (ts), "r" (nr)
-	: "memory");
+	: "$1", "$3", "$8", "$9", "$10", "$11", "$12", "$13",
+	  "$14", "$15", "$24", "$25", "hi", "lo", "memory");
 
 	return error ? -ret : ret;
 }

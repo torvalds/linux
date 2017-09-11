@@ -2114,7 +2114,7 @@ static void refresh_pce(void *ignored)
 	load_mm_cr4(this_cpu_read(cpu_tlbstate.loaded_mm));
 }
 
-static void x86_pmu_event_mapped(struct perf_event *event)
+static void x86_pmu_event_mapped(struct perf_event *event, struct mm_struct *mm)
 {
 	if (!(event->hw.flags & PERF_X86_EVENT_RDPMC_ALLOWED))
 		return;
@@ -2129,22 +2129,20 @@ static void x86_pmu_event_mapped(struct perf_event *event)
 	 * For now, this can't happen because all callers hold mmap_sem
 	 * for write.  If this changes, we'll need a different solution.
 	 */
-	lockdep_assert_held_exclusive(&current->mm->mmap_sem);
+	lockdep_assert_held_exclusive(&mm->mmap_sem);
 
-	if (atomic_inc_return(&current->mm->context.perf_rdpmc_allowed) == 1)
-		on_each_cpu_mask(mm_cpumask(current->mm), refresh_pce, NULL, 1);
+	if (atomic_inc_return(&mm->context.perf_rdpmc_allowed) == 1)
+		on_each_cpu_mask(mm_cpumask(mm), refresh_pce, NULL, 1);
 }
 
-static void x86_pmu_event_unmapped(struct perf_event *event)
+static void x86_pmu_event_unmapped(struct perf_event *event, struct mm_struct *mm)
 {
-	if (!current->mm)
-		return;
 
 	if (!(event->hw.flags & PERF_X86_EVENT_RDPMC_ALLOWED))
 		return;
 
-	if (atomic_dec_and_test(&current->mm->context.perf_rdpmc_allowed))
-		on_each_cpu_mask(mm_cpumask(current->mm), refresh_pce, NULL, 1);
+	if (atomic_dec_and_test(&mm->context.perf_rdpmc_allowed))
+		on_each_cpu_mask(mm_cpumask(mm), refresh_pce, NULL, 1);
 }
 
 static int x86_pmu_event_idx(struct perf_event *event)
@@ -2337,12 +2335,9 @@ static unsigned long get_segment_base(unsigned int segment)
 #ifdef CONFIG_MODIFY_LDT_SYSCALL
 		struct ldt_struct *ldt;
 
-		if (idx > LDT_ENTRIES)
-			return 0;
-
 		/* IRQs are off, so this synchronizes with smp_store_release */
 		ldt = lockless_dereference(current->active_mm->context.ldt);
-		if (!ldt || idx > ldt->nr_entries)
+		if (!ldt || idx >= ldt->nr_entries)
 			return 0;
 
 		desc = &ldt->entries[idx];
@@ -2350,7 +2345,7 @@ static unsigned long get_segment_base(unsigned int segment)
 		return 0;
 #endif
 	} else {
-		if (idx > GDT_ENTRIES)
+		if (idx >= GDT_ENTRIES)
 			return 0;
 
 		desc = raw_cpu_ptr(gdt_page.gdt) + idx;

@@ -208,14 +208,14 @@ static struct megamod_pic * __init init_megamod_pic(struct device_node *np)
 
 	pic = kzalloc(sizeof(struct megamod_pic), GFP_KERNEL);
 	if (!pic) {
-		pr_err("%s: Could not alloc PIC structure.\n", np->full_name);
+		pr_err("%pOF: Could not alloc PIC structure.\n", np);
 		return NULL;
 	}
 
 	pic->irqhost = irq_domain_add_linear(np, NR_COMBINERS * 32,
 					     &megamod_domain_ops, pic);
 	if (!pic->irqhost) {
-		pr_err("%s: Could not alloc host.\n", np->full_name);
+		pr_err("%pOF: Could not alloc host.\n", np);
 		goto error_free;
 	}
 
@@ -225,7 +225,7 @@ static struct megamod_pic * __init init_megamod_pic(struct device_node *np)
 
 	pic->regs = of_iomap(np, 0);
 	if (!pic->regs) {
-		pr_err("%s: Could not map registers.\n", np->full_name);
+		pr_err("%pOF: Could not map registers.\n", np);
 		goto error_free;
 	}
 
@@ -253,8 +253,8 @@ static struct megamod_pic * __init init_megamod_pic(struct device_node *np)
 
 		irq_data = irq_get_irq_data(irq);
 		if (!irq_data) {
-			pr_err("%s: combiner-%d no irq_data for virq %d!\n",
-			       np->full_name, i, irq);
+			pr_err("%pOF: combiner-%d no irq_data for virq %d!\n",
+			       np, i, irq);
 			continue;
 		}
 
@@ -265,16 +265,16 @@ static struct megamod_pic * __init init_megamod_pic(struct device_node *np)
 		 * of the core priority interrupts (4 - 15).
 		 */
 		if (hwirq < 4 || hwirq >= NR_PRIORITY_IRQS) {
-			pr_err("%s: combiner-%d core irq %ld out of range!\n",
-			       np->full_name, i, hwirq);
+			pr_err("%pOF: combiner-%d core irq %ld out of range!\n",
+			       np, i, hwirq);
 			continue;
 		}
 
 		/* record the mapping */
 		mapping[hwirq - 4] = i;
 
-		pr_debug("%s: combiner-%d cascading to hwirq %ld\n",
-			 np->full_name, i, hwirq);
+		pr_debug("%pOF: combiner-%d cascading to hwirq %ld\n",
+			 np, i, hwirq);
 
 		cascade_data[i].pic = pic;
 		cascade_data[i].index = i;
@@ -290,8 +290,8 @@ static struct megamod_pic * __init init_megamod_pic(struct device_node *np)
 	/* Finally, set up the MUX registers */
 	for (i = 0; i < NR_MUX_OUTPUTS; i++) {
 		if (mapping[i] != IRQ_UNMAPPED) {
-			pr_debug("%s: setting mux %d to priority %d\n",
-				 np->full_name, mapping[i], i + 4);
+			pr_debug("%pOF: setting mux %d to priority %d\n",
+				 np, mapping[i], i + 4);
 			set_megamod_mux(pic, mapping[i], i);
 		}
 	}

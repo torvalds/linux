@@ -254,7 +254,7 @@ enum {
 	NVME_CTRL_VWC_PRESENT			= 1 << 0,
 	NVME_CTRL_OACS_SEC_SUPP                 = 1 << 0,
 	NVME_CTRL_OACS_DIRECTIVES		= 1 << 5,
-	NVME_CTRL_OACS_DBBUF_SUPP		= 1 << 7,
+	NVME_CTRL_OACS_DBBUF_SUPP		= 1 << 8,
 };
 
 struct nvme_lbaf {
@@ -1006,7 +1006,7 @@ static inline bool nvme_is_write(struct nvme_command *cmd)
 	 * Why can't we simply have a Fabrics In and Fabrics out command?
 	 */
 	if (unlikely(cmd->common.opcode == nvme_fabrics_command))
-		return cmd->fabrics.opcode & 1;
+		return cmd->fabrics.fctype & 1;
 	return cmd->common.opcode & 1;
 }
 

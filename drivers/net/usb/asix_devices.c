@@ -764,6 +764,7 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 
 static void ax88772_unbind(struct usbnet *dev, struct usb_interface *intf)
 {
+	asix_rx_fixup_common_free(dev->driver_priv);
 	kfree(dev->driver_priv);
 }
 

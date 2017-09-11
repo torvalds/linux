@@ -456,13 +456,9 @@ static int nfp_net_pf_app_start(struct nfp_pf *pf)
 {
 	int err;
 
-	err = nfp_net_pf_app_start_ctrl(pf);
-	if (err)
-		return err;
-
 	err = nfp_app_start(pf->app, pf->ctrl_vnic);
 	if (err)
-		goto err_ctrl_stop;
+		return err;
 
 	if (pf->num_vfs) {
 		err = nfp_app_sriov_enable(pf->app, pf->num_vfs);
@@ -474,8 +470,6 @@ static int nfp_net_pf_app_start(struct nfp_pf *pf)
 
 err_app_stop:
 	nfp_app_stop(pf->app);
-err_ctrl_stop:
-	nfp_net_pf_app_stop_ctrl(pf);
 	return err;
 }
 
@@ -484,7 +478,6 @@ static void nfp_net_pf_app_stop(struct nfp_pf *pf)
 	if (pf->num_vfs)
 		nfp_app_sriov_disable(pf->app);
 	nfp_app_stop(pf->app);
-	nfp_net_pf_app_stop_ctrl(pf);
 }
 
 static void nfp_net_pci_unmap_mem(struct nfp_pf *pf)
@@ -559,7 +552,7 @@ err_unmap_ctrl:
 
 static void nfp_net_pci_remove_finish(struct nfp_pf *pf)
 {
-	nfp_net_pf_app_stop(pf);
+	nfp_net_pf_app_stop_ctrl(pf);
 	/* stop app first, to avoid double free of ctrl vNIC's ddir */
 	nfp_net_debugfs_dir_clean(&pf->ddir);
 
@@ -690,6 +683,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 {
 	struct nfp_net_fw_version fw_ver;
 	u8 __iomem *ctrl_bar, *qc_bar;
+	struct nfp_net *nn;
 	int stride;
 	int err;
 
@@ -766,7 +760,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	if (err)
 		goto err_free_vnics;
 
-	err = nfp_net_pf_app_start(pf);
+	err = nfp_net_pf_app_start_ctrl(pf);
 	if (err)
 		goto err_free_irqs;
 
@@ -774,12 +768,20 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	if (err)
 		goto err_stop_app;
 
+	err = nfp_net_pf_app_start(pf);
+	if (err)
+		goto err_clean_vnics;
+
 	mutex_unlock(&pf->lock);
 
 	return 0;
 
+err_clean_vnics:
+	list_for_each_entry(nn, &pf->vnics, vnic_list)
+		if (nfp_net_is_data_vnic(nn))
+			nfp_net_pf_clean_vnic(pf, nn);
 err_stop_app:
-	nfp_net_pf_app_stop(pf);
+	nfp_net_pf_app_stop_ctrl(pf);
 err_free_irqs:
 	nfp_net_pf_free_irqs(pf);
 err_free_vnics:
@@ -802,6 +804,8 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 	mutex_lock(&pf->lock);
 	if (list_empty(&pf->vnics))
 		goto out;
+
+	nfp_net_pf_app_stop(pf);
 
 	list_for_each_entry(nn, &pf->vnics, vnic_list)
 		if (nfp_net_is_data_vnic(nn))

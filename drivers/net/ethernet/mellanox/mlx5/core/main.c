@@ -1186,7 +1186,6 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		}
 	}
 
-	clear_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state);
 	set_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state);
 out:
 	mutex_unlock(&dev->intf_state_mutex);
@@ -1261,7 +1260,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		mlx5_drain_health_recovery(dev);
 
 	mutex_lock(&dev->intf_state_mutex);
-	if (test_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state)) {
+	if (!test_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state)) {
 		dev_warn(&dev->pdev->dev, "%s: interface is down, NOP\n",
 			 __func__);
 		if (cleanup)
@@ -1270,7 +1269,6 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	}
 
 	clear_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state);
-	set_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state);
 
 	if (mlx5_device_registered(dev))
 		mlx5_detach_device(dev);
@@ -1565,8 +1563,6 @@ static void shutdown(struct pci_dev *pdev)
 	int err;
 
 	dev_info(&pdev->dev, "Shutdown was called\n");
-	/* Notify mlx5 clients that the kernel is being shut down */
-	set_bit(MLX5_INTERFACE_STATE_SHUTDOWN, &dev->intf_state);
 	err = mlx5_try_fast_unload(dev);
 	if (err)
 		mlx5_unload_one(dev, priv, false);

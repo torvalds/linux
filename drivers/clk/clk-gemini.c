@@ -237,6 +237,18 @@ static int gemini_reset(struct reset_controller_dev *rcdev,
 			    BIT(GEMINI_RESET_CPU1) | BIT(id));
 }
 
+static int gemini_reset_assert(struct reset_controller_dev *rcdev,
+			       unsigned long id)
+{
+	return 0;
+}
+
+static int gemini_reset_deassert(struct reset_controller_dev *rcdev,
+				 unsigned long id)
+{
+	return 0;
+}
+
 static int gemini_reset_status(struct reset_controller_dev *rcdev,
 			     unsigned long id)
 {
@@ -253,6 +265,8 @@ static int gemini_reset_status(struct reset_controller_dev *rcdev,
 
 static const struct reset_control_ops gemini_reset_ops = {
 	.reset = gemini_reset,
+	.assert = gemini_reset_assert,
+	.deassert = gemini_reset_deassert,
 	.status = gemini_reset_status,
 };
 

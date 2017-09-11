@@ -1377,5 +1377,5 @@ struct ov5693_resolution ov5693_res_video[] = {
 #define N_RES_VIDEO (ARRAY_SIZE(ov5693_res_video))
 
 static struct ov5693_resolution *ov5693_res = ov5693_res_preview;
-static int N_RES = N_RES_PREVIEW;
+static unsigned long N_RES = N_RES_PREVIEW;
 #endif

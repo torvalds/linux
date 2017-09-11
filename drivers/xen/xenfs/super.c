@@ -87,7 +87,6 @@ static int __init xenfs_init(void)
 	if (xen_domain())
 		return register_filesystem(&xenfs_type);
 
-	pr_info("not registering filesystem on non-xen platform\n");
 	return 0;
 }
 

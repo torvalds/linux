@@ -277,6 +277,11 @@ static inline bool bond_is_lb(const struct bonding *bond)
 	       BOND_MODE(bond) == BOND_MODE_ALB;
 }
 
+static inline bool bond_needs_speed_duplex(const struct bonding *bond)
+{
+	return BOND_MODE(bond) == BOND_MODE_8023AD || bond_is_lb(bond);
+}
+
 static inline bool bond_is_nondyn_tlb(const struct bonding *bond)
 {
 	return (BOND_MODE(bond) == BOND_MODE_TLB)  &&

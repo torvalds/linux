@@ -278,7 +278,7 @@ iomap_dirty_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 		unsigned long bytes;	/* Bytes to write to page */
 
 		offset = (pos & (PAGE_SIZE - 1));
-		bytes = min_t(unsigned long, PAGE_SIZE - offset, length);
+		bytes = min_t(loff_t, PAGE_SIZE - offset, length);
 
 		rpage = __iomap_read_page(inode, pos);
 		if (IS_ERR(rpage))
@@ -373,7 +373,7 @@ iomap_zero_range_actor(struct inode *inode, loff_t pos, loff_t count,
 		unsigned offset, bytes;
 
 		offset = pos & (PAGE_SIZE - 1); /* Within page */
-		bytes = min_t(unsigned, PAGE_SIZE - offset, count);
+		bytes = min_t(loff_t, PAGE_SIZE - offset, count);
 
 		if (IS_DAX(inode))
 			status = iomap_dax_zero(pos, offset, bytes, iomap);

@@ -201,13 +201,13 @@ static int destroy_srq_cmd(struct mlx5_core_dev *dev,
 static int arm_srq_cmd(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 		       u16 lwm, int is_srq)
 {
-	/* arm_srq structs missing using identical xrc ones */
-	u32 srq_in[MLX5_ST_SZ_DW(arm_xrc_srq_in)] = {0};
-	u32 srq_out[MLX5_ST_SZ_DW(arm_xrc_srq_out)] = {0};
+	u32 srq_in[MLX5_ST_SZ_DW(arm_rq_in)] = {0};
+	u32 srq_out[MLX5_ST_SZ_DW(arm_rq_out)] = {0};
 
-	MLX5_SET(arm_xrc_srq_in, srq_in, opcode,   MLX5_CMD_OP_ARM_XRC_SRQ);
-	MLX5_SET(arm_xrc_srq_in, srq_in, xrc_srqn, srq->srqn);
-	MLX5_SET(arm_xrc_srq_in, srq_in, lwm,      lwm);
+	MLX5_SET(arm_rq_in, srq_in, opcode, MLX5_CMD_OP_ARM_RQ);
+	MLX5_SET(arm_rq_in, srq_in, op_mod, MLX5_ARM_RQ_IN_OP_MOD_SRQ);
+	MLX5_SET(arm_rq_in, srq_in, srq_number, srq->srqn);
+	MLX5_SET(arm_rq_in, srq_in, lwm,      lwm);
 
 	return  mlx5_cmd_exec(dev, srq_in, sizeof(srq_in),
 			      srq_out, sizeof(srq_out));

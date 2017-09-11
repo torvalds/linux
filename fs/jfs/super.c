@@ -313,7 +313,7 @@ static int parse_options(char *options, struct super_block *sb, s64 *newLVSize,
 		}
 		case Opt_resize_nosize:
 		{
-			*newLVSize = sb->s_bdev->bd_inode->i_size >>
+			*newLVSize = i_size_read(sb->s_bdev->bd_inode) >>
 				sb->s_blocksize_bits;
 			if (*newLVSize == 0)
 				pr_err("JFS: Cannot determine volume size\n");
@@ -579,7 +579,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 		goto out_unload;
 	}
 	inode->i_ino = 0;
-	inode->i_size = sb->s_bdev->bd_inode->i_size;
+	inode->i_size = i_size_read(sb->s_bdev->bd_inode);
 	inode->i_mapping->a_ops = &jfs_metapage_aops;
 	hlist_add_fake(&inode->i_hash);
 	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
@@ -619,16 +619,10 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sb->s_root)
 		goto out_no_root;
 
-	/* logical blocks are represented by 40 bits in pxd_t, etc. */
-	sb->s_maxbytes = ((u64) sb->s_blocksize) << 40;
-#if BITS_PER_LONG == 32
-	/*
-	 * Page cache is indexed by long.
-	 * I would use MAX_LFS_FILESIZE, but it's only half as big
+	/* logical blocks are represented by 40 bits in pxd_t, etc.
+	 * and page cache is indexed by long
 	 */
-	sb->s_maxbytes = min(((u64) PAGE_SIZE << 32) - 1,
-			     (u64)sb->s_maxbytes);
-#endif
+	sb->s_maxbytes = min(((loff_t)sb->s_blocksize) << 40, MAX_LFS_FILESIZE);
 	sb->s_time_gran = 1;
 	return 0;
 

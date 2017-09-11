@@ -424,13 +424,15 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.stat_rate_support  = dev_cap->stat_rate_support;
 	dev->caps.max_gso_sz	     = dev_cap->max_gso_sz;
 	dev->caps.max_rss_tbl_sz     = dev_cap->max_rss_tbl_sz;
+	dev->caps.wol_port[1]          = dev_cap->wol_port[1];
+	dev->caps.wol_port[2]          = dev_cap->wol_port[2];
 
 	/* Save uar page shift */
 	if (!mlx4_is_slave(dev)) {
 		/* Virtual PCI function needs to determine UAR page size from
 		 * firmware. Only master PCI function can set the uar page size
 		 */
-		if (enable_4k_uar)
+		if (enable_4k_uar || !dev->persist->num_vfs)
 			dev->uar_page_shift = DEFAULT_UAR_PAGE_SHIFT;
 		else
 			dev->uar_page_shift = PAGE_SHIFT;
@@ -2275,7 +2277,7 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 
 		dev->caps.max_fmr_maps = (1 << (32 - ilog2(dev->caps.num_mpts))) - 1;
 
-		if (enable_4k_uar) {
+		if (enable_4k_uar || !dev->persist->num_vfs) {
 			init_hca.log_uar_sz = ilog2(dev->caps.num_uars) +
 						    PAGE_SHIFT - DEFAULT_UAR_PAGE_SHIFT;
 			init_hca.uar_page_sz = DEFAULT_UAR_PAGE_SHIFT - 12;

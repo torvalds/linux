@@ -310,8 +310,8 @@ struct pmu {
 	 * Notification that the event was mapped or unmapped.  Called
 	 * in the context of the mapping task.
 	 */
-	void (*event_mapped)		(struct perf_event *event); /*optional*/
-	void (*event_unmapped)		(struct perf_event *event); /*optional*/
+	void (*event_mapped)		(struct perf_event *event, struct mm_struct *mm); /* optional */
+	void (*event_unmapped)		(struct perf_event *event, struct mm_struct *mm); /* optional */
 
 	/*
 	 * Flags for ->add()/->del()/ ->start()/->stop(). There are
@@ -1201,7 +1201,7 @@ extern void perf_event_init(void);
 extern void perf_tp_event(u16 event_type, u64 count, void *record,
 			  int entry_size, struct pt_regs *regs,
 			  struct hlist_head *head, int rctx,
-			  struct task_struct *task);
+			  struct task_struct *task, struct perf_event *event);
 extern void perf_bp_event(struct perf_event *event, void *data);
 
 #ifndef perf_misc_flags

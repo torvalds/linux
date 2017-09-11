@@ -244,6 +244,12 @@ struct dma_fence *amdgpu_sync_peek_fence(struct amdgpu_sync *sync,
 		struct dma_fence *f = e->fence;
 		struct amd_sched_fence *s_fence = to_amd_sched_fence(f);
 
+		if (dma_fence_is_signaled(f)) {
+			hash_del(&e->node);
+			dma_fence_put(f);
+			kmem_cache_free(amdgpu_sync_slab, e);
+			continue;
+		}
 		if (ring && s_fence) {
 			/* For fences from the same ring it is sufficient
 			 * when they are scheduled.
@@ -254,13 +260,6 @@ struct dma_fence *amdgpu_sync_peek_fence(struct amdgpu_sync *sync,
 
 				return &s_fence->scheduled;
 			}
-		}
-
-		if (dma_fence_is_signaled(f)) {
-			hash_del(&e->node);
-			dma_fence_put(f);
-			kmem_cache_free(amdgpu_sync_slab, e);
-			continue;
 		}
 
 		return f;

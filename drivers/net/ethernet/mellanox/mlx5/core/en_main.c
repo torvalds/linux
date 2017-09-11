@@ -377,7 +377,6 @@ static void mlx5e_async_event(struct mlx5_core_dev *mdev, void *vpriv,
 		break;
 	case MLX5_DEV_EVENT_PPS:
 		eqe = (struct mlx5_eqe *)param;
-		ptp_event.type = PTP_CLOCK_EXTTS;
 		ptp_event.index = eqe->data.pps.pin;
 		ptp_event.timestamp =
 			timecounter_cyc2time(&priv->tstamp.clock,
@@ -1970,6 +1969,7 @@ static void mlx5e_build_rx_cq_param(struct mlx5e_priv *priv,
 	}
 
 	mlx5e_build_common_cq_param(priv, param);
+	param->cq_period_mode = params->rx_cq_period_mode;
 }
 
 static void mlx5e_build_tx_cq_param(struct mlx5e_priv *priv,

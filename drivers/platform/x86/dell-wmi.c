@@ -626,7 +626,7 @@ static void dell_wmi_input_destroy(struct wmi_device *wdev)
  * WMI Interface Version     8       4    <version>
  * WMI buffer length        12       4    4096
  */
-static int __init dell_wmi_check_descriptor_buffer(void)
+static int dell_wmi_check_descriptor_buffer(void)
 {
 	struct acpi_buffer out = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
@@ -717,8 +717,14 @@ static int dell_wmi_events_set_enabled(bool enable)
 
 static int dell_wmi_probe(struct wmi_device *wdev)
 {
+	int err;
+
 	struct dell_wmi_priv *priv = devm_kzalloc(
 		&wdev->dev, sizeof(struct dell_wmi_priv), GFP_KERNEL);
+
+	err = dell_wmi_check_descriptor_buffer();
+	if (err)
+		return err;
 
 	dev_set_drvdata(&wdev->dev, priv);
 
@@ -748,10 +754,6 @@ static struct wmi_driver dell_wmi_driver = {
 static int __init dell_wmi_init(void)
 {
 	int err;
-
-	err = dell_wmi_check_descriptor_buffer();
-	if (err)
-		return err;
 
 	dmi_check_system(dell_wmi_smbios_list);
 

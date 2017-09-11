@@ -408,6 +408,7 @@ enum { /* adapter flags */
 	USING_MSI          = (1UL << 1),
 	USING_MSIX         = (1UL << 2),
 	QUEUES_BOUND       = (1UL << 3),
+	ROOT_NO_RELAXED_ORDERING = (1UL << 4),
 };
 
 /*

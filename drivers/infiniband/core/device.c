@@ -537,10 +537,11 @@ void ib_unregister_device(struct ib_device *device)
 	}
 	up_read(&lists_rwsem);
 
-	mutex_unlock(&device_mutex);
-
 	ib_device_unregister_rdmacg(device);
 	ib_device_unregister_sysfs(device);
+
+	mutex_unlock(&device_mutex);
+
 	ib_cache_cleanup_one(device);
 
 	ib_security_destroy_port_pkey_list(device);

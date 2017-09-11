@@ -26,7 +26,7 @@
  */
 static int pblk_read_from_cache(struct pblk *pblk, struct bio *bio,
 				sector_t lba, struct ppa_addr ppa,
-				int bio_iter)
+				int bio_iter, bool advanced_bio)
 {
 #ifdef CONFIG_NVM_DEBUG
 	/* Callers must ensure that the ppa points to a cache address */
@@ -34,7 +34,8 @@ static int pblk_read_from_cache(struct pblk *pblk, struct bio *bio,
 	BUG_ON(!pblk_addr_in_cache(ppa));
 #endif
 
-	return pblk_rb_copy_to_bio(&pblk->rwb, bio, lba, ppa, bio_iter);
+	return pblk_rb_copy_to_bio(&pblk->rwb, bio, lba, ppa,
+						bio_iter, advanced_bio);
 }
 
 static void pblk_read_ppalist_rq(struct pblk *pblk, struct nvm_rq *rqd,
@@ -44,7 +45,7 @@ static void pblk_read_ppalist_rq(struct pblk *pblk, struct nvm_rq *rqd,
 	struct ppa_addr ppas[PBLK_MAX_REQ_ADDRS];
 	sector_t blba = pblk_get_lba(bio);
 	int nr_secs = rqd->nr_ppas;
-	int advanced_bio = 0;
+	bool advanced_bio = false;
 	int i, j = 0;
 
 	/* logic error: lba out-of-bounds. Ignore read request */
@@ -62,19 +63,26 @@ static void pblk_read_ppalist_rq(struct pblk *pblk, struct nvm_rq *rqd,
 retry:
 		if (pblk_ppa_empty(p)) {
 			WARN_ON(test_and_set_bit(i, read_bitmap));
-			continue;
+
+			if (unlikely(!advanced_bio)) {
+				bio_advance(bio, (i) * PBLK_EXPOSED_PAGE_SIZE);
+				advanced_bio = true;
+			}
+
+			goto next;
 		}
 
 		/* Try to read from write buffer. The address is later checked
 		 * on the write buffer to prevent retrieving overwritten data.
 		 */
 		if (pblk_addr_in_cache(p)) {
-			if (!pblk_read_from_cache(pblk, bio, lba, p, i)) {
+			if (!pblk_read_from_cache(pblk, bio, lba, p, i,
+								advanced_bio)) {
 				pblk_lookup_l2p_seq(pblk, &p, lba, 1);
 				goto retry;
 			}
 			WARN_ON(test_and_set_bit(i, read_bitmap));
-			advanced_bio = 1;
+			advanced_bio = true;
 #ifdef CONFIG_NVM_DEBUG
 			atomic_long_inc(&pblk->cache_reads);
 #endif
@@ -83,6 +91,7 @@ retry:
 			rqd->ppa_list[j++] = p;
 		}
 
+next:
 		if (advanced_bio)
 			bio_advance(bio, PBLK_EXPOSED_PAGE_SIZE);
 	}
@@ -282,7 +291,7 @@ retry:
 	 * write buffer to prevent retrieving overwritten data.
 	 */
 	if (pblk_addr_in_cache(ppa)) {
-		if (!pblk_read_from_cache(pblk, bio, lba, ppa, 0)) {
+		if (!pblk_read_from_cache(pblk, bio, lba, ppa, 0, 1)) {
 			pblk_lookup_l2p_seq(pblk, &ppa, lba, 1);
 			goto retry;
 		}

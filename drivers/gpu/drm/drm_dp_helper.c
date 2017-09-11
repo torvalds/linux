@@ -544,7 +544,7 @@ void drm_dp_downstream_debug(struct seq_file *m,
 				 DP_DETAILED_CAP_INFO_AVAILABLE;
 	int clk;
 	int bpc;
-	char id[6];
+	char id[7];
 	int len;
 	uint8_t rev[2];
 	int type = port_cap[0] & DP_DS_PORT_TYPE_MASK;
@@ -583,6 +583,7 @@ void drm_dp_downstream_debug(struct seq_file *m,
 		seq_puts(m, "\t\tType: N/A\n");
 	}
 
+	memset(id, 0, sizeof(id));
 	drm_dp_downstream_id(aux, id);
 	seq_printf(m, "\t\tID: %s\n", id);
 
@@ -591,7 +592,7 @@ void drm_dp_downstream_debug(struct seq_file *m,
 		seq_printf(m, "\t\tHW: %d.%d\n",
 			   (rev[0] & 0xf0) >> 4, rev[0] & 0xf);
 
-	len = drm_dp_dpcd_read(aux, DP_BRANCH_SW_REV, &rev, 2);
+	len = drm_dp_dpcd_read(aux, DP_BRANCH_SW_REV, rev, 2);
 	if (len > 0)
 		seq_printf(m, "\t\tSW: %d.%d\n", rev[0], rev[1]);
 

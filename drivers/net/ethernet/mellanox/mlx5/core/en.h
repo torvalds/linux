@@ -263,8 +263,17 @@ struct mlx5e_dcbx {
 
 	/* The only setting that cannot be read from FW */
 	u8                         tc_tsa[IEEE_8021QAZ_MAX_TCS];
+	u8                         cap;
 };
 #endif
+
+#define MAX_PIN_NUM	8
+struct mlx5e_pps {
+	u8                         pin_caps[MAX_PIN_NUM];
+	struct work_struct         out_work;
+	u64                        start[MAX_PIN_NUM];
+	u8                         enabled;
+};
 
 struct mlx5e_tstamp {
 	rwlock_t                   lock;
@@ -277,7 +286,7 @@ struct mlx5e_tstamp {
 	struct mlx5_core_dev      *mdev;
 	struct ptp_clock          *ptp;
 	struct ptp_clock_info      ptp_info;
-	u8                        *pps_pin_caps;
+	struct mlx5e_pps           pps_info;
 };
 
 enum {

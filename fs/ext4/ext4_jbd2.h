@@ -227,6 +227,9 @@ int ext4_reserve_inode_write(handle_t *handle, struct inode *inode,
 
 int ext4_mark_inode_dirty(handle_t *handle, struct inode *inode);
 
+int ext4_expand_extra_isize(struct inode *inode,
+			    unsigned int new_extra_isize,
+			    struct ext4_iloc *iloc);
 /*
  * Wrapper functions with which ext4 calls into JBD.
  */

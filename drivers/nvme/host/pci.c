@@ -109,6 +109,7 @@ struct nvme_dev {
 	/* host memory buffer support: */
 	u64 host_mem_size;
 	u32 nr_host_mem_descs;
+	dma_addr_t host_mem_descs_dma;
 	struct nvme_host_mem_buf_desc *host_mem_descs;
 	void **host_mem_desc_bufs;
 };
@@ -801,6 +802,7 @@ static inline void nvme_handle_cqe(struct nvme_queue *nvmeq,
 		return;
 	}
 
+	nvmeq->cqe_seen = 1;
 	req = blk_mq_tag_to_rq(*nvmeq->tags, cqe->command_id);
 	nvme_end_request(req, cqe->status, cqe->result);
 }
@@ -830,10 +832,8 @@ static void nvme_process_cq(struct nvme_queue *nvmeq)
 		consumed++;
 	}
 
-	if (consumed) {
+	if (consumed)
 		nvme_ring_cq_doorbell(nvmeq);
-		nvmeq->cqe_seen = 1;
-	}
 }
 
 static irqreturn_t nvme_irq(int irq, void *data)
@@ -1558,25 +1558,17 @@ static inline void nvme_release_cmb(struct nvme_dev *dev)
 	if (dev->cmb) {
 		iounmap(dev->cmb);
 		dev->cmb = NULL;
-		if (dev->cmbsz) {
-			sysfs_remove_file_from_group(&dev->ctrl.device->kobj,
-						     &dev_attr_cmb.attr, NULL);
-			dev->cmbsz = 0;
-		}
+		sysfs_remove_file_from_group(&dev->ctrl.device->kobj,
+					     &dev_attr_cmb.attr, NULL);
+		dev->cmbsz = 0;
 	}
 }
 
 static int nvme_set_host_mem(struct nvme_dev *dev, u32 bits)
 {
-	size_t len = dev->nr_host_mem_descs * sizeof(*dev->host_mem_descs);
+	u64 dma_addr = dev->host_mem_descs_dma;
 	struct nvme_command c;
-	u64 dma_addr;
 	int ret;
-
-	dma_addr = dma_map_single(dev->dev, dev->host_mem_descs, len,
-			DMA_TO_DEVICE);
-	if (dma_mapping_error(dev->dev, dma_addr))
-		return -ENOMEM;
 
 	memset(&c, 0, sizeof(c));
 	c.features.opcode	= nvme_admin_set_features;
@@ -1594,7 +1586,6 @@ static int nvme_set_host_mem(struct nvme_dev *dev, u32 bits)
 			 "failed to set host mem (err %d, flags %#x).\n",
 			 ret, bits);
 	}
-	dma_unmap_single(dev->dev, dma_addr, len, DMA_TO_DEVICE);
 	return ret;
 }
 
@@ -1612,14 +1603,17 @@ static void nvme_free_host_mem(struct nvme_dev *dev)
 
 	kfree(dev->host_mem_desc_bufs);
 	dev->host_mem_desc_bufs = NULL;
-	kfree(dev->host_mem_descs);
+	dma_free_coherent(dev->dev,
+			dev->nr_host_mem_descs * sizeof(*dev->host_mem_descs),
+			dev->host_mem_descs, dev->host_mem_descs_dma);
 	dev->host_mem_descs = NULL;
 }
 
 static int nvme_alloc_host_mem(struct nvme_dev *dev, u64 min, u64 preferred)
 {
 	struct nvme_host_mem_buf_desc *descs;
-	u32 chunk_size, max_entries;
+	u32 chunk_size, max_entries, len;
+	dma_addr_t descs_dma;
 	int i = 0;
 	void **bufs;
 	u64 size = 0, tmp;
@@ -1630,7 +1624,8 @@ retry:
 	tmp = (preferred + chunk_size - 1);
 	do_div(tmp, chunk_size);
 	max_entries = tmp;
-	descs = kcalloc(max_entries, sizeof(*descs), GFP_KERNEL);
+	descs = dma_zalloc_coherent(dev->dev, max_entries * sizeof(*descs),
+			&descs_dma, GFP_KERNEL);
 	if (!descs)
 		goto out;
 
@@ -1638,10 +1633,10 @@ retry:
 	if (!bufs)
 		goto out_free_descs;
 
-	for (size = 0; size < preferred; size += chunk_size) {
-		u32 len = min_t(u64, chunk_size, preferred - size);
+	for (size = 0; size < preferred; size += len) {
 		dma_addr_t dma_addr;
 
+		len = min_t(u64, chunk_size, preferred - size);
 		bufs[i] = dma_alloc_attrs(dev->dev, len, &dma_addr, GFP_KERNEL,
 				DMA_ATTR_NO_KERNEL_MAPPING | DMA_ATTR_NO_WARN);
 		if (!bufs[i])
@@ -1664,6 +1659,7 @@ retry:
 	dev->nr_host_mem_descs = i;
 	dev->host_mem_size = size;
 	dev->host_mem_descs = descs;
+	dev->host_mem_descs_dma = descs_dma;
 	dev->host_mem_desc_bufs = bufs;
 	return 0;
 
@@ -1677,7 +1673,8 @@ out_free_bufs:
 
 	kfree(bufs);
 out_free_descs:
-	kfree(descs);
+	dma_free_coherent(dev->dev, max_entries * sizeof(*descs), descs,
+			descs_dma);
 out:
 	/* try a smaller chunk size if we failed early */
 	if (chunk_size >= PAGE_SIZE * 2 && (i == 0 || size < min)) {
@@ -1953,16 +1950,14 @@ static int nvme_pci_enable(struct nvme_dev *dev)
 
 	/*
 	 * CMBs can currently only exist on >=1.2 PCIe devices. We only
-	 * populate sysfs if a CMB is implemented. Note that we add the
-	 * CMB attribute to the nvme_ctrl kobj which removes the need to remove
-	 * it on exit. Since nvme_dev_attrs_group has no name we can pass
-	 * NULL as final argument to sysfs_add_file_to_group.
+	 * populate sysfs if a CMB is implemented. Since nvme_dev_attrs_group
+	 * has no name we can pass NULL as final argument to
+	 * sysfs_add_file_to_group.
 	 */
 
 	if (readl(dev->bar + NVME_REG_VS) >= NVME_VS(1, 2, 0)) {
 		dev->cmb = nvme_map_cmb(dev);
-
-		if (dev->cmbsz) {
+		if (dev->cmb) {
 			if (sysfs_add_file_to_group(&dev->ctrl.device->kobj,
 						    &dev_attr_cmb.attr, NULL))
 				dev_warn(dev->ctrl.device,

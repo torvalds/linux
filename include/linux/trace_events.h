@@ -508,9 +508,9 @@ void perf_trace_run_bpf_submit(void *raw_data, int size, int rctx,
 static inline void
 perf_trace_buf_submit(void *raw_data, int size, int rctx, u16 type,
 		       u64 count, struct pt_regs *regs, void *head,
-		       struct task_struct *task)
+		       struct task_struct *task, struct perf_event *event)
 {
-	perf_tp_event(type, count, raw_data, size, regs, head, rctx, task);
+	perf_tp_event(type, count, raw_data, size, regs, head, rctx, task, event);
 }
 #endif
 

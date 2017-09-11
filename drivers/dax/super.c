@@ -278,6 +278,12 @@ void dax_write_cache(struct dax_device *dax_dev, bool wc)
 }
 EXPORT_SYMBOL_GPL(dax_write_cache);
 
+bool dax_write_cache_enabled(struct dax_device *dax_dev)
+{
+	return test_bit(DAXDEV_WRITE_CACHE, &dax_dev->flags);
+}
+EXPORT_SYMBOL_GPL(dax_write_cache_enabled);
+
 bool dax_alive(struct dax_device *dax_dev)
 {
 	lockdep_assert_held(&dax_srcu);

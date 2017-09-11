@@ -941,6 +941,7 @@ static struct sst_acpi_mach sst_bxtp_devdata[] = {
 		.machine_quirk = sst_acpi_codec_list,
 		.quirk_data = &bxt_codecs,
 	},
+	{}
 };
 
 static struct sst_acpi_mach sst_kbl_devdata[] = {
@@ -991,6 +992,7 @@ static struct sst_acpi_mach sst_glk_devdata[] = {
 		.drv_name = "glk_alc298s_i2s",
 		.fw_filename = "intel/dsp_fw_glk.bin",
 	},
+	{}
 };
 
 /* PCI IDs */

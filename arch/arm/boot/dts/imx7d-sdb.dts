@@ -557,6 +557,14 @@
 			>;
 		};
 
+		pinctrl_spi4: spi4grp {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO09__GPIO1_IO9	0x59
+				MX7D_PAD_GPIO1_IO12__GPIO1_IO12	0x59
+				MX7D_PAD_GPIO1_IO13__GPIO1_IO13	0x59
+			>;
+		};
+
 		pinctrl_tsc2046_pendown: tsc2046_pendown {
 			fsl,pins = <
 				MX7D_PAD_EPDC_BDR1__GPIO2_IO29		0x59
@@ -697,13 +705,5 @@
 		fsl,pins = <
 			MX7D_PAD_LPSR_GPIO1_IO01__PWM1_OUT		0x110b0
 		>;
-
-		pinctrl_spi4: spi4grp {
-			fsl,pins = <
-				MX7D_PAD_GPIO1_IO09__GPIO1_IO9	0x59
-				MX7D_PAD_GPIO1_IO12__GPIO1_IO12	0x59
-				MX7D_PAD_GPIO1_IO13__GPIO1_IO13	0x59
-			>;
-		};
 	};
 };

@@ -450,6 +450,7 @@ out_unlock:
 out:
 	NAPI_GRO_CB(skb)->flush |= flush;
 	skb_gro_remcsum_cleanup(skb, &grc);
+	skb->remcsum_offload = 0;
 
 	return pp;
 }

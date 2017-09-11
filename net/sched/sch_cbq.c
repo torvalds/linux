@@ -1139,6 +1139,13 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 	struct tc_ratespec *r;
 	int err;
 
+	qdisc_watchdog_init(&q->watchdog, sch);
+	hrtimer_init(&q->delay_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_PINNED);
+	q->delay_timer.function = cbq_undelay;
+
+	if (!opt)
+		return -EINVAL;
+
 	err = nla_parse_nested(tb, TCA_CBQ_MAX, opt, cbq_policy, NULL);
 	if (err < 0)
 		return err;
@@ -1177,9 +1184,6 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 	q->link.avpkt = q->link.allot/2;
 	q->link.minidle = -0x7FFFFFFF;
 
-	qdisc_watchdog_init(&q->watchdog, sch);
-	hrtimer_init(&q->delay_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_PINNED);
-	q->delay_timer.function = cbq_undelay;
 	q->toplevel = TC_CBQ_MAXLEVEL;
 	q->now = psched_get_time();
 
@@ -1431,8 +1435,10 @@ static void cbq_destroy(struct Qdisc *sch)
 	 * be bound to classes which have been destroyed already. --TGR '04
 	 */
 	for (h = 0; h < q->clhash.hashsize; h++) {
-		hlist_for_each_entry(cl, &q->clhash.hash[h], common.hnode)
+		hlist_for_each_entry(cl, &q->clhash.hash[h], common.hnode) {
 			tcf_block_put(cl->block);
+			cl->block = NULL;
+		}
 	}
 	for (h = 0; h < q->clhash.hashsize; h++) {
 		hlist_for_each_entry_safe(cl, next, &q->clhash.hash[h],

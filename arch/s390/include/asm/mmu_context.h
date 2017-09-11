@@ -44,6 +44,11 @@ static inline int init_new_context(struct task_struct *tsk,
 		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
 				   _ASCE_USER_BITS | _ASCE_TYPE_REGION3;
 		break;
+	case -PAGE_SIZE:
+		/* forked 5-level task, set new asce with new_mm->pgd */
+		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+			_ASCE_USER_BITS | _ASCE_TYPE_REGION1;
+		break;
 	case 1UL << 53:
 		/* forked 4-level task, set new asce with new mm->pgd */
 		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |

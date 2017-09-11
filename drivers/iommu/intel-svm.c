@@ -223,14 +223,6 @@ static void intel_change_pte(struct mmu_notifier *mn, struct mm_struct *mm,
 	intel_flush_svm_range(svm, address, 1, 1, 0);
 }
 
-static void intel_invalidate_page(struct mmu_notifier *mn, struct mm_struct *mm,
-				  unsigned long address)
-{
-	struct intel_svm *svm = container_of(mn, struct intel_svm, notifier);
-
-	intel_flush_svm_range(svm, address, 1, 1, 0);
-}
-
 /* Pages have been freed at this point */
 static void intel_invalidate_range(struct mmu_notifier *mn,
 				   struct mm_struct *mm,
@@ -285,7 +277,6 @@ static void intel_mm_release(struct mmu_notifier *mn, struct mm_struct *mm)
 static const struct mmu_notifier_ops intel_mmuops = {
 	.release = intel_mm_release,
 	.change_pte = intel_change_pte,
-	.invalidate_page = intel_invalidate_page,
 	.invalidate_range = intel_invalidate_range,
 };
 

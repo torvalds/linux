@@ -449,6 +449,10 @@ static void bcm_sysport_get_stats(struct net_device *dev,
 			p = (char *)&dev->stats;
 		else
 			p = (char *)priv;
+
+		if (priv->is_lite && !bcm_sysport_lite_stat_valid(s->type))
+			continue;
+
 		p += s->stat_offset;
 		data[j] = *(unsigned long *)p;
 		j++;
@@ -593,7 +597,7 @@ static int bcm_sysport_set_coalesce(struct net_device *dev,
 
 static void bcm_sysport_free_cb(struct bcm_sysport_cb *cb)
 {
-	dev_kfree_skb_any(cb->skb);
+	dev_consume_skb_any(cb->skb);
 	cb->skb = NULL;
 	dma_unmap_addr_set(cb, dma_addr, 0);
 }
@@ -1342,6 +1346,8 @@ static int bcm_sysport_init_tx_ring(struct bcm_sysport_priv *priv,
 
 	ring->cbs = kcalloc(size, sizeof(struct bcm_sysport_cb), GFP_KERNEL);
 	if (!ring->cbs) {
+		dma_free_coherent(kdev, sizeof(struct dma_desc),
+				  ring->desc_cpu, ring->desc_dma);
 		netif_err(priv, hw, priv->netdev, "CB allocation failed\n");
 		return -ENOMEM;
 	}

@@ -174,20 +174,6 @@ void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
 	srcu_read_unlock(&srcu, id);
 }
 
-void __mmu_notifier_invalidate_page(struct mm_struct *mm,
-					  unsigned long address)
-{
-	struct mmu_notifier *mn;
-	int id;
-
-	id = srcu_read_lock(&srcu);
-	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
-		if (mn->ops->invalidate_page)
-			mn->ops->invalidate_page(mn, mm, address);
-	}
-	srcu_read_unlock(&srcu, id);
-}
-
 void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
 				  unsigned long start, unsigned long end)
 {
