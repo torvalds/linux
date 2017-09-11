@@ -70,6 +70,7 @@
 		ti,min-output-impedance;
 		interrupt-parent = <&gpio6>;
 		interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
+		ti,dp83867-rxctrl-strap-quirk;
 	};
 
 	dp83867_1: ethernet-phy@3 {
@@ -80,5 +81,6 @@
 		ti,min-output-impedance;
 		interrupt-parent = <&gpio6>;
 		interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
+		ti,dp83867-rxctrl-strap-quirk;
 	};
 };

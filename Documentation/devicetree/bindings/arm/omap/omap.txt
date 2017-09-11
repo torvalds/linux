@@ -80,6 +80,9 @@ SoCs:
 - OMAP5432
   compatible = "ti,omap5432", "ti,omap5"
 
+- DRA762
+  compatible = "ti,dra762", "ti,dra7"
+
 - DRA742
   compatible = "ti,dra742", "ti,dra74", "ti,dra7"
 

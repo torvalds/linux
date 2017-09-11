@@ -29,6 +29,7 @@
 #include "prcm44xx.h"
 #include "prm7xx.h"
 #include "prcm_mpu7xx.h"
+#include "soc.h"
 
 /* iva_7xx_pwrdm: IVA-HD power domain */
 static struct powerdomain iva_7xx_pwrdm = {
@@ -61,6 +62,14 @@ static struct powerdomain custefuse_7xx_pwrdm = {
 	.prcm_partition	  = DRA7XX_PRM_PARTITION,
 	.pwrsts		  = PWRSTS_OFF_ON,
 	.flags		  = PWRDM_HAS_LOWPOWERSTATECHANGE,
+};
+
+/* custefuse_aon_7xx_pwrdm: Customer efuse controller power domain */
+static struct powerdomain custefuse_aon_7xx_pwrdm = {
+	.name		  = "custefuse_pwrdm",
+	.prcm_offs	  = DRA7XX_PRM_CUSTEFUSE_INST,
+	.prcm_partition	  = DRA7XX_PRM_PARTITION,
+	.pwrsts		  = PWRSTS_ON,
 };
 
 /* ipu_7xx_pwrdm: Audio back end power domain */
@@ -350,7 +359,6 @@ static struct powerdomain eve1_7xx_pwrdm = {
 static struct powerdomain *powerdomains_dra7xx[] __initdata = {
 	&iva_7xx_pwrdm,
 	&rtc_7xx_pwrdm,
-	&custefuse_7xx_pwrdm,
 	&ipu_7xx_pwrdm,
 	&dss_7xx_pwrdm,
 	&l4per_7xx_pwrdm,
@@ -374,9 +382,32 @@ static struct powerdomain *powerdomains_dra7xx[] __initdata = {
 	NULL
 };
 
+static struct powerdomain *powerdomains_dra76x[] __initdata = {
+	&custefuse_aon_7xx_pwrdm,
+	NULL
+};
+
+static struct powerdomain *powerdomains_dra74x[] __initdata = {
+	&custefuse_7xx_pwrdm,
+	NULL
+};
+
+static struct powerdomain *powerdomains_dra72x[] __initdata = {
+	&custefuse_aon_7xx_pwrdm,
+	NULL
+};
+
 void __init dra7xx_powerdomains_init(void)
 {
 	pwrdm_register_platform_funcs(&omap4_pwrdm_operations);
 	pwrdm_register_pwrdms(powerdomains_dra7xx);
+
+	if (soc_is_dra76x())
+		pwrdm_register_pwrdms(powerdomains_dra76x);
+	else if (soc_is_dra74x())
+		pwrdm_register_pwrdms(powerdomains_dra74x);
+	else if (soc_is_dra72x())
+		pwrdm_register_pwrdms(powerdomains_dra72x);
+
 	pwrdm_complete_init();
 }
