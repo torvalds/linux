@@ -881,7 +881,8 @@ static void dcn10_init_hw(struct dc *dc)
 
 		xfm->funcs->transform_reset(xfm);
 		dc->res_pool->mpc->funcs->remove(
-				dc->res_pool->mpc, dc->res_pool->opps[i], i);
+				dc->res_pool->mpc, &(dc->res_pool->opps[i]->mpc_tree),
+				dc->res_pool->opps[i]->inst, i);
 
 		/* Blank controller using driver code instead of
 		 * command table.
@@ -1079,7 +1080,8 @@ static void plane_atomic_disconnect(struct dc *dc,
 	if (dc->debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
 
-	mpc->funcs->remove(mpc, dc->res_pool->opps[opp_id], fe_idx);
+	mpc->funcs->remove(mpc, &(dc->res_pool->opps[opp_id]->mpc_tree),
+			dc->res_pool->opps[opp_id]->inst, fe_idx);
 }
 
 /* disable HW used by plane.
@@ -2299,8 +2301,9 @@ static void update_dchubp_dpp(
 			plane_state->format,
 			EXPANSION_MODE_ZERO);
 
-	mpcc_cfg.mi = mi;
-	mpcc_cfg.opp = pipe_ctx->stream_res.opp;
+	mpcc_cfg.dpp_id = mi->inst;
+	mpcc_cfg.opp_id = pipe_ctx->stream_res.opp->inst;
+	mpcc_cfg.tree_cfg = &(pipe_ctx->stream_res.opp->mpc_tree);
 	for (top_pipe = pipe_ctx->top_pipe; top_pipe; top_pipe = top_pipe->top_pipe)
 		mpcc_cfg.z_index++;
 	if (dc->debug.surface_visual_confirm)
@@ -2317,7 +2320,8 @@ static void update_dchubp_dpp(
 	mpcc_cfg.pre_multiplied_alpha = is_rgb_cspace(
 			pipe_ctx->stream->output_color_space)
 					&& per_pixel_alpha;
-	dc->res_pool->mpc->funcs->add(dc->res_pool->mpc, &mpcc_cfg);
+	mi->mpcc_id = dc->res_pool->mpc->funcs->add(dc->res_pool->mpc, &mpcc_cfg);
+	mi->opp_id = mpcc_cfg.opp_id;
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = per_pixel_alpha;
 	pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
@@ -2528,7 +2532,8 @@ static void dcn10_apply_ctx_for_surface(
 			/* reset mpc */
 			dc->res_pool->mpc->funcs->remove(
 					dc->res_pool->mpc,
-					old_pipe_ctx->stream_res.opp,
+					&(old_pipe_ctx->stream_res.opp->mpc_tree),
+					old_pipe_ctx->stream_res.opp->inst,
 					old_pipe_ctx->pipe_idx);
 			old_pipe_ctx->stream_res.opp->mpcc_disconnect_pending[old_pipe_ctx->plane_res.mi->mpcc_id] = true;
 

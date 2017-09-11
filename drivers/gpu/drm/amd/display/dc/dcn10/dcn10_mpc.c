@@ -118,17 +118,19 @@ static void mpc10_assert_mpcc_idle_before_connect(struct dcn10_mpc *mpc10, int i
 
 static void mpc10_mpcc_remove(
 		struct mpc *mpc,
-		struct output_pixel_processor *opp,
+		struct mpc_tree_cfg *tree_cfg,
+		int opp_id,
 		int dpp_id)
 {
 	struct dcn10_mpc *mpc10 = TO_DCN10_MPC(mpc);
 	int mpcc_id, z_idx;
 
-	for (z_idx = 0; z_idx < opp->mpc_tree.num_pipes; z_idx++)
-		if (opp->mpc_tree.dpp[z_idx] == dpp_id)
+	/* find z_idx for the dpp to be removed */
+	for (z_idx = 0; z_idx < tree_cfg->num_pipes; z_idx++)
+		if (tree_cfg->dpp[z_idx] == dpp_id)
 			break;
 
-	if (z_idx == opp->mpc_tree.num_pipes) {
+	if (z_idx == tree_cfg->num_pipes) {
 		/* In case of resume from S3/S4, remove mpcc from bios left over */
 		REG_SET(MPCC_OPP_ID[dpp_id], 0,
 				MPCC_OPP_ID, 0xf);
@@ -139,7 +141,7 @@ static void mpc10_mpcc_remove(
 		return;
 	}
 
-	mpcc_id = opp->mpc_tree.mpcc[z_idx];
+	mpcc_id = tree_cfg->mpcc[z_idx];
 
 	REG_SET(MPCC_OPP_ID[mpcc_id], 0,
 			MPCC_OPP_ID, 0xf);
@@ -149,82 +151,101 @@ static void mpc10_mpcc_remove(
 			MPCC_BOT_SEL, 0xf);
 
 	if (z_idx > 0) {
-		int top_mpcc_id = opp->mpc_tree.mpcc[z_idx - 1];
+		int top_mpcc_id = tree_cfg->mpcc[z_idx - 1];
 
-		if (z_idx + 1 < opp->mpc_tree.num_pipes)
+		if (z_idx + 1 < tree_cfg->num_pipes)
+			/* mpcc to be removed is in the middle of the tree */
 			REG_SET(MPCC_BOT_SEL[top_mpcc_id], 0,
-					MPCC_BOT_SEL, opp->mpc_tree.mpcc[z_idx + 1]);
+					MPCC_BOT_SEL, tree_cfg->mpcc[z_idx + 1]);
 		else {
+			/* mpcc to be removed is at the bottom of the tree */
 			REG_SET(MPCC_BOT_SEL[top_mpcc_id], 0,
 					MPCC_BOT_SEL, 0xf);
 			REG_UPDATE(MPCC_CONTROL[top_mpcc_id],
 					MPCC_MODE, MODE_TOP_ONLY);
 		}
-	} else if (opp->mpc_tree.num_pipes > 1)
-		REG_SET(MUX[opp->inst], 0,
-				MPC_OUT_MUX, opp->mpc_tree.mpcc[z_idx + 1]);
+	} else if (tree_cfg->num_pipes > 1)
+		/* mpcc to be removed is at the top of the tree */
+		REG_SET(MUX[opp_id], 0,
+				MPC_OUT_MUX, tree_cfg->mpcc[z_idx + 1]);
 	else
-		REG_SET(MUX[opp->inst], 0, MPC_OUT_MUX, 0xf);
+		/* mpcc to be removed is the only one in the tree */
+		REG_SET(MUX[opp_id], 0, MPC_OUT_MUX, 0xf);
 
+	/* mark this mpcc as not in use */
 	mpc10->mpcc_in_use_mask &= ~(1 << mpcc_id);
-	opp->mpc_tree.num_pipes--;
-	for (; z_idx < opp->mpc_tree.num_pipes; z_idx++) {
-		opp->mpc_tree.dpp[z_idx] = opp->mpc_tree.dpp[z_idx + 1];
-		opp->mpc_tree.mpcc[z_idx] = opp->mpc_tree.mpcc[z_idx + 1];
+	tree_cfg->num_pipes--;
+	for (; z_idx < tree_cfg->num_pipes; z_idx++) {
+		tree_cfg->dpp[z_idx] = tree_cfg->dpp[z_idx + 1];
+		tree_cfg->mpcc[z_idx] = tree_cfg->mpcc[z_idx + 1];
 	}
-	opp->mpc_tree.dpp[opp->mpc_tree.num_pipes] = 0xdeadbeef;
-	opp->mpc_tree.mpcc[opp->mpc_tree.num_pipes] = 0xdeadbeef;
+	tree_cfg->dpp[tree_cfg->num_pipes] = 0xdeadbeef;
+	tree_cfg->mpcc[tree_cfg->num_pipes] = 0xdeadbeef;
 }
 
-static void mpc10_mpcc_add(struct mpc *mpc, struct mpcc_cfg *cfg)
+static void mpc10_add_to_tree_cfg(
+	struct mpc *mpc,
+	struct mpcc_cfg *cfg,
+	int mpcc_id)
 {
 	struct dcn10_mpc *mpc10 = TO_DCN10_MPC(mpc);
+	int mpcc_mode = MODE_TOP_ONLY;
+	int position = cfg->z_index;
+	struct mpc_tree_cfg *tree_cfg = cfg->tree_cfg;
 	int alpha_blnd_mode = cfg->per_pixel_alpha ?
 			BLND_PP_ALPHA : BLND_GLOBAL_ALPHA;
-	int mpcc_mode = MODE_TOP_ONLY;
-	int mpcc_id, z_idx;
-
-	ASSERT(cfg->z_index < mpc10->num_mpcc);
-
-	for (z_idx = 0; z_idx < cfg->opp->mpc_tree.num_pipes; z_idx++)
-		if (cfg->opp->mpc_tree.dpp[z_idx] == cfg->mi->inst)
-			break;
-	if (z_idx == cfg->opp->mpc_tree.num_pipes) {
-		ASSERT(cfg->z_index <= cfg->opp->mpc_tree.num_pipes);
-		mpcc_id = mpc10_get_idle_mpcc_id(mpc10);
-		/*todo: remove hack*/
-		mpcc_id = cfg->mi->inst;
-		ASSERT(!(mpc10->mpcc_in_use_mask & 1 << mpcc_id));
-
-		if (mpc->ctx->dc->debug.sanity_checks)
-			mpc10_assert_mpcc_idle_before_connect(mpc10, mpcc_id);
-	} else {
-		ASSERT(cfg->z_index < cfg->opp->mpc_tree.num_pipes);
-		mpcc_id = cfg->opp->mpc_tree.mpcc[z_idx];
-		mpc10_mpcc_remove(mpc, cfg->opp, cfg->mi->inst);
-	}
+	int z_idx;
 
 	REG_SET(MPCC_OPP_ID[mpcc_id], 0,
-			MPCC_OPP_ID, cfg->opp->inst);
+			MPCC_OPP_ID, cfg->opp_id);
 
 	REG_SET(MPCC_TOP_SEL[mpcc_id], 0,
-			MPCC_TOP_SEL, cfg->mi->inst);
+			MPCC_TOP_SEL, cfg->dpp_id);
 
-	if (cfg->z_index > 0) {
-		int top_mpcc_id = cfg->opp->mpc_tree.mpcc[cfg->z_index - 1];
+	if (position == 0) {
+		/* idle dpp/mpcc is added to the top layer of tree */
 
-		REG_SET(MPCC_BOT_SEL[top_mpcc_id], 0,
+		if (tree_cfg->num_pipes > 0) {
+			/* get instance of previous top mpcc */
+			int prev_top_mpcc_id = tree_cfg->mpcc[0];
+
+			REG_SET(MPCC_BOT_SEL[mpcc_id], 0,
+					MPCC_BOT_SEL, prev_top_mpcc_id);
+			mpcc_mode = MODE_BLEND;
+		}
+
+		/* opp will get new output. from new added mpcc */
+		REG_SET(MUX[cfg->opp_id], 0, MPC_OUT_MUX, mpcc_id);
+
+	} else if (position == tree_cfg->num_pipes) {
+		/* idle dpp/mpcc is added to the bottom layer of tree */
+
+		/* get instance of previous bottom mpcc, set to middle layer */
+		int prev_bot_mpcc_id = tree_cfg->mpcc[tree_cfg->num_pipes - 1];
+
+		REG_SET(MPCC_BOT_SEL[prev_bot_mpcc_id], 0,
 				MPCC_BOT_SEL, mpcc_id);
-		REG_UPDATE(MPCC_CONTROL[top_mpcc_id],
+		REG_UPDATE(MPCC_CONTROL[prev_bot_mpcc_id],
 				MPCC_MODE, MODE_BLEND);
-	} else
-		REG_SET(MUX[cfg->opp->inst], 0, MPC_OUT_MUX, mpcc_id);
 
-	if (cfg->z_index < cfg->opp->mpc_tree.num_pipes) {
-		int bot_mpcc_id = cfg->opp->mpc_tree.mpcc[cfg->z_index];
-
+		/* mpcc_id become new bottom mpcc*/
 		REG_SET(MPCC_BOT_SEL[mpcc_id], 0,
-				MPCC_BOT_SEL, bot_mpcc_id);
+				MPCC_BOT_SEL, 0xf);
+
+	} else {
+		/* idle dpp/mpcc is added to middle of tree */
+		int above_mpcc_id = tree_cfg->mpcc[position - 1];
+		int below_mpcc_id = tree_cfg->mpcc[position];
+
+		/* mpcc above new mpcc_id has new bottom mux*/
+		REG_SET(MPCC_BOT_SEL[above_mpcc_id], 0,
+				MPCC_BOT_SEL, mpcc_id);
+		REG_UPDATE(MPCC_CONTROL[above_mpcc_id],
+				MPCC_MODE, MODE_BLEND);
+
+		/* mpcc_id bottom mux is from below mpcc*/
+		REG_SET(MPCC_BOT_SEL[mpcc_id], 0,
+				MPCC_BOT_SEL, below_mpcc_id);
 		mpcc_mode = MODE_BLEND;
 	}
 
@@ -234,18 +255,50 @@ static void mpc10_mpcc_add(struct mpc *mpc, struct mpcc_cfg *cfg)
 		MPCC_ALPHA_MULTIPLIED_MODE, cfg->pre_multiplied_alpha,
 		MPCC_BLND_ACTIVE_OVERLAP_ONLY, false);
 
+	/* update mpc_tree_cfg with new mpcc */
+	for (z_idx = tree_cfg->num_pipes; z_idx > position; z_idx--) {
+		tree_cfg->dpp[z_idx] = tree_cfg->dpp[z_idx - 1];
+		tree_cfg->mpcc[z_idx] = tree_cfg->mpcc[z_idx - 1];
+	}
+	tree_cfg->dpp[position] = cfg->dpp_id;
+	tree_cfg->mpcc[position] = mpcc_id;
+	tree_cfg->num_pipes++;
+}
+
+static int mpc10_mpcc_add(struct mpc *mpc, struct mpcc_cfg *cfg)
+{
+	struct dcn10_mpc *mpc10 = TO_DCN10_MPC(mpc);
+	int mpcc_id, z_idx;
+
+	ASSERT(cfg->z_index < mpc10->num_mpcc);
+
+	/* check in dpp already exists in mpc tree */
+	for (z_idx = 0; z_idx < cfg->tree_cfg->num_pipes; z_idx++)
+		if (cfg->tree_cfg->dpp[z_idx] == cfg->dpp_id)
+			break;
+	if (z_idx == cfg->tree_cfg->num_pipes) {
+		ASSERT(cfg->z_index <= cfg->tree_cfg->num_pipes);
+		mpcc_id = mpc10_get_idle_mpcc_id(mpc10);
+		ASSERT(!(mpc10->mpcc_in_use_mask & 1 << mpcc_id));
+
+		if (mpc->ctx->dc->debug.sanity_checks)
+			mpc10_assert_mpcc_idle_before_connect(mpc10, mpcc_id);
+	} else {
+		ASSERT(cfg->z_index < cfg->tree_cfg->num_pipes);
+		mpcc_id = cfg->tree_cfg->mpcc[z_idx];
+		mpc10_mpcc_remove(mpc, cfg->tree_cfg, cfg->opp_id, cfg->dpp_id);
+	}
+
+	/* add dpp/mpcc pair to mpc_tree_cfg and update mpcc registers */
+	mpc10_add_to_tree_cfg(mpc, cfg, mpcc_id);
+
+	/* set background color */
 	mpc10_set_bg_color(mpc10, &cfg->black_color, mpcc_id);
 
+	/* mark this mpcc as in use */
 	mpc10->mpcc_in_use_mask |= 1 << mpcc_id;
-	for (z_idx = cfg->opp->mpc_tree.num_pipes; z_idx > cfg->z_index; z_idx--) {
-		cfg->opp->mpc_tree.dpp[z_idx] = cfg->opp->mpc_tree.dpp[z_idx - 1];
-		cfg->opp->mpc_tree.mpcc[z_idx] = cfg->opp->mpc_tree.mpcc[z_idx - 1];
-	}
-	cfg->opp->mpc_tree.dpp[cfg->z_index] = cfg->mi->inst;
-	cfg->opp->mpc_tree.mpcc[cfg->z_index] = mpcc_id;
-	cfg->opp->mpc_tree.num_pipes++;
-	cfg->mi->opp_id = cfg->opp->inst;
-	cfg->mi->mpcc_id = mpcc_id;
+
+	return mpcc_id;
 }
 
 const struct mpc_funcs dcn10_mpc_funcs = {
