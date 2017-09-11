@@ -275,15 +275,27 @@ void tcf_block_put(struct tcf_block *block)
 
 	/* XXX: Standalone actions are not allowed to jump to any chain, and
 	 * bound actions should be all removed after flushing. However,
-	 * filters are destroyed in RCU callbacks, we have to flush and wait
-	 * for them inside the loop, otherwise we race with RCU callbacks on
-	 * this list.
+	 * filters are destroyed in RCU callbacks, we have to hold the chains
+	 * first, otherwise we would always race with RCU callbacks on this list
+	 * without proper locking.
 	 */
-	list_for_each_entry_safe(chain, tmp, &block->chain_list, list) {
-		tcf_chain_flush(chain);
-		rcu_barrier();
-	}
 
+	/* Wait for existing RCU callbacks to cool down. */
+	rcu_barrier();
+
+	/* Hold a refcnt for all chains, except 0, in case they are gone. */
+	list_for_each_entry(chain, &block->chain_list, list)
+		if (chain->index)
+			tcf_chain_hold(chain);
+
+	/* No race on the list, because no chain could be destroyed. */
+	list_for_each_entry(chain, &block->chain_list, list)
+		tcf_chain_flush(chain);
+
+	/* Wait for RCU callbacks to release the reference count. */
+	rcu_barrier();
+
+	/* At this point, all the chains should have refcnt == 1. */
 	list_for_each_entry_safe(chain, tmp, &block->chain_list, list)
 		tcf_chain_put(chain);
 	kfree(block);
