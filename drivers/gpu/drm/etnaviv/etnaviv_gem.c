@@ -551,12 +551,15 @@ static const struct etnaviv_gem_ops etnaviv_gem_shmem_ops = {
 void etnaviv_gem_free_object(struct drm_gem_object *obj)
 {
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
+	struct etnaviv_drm_private *priv = obj->dev->dev_private;
 	struct etnaviv_vram_mapping *mapping, *tmp;
 
 	/* object should not be active */
 	WARN_ON(is_active(etnaviv_obj));
 
+	mutex_lock(&priv->gem_lock);
 	list_del(&etnaviv_obj->gem_node);
+	mutex_unlock(&priv->gem_lock);
 
 	list_for_each_entry_safe(mapping, tmp, &etnaviv_obj->vram_list,
 				 obj_node) {
