@@ -813,7 +813,9 @@ int i915_gem_init_userptr(struct drm_i915_private *dev_priv)
 	hash_init(dev_priv->mm_structs);
 
 	dev_priv->mm.userptr_wq =
-		alloc_workqueue("i915-userptr-acquire", WQ_HIGHPRI, 0);
+		alloc_workqueue("i915-userptr-acquire",
+				WQ_HIGHPRI | WQ_MEM_RECLAIM,
+				0);
 	if (!dev_priv->mm.userptr_wq)
 		return -ENOMEM;
 
