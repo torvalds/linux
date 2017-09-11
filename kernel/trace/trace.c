@@ -5364,6 +5364,13 @@ static int tracing_set_tracer(struct trace_array *tr, const char *buf)
 	if (t == tr->current_trace)
 		goto out;
 
+	/* Some tracers won't work on kernel command line */
+	if (system_state < SYSTEM_RUNNING && t->noboot) {
+		pr_warn("Tracer '%s' is not allowed on command line, ignored\n",
+			t->name);
+		goto out;
+	}
+
 	/* Some tracers are only allowed for the top level buffer */
 	if (!trace_ok_for_array(t, tr)) {
 		ret = -EINVAL;
