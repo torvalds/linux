@@ -58,10 +58,6 @@ void flush_thread(void)
 {
 }
 
-void release_thread(struct task_struct *dead_task)
-{
-}
-
 void arch_release_task_struct(struct task_struct *tsk)
 {
 }
