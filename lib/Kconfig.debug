@@ -219,7 +219,8 @@ config FRAME_WARN
 	range 0 8192
 	default 0 if KASAN
 	default 2048 if GCC_PLUGIN_LATENT_ENTROPY
-	default 1024 if !64BIT
+	default 1280 if (!64BIT && PARISC)
+	default 1024 if (!64BIT && !PARISC)
 	default 2048 if 64BIT
 	help
 	  Tell gcc to warn at build time for stack frames larger than this.
