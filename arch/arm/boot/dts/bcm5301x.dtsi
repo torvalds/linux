@@ -272,6 +272,19 @@
 				reg = <0x00021000 0x1000>;
 				interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&usb2_phy>;
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				ehci_port1: port@1 {
+					reg = <1>;
+					#trigger-source-cells = <0>;
+				};
+
+				ehci_port2: port@2 {
+					reg = <2>;
+					#trigger-source-cells = <0>;
+				};
 			};
 
 			ohci: ohci@22000 {
@@ -280,6 +293,19 @@
 				compatible = "generic-ohci";
 				reg = <0x00022000 0x1000>;
 				interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				ohci_port1: port@1 {
+					reg = <1>;
+					#trigger-source-cells = <0>;
+				};
+
+				ohci_port2: port@2 {
+					reg = <2>;
+					#trigger-source-cells = <0>;
+				};
 			};
 		};
 
@@ -300,6 +326,14 @@
 				interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&usb3_phy>;
 				phy-names = "usb";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				xhci_port1: port@1 {
+					reg = <1>;
+					#trigger-source-cells = <0>;
+				};
 			};
 		};
 

@@ -40,11 +40,16 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
+/dts-v1/;
+
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include "imx6ul.dtsi"
 
 / {
+	model = "Engicam GEAM6UL Starter Kit";
+	compatible = "engicam,imx6ul-geam", "fsl,imx6ul";
+
 	memory {
 		reg = <0x80000000 0x08000000>;
 	};
@@ -87,18 +92,46 @@
 		regulator-always-on;
 		regulator-boot-on;
 	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "imx6ul-geam-sgtl5000";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&dailink_master>;
+		simple-audio-card,frame-master = <&dailink_master>;
+		simple-audio-card,widgets =
+			"Microphone", "Mic Jack",
+			"Line", "Line In",
+			"Line", "Line Out",
+			"Headphone", "Headphone Jack";
+		simple-audio-card,routing =
+			"MIC_IN", "Mic Jack",
+			"Mic Jack", "Mic Bias",
+			"Headphone Jack", "HP_OUT";
+
+		simple-audio-card,cpu {
+			sound-dai = <&sai2>;
+		};
+
+		dailink_master: simple-audio-card,codec {
+			sound-dai = <&sgtl5000>;
+			clocks = <&clks IMX6UL_CLK_SAI2>;
+		};
+	};
 };
 
 &can1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_flexcan1>;
 	xceiver-supply = <&reg_3p3v>;
+	status = "okay";
 };
 
 &can2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_flexcan2>;
 	xceiver-supply = <&reg_3p3v>;
+	status = "okay";
 };
 
 &fec1 {
@@ -144,6 +177,16 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
+
+	sgtl5000: codec@a {
+		compatible = "fsl,sgtl5000";
+		reg = <0x0a>;
+		clocks = <&clks IMX6UL_CLK_OSC>;
+		clock-names = "mclk";
+		VDDA-supply = <&reg_3p3v>;
+		VDDIO-supply = <&reg_3p3v>;
+		VDDD-supply = <&reg_1p8v>;
+	};
 };
 
 &i2c2 {
@@ -158,6 +201,31 @@
 	pinctrl-0 = <&pinctrl_lcdif_dat
 		     &pinctrl_lcdif_ctrl>;
 	display = <&display0>;
+	status = "okay";
+
+	display0: display {
+		bits-per-pixel = <16>;
+		bus-width = <18>;
+
+		display-timings {
+			native-mode = <&timing0>;
+			timing0: timing0 {
+				clock-frequency = <28000000>;
+				hactive = <800>;
+				vactive = <480>;
+				hfront-porch = <30>;
+				hback-porch = <30>;
+				hsync-len = <64>;
+				vback-porch = <5>;
+				vfront-porch = <5>;
+				vsync-len = <20>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <0>;
+			};
+		};
+	};
 };
 
 &pwm8 {
@@ -175,6 +243,12 @@
 &sai2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sai2>;
+	status = "okay";
+};
+
+&tsc {
+	measure-delay-time = <0x1ffff>;
+	pre-charge-time = <0x1fff>;
 	status = "okay";
 };
 

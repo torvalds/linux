@@ -1,6 +1,9 @@
 /*
- * Copyright (C) 2016 Amarula Solutions B.V.
- * Copyright (C) 2016 Engicam S.r.l.
+ * at91-sama5d27_som1.dtsi - Device Tree file for SAMA5D27 SoM1 board
+ *
+ *  Copyright (c) 2017, Microchip Technology Inc.
+ *                2017 Cristian Birsan <cristian.birsan@microchip.com>
+ *                2017 Claudiu Beznea <claudiu.beznea@microchip.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -8,8 +11,9 @@
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License
- *     version 2 as published by the Free Software Foundation.
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
  *
  *     This file is distributed in the hope that it will be useful,
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -39,63 +43,60 @@
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
-
-/dts-v1/;
-
-#include <dt-bindings/gpio/gpio.h>
-#include "imx6ul-geam.dtsi"
+#include "sama5d2.dtsi"
+#include "sama5d2-pinfunc.h"
 
 / {
-	model = "Engicam GEAM6UL";
-	compatible = "engicam,imx6ul-geam", "fsl,imx6ul";
-};
+	model = "Atmel SAMA5D27 SoM1";
+	compatible = "atmel,sama5d27-som1", "atmel,sama5d27", "atmel,sama5d2", "atmel,sama5";
 
-&can1 {
-	status = "okay";
-};
+	clocks {
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
 
-&can2 {
-	status = "okay";
-};
+		main_xtal {
+			clock-frequency = <24000000>;
+		};
+	};
 
-&lcdif {
-	display = <&display0>;
-	status = "okay";
+	ahb {
+		apb {
+			macb0: ethernet@f8008000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_macb0_default>;
+				phy-mode = "rmii";
 
-	display0: display {
-		bits-per-pixel = <16>;
-		bus-width = <18>;
-		status = "okay";
+				ethernet-phy@1 {
+					reg = <0x1>;
+					interrupt-parent = <&pioA>;
+					interrupts = <PIN_PD31 IRQ_TYPE_LEVEL_LOW>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_macb0_phy_irq>;
+				};
+			};
 
-		display-timings {
-			native-mode = <&timing0>;
-			timing0: timing0 {
-				clock-frequency = <28000000>;
-				hactive = <800>;
-				vactive = <480>;
-				hfront-porch = <30>;
-				hback-porch = <30>;
-				hsync-len = <64>;
-				vback-porch = <5>;
-				vfront-porch = <5>;
-				vsync-len = <20>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				de-active = <1>;
-				pixelclk-active = <0>;
+			pinctrl@fc038000 {
+
+				pinctrl_macb0_default: macb0_default {
+					pinmux = <PIN_PD9__GTXCK>,
+						 <PIN_PD10__GTXEN>,
+						 <PIN_PD11__GRXDV>,
+						 <PIN_PD12__GRXER>,
+						 <PIN_PD13__GRX0>,
+						 <PIN_PD14__GRX1>,
+						 <PIN_PD15__GTX0>,
+						 <PIN_PD16__GTX1>,
+						 <PIN_PD17__GMDC>,
+						 <PIN_PD18__GMDIO>;
+					bias-disable;
+				};
+
+				pinctrl_macb0_phy_irq: macb0_phy_irq {
+					pinmux = <PIN_PD31__GPIO>;
+					bias-disable;
+				};
 			};
 		};
 	};
-};
-
-&usdhc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc1>;
-	status = "okay";
-};
-
-&tsc {
-	measure-delay-time = <0x1ffff>;
-	pre-charge-time = <0x1fff>;
-	status = "okay";
 };
