@@ -9,6 +9,7 @@
 
 #include <linux/slab.h>
 #include <linux/dma-fence.h>
+#include <linux/irq_work.h>
 #include <linux/reservation.h>
 
 #include "i915_sw_fence.h"
@@ -356,31 +357,44 @@ struct i915_sw_dma_fence_cb {
 	struct i915_sw_fence *fence;
 	struct dma_fence *dma;
 	struct timer_list timer;
+	struct irq_work work;
 };
 
 static void timer_i915_sw_fence_wake(unsigned long data)
 {
 	struct i915_sw_dma_fence_cb *cb = (struct i915_sw_dma_fence_cb *)data;
+	struct i915_sw_fence *fence;
+
+	fence = xchg(&cb->fence, NULL);
+	if (!fence)
+		return;
 
 	pr_warn("asynchronous wait on fence %s:%s:%x timed out\n",
 		cb->dma->ops->get_driver_name(cb->dma),
 		cb->dma->ops->get_timeline_name(cb->dma),
 		cb->dma->seqno);
-	dma_fence_put(cb->dma);
-	cb->dma = NULL;
 
-	i915_sw_fence_complete(cb->fence);
-	cb->timer.function = NULL;
+	i915_sw_fence_complete(fence);
 }
 
 static void dma_i915_sw_fence_wake(struct dma_fence *dma,
 				   struct dma_fence_cb *data)
 {
 	struct i915_sw_dma_fence_cb *cb = container_of(data, typeof(*cb), base);
+	struct i915_sw_fence *fence;
+
+	fence = xchg(&cb->fence, NULL);
+	if (fence)
+		i915_sw_fence_complete(fence);
+
+	irq_work_queue(&cb->work);
+}
+
+static void irq_i915_sw_fence_work(struct irq_work *wrk)
+{
+	struct i915_sw_dma_fence_cb *cb = container_of(wrk, typeof(*cb), work);
 
 	del_timer_sync(&cb->timer);
-	if (cb->timer.function)
-		i915_sw_fence_complete(cb->fence);
 	dma_fence_put(cb->dma);
 
 	kfree(cb);
@@ -414,6 +428,7 @@ int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 	__setup_timer(&cb->timer,
 		      timer_i915_sw_fence_wake, (unsigned long)cb,
 		      TIMER_IRQSAFE);
+	init_irq_work(&cb->work, irq_i915_sw_fence_work);
 	if (timeout) {
 		cb->dma = dma_fence_get(dma);
 		mod_timer(&cb->timer, round_jiffies_up(jiffies + timeout));
