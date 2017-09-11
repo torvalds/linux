@@ -399,6 +399,9 @@ static int intel_spi_hw_cycle(struct intel_spi *ispi, u8 opcode, int len)
 		return -EINVAL;
 	}
 
+	if (len > INTEL_SPI_FIFO_SZ)
+		return -EINVAL;
+
 	val |= (len - 1) << HSFSTS_CTL_FDBC_SHIFT;
 	val |= HSFSTS_CTL_FCERR | HSFSTS_CTL_FDONE;
 	val |= HSFSTS_CTL_FGO;
@@ -419,14 +422,19 @@ static int intel_spi_hw_cycle(struct intel_spi *ispi, u8 opcode, int len)
 
 static int intel_spi_sw_cycle(struct intel_spi *ispi, u8 opcode, int len)
 {
-	u32 val, status;
+	u32 val = 0, status;
 	int ret;
 
 	ret = intel_spi_opcode_index(ispi, opcode);
 	if (ret < 0)
 		return ret;
 
-	val = ((len - 1) << SSFSTS_CTL_DBC_SHIFT) | SSFSTS_CTL_DS;
+	if (len > INTEL_SPI_FIFO_SZ)
+		return -EINVAL;
+
+	/* Only mark 'Data Cycle' bit when there is data to be transferred */
+	if (len > 0)
+		val = ((len - 1) << SSFSTS_CTL_DBC_SHIFT) | SSFSTS_CTL_DS;
 	val |= ret << SSFSTS_CTL_COP_SHIFT;
 	val |= SSFSTS_CTL_FCERR | SSFSTS_CTL_FDONE;
 	val |= SSFSTS_CTL_SCGO;
