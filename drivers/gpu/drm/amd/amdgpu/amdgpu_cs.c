@@ -814,7 +814,7 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p)
 
 	}
 
-	r = amdgpu_vm_handle_moved(adev, vm, &p->job->sync);
+	r = amdgpu_vm_handle_moved(adev, vm);
 	if (r)
 		return r;
 
