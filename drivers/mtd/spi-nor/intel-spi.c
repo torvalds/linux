@@ -572,11 +572,6 @@ static ssize_t intel_spi_write(struct spi_nor *nor, loff_t to, size_t len,
 		val |= HSFSTS_CTL_AEL | HSFSTS_CTL_FCERR | HSFSTS_CTL_FDONE;
 		val |= (block_size - 1) << HSFSTS_CTL_FDBC_SHIFT;
 		val |= HSFSTS_CTL_FCYCLE_WRITE;
-
-		/* Write enable */
-		if (ispi->preopcodes[1] == SPINOR_OP_WREN)
-			val |= SSFSTS_CTL_SPOP;
-		val |= SSFSTS_CTL_ACS;
 		writel(val, ispi->base + HSFSTS_CTL);
 
 		ret = intel_spi_write_block(ispi, write_buf, block_size);
