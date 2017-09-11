@@ -488,6 +488,8 @@ static inline struct inode *ceph_find_inode(struct super_block *sb,
 #define CEPH_I_KICK_FLUSH	(1 << 9)  /* kick flushing caps */
 #define CEPH_I_FLUSH_SNAPS	(1 << 10) /* need flush snapss */
 #define CEPH_I_ERROR_WRITE	(1 << 11) /* have seen write errors */
+#define CEPH_I_ERROR_FILELOCK	(1 << 12) /* have seen file lock errors */
+
 
 /*
  * We set the ERROR_WRITE bit when we start seeing write errors on an inode

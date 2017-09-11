@@ -1215,6 +1215,13 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		}
 		spin_unlock(&mdsc->cap_dirty_lock);
 
+		if (atomic_read(&ci->i_filelock_ref) > 0) {
+			/* make further file lock syscall return -EIO */
+			ci->i_ceph_flags |= CEPH_I_ERROR_FILELOCK;
+			pr_warn_ratelimited(" dropping file locks for %p %lld\n",
+					    inode, ceph_ino(inode));
+		}
+
 		if (!ci->i_dirty_caps && ci->i_prealloc_cap_flush) {
 			list_add(&ci->i_prealloc_cap_flush->i_list, &to_remove);
 			ci->i_prealloc_cap_flush = NULL;
@@ -2832,7 +2839,7 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		struct ceph_mds_cap_reconnect v2;
 		struct ceph_mds_cap_reconnect_v1 v1;
 	} rec;
-	struct ceph_inode_info *ci;
+	struct ceph_inode_info *ci = cap->ci;
 	struct ceph_reconnect_state *recon_state = arg;
 	struct ceph_pagelist *pagelist = recon_state->pagelist;
 	char *path;
@@ -2840,8 +2847,6 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	u64 pathbase;
 	u64 snap_follows;
 	struct dentry *dentry;
-
-	ci = cap->ci;
 
 	dout(" adding %p ino %llx.%llx cap %p %lld %s\n",
 	     inode, ceph_vinop(inode), cap, cap->cap_id,
@@ -2875,7 +2880,8 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		rec.v2.issued = cpu_to_le32(cap->issued);
 		rec.v2.snaprealm = cpu_to_le64(ci->i_snap_realm->ino);
 		rec.v2.pathbase = cpu_to_le64(pathbase);
-		rec.v2.flock_len = 0;
+		rec.v2.flock_len =
+			(ci->i_ceph_flags & CEPH_I_ERROR_FILELOCK) ? 0 : 1;
 	} else {
 		rec.v1.cap_id = cpu_to_le64(cap->cap_id);
 		rec.v1.wanted = cpu_to_le32(__ceph_caps_wanted(ci));
@@ -2904,7 +2910,12 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		u8 struct_v = 0;
 
 encode_again:
-		ceph_count_locks(inode, &num_fcntl_locks, &num_flock_locks);
+		if (rec.v2.flock_len) {
+			ceph_count_locks(inode, &num_fcntl_locks, &num_flock_locks);
+		} else {
+			num_fcntl_locks = 0;
+			num_flock_locks = 0;
+		}
 		if (num_fcntl_locks + num_flock_locks > 0) {
 			flocks = kmalloc((num_fcntl_locks + num_flock_locks) *
 					 sizeof(struct ceph_filelock), GFP_NOFS);

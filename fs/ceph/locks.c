@@ -39,7 +39,13 @@ static void ceph_fl_copy_lock(struct file_lock *dst, struct file_lock *src)
 static void ceph_fl_release_lock(struct file_lock *fl)
 {
 	struct inode *inode = file_inode(fl->fl_file);
-	atomic_dec(&ceph_inode(inode)->i_filelock_ref);
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	if (atomic_dec_and_test(&ci->i_filelock_ref)) {
+		/* clear error when all locks are released */
+		spin_lock(&ci->i_ceph_lock);
+		ci->i_ceph_flags &= ~CEPH_I_ERROR_FILELOCK;
+		spin_unlock(&ci->i_ceph_lock);
+	}
 }
 
 static const struct file_lock_operations ceph_fl_lock_ops = {
@@ -208,10 +214,11 @@ static int ceph_lock_wait_for_completion(struct ceph_mds_client *mdsc,
 int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 {
 	struct inode *inode = file_inode(file);
-	int err;
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	int err = 0;
 	u16 op = CEPH_MDS_OP_SETFILELOCK;
-	u8 lock_cmd;
 	u8 wait = 0;
+	u8 lock_cmd;
 
 	if (!(fl->fl_flags & FL_POSIX))
 		return -ENOLCK;
@@ -227,7 +234,10 @@ int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 	else if (IS_SETLKW(cmd))
 		wait = 1;
 
-	if (op == CEPH_MDS_OP_SETFILELOCK) {
+	spin_lock(&ci->i_ceph_lock);
+	if (ci->i_ceph_flags & CEPH_I_ERROR_FILELOCK) {
+		err = -EIO;
+	} else if (op == CEPH_MDS_OP_SETFILELOCK) {
 		/*
 		 * increasing i_filelock_ref closes race window between
 		 * handling request reply and adding file_lock struct to
@@ -235,7 +245,13 @@ int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 		 * window. Caller function will decrease the counter.
 		 */
 		fl->fl_ops = &ceph_fl_lock_ops;
-		atomic_inc(&ceph_inode(inode)->i_filelock_ref);
+		atomic_inc(&ci->i_filelock_ref);
+	}
+	spin_unlock(&ci->i_ceph_lock);
+	if (err < 0) {
+		if (op == CEPH_MDS_OP_SETFILELOCK && F_UNLCK == fl->fl_type)
+			posix_lock_file(file, fl, NULL);
+		return err;
 	}
 
 	if (F_RDLCK == fl->fl_type)
@@ -247,10 +263,10 @@ int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 
 	err = ceph_lock_message(CEPH_LOCK_FCNTL, op, inode, lock_cmd, wait, fl);
 	if (!err) {
-		if (op != CEPH_MDS_OP_GETFILELOCK) {
+		if (op == CEPH_MDS_OP_SETFILELOCK) {
 			dout("mds locked, locking locally");
 			err = posix_lock_file(file, fl, NULL);
-			if (err && (CEPH_MDS_OP_SETFILELOCK == op)) {
+			if (err) {
 				/* undo! This should only happen if
 				 * the kernel detects local
 				 * deadlock. */
@@ -267,9 +283,10 @@ int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 {
 	struct inode *inode = file_inode(file);
-	int err;
-	u8 lock_cmd;
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	int err = 0;
 	u8 wait = 0;
+	u8 lock_cmd;
 
 	if (!(fl->fl_flags & FL_FLOCK))
 		return -ENOLCK;
@@ -279,9 +296,20 @@ int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 
 	dout("ceph_flock, fl_file: %p", fl->fl_file);
 
-	/* see comment in ceph_lock */
-	fl->fl_ops = &ceph_fl_lock_ops;
-	atomic_inc(&ceph_inode(inode)->i_filelock_ref);
+	spin_lock(&ci->i_ceph_lock);
+	if (ci->i_ceph_flags & CEPH_I_ERROR_FILELOCK) {
+		err = -EIO;
+	} else {
+		/* see comment in ceph_lock */
+		fl->fl_ops = &ceph_fl_lock_ops;
+		atomic_inc(&ci->i_filelock_ref);
+	}
+	spin_unlock(&ci->i_ceph_lock);
+	if (err < 0) {
+		if (F_UNLCK == fl->fl_type)
+			locks_lock_file_wait(file, fl);
+		return err;
+	}
 
 	if (IS_SETLKW(cmd))
 		wait = 1;
