@@ -611,7 +611,6 @@ static ssize_t intel_spi_write(struct spi_nor *nor, loff_t to, size_t len,
 		val |= HSFSTS_CTL_AEL | HSFSTS_CTL_FCERR | HSFSTS_CTL_FDONE;
 		val |= (block_size - 1) << HSFSTS_CTL_FDBC_SHIFT;
 		val |= HSFSTS_CTL_FCYCLE_WRITE;
-		writel(val, ispi->base + HSFSTS_CTL);
 
 		ret = intel_spi_write_block(ispi, write_buf, block_size);
 		if (ret) {
@@ -620,8 +619,8 @@ static ssize_t intel_spi_write(struct spi_nor *nor, loff_t to, size_t len,
 		}
 
 		/* Start the write now */
-		val = readl(ispi->base + HSFSTS_CTL);
-		writel(val | HSFSTS_CTL_FGO, ispi->base + HSFSTS_CTL);
+		val |= HSFSTS_CTL_FGO;
+		writel(val, ispi->base + HSFSTS_CTL);
 
 		ret = intel_spi_wait_hw_busy(ispi);
 		if (ret) {
