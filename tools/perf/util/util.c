@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <sys/utsname.h>
 #include <dirent.h>
+#include <fcntl.h>
 #include <inttypes.h>
 #include <signal.h>
 #include <stdio.h>
@@ -174,7 +175,7 @@ out:
 	return err;
 }
 
-int copyfile_offset(int ifd, loff_t off_in, int ofd, loff_t off_out, u64 size)
+static int copyfile_offset(int ifd, loff_t off_in, int ofd, loff_t off_out, u64 size)
 {
 	void *ptr;
 	loff_t pgoff;

@@ -6,6 +6,7 @@
 #include <linux/refcount.h>
 #include <linux/list.h>
 #include <api/fd/array.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include "../perf.h"
 #include "event.h"
