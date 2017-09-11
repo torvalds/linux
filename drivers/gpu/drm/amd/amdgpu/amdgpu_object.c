@@ -635,7 +635,6 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	int r, i;
-	unsigned fpfn, lpfn;
 
 	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm))
 		return -EPERM;
@@ -667,22 +666,16 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 	}
 
 	bo->flags |= AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
+	/* force to pin into visible video ram */
+	if (!(bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS))
+		bo->flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
 	amdgpu_ttm_placement_from_domain(bo, domain);
 	for (i = 0; i < bo->placement.num_placement; i++) {
-		/* force to pin into visible video ram */
-		if ((bo->placements[i].flags & TTM_PL_FLAG_VRAM) &&
-		    !(bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS) &&
-		    (!max_offset || max_offset >
-		     adev->mc.visible_vram_size)) {
-			if (WARN_ON_ONCE(min_offset >
-					 adev->mc.visible_vram_size))
-				return -EINVAL;
-			fpfn = min_offset >> PAGE_SHIFT;
-			lpfn = adev->mc.visible_vram_size >> PAGE_SHIFT;
-		} else {
-			fpfn = min_offset >> PAGE_SHIFT;
-			lpfn = max_offset >> PAGE_SHIFT;
-		}
+		unsigned fpfn, lpfn;
+
+		fpfn = min_offset >> PAGE_SHIFT;
+		lpfn = max_offset >> PAGE_SHIFT;
+
 		if (fpfn > bo->placements[i].fpfn)
 			bo->placements[i].fpfn = fpfn;
 		if (!bo->placements[i].lpfn ||
