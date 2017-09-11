@@ -564,6 +564,8 @@ static s32 ixgbe_read_ee_hostif_buffer_X550(struct ixgbe_hw *hw,
 		/* convert offset from words to bytes */
 		buffer.address = cpu_to_be32((offset + current_word) * 2);
 		buffer.length = cpu_to_be16(words_to_read * 2);
+		buffer.pad2 = 0;
+		buffer.pad3 = 0;
 
 		status = ixgbe_host_interface_command(hw, (u32 *)&buffer,
 						      sizeof(buffer),
