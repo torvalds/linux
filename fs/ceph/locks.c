@@ -431,19 +431,22 @@ int ceph_locks_to_pagelist(struct ceph_filelock *flocks,
 	if (err)
 		goto out_fail;
 
-	err = ceph_pagelist_append(pagelist, flocks,
-				   num_fcntl_locks * sizeof(*flocks));
-	if (err)
-		goto out_fail;
+	if (num_fcntl_locks > 0) {
+		err = ceph_pagelist_append(pagelist, flocks,
+					   num_fcntl_locks * sizeof(*flocks));
+		if (err)
+			goto out_fail;
+	}
 
 	nlocks = cpu_to_le32(num_flock_locks);
 	err = ceph_pagelist_append(pagelist, &nlocks, sizeof(nlocks));
 	if (err)
 		goto out_fail;
 
-	err = ceph_pagelist_append(pagelist,
-				   &flocks[num_fcntl_locks],
-				   num_flock_locks * sizeof(*flocks));
+	if (num_flock_locks > 0) {
+		err = ceph_pagelist_append(pagelist, &flocks[num_fcntl_locks],
+					   num_flock_locks * sizeof(*flocks));
+	}
 out_fail:
 	return err;
 }

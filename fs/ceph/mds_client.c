@@ -2899,26 +2899,32 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 
 	if (recon_state->msg_version >= 2) {
 		int num_fcntl_locks, num_flock_locks;
-		struct ceph_filelock *flocks;
+		struct ceph_filelock *flocks = NULL;
 		size_t struct_len, total_len = 0;
 		u8 struct_v = 0;
 
 encode_again:
 		ceph_count_locks(inode, &num_fcntl_locks, &num_flock_locks);
-		flocks = kmalloc((num_fcntl_locks+num_flock_locks) *
-				 sizeof(struct ceph_filelock), GFP_NOFS);
-		if (!flocks) {
-			err = -ENOMEM;
-			goto out_free;
-		}
-		err = ceph_encode_locks_to_buffer(inode, flocks,
-						  num_fcntl_locks,
-						  num_flock_locks);
-		if (err) {
+		if (num_fcntl_locks + num_flock_locks > 0) {
+			flocks = kmalloc((num_fcntl_locks + num_flock_locks) *
+					 sizeof(struct ceph_filelock), GFP_NOFS);
+			if (!flocks) {
+				err = -ENOMEM;
+				goto out_free;
+			}
+			err = ceph_encode_locks_to_buffer(inode, flocks,
+							  num_fcntl_locks,
+							  num_flock_locks);
+			if (err) {
+				kfree(flocks);
+				flocks = NULL;
+				if (err == -ENOSPC)
+					goto encode_again;
+				goto out_free;
+			}
+		} else {
 			kfree(flocks);
-			if (err == -ENOSPC)
-				goto encode_again;
-			goto out_free;
+			flocks = NULL;
 		}
 
 		if (recon_state->msg_version >= 3) {
