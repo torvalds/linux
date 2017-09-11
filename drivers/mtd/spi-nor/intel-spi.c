@@ -377,8 +377,7 @@ static int intel_spi_opcode_index(struct intel_spi *ispi, u8 opcode)
 	return -EINVAL;
 }
 
-static int intel_spi_hw_cycle(struct intel_spi *ispi, u8 opcode, u8 *buf,
-			      int len)
+static int intel_spi_hw_cycle(struct intel_spi *ispi, u8 opcode, int len)
 {
 	u32 val, status;
 	int ret;
@@ -418,8 +417,7 @@ static int intel_spi_hw_cycle(struct intel_spi *ispi, u8 opcode, u8 *buf,
 	return 0;
 }
 
-static int intel_spi_sw_cycle(struct intel_spi *ispi, u8 opcode, u8 *buf,
-			      int len)
+static int intel_spi_sw_cycle(struct intel_spi *ispi, u8 opcode, int len)
 {
 	u32 val, status;
 	int ret;
@@ -456,9 +454,9 @@ static int intel_spi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 	writel(0, ispi->base + FADDR);
 
 	if (ispi->swseq)
-		ret = intel_spi_sw_cycle(ispi, opcode, buf, len);
+		ret = intel_spi_sw_cycle(ispi, opcode, len);
 	else
-		ret = intel_spi_hw_cycle(ispi, opcode, buf, len);
+		ret = intel_spi_hw_cycle(ispi, opcode, len);
 
 	if (ret)
 		return ret;
@@ -486,8 +484,8 @@ static int intel_spi_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 		return ret;
 
 	if (ispi->swseq)
-		return intel_spi_sw_cycle(ispi, opcode, buf, len);
-	return intel_spi_hw_cycle(ispi, opcode, buf, len);
+		return intel_spi_sw_cycle(ispi, opcode, len);
+	return intel_spi_hw_cycle(ispi, opcode, len);
 }
 
 static ssize_t intel_spi_read(struct spi_nor *nor, loff_t from, size_t len,
