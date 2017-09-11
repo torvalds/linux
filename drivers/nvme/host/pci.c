@@ -1625,6 +1625,10 @@ static int __nvme_alloc_host_mem(struct nvme_dev *dev, u64 preferred,
 	tmp = (preferred + chunk_size - 1);
 	do_div(tmp, chunk_size);
 	max_entries = tmp;
+
+	if (dev->ctrl.hmmaxd && dev->ctrl.hmmaxd < max_entries)
+		max_entries = dev->ctrl.hmmaxd;
+
 	descs = dma_zalloc_coherent(dev->dev, max_entries * sizeof(*descs),
 			&descs_dma, GFP_KERNEL);
 	if (!descs)
@@ -1681,7 +1685,7 @@ static int nvme_alloc_host_mem(struct nvme_dev *dev, u64 min, u64 preferred)
 
 	/* start big and work our way down */
 	for (chunk_size = min_t(u64, preferred, PAGE_SIZE * MAX_ORDER_NR_PAGES);
-	     chunk_size >= PAGE_SIZE * 2;
+	     chunk_size >= max_t(u32, dev->ctrl.hmminds * 4096, PAGE_SIZE * 2);
 	     chunk_size /= 2) {
 		if (!__nvme_alloc_host_mem(dev, preferred, chunk_size)) {
 			if (!min || dev->host_mem_size >= min)

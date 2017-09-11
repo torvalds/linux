@@ -181,8 +181,11 @@ struct nvme_ctrl {
 	u64 ps_max_latency_us;
 	bool apst_enabled;
 
+	/* PCIe only: */
 	u32 hmpre;
 	u32 hmmin;
+	u32 hmminds;
+	u16 hmmaxd;
 
 	/* Fabrics only */
 	u16 sqsize;
