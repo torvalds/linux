@@ -2,9 +2,11 @@ CFLAGS += -O2 -g -std=gnu89 -pthread -Wall -Wextra
 CFLAGS += -I../../../../usr/include/
 LDFLAGS += -pthread
 
-TEST_PROGS = sync_test
+# lib.mk TEST_CUSTOM_PROGS var is for custome tests that need special
+# build rules. lib.mk will run and install them.
+TEST_CUSTOM_PROGS = sync_test
 
-all: $(TEST_PROGS)
+all: $(TEST_CUSTOM_PROGS)
 
 include ../lib.mk
 
