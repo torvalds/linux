@@ -37,7 +37,7 @@ config RESET_BERLIN
 config RESET_HSDK
 	bool "Synopsys HSDK Reset Driver"
 	depends on HAS_IOMEM
-	default n
+	depends on ARC_SOC_HSDK || COMPILE_TEST
 	help
 	  This enables the reset controller driver for HSDK board.
 
