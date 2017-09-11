@@ -333,7 +333,7 @@ static unsigned long kvmppc_mmu_get_real_addr(unsigned long v, unsigned long r,
 {
 	unsigned long ra_mask;
 
-	ra_mask = hpte_page_size(v, r) - 1;
+	ra_mask = kvmppc_actual_pgsz(v, r) - 1;
 	return (r & HPTE_R_RPN & ~ra_mask) | (ea & ra_mask);
 }
 
@@ -504,7 +504,8 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		mmio_update = atomic64_read(&kvm->arch.mmio_update);
 		if (mmio_update == vcpu->arch.pgfault_cache->mmio_update) {
 			r = vcpu->arch.pgfault_cache->rpte;
-			psize = hpte_page_size(vcpu->arch.pgfault_hpte[0], r);
+			psize = kvmppc_actual_pgsz(vcpu->arch.pgfault_hpte[0],
+						   r);
 			gpa_base = r & HPTE_R_RPN & ~(psize - 1);
 			gfn_base = gpa_base >> PAGE_SHIFT;
 			gpa = gpa_base | (ea & (psize - 1));
@@ -533,7 +534,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		return RESUME_GUEST;
 
 	/* Translate the logical address and get the page */
-	psize = hpte_page_size(hpte[0], r);
+	psize = kvmppc_actual_pgsz(hpte[0], r);
 	gpa_base = r & HPTE_R_RPN & ~(psize - 1);
 	gfn_base = gpa_base >> PAGE_SHIFT;
 	gpa = gpa_base | (ea & (psize - 1));
@@ -797,7 +798,7 @@ static void kvmppc_unmap_hpte(struct kvm *kvm, unsigned long i,
 
 	/* Now check and modify the HPTE */
 	ptel = rev[i].guest_rpte;
-	psize = hpte_page_size(be64_to_cpu(hptep[0]), ptel);
+	psize = kvmppc_actual_pgsz(be64_to_cpu(hptep[0]), ptel);
 	if ((be64_to_cpu(hptep[0]) & HPTE_V_VALID) &&
 	    hpte_rpn(ptel, psize) == gfn) {
 		hptep[0] |= cpu_to_be64(HPTE_V_ABSENT);
@@ -1091,7 +1092,7 @@ static int kvm_test_clear_dirty_npages(struct kvm *kvm, unsigned long *rmapp)
 				rev[i].guest_rpte |= HPTE_R_C;
 				note_hpte_modification(kvm, &rev[i]);
 			}
-			n = hpte_page_size(v, r);
+			n = kvmppc_actual_pgsz(v, r);
 			n = (n + PAGE_SIZE - 1) >> PAGE_SHIFT;
 			if (n > npages_dirty)
 				npages_dirty = n;
@@ -1266,7 +1267,7 @@ static unsigned long resize_hpt_rehash_hpte(struct kvm_resize_hpt *resize,
 	guest_rpte = rev->guest_rpte;
 
 	ret = -EIO;
-	apsize = hpte_page_size(vpte, guest_rpte);
+	apsize = kvmppc_actual_pgsz(vpte, guest_rpte);
 	if (!apsize)
 		goto out;
 

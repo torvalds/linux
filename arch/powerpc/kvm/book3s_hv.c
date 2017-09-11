@@ -3300,22 +3300,21 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 }
 
 static void kvmppc_add_seg_page_size(struct kvm_ppc_one_seg_page_size **sps,
-				     int linux_psize)
+				     int shift, int sllp)
 {
-	struct mmu_psize_def *def = &mmu_psize_defs[linux_psize];
-
-	if (!def->shift)
-		return;
-	(*sps)->page_shift = def->shift;
-	(*sps)->slb_enc = def->sllp;
-	(*sps)->enc[0].page_shift = def->shift;
-	(*sps)->enc[0].pte_enc = def->penc[linux_psize];
+	(*sps)->page_shift = shift;
+	(*sps)->slb_enc = sllp;
+	(*sps)->enc[0].page_shift = shift;
+	(*sps)->enc[0].pte_enc = kvmppc_pgsize_lp_encoding(shift, shift);
 	/*
-	 * Add 16MB MPSS support if host supports it
+	 * Add 16MB MPSS support (may get filtered out by userspace)
 	 */
-	if (linux_psize != MMU_PAGE_16M && def->penc[MMU_PAGE_16M] != -1) {
-		(*sps)->enc[1].page_shift = 24;
-		(*sps)->enc[1].pte_enc = def->penc[MMU_PAGE_16M];
+	if (shift != 24) {
+		int penc = kvmppc_pgsize_lp_encoding(shift, 24);
+		if (penc != -1) {
+			(*sps)->enc[1].page_shift = 24;
+			(*sps)->enc[1].pte_enc = penc;
+		}
 	}
 	(*sps)++;
 }
@@ -3340,16 +3339,15 @@ static int kvm_vm_ioctl_get_smmu_info_hv(struct kvm *kvm,
 	info->data_keys = 32;
 	info->instr_keys = cpu_has_feature(CPU_FTR_ARCH_207S) ? 32 : 0;
 
-	info->flags = KVM_PPC_PAGE_SIZES_REAL;
-	if (mmu_has_feature(MMU_FTR_1T_SEGMENT))
-		info->flags |= KVM_PPC_1T_SEGMENTS;
-	info->slb_size = mmu_slb_size;
+	/* POWER7, 8 and 9 all have 1T segments and 32-entry SLB */
+	info->flags = KVM_PPC_PAGE_SIZES_REAL | KVM_PPC_1T_SEGMENTS;
+	info->slb_size = 32;
 
 	/* We only support these sizes for now, and no muti-size segments */
 	sps = &info->sps[0];
-	kvmppc_add_seg_page_size(&sps, MMU_PAGE_4K);
-	kvmppc_add_seg_page_size(&sps, MMU_PAGE_64K);
-	kvmppc_add_seg_page_size(&sps, MMU_PAGE_16M);
+	kvmppc_add_seg_page_size(&sps, 12, 0);
+	kvmppc_add_seg_page_size(&sps, 16, SLB_VSID_L | SLB_VSID_LP_01);
+	kvmppc_add_seg_page_size(&sps, 24, SLB_VSID_L);
 
 	return 0;
 }
@@ -4352,4 +4350,3 @@ module_exit(kvmppc_book3s_exit_hv);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(KVM_MINOR);
 MODULE_ALIAS("devname:kvm");
-
