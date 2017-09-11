@@ -579,10 +579,13 @@ static int ovl_inode_set(struct inode *inode, void *data)
 static bool ovl_verify_inode(struct inode *inode, struct dentry *lowerdentry,
 			     struct dentry *upperdentry)
 {
-	struct inode *lowerinode = lowerdentry ? d_inode(lowerdentry) : NULL;
-
-	/* Lower (origin) inode must match, even if NULL */
-	if (ovl_inode_lower(inode) != lowerinode)
+	/*
+	 * Allow non-NULL lower inode in ovl_inode even if lowerdentry is NULL.
+	 * This happens when finding a copied up overlay inode for a renamed
+	 * or hardlinked overlay dentry and lower dentry cannot be followed
+	 * by origin because lower fs does not support file handles.
+	 */
+	if (lowerdentry && ovl_inode_lower(inode) != d_inode(lowerdentry))
 		return false;
 
 	/*
