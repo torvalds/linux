@@ -39,7 +39,11 @@ void my_usr1(int sig, siginfo_t *si, void *u)
 	stack_t stk;
 	struct stk_data *p;
 
+#if __s390x__
+	register unsigned long sp asm("%15");
+#else
 	register unsigned long sp asm("sp");
+#endif
 
 	if (sp < (unsigned long)sstack ||
 			sp >= (unsigned long)sstack + SIGSTKSZ) {
