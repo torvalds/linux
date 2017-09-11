@@ -885,7 +885,13 @@ bool dc_link_setup_psr(struct dc_link *dc_link,
  * true otherwise. True meaning further action is required (status update
  * and OS notification).
  */
-bool dc_link_detect(struct dc_link *dc_link, bool boot);
+enum dc_detect_reason {
+	DETECT_REASON_BOOT,
+	DETECT_REASON_HPD,
+	DETECT_REASON_HPDRX,
+};
+
+bool dc_link_detect(struct dc_link *dc_link, enum dc_detect_reason reason);
 
 /* Notify DC about DP RX Interrupt (aka Short Pulse Interrupt).
  * Return:

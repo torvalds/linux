@@ -355,7 +355,9 @@ static bool is_dp_sink_present(struct dc_link *link)
  * @brief
  * Detect output sink type
  */
-static enum signal_type link_detect_sink(struct dc_link *link)
+static enum signal_type link_detect_sink(
+	struct dc_link *link,
+	enum dc_detect_reason reason)
 {
 	enum signal_type result = get_basic_signal_type(
 		link->link_enc->id, link->link_id);
@@ -388,12 +390,17 @@ static enum signal_type link_detect_sink(struct dc_link *link)
 	}
 	break;
 	case CONNECTOR_ID_DISPLAY_PORT: {
-
-		/* Check whether DP signal detected: if not -
-		 * we assume signal is DVI; it could be corrected
-		 * to HDMI after dongle detection */
-		if (!is_dp_sink_present(link))
-			result = SIGNAL_TYPE_DVI_SINGLE_LINK;
+		/* DP HPD short pulse. Passive DP dongle will not
+		 * have short pulse
+		 */
+		if (reason != DETECT_REASON_HPDRX) {
+			/* Check whether DP signal detected: if not -
+			 * we assume signal is DVI; it could be corrected
+			 * to HDMI after dongle detection
+			 */
+			if (!is_dp_sink_present(link))
+				result = SIGNAL_TYPE_DVI_SINGLE_LINK;
+		}
 	}
 	break;
 	default:
@@ -460,9 +467,10 @@ static void detect_dp(
 	struct display_sink_capability *sink_caps,
 	bool *converter_disable_audio,
 	struct audio_support *audio_support,
-	bool boot)
+	enum dc_detect_reason reason)
 {
-	sink_caps->signal = link_detect_sink(link);
+	bool boot = false;
+	sink_caps->signal = link_detect_sink(link, reason);
 	sink_caps->transaction_type =
 		get_ddc_transaction_type(sink_caps->signal);
 
@@ -513,6 +521,8 @@ static void detect_dp(
 			 * Need check ->sink usages in case ->sink = NULL
 			 * TODO: s3 resume check
 			 */
+			if (reason == DETECT_REASON_BOOT)
+				boot = true;
 
 			if (dm_helpers_dp_mst_start_top_mgr(
 				link->ctx,
@@ -531,7 +541,7 @@ static void detect_dp(
 	}
 }
 
-bool dc_link_detect(struct dc_link *link, bool boot)
+bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 {
 	struct dc_sink_init_data sink_init_data = { 0 };
 	struct display_sink_capability sink_caps = { 0 };
@@ -596,7 +606,7 @@ bool dc_link_detect(struct dc_link *link, bool boot)
 				link,
 				&sink_caps,
 				&converter_disable_audio,
-				aud_support, boot);
+				aud_support, reason);
 
 			/* Active dongle downstream unplug */
 			if (link->type == dc_connection_active_dongle
