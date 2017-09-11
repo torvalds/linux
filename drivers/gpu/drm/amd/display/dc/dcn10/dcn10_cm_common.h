@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef __DAL_DPP_DCN10_CM_HELPER_H__
-#define __DAL_DPP_DCN10_CM_HELPER_H__
+#ifndef __DAL_DCN10_CM_COMMON_H__
+#define __DAL_DCN10_CM_COMMON_H__
 
 #define TF_HELPER_REG_FIELD_LIST(type) \
 	type exp_region0_lut_offset; \

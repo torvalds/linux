@@ -29,8 +29,8 @@
 
 #include "reg_helper.h"
 #include "dcn10_dpp.h"
-#include "dcn10_dpp_cm_helper.h"
 #include "basics/conversion.h"
+#include "dcn10_cm_common.h"
 
 #define NUM_PHASES    64
 #define HORZ_MAX_TAPS 8
