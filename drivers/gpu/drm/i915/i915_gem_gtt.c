@@ -2918,6 +2918,16 @@ static void gen6_gmch_remove(struct i915_address_space *vm)
 	cleanup_scratch_page(vm);
 }
 
+static void setup_private_pat(struct drm_i915_private *dev_priv)
+{
+	if (INTEL_GEN(dev_priv) >= 10)
+		cnl_setup_private_ppat(dev_priv);
+	else if (IS_CHERRYVIEW(dev_priv) || IS_GEN9_LP(dev_priv))
+		chv_setup_private_ppat(dev_priv);
+	else
+		bdw_setup_private_ppat(dev_priv);
+}
+
 static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 {
 	struct drm_i915_private *dev_priv = ggtt->base.i915;
@@ -2950,14 +2960,6 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	}
 
 	ggtt->base.total = (size / sizeof(gen8_pte_t)) << PAGE_SHIFT;
-
-	if (INTEL_GEN(dev_priv) >= 10)
-		cnl_setup_private_ppat(dev_priv);
-	else if (IS_CHERRYVIEW(dev_priv) || IS_GEN9_LP(dev_priv))
-		chv_setup_private_ppat(dev_priv);
-	else
-		bdw_setup_private_ppat(dev_priv);
-
 	ggtt->base.cleanup = gen6_gmch_remove;
 	ggtt->base.bind_vma = ggtt_bind_vma;
 	ggtt->base.unbind_vma = ggtt_unbind_vma;
@@ -2977,6 +2979,8 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	}
 
 	ggtt->invalidate = gen6_ggtt_invalidate;
+
+	setup_private_pat(dev_priv);
 
 	return ggtt_probe_common(ggtt, size);
 }
