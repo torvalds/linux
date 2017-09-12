@@ -541,7 +541,7 @@ static void restore_callbacks(struct socket *sock)
 }
 
 /* Make a socket active */
-static void add_sock(struct socket *sock, struct connection *con, bool save_cb)
+static void add_sock(struct socket *sock, struct connection *con)
 {
 	struct sock *sk = sock->sk;
 
@@ -801,7 +801,7 @@ static int tcp_accept_from_sock(struct connection *con)
 			newcon->othercon = othercon;
 			othercon->sock = newsock;
 			newsock->sk->sk_user_data = othercon;
-			add_sock(newsock, othercon, false);
+			add_sock(newsock, othercon);
 			addcon = othercon;
 		}
 		else {
@@ -817,7 +817,7 @@ static int tcp_accept_from_sock(struct connection *con)
 		/* accept copies the sk after we've saved the callbacks, so we
 		   don't want to save them a second time or comm errors will
 		   result in calling sk_error_report recursively. */
-		add_sock(newsock, newcon, false);
+		add_sock(newsock, newcon);
 		addcon = newcon;
 	}
 
@@ -918,7 +918,7 @@ static int sctp_accept_from_sock(struct connection *con)
 			newcon->othercon = othercon;
 			othercon->sock = newsock;
 			newsock->sk->sk_user_data = othercon;
-			add_sock(newsock, othercon, false);
+			add_sock(newsock, othercon);
 			addcon = othercon;
 		} else {
 			printk("Extra connection from node %d attempted\n", nodeid);
@@ -929,7 +929,7 @@ static int sctp_accept_from_sock(struct connection *con)
 	} else {
 		newsock->sk->sk_user_data = newcon;
 		newcon->rx_action = receive_from_sock;
-		add_sock(newsock, newcon, false);
+		add_sock(newsock, newcon);
 		addcon = newcon;
 	}
 
@@ -1057,7 +1057,7 @@ static void sctp_connect_to_sock(struct connection *con)
 	sock->sk->sk_user_data = con;
 	con->rx_action = receive_from_sock;
 	con->connect_action = sctp_connect_to_sock;
-	add_sock(sock, con, true);
+	add_sock(sock, con);
 
 	/* Bind to all addresses. */
 	if (sctp_bind_addrs(con, 0))
@@ -1142,7 +1142,7 @@ static void tcp_connect_to_sock(struct connection *con)
 	sock->sk->sk_user_data = con;
 	con->rx_action = receive_from_sock;
 	con->connect_action = tcp_connect_to_sock;
-	add_sock(sock, con, true);
+	add_sock(sock, con);
 
 	/* Bind to our cluster-known address connecting to avoid
 	   routing problems */
@@ -1361,7 +1361,7 @@ static int tcp_listen_for_all(void)
 
 	sock = tcp_create_listen_sock(con, dlm_local_addr[0]);
 	if (sock) {
-		add_sock(sock, con, true);
+		add_sock(sock, con);
 		result = 0;
 	}
 	else {
