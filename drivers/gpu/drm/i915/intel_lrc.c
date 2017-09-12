@@ -286,12 +286,6 @@ intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
 	ce->lrc_desc = desc;
 }
 
-uint64_t intel_lr_context_descriptor(struct i915_gem_context *ctx,
-				     struct intel_engine_cs *engine)
-{
-	return ctx->engine[engine->id].lrc_desc;
-}
-
 static inline void
 execlists_context_status_change(struct drm_i915_gem_request *rq,
 				unsigned long status)

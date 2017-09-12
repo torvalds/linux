@@ -25,6 +25,7 @@
 #define _INTEL_LRC_H_
 
 #include "intel_ringbuffer.h"
+#include "i915_gem_context.h"
 
 #define GEN8_LR_CONTEXT_ALIGN I915_GTT_MIN_ALIGNMENT
 
@@ -78,8 +79,14 @@ struct drm_i915_private;
 struct i915_gem_context;
 
 void intel_lr_context_resume(struct drm_i915_private *dev_priv);
-uint64_t intel_lr_context_descriptor(struct i915_gem_context *ctx,
-				     struct intel_engine_cs *engine);
+
+static inline uint64_t
+intel_lr_context_descriptor(struct i915_gem_context *ctx,
+			    struct intel_engine_cs *engine)
+{
+	return ctx->engine[engine->id].lrc_desc;
+}
+
 
 /* Execlists */
 int intel_sanitize_enable_execlists(struct drm_i915_private *dev_priv,
