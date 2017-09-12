@@ -70,9 +70,10 @@
  * - 3.18.0 - Export gpu always on cu bitmap
  * - 3.19.0 - Add support for UVD MJPEG decode
  * - 3.20.0 - Add support for local BOs
+ * - 3.21.0 - Add DRM_AMDGPU_FENCE_TO_HANDLE ioctl
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	20
+#define KMS_DRIVER_MINOR	21
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;

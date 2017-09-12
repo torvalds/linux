@@ -1311,6 +1311,8 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *filp);
 int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
+int amdgpu_cs_fence_to_handle_ioctl(struct drm_device *dev, void *data,
+				    struct drm_file *filp);
 int amdgpu_cs_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 int amdgpu_cs_wait_fences_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
