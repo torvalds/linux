@@ -93,8 +93,16 @@ static int amdgpu_pp_early_init(void *handle)
 #ifdef CONFIG_DRM_AMDGPU_CIK
 	case CHIP_BONAIRE:
 	case CHIP_HAWAII:
-		amd_pp->ip_funcs = &ci_dpm_ip_funcs;
-		amd_pp->pp_funcs = &ci_dpm_funcs;
+		if (amdgpu_dpm == -1) {
+			amd_pp->ip_funcs = &ci_dpm_ip_funcs;
+			amd_pp->pp_funcs = &ci_dpm_funcs;
+		} else {
+			adev->pp_enabled = true;
+			if (amdgpu_create_pp_handle(adev))
+				return -EINVAL;
+			amd_pp->ip_funcs = &pp_ip_funcs;
+			amd_pp->pp_funcs = &pp_dpm_funcs;
+		}
 		break;
 	case CHIP_KABINI:
 	case CHIP_MULLINS:
