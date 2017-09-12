@@ -37,9 +37,8 @@ int smu7_fan_ctrl_get_fan_speed_info(struct pp_hwmgr *hwmgr,
 	fan_speed_info->min_percent = 0;
 	fan_speed_info->max_percent = 100;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_FanSpeedInTableIsRPM) &&
-		hwmgr->thermal_controller.fanInfo.ucTachometerPulsesPerRevolution) {
+	if (PP_CAP(PHM_PlatformCaps_FanSpeedInTableIsRPM) &&
+	    hwmgr->thermal_controller.fanInfo.ucTachometerPulsesPerRevolution) {
 		fan_speed_info->supports_rpm_read = true;
 		fan_speed_info->supports_rpm_write = true;
 		fan_speed_info->min_rpm = hwmgr->thermal_controller.fanInfo.ulMinRPM;
