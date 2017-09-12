@@ -361,110 +361,6 @@ static int emulate_execlist_schedule_in(struct intel_vgpu_execlist *execlist,
 #define get_desc_from_elsp_dwords(ed, i) \
 	((struct execlist_ctx_descriptor_format *)&((ed)->data[i * 2]))
 
-static int prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
-{
-	const int gmadr_bytes = workload->vgpu->gvt->device_info.gmadr_bytes_in_cmd;
-	struct intel_shadow_bb_entry *entry_obj;
-
-	/* pin the gem object to ggtt */
-	list_for_each_entry(entry_obj, &workload->shadow_bb, list) {
-		struct i915_vma *vma;
-
-		vma = i915_gem_object_ggtt_pin(entry_obj->obj, NULL, 0, 4, 0);
-		if (IS_ERR(vma)) {
-			return PTR_ERR(vma);
-		}
-
-		/* FIXME: we are not tracking our pinned VMA leaving it
-		 * up to the core to fix up the stray pin_count upon
-		 * free.
-		 */
-
-		/* update the relocate gma with shadow batch buffer*/
-		entry_obj->bb_start_cmd_va[1] = i915_ggtt_offset(vma);
-		if (gmadr_bytes == 8)
-			entry_obj->bb_start_cmd_va[2] = 0;
-	}
-	return 0;
-}
-
-static int update_wa_ctx_2_shadow_ctx(struct intel_shadow_wa_ctx *wa_ctx)
-{
-	struct intel_vgpu_workload *workload = container_of(wa_ctx,
-					struct intel_vgpu_workload,
-					wa_ctx);
-	int ring_id = workload->ring_id;
-	struct intel_vgpu_submission *s = &workload->vgpu->submission;
-	struct i915_gem_context *shadow_ctx = s->shadow_ctx;
-	struct drm_i915_gem_object *ctx_obj =
-		shadow_ctx->engine[ring_id].state->obj;
-	struct execlist_ring_context *shadow_ring_context;
-	struct page *page;
-
-	page = i915_gem_object_get_page(ctx_obj, LRC_STATE_PN);
-	shadow_ring_context = kmap_atomic(page);
-
-	shadow_ring_context->bb_per_ctx_ptr.val =
-		(shadow_ring_context->bb_per_ctx_ptr.val &
-		(~PER_CTX_ADDR_MASK)) | wa_ctx->per_ctx.shadow_gma;
-	shadow_ring_context->rcs_indirect_ctx.val =
-		(shadow_ring_context->rcs_indirect_ctx.val &
-		(~INDIRECT_CTX_ADDR_MASK)) | wa_ctx->indirect_ctx.shadow_gma;
-
-	kunmap_atomic(shadow_ring_context);
-	return 0;
-}
-
-static int prepare_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
-{
-	struct i915_vma *vma;
-	unsigned char *per_ctx_va =
-		(unsigned char *)wa_ctx->indirect_ctx.shadow_va +
-		wa_ctx->indirect_ctx.size;
-
-	if (wa_ctx->indirect_ctx.size == 0)
-		return 0;
-
-	vma = i915_gem_object_ggtt_pin(wa_ctx->indirect_ctx.obj, NULL,
-				       0, CACHELINE_BYTES, 0);
-	if (IS_ERR(vma)) {
-		return PTR_ERR(vma);
-	}
-
-	/* FIXME: we are not tracking our pinned VMA leaving it
-	 * up to the core to fix up the stray pin_count upon
-	 * free.
-	 */
-
-	wa_ctx->indirect_ctx.shadow_gma = i915_ggtt_offset(vma);
-
-	wa_ctx->per_ctx.shadow_gma = *((unsigned int *)per_ctx_va + 1);
-	memset(per_ctx_va, 0, CACHELINE_BYTES);
-
-	update_wa_ctx_2_shadow_ctx(wa_ctx);
-	return 0;
-}
-
-static void release_shadow_batch_buffer(struct intel_vgpu_workload *workload)
-{
-	/* release all the shadow batch buffer */
-	if (!list_empty(&workload->shadow_bb)) {
-		struct intel_shadow_bb_entry *entry_obj =
-			list_first_entry(&workload->shadow_bb,
-					 struct intel_shadow_bb_entry,
-					 list);
-		struct intel_shadow_bb_entry *temp;
-
-		list_for_each_entry_safe(entry_obj, temp, &workload->shadow_bb,
-					 list) {
-			i915_gem_object_unpin_map(entry_obj->obj);
-			i915_gem_object_put(entry_obj->obj);
-			list_del(&entry_obj->list);
-			kfree(entry_obj);
-		}
-	}
-}
-
 static int prepare_execlist_workload(struct intel_vgpu_workload *workload)
 {
 	struct intel_vgpu *vgpu = workload->vgpu;
@@ -473,36 +369,6 @@ static int prepare_execlist_workload(struct intel_vgpu_workload *workload)
 	int ring_id = workload->ring_id;
 	int ret;
 
-	ret = intel_vgpu_pin_mm(workload->shadow_mm);
-	if (ret) {
-		gvt_vgpu_err("fail to vgpu pin mm\n");
-		goto out;
-	}
-
-	ret = intel_vgpu_sync_oos_pages(workload->vgpu);
-	if (ret) {
-		gvt_vgpu_err("fail to vgpu sync oos pages\n");
-		goto err_unpin_mm;
-	}
-
-	ret = intel_vgpu_flush_post_shadow(workload->vgpu);
-	if (ret) {
-		gvt_vgpu_err("fail to flush post shadow\n");
-		goto err_unpin_mm;
-	}
-
-	ret = prepare_shadow_batch_buffer(workload);
-	if (ret) {
-		gvt_vgpu_err("fail to prepare_shadow_batch_buffer\n");
-		goto err_unpin_mm;
-	}
-
-	ret = prepare_shadow_wa_ctx(&workload->wa_ctx);
-	if (ret) {
-		gvt_vgpu_err("fail to prepare_shadow_wa_ctx\n");
-		goto err_shadow_batch;
-	}
-
 	if (!workload->emulate_schedule_in)
 		return 0;
 
@@ -510,18 +376,11 @@ static int prepare_execlist_workload(struct intel_vgpu_workload *workload)
 	ctx[1] = *get_desc_from_elsp_dwords(&workload->elsp_dwords, 1);
 
 	ret = emulate_execlist_schedule_in(&s->execlist[ring_id], ctx);
-	if (!ret)
-		goto out;
-	else
+	if (ret) {
 		gvt_vgpu_err("fail to emulate execlist schedule in\n");
-
-	release_shadow_wa_ctx(&workload->wa_ctx);
-err_shadow_batch:
-	release_shadow_batch_buffer(workload);
-err_unpin_mm:
-	intel_vgpu_unpin_mm(workload->shadow_mm);
-out:
-	return ret;
+		return ret;
+	}
+	return 0;
 }
 
 static int complete_execlist_workload(struct intel_vgpu_workload *workload)
@@ -537,11 +396,6 @@ static int complete_execlist_workload(struct intel_vgpu_workload *workload)
 
 	gvt_dbg_el("complete workload %p status %d\n", workload,
 			workload->status);
-
-	if (!workload->status) {
-		release_shadow_batch_buffer(workload);
-		release_shadow_wa_ctx(&workload->wa_ctx);
-	}
 
 	if (workload->status || (vgpu->resetting_eng & ENGINE_MASK(ring_id))) {
 		/* if workload->status is not successful means HW GPU
