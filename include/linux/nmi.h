@@ -103,6 +103,8 @@ static inline void arch_touch_nmi_watchdog(void) {}
 #endif
 #endif
 
+void watchdog_nmi_reconfigure(bool run);
+
 /**
  * touch_nmi_watchdog - restart NMI watchdog timeout.
  *

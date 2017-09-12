@@ -112,17 +112,25 @@ void __weak watchdog_nmi_disable(unsigned int cpu)
 	hardlockup_detector_perf_disable();
 }
 
-/*
- * watchdog_nmi_reconfigure can be implemented to be notified after any
- * watchdog configuration change. The arch hardlockup watchdog should
- * respond to the following variables:
+/**
+ * watchdog_nmi_reconfigure - Optional function to reconfigure NMI watchdogs
+ * @run:	If false stop the watchdogs on all enabled CPUs
+ *		If true start the watchdogs on all enabled CPUs
+ *
+ * The core call order is:
+ * watchdog_nmi_reconfigure(false);
+ * update_variables();
+ * watchdog_nmi_reconfigure(true);
+ *
+ * The second call which starts the watchdogs again guarantees that the
+ * following variables are stable across the call.
  * - watchdog_enabled
  * - watchdog_thresh
  * - watchdog_cpumask
- * - sysctl_hardlockup_all_cpu_backtrace
- * - hardlockup_panic
+ *
+ * After the call the variables can be changed again.
  */
-void __weak watchdog_nmi_reconfigure(void) { }
+void __weak watchdog_nmi_reconfigure(bool run) { }
 
 #ifdef CONFIG_SOFTLOCKUP_DETECTOR
 
@@ -515,10 +523,12 @@ static void softlockup_unpark_threads(void)
 
 static void softlockup_reconfigure_threads(bool enabled)
 {
+	watchdog_nmi_reconfigure(false);
 	softlockup_park_all_threads();
 	set_sample_period();
 	if (enabled)
 		softlockup_unpark_threads();
+	watchdog_nmi_reconfigure(true);
 }
 
 /*
@@ -559,7 +569,11 @@ static inline void watchdog_unpark_threads(void) { }
 static inline int watchdog_enable_all_cpus(void) { return 0; }
 static inline void watchdog_disable_all_cpus(void) { }
 static inline void softlockup_init_threads(void) { }
-static inline void softlockup_reconfigure_threads(bool enabled) { }
+static void softlockup_reconfigure_threads(bool enabled)
+{
+	watchdog_nmi_reconfigure(false);
+	watchdog_nmi_reconfigure(true);
+}
 #endif /* !CONFIG_SOFTLOCKUP_DETECTOR */
 
 static void __lockup_detector_cleanup(void)
@@ -599,7 +613,6 @@ static void proc_watchdog_update(void)
 	/* Remove impossible cpus to keep sysctl output clean. */
 	cpumask_and(&watchdog_cpumask, &watchdog_cpumask, cpu_possible_mask);
 	softlockup_reconfigure_threads(watchdog_enabled && watchdog_thresh);
-	watchdog_nmi_reconfigure();
 }
 
 /*
