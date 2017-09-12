@@ -297,7 +297,7 @@ typedef enum PP_PCIEGen PP_PCIEGen;
 #define PP_Min_PCIEGen     PP_PCIEGen1
 #define PP_Max_PCIEGen     PP_PCIEGen3
 #define PP_Min_PCIELane    1
-#define PP_Max_PCIELane    32
+#define PP_Max_PCIELane    16
 
 enum phm_clock_Type {
 	PHM_DispClock = 1,
