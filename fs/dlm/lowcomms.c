@@ -593,10 +593,14 @@ static void close_connection(struct connection *con, bool and_other,
 {
 	bool closing = test_and_set_bit(CF_CLOSING, &con->flags);
 
-	if (tx && !closing && cancel_work_sync(&con->swork))
+	if (tx && !closing && cancel_work_sync(&con->swork)) {
 		log_print("canceled swork for node %d", con->nodeid);
-	if (rx && !closing && cancel_work_sync(&con->rwork))
+		clear_bit(CF_WRITE_PENDING, &con->flags);
+	}
+	if (rx && !closing && cancel_work_sync(&con->rwork)) {
 		log_print("canceled rwork for node %d", con->nodeid);
+		clear_bit(CF_READ_PENDING, &con->flags);
+	}
 
 	mutex_lock(&con->sock_mutex);
 	if (con->sock) {
