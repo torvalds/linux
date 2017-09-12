@@ -679,7 +679,7 @@ static int eb_select_context(struct i915_execbuffer *eb)
 static int eb_lookup_vmas(struct i915_execbuffer *eb)
 {
 	struct radix_tree_root *handles_vma = &eb->ctx->handles_vma;
-	struct drm_i915_gem_object *uninitialized_var(obj);
+	struct drm_i915_gem_object *obj;
 	unsigned int i;
 	int err;
 
@@ -725,19 +725,17 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 			goto err_obj;
 		}
 
+		/* transfer ref to ctx */
 		vma->open_count++;
 		list_add(&lut->obj_link, &obj->lut_list);
 		list_add(&lut->ctx_link, &eb->ctx->handles_list);
 		lut->ctx = eb->ctx;
 		lut->handle = handle;
 
-		/* transfer ref to ctx */
-		obj = NULL;
-
 add_vma:
 		err = eb_add_vma(eb, i, vma);
 		if (unlikely(err))
-			goto err_obj;
+			goto err_vma;
 
 		GEM_BUG_ON(vma != eb->vma[i]);
 		GEM_BUG_ON(vma->exec_flags != &eb->flags[i]);
@@ -766,8 +764,7 @@ add_vma:
 	return eb_reserve(eb);
 
 err_obj:
-	if (obj)
-		i915_gem_object_put(obj);
+	i915_gem_object_put(obj);
 err_vma:
 	eb->vma[i] = NULL;
 	return err;
