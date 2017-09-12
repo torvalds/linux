@@ -5424,7 +5424,7 @@ wake_affine_llc(struct sched_domain *sd, struct task_struct *p,
 		return false;
 
 	/* if this cache has capacity, come here */
-	if (this_stats.has_capacity && this_stats.nr_running < prev_stats.nr_running+1)
+	if (this_stats.has_capacity && this_stats.nr_running+1 < prev_stats.nr_running)
 		return true;
 
 	/*
@@ -7708,7 +7708,7 @@ next_group:
  * number.
  *
  * Return: 1 when packing is required and a task should be moved to
- * this CPU.  The amount of the imbalance is returned in *imbalance.
+ * this CPU.  The amount of the imbalance is returned in env->imbalance.
  *
  * @env: The load balancing environment.
  * @sds: Statistics of the sched_domain which is to be packed
