@@ -170,6 +170,8 @@ static ssize_t f2fs_sbi_store(struct f2fs_attr *a,
 				dcc->pend_list_tag[i] &= (~P_ACTIVE);
 		}
 		mutex_unlock(&dcc->cmd_lock);
+
+		*ui = t;
 		return count;
 	}
 
