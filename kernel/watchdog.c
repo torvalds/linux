@@ -29,8 +29,7 @@
 #include <linux/kvm_para.h>
 #include <linux/kthread.h>
 
-/* Watchdog configuration */
-static DEFINE_MUTEX(watchdog_proc_mutex);
+static DEFINE_MUTEX(watchdog_mutex);
 
 int __read_mostly nmi_watchdog_enabled;
 
@@ -704,7 +703,7 @@ static int proc_watchdog_common(int which, struct ctl_table *table, int write,
 	int *watchdog_param = (int *)table->data;
 
 	cpu_hotplug_disable();
-	mutex_lock(&watchdog_proc_mutex);
+	mutex_lock(&watchdog_mutex);
 
 	/*
 	 * If the parameter is being read return the state of the corresponding
@@ -751,7 +750,7 @@ static int proc_watchdog_common(int which, struct ctl_table *table, int write,
 		err = proc_watchdog_update();
 	}
 out:
-	mutex_unlock(&watchdog_proc_mutex);
+	mutex_unlock(&watchdog_mutex);
 	cpu_hotplug_enable();
 	return err;
 }
@@ -795,7 +794,7 @@ int proc_watchdog_thresh(struct ctl_table *table, int write,
 	int err, old, new;
 
 	cpu_hotplug_disable();
-	mutex_lock(&watchdog_proc_mutex);
+	mutex_lock(&watchdog_mutex);
 
 	old = ACCESS_ONCE(watchdog_thresh);
 	err = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
@@ -817,7 +816,7 @@ int proc_watchdog_thresh(struct ctl_table *table, int write,
 		set_sample_period();
 	}
 out:
-	mutex_unlock(&watchdog_proc_mutex);
+	mutex_unlock(&watchdog_mutex);
 	cpu_hotplug_enable();
 	return err;
 }
@@ -834,7 +833,7 @@ int proc_watchdog_cpumask(struct ctl_table *table, int write,
 	int err;
 
 	cpu_hotplug_disable();
-	mutex_lock(&watchdog_proc_mutex);
+	mutex_lock(&watchdog_mutex);
 
 	err = proc_do_large_bitmap(table, write, buffer, lenp, ppos);
 	if (!err && write) {
@@ -855,7 +854,7 @@ int proc_watchdog_cpumask(struct ctl_table *table, int write,
 		watchdog_nmi_reconfigure();
 	}
 
-	mutex_unlock(&watchdog_proc_mutex);
+	mutex_unlock(&watchdog_mutex);
 	cpu_hotplug_enable();
 	return err;
 }
