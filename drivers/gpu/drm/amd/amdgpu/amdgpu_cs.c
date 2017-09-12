@@ -513,8 +513,11 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	INIT_LIST_HEAD(&p->validated);
 
 	p->bo_list = amdgpu_bo_list_get(fpriv, cs->in.bo_list_handle);
-	if (p->bo_list)
+	if (p->bo_list) {
 		amdgpu_bo_list_get_list(p->bo_list, &p->validated);
+		if (p->bo_list->first_userptr != p->bo_list->num_entries)
+			p->mn = amdgpu_mn_get(p->adev);
+	}
 
 	INIT_LIST_HEAD(&duplicates);
 	amdgpu_vm_get_pd_bo(&fpriv->vm, &p->validated, &p->vm_pd);
@@ -722,11 +725,7 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error,
 {
 	unsigned i;
 
-	if (!error)
-		ttm_eu_fence_buffer_objects(&parser->ticket,
-					    &parser->validated,
-					    parser->fence);
-	else if (backoff)
+	if (error && backoff)
 		ttm_eu_backoff_reservation(&parser->ticket,
 					   &parser->validated);
 
@@ -1127,7 +1126,21 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	struct amdgpu_ring *ring = p->job->ring;
 	struct amd_sched_entity *entity = &p->ctx->rings[ring->idx].entity;
 	struct amdgpu_job *job;
+	unsigned i;
 	int r;
+
+	amdgpu_mn_lock(p->mn);
+	if (p->bo_list) {
+		for (i = p->bo_list->first_userptr;
+		     i < p->bo_list->num_entries; ++i) {
+			struct amdgpu_bo *bo = p->bo_list->array[i].robj;
+
+			if (amdgpu_ttm_tt_userptr_needs_pages(bo->tbo.ttm)) {
+				amdgpu_mn_unlock(p->mn);
+				return -ERESTARTSYS;
+			}
+		}
+	}
 
 	job = p->job;
 	p->job = NULL;
@@ -1135,6 +1148,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	r = amd_sched_job_init(&job->base, &ring->sched, entity, p->filp);
 	if (r) {
 		amdgpu_job_free(job);
+		amdgpu_mn_unlock(p->mn);
 		return r;
 	}
 
@@ -1150,6 +1164,10 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 
 	trace_amdgpu_cs_ioctl(job);
 	amd_sched_entity_push_job(&job->base);
+
+	ttm_eu_fence_buffer_objects(&p->ticket, &p->validated, p->fence);
+	amdgpu_mn_unlock(p->mn);
+
 	return 0;
 }
 

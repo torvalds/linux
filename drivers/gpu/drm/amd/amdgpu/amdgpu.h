@@ -178,6 +178,7 @@ struct amdgpu_cs_parser;
 struct amdgpu_job;
 struct amdgpu_irq_src;
 struct amdgpu_fpriv;
+struct amdgpu_mn;
 
 enum amdgpu_cp_irq {
 	AMDGPU_CP_IRQ_GFX_EOP = 0,
@@ -1057,6 +1058,7 @@ struct amdgpu_cs_parser {
 	/* buffer objects */
 	struct ww_acquire_ctx		ticket;
 	struct amdgpu_bo_list		*bo_list;
+	struct amdgpu_mn		*mn;
 	struct amdgpu_bo_list_entry	vm_pd;
 	struct list_head		validated;
 	struct dma_fence		*fence;
@@ -1201,9 +1203,18 @@ void amdgpu_test_moves(struct amdgpu_device *adev);
  * MMU Notifier
  */
 #if defined(CONFIG_MMU_NOTIFIER)
+struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev);
 int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr);
 void amdgpu_mn_unregister(struct amdgpu_bo *bo);
+void amdgpu_mn_lock(struct amdgpu_mn *mn);
+void amdgpu_mn_unlock(struct amdgpu_mn *mn);
 #else
+static inline void amdgpu_mn_lock(struct amdgpu_mn *mn) {}
+static inline void amdgpu_mn_unlock(struct amdgpu_mn *mn) {}
+static inline struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev)
+{
+	return NULL;
+}
 static inline int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr)
 {
 	return -ENODEV;
