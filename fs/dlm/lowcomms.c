@@ -802,6 +802,8 @@ static int tcp_accept_from_sock(struct connection *con)
 			othercon->nodeid = nodeid;
 			othercon->rx_action = receive_from_sock;
 			mutex_init(&othercon->sock_mutex);
+			INIT_LIST_HEAD(&othercon->writequeue);
+			spin_lock_init(&othercon->writequeue_lock);
 			INIT_WORK(&othercon->swork, process_send_sockets);
 			INIT_WORK(&othercon->rwork, process_recv_sockets);
 			set_bit(CF_IS_OTHERCON, &othercon->flags);
@@ -920,6 +922,8 @@ static int sctp_accept_from_sock(struct connection *con)
 			othercon->nodeid = nodeid;
 			othercon->rx_action = receive_from_sock;
 			mutex_init(&othercon->sock_mutex);
+			INIT_LIST_HEAD(&othercon->writequeue);
+			spin_lock_init(&othercon->writequeue_lock);
 			INIT_WORK(&othercon->swork, process_send_sockets);
 			INIT_WORK(&othercon->rwork, process_recv_sockets);
 			set_bit(CF_IS_OTHERCON, &othercon->flags);
