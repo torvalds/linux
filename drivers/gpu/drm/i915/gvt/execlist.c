@@ -46,8 +46,6 @@
 #define same_context(a, b) (((a)->context_id == (b)->context_id) && \
 		((a)->lrca == (b)->lrca))
 
-static void clean_workloads(struct intel_vgpu *vgpu, unsigned long engine_mask);
-
 static int context_switch_events[] = {
 	[RCS] = RCS_AS_CONTEXT_SWITCH,
 	[BCS] = BCS_AS_CONTEXT_SWITCH,
@@ -397,23 +395,8 @@ static int complete_execlist_workload(struct intel_vgpu_workload *workload)
 	gvt_dbg_el("complete workload %p status %d\n", workload,
 			workload->status);
 
-	if (workload->status || (vgpu->resetting_eng & ENGINE_MASK(ring_id))) {
-		/* if workload->status is not successful means HW GPU
-		 * has occurred GPU hang or something wrong with i915/GVT,
-		 * and GVT won't inject context switch interrupt to guest.
-		 * So this error is a vGPU hang actually to the guest.
-		 * According to this we should emunlate a vGPU hang. If
-		 * there are pending workloads which are already submitted
-		 * from guest, we should clean them up like HW GPU does.
-		 *
-		 * if it is in middle of engine resetting, the pending
-		 * workloads won't be submitted to HW GPU and will be
-		 * cleaned up during the resetting process later, so doing
-		 * the workload clean up here doesn't have any impact.
-		 **/
-		clean_workloads(vgpu, ENGINE_MASK(ring_id));
+	if (workload->status || (vgpu->resetting_eng & ENGINE_MASK(ring_id)))
 		goto out;
-	}
 
 	if (!list_empty(workload_q_head(vgpu, ring_id))) {
 		struct execlist_ctx_descriptor_format *this_desc, *next_desc;
@@ -529,31 +512,10 @@ static void init_vgpu_execlist(struct intel_vgpu *vgpu, int ring_id)
 	vgpu_vreg(vgpu, ctx_status_ptr_reg) = ctx_status_ptr.dw;
 }
 
-static void clean_workloads(struct intel_vgpu *vgpu, unsigned long engine_mask)
-{
-	struct intel_vgpu_submission *s = &vgpu->submission;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
-	struct intel_engine_cs *engine;
-	struct intel_vgpu_workload *pos, *n;
-	unsigned int tmp;
-
-	/* free the unsubmited workloads in the queues. */
-	for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
-		list_for_each_entry_safe(pos, n,
-			&s->workload_q_head[engine->id], list) {
-			list_del_init(&pos->list);
-			intel_vgpu_destroy_workload(pos);
-		}
-		clear_bit(engine->id, s->shadow_ctx_desc_updated);
-	}
-}
-
 void clean_execlist(struct intel_vgpu *vgpu)
 {
 	enum intel_engine_id i;
 	struct intel_engine_cs *engine;
-
-	clean_workloads(vgpu, ALL_ENGINES);
 
 	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
 		struct intel_vgpu_submission *s = &vgpu->submission;
@@ -571,7 +533,6 @@ void reset_execlist(struct intel_vgpu *vgpu,
 	struct intel_engine_cs *engine;
 	unsigned int tmp;
 
-	clean_workloads(vgpu, engine_mask);
 	for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
 		init_vgpu_execlist(vgpu, engine->id);
 }

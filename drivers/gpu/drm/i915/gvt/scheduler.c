@@ -644,6 +644,25 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 	kunmap(page);
 }
 
+static void clean_workloads(struct intel_vgpu *vgpu, unsigned long engine_mask)
+{
+	struct intel_vgpu_submission *s = &vgpu->submission;
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct intel_engine_cs *engine;
+	struct intel_vgpu_workload *pos, *n;
+	unsigned int tmp;
+
+	/* free the unsubmited workloads in the queues. */
+	for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
+		list_for_each_entry_safe(pos, n,
+			&s->workload_q_head[engine->id], list) {
+			list_del_init(&pos->list);
+			intel_vgpu_destroy_workload(pos);
+		}
+		clear_bit(engine->id, s->shadow_ctx_desc_updated);
+	}
+}
+
 static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 {
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
@@ -705,6 +724,23 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 	if (!workload->status) {
 		release_shadow_batch_buffer(workload);
 		release_shadow_wa_ctx(&workload->wa_ctx);
+	}
+
+	if (workload->status || (vgpu->resetting_eng & ENGINE_MASK(ring_id))) {
+		/* if workload->status is not successful means HW GPU
+		 * has occurred GPU hang or something wrong with i915/GVT,
+		 * and GVT won't inject context switch interrupt to guest.
+		 * So this error is a vGPU hang actually to the guest.
+		 * According to this we should emunlate a vGPU hang. If
+		 * there are pending workloads which are already submitted
+		 * from guest, we should clean them up like HW GPU does.
+		 *
+		 * if it is in middle of engine resetting, the pending
+		 * workloads won't be submitted to HW GPU and will be
+		 * cleaned up during the resetting process later, so doing
+		 * the workload clean up here doesn't have any impact.
+		 **/
+		clean_workloads(vgpu, ENGINE_MASK(ring_id));
 	}
 
 	workload->complete(workload);
@@ -906,6 +942,7 @@ void intel_vgpu_reset_submission(struct intel_vgpu *vgpu,
 	if (!s->active)
 		return;
 
+	clean_workloads(vgpu, engine_mask);
 	s->ops->reset(vgpu, engine_mask);
 }
 
