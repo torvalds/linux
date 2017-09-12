@@ -904,8 +904,7 @@ u64 fuse_lock_owner_id(struct fuse_conn *fc, fl_owner_t id);
 
 void fuse_update_ctime(struct inode *inode);
 
-int fuse_update_attributes(struct inode *inode, struct kstat *stat,
-			   struct file *file, bool *refreshed);
+int fuse_update_attributes(struct inode *inode, struct file *file);
 
 void fuse_flush_writepages(struct inode *inode);
 
