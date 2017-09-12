@@ -173,9 +173,6 @@ struct smi_info {
 	 * IPMI
 	 */
 	struct si_sm_io io;
-	int (*io_setup)(struct smi_info *info);
-	void (*io_cleanup)(struct smi_info *info);
-	unsigned int io_size;
 
 	/*
 	 * Per-OEM handler, called from handle_flags().  Returns 1
@@ -1488,48 +1485,48 @@ static void port_outl(const struct si_sm_io *io, unsigned int offset,
 	outl(b << io->regshift, addr+(offset * io->regspacing));
 }
 
-static void port_cleanup(struct smi_info *info)
+static void port_cleanup(struct si_sm_io *io)
 {
-	unsigned int addr = info->io.addr_data;
+	unsigned int addr = io->addr_data;
 	int          idx;
 
 	if (addr) {
-		for (idx = 0; idx < info->io_size; idx++)
-			release_region(addr + idx * info->io.regspacing,
-				       info->io.regsize);
+		for (idx = 0; idx < io->io_size; idx++)
+			release_region(addr + idx * io->regspacing,
+				       io->regsize);
 	}
 }
 
-static int port_setup(struct smi_info *info)
+static int port_setup(struct si_sm_io *io)
 {
-	unsigned int addr = info->io.addr_data;
+	unsigned int addr = io->addr_data;
 	int          idx;
 
 	if (!addr)
 		return -ENODEV;
 
-	info->io_cleanup = port_cleanup;
+	io->io_cleanup = port_cleanup;
 
 	/*
 	 * Figure out the actual inb/inw/inl/etc routine to use based
 	 * upon the register size.
 	 */
-	switch (info->io.regsize) {
+	switch (io->regsize) {
 	case 1:
-		info->io.inputb = port_inb;
-		info->io.outputb = port_outb;
+		io->inputb = port_inb;
+		io->outputb = port_outb;
 		break;
 	case 2:
-		info->io.inputb = port_inw;
-		info->io.outputb = port_outw;
+		io->inputb = port_inw;
+		io->outputb = port_outw;
 		break;
 	case 4:
-		info->io.inputb = port_inl;
-		info->io.outputb = port_outl;
+		io->inputb = port_inl;
+		io->outputb = port_outl;
 		break;
 	default:
-		dev_warn(info->io.dev, "Invalid register size: %d\n",
-			 info->io.regsize);
+		dev_warn(io->dev, "Invalid register size: %d\n",
+			 io->regsize);
 		return -EINVAL;
 	}
 
@@ -1539,13 +1536,13 @@ static int port_setup(struct smi_info *info)
 	 * entire I/O region.  Therefore we must register each I/O
 	 * port separately.
 	 */
-	for (idx = 0; idx < info->io_size; idx++) {
-		if (request_region(addr + idx * info->io.regspacing,
-				   info->io.regsize, DEVICE_NAME) == NULL) {
+	for (idx = 0; idx < io->io_size; idx++) {
+		if (request_region(addr + idx * io->regspacing,
+				   io->regsize, DEVICE_NAME) == NULL) {
 			/* Undo allocations */
 			while (idx--)
-				release_region(addr + idx * info->io.regspacing,
-					       info->io.regsize);
+				release_region(addr + idx * io->regspacing,
+					       io->regsize);
 			return -EIO;
 		}
 	}
@@ -1604,60 +1601,60 @@ static void mem_outq(const struct si_sm_io *io, unsigned int offset,
 }
 #endif
 
-static void mem_region_cleanup(struct smi_info *info, int num)
+static void mem_region_cleanup(struct si_sm_io *io, int num)
 {
-	unsigned long addr = info->io.addr_data;
+	unsigned long addr = io->addr_data;
 	int idx;
 
 	for (idx = 0; idx < num; idx++)
-		release_mem_region(addr + idx * info->io.regspacing,
-				   info->io.regsize);
+		release_mem_region(addr + idx * io->regspacing,
+				   io->regsize);
 }
 
-static void mem_cleanup(struct smi_info *info)
+static void mem_cleanup(struct si_sm_io *io)
 {
-	if (info->io.addr) {
-		iounmap(info->io.addr);
-		mem_region_cleanup(info, info->io_size);
+	if (io->addr) {
+		iounmap(io->addr);
+		mem_region_cleanup(io, io->io_size);
 	}
 }
 
-static int mem_setup(struct smi_info *info)
+static int mem_setup(struct si_sm_io *io)
 {
-	unsigned long addr = info->io.addr_data;
+	unsigned long addr = io->addr_data;
 	int           mapsize, idx;
 
 	if (!addr)
 		return -ENODEV;
 
-	info->io_cleanup = mem_cleanup;
+	io->io_cleanup = mem_cleanup;
 
 	/*
 	 * Figure out the actual readb/readw/readl/etc routine to use based
 	 * upon the register size.
 	 */
-	switch (info->io.regsize) {
+	switch (io->regsize) {
 	case 1:
-		info->io.inputb = intf_mem_inb;
-		info->io.outputb = intf_mem_outb;
+		io->inputb = intf_mem_inb;
+		io->outputb = intf_mem_outb;
 		break;
 	case 2:
-		info->io.inputb = intf_mem_inw;
-		info->io.outputb = intf_mem_outw;
+		io->inputb = intf_mem_inw;
+		io->outputb = intf_mem_outw;
 		break;
 	case 4:
-		info->io.inputb = intf_mem_inl;
-		info->io.outputb = intf_mem_outl;
+		io->inputb = intf_mem_inl;
+		io->outputb = intf_mem_outl;
 		break;
 #ifdef readq
 	case 8:
-		info->io.inputb = mem_inq;
-		info->io.outputb = mem_outq;
+		io->inputb = mem_inq;
+		io->outputb = mem_outq;
 		break;
 #endif
 	default:
-		dev_warn(info->io.dev, "Invalid register size: %d\n",
-			 info->io.regsize);
+		dev_warn(io->dev, "Invalid register size: %d\n",
+			 io->regsize);
 		return -EINVAL;
 	}
 
@@ -1667,11 +1664,11 @@ static int mem_setup(struct smi_info *info)
 	 * entire region.  Therefore we must request each register
 	 * separately.
 	 */
-	for (idx = 0; idx < info->io_size; idx++) {
-		if (request_mem_region(addr + idx * info->io.regspacing,
-				       info->io.regsize, DEVICE_NAME) == NULL) {
+	for (idx = 0; idx < io->io_size; idx++) {
+		if (request_mem_region(addr + idx * io->regspacing,
+				       io->regsize, DEVICE_NAME) == NULL) {
 			/* Undo allocations */
-			mem_region_cleanup(info, idx);
+			mem_region_cleanup(io, idx);
 			return -EIO;
 		}
 	}
@@ -1683,11 +1680,11 @@ static int mem_setup(struct smi_info *info)
 	 * between the first address to the end of the last full
 	 * register.
 	 */
-	mapsize = ((info->io_size * info->io.regspacing)
-		   - (info->io.regspacing - info->io.regsize));
-	info->io.addr = ioremap(addr, mapsize);
-	if (info->io.addr == NULL) {
-		mem_region_cleanup(info, info->io_size);
+	mapsize = ((io->io_size * io->regspacing)
+		   - (io->regspacing - io->regsize));
+	io->addr = ioremap(addr, mapsize);
+	if (io->addr == NULL) {
+		mem_region_cleanup(io, io->io_size);
 		return -EIO;
 	}
 	return 0;
@@ -1903,10 +1900,6 @@ static int hotmod_handler(const char *val, struct kernel_param *kp)
 			info->io.si_type = si_type;
 			info->io.addr_data = addr;
 			info->io.addr_type = addr_space;
-			if (addr_space == IPMI_MEM_ADDR_SPACE)
-				info->io_setup = mem_setup;
-			else
-				info->io_setup = port_setup;
 
 			info->io.addr = NULL;
 			info->io.regspacing = regspacing;
@@ -1987,12 +1980,10 @@ static int hardcode_find_bmc(void)
 
 		if (ports[i]) {
 			/* An I/O port */
-			info->io_setup = port_setup;
 			info->io.addr_data = ports[i];
 			info->io.addr_type = IPMI_IO_ADDR_SPACE;
 		} else if (addrs[i]) {
 			/* A memory port */
-			info->io_setup = mem_setup;
 			info->io.addr_data = addrs[i];
 			info->io.addr_type = IPMI_MEM_ADDR_SPACE;
 		} else {
@@ -2192,10 +2183,8 @@ static int try_init_spmi(struct SPMITable *spmi)
 	info->io.regshift = spmi->addr.bit_offset;
 
 	if (spmi->addr.space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
-		info->io_setup = mem_setup;
 		info->io.addr_type = IPMI_MEM_ADDR_SPACE;
 	} else if (spmi->addr.space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
-		info->io_setup = port_setup;
 		info->io.addr_type = IPMI_IO_ADDR_SPACE;
 	} else {
 		kfree(info);
@@ -2248,14 +2237,11 @@ ipmi_get_info_from_resources(struct platform_device *pdev,
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (res) {
-		info->io_setup = port_setup;
 		info->io.addr_type = IPMI_IO_ADDR_SPACE;
 	} else {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (res) {
-			info->io_setup = mem_setup;
+		if (res)
 			info->io.addr_type = IPMI_MEM_ADDR_SPACE;
-		}
 	}
 	if (!res) {
 		dev_err(&pdev->dev, "no I/O or memory address\n");
@@ -2389,13 +2375,13 @@ static int ipmi_pci_probe_regspacing(struct smi_info *info)
 
 		info->io.regsize = DEFAULT_REGSIZE;
 		info->io.regshift = 0;
-		info->io_size = 2;
+		info->io.io_size = 2;
 		info->handlers = &kcs_smi_handlers;
 
 		/* detect 1, 4, 16byte spacing */
 		for (regspacing = DEFAULT_REGSPACING; regspacing <= 16;) {
 			info->io.regspacing = regspacing;
-			if (info->io_setup(info)) {
+			if (info->io.io_setup(&info->io)) {
 				dev_err(info->io.dev,
 					"Could not setup I/O space\n");
 				return DEFAULT_REGSPACING;
@@ -2404,7 +2390,7 @@ static int ipmi_pci_probe_regspacing(struct smi_info *info)
 			info->io.outputb(&info->io, 1, 0x10);
 			/* read status back */
 			status = info->io.inputb(&info->io, 1);
-			info->io_cleanup(info);
+			info->io.io_cleanup(&info->io);
 			if (status)
 				return regspacing;
 			regspacing *= 4;
@@ -2456,13 +2442,10 @@ static int ipmi_pci_probe(struct pci_dev *pdev,
 	info->io.addr_source_cleanup = ipmi_pci_cleanup;
 	info->io.addr_source_data = pdev;
 
-	if (pci_resource_flags(pdev, 0) & IORESOURCE_IO) {
-		info->io_setup = port_setup;
+	if (pci_resource_flags(pdev, 0) & IORESOURCE_IO)
 		info->io.addr_type = IPMI_IO_ADDR_SPACE;
-	} else {
-		info->io_setup = mem_setup;
+	else
 		info->io.addr_type = IPMI_MEM_ADDR_SPACE;
-	}
 	info->io.addr_data = pci_resource_start(pdev, 0);
 
 	info->io.regspacing = ipmi_pci_probe_regspacing(info);
@@ -2577,13 +2560,10 @@ static int of_ipmi_probe(struct platform_device *pdev)
 	info->io.addr_source	= SI_DEVICETREE;
 	info->io.irq_setup	= ipmi_std_irq_setup;
 
-	if (resource.flags & IORESOURCE_IO) {
-		info->io_setup		= port_setup;
-		info->io.addr_type	= IPMI_IO_ADDR_SPACE;
-	} else {
-		info->io_setup		= mem_setup;
-		info->io.addr_type	= IPMI_MEM_ADDR_SPACE;
-	}
+	if (resource.flags & IORESOURCE_IO)
+		info->io.addr_type = IPMI_IO_ADDR_SPACE;
+	else
+		info->io.addr_type = IPMI_MEM_ADDR_SPACE;
 
 	info->io.addr_data	= resource.start;
 
@@ -2794,7 +2774,6 @@ static int __init ipmi_parisc_probe(struct parisc_device *dev)
 
 	info->io.si_type	= SI_KCS;
 	info->io.addr_source	= SI_DEVICETREE;
-	info->io_setup		= mem_setup;
 	info->io.addr_type	= IPMI_MEM_ADDR_SPACE;
 	info->io.addr_data	= dev->hpa.start;
 	info->io.regsize	= 1;
@@ -3419,6 +3398,16 @@ int ipmi_si_add_smi(struct smi_info *new_smi)
 	int rv = 0;
 	struct smi_info *dup;
 
+	if (!new_smi->io.io_setup) {
+		if (new_smi->io.addr_type == IPMI_IO_ADDR_SPACE) {
+			new_smi->io.io_setup = port_setup;
+		} else if (new_smi->io.addr_type == IPMI_MEM_ADDR_SPACE) {
+			new_smi->io.io_setup = mem_setup;
+		} else {
+			return -EINVAL;
+		}
+	}
+
 	mutex_lock(&smi_infos_lock);
 	dup = find_dup_si(new_smi);
 	if (dup) {
@@ -3522,11 +3511,11 @@ static int try_smi_init(struct smi_info *new_smi)
 		rv = -ENOMEM;
 		goto out_err;
 	}
-	new_smi->io_size = new_smi->handlers->init_data(new_smi->si_sm,
-							&new_smi->io);
+	new_smi->io.io_size = new_smi->handlers->init_data(new_smi->si_sm,
+							   &new_smi->io);
 
 	/* Now that we know the I/O size, we can set up the I/O. */
-	rv = new_smi->io_setup(new_smi);
+	rv = new_smi->io.io_setup(&new_smi->io);
 	if (rv) {
 		dev_err(new_smi->io.dev, "Could not set up I/O space\n");
 		goto out_err;
@@ -3679,9 +3668,9 @@ out_err:
 		new_smi->io.addr_source_cleanup(&new_smi->io);
 		new_smi->io.addr_source_cleanup = NULL;
 	}
-	if (new_smi->io_cleanup) {
-		new_smi->io_cleanup(new_smi);
-		new_smi->io_cleanup = NULL;
+	if (new_smi->io.io_cleanup) {
+		new_smi->io.io_cleanup(&new_smi->io);
+		new_smi->io.io_cleanup = NULL;
 	}
 
 	if (new_smi->pdev) {
@@ -3861,8 +3850,8 @@ static void cleanup_one_si(struct smi_info *to_clean)
 
 	if (to_clean->io.addr_source_cleanup)
 		to_clean->io.addr_source_cleanup(&to_clean->io);
-	if (to_clean->io_cleanup)
-		to_clean->io_cleanup(to_clean);
+	if (to_clean->io.io_cleanup)
+		to_clean->io.io_cleanup(&to_clean->io);
 
 	if (to_clean->pdev)
 		platform_device_unregister(to_clean->pdev);

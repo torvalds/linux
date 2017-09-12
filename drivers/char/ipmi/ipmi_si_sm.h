@@ -71,6 +71,10 @@ struct si_sm_io {
 	void (*addr_source_cleanup)(struct si_sm_io *io);
 	void *addr_source_data;
 
+	int (*io_setup)(struct si_sm_io *info);
+	void (*io_cleanup)(struct si_sm_io *info);
+	unsigned int io_size;
+
 	int irq;
 	int (*irq_setup)(struct si_sm_io *io);
 	void *irq_handler_data;
