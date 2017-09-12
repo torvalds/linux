@@ -685,7 +685,7 @@ static int ov2640_mask_set(struct i2c_client *client,
 static int ov2640_reset(struct i2c_client *client)
 {
 	int ret;
-	const struct regval_list reset_seq[] = {
+	static const struct regval_list reset_seq[] = {
 		{BANK_SEL, BANK_SEL_SENS},
 		{COM7, COM7_SRST},
 		ENDMARKER,
