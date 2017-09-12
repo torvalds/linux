@@ -1644,7 +1644,9 @@ void dasd_generic_handle_state_change(struct dasd_device *device)
 	dasd_schedule_device_bh(device);
 	if (device->block) {
 		dasd_schedule_block_bh(device->block);
-		blk_mq_run_hw_queues(device->block->request_queue, true);
+		if (device->block->request_queue)
+			blk_mq_run_hw_queues(device->block->request_queue,
+					     true);
 	}
 }
 EXPORT_SYMBOL_GPL(dasd_generic_handle_state_change);
@@ -3759,7 +3761,9 @@ int dasd_generic_path_operational(struct dasd_device *device)
 	dasd_schedule_device_bh(device);
 	if (device->block) {
 		dasd_schedule_block_bh(device->block);
-		blk_mq_run_hw_queues(device->block->request_queue, true);
+		if (device->block->request_queue)
+			blk_mq_run_hw_queues(device->block->request_queue,
+					     true);
 		}
 
 	if (!device->stopped)
@@ -4025,7 +4029,9 @@ int dasd_generic_restore_device(struct ccw_device *cdev)
 
 	if (device->block) {
 		dasd_schedule_block_bh(device->block);
-		blk_mq_run_hw_queues(device->block->request_queue, true);
+		if (device->block->request_queue)
+			blk_mq_run_hw_queues(device->block->request_queue,
+					     true);
 	}
 
 	clear_bit(DASD_FLAG_SUSPENDED, &device->flags);
