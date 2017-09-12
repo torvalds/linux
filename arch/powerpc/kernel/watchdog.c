@@ -310,9 +310,6 @@ static int start_wd_on_cpu(unsigned int cpu)
 	if (!(watchdog_enabled & NMI_WATCHDOG_ENABLED))
 		return 0;
 
-	if (watchdog_suspended)
-		return 0;
-
 	if (!cpumask_test_cpu(cpu, &watchdog_cpumask))
 		return 0;
 

@@ -164,7 +164,6 @@ extern int watchdog_thresh;
 extern unsigned long watchdog_enabled;
 extern struct cpumask watchdog_cpumask;
 extern unsigned long *watchdog_cpumask_bits;
-extern int __read_mostly watchdog_suspended;
 #ifdef CONFIG_SMP
 extern int sysctl_softlockup_all_cpu_backtrace;
 extern int sysctl_hardlockup_all_cpu_backtrace;
@@ -192,17 +191,6 @@ extern int proc_watchdog_thresh(struct ctl_table *, int ,
 				void __user *, size_t *, loff_t *);
 extern int proc_watchdog_cpumask(struct ctl_table *, int,
 				 void __user *, size_t *, loff_t *);
-extern int lockup_detector_suspend(void);
-extern void lockup_detector_resume(void);
-#else
-static inline int lockup_detector_suspend(void)
-{
-	return 0;
-}
-
-static inline void lockup_detector_resume(void)
-{
-}
 #endif
 
 #ifdef CONFIG_HAVE_ACPI_APEI_NMI

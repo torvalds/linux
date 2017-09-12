@@ -97,19 +97,6 @@ unsigned long *watchdog_cpumask_bits = cpumask_bits(&watchdog_cpumask);
  * unregistered/stopped, so it is an indicator whether the threads exist.
  */
 static int __read_mostly watchdog_running;
-/*
- * If a subsystem has a need to deactivate the watchdog temporarily, it
- * can use the suspend/resume interface to achieve this. The content of
- * the 'watchdog_suspended' variable reflects this state. Existing threads
- * are parked/unparked by the lockup_detector_{suspend|resume} functions
- * (see comment blocks pertaining to those functions for further details).
- *
- * 'watchdog_suspended' also prevents threads from being registered/started
- * or unregistered/stopped via parameters in /proc/sys/kernel, so the state
- * of 'watchdog_running' cannot change while the watchdog is deactivated
- * temporarily (see related code in 'proc' handlers).
- */
-int __read_mostly watchdog_suspended;
 
 /*
  * These functions can be overridden if an architecture implements its
@@ -136,7 +123,6 @@ void __weak watchdog_nmi_disable(unsigned int cpu)
  * - watchdog_cpumask
  * - sysctl_hardlockup_all_cpu_backtrace
  * - hardlockup_panic
- * - watchdog_suspended
  */
 void __weak watchdog_nmi_reconfigure(void)
 {
@@ -672,61 +658,6 @@ void lockup_detector_soft_poweroff(void)
 	watchdog_enabled = 0;
 }
 
-/*
- * Suspend the hard and soft lockup detector by parking the watchdog threads.
- */
-int lockup_detector_suspend(void)
-{
-	int ret = 0;
-
-	get_online_cpus();
-	mutex_lock(&watchdog_proc_mutex);
-	/*
-	 * Multiple suspend requests can be active in parallel (counted by
-	 * the 'watchdog_suspended' variable). If the watchdog threads are
-	 * running, the first caller takes care that they will be parked.
-	 * The state of 'watchdog_running' cannot change while a suspend
-	 * request is active (see related code in 'proc' handlers).
-	 */
-	if (watchdog_running && !watchdog_suspended)
-		ret = watchdog_park_threads();
-
-	if (ret == 0)
-		watchdog_suspended++;
-	else {
-		watchdog_disable_all_cpus();
-		pr_err("Failed to suspend lockup detectors, disabled\n");
-		watchdog_enabled = 0;
-	}
-
-	watchdog_nmi_reconfigure();
-
-	mutex_unlock(&watchdog_proc_mutex);
-
-	return ret;
-}
-
-/*
- * Resume the hard and soft lockup detector by unparking the watchdog threads.
- */
-void lockup_detector_resume(void)
-{
-	mutex_lock(&watchdog_proc_mutex);
-
-	watchdog_suspended--;
-	/*
-	 * The watchdog threads are unparked if they were previously running
-	 * and if there is no more active suspend request.
-	 */
-	if (watchdog_running && !watchdog_suspended)
-		watchdog_unpark_threads();
-
-	watchdog_nmi_reconfigure();
-
-	mutex_unlock(&watchdog_proc_mutex);
-	put_online_cpus();
-}
-
 #ifdef CONFIG_SYSCTL
 
 /*
@@ -774,12 +705,6 @@ static int proc_watchdog_common(int which, struct ctl_table *table, int write,
 
 	get_online_cpus();
 	mutex_lock(&watchdog_proc_mutex);
-
-	if (watchdog_suspended) {
-		/* no parameter changes allowed while watchdog is suspended */
-		err = -EAGAIN;
-		goto out;
-	}
 
 	/*
 	 * If the parameter is being read return the state of the corresponding
@@ -872,12 +797,6 @@ int proc_watchdog_thresh(struct ctl_table *table, int write,
 	get_online_cpus();
 	mutex_lock(&watchdog_proc_mutex);
 
-	if (watchdog_suspended) {
-		/* no parameter changes allowed while watchdog is suspended */
-		err = -EAGAIN;
-		goto out;
-	}
-
 	old = ACCESS_ONCE(watchdog_thresh);
 	err = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 
@@ -917,12 +836,6 @@ int proc_watchdog_cpumask(struct ctl_table *table, int write,
 	get_online_cpus();
 	mutex_lock(&watchdog_proc_mutex);
 
-	if (watchdog_suspended) {
-		/* no parameter changes allowed while watchdog is suspended */
-		err = -EAGAIN;
-		goto out;
-	}
-
 	err = proc_do_large_bitmap(table, write, buffer, lenp, ppos);
 	if (!err && write) {
 		/* Remove impossible cpus to keep sysctl output cleaner. */
@@ -941,7 +854,7 @@ int proc_watchdog_cpumask(struct ctl_table *table, int write,
 
 		watchdog_nmi_reconfigure();
 	}
-out:
+
 	mutex_unlock(&watchdog_proc_mutex);
 	put_online_cpus();
 	return err;
