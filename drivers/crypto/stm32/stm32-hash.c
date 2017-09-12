@@ -553,9 +553,9 @@ static int stm32_hash_dma_send(struct stm32_hash_dev *hdev)
 {
 	struct stm32_hash_request_ctx *rctx = ahash_request_ctx(hdev->req);
 	struct scatterlist sg[1], *tsg;
-	int err = 0, len = 0, reg, ncp;
+	int err = 0, len = 0, reg, ncp = 0;
 	unsigned int i;
-	const u32 *buffer = (const u32 *)rctx->buffer;
+	u32 *buffer = (void *)rctx->buffer;
 
 	rctx->sg = hdev->req->src;
 	rctx->total = hdev->req->nbytes;
@@ -620,10 +620,13 @@ static int stm32_hash_dma_send(struct stm32_hash_dev *hdev)
 		reg |= HASH_CR_DMAA;
 		stm32_hash_write(hdev, HASH_CR, reg);
 
-		for (i = 0; i < DIV_ROUND_UP(ncp, sizeof(u32)); i++)
-			stm32_hash_write(hdev, HASH_DIN, buffer[i]);
-
-		stm32_hash_set_nblw(hdev, ncp);
+		if (ncp) {
+			memset(buffer + ncp, 0,
+			       DIV_ROUND_UP(ncp, sizeof(u32)) - ncp);
+			writesl(hdev->io_base + HASH_DIN, buffer,
+				DIV_ROUND_UP(ncp, sizeof(u32)));
+		}
+		stm32_hash_set_nblw(hdev, DIV_ROUND_UP(ncp, sizeof(u32)));
 		reg = stm32_hash_read(hdev, HASH_STR);
 		reg |= HASH_STR_DCAL;
 		stm32_hash_write(hdev, HASH_STR, reg);
