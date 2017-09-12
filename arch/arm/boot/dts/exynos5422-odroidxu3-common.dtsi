@@ -13,6 +13,7 @@
 */
 
 #include <dt-bindings/clock/samsung,s2mps11.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/sound/samsung-i2s.h>
@@ -38,6 +39,27 @@
 		oscclk {
 			compatible = "samsung,exynos5420-oscclk";
 			clock-frequency = <24000000>;
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&power_key>;
+
+		power_key {
+			/*
+			 * The power button (SW2) is connected to the PWRON
+			 * pin (active high) of the S2MPS11 PMIC, which acts
+			 * as a 16ms debouce filter and signal inverter with
+			 * output on ONOB pin (active low). ONOB PMIC pin is
+			 * then connected to XEINT3 SoC pin.
+			 */
+			gpios = <&gpx0 3 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_POWER>;
+			label = "power key";
+			debounce-interval = <0>;
+			wakeup-source;
 		};
 	};
 
@@ -760,6 +782,13 @@
 };
 
 &pinctrl_0 {
+	power_key: power-key {
+		samsung,pins = "gpx0-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
+	};
+
 	hdmi_hpd_irq: hdmi-hpd-irq {
 		samsung,pins = "gpx3-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
