@@ -163,6 +163,14 @@ struct thread_struct {
 typedef struct thread_struct thread_struct;
 
 /*
+ * General size of a stack
+ */
+#define STACK_ORDER 2
+#define STACK_SIZE (PAGE_SIZE << STACK_ORDER)
+#define STACK_INIT_OFFSET \
+	(STACK_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs))
+
+/*
  * Stack layout of a C stack frame.
  */
 #ifndef __PACK_STACK

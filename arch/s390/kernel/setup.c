@@ -49,6 +49,7 @@
 #include <linux/crash_dump.h>
 #include <linux/memory.h>
 #include <linux/compat.h>
+#include <linux/start_kernel.h>
 
 #include <asm/ipl.h>
 #include <asm/facility.h>
@@ -303,6 +304,78 @@ early_param("vmalloc", parse_vmalloc);
 
 void *restart_stack __section(.data);
 
+unsigned long stack_alloc(void)
+{
+#ifdef CONFIG_VMAP_STACK
+	return (unsigned long)
+		__vmalloc_node_range(STACK_SIZE, STACK_SIZE,
+				     VMALLOC_START, VMALLOC_END,
+				     THREADINFO_GFP,
+				     PAGE_KERNEL, 0, NUMA_NO_NODE,
+				     __builtin_return_address(0));
+#else
+	return __get_free_pages(GFP_KERNEL, STACK_ORDER);
+#endif
+}
+
+void stack_free(unsigned long stack)
+{
+#ifdef CONFIG_VMAP_STACK
+	vfree((void *) stack);
+#else
+	free_pages(stack, STACK_ORDER);
+#endif
+}
+
+int __init arch_early_irq_init(void)
+{
+	unsigned long stack;
+
+	stack = __get_free_pages(GFP_KERNEL, STACK_ORDER);
+	if (!stack)
+		panic("Couldn't allocate async stack");
+	S390_lowcore.async_stack = stack + STACK_INIT_OFFSET;
+	return 0;
+}
+
+static int __init async_stack_realloc(void)
+{
+	unsigned long old, new;
+
+	old = S390_lowcore.async_stack - STACK_INIT_OFFSET;
+	new = stack_alloc();
+	if (!new)
+		panic("Couldn't allocate async stack");
+	S390_lowcore.async_stack = new + STACK_INIT_OFFSET;
+	free_pages(old, STACK_ORDER);
+	return 0;
+}
+early_initcall(async_stack_realloc);
+
+void __init arch_call_rest_init(void)
+{
+	struct stack_frame *frame;
+	unsigned long stack;
+
+	stack = stack_alloc();
+	if (!stack)
+		panic("Couldn't allocate kernel stack");
+	current->stack = (void *) stack;
+#ifdef CONFIG_VMAP_STACK
+	current->stack_vm_area = (void *) stack;
+#endif
+	set_task_stack_end_magic(current);
+	stack += STACK_INIT_OFFSET;
+	S390_lowcore.kernel_stack = stack;
+	frame = (struct stack_frame *) stack;
+	memset(frame, 0, sizeof(*frame));
+	/* Branch to rest_init on the new stack, never returns */
+	asm volatile(
+		"	la	15,0(%[_frame])\n"
+		"	jg	rest_init\n"
+		: : [_frame] "a" (frame));
+}
+
 static void __init setup_lowcore(void)
 {
 	struct lowcore *lc;
@@ -329,14 +402,8 @@ static void __init setup_lowcore(void)
 		PSW_MASK_DAT | PSW_MASK_MCHECK;
 	lc->io_new_psw.addr = (unsigned long) io_int_handler;
 	lc->clock_comparator = clock_comparator_max;
-	lc->kernel_stack = ((unsigned long) &init_thread_union)
+	lc->nodat_stack = ((unsigned long) &init_thread_union)
 		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
-	lc->async_stack = (unsigned long)
-		memblock_virt_alloc(ASYNC_SIZE, ASYNC_SIZE)
-		+ ASYNC_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
-	lc->panic_stack = (unsigned long)
-		memblock_virt_alloc(PAGE_SIZE, PAGE_SIZE)
-		+ PAGE_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->current_task = (unsigned long)&init_task;
 	lc->lpp = LPP_MAGIC;
 	lc->machine_flags = S390_lowcore.machine_flags;
@@ -357,8 +424,12 @@ static void __init setup_lowcore(void)
 	lc->last_update_timer = S390_lowcore.last_update_timer;
 	lc->last_update_clock = S390_lowcore.last_update_clock;
 
-	restart_stack = memblock_virt_alloc(ASYNC_SIZE, ASYNC_SIZE);
-	restart_stack += ASYNC_SIZE;
+	/*
+	 * Allocate the global restart stack which is the same for
+	 * all CPUs in cast *one* of them does a PSW restart.
+	 */
+	restart_stack = memblock_virt_alloc(STACK_SIZE, STACK_SIZE);
+	restart_stack += STACK_INIT_OFFSET;
 
 	/*
 	 * Set up PSW restart to call ipl.c:do_restart(). Copy the relevant

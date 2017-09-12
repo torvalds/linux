@@ -14,10 +14,7 @@
  * Size of kernel stack for each process
  */
 #define THREAD_SIZE_ORDER 2
-#define ASYNC_ORDER  2
-
 #define THREAD_SIZE (PAGE_SIZE << THREAD_SIZE_ORDER)
-#define ASYNC_SIZE  (PAGE_SIZE << ASYNC_ORDER)
 
 #ifndef __ASSEMBLY__
 #include <asm/lowcore.h>
