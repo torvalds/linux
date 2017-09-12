@@ -577,7 +577,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
 	mutex_lock(&crtc->dev->mode_config.mutex);
-	drm_modeset_acquire_init(&ctx, 0);
+	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
 retry:
 	ret = drm_modeset_lock_all_ctx(crtc->dev, &ctx);
 	if (ret)
@@ -717,8 +717,9 @@ out:
 	kfree(connector_set);
 	drm_mode_destroy(dev, mode);
 	if (ret == -EDEADLK) {
-		drm_modeset_backoff(&ctx);
-		goto retry;
+		ret = drm_modeset_backoff(&ctx);
+		if (!ret)
+			goto retry;
 	}
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
