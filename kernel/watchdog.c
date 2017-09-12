@@ -139,6 +139,9 @@ unsigned int __read_mostly softlockup_panic =
 			CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC_VALUE;
 int __read_mostly soft_watchdog_enabled;
 
+struct cpumask watchdog_allowed_mask __read_mostly;
+static bool softlockup_threads_initialized __read_mostly;
+
 static u64 __read_mostly sample_period;
 
 static DEFINE_PER_CPU(unsigned long, watchdog_touch_ts);
@@ -584,12 +587,84 @@ static void watchdog_disable_all_cpus(void)
 	}
 }
 
+static void softlockup_update_smpboot_threads(void)
+{
+	lockdep_assert_held(&watchdog_mutex);
+
+	if (!softlockup_threads_initialized)
+		return;
+
+	smpboot_update_cpumask_percpu_thread(&watchdog_threads,
+					     &watchdog_allowed_mask);
+	__lockup_detector_cleanup();
+}
+
+/* Temporarily park all watchdog threads */
+static void softlockup_park_all_threads(void)
+{
+	cpumask_clear(&watchdog_allowed_mask);
+	softlockup_update_smpboot_threads();
+}
+
+/*
+ * Park threads which are not longer enabled and unpark threads which have
+ * been newly enabled.
+ */
+static void softlockup_update_threads(void)
+{
+	cpumask_copy(&watchdog_allowed_mask, &watchdog_cpumask);
+	softlockup_update_smpboot_threads();
+}
+
+static void softlockup_reconfigure_threads(bool enabled)
+{
+	softlockup_park_all_threads();
+	set_sample_period();
+	if (enabled)
+		softlockup_update_threads();
+}
+
+/*
+ * Create the watchdog thread infrastructure.
+ *
+ * The threads are not unparked as watchdog_allowed_mask is empty.  When
+ * the threads are sucessfully initialized, take the proper locks and
+ * unpark the threads in the watchdog_cpumask if the watchdog is enabled.
+ */
+static __init void softlockup_init_threads(void)
+{
+	int ret;
+
+	/*
+	 * If sysctl is off and watchdog got disabled on the command line,
+	 * nothing to do here.
+	 */
+	if (!IS_ENABLED(CONFIG_SYSCTL) &&
+	    !(watchdog_enabled && watchdog_thresh))
+		return;
+
+	ret = smpboot_register_percpu_thread_cpumask(&watchdog_threads,
+						     &watchdog_allowed_mask);
+	if (ret) {
+		pr_err("Failed to initialize soft lockup detector threads\n");
+		return;
+	}
+
+	mutex_lock(&watchdog_mutex);
+	softlockup_threads_initialized = true;
+	softlockup_reconfigure_threads(watchdog_enabled && watchdog_thresh);
+	mutex_unlock(&watchdog_mutex);
+}
+
 #else /* CONFIG_SOFTLOCKUP_DETECTOR */
 static inline int watchdog_park_threads(void) { return 0; }
 static inline void watchdog_unpark_threads(void) { }
 static inline int watchdog_enable_all_cpus(void) { return 0; }
 static inline void watchdog_disable_all_cpus(void) { }
 static inline void set_sample_period(void) { }
+static inline void softlockup_init_threads(void) { }
+static inline void softlockup_update_threads(void) { }
+static inline void softlockup_reconfigure_threads(bool enabled) { }
 #endif /* !CONFIG_SOFTLOCKUP_DETECTOR */
 
 static void __lockup_detector_cleanup(void)
