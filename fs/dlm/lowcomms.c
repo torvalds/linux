@@ -703,7 +703,7 @@ out_resched:
 out_close:
 	mutex_unlock(&con->sock_mutex);
 	if (ret != -EAGAIN) {
-		close_connection(con, false, true, false);
+		close_connection(con, true, true, false);
 		/* Reconnect when there is something to send */
 	}
 	/* Don't return success if we really got EOF */
@@ -1530,7 +1530,7 @@ out:
 
 send_error:
 	mutex_unlock(&con->sock_mutex);
-	close_connection(con, false, false, true);
+	close_connection(con, true, false, true);
 	/* Requeue the send work. When the work daemon runs again, it will try
 	   a new connection, then call this function again. */
 	queue_work(send_workqueue, &con->swork);
