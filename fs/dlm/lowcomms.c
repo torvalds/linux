@@ -106,7 +106,6 @@ struct connection {
 	struct mutex sock_mutex;
 	unsigned long flags;
 #define CF_READ_PENDING 1
-#define CF_WRITE_PENDING 2
 #define CF_INIT_PENDING 4
 #define CF_IS_OTHERCON 5
 #define CF_CLOSE 6
@@ -426,8 +425,7 @@ static void lowcomms_write_space(struct sock *sk)
 		clear_bit(SOCKWQ_ASYNC_NOSPACE, &con->sock->flags);
 	}
 
-	if (!test_and_set_bit(CF_WRITE_PENDING, &con->flags))
-		queue_work(send_workqueue, &con->swork);
+	queue_work(send_workqueue, &con->swork);
 }
 
 static inline void lowcomms_connect_sock(struct connection *con)
@@ -578,7 +576,6 @@ static void make_sockaddr(struct sockaddr_storage *saddr, uint16_t port,
 static void close_connection(struct connection *con, bool and_other,
 			     bool tx, bool rx)
 {
-	clear_bit(CF_WRITE_PENDING, &con->flags);
 	if (tx && cancel_work_sync(&con->swork))
 		log_print("canceled swork for node %d", con->nodeid);
 	if (rx && cancel_work_sync(&con->rwork))
@@ -1077,7 +1074,6 @@ static void sctp_connect_to_sock(struct connection *con)
 	if (result == 0)
 		goto out;
 
-
 bind_err:
 	con->sock = NULL;
 	sock_release(sock);
@@ -1102,7 +1098,6 @@ socket_err:
 
 out:
 	mutex_unlock(&con->sock_mutex);
-	set_bit(CF_WRITE_PENDING, &con->flags);
 }
 
 /* Connect a new socket to its peer */
@@ -1196,7 +1191,6 @@ out_err:
 	}
 out:
 	mutex_unlock(&con->sock_mutex);
-	set_bit(CF_WRITE_PENDING, &con->flags);
 	return;
 }
 
@@ -1452,9 +1446,7 @@ void dlm_lowcomms_commit_buffer(void *mh)
 	e->len = e->end - e->offset;
 	spin_unlock(&con->writequeue_lock);
 
-	if (!test_and_set_bit(CF_WRITE_PENDING, &con->flags)) {
-		queue_work(send_workqueue, &con->swork);
-	}
+	queue_work(send_workqueue, &con->swork);
 	return;
 
 out:
@@ -1524,12 +1516,15 @@ out:
 send_error:
 	mutex_unlock(&con->sock_mutex);
 	close_connection(con, false, false, true);
-	lowcomms_connect_sock(con);
+	/* Requeue the send work. When the work daemon runs again, it will try
+	   a new connection, then call this function again. */
+	queue_work(send_workqueue, &con->swork);
 	return;
 
 out_connect:
 	mutex_unlock(&con->sock_mutex);
-	lowcomms_connect_sock(con);
+	queue_work(send_workqueue, &con->swork);
+	cond_resched();
 }
 
 static void clean_one_writequeue(struct connection *con)
@@ -1591,7 +1586,7 @@ static void process_send_sockets(struct work_struct *work)
 
 	if (con->sock == NULL) /* not mutex protected so check it inside too */
 		con->connect_action(con);
-	if (test_and_clear_bit(CF_WRITE_PENDING, &con->flags))
+	if (!list_empty(&con->writequeue))
 		send_to_sock(con);
 }
 
