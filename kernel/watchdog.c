@@ -333,7 +333,8 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 	int duration;
 	int softlockup_all_cpu_backtrace = sysctl_softlockup_all_cpu_backtrace;
 
-	if (atomic_read(&watchdog_park_in_progress) != 0)
+	if (!watchdog_enabled ||
+	    atomic_read(&watchdog_park_in_progress) != 0)
 		return HRTIMER_NORESTART;
 
 	/* kick the hardlockup detector */
@@ -659,6 +660,17 @@ static void set_sample_period(void)
 {
 }
 #endif /* SOFTLOCKUP */
+
+/**
+ * lockup_detector_soft_poweroff - Interface to stop lockup detector(s)
+ *
+ * Special interface for parisc. It prevents lockup detector warnings from
+ * the default pm_poweroff() function which busy loops forever.
+ */
+void lockup_detector_soft_poweroff(void)
+{
+	watchdog_enabled = 0;
+}
 
 /*
  * Suspend the hard and soft lockup detector by parking the watchdog threads.

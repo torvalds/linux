@@ -12,10 +12,10 @@
 
 #ifdef CONFIG_LOCKUP_DETECTOR
 void lockup_detector_init(void);
+void lockup_detector_soft_poweroff(void);
 #else
-static inline void lockup_detector_init(void)
-{
-}
+static inline void lockup_detector_init(void) { }
+static inline void lockup_detector_soft_poweroff(void) { }
 #endif
 
 #ifdef CONFIG_SOFTLOCKUP_DETECTOR
