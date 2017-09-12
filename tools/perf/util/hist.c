@@ -167,6 +167,10 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 			symlen = unresolved_col_width + 4 + 2;
 			hists__set_unres_dso_col_len(hists, HISTC_MEM_DADDR_DSO);
 		}
+
+		hists__new_col_len(hists, HISTC_MEM_PHYS_DADDR,
+				   unresolved_col_width + 4 + 2);
+
 	} else {
 		symlen = unresolved_col_width + 4 + 2;
 		hists__new_col_len(hists, HISTC_MEM_DADDR_SYMBOL, symlen);

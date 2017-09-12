@@ -605,11 +605,6 @@
     "BriefDescription": "RC retries on PB for any load from core (excludes DCBFs)"
   },
   {,
-    "EventCode": "0x3689E",
-    "EventName": "PM_L2_RTY_LD",
-    "BriefDescription": "RC retries on PB for any load from core (excludes DCBFs)"
-  },
-  {,
     "EventCode": "0xE08C",
     "EventName": "PM_LSU0_ERAT_HIT",
     "BriefDescription": "Primary ERAT hit.  There is no secondary ERAT"
@@ -711,11 +706,6 @@
   },
   {,
     "EventCode": "0x368B4",
-    "EventName": "PM_L3_RD0_BUSY",
-    "BriefDescription": "Lifetime, sample of RD machine 0 valid"
-  },
-  {,
-    "EventCode": "0x468B4",
     "EventName": "PM_L3_RD0_BUSY",
     "BriefDescription": "Lifetime, sample of RD machine 0 valid"
   },
@@ -850,19 +840,9 @@
     "BriefDescription": "RC mach 0 Busy. Used by PMU to sample ave RC lifetime (mach0 used as sample point)"
   },
   {,
-    "EventCode": "0x2608C",
-    "EventName": "PM_RC0_BUSY",
-    "BriefDescription": "RC mach 0 Busy. Used by PMU to sample ave RC lifetime (mach0 used as sample point)"
-  },
-  {,
     "EventCode": "0x36082",
     "EventName": "PM_L2_LD_DISP",
     "BriefDescription": "All successful I-or-D side load dispatches for this thread (excludes i_l2mru_tch_reqs)."
-  },
-  {,
-    "EventCode": "0x1609E",
-    "EventName": "PM_L2_LD_DISP",
-    "BriefDescription": "All successful D side load dispatches for this thread (L2 miss + L2 hits)"
   },
   {,
     "EventCode": "0xF8B0",
@@ -1040,11 +1020,6 @@
     "BriefDescription": "L3 castouts in Mepf state for this thread"
   },
   {,
-    "EventCode": "0x168A0",
-    "EventName": "PM_L3_CO_MEPF",
-    "BriefDescription": "L3 CO of line in Mep state (includes casthrough to memory).  The Mepf state indicates that a line was brought in to satisfy an L3 prefetch request"
-  },
-  {,
     "EventCode": "0x460A2",
     "EventName": "PM_L3_LAT_CI_HIT",
     "BriefDescription": "L3 Lateral Castins Hit"
@@ -1150,11 +1125,6 @@
     "BriefDescription": "RC retries on PB for any store from core (excludes DCBFs)"
   },
   {,
-    "EventCode": "0x4689E",
-    "EventName": "PM_L2_RTY_ST",
-    "BriefDescription": "RC retries on PB for any store from core (excludes DCBFs)"
-  },
-  {,
     "EventCode": "0x24040",
     "EventName": "PM_INST_FROM_L2_MEPF",
     "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 hit without dispatch conflicts on Mepf state. due to an instruction fetch (not prefetch)"
@@ -1251,11 +1221,6 @@
   },
   {,
     "EventCode": "0x3608C",
-    "EventName": "PM_CO0_BUSY",
-    "BriefDescription": "CO mach 0 Busy. Used by PMU to sample ave CO lifetime (mach0 used as sample point)"
-  },
-  {,
-    "EventCode": "0x4608C",
     "EventName": "PM_CO0_BUSY",
     "BriefDescription": "CO mach 0 Busy. Used by PMU to sample ave CO lifetime (mach0 used as sample point)"
   },
@@ -1395,11 +1360,6 @@
     "BriefDescription": "A Page Table Entry was loaded into the TLB from the local chip's Memory due to a instruction side request"
   },
   {,
-    "EventCode": "0x40006",
-    "EventName": "PM_ISLB_MISS",
-    "BriefDescription": "Number of ISLB misses for this thread"
-  },
-  {,
     "EventCode": "0xD8A8",
     "EventName": "PM_ISLB_MISS",
     "BriefDescription": "Instruction SLB miss - Total of all segment sizes"
@@ -1513,11 +1473,6 @@
     "EventCode": "0x36080",
     "EventName": "PM_L2_INST",
     "BriefDescription": "All successful I-side dispatches for this thread (excludes i_l2mru_tch reqs)."
-  },
-  {,
-    "EventCode": "0x3609E",
-    "EventName": "PM_L2_INST",
-    "BriefDescription": "All successful I-side dispatches that were an L2 miss for this thread (excludes i_l2mru_tch reqs)"
   },
   {,
     "EventCode": "0x3504C",
@@ -1690,11 +1645,6 @@
     "BriefDescription": "All successful I-or-D side load dispatches for this thread that were L2 hits (excludes i_l2mru_tch_reqs)"
   },
   {,
-    "EventCode": "0x2609E",
-    "EventName": "PM_L2_LD_HIT",
-    "BriefDescription": "All successful D side load dispatches for this thread that were L2 hits for this thread"
-  },
-  {,
     "EventCode": "0x168AC",
     "EventName": "PM_L3_CI_USAGE",
     "BriefDescription": "Rotating sample of 16 CI or CO actives"
@@ -1795,17 +1745,7 @@
     "BriefDescription": "Rotating sample of 8 WI valid"
   },
   {,
-    "EventCode": "0x260B6",
-    "EventName": "PM_L3_WI0_BUSY",
-    "BriefDescription": "Rotating sample of 8 WI valid (duplicate)"
-  },
-  {,
     "EventCode": "0x368AC",
-    "EventName": "PM_L3_CO0_BUSY",
-    "BriefDescription": "Lifetime, sample of CO machine 0 valid"
-  },
-  {,
-    "EventCode": "0x468AC",
     "EventName": "PM_L3_CO0_BUSY",
     "BriefDescription": "Lifetime, sample of CO machine 0 valid"
   },
@@ -1836,11 +1776,6 @@
   },
   {,
     "EventCode": "0x160AE",
-    "EventName": "PM_L3_P0_PF_RTY",
-    "BriefDescription": "L3 PF received retry port 0, every retry counted"
-  },
-  {,
-    "EventCode": "0x260AE",
     "EventName": "PM_L3_P0_PF_RTY",
     "BriefDescription": "L3 PF received retry port 0, every retry counted"
   },
@@ -1895,11 +1830,6 @@
     "BriefDescription": "Lifetime, sample of snooper machine 0 valid"
   },
   {,
-    "EventCode": "0x460AC",
-    "EventName": "PM_L3_SN0_BUSY",
-    "BriefDescription": "Lifetime, sample of snooper machine 0 valid"
-  },
-  {,
     "EventCode": "0x3005C",
     "EventName": "PM_BFU_BUSY",
     "BriefDescription": "Cycles in which all 4 Binary Floating Point units are busy. The BFU is running at capacity"
@@ -1931,11 +1861,6 @@
   },
   {,
     "EventCode": "0x360B4",
-    "EventName": "PM_L3_PF0_BUSY",
-    "BriefDescription": "Lifetime, sample of PF machine 0 valid"
-  },
-  {,
-    "EventCode": "0x460B4",
     "EventName": "PM_L3_PF0_BUSY",
     "BriefDescription": "Lifetime, sample of PF machine 0 valid"
   },
@@ -2085,11 +2010,6 @@
     "BriefDescription": "L3 CO received retry port 1 (memory only), every retry counted"
   },
   {,
-    "EventCode": "0x468AE",
-    "EventName": "PM_L3_P1_CO_RTY",
-    "BriefDescription": "L3 CO received retry port 3 (memory only), every retry counted"
-  },
-  {,
     "EventCode": "0xC0AC",
     "EventName": "PM_LSU_FLUSH_EMSH",
     "BriefDescription": "An ERAT miss was detected after a set-p hit. Erat tracker indicates fail due to tlbmiss and the instruction gets flushed because the instruction was working on the wrong address"
@@ -2195,11 +2115,6 @@
     "BriefDescription": "SNP dispatched for a write and was M (true M); for DMA cacheinj this will pulse if rty/push is required (won't pulse if cacheinj is accepted)"
   },
   {,
-    "EventCode": "0x46886",
-    "EventName": "PM_L2_SN_M_WR_DONE",
-    "BriefDescription": "SNP dispatched for a write and was M (true M); for DMA cacheinj this will pulse if rty/push is required (won't pulse if cacheinj is accepted)"
-  },
-  {,
     "EventCode": "0x489C",
     "EventName": "PM_BR_CORECT_PRED_TAKEN_CMPL",
     "BriefDescription": "Conditional Branch Completed in which the HW correctly predicted the direction as taken.  Counted at completion time"
@@ -2290,17 +2205,7 @@
     "BriefDescription": "SN mach 0 Busy. Used by PMU to sample ave SN lifetime (mach0 used as sample point)"
   },
   {,
-    "EventCode": "0x26090",
-    "EventName": "PM_SN0_BUSY",
-    "BriefDescription": "SN mach 0 Busy. Used by PMU to sample ave SN lifetime (mach0 used as sample point)"
-  },
-  {,
     "EventCode": "0x360AE",
-    "EventName": "PM_L3_P0_CO_RTY",
-    "BriefDescription": "L3 CO received retry port 0 (memory only), every retry counted"
-  },
-  {,
-    "EventCode": "0x460AE",
     "EventName": "PM_L3_P0_CO_RTY",
     "BriefDescription": "L3 CO received retry port 0 (memory only), every retry counted"
   },
@@ -2340,24 +2245,9 @@
     "BriefDescription": "L3 PF received retry port 1, every retry counted"
   },
   {,
-    "EventCode": "0x268AE",
-    "EventName": "PM_L3_P1_PF_RTY",
-    "BriefDescription": "L3 PF received retry port 3, every retry counted"
-  },
-  {,
     "EventCode": "0x46082",
     "EventName": "PM_L2_ST_DISP",
     "BriefDescription": "All successful D-side store dispatches for this thread "
-  },
-  {,
-    "EventCode": "0x1689E",
-    "EventName": "PM_L2_ST_DISP",
-    "BriefDescription": "All successful D-side store dispatches for this thread (L2 miss + L2 hits)"
-  },
-  {,
-    "EventCode": "0x36880",
-    "EventName": "PM_L2_INST_MISS",
-    "BriefDescription": "All successful I-side dispatches that were an L2 miss for this thread (excludes i_l2mru_tch reqs)"
   },
   {,
     "EventCode": "0x4609E",
@@ -2430,11 +2320,6 @@
     "BriefDescription": "# PPC Dispatched"
   },
   {,
-    "EventCode": "0x300F2",
-    "EventName": "PM_INST_DISP",
-    "BriefDescription": "# PPC Dispatched"
-  },
-  {,
     "EventCode": "0x4E05E",
     "EventName": "PM_TM_OUTER_TBEGIN_DISP",
     "BriefDescription": "Number of outer tbegin instructions dispatched. The dispatch unit determines whether the tbegin instruction is outer or nested. This is a speculative count, which includes flushed instructions"
@@ -2458,11 +2343,6 @@
     "EventCode": "0x46882",
     "EventName": "PM_L2_ST_HIT",
     "BriefDescription": "All successful D-side store dispatches for this thread that were L2 hits"
-  },
-  {,
-    "EventCode": "0x2689E",
-    "EventName": "PM_L2_ST_HIT",
-    "BriefDescription": "All successful D-side store dispatches that were L2 hits for this thread"
   },
   {,
     "EventCode": "0x360A8",

@@ -1261,6 +1261,7 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 static int trace__validate_ev_qualifier(struct trace *trace)
 {
 	int err = 0, i;
+	size_t nr_allocated;
 	struct str_node *pos;
 
 	trace->ev_qualifier_ids.nr = strlist__nr_entries(trace->ev_qualifier);
@@ -1274,13 +1275,18 @@ static int trace__validate_ev_qualifier(struct trace *trace)
 		goto out;
 	}
 
+	nr_allocated = trace->ev_qualifier_ids.nr;
 	i = 0;
 
 	strlist__for_each_entry(pos, trace->ev_qualifier) {
 		const char *sc = pos->s;
-		int id = syscalltbl__id(trace->sctbl, sc);
+		int id = syscalltbl__id(trace->sctbl, sc), match_next = -1;
 
 		if (id < 0) {
+			id = syscalltbl__strglobmatch_first(trace->sctbl, sc, &match_next);
+			if (id >= 0)
+				goto matches;
+
 			if (err == 0) {
 				fputs("Error:\tInvalid syscall ", trace->output);
 				err = -EINVAL;
@@ -1290,13 +1296,37 @@ static int trace__validate_ev_qualifier(struct trace *trace)
 
 			fputs(sc, trace->output);
 		}
-
+matches:
 		trace->ev_qualifier_ids.entries[i++] = id;
+		if (match_next == -1)
+			continue;
+
+		while (1) {
+			id = syscalltbl__strglobmatch_next(trace->sctbl, sc, &match_next);
+			if (id < 0)
+				break;
+			if (nr_allocated == trace->ev_qualifier_ids.nr) {
+				void *entries;
+
+				nr_allocated += 8;
+				entries = realloc(trace->ev_qualifier_ids.entries,
+						  nr_allocated * sizeof(trace->ev_qualifier_ids.entries[0]));
+				if (entries == NULL) {
+					err = -ENOMEM;
+					fputs("\nError:\t Not enough memory for parsing\n", trace->output);
+					goto out_free;
+				}
+				trace->ev_qualifier_ids.entries = entries;
+			}
+			trace->ev_qualifier_ids.nr++;
+			trace->ev_qualifier_ids.entries[i++] = id;
+		}
 	}
 
 	if (err < 0) {
 		fputs("\nHint:\ttry 'perf list syscalls:sys_enter_*'"
 		      "\nHint:\tand: 'man syscalls'\n", trace->output);
+out_free:
 		zfree(&trace->ev_qualifier_ids.entries);
 		trace->ev_qualifier_ids.nr = 0;
 	}
@@ -2814,7 +2844,7 @@ static int trace__parse_events_option(const struct option *opt, const char *str,
 	struct trace *trace = (struct trace *)opt->value;
 	const char *s = str;
 	char *sep = NULL, *lists[2] = { NULL, NULL, };
-	int len = strlen(str) + 1, err = -1, list;
+	int len = strlen(str) + 1, err = -1, list, idx;
 	char *strace_groups_dir = system_path(STRACE_GROUPS_DIR);
 	char group_name[PATH_MAX];
 
@@ -2831,7 +2861,8 @@ static int trace__parse_events_option(const struct option *opt, const char *str,
 			*sep = '\0';
 
 		list = 0;
-		if (syscalltbl__id(trace->sctbl, s) >= 0) {
+		if (syscalltbl__id(trace->sctbl, s) >= 0 ||
+		    syscalltbl__strglobmatch_first(trace->sctbl, s, &idx) >= 0) {
 			list = 1;
 		} else {
 			path__join(group_name, sizeof(group_name), strace_groups_dir, s);
