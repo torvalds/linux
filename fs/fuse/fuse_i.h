@@ -252,16 +252,15 @@ struct fuse_io_priv {
 	bool should_dirty;
 	int err;
 	struct kiocb *iocb;
-	struct file *file;
 	struct completion *done;
 	bool blocking;
 };
 
-#define FUSE_IO_PRIV_SYNC(f) \
+#define FUSE_IO_PRIV_SYNC(i) \
 {					\
 	.refcnt = KREF_INIT(1),		\
 	.async = 0,			\
-	.file = f,			\
+	.iocb = i,			\
 }
 
 /**
