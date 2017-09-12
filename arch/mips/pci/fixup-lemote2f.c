@@ -51,7 +51,7 @@ static char irq_tab[][5] __initdata = {
 	{0, 0, 0, 0, 0},	/*  27: Unused */
 };
 
-int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int virq;
 

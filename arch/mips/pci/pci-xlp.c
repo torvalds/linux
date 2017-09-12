@@ -205,7 +205,7 @@ int xlp_socdev_to_node(const struct pci_dev *lnkdev)
 		return PCI_SLOT(lnkdev->devfn) / 8;
 }
 
-int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	struct pci_dev *lnkdev;
 	int lnkfunc, node;

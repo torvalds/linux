@@ -32,7 +32,7 @@ static void print_fixup_info(const struct pci_dev *pdev)
 			pdev->vendor, pdev->device, pdev->irq);
 }
 
-int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	print_fixup_info(dev);
 	return dev->irq;
