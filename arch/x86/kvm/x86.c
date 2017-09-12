@@ -7980,7 +7980,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	BUG_ON(vcpu->kvm == NULL);
 	kvm = vcpu->kvm;
 
-	vcpu->arch.apicv_active = kvm_x86_ops->get_enable_apicv();
+	vcpu->arch.apicv_active = kvm_x86_ops->get_enable_apicv(vcpu);
 	vcpu->arch.pv.pv_unhalted = false;
 	vcpu->arch.emulate_ctxt.ops = &emulate_ops;
 	if (!irqchip_in_kernel(kvm) || kvm_vcpu_is_reset_bsp(vcpu))

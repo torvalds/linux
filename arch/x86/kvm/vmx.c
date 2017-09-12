@@ -5012,7 +5012,7 @@ static void vmx_disable_intercept_msr_x2apic(u32 msr, int type, bool apicv_activ
 	}
 }
 
-static bool vmx_get_enable_apicv(void)
+static bool vmx_get_enable_apicv(struct kvm_vcpu *vcpu)
 {
 	return enable_apicv;
 }

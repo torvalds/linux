@@ -4407,7 +4407,7 @@ static void svm_set_virtual_x2apic_mode(struct kvm_vcpu *vcpu, bool set)
 	return;
 }
 
-static bool svm_get_enable_apicv(void)
+static bool svm_get_enable_apicv(struct kvm_vcpu *vcpu)
 {
 	return avic;
 }
