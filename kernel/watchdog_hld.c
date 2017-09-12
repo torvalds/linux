@@ -260,6 +260,17 @@ static int hardlockup_detector_event_create(void)
 }
 
 /**
+ * hardlockup_detector_perf_enable - Enable the local event
+ */
+void hardlockup_detector_perf_enable(void)
+{
+	if (hardlockup_detector_event_create())
+		return;
+
+	perf_event_enable(this_cpu_read(watchdog_ev));
+}
+
+/**
  * hardlockup_detector_perf_disable - Disable the local event
  */
 void hardlockup_detector_perf_disable(void)
