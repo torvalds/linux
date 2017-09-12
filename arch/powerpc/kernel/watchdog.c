@@ -359,6 +359,7 @@ void watchdog_nmi_reconfigure(bool run)
 {
 	int cpu;
 
+	cpus_read_lock();
 	if (!run) {
 		for_each_cpu(cpu, &wd_cpus_enabled)
 			stop_wd_on_cpu(cpu);
@@ -367,6 +368,7 @@ void watchdog_nmi_reconfigure(bool run)
 		for_each_cpu_and(cpu, cpu_online_mask, &watchdog_cpumask)
 			start_wd_on_cpu(cpu);
 	}
+	cpus_read_unlock();
 }
 
 /*
