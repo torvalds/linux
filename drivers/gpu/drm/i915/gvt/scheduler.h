@@ -141,6 +141,12 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu);
 
 void intel_vgpu_clean_submission(struct intel_vgpu *vgpu);
 
+int intel_vgpu_select_submission_ops(struct intel_vgpu *vgpu,
+				     unsigned int interface);
+
+extern const struct intel_vgpu_submission_ops
+intel_vgpu_execlist_submission_ops;
+
 struct intel_vgpu_workload *
 intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 			   struct execlist_ctx_descriptor_format *desc);

@@ -548,7 +548,7 @@ static void clean_workloads(struct intel_vgpu *vgpu, unsigned long engine_mask)
 	}
 }
 
-void intel_vgpu_clean_execlist(struct intel_vgpu *vgpu)
+void clean_execlist(struct intel_vgpu *vgpu)
 {
 	enum intel_engine_id i;
 	struct intel_engine_cs *engine;
@@ -564,7 +564,7 @@ void intel_vgpu_clean_execlist(struct intel_vgpu *vgpu)
 	}
 }
 
-int intel_vgpu_init_execlist(struct intel_vgpu *vgpu)
+int init_execlist(struct intel_vgpu *vgpu)
 {
 	enum intel_engine_id i;
 	struct intel_engine_cs *engine;
@@ -586,3 +586,9 @@ void intel_vgpu_reset_execlist(struct intel_vgpu *vgpu,
 	for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
 		init_vgpu_execlist(vgpu, engine->id);
 }
+
+const struct intel_vgpu_submission_ops intel_vgpu_execlist_submission_ops = {
+	.name = "execlist",
+	.init = init_execlist,
+	.clean = clean_execlist,
+};

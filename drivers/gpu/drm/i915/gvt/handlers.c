@@ -1471,9 +1471,11 @@ static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
+	struct intel_vgpu_submission *s = &vgpu->submission;
 	u32 data = *(u32 *)p_data;
 	int ring_id = render_mmio_to_ring_id(vgpu->gvt, offset);
 	bool enable_execlist;
+	int ret;
 
 	write_vreg(vgpu, offset, p_data, bytes);
 
@@ -1495,8 +1497,18 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 				(enable_execlist ? "enabling" : "disabling"),
 				ring_id);
 
-		if (enable_execlist)
-			intel_vgpu_start_schedule(vgpu);
+		if (!enable_execlist)
+			return 0;
+
+		if (s->active)
+			return 0;
+
+		ret = intel_vgpu_select_submission_ops(vgpu,
+				INTEL_VGPU_EXECLIST_SUBMISSION);
+		if (ret)
+			return ret;
+
+		intel_vgpu_start_schedule(vgpu);
 	}
 	return 0;
 }

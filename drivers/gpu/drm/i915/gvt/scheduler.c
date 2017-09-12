@@ -884,6 +884,7 @@ void intel_vgpu_clean_submission(struct intel_vgpu *vgpu)
 {
 	struct intel_vgpu_submission *s = &vgpu->submission;
 
+	intel_vgpu_select_submission_ops(vgpu, 0);
 	i915_gem_context_put(s->shadow_ctx);
 	kmem_cache_destroy(s->workloads);
 }
@@ -933,6 +934,58 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 out_shadow_ctx:
 	i915_gem_context_put(s->shadow_ctx);
 	return ret;
+}
+
+/**
+ * intel_vgpu_select_submission_ops - select virtual submission interface
+ * @vgpu: a vGPU
+ * @interface: expected vGPU virtual submission interface
+ *
+ * This function is called when guest configures submission interface.
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ *
+ */
+int intel_vgpu_select_submission_ops(struct intel_vgpu *vgpu,
+				     unsigned int interface)
+{
+	struct intel_vgpu_submission *s = &vgpu->submission;
+	const struct intel_vgpu_submission_ops *ops[] = {
+		[INTEL_VGPU_EXECLIST_SUBMISSION] =
+			&intel_vgpu_execlist_submission_ops,
+	};
+	int ret;
+
+	if (WARN_ON(interface >= ARRAY_SIZE(ops)))
+		return -EINVAL;
+
+	if (s->active) {
+		s->ops->clean(vgpu);
+		s->active = false;
+		gvt_dbg_core("vgpu%d: de-select ops [ %s ] \n",
+				vgpu->id, s->ops->name);
+	}
+
+	if (interface == 0) {
+		s->ops = NULL;
+		s->virtual_submission_interface = 0;
+		gvt_dbg_core("vgpu%d: no submission ops\n", vgpu->id);
+		return 0;
+	}
+
+	ret = ops[interface]->init(vgpu);
+	if (ret)
+		return ret;
+
+	s->ops = ops[interface];
+	s->virtual_submission_interface = interface;
+	s->active = true;
+
+	gvt_dbg_core("vgpu%d: activate ops [ %s ]\n",
+			vgpu->id, s->ops->name);
+
+	return 0;
 }
 
 /**

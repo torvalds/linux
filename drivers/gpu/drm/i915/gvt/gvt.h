@@ -142,6 +142,17 @@ struct vgpu_sched_ctl {
 	int weight;
 };
 
+enum {
+	INTEL_VGPU_EXECLIST_SUBMISSION = 1,
+	INTEL_VGPU_GUC_SUBMISSION,
+};
+
+struct intel_vgpu_submission_ops {
+	const char *name;
+	int (*init)(struct intel_vgpu *vgpu);
+	void (*clean)(struct intel_vgpu *vgpu);
+};
+
 struct intel_vgpu_submission {
 	struct intel_vgpu_execlist execlist[I915_NUM_ENGINES];
 	struct list_head workload_q_head[I915_NUM_ENGINES];
@@ -152,6 +163,9 @@ struct intel_vgpu_submission {
 	DECLARE_BITMAP(tlb_handle_pending, I915_NUM_ENGINES);
 	void *ring_scan_buffer[I915_NUM_ENGINES];
 	int ring_scan_buffer_size[I915_NUM_ENGINES];
+	const struct intel_vgpu_submission_ops *ops;
+	int virtual_submission_interface;
+	bool active;
 };
 
 struct intel_vgpu {
