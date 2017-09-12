@@ -106,6 +106,7 @@ struct connection {
 	struct mutex sock_mutex;
 	unsigned long flags;
 #define CF_READ_PENDING 1
+#define CF_WRITE_PENDING 2
 #define CF_INIT_PENDING 4
 #define CF_IS_OTHERCON 5
 #define CF_CLOSE 6
@@ -1599,6 +1600,7 @@ static void process_send_sockets(struct work_struct *work)
 {
 	struct connection *con = container_of(work, struct connection, swork);
 
+	clear_bit(CF_WRITE_PENDING, &con->flags);
 	if (con->sock == NULL) /* not mutex protected so check it inside too */
 		con->connect_action(con);
 	if (!list_empty(&con->writequeue))
@@ -1642,6 +1644,7 @@ static void _stop_conn(struct connection *con, bool and_other)
 {
 	mutex_lock(&con->sock_mutex);
 	set_bit(CF_READ_PENDING, &con->flags);
+	set_bit(CF_WRITE_PENDING, &con->flags);
 	if (con->sock && con->sock->sk)
 		con->sock->sk->sk_user_data = NULL;
 	if (con->othercon && and_other)
@@ -1681,9 +1684,13 @@ static void work_flush(void)
 			hlist_for_each_entry_safe(con, n,
 						  &connection_hash[i], list) {
 				ok &= test_bit(CF_READ_PENDING, &con->flags);
-				if (con->othercon)
+				ok &= test_bit(CF_WRITE_PENDING, &con->flags);
+				if (con->othercon) {
 					ok &= test_bit(CF_READ_PENDING,
 						       &con->othercon->flags);
+					ok &= test_bit(CF_WRITE_PENDING,
+						       &con->othercon->flags);
+				}
 			}
 		}
 	} while (!ok);
