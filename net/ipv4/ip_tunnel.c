@@ -176,7 +176,7 @@ skip_key_lookup:
 		return cand;
 
 	t = rcu_dereference(itn->collect_md_tun);
-	if (t)
+	if (t && t->dev->flags & IFF_UP)
 		return t;
 
 	if (itn->fb_tunnel_dev && itn->fb_tunnel_dev->flags & IFF_UP)
