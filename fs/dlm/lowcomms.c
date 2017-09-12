@@ -110,6 +110,7 @@ struct connection {
 #define CF_IS_OTHERCON 5
 #define CF_CLOSE 6
 #define CF_APP_LIMITED 7
+#define CF_CLOSING 8
 	struct list_head writequeue;  /* List of outgoing writequeue_entries */
 	spinlock_t writequeue_lock;
 	int (*rx_action) (struct connection *);	/* What to do when active */
@@ -581,9 +582,11 @@ static void make_sockaddr(struct sockaddr_storage *saddr, uint16_t port,
 static void close_connection(struct connection *con, bool and_other,
 			     bool tx, bool rx)
 {
-	if (tx && cancel_work_sync(&con->swork))
+	bool closing = test_and_set_bit(CF_CLOSING, &con->flags);
+
+	if (tx && !closing && cancel_work_sync(&con->swork))
 		log_print("canceled swork for node %d", con->nodeid);
-	if (rx && cancel_work_sync(&con->rwork))
+	if (rx && !closing && cancel_work_sync(&con->rwork))
 		log_print("canceled rwork for node %d", con->nodeid);
 
 	mutex_lock(&con->sock_mutex);
@@ -603,6 +606,7 @@ static void close_connection(struct connection *con, bool and_other,
 
 	con->retries = 0;
 	mutex_unlock(&con->sock_mutex);
+	clear_bit(CF_CLOSING, &con->flags);
 }
 
 /* Data received from remote end */
