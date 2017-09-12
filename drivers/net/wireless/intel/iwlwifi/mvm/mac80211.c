@@ -4004,19 +4004,12 @@ static void iwl_mvm_flush_no_vif(struct iwl_mvm *mvm, u32 queues, bool drop)
 {
 	int i;
 
-	if (drop) {
-		if (iwl_mvm_has_new_tx_api(mvm))
-			/* TODO new tx api */
-			WARN_ONCE(1,
-				  "Need to implement flush TX queue\n");
-		else
+	if (!iwl_mvm_has_new_tx_api(mvm)) {
+		if (drop)
 			iwl_mvm_flush_tx_path(mvm,
 				iwl_mvm_flushable_queues(mvm) & queues, 0);
-		return;
-	}
-
-	if (!iwl_mvm_has_new_tx_api(mvm)) {
-		iwl_trans_wait_tx_queues_empty(mvm->trans, queues);
+		else
+			iwl_trans_wait_tx_queues_empty(mvm->trans, queues);
 		return;
 	}
 
@@ -4029,8 +4022,11 @@ static void iwl_mvm_flush_no_vif(struct iwl_mvm *mvm, u32 queues, bool drop)
 		if (IS_ERR_OR_NULL(sta))
 			continue;
 
-		iwl_mvm_wait_sta_queues_empty(mvm,
-					      iwl_mvm_sta_from_mac80211(sta));
+		if (drop)
+			iwl_mvm_flush_sta_tids(mvm, i, 0xFF, 0);
+		else
+			iwl_mvm_wait_sta_queues_empty(mvm,
+					iwl_mvm_sta_from_mac80211(sta));
 	}
 	mutex_unlock(&mvm->mutex);
 }
