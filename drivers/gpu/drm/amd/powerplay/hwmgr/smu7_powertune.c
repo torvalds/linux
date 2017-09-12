@@ -629,7 +629,6 @@ static int smu7_enable_didt(struct pp_hwmgr *hwmgr, const bool enable)
 	uint32_t block_en = 0;
 	int32_t result = 0;
 	uint32_t didt_block;
-	uint32_t data;
 
 	if (hwmgr->chip_id == CHIP_POLARIS11)
 		didt_block = Polaris11_DIDTBlock_Info;
@@ -637,40 +636,28 @@ static int smu7_enable_didt(struct pp_hwmgr *hwmgr, const bool enable)
 		didt_block = DIDTBlock_Info;
 
 	block_en = PP_CAP(PHM_PlatformCaps_SQRamping) ? en : 0;
-
-	data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_SQ_CTRL0);
-	data &= ~DIDT_SQ_CTRL0__DIDT_CTRL_EN_MASK;
-	data |= ((block_en << DIDT_SQ_CTRL0__DIDT_CTRL_EN__SHIFT) & DIDT_SQ_CTRL0__DIDT_CTRL_EN_MASK);
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_SQ_CTRL0, data);
+	CGS_WREG32_FIELD_IND(hwmgr->device, CGS_IND_REG__DIDT,
+			     DIDT_SQ_CTRL0, DIDT_CTRL_EN, block_en);
 	didt_block &= ~SQ_Enable_MASK;
 	didt_block |= block_en << SQ_Enable_SHIFT;
 
 	block_en = PP_CAP(PHM_PlatformCaps_DBRamping) ? en : 0;
-
-	data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_DB_CTRL0);
-	data &= ~DIDT_DB_CTRL0__DIDT_CTRL_EN_MASK;
-	data |= ((block_en << DIDT_DB_CTRL0__DIDT_CTRL_EN__SHIFT) & DIDT_DB_CTRL0__DIDT_CTRL_EN_MASK);
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_DB_CTRL0, data);
+	CGS_WREG32_FIELD_IND(hwmgr->device, CGS_IND_REG__DIDT,
+			     DIDT_DB_CTRL0, DIDT_CTRL_EN, block_en);
 	didt_block &= ~DB_Enable_MASK;
 	didt_block |= block_en << DB_Enable_SHIFT;
 
 	block_en = PP_CAP(PHM_PlatformCaps_TDRamping) ? en : 0;
-	data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TD_CTRL0);
-	data &= ~DIDT_TD_CTRL0__DIDT_CTRL_EN_MASK;
-	data |= ((block_en << DIDT_TD_CTRL0__DIDT_CTRL_EN__SHIFT) & DIDT_TD_CTRL0__DIDT_CTRL_EN_MASK);
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TD_CTRL0, data);
+	CGS_WREG32_FIELD_IND(hwmgr->device, CGS_IND_REG__DIDT,
+			     DIDT_TD_CTRL0, DIDT_CTRL_EN, block_en);
 	didt_block &= ~TD_Enable_MASK;
 	didt_block |= block_en << TD_Enable_SHIFT;
 
 	block_en = PP_CAP(PHM_PlatformCaps_TCPRamping) ? en : 0;
-
-	data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TCP_CTRL0);
-	data &= ~DIDT_TCP_CTRL0__DIDT_CTRL_EN_MASK;
-	data |= ((block_en << DIDT_TCP_CTRL0__DIDT_CTRL_EN__SHIFT) & DIDT_TCP_CTRL0__DIDT_CTRL_EN_MASK);
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TCP_CTRL0, data);
+	CGS_WREG32_FIELD_IND(hwmgr->device, CGS_IND_REG__DIDT,
+			     DIDT_TCP_CTRL0, DIDT_CTRL_EN, block_en);
 	didt_block &= ~TCP_Enable_MASK;
 	didt_block |= block_en << TCP_Enable_SHIFT;
-
 
 	if (enable)
 		result = smum_send_msg_to_smc_with_parameter(hwmgr->smumgr, PPSMC_MSG_Didt_Block_Function, didt_block);
