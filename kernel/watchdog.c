@@ -507,11 +507,8 @@ static void softlockup_park_all_threads(void)
 	softlockup_update_smpboot_threads();
 }
 
-/*
- * Park threads which are not longer enabled and unpark threads which have
- * been newly enabled.
- */
-static void softlockup_update_threads(void)
+/* Unpark enabled threads */
+static void softlockup_unpark_threads(void)
 {
 	cpumask_copy(&watchdog_allowed_mask, &watchdog_cpumask);
 	softlockup_update_smpboot_threads();
@@ -522,7 +519,7 @@ static void softlockup_reconfigure_threads(bool enabled)
 	softlockup_park_all_threads();
 	set_sample_period();
 	if (enabled)
-		softlockup_update_threads();
+		softlockup_unpark_threads();
 }
 
 /*
@@ -563,7 +560,6 @@ static inline void watchdog_unpark_threads(void) { }
 static inline int watchdog_enable_all_cpus(void) { return 0; }
 static inline void watchdog_disable_all_cpus(void) { }
 static inline void softlockup_init_threads(void) { }
-static inline void softlockup_update_threads(void) { }
 static inline void softlockup_reconfigure_threads(bool enabled) { }
 #endif /* !CONFIG_SOFTLOCKUP_DETECTOR */
 
@@ -598,11 +594,11 @@ void lockup_detector_soft_poweroff(void)
 
 #ifdef CONFIG_SYSCTL
 
-/*
- * Update the run state of the lockup detectors.
- */
+/* Propagate any changes to the watchdog threads */
 static void proc_watchdog_update(void)
 {
+	/* Remove impossible cpus to keep sysctl output clean. */
+	cpumask_and(&watchdog_cpumask, &watchdog_cpumask, cpu_possible_mask);
 	softlockup_reconfigure_threads(watchdog_enabled && watchdog_thresh);
 	watchdog_nmi_reconfigure();
 }
@@ -721,15 +717,6 @@ int proc_watchdog_thresh(struct ctl_table *table, int write,
 	return err;
 }
 
-static void proc_watchdog_cpumask_update(void)
-{
-	/* Remove impossible cpus to keep sysctl output clean. */
-	cpumask_and(&watchdog_cpumask, &watchdog_cpumask, cpu_possible_mask);
-
-	softlockup_update_threads();
-	watchdog_nmi_reconfigure();
-}
-
 /*
  * The cpumask is the mask of possible cpus that the watchdog can run
  * on, not the mask of cpus it is actually running on.  This allows the
@@ -746,7 +733,7 @@ int proc_watchdog_cpumask(struct ctl_table *table, int write,
 
 	err = proc_do_large_bitmap(table, write, buffer, lenp, ppos);
 	if (!err && write)
-		proc_watchdog_cpumask_update();
+		proc_watchdog_update();
 
 	mutex_unlock(&watchdog_mutex);
 	cpu_hotplug_enable();
