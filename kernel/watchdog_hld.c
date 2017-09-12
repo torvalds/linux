@@ -25,7 +25,7 @@ static DEFINE_PER_CPU(struct perf_event *, dead_event);
 static struct cpumask dead_events_mask;
 
 static unsigned long hardlockup_allcpu_dumped;
-static bool hardlockup_detector_disabled;
+static unsigned int watchdog_cpus;
 
 void arch_touch_nmi_watchdog(void)
 {
@@ -160,84 +160,6 @@ static void watchdog_overflow_callback(struct perf_event *event,
 	return;
 }
 
-/*
- * People like the simple clean cpu node info on boot.
- * Reduce the watchdog noise by only printing messages
- * that are different from what cpu0 displayed.
- */
-static unsigned long firstcpu_err;
-static atomic_t watchdog_cpus;
-
-int watchdog_nmi_enable(unsigned int cpu)
-{
-	struct perf_event_attr *wd_attr;
-	struct perf_event *event = per_cpu(watchdog_ev, cpu);
-	int firstcpu = 0;
-
-	/* nothing to do if the hard lockup detector is disabled */
-	if (!(watchdog_enabled & NMI_WATCHDOG_ENABLED))
-		goto out;
-
-	/* A failure disabled the hardlockup detector permanently */
-	if (hardlockup_detector_disabled)
-		return -ENODEV;
-
-	/* is it already setup and enabled? */
-	if (event && event->state > PERF_EVENT_STATE_OFF)
-		goto out;
-
-	/* it is setup but not enabled */
-	if (event != NULL)
-		goto out_enable;
-
-	if (atomic_inc_return(&watchdog_cpus) == 1)
-		firstcpu = 1;
-
-	wd_attr = &wd_hw_attr;
-	wd_attr->sample_period = hw_nmi_get_sample_period(watchdog_thresh);
-
-	/* Try to register using hardware perf events */
-	event = perf_event_create_kernel_counter(wd_attr, cpu, NULL, watchdog_overflow_callback, NULL);
-
-	/* save the first cpu's error for future comparision */
-	if (firstcpu && IS_ERR(event))
-		firstcpu_err = PTR_ERR(event);
-
-	if (!IS_ERR(event)) {
-		/* only print for the first cpu initialized */
-		if (firstcpu || firstcpu_err)
-			pr_info("enabled on all CPUs, permanently consumes one hw-PMU counter.\n");
-		goto out_save;
-	}
-
-	/* skip displaying the same error again */
-	if (!firstcpu && (PTR_ERR(event) == firstcpu_err))
-		return PTR_ERR(event);
-
-	/* vary the KERN level based on the returned errno */
-	if (PTR_ERR(event) == -EOPNOTSUPP)
-		pr_info("disabled (cpu%i): not supported (no LAPIC?)\n", cpu);
-	else if (PTR_ERR(event) == -ENOENT)
-		pr_warn("disabled (cpu%i): hardware events not enabled\n",
-			 cpu);
-	else
-		pr_err("disabled (cpu%i): unable to create perf event: %ld\n",
-			cpu, PTR_ERR(event));
-
-	pr_info("Disabling hard lockup detector permanently\n");
-	hardlockup_detector_disabled = true;
-
-	return PTR_ERR(event);
-
-	/* success path */
-out_save:
-	per_cpu(watchdog_ev, cpu) = event;
-out_enable:
-	perf_event_enable(per_cpu(watchdog_ev, cpu));
-out:
-	return 0;
-}
-
 static int hardlockup_detector_event_create(void)
 {
 	unsigned int cpu = smp_processor_id();
@@ -267,6 +189,9 @@ void hardlockup_detector_perf_enable(void)
 	if (hardlockup_detector_event_create())
 		return;
 
+	if (!watchdog_cpus++)
+		pr_info("Enabled. Permanently consumes one hw-PMU counter.\n");
+
 	perf_event_enable(this_cpu_read(watchdog_ev));
 }
 
@@ -282,10 +207,7 @@ void hardlockup_detector_perf_disable(void)
 		this_cpu_write(watchdog_ev, NULL);
 		this_cpu_write(dead_event, event);
 		cpumask_set_cpu(smp_processor_id(), &dead_events_mask);
-
-		/* watchdog_nmi_enable() expects this to be zero initially. */
-		if (atomic_dec_and_test(&watchdog_cpus))
-			firstcpu_err = 0;
+		watchdog_cpus--;
 	}
 }
 

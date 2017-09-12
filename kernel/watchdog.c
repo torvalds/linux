@@ -107,6 +107,7 @@ __setup("hardlockup_all_cpu_backtrace=", hardlockup_all_cpu_backtrace_setup);
  */
 int __weak watchdog_nmi_enable(unsigned int cpu)
 {
+	hardlockup_detector_perf_enable();
 	return 0;
 }
 
@@ -465,7 +466,8 @@ static void watchdog_enable(unsigned int cpu)
 	/* Initialize timestamp */
 	__touch_watchdog();
 	/* Enable the perf event */
-	watchdog_nmi_enable(cpu);
+	if (watchdog_enabled & NMI_WATCHDOG_ENABLED)
+		watchdog_nmi_enable(cpu);
 
 	watchdog_set_prio(SCHED_FIFO, MAX_RT_PRIO - 1);
 }
