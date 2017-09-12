@@ -21,6 +21,8 @@
 static DEFINE_PER_CPU(bool, hard_watchdog_warn);
 static DEFINE_PER_CPU(bool, watchdog_nmi_touch);
 static DEFINE_PER_CPU(struct perf_event *, watchdog_ev);
+static DEFINE_PER_CPU(struct perf_event *, dead_event);
+static struct cpumask dead_events_mask;
 
 static unsigned long hardlockup_allcpu_dumped;
 static bool hardlockup_detector_disabled;
@@ -239,21 +241,41 @@ out:
 	return 0;
 }
 
-void watchdog_nmi_disable(unsigned int cpu)
+/**
+ * hardlockup_detector_perf_disable - Disable the local event
+ */
+void hardlockup_detector_perf_disable(void)
 {
-	struct perf_event *event = per_cpu(watchdog_ev, cpu);
+	struct perf_event *event = this_cpu_read(watchdog_ev);
 
 	if (event) {
 		perf_event_disable(event);
-		per_cpu(watchdog_ev, cpu) = NULL;
-
-		/* should be in cleanup, but blocks oprofile */
-		perf_event_release_kernel(event);
+		this_cpu_write(watchdog_ev, NULL);
+		this_cpu_write(dead_event, event);
+		cpumask_set_cpu(smp_processor_id(), &dead_events_mask);
 
 		/* watchdog_nmi_enable() expects this to be zero initially. */
 		if (atomic_dec_and_test(&watchdog_cpus))
 			firstcpu_err = 0;
 	}
+}
+
+/**
+ * hardlockup_detector_perf_cleanup - Cleanup disabled events and destroy them
+ *
+ * Called from lockup_detector_cleanup(). Serialized by the caller.
+ */
+void hardlockup_detector_perf_cleanup(void)
+{
+	int cpu;
+
+	for_each_cpu(cpu, &dead_events_mask) {
+		struct perf_event *event = per_cpu(dead_event, cpu);
+
+		per_cpu(dead_event, cpu) = NULL;
+		perf_event_release_kernel(event);
+	}
+	cpumask_clear(&dead_events_mask);
 }
 
 /**

@@ -109,8 +109,10 @@ int __weak watchdog_nmi_enable(unsigned int cpu)
 {
 	return 0;
 }
+
 void __weak watchdog_nmi_disable(unsigned int cpu)
 {
+	hardlockup_detector_perf_disable();
 }
 
 /*
@@ -192,6 +194,8 @@ static int __init hardlockup_all_cpu_backtrace_setup(char *str)
 __setup("hardlockup_all_cpu_backtrace=", hardlockup_all_cpu_backtrace_setup);
 #endif
 #endif
+
+static void __lockup_detector_cleanup(void);
 
 /*
  * Hard-lockup warnings should be triggered after just a few seconds. Soft-
@@ -631,6 +635,24 @@ static void set_sample_period(void)
 }
 #endif /* SOFTLOCKUP */
 
+static void __lockup_detector_cleanup(void)
+{
+	lockdep_assert_held(&watchdog_mutex);
+	hardlockup_detector_perf_cleanup();
+}
+
+/**
+ * lockup_detector_cleanup - Cleanup after cpu hotplug or sysctl changes
+ *
+ * Caller must not hold the cpu hotplug rwsem.
+ */
+void lockup_detector_cleanup(void)
+{
+	mutex_lock(&watchdog_mutex);
+	__lockup_detector_cleanup();
+	mutex_unlock(&watchdog_mutex);
+}
+
 /**
  * lockup_detector_soft_poweroff - Interface to stop lockup detector(s)
  *
@@ -664,6 +686,8 @@ static int proc_watchdog_update(void)
 		watchdog_disable_all_cpus();
 
 	watchdog_nmi_reconfigure();
+
+	__lockup_detector_cleanup();
 
 	return err;
 
@@ -837,6 +861,7 @@ int proc_watchdog_cpumask(struct ctl_table *table, int write,
 		}
 
 		watchdog_nmi_reconfigure();
+		__lockup_detector_cleanup();
 	}
 
 	mutex_unlock(&watchdog_mutex);
