@@ -75,7 +75,11 @@ static inline void hardlockup_detector_disable(void) {}
 
 #if defined(CONFIG_HARDLOCKUP_DETECTOR_PERF)
 extern void arch_touch_nmi_watchdog(void);
+extern void hardlockup_detector_perf_stop(void);
+extern void hardlockup_detector_perf_restart(void);
 #else
+static inline void hardlockup_detector_perf_stop(void) { }
+static inline void hardlockup_detector_perf_restart(void) { }
 #if !defined(CONFIG_HAVE_NMI_WATCHDOG)
 static inline void arch_touch_nmi_watchdog(void) {}
 #endif
