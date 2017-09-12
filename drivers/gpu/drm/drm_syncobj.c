@@ -386,33 +386,38 @@ static int drm_syncobj_alloc_file(struct drm_syncobj *syncobj)
 	return 0;
 }
 
+int drm_syncobj_get_fd(struct drm_syncobj *syncobj, int *p_fd)
+{
+	int ret;
+	int fd;
+
+	fd = get_unused_fd_flags(O_CLOEXEC);
+	if (fd < 0)
+		return fd;
+
+	if (!syncobj->file) {
+		ret = drm_syncobj_alloc_file(syncobj);
+		if (ret) {
+			put_unused_fd(fd);
+			return ret;
+		}
+	}
+	fd_install(fd, syncobj->file);
+	*p_fd = fd;
+	return 0;
+}
+EXPORT_SYMBOL(drm_syncobj_get_fd);
+
 static int drm_syncobj_handle_to_fd(struct drm_file *file_private,
 				    u32 handle, int *p_fd)
 {
 	struct drm_syncobj *syncobj = drm_syncobj_find(file_private, handle);
 	int ret;
-	int fd;
 
 	if (!syncobj)
 		return -EINVAL;
 
-	fd = get_unused_fd_flags(O_CLOEXEC);
-	if (fd < 0) {
-		drm_syncobj_put(syncobj);
-		return fd;
-	}
-
-	if (!syncobj->file) {
-		ret = drm_syncobj_alloc_file(syncobj);
-		if (ret)
-			goto out_put_fd;
-	}
-	fd_install(fd, syncobj->file);
-	drm_syncobj_put(syncobj);
-	*p_fd = fd;
-	return 0;
-out_put_fd:
-	put_unused_fd(fd);
+	ret = drm_syncobj_get_fd(syncobj, p_fd);
 	drm_syncobj_put(syncobj);
 	return ret;
 }
