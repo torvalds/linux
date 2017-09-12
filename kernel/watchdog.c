@@ -32,15 +32,17 @@
 static DEFINE_MUTEX(watchdog_mutex);
 
 #if defined(CONFIG_HARDLOCKUP_DETECTOR) || defined(CONFIG_HAVE_NMI_WATCHDOG)
-unsigned long __read_mostly watchdog_enabled = SOFT_WATCHDOG_ENABLED |
-						NMI_WATCHDOG_ENABLED;
+# define WATCHDOG_DEFAULT	(SOFT_WATCHDOG_ENABLED | NMI_WATCHDOG_ENABLED)
+# define NMI_WATCHDOG_DEFAULT	1
 #else
-unsigned long __read_mostly watchdog_enabled = SOFT_WATCHDOG_ENABLED;
+# define WATCHDOG_DEFAULT	(SOFT_WATCHDOG_ENABLED)
+# define NMI_WATCHDOG_DEFAULT	0
 #endif
 
-int __read_mostly nmi_watchdog_user_enabled;
-int __read_mostly soft_watchdog_user_enabled;
-int __read_mostly watchdog_user_enabled;
+unsigned long __read_mostly watchdog_enabled;
+int __read_mostly watchdog_user_enabled = 1;
+int __read_mostly nmi_watchdog_user_enabled = NMI_WATCHDOG_DEFAULT;
+int __read_mostly soft_watchdog_user_enabled = 1;
 int __read_mostly watchdog_thresh = 10;
 
 struct cpumask watchdog_allowed_mask __read_mostly;
@@ -65,7 +67,7 @@ unsigned int __read_mostly hardlockup_panic =
  */
 void __init hardlockup_detector_disable(void)
 {
-	watchdog_enabled &= ~NMI_WATCHDOG_ENABLED;
+	nmi_watchdog_user_enabled = 0;
 }
 
 static int __init hardlockup_panic_setup(char *str)
@@ -75,9 +77,9 @@ static int __init hardlockup_panic_setup(char *str)
 	else if (!strncmp(str, "nopanic", 7))
 		hardlockup_panic = 0;
 	else if (!strncmp(str, "0", 1))
-		watchdog_enabled &= ~NMI_WATCHDOG_ENABLED;
+		nmi_watchdog_user_enabled = 0;
 	else if (!strncmp(str, "1", 1))
-		watchdog_enabled |= NMI_WATCHDOG_ENABLED;
+		nmi_watchdog_user_enabled = 1;
 	return 1;
 }
 __setup("nmi_watchdog=", hardlockup_panic_setup);
@@ -132,6 +134,23 @@ void __weak watchdog_nmi_disable(unsigned int cpu)
  */
 void __weak watchdog_nmi_reconfigure(bool run) { }
 
+/**
+ * lockup_detector_update_enable - Update the sysctl enable bit
+ *
+ * Caller needs to make sure that the NMI/perf watchdogs are off, so this
+ * can't race with watchdog_nmi_disable().
+ */
+static void lockup_detector_update_enable(void)
+{
+	watchdog_enabled = 0;
+	if (!watchdog_user_enabled)
+		return;
+	if (nmi_watchdog_user_enabled)
+		watchdog_enabled |= NMI_WATCHDOG_ENABLED;
+	if (soft_watchdog_user_enabled)
+		watchdog_enabled |= SOFT_WATCHDOG_ENABLED;
+}
+
 #ifdef CONFIG_SOFTLOCKUP_DETECTOR
 
 /* Global variables, exported for sysctl */
@@ -160,14 +179,14 @@ __setup("softlockup_panic=", softlockup_panic_setup);
 
 static int __init nowatchdog_setup(char *str)
 {
-	watchdog_enabled = 0;
+	watchdog_user_enabled = 0;
 	return 1;
 }
 __setup("nowatchdog", nowatchdog_setup);
 
 static int __init nosoftlockup_setup(char *str)
 {
-	watchdog_enabled &= ~SOFT_WATCHDOG_ENABLED;
+	soft_watchdog_user_enabled = 0;
 	return 1;
 }
 __setup("nosoftlockup", nosoftlockup_setup);
@@ -521,12 +540,13 @@ static void softlockup_unpark_threads(void)
 	softlockup_update_smpboot_threads();
 }
 
-static void softlockup_reconfigure_threads(bool enabled)
+static void softlockup_reconfigure_threads(void)
 {
 	watchdog_nmi_reconfigure(false);
 	softlockup_park_all_threads();
 	set_sample_period();
-	if (enabled)
+	lockup_detector_update_enable();
+	if (watchdog_enabled && watchdog_thresh)
 		softlockup_unpark_threads();
 	watchdog_nmi_reconfigure(true);
 }
@@ -546,6 +566,8 @@ static __init void softlockup_init_threads(void)
 	 * If sysctl is off and watchdog got disabled on the command line,
 	 * nothing to do here.
 	 */
+	lockup_detector_update_enable();
+
 	if (!IS_ENABLED(CONFIG_SYSCTL) &&
 	    !(watchdog_enabled && watchdog_thresh))
 		return;
@@ -559,7 +581,7 @@ static __init void softlockup_init_threads(void)
 
 	mutex_lock(&watchdog_mutex);
 	softlockup_threads_initialized = true;
-	softlockup_reconfigure_threads(watchdog_enabled && watchdog_thresh);
+	softlockup_reconfigure_threads();
 	mutex_unlock(&watchdog_mutex);
 }
 
@@ -569,9 +591,10 @@ static inline void watchdog_unpark_threads(void) { }
 static inline int watchdog_enable_all_cpus(void) { return 0; }
 static inline void watchdog_disable_all_cpus(void) { }
 static inline void softlockup_init_threads(void) { }
-static void softlockup_reconfigure_threads(bool enabled)
+static void softlockup_reconfigure_threads(void)
 {
 	watchdog_nmi_reconfigure(false);
+	lockup_detector_update_enable();
 	watchdog_nmi_reconfigure(true);
 }
 #endif /* !CONFIG_SOFTLOCKUP_DETECTOR */
@@ -612,7 +635,7 @@ static void proc_watchdog_update(void)
 {
 	/* Remove impossible cpus to keep sysctl output clean. */
 	cpumask_and(&watchdog_cpumask, &watchdog_cpumask, cpu_possible_mask);
-	softlockup_reconfigure_threads(watchdog_enabled && watchdog_thresh);
+	softlockup_reconfigure_threads();
 }
 
 /*
@@ -630,48 +653,24 @@ static void proc_watchdog_update(void)
 static int proc_watchdog_common(int which, struct ctl_table *table, int write,
 				void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	int err, old, new;
-	int *watchdog_param = (int *)table->data;
+	int err, old, *param = table->data;
 
 	cpu_hotplug_disable();
 	mutex_lock(&watchdog_mutex);
 
-	/*
-	 * If the parameter is being read return the state of the corresponding
-	 * bit(s) in 'watchdog_enabled', else update 'watchdog_enabled' and the
-	 * run state of the lockup detectors.
-	 */
 	if (!write) {
-		*watchdog_param = (watchdog_enabled & which) != 0;
+		/*
+		 * On read synchronize the userspace interface. This is a
+		 * racy snapshot.
+		 */
+		*param = (watchdog_enabled & which) != 0;
 		err = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	} else {
+		old = READ_ONCE(*param);
 		err = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-		if (err)
-			goto out;
-
-		/*
-		 * There is a race window between fetching the current value
-		 * from 'watchdog_enabled' and storing the new value. During
-		 * this race window, watchdog_nmi_enable() can sneak in and
-		 * clear the NMI_WATCHDOG_ENABLED bit in 'watchdog_enabled'.
-		 * The 'cmpxchg' detects this race and the loop retries.
-		 */
-		do {
-			old = watchdog_enabled;
-			/*
-			 * If the parameter value is not zero set the
-			 * corresponding bit(s), else clear it(them).
-			 */
-			if (*watchdog_param)
-				new = old | which;
-			else
-				new = old & ~which;
-		} while (cmpxchg(&watchdog_enabled, old, new) != old);
-
-		if (old != new)
+		if (!err && old != READ_ONCE(*param))
 			proc_watchdog_update();
 	}
-out:
 	mutex_unlock(&watchdog_mutex);
 	cpu_hotplug_enable();
 	return err;
