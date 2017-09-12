@@ -129,11 +129,16 @@ int main(int argc, char *argv[])
 	for (i = 0; secclass_map[i].name; i++) {
 		struct security_class_mapping *map = &secclass_map[i];
 		for (j = 0; map->perms[j]; j++) {
+			if (j >= 32) {
+				fprintf(stderr, "Too many permissions to fit into an access vector at (%s, %s).\n",
+					map->name, map->perms[j]);
+				exit(5);
+			}
 			fprintf(fout, "#define %s__%s", map->name,
 				map->perms[j]);
 			for (k = 0; k < max(1, 40 - strlen(map->name) - strlen(map->perms[j])); k++)
 				fprintf(fout, " ");
-			fprintf(fout, "0x%08xUL\n", (1<<j));
+			fprintf(fout, "0x%08xU\n", (1<<j));
 		}
 	}
 

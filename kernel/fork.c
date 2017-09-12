@@ -1569,10 +1569,6 @@ static __latent_entropy struct task_struct *copy_process(
 			return ERR_PTR(-EINVAL);
 	}
 
-	retval = security_task_create(clone_flags);
-	if (retval)
-		goto fork_out;
-
 	retval = -ENOMEM;
 	p = dup_task_struct(current, node);
 	if (!p)
