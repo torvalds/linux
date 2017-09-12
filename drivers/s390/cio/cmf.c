@@ -685,8 +685,7 @@ static int readall_cmb(struct ccw_device *cdev, struct cmbdata *data)
 	/* we only know values before device_busy_time */
 	data->size = offsetof(struct cmbdata, device_busy_time);
 
-	/* convert to nanoseconds */
-	data->elapsed_time = (time * 1000) >> 12;
+	data->elapsed_time = tod_to_ns(time);
 
 	/* copy data to new structure */
 	data->ssch_rsch_count = cmb->ssch_rsch_count;
@@ -945,8 +944,7 @@ static int readall_cmbe(struct ccw_device *cdev, struct cmbdata *data)
 	/* we only know values before device_busy_time */
 	data->size = offsetof(struct cmbdata, device_busy_time);
 
-	/* conver to nanoseconds */
-	data->elapsed_time = (time * 1000) >> 12;
+	data->elapsed_time = tod_to_ns(time);
 
 	cmb = cmb_data->last_block;
 	/* copy data to new structure */
@@ -1007,7 +1005,7 @@ static ssize_t cmb_show_avg_sample_interval(struct device *dev,
 	spin_lock_irq(cdev->ccwlock);
 	if (count) {
 		interval = get_tod_clock() - cdev->private->cmb_start_time;
-		interval = (interval * 1000) >> 12;
+		interval = tod_to_ns(interval);
 		interval /= count;
 	} else
 		interval = -1;
