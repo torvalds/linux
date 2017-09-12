@@ -136,17 +136,17 @@ static irqreturn_t DIO0_irq_handler(int irq, void *dev_id)
 	if      (device->irq_state[DIO0] == DIO_PacketSent)
 	{
 		device->free_in_fifo = FIFO_SIZE;
-		printk("DIO0 irq: Packet sent\n"); // TODO: printk() should include KERN_ facility level
+		dev_dbg(device->dev, "DIO0 irq: Packet sent\n");
 		wake_up_interruptible(&device->fifo_wait_queue);
 	}
 	else if (device->irq_state[DIO0] == DIO_Rssi_DIO0)
 	{
-		printk("DIO0 irq: RSSI level over threshold\n");
+		dev_dbg(device->dev, "DIO0 irq: RSSI level over threshold\n");
 		wake_up_interruptible(&device->rx_wait_queue);
 	}
 	else if (device->irq_state[DIO0] == DIO_PayloadReady)
 	{
-		printk("DIO0 irq: PayloadReady\n");
+		dev_dbg(device->dev, "DIO0 irq: PayloadReady\n");
 		device->free_in_fifo = 0;
 		wake_up_interruptible(&device->fifo_wait_queue);
 	}
@@ -167,7 +167,8 @@ static irqreturn_t DIO1_irq_handler(int irq, void *dev_id)
 		if (device->rx_active)	device->free_in_fifo = FIFO_THRESHOLD - 1;
 		else			device->free_in_fifo = FIFO_SIZE - FIFO_THRESHOLD - 1;
 	}
-	printk("DIO1 irq: %d bytes free in fifo\n", device->free_in_fifo); // TODO: printk() should include KERN_ facility level
+	dev_dbg(device->dev,
+		"DIO1 irq: %d bytes free in fifo\n", device->free_in_fifo);
 	wake_up_interruptible(&device->fifo_wait_queue);
 
 	return IRQ_HANDLED;
