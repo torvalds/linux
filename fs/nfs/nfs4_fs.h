@@ -303,6 +303,17 @@ _nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_mode,
 	struct rpc_cred *newcred = NULL;
 	rpc_authflavor_t flavor;
 
+	if (sp4_mode == NFS_SP4_MACH_CRED_CLEANUP ||
+	    sp4_mode == NFS_SP4_MACH_CRED_PNFS_CLEANUP) {
+		/* Using machine creds for cleanup operations
+		 * is only relevent if the client credentials
+		 * might expire. So don't bother for
+		 * RPC_AUTH_UNIX.  If file was only exported to
+		 * sec=sys, the PUTFH would fail anyway.
+		 */
+		if ((*clntp)->cl_auth->au_flavor == RPC_AUTH_UNIX)
+			return false;
+	}
 	if (test_bit(sp4_mode, &clp->cl_sp4_flags)) {
 		spin_lock(&clp->cl_lock);
 		if (clp->cl_machine_cred != NULL)
