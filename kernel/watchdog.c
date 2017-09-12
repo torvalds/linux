@@ -136,8 +136,6 @@ void __weak watchdog_nmi_reconfigure(void)
 #define for_each_watchdog_cpu(cpu) \
 	for_each_cpu_and((cpu), cpu_online_mask, &watchdog_cpumask)
 
-atomic_t watchdog_park_in_progress = ATOMIC_INIT(0);
-
 static u64 __read_mostly sample_period;
 
 static DEFINE_PER_CPU(unsigned long, watchdog_touch_ts);
@@ -322,8 +320,7 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 	int duration;
 	int softlockup_all_cpu_backtrace = sysctl_softlockup_all_cpu_backtrace;
 
-	if (!watchdog_enabled ||
-	    atomic_read(&watchdog_park_in_progress) != 0)
+	if (!watchdog_enabled)
 		return HRTIMER_NORESTART;
 
 	/* kick the hardlockup detector */
@@ -437,32 +434,37 @@ static void watchdog_set_prio(unsigned int policy, unsigned int prio)
 
 static void watchdog_enable(unsigned int cpu)
 {
-	struct hrtimer *hrtimer = raw_cpu_ptr(&watchdog_hrtimer);
+	struct hrtimer *hrtimer = this_cpu_ptr(&watchdog_hrtimer);
 
-	/* kick off the timer for the hardlockup detector */
+	/*
+	 * Start the timer first to prevent the NMI watchdog triggering
+	 * before the timer has a chance to fire.
+	 */
 	hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hrtimer->function = watchdog_timer_fn;
-
-	/* Enable the perf event */
-	watchdog_nmi_enable(cpu);
-
-	/* done here because hrtimer_start can only pin to smp_processor_id() */
 	hrtimer_start(hrtimer, ns_to_ktime(sample_period),
 		      HRTIMER_MODE_REL_PINNED);
 
-	/* initialize timestamp */
-	watchdog_set_prio(SCHED_FIFO, MAX_RT_PRIO - 1);
+	/* Initialize timestamp */
 	__touch_watchdog();
+	/* Enable the perf event */
+	watchdog_nmi_enable(cpu);
+
+	watchdog_set_prio(SCHED_FIFO, MAX_RT_PRIO - 1);
 }
 
 static void watchdog_disable(unsigned int cpu)
 {
-	struct hrtimer *hrtimer = raw_cpu_ptr(&watchdog_hrtimer);
+	struct hrtimer *hrtimer = this_cpu_ptr(&watchdog_hrtimer);
 
 	watchdog_set_prio(SCHED_NORMAL, 0);
-	hrtimer_cancel(hrtimer);
-	/* disable the perf event */
+	/*
+	 * Disable the perf event first. That prevents that a large delay
+	 * between disabling the timer and disabling the perf event causes
+	 * the perf NMI to detect a false positive.
+	 */
 	watchdog_nmi_disable(cpu);
+	hrtimer_cancel(hrtimer);
 }
 
 static void watchdog_cleanup(unsigned int cpu, bool online)
@@ -518,16 +520,11 @@ static int watchdog_park_threads(void)
 {
 	int cpu, ret = 0;
 
-	atomic_set(&watchdog_park_in_progress, 1);
-
 	for_each_watchdog_cpu(cpu) {
 		ret = kthread_park(per_cpu(softlockup_watchdog, cpu));
 		if (ret)
 			break;
 	}
-
-	atomic_set(&watchdog_park_in_progress, 0);
-
 	return ret;
 }
 

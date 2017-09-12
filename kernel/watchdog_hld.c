@@ -106,14 +106,11 @@ static struct perf_event_attr wd_hw_attr = {
 
 /* Callback function for perf event subsystem */
 static void watchdog_overflow_callback(struct perf_event *event,
-		 struct perf_sample_data *data,
-		 struct pt_regs *regs)
+				       struct perf_sample_data *data,
+				       struct pt_regs *regs)
 {
 	/* Ensure the watchdog never gets throttled */
 	event->hw.interrupts = 0;
-
-	if (atomic_read(&watchdog_park_in_progress) != 0)
-		return;
 
 	if (__this_cpu_read(watchdog_nmi_touch) == true) {
 		__this_cpu_write(watchdog_nmi_touch, false);

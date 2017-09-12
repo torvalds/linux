@@ -27,7 +27,6 @@ extern void touch_softlockup_watchdog_sync(void);
 extern void touch_all_softlockup_watchdogs(void);
 extern unsigned int  softlockup_panic;
 extern int soft_watchdog_enabled;
-extern atomic_t watchdog_park_in_progress;
 #else
 static inline void touch_softlockup_watchdog_sched(void)
 {
