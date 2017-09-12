@@ -746,6 +746,7 @@ int smu7_enable_didt_config(struct pp_hwmgr *hwmgr)
 	    PP_CAP(PHM_PlatformCaps_TCPRamping)) {
 
 		cgs_enter_safe_mode(hwmgr->device, true);
+		cgs_lock_grbm_idx(hwmgr->device, true);
 		value = 0;
 		value2 = cgs_read_register(hwmgr->device, mmGRBM_GFX_INDEX);
 		for (count = 0; count < num_se; count++) {
@@ -785,6 +786,7 @@ int smu7_enable_didt_config(struct pp_hwmgr *hwmgr)
 			PP_ASSERT_WITH_CODE((0 == result),
 					"Failed to enable DPM DIDT.", return result);
 		}
+		cgs_lock_grbm_idx(hwmgr->device, false);
 		cgs_enter_safe_mode(hwmgr->device, false);
 	}
 
