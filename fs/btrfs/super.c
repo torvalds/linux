@@ -292,7 +292,7 @@ void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
 	vaf.va = &args;
 
 	errstr = btrfs_decode_error(errno);
-	if (fs_info && (fs_info->mount_opt & BTRFS_MOUNT_PANIC_ON_FATAL_ERROR))
+	if (fs_info && (btrfs_test_opt(fs_info, PANIC_ON_FATAL_ERROR)))
 		panic(KERN_CRIT "BTRFS panic (device %s) in %s:%d: %pV (errno=%d %s)\n",
 			s_id, function, line, &vaf, errno, errstr);
 
