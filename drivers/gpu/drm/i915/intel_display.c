@@ -4956,7 +4956,8 @@ void hsw_enable_ips(struct intel_crtc *crtc)
 	assert_plane_enabled(dev_priv, crtc->plane);
 	if (IS_BROADWELL(dev_priv)) {
 		mutex_lock(&dev_priv->rps.hw_lock);
-		WARN_ON(sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL, 0xc0000000));
+		WARN_ON(sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL,
+						IPS_ENABLE | IPS_PCODE_CONTROL));
 		mutex_unlock(&dev_priv->rps.hw_lock);
 		/* Quoting Art Runyan: "its not safe to expect any particular
 		 * value in IPS_CTL bit 31 after enabling IPS through the

@@ -7974,6 +7974,8 @@ enum {
 #define   GEN6_PCODE_WRITE_D_COMP		0x11
 #define   HSW_PCODE_DE_WRITE_FREQ_REQ		0x17
 #define   DISPLAY_IPS_CONTROL			0x19
+            /* See also IPS_CTL */
+#define     IPS_PCODE_CONTROL			(1 << 30)
 #define   HSW_PCODE_DYNAMIC_DUTY_CYCLE_CONTROL	0x1A
 #define   GEN9_PCODE_SAGV_CONTROL		0x21
 #define     GEN9_SAGV_DISABLE			0x0
