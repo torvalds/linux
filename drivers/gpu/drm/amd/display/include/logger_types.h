@@ -70,6 +70,38 @@ enum dc_log_type {
 	LOG_SECTION_TOTAL_COUNT
 };
 
+#define DC_DEFAULT_LOG_MASK ((1 << LOG_ERROR) | \
+		(1 << LOG_WARNING) | \
+		(1 << LOG_EVENT_MODE_SET) | \
+		(1 << LOG_EVENT_DETECTION) | \
+		(1 << LOG_EVENT_LINK_TRAINING) | \
+		(1 << LOG_EVENT_LINK_LOSS) | \
+		(1 << LOG_EVENT_UNDERFLOW) | \
+		(1 << LOG_RESOURCE) | \
+		(1 << LOG_FEATURE_OVERRIDE) | \
+		(1 << LOG_DETECTION_EDID_PARSER) | \
+		(1 << LOG_DC) | \
+		(1 << LOG_HW_HOTPLUG) | \
+		(1 << LOG_HW_SET_MODE) | \
+		(1 << LOG_HW_RESUME_S3) | \
+		(1 << LOG_HW_HPD_IRQ) | \
+		(1 << LOG_SYNC) | \
+		(1 << LOG_BANDWIDTH_VALIDATION) | \
+		(1 << LOG_MST) | \
+		(1 << LOG_DETECTION_DP_CAPS) | \
+		(1 << LOG_BACKLIGHT)) | \
+		(1 << LOG_I2C_AUX) | \
+		(1 << LOG_IF_TRACE) | \
+		(1 << LOG_DTN) /* | \
+		(1 << LOG_DEBUG) | \
+		(1 << LOG_BIOS) | \
+		(1 << LOG_SURFACE) | \
+		(1 << LOG_SCALER) | \
+		(1 << LOG_DML) | \
+		(1 << LOG_HW_LINK_TRAINING) | \
+		(1 << LOG_HW_AUDIO)| \
+		(1 << LOG_BANDWIDTH_CALCS)*/
+
 union logger_flags {
 	struct {
 		uint32_t ENABLE_CONSOLE:1; /* Print to console */

@@ -40,7 +40,7 @@ struct dc_state;
  *
  */
 
-struct dal_logger *dal_logger_create(struct dc_context *ctx);
+struct dal_logger *dal_logger_create(struct dc_context *ctx, uint32_t log_mask);
 
 uint32_t dal_logger_destroy(struct dal_logger **logger);
 

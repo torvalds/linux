@@ -267,6 +267,7 @@ struct dc_init_data {
 	enum dce_environment dce_environment;
 
 	struct dc_config flags;
+	uint32_t log_mask;
 #ifdef ENABLE_FBC
 	uint64_t fbc_gpu_addr;
 #endif

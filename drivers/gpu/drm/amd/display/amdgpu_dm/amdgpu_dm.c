@@ -374,6 +374,8 @@ int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	init_data.dce_environment = DCE_ENV_PRODUCTION_DRV;
 
+	init_data.log_mask = DC_DEFAULT_LOG_MASK;
+
 #ifdef ENABLE_FBC
 	if (adev->family == FAMILY_CZ)
 		amdgpu_dm_initialize_fbc(adev);

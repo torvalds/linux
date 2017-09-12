@@ -493,7 +493,7 @@ static bool construct(struct dc *dc,
 	dc_ctx->asic_id = init_params->asic_id;
 
 	/* Create logger */
-	logger = dal_logger_create(dc_ctx);
+	logger = dal_logger_create(dc_ctx, init_params->log_mask);
 
 	if (!logger) {
 		/* can *not* call logger. call base driver 'print error' */

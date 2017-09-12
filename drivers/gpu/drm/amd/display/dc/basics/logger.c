@@ -64,40 +64,9 @@ static const struct dc_log_type_info log_type_info_tbl[] = {
 };
 
 
-#define DC_DEFAULT_LOG_MASK ((1 << LOG_ERROR) | \
-		(1 << LOG_WARNING) | \
-		(1 << LOG_EVENT_MODE_SET) | \
-		(1 << LOG_EVENT_DETECTION) | \
-		(1 << LOG_EVENT_LINK_TRAINING) | \
-		(1 << LOG_EVENT_LINK_LOSS) | \
-		(1 << LOG_EVENT_UNDERFLOW) | \
-		(1 << LOG_RESOURCE) | \
-		(1 << LOG_FEATURE_OVERRIDE) | \
-		(1 << LOG_DETECTION_EDID_PARSER) | \
-		(1 << LOG_DC) | \
-		(1 << LOG_HW_HOTPLUG) | \
-		(1 << LOG_HW_SET_MODE) | \
-		(1 << LOG_HW_RESUME_S3) | \
-		(1 << LOG_HW_HPD_IRQ) | \
-		(1 << LOG_SYNC) | \
-		(1 << LOG_BANDWIDTH_VALIDATION) | \
-		(1 << LOG_MST) | \
-		(1 << LOG_DETECTION_DP_CAPS) | \
-		(1 << LOG_BACKLIGHT)) | \
-		(1 << LOG_I2C_AUX) | \
-		(1 << LOG_IF_TRACE) | \
-		(1 << LOG_DTN) /* | \
-		(1 << LOG_DEBUG) | \
-		(1 << LOG_BIOS) | \
-		(1 << LOG_SURFACE) | \
-		(1 << LOG_SCALER) | \
-		(1 << LOG_DML) | \
-		(1 << LOG_HW_LINK_TRAINING) | \
-		(1 << LOG_HW_AUDIO)| \
-		(1 << LOG_BANDWIDTH_CALCS)*/
-
 /* ----------- Object init and destruction ----------- */
-static bool construct(struct dc_context *ctx, struct dal_logger *logger)
+static bool construct(struct dc_context *ctx, struct dal_logger *logger,
+		      uint32_t log_mask)
 {
 	/* malloc buffer and init offsets */
 	logger->log_buffer_size = DAL_LOGGER_BUFFER_MAX_SIZE;
@@ -120,7 +89,7 @@ static bool construct(struct dc_context *ctx, struct dal_logger *logger)
 
 	logger->ctx = ctx;
 
-	logger->mask = DC_DEFAULT_LOG_MASK;
+	logger->mask = log_mask;
 
 	return true;
 }
@@ -133,14 +102,14 @@ static void destruct(struct dal_logger *logger)
 	}
 }
 
-struct dal_logger *dal_logger_create(struct dc_context *ctx)
+struct dal_logger *dal_logger_create(struct dc_context *ctx, uint32_t log_mask)
 {
 	/* malloc struct */
 	struct dal_logger *logger = dm_alloc(sizeof(struct dal_logger));
 
 	if (!logger)
 		return NULL;
-	if (!construct(ctx, logger)) {
+	if (!construct(ctx, logger, log_mask)) {
 		dm_free(logger);
 		return NULL;
 	}
