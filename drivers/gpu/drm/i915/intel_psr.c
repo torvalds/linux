@@ -234,7 +234,7 @@ static void vlv_psr_enable_source(struct intel_dp *intel_dp,
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 
-	/* Transition from PSR_state 0 to PSR_state 1, i.e. PSR Inactive */
+	/* Transition from PSR_state 0 (disabled) to PSR_state 1 (inactive) */
 	I915_WRITE(VLV_PSRCTL(crtc->pipe),
 		   VLV_EDP_PSR_MODE_SW_TIMER |
 		   VLV_EDP_PSR_SRC_TRANSMITTER_STATE |
@@ -249,10 +249,11 @@ static void vlv_psr_activate(struct intel_dp *intel_dp)
 	struct drm_crtc *crtc = dig_port->base.base.crtc;
 	enum pipe pipe = to_intel_crtc(crtc)->pipe;
 
-	/* Let's do the transition from PSR_state 1 to PSR_state 2
-	 * that is PSR transition to active - static frame transmission.
-	 * Then Hardware is responsible for the transition to PSR_state 3
-	 * that is PSR active - no Remote Frame Buffer (RFB) update.
+	/*
+	 * Let's do the transition from PSR_state 1 (inactive) to
+	 * PSR_state 2 (transition to active - static frame transmission).
+	 * Then Hardware is responsible for the transition to
+	 * PSR_state 3 (active - no Remote Frame Buffer (RFB) update).
 	 */
 	I915_WRITE(VLV_PSRCTL(pipe), I915_READ(VLV_PSRCTL(pipe)) |
 		   VLV_EDP_PSR_ACTIVE_ENTRY);
@@ -576,7 +577,7 @@ static void vlv_psr_disable(struct intel_dp *intel_dp,
 	uint32_t val;
 
 	if (dev_priv->psr.active) {
-		/* Put VLV PSR back to PSR_state 0 that is PSR Disabled. */
+		/* Put VLV PSR back to PSR_state 0 (disabled). */
 		if (intel_wait_for_register(dev_priv,
 					    VLV_PSRSTAT(crtc->pipe),
 					    VLV_EDP_PSR_IN_TRANS,
@@ -766,16 +767,20 @@ static void intel_psr_exit(struct drm_i915_private *dev_priv)
 	} else {
 		val = I915_READ(VLV_PSRCTL(pipe));
 
-		/* Here we do the transition from PSR_state 3 to PSR_state 5
-		 * directly once PSR State 4 that is active with single frame
-		 * update can be skipped. PSR_state 5 that is PSR exit then
-		 * Hardware is responsible to transition back to PSR_state 1
-		 * that is PSR inactive. Same state after vlv_psr_enable_source.
+		/*
+		 * Here we do the transition drirectly from
+		 * PSR_state 3 (active - no Remote Frame Buffer (RFB) update) to
+		 * PSR_state 5 (exit).
+		 * PSR State 4 (active with single frame update) can be skipped.
+		 * On PSR_state 5 (exit) Hardware is responsible to transition
+		 * back to PSR_state 1 (inactive).
+		 * Now we are at Same state after vlv_psr_enable_source.
 		 */
 		val &= ~VLV_EDP_PSR_ACTIVE_ENTRY;
 		I915_WRITE(VLV_PSRCTL(pipe), val);
 
-		/* Send AUX wake up - Spec says after transitioning to PSR
+		/*
+		 * Send AUX wake up - Spec says after transitioning to PSR
 		 * active we have to send AUX wake up by writing 01h in DPCD
 		 * 600h of sink device.
 		 * XXX: This might slow down the transition, but without this
