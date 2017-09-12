@@ -352,6 +352,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 #define CP210X_PARTNUM_CP2104	0x04
 #define CP210X_PARTNUM_CP2105	0x05
 #define CP210X_PARTNUM_CP2108	0x08
+#define CP210X_PARTNUM_UNKNOWN	0xFF
 
 /* CP210X_GET_COMM_STATUS returns these 0x13 bytes */
 struct cp210x_comm_status {
@@ -1491,8 +1492,11 @@ static int cp210x_attach(struct usb_serial *serial)
 	result = cp210x_read_vendor_block(serial, REQTYPE_DEVICE_TO_HOST,
 					  CP210X_GET_PARTNUM, &priv->partnum,
 					  sizeof(priv->partnum));
-	if (result < 0)
-		goto err_free_priv;
+	if (result < 0) {
+		dev_warn(&serial->interface->dev,
+			 "querying part number failed\n");
+		priv->partnum = CP210X_PARTNUM_UNKNOWN;
+	}
 
 	usb_set_serial_data(serial, priv);
 
@@ -1505,10 +1509,6 @@ static int cp210x_attach(struct usb_serial *serial)
 	}
 
 	return 0;
-err_free_priv:
-	kfree(priv);
-
-	return result;
 }
 
 static void cp210x_disconnect(struct usb_serial *serial)
