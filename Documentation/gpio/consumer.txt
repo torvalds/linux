@@ -10,14 +10,30 @@ Guidelines for GPIOs consumers
 ==============================
 
 Drivers that can't work without standard GPIO calls should have Kconfig entries
-that depend on GPIOLIB. The functions that allow a driver to obtain and use
-GPIOs are available by including the following file:
+that depend on GPIOLIB or select GPIOLIB. The functions that allow a driver to
+obtain and use GPIOs are available by including the following file:
 
 	#include <linux/gpio/consumer.h>
 
+There are static inline stubs for all functions in the header file in the case
+where GPIOLIB is disabled. When these stubs are called they will emit
+warnings. These stubs are used for two use cases:
+
+- Simple compile coverage with e.g. COMPILE_TEST - it does not matter that
+  the current platform does not enable or select GPIOLIB because we are not
+  going to execute the system anyway.
+
+- Truly optional GPIOLIB support - where the driver does not really make use
+  of the GPIOs on certain compile-time configurations for certain systems, but
+  will use it under other compile-time configurations. In this case the
+  consumer must make sure not to call into these functions, or the user will
+  be met with console warnings that may be perceived as intimidating.
+
 All the functions that work with the descriptor-based GPIO interface are
 prefixed with gpiod_. The gpio_ prefix is used for the legacy interface. No
-other function in the kernel should use these prefixes.
+other function in the kernel should use these prefixes. The use of the legacy
+functions is strongly discouraged, new code should use <linux/gpio/consumer.h>
+and descriptors exclusively.
 
 
 Obtaining and Disposing GPIOs
