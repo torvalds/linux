@@ -787,31 +787,20 @@ out:
 	return err;
 }
 
-static int watchdog_update_cpus(void)
+static void watchdog_update_cpus(void)
 {
-	if (IS_ENABLED(CONFIG_SOFTLOCKUP_DETECTOR)) {
-		return smpboot_update_cpumask_percpu_thread(&watchdog_threads,
-							    &watchdog_cpumask);
+	if (IS_ENABLED(CONFIG_SOFTLOCKUP_DETECTOR) && watchdog_running) {
+		smpboot_update_cpumask_percpu_thread(&watchdog_threads,
+						     &watchdog_cpumask);
 		__lockup_detector_cleanup();
 	}
-	return 0;
 }
 
 static void proc_watchdog_cpumask_update(void)
 {
 	/* Remove impossible cpus to keep sysctl output clean. */
 	cpumask_and(&watchdog_cpumask, &watchdog_cpumask, cpu_possible_mask);
-
-	if (watchdog_running) {
-		/*
-		 * Failure would be due to being unable to allocate a
-		 * temporary cpumask, so we are likely not in a position to
-		 * do much else to make things better.
-		 */
-		if (watchdog_update_cpus() != 0)
-			pr_err("cpumask update failed\n");
-	}
-
+	watchdog_update_cpus();
 	watchdog_nmi_reconfigure();
 }
 

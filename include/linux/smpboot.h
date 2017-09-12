@@ -55,7 +55,7 @@ smpboot_register_percpu_thread(struct smp_hotplug_thread *plug_thread)
 }
 
 void smpboot_unregister_percpu_thread(struct smp_hotplug_thread *plug_thread);
-int smpboot_update_cpumask_percpu_thread(struct smp_hotplug_thread *plug_thread,
-					 const struct cpumask *);
+void smpboot_update_cpumask_percpu_thread(struct smp_hotplug_thread *plug_thread,
+					  const struct cpumask *);
 
 #endif
