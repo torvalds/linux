@@ -107,7 +107,6 @@ struct connection {
 	unsigned long flags;
 #define CF_READ_PENDING 1
 #define CF_WRITE_PENDING 2
-#define CF_CONNECT_PENDING 3
 #define CF_INIT_PENDING 4
 #define CF_IS_OTHERCON 5
 #define CF_CLOSE 6
@@ -435,8 +434,8 @@ static inline void lowcomms_connect_sock(struct connection *con)
 {
 	if (test_bit(CF_CLOSE, &con->flags))
 		return;
-	if (!test_and_set_bit(CF_CONNECT_PENDING, &con->flags))
-		queue_work(send_workqueue, &con->swork);
+	queue_work(send_workqueue, &con->swork);
+	cond_resched();
 }
 
 static void lowcomms_state_change(struct sock *sk)
@@ -579,7 +578,6 @@ static void make_sockaddr(struct sockaddr_storage *saddr, uint16_t port,
 static void close_connection(struct connection *con, bool and_other,
 			     bool tx, bool rx)
 {
-	clear_bit(CF_CONNECT_PENDING, &con->flags);
 	clear_bit(CF_WRITE_PENDING, &con->flags);
 	if (tx && cancel_work_sync(&con->swork))
 		log_print("canceled swork for node %d", con->nodeid);
@@ -1098,7 +1096,6 @@ socket_err:
 			  con->retries, result);
 		mutex_unlock(&con->sock_mutex);
 		msleep(1000);
-		clear_bit(CF_CONNECT_PENDING, &con->flags);
 		lowcomms_connect_sock(con);
 		return;
 	}
@@ -1194,7 +1191,6 @@ out_err:
 			  con->retries, result);
 		mutex_unlock(&con->sock_mutex);
 		msleep(1000);
-		clear_bit(CF_CONNECT_PENDING, &con->flags);
 		lowcomms_connect_sock(con);
 		return;
 	}
@@ -1593,7 +1589,7 @@ static void process_send_sockets(struct work_struct *work)
 {
 	struct connection *con = container_of(work, struct connection, swork);
 
-	if (test_and_clear_bit(CF_CONNECT_PENDING, &con->flags))
+	if (con->sock == NULL) /* not mutex protected so check it inside too */
 		con->connect_action(con);
 	if (test_and_clear_bit(CF_WRITE_PENDING, &con->flags))
 		send_to_sock(con);
