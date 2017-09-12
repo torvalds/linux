@@ -110,7 +110,7 @@ config DRM_FBDEV_OVERALLOC
 
 config DRM_LOAD_EDID_FIRMWARE
 	bool "Allow to specify an EDID data set instead of probing for it"
-	depends on DRM_KMS_HELPER
+	depends on DRM
 	help
 	  Say Y here, if you want to use EDID data to be loaded from the
 	  /lib/firmware directory or one of the provided built-in
