@@ -703,7 +703,7 @@ static int proc_watchdog_common(int which, struct ctl_table *table, int write,
 	int err, old, new;
 	int *watchdog_param = (int *)table->data;
 
-	get_online_cpus();
+	cpu_hotplug_disable();
 	mutex_lock(&watchdog_proc_mutex);
 
 	/*
@@ -752,7 +752,7 @@ static int proc_watchdog_common(int which, struct ctl_table *table, int write,
 	}
 out:
 	mutex_unlock(&watchdog_proc_mutex);
-	put_online_cpus();
+	cpu_hotplug_enable();
 	return err;
 }
 
@@ -794,7 +794,7 @@ int proc_watchdog_thresh(struct ctl_table *table, int write,
 {
 	int err, old, new;
 
-	get_online_cpus();
+	cpu_hotplug_disable();
 	mutex_lock(&watchdog_proc_mutex);
 
 	old = ACCESS_ONCE(watchdog_thresh);
@@ -818,7 +818,7 @@ int proc_watchdog_thresh(struct ctl_table *table, int write,
 	}
 out:
 	mutex_unlock(&watchdog_proc_mutex);
-	put_online_cpus();
+	cpu_hotplug_enable();
 	return err;
 }
 
@@ -833,7 +833,7 @@ int proc_watchdog_cpumask(struct ctl_table *table, int write,
 {
 	int err;
 
-	get_online_cpus();
+	cpu_hotplug_disable();
 	mutex_lock(&watchdog_proc_mutex);
 
 	err = proc_do_large_bitmap(table, write, buffer, lenp, ppos);
@@ -856,7 +856,7 @@ int proc_watchdog_cpumask(struct ctl_table *table, int write,
 	}
 
 	mutex_unlock(&watchdog_proc_mutex);
-	put_online_cpus();
+	cpu_hotplug_enable();
 	return err;
 }
 
