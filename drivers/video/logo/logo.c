@@ -82,6 +82,14 @@ const struct linux_logo * __ref fb_find_logo(int depth)
 		/* Blackfin Linux logo */
 		logo = &logo_blackfin_clut224;
 #endif
+#ifdef CONFIG_LOGO_VIM_CLUT224
+		/* Vi IMproved (vim) logo */
+		logo = &logo_vim_clut224;
+#endif
+#ifdef CONFIG_LOGO_NAXTU_CLUT224
+		/* NAXTU logo */
+		logo = &logo_naxtu_clut224;
+#endif
 #ifdef CONFIG_LOGO_DEC_CLUT224
 		/* DEC Linux logo on MIPS/MIPS64 or ALPHA */
 		logo = &logo_dec_clut224;
