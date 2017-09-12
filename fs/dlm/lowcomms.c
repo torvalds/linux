@@ -801,16 +801,19 @@ static int tcp_accept_from_sock(struct connection *con)
 			INIT_WORK(&othercon->rwork, process_recv_sockets);
 			set_bit(CF_IS_OTHERCON, &othercon->flags);
 		}
+		mutex_lock_nested(&othercon->sock_mutex, 2);
 		if (!othercon->sock) {
 			newcon->othercon = othercon;
 			othercon->sock = newsock;
 			newsock->sk->sk_user_data = othercon;
 			add_sock(newsock, othercon);
 			addcon = othercon;
+			mutex_unlock(&othercon->sock_mutex);
 		}
 		else {
 			printk("Extra connection from node %d attempted\n", nodeid);
 			result = -EAGAIN;
+			mutex_unlock(&othercon->sock_mutex);
 			mutex_unlock(&newcon->sock_mutex);
 			goto accept_err;
 		}
@@ -918,15 +921,18 @@ static int sctp_accept_from_sock(struct connection *con)
 			INIT_WORK(&othercon->rwork, process_recv_sockets);
 			set_bit(CF_IS_OTHERCON, &othercon->flags);
 		}
+		mutex_lock_nested(&othercon->sock_mutex, 2);
 		if (!othercon->sock) {
 			newcon->othercon = othercon;
 			othercon->sock = newsock;
 			newsock->sk->sk_user_data = othercon;
 			add_sock(newsock, othercon);
 			addcon = othercon;
+			mutex_unlock(&othercon->sock_mutex);
 		} else {
 			printk("Extra connection from node %d attempted\n", nodeid);
 			ret = -EAGAIN;
+			mutex_unlock(&othercon->sock_mutex);
 			mutex_unlock(&newcon->sock_mutex);
 			goto accept_err;
 		}
