@@ -453,6 +453,7 @@ static int pmic_gpio_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 
 	pad = pctldev->desc->pins[pin].drv_data;
 
+	pad->is_enabled = true;
 	for (i = 0; i < nconfs; i++) {
 		param = pinconf_to_config_param(configs[i]);
 		arg = pinconf_to_config_argument(configs[i]);
@@ -599,6 +600,10 @@ static int pmic_gpio_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		if (ret < 0)
 			return ret;
 	}
+
+	val = pad->is_enabled << PMIC_GPIO_REG_MASTER_EN_SHIFT;
+
+	ret = pmic_gpio_write(state, pad, PMIC_GPIO_REG_EN_CTL, val);
 
 	return ret;
 }
