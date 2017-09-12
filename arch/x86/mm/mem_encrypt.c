@@ -37,7 +37,7 @@ static char sme_cmdline_off[] __initdata = "off";
  * reside in the .data section so as not to be zeroed out when the .bss
  * section is later cleared.
  */
-unsigned long sme_me_mask __section(.data) = 0;
+u64 sme_me_mask __section(.data) = 0;
 EXPORT_SYMBOL_GPL(sme_me_mask);
 
 /* Buffer used for early in-place encryption by BSP, no locking needed */
