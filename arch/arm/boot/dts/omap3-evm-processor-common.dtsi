@@ -15,6 +15,8 @@
 };
 
 &dss {
+	vdds_dsi-supply = <&vpll2>;
+	vdda_video-supply = <&lcd_3v3>;
 	pinctrl-names = "default";
 	pinctrl-0 = <
 		&dss_dpi_pins1
