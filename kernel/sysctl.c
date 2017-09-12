@@ -891,14 +891,10 @@ static struct ctl_table kern_table[] = {
 		.procname       = "nmi_watchdog",
 		.data           = &nmi_watchdog_enabled,
 		.maxlen         = sizeof (int),
-		.mode           = 0644,
+		.mode		= NMI_WATCHDOG_SYSCTL_PERM,
 		.proc_handler   = proc_nmi_watchdog,
 		.extra1		= &zero,
-#if defined(CONFIG_HAVE_NMI_WATCHDOG) || defined(CONFIG_HARDLOCKUP_DETECTOR)
 		.extra2		= &one,
-#else
-		.extra2		= &zero,
-#endif
 	},
 	{
 		.procname	= "watchdog_cpumask",

@@ -81,6 +81,12 @@ extern unsigned int hardlockup_panic;
 static inline void hardlockup_detector_disable(void) {}
 #endif
 
+#if defined(CONFIG_HAVE_NMI_WATCHDOG) || defined(CONFIG_HARDLOCKUP_DETECTOR)
+# define NMI_WATCHDOG_SYSCTL_PERM	0644
+#else
+# define NMI_WATCHDOG_SYSCTL_PERM	0444
+#endif
+
 #if defined(CONFIG_HARDLOCKUP_DETECTOR_PERF)
 extern void arch_touch_nmi_watchdog(void);
 extern void hardlockup_detector_perf_stop(void);
