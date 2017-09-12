@@ -492,10 +492,10 @@ void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 		mutex_lock(&gvt->lock);
 	}
 
-	intel_vgpu_reset_execlist(vgpu, resetting_eng);
-
+	intel_vgpu_reset_submission(vgpu, resetting_eng);
 	/* full GPU reset or device model level reset */
 	if (engine_mask == ALL_ENGINES || dmlr) {
+		intel_vgpu_select_submission_ops(vgpu, 0);
 
 		/*fence will not be reset during virtual reset */
 		if (dmlr) {

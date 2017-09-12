@@ -564,18 +564,7 @@ void clean_execlist(struct intel_vgpu *vgpu)
 	}
 }
 
-int init_execlist(struct intel_vgpu *vgpu)
-{
-	enum intel_engine_id i;
-	struct intel_engine_cs *engine;
-
-	for_each_engine(engine, vgpu->gvt->dev_priv, i)
-		init_vgpu_execlist(vgpu, i);
-
-	return 0;
-}
-
-void intel_vgpu_reset_execlist(struct intel_vgpu *vgpu,
+void reset_execlist(struct intel_vgpu *vgpu,
 		unsigned long engine_mask)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
@@ -587,8 +576,15 @@ void intel_vgpu_reset_execlist(struct intel_vgpu *vgpu,
 		init_vgpu_execlist(vgpu, engine->id);
 }
 
+int init_execlist(struct intel_vgpu *vgpu)
+{
+	reset_execlist(vgpu, ALL_ENGINES);
+	return 0;
+}
+
 const struct intel_vgpu_submission_ops intel_vgpu_execlist_submission_ops = {
 	.name = "execlist",
 	.init = init_execlist,
+	.reset = reset_execlist,
 	.clean = clean_execlist,
 };

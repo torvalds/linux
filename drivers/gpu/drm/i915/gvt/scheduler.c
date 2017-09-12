@@ -889,6 +889,26 @@ void intel_vgpu_clean_submission(struct intel_vgpu *vgpu)
 	kmem_cache_destroy(s->workloads);
 }
 
+
+/**
+ * intel_vgpu_reset_submission - reset submission-related resource for vGPU
+ * @vgpu: a vGPU
+ * @engine_mask: engines expected to be reset
+ *
+ * This function is called when a vGPU is being destroyed.
+ *
+ */
+void intel_vgpu_reset_submission(struct intel_vgpu *vgpu,
+		unsigned long engine_mask)
+{
+	struct intel_vgpu_submission *s = &vgpu->submission;
+
+	if (!s->active)
+		return;
+
+	s->ops->reset(vgpu, engine_mask);
+}
+
 /**
  * intel_vgpu_setup_submission - setup submission-related resource for vGPU
  * @vgpu: a vGPU
