@@ -996,22 +996,27 @@ static void guc_client_free(struct i915_guc_client *client)
 	kfree(client);
 }
 
+static void guc_policy_init(struct guc_policy *policy)
+{
+	policy->execution_quantum = POLICY_DEFAULT_EXECUTION_QUANTUM_US;
+	policy->preemption_time = POLICY_DEFAULT_PREEMPTION_TIME_US;
+	policy->fault_time = POLICY_DEFAULT_FAULT_TIME_US;
+	policy->policy_flags = 0;
+}
+
 static void guc_policies_init(struct guc_policies *policies)
 {
 	struct guc_policy *policy;
 	u32 p, i;
 
-	policies->dpc_promote_time = 500000;
+	policies->dpc_promote_time = POLICY_DEFAULT_DPC_PROMOTE_TIME_US;
 	policies->max_num_work_items = POLICY_MAX_NUM_WI;
 
 	for (p = 0; p < GUC_CLIENT_PRIORITY_NUM; p++) {
 		for (i = GUC_RENDER_ENGINE; i < GUC_MAX_ENGINES_NUM; i++) {
 			policy = &policies->policy[p][i];
 
-			policy->execution_quantum = 1000000;
-			policy->preemption_time = 500000;
-			policy->fault_time = 250000;
-			policy->policy_flags = 0;
+			guc_policy_init(policy);
 		}
 	}
 

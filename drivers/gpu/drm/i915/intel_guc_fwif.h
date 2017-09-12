@@ -388,7 +388,11 @@ struct guc_ct_buffer_desc {
 /* Preempt to idle on quantum expiry */
 #define POLICY_PREEMPT_TO_IDLE		(1<<1)
 
-#define POLICY_MAX_NUM_WI		15
+#define POLICY_MAX_NUM_WI 15
+#define POLICY_DEFAULT_DPC_PROMOTE_TIME_US 500000
+#define POLICY_DEFAULT_EXECUTION_QUANTUM_US 1000000
+#define POLICY_DEFAULT_PREEMPTION_TIME_US 500000
+#define POLICY_DEFAULT_FAULT_TIME_US 250000
 
 struct guc_policy {
 	/* Time for one workload to execute. (in micro seconds) */
