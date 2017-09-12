@@ -9,8 +9,6 @@ config TYPEC_TCPCI
 	help
 	  Type-C Port Controller driver for TCPCI-compliant controller.
 
-source "drivers/staging/typec/fusb302/Kconfig"
-
 endif
 
 endmenu
