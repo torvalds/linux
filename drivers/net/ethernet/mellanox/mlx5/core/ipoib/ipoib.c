@@ -108,11 +108,68 @@ static void mlx5i_cleanup(struct mlx5e_priv *priv)
 	/* Do nothing .. */
 }
 
+static int mlx5i_init_underlay_qp(struct mlx5e_priv *priv)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5i_priv *ipriv = priv->ppriv;
+	struct mlx5_core_qp *qp = &ipriv->qp;
+	struct mlx5_qp_context *context;
+	int ret;
+
+	/* QP states */
+	context = kzalloc(sizeof(*context), GFP_KERNEL);
+	if (!context)
+		return -ENOMEM;
+
+	context->flags = cpu_to_be32(MLX5_QP_PM_MIGRATED << 11);
+	context->pri_path.port = 1;
+	context->qkey = cpu_to_be32(IB_DEFAULT_Q_KEY);
+
+	ret = mlx5_core_qp_modify(mdev, MLX5_CMD_OP_RST2INIT_QP, 0, context, qp);
+	if (ret) {
+		mlx5_core_err(mdev, "Failed to modify qp RST2INIT, err: %d\n", ret);
+		goto err_qp_modify_to_err;
+	}
+	memset(context, 0, sizeof(*context));
+
+	ret = mlx5_core_qp_modify(mdev, MLX5_CMD_OP_INIT2RTR_QP, 0, context, qp);
+	if (ret) {
+		mlx5_core_err(mdev, "Failed to modify qp INIT2RTR, err: %d\n", ret);
+		goto err_qp_modify_to_err;
+	}
+
+	ret = mlx5_core_qp_modify(mdev, MLX5_CMD_OP_RTR2RTS_QP, 0, context, qp);
+	if (ret) {
+		mlx5_core_err(mdev, "Failed to modify qp RTR2RTS, err: %d\n", ret);
+		goto err_qp_modify_to_err;
+	}
+
+	kfree(context);
+	return 0;
+
+err_qp_modify_to_err:
+	mlx5_core_qp_modify(mdev, MLX5_CMD_OP_2ERR_QP, 0, &context, qp);
+	kfree(context);
+	return ret;
+}
+
+static void mlx5i_uninit_underlay_qp(struct mlx5e_priv *priv)
+{
+	struct mlx5i_priv *ipriv = priv->ppriv;
+	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5_qp_context context;
+	int err;
+
+	err = mlx5_core_qp_modify(mdev, MLX5_CMD_OP_2RST_QP, 0, &context,
+				  &ipriv->qp);
+	if (err)
+		mlx5_core_err(mdev, "Failed to modify qp 2RST, err: %d\n", err);
+}
+
 #define MLX5_QP_ENHANCED_ULP_STATELESS_MODE 2
 
 static int mlx5i_create_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp)
 {
-	struct mlx5_qp_context *context = NULL;
 	u32 *in = NULL;
 	void *addr_path;
 	int ret = 0;
@@ -140,38 +197,7 @@ static int mlx5i_create_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core
 		goto out;
 	}
 
-	/* QP states */
-	context = kzalloc(sizeof(*context), GFP_KERNEL);
-	if (!context) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	context->flags = cpu_to_be32(MLX5_QP_PM_MIGRATED << 11);
-	context->pri_path.port = 1;
-	context->qkey = cpu_to_be32(IB_DEFAULT_Q_KEY);
-
-	ret = mlx5_core_qp_modify(mdev, MLX5_CMD_OP_RST2INIT_QP, 0, context, qp);
-	if (ret) {
-		mlx5_core_err(mdev, "Failed to modify qp RST2INIT, err: %d\n", ret);
-		goto out;
-	}
-	memset(context, 0, sizeof(*context));
-
-	ret = mlx5_core_qp_modify(mdev, MLX5_CMD_OP_INIT2RTR_QP, 0, context, qp);
-	if (ret) {
-		mlx5_core_err(mdev, "Failed to modify qp INIT2RTR, err: %d\n", ret);
-		goto out;
-	}
-
-	ret = mlx5_core_qp_modify(mdev, MLX5_CMD_OP_RTR2RTS_QP, 0, context, qp);
-	if (ret) {
-		mlx5_core_err(mdev, "Failed to modify qp RTR2RTS, err: %d\n", ret);
-		goto out;
-	}
-
 out:
-	kfree(context);
 	kvfree(in);
 	return ret;
 }
@@ -192,13 +218,23 @@ static int mlx5i_init_tx(struct mlx5e_priv *priv)
 		return err;
 	}
 
+	err = mlx5i_init_underlay_qp(priv);
+	if (err) {
+		mlx5_core_warn(priv->mdev, "intilize underlay QP failed, %d\n", err);
+		goto err_destroy_underlay_qp;
+	}
+
 	err = mlx5e_create_tis(priv->mdev, 0 /* tc */, ipriv->qp.qpn, &priv->tisn[0]);
 	if (err) {
 		mlx5_core_warn(priv->mdev, "create tis failed, %d\n", err);
-		return err;
+		goto err_destroy_underlay_qp;
 	}
 
 	return 0;
+
+err_destroy_underlay_qp:
+	mlx5i_destroy_underlay_qp(priv->mdev, &ipriv->qp);
+	return err;
 }
 
 static void mlx5i_cleanup_tx(struct mlx5e_priv *priv)
@@ -381,12 +417,8 @@ static int mlx5i_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 static void mlx5i_dev_cleanup(struct net_device *dev)
 {
 	struct mlx5e_priv    *priv   = mlx5i_epriv(dev);
-	struct mlx5_core_dev *mdev   = priv->mdev;
-	struct mlx5i_priv    *ipriv  = priv->ppriv;
-	struct mlx5_qp_context context;
 
-	/* detach qp from flow-steering by reset it */
-	mlx5_core_qp_modify(mdev, MLX5_CMD_OP_2RST_QP, 0, &context, &ipriv->qp);
+	mlx5i_uninit_underlay_qp(priv);
 }
 
 static int mlx5i_open(struct net_device *netdev)
