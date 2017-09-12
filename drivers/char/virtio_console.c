@@ -451,9 +451,6 @@ static struct port_buffer *alloc_buf(struct virtqueue *vq, size_t buf_size,
 		 * device is created by remoteproc, the DMA memory is
 		 * associated with the grandparent device:
 		 * vdev => rproc => platform-dev.
-		 * The code here would have been less quirky if
-		 * DMA_MEMORY_INCLUDES_CHILDREN had been supported
-		 * in dma-coherent.c
 		 */
 		if (!vq->vdev->dev.parent || !vq->vdev->dev.parent->parent)
 			goto free_buf;
