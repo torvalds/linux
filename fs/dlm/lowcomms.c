@@ -732,22 +732,14 @@ static int tcp_accept_from_sock(struct connection *con)
 	}
 	mutex_unlock(&connections_lock);
 
-	memset(&peeraddr, 0, sizeof(peeraddr));
-	result = sock_create_lite(dlm_local_addr[0]->ss_family,
-				  SOCK_STREAM, IPPROTO_TCP, &newsock);
-	if (result < 0)
-		return -ENOMEM;
-
 	mutex_lock_nested(&con->sock_mutex, 0);
 
-	result = -ENOTCONN;
-	if (con->sock == NULL)
-		goto accept_err;
+	if (!con->sock) {
+		mutex_unlock(&con->sock_mutex);
+		return -ENOTCONN;
+	}
 
-	newsock->type = con->sock->type;
-	newsock->ops = con->sock->ops;
-
-	result = con->sock->ops->accept(con->sock, newsock, O_NONBLOCK, true);
+	result = kernel_accept(con->sock, &newsock, O_NONBLOCK);
 	if (result < 0)
 		goto accept_err;
 
@@ -844,7 +836,8 @@ static int tcp_accept_from_sock(struct connection *con)
 
 accept_err:
 	mutex_unlock(&con->sock_mutex);
-	sock_release(newsock);
+	if (newsock)
+		sock_release(newsock);
 
 	if (result != -EAGAIN)
 		log_print("error accepting connection from node: %d", result);
