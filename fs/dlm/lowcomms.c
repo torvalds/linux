@@ -1643,6 +1643,7 @@ static int work_start(void)
 static void _stop_conn(struct connection *con, bool and_other)
 {
 	mutex_lock(&con->sock_mutex);
+	set_bit(CF_CLOSE, &con->flags);
 	set_bit(CF_READ_PENDING, &con->flags);
 	set_bit(CF_WRITE_PENDING, &con->flags);
 	if (con->sock && con->sock->sk)
