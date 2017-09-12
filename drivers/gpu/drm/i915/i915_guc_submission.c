@@ -469,8 +469,9 @@ static void guc_wq_item_append(struct i915_guc_client *client,
 {
 	/* wqi_len is in DWords, and does not include the one-word header */
 	const size_t wqi_size = sizeof(struct guc_wq_item);
-	const u32 wqi_len = wqi_size/sizeof(u32) - 1;
+	const u32 wqi_len = wqi_size / sizeof(u32) - 1;
 	struct intel_engine_cs *engine = rq->engine;
+	struct i915_gem_context *ctx = rq->ctx;
 	struct guc_process_desc *desc = __get_process_desc(client);
 	struct guc_wq_item *wqi;
 	u32 freespace, tail, wq_off;
@@ -479,8 +480,7 @@ static void guc_wq_item_append(struct i915_guc_client *client,
 	freespace = CIRC_SPACE(client->wq_tail, desc->head, client->wq_size);
 	GEM_BUG_ON(freespace < wqi_size);
 
-	/* The GuC firmware wants the tail index in QWords, not bytes */
-	tail = intel_ring_set_tail(rq->ring, rq->tail) >> 3;
+	tail = intel_ring_set_tail(rq->ring, rq->tail) / sizeof(u64);
 	GEM_BUG_ON(tail > WQ_RING_TAIL_MAX);
 
 	/* For now workqueue item is 4 DWs; workqueue buffer is 2 pages. So we
@@ -505,12 +505,11 @@ static void guc_wq_item_append(struct i915_guc_client *client,
 
 	/* Now fill in the 4-word work queue item */
 	wqi->header = WQ_TYPE_INORDER |
-			(wqi_len << WQ_LEN_SHIFT) |
-			(engine->guc_id << WQ_TARGET_SHIFT) |
-			WQ_NO_WCFLUSH_WAIT;
+		      (wqi_len << WQ_LEN_SHIFT) |
+		      (engine->guc_id << WQ_TARGET_SHIFT) |
+		      WQ_NO_WCFLUSH_WAIT;
 
-	/* The GuC wants only the low-order word of the context descriptor */
-	wqi->context_desc = (u32)intel_lr_context_descriptor(rq->ctx, engine);
+	wqi->context_desc = lower_32_bits(intel_lr_context_descriptor(ctx, engine));
 
 	wqi->submit_element_info = tail << WQ_RING_TAIL_SHIFT;
 	wqi->fence_id = rq->global_seqno;
