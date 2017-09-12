@@ -1031,7 +1031,6 @@ static enum surface_update_type get_plane_info_update_type(
 	temp_plane_info.plane_size = u->surface->plane_size;
 	temp_plane_info.rotation = u->surface->rotation;
 	temp_plane_info.stereo_format = u->surface->stereo_format;
-	temp_plane_info.tiling_info = u->surface->tiling_info;
 
 	if (surface_index == 0)
 		temp_plane_info.visible = u->plane_info->visible;
@@ -1044,10 +1043,26 @@ static enum surface_update_type get_plane_info_update_type(
 
 	if (pixel_format_to_bpp(u->plane_info->format) !=
 			pixel_format_to_bpp(u->surface->format)) {
+		/* different bytes per element will require full bandwidth
+		 * and DML calculation
+		 */
 		return UPDATE_TYPE_FULL;
-	} else {
-		return UPDATE_TYPE_MED;
 	}
+
+	if (memcmp(&u->plane_info->tiling_info, &u->surface->tiling_info,
+			sizeof(union dc_tiling_info)) != 0) {
+		/* todo: below are HW dependent, we should add a hook to
+		 * DCE/N resource and validated there.
+		 */
+		if (u->plane_info->tiling_info.gfx9.swizzle != DC_SW_LINEAR) {
+			/* swizzled mode requires RQ to be setup properly,
+			 * thus need to run DML to calculate RQ settings
+			 */
+			return UPDATE_TYPE_FULL;
+		}
+	}
+
+	return UPDATE_TYPE_MED;
 }
 
 static enum surface_update_type  get_scaling_info_update_type(
