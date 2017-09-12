@@ -49,7 +49,7 @@ extern char *strstr(const char *, const char *);
 #undef __HAVE_ARCH_STRSEP
 #undef __HAVE_ARCH_STRSPN
 
-#if !defined(IN_ARCH_STRING_C)
+#if !defined(IN_ARCH_STRING_C) && (!defined(CONFIG_FORTIFY_SOURCE) || defined(__NO_FORTIFY))
 
 static inline void *memchr(const void * s, int c, size_t n)
 {

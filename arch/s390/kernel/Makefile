@@ -33,6 +33,8 @@ AFLAGS_REMOVE_head.o	+= $(CC_FLAGS_MARCH)
 AFLAGS_head.o		+= -march=z900
 endif
 
+CFLAGS_als.o		+= -D__NO_FORTIFY
+
 #
 # Passing null pointers is ok for smp code, since we access the lowcore here.
 #
