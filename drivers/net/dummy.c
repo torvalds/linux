@@ -388,7 +388,7 @@ static int __init dummy_init_one(void)
 	int err;
 
 	dev_dummy = alloc_netdev(sizeof(struct dummy_priv),
-				 "dummy%d", NET_NAME_UNKNOWN, dummy_setup);
+				 "dummy%d", NET_NAME_ENUM, dummy_setup);
 	if (!dev_dummy)
 		return -ENOMEM;
 
