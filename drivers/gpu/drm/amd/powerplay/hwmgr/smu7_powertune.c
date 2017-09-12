@@ -636,7 +636,7 @@ static int smu7_enable_didt(struct pp_hwmgr *hwmgr, const bool enable)
 	else
 		didt_block = DIDTBlock_Info;
 
-	block_en = phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SQRamping) ? en : 0;
+	block_en = PP_CAP(PHM_PlatformCaps_SQRamping) ? en : 0;
 
 	data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_SQ_CTRL0);
 	data &= ~DIDT_SQ_CTRL0__DIDT_CTRL_EN_MASK;
@@ -645,7 +645,7 @@ static int smu7_enable_didt(struct pp_hwmgr *hwmgr, const bool enable)
 	didt_block &= ~SQ_Enable_MASK;
 	didt_block |= block_en << SQ_Enable_SHIFT;
 
-	block_en = phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DBRamping) ? en : 0;
+	block_en = PP_CAP(PHM_PlatformCaps_DBRamping) ? en : 0;
 
 	data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_DB_CTRL0);
 	data &= ~DIDT_DB_CTRL0__DIDT_CTRL_EN_MASK;
@@ -654,7 +654,7 @@ static int smu7_enable_didt(struct pp_hwmgr *hwmgr, const bool enable)
 	didt_block &= ~DB_Enable_MASK;
 	didt_block |= block_en << DB_Enable_SHIFT;
 
-	block_en = phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TDRamping) ? en : 0;
+	block_en = PP_CAP(PHM_PlatformCaps_TDRamping) ? en : 0;
 	data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TD_CTRL0);
 	data &= ~DIDT_TD_CTRL0__DIDT_CTRL_EN_MASK;
 	data |= ((block_en << DIDT_TD_CTRL0__DIDT_CTRL_EN__SHIFT) & DIDT_TD_CTRL0__DIDT_CTRL_EN_MASK);
@@ -662,7 +662,7 @@ static int smu7_enable_didt(struct pp_hwmgr *hwmgr, const bool enable)
 	didt_block &= ~TD_Enable_MASK;
 	didt_block |= block_en << TD_Enable_SHIFT;
 
-	block_en = phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TCPRamping) ? en : 0;
+	block_en = PP_CAP(PHM_PlatformCaps_TCPRamping) ? en : 0;
 
 	data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TCP_CTRL0);
 	data &= ~DIDT_TCP_CTRL0__DIDT_CTRL_EN_MASK;
@@ -753,10 +753,10 @@ int smu7_enable_didt_config(struct pp_hwmgr *hwmgr)
 	if (result == 0)
 		num_se = sys_info.value;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SQRamping) ||
-		phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DBRamping) ||
-		phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TDRamping) ||
-		phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TCPRamping)) {
+	if (PP_CAP(PHM_PlatformCaps_SQRamping) ||
+	    PP_CAP(PHM_PlatformCaps_DBRamping) ||
+	    PP_CAP(PHM_PlatformCaps_TDRamping) ||
+	    PP_CAP(PHM_PlatformCaps_TCPRamping)) {
 
 		cgs_enter_safe_mode(hwmgr->device, true);
 		value = 0;
@@ -808,10 +808,10 @@ int smu7_disable_didt_config(struct pp_hwmgr *hwmgr)
 {
 	int result;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SQRamping) ||
-		phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DBRamping) ||
-		phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TDRamping) ||
-		phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TCPRamping)) {
+	if (PP_CAP(PHM_PlatformCaps_SQRamping) ||
+	    PP_CAP(PHM_PlatformCaps_DBRamping) ||
+	    PP_CAP(PHM_PlatformCaps_TDRamping) ||
+	    PP_CAP(PHM_PlatformCaps_TCPRamping)) {
 
 		cgs_enter_safe_mode(hwmgr->device, true);
 
@@ -836,8 +836,7 @@ int smu7_enable_smc_cac(struct pp_hwmgr *hwmgr)
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	int result = 0;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_CAC)) {
+	if (PP_CAP(PHM_PlatformCaps_CAC)) {
 		int smc_result;
 		smc_result = smum_send_msg_to_smc(hwmgr->smumgr,
 				(uint16_t)(PPSMC_MSG_EnableCac));
@@ -854,8 +853,7 @@ int smu7_disable_smc_cac(struct pp_hwmgr *hwmgr)
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	int result = 0;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_CAC) && data->cac_enabled) {
+	if (PP_CAP(PHM_PlatformCaps_CAC) && data->cac_enabled) {
 		int smc_result = smum_send_msg_to_smc(hwmgr->smumgr,
 				(uint16_t)(PPSMC_MSG_DisableCac));
 		PP_ASSERT_WITH_CODE((smc_result == 0),
@@ -899,9 +897,7 @@ int smu7_enable_power_containment(struct pp_hwmgr *hwmgr)
 	else
 		cac_table = hwmgr->dyn_state.cac_dtp_table;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_PowerContainment)) {
-
+	if (PP_CAP(PHM_PlatformCaps_PowerContainment)) {
 		if (data->enable_tdc_limit_feature) {
 			smc_result = smum_send_msg_to_smc(hwmgr->smumgr,
 					(uint16_t)(PPSMC_MSG_TDCLimitEnable));
@@ -937,9 +933,8 @@ int smu7_disable_power_containment(struct pp_hwmgr *hwmgr)
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	int result = 0;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_PowerContainment) &&
-			data->power_containment_features) {
+	if (PP_CAP(PHM_PlatformCaps_PowerContainment) &&
+	    data->power_containment_features) {
 		int smc_result;
 
 		if (data->power_containment_features &
@@ -987,8 +982,7 @@ int smu7_power_control_set_level(struct pp_hwmgr *hwmgr)
 		cac_table = table_info->cac_dtp_table;
 	else
 		cac_table = hwmgr->dyn_state.cac_dtp_table;
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_PowerContainment)) {
+	if (PP_CAP(PHM_PlatformCaps_PowerContainment)) {
 		/* adjustment percentage has already been validated */
 		adjust_percent = hwmgr->platform_descriptor.TDPAdjustmentPolarity ?
 				hwmgr->platform_descriptor.TDPAdjustment :
