@@ -641,10 +641,11 @@ static void sdma_v3_0_enable(struct amdgpu_device *adev, bool enable)
 static int sdma_v3_0_gfx_resume(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring;
-	u32 rb_cntl, ib_cntl;
+	u32 rb_cntl, ib_cntl, wptr_poll_cntl;
 	u32 rb_bufsz;
 	u32 wb_offset;
 	u32 doorbell;
+	u64 wptr_gpu_addr;
 	int i, j, r;
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
@@ -706,6 +707,20 @@ static int sdma_v3_0_gfx_resume(struct amdgpu_device *adev)
 			doorbell = REG_SET_FIELD(doorbell, SDMA0_GFX_DOORBELL, ENABLE, 0);
 		}
 		WREG32(mmSDMA0_GFX_DOORBELL + sdma_offsets[i], doorbell);
+
+		/* setup the wptr shadow polling */
+		wptr_gpu_addr = adev->wb.gpu_addr + (ring->wptr_offs * 4);
+
+		WREG32(mmSDMA0_GFX_RB_WPTR_POLL_ADDR_LO + sdma_offsets[i],
+		       lower_32_bits(wptr_gpu_addr));
+		WREG32(mmSDMA0_GFX_RB_WPTR_POLL_ADDR_HI + sdma_offsets[i],
+		       upper_32_bits(wptr_gpu_addr));
+		wptr_poll_cntl = RREG32(mmSDMA0_GFX_RB_WPTR_POLL_CNTL + sdma_offsets[i]);
+		if (amdgpu_sriov_vf(adev))
+			wptr_poll_cntl = REG_SET_FIELD(wptr_poll_cntl, SDMA0_GFX_RB_WPTR_POLL_CNTL, F32_POLL_ENABLE, 1);
+		else
+			wptr_poll_cntl = REG_SET_FIELD(wptr_poll_cntl, SDMA0_GFX_RB_WPTR_POLL_CNTL, F32_POLL_ENABLE, 0);
+		WREG32(mmSDMA0_GFX_RB_WPTR_POLL_CNTL + sdma_offsets[i], wptr_poll_cntl);
 
 		/* enable DMA RB */
 		rb_cntl = REG_SET_FIELD(rb_cntl, SDMA0_GFX_RB_CNTL, RB_ENABLE, 1);
