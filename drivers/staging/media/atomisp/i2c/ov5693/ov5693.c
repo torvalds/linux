@@ -945,12 +945,8 @@ static int ad5823_t_focus_vcm(struct v4l2_subdev *sd, u16 val)
 
 int ad5823_t_focus_abs(struct v4l2_subdev *sd, s32 value)
 {
-	int ret;
-
 	value = min(value, AD5823_MAX_FOCUS_POS);
-	ret = ad5823_t_focus_vcm(sd, value);
-
-	return ret;
+	return ad5823_t_focus_vcm(sd, value);
 }
 
 static int ov5693_t_focus_abs(struct v4l2_subdev *sd, s32 value)
@@ -1332,7 +1328,6 @@ static int power_ctrl(struct v4l2_subdev *sd, bool flag)
 
 static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 {
-	int ret;
 	struct ov5693_device *dev = to_ov5693_sensor(sd);
 
 	if (!dev || !dev->platform_data)
@@ -1342,9 +1337,7 @@ static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 	if (dev->platform_data->gpio_ctrl)
 		return dev->platform_data->gpio_ctrl(sd, flag);
 
-	ret = dev->platform_data->gpio0_ctrl(sd, flag);
-
-	return ret;
+	return dev->platform_data->gpio0_ctrl(sd, flag);
 }
 
 static int __power_up(struct v4l2_subdev *sd)

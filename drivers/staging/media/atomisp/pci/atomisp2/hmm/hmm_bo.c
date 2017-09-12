@@ -1168,13 +1168,9 @@ status_err2:
 
 int hmm_bo_page_allocated(struct hmm_buffer_object *bo)
 {
-	int ret;
-
 	check_bo_null_return(bo, 0);
 
-	ret = bo->status & HMM_BO_PAGE_ALLOCED;
-
-	return ret;
+	return bo->status & HMM_BO_PAGE_ALLOCED;
 }
 
 /*
