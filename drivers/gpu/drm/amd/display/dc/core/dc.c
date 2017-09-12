@@ -869,7 +869,8 @@ bool dc_commit_planes_to_stream(
 		struct dc *dc,
 		struct dc_plane_state **plane_states,
 		uint8_t new_plane_count,
-		struct dc_stream_state *dc_stream)
+		struct dc_stream_state *dc_stream,
+		struct dc_state *state)
 {
 	struct dc_surface_update updates[MAX_SURFACES];
 	struct dc_flip_addrs flip_addr[MAX_SURFACES];
@@ -920,11 +921,11 @@ bool dc_commit_planes_to_stream(
 		updates[i].scaling_info = &scaling_info[i];
 	}
 
-	dc_update_planes_and_stream(
+	dc_commit_updates_for_stream(
 			dc,
 			updates,
 			new_plane_count,
-			dc_stream, stream_update);
+			dc_stream, stream_update, plane_states, state);
 
 	dc_post_update_surfaces_to_stream(dc);
 
@@ -1150,192 +1151,20 @@ static struct dc_stream_status *stream_get_status(
 
 static const enum surface_update_type update_surface_trace_level = UPDATE_TYPE_FULL;
 
-void dc_update_planes_and_stream(struct dc *dc,
-		struct dc_surface_update *srf_updates, int surface_count,
+
+static void commit_planes_for_stream(struct dc *dc,
+		struct dc_surface_update *srf_updates,
+		int surface_count,
 		struct dc_stream_state *stream,
-		struct dc_stream_update *stream_update)
+		struct dc_stream_update *stream_update,
+		enum surface_update_type update_type,
+		struct dc_state *context)
 {
-	struct dc_state *context;
 	int i, j;
-	enum surface_update_type update_type;
-	const struct dc_stream_status *stream_status;
-	struct dc_context *dc_ctx = dc->ctx;
-
-	stream_status = dc_stream_get_status(stream);
-
-	ASSERT(stream_status);
-	if (!stream_status)
-		return; /* Cannot commit surface to stream that is not committed */
-
-#ifdef ENABLE_FBC
-	if (srf_updates->flip_addr) {
-		if (srf_updates->flip_addr->address.grph.addr.low_part == 0)
-			ASSERT(0);
-	}
-#endif
-	context = dc->current_state;
-
-	/* update current stream with the new updates */
-	if (stream_update) {
-		if ((stream_update->src.height != 0) &&
-				(stream_update->src.width != 0))
-			stream->src = stream_update->src;
-
-		if ((stream_update->dst.height != 0) &&
-				(stream_update->dst.width != 0))
-			stream->dst = stream_update->dst;
-
-		if (stream_update->out_transfer_func &&
-				stream_update->out_transfer_func !=
-						stream->out_transfer_func) {
-			if (stream->out_transfer_func != NULL)
-				dc_transfer_func_release(stream->out_transfer_func);
-			dc_transfer_func_retain(stream_update->out_transfer_func);
-			stream->out_transfer_func =
-				stream_update->out_transfer_func;
-		}
-	}
-
-	/* do not perform surface update if surface has invalid dimensions
-	 * (all zero) and no scaling_info is provided
-	 */
-	if (surface_count > 0 &&
-			srf_updates->surface->src_rect.width == 0 &&
-			srf_updates->surface->src_rect.height == 0 &&
-			srf_updates->surface->dst_rect.width == 0 &&
-			srf_updates->surface->dst_rect.height == 0 &&
-			!srf_updates->scaling_info) {
-		ASSERT(false);
-		return;
-	}
-
-	update_type = dc_check_update_surfaces_for_stream(
-			dc, srf_updates, surface_count, stream_update, stream_status);
-
-	if (update_type >= update_surface_trace_level)
-		update_surface_trace(dc, srf_updates, surface_count);
-
-	if (update_type >= UPDATE_TYPE_FULL) {
-		struct dc_plane_state *new_planes[MAX_SURFACES] = {0};
-
-		for (i = 0; i < surface_count; i++)
-			new_planes[i] = srf_updates[i].surface;
-
-		/* initialize scratch memory for building context */
-		context = dc_create_state();
-		if (context == NULL) {
-			DC_ERROR("Failed to allocate new validate context!\n");
-			return;
-		}
-
-		dc_resource_state_copy_construct(
-				dc->current_state, context);
-
-		/*remove old surfaces from context */
-		if (!dc_rem_all_planes_for_stream(dc, stream, context)) {
-
-			BREAK_TO_DEBUGGER();
-			goto fail;
-		}
-
-		/* add surface to context */
-		if (!dc_add_all_planes_for_stream(dc, stream, new_planes, surface_count, context)) {
-
-			BREAK_TO_DEBUGGER();
-			goto fail;
-		}
-	}
-
-	/* save update parameters into surface */
-	for (i = 0; i < surface_count; i++) {
-		struct dc_plane_state *surface = srf_updates[i].surface;
-
-		if (srf_updates[i].flip_addr) {
-			surface->address = srf_updates[i].flip_addr->address;
-			surface->flip_immediate =
-					srf_updates[i].flip_addr->flip_immediate;
-		}
-
-		if (srf_updates[i].scaling_info) {
-			surface->scaling_quality =
-					srf_updates[i].scaling_info->scaling_quality;
-			surface->dst_rect =
-					srf_updates[i].scaling_info->dst_rect;
-			surface->src_rect =
-					srf_updates[i].scaling_info->src_rect;
-			surface->clip_rect =
-					srf_updates[i].scaling_info->clip_rect;
-		}
-
-		if (srf_updates[i].plane_info) {
-			surface->color_space =
-					srf_updates[i].plane_info->color_space;
-			surface->format =
-					srf_updates[i].plane_info->format;
-			surface->plane_size =
-					srf_updates[i].plane_info->plane_size;
-			surface->rotation =
-					srf_updates[i].plane_info->rotation;
-			surface->horizontal_mirror =
-					srf_updates[i].plane_info->horizontal_mirror;
-			surface->stereo_format =
-					srf_updates[i].plane_info->stereo_format;
-			surface->tiling_info =
-					srf_updates[i].plane_info->tiling_info;
-			surface->visible =
-					srf_updates[i].plane_info->visible;
-			surface->per_pixel_alpha =
-					srf_updates[i].plane_info->per_pixel_alpha;
-			surface->dcc =
-					srf_updates[i].plane_info->dcc;
-		}
-
-		if (update_type >= UPDATE_TYPE_MED) {
-			for (j = 0; j < dc->res_pool->pipe_count; j++) {
-				struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
-
-				if (pipe_ctx->plane_state != surface)
-					continue;
-
-				resource_build_scaling_params(pipe_ctx);
-			}
-		}
-
-		if (srf_updates[i].gamma &&
-			srf_updates[i].gamma != surface->gamma_correction) {
-			if (surface->gamma_correction != NULL)
-				dc_gamma_release(&surface->gamma_correction);
-
-			dc_gamma_retain(srf_updates[i].gamma);
-			surface->gamma_correction = srf_updates[i].gamma;
-		}
-
-		if (srf_updates[i].in_transfer_func &&
-			srf_updates[i].in_transfer_func != surface->in_transfer_func) {
-			if (surface->in_transfer_func != NULL)
-				dc_transfer_func_release(
-						surface->
-						in_transfer_func);
-
-			dc_transfer_func_retain(
-					srf_updates[i].in_transfer_func);
-			surface->in_transfer_func =
-					srf_updates[i].in_transfer_func;
-		}
-
-		if (srf_updates[i].hdr_static_metadata)
-			surface->hdr_static_ctx =
-				*(srf_updates[i].hdr_static_metadata);
-	}
 
 	if (update_type == UPDATE_TYPE_FULL) {
-		if (!dc->res_pool->funcs->validate_bandwidth(dc, context)) {
-			BREAK_TO_DEBUGGER();
-			goto fail;
-		} else {
-			dc->hwss.set_bandwidth(dc, context, false);
-			context_clock_trace(dc, context);
-		}
+		dc->hwss.set_bandwidth(dc, context, false);
+		context_clock_trace(dc, context);
 	}
 
 	if (update_type > UPDATE_TYPE_FAST) {
@@ -1459,27 +1288,60 @@ void dc_update_planes_and_stream(struct dc *dc,
 			break;
 		}
 	}
+}
 
-	if (dc->current_state != context) {
+void dc_commit_updates_for_stream(struct dc *dc,
+		struct dc_surface_update *srf_updates,
+		int surface_count,
+		struct dc_stream_state *stream,
+		struct dc_stream_update *stream_update,
+		struct dc_plane_state **plane_states,
+		struct dc_state *state)
+{
+	const struct dc_stream_status *stream_status;
+	enum surface_update_type update_type;
+	struct dc_state *context;
+	int i;
 
-		/* Since memory free requires elevated IRQL, an interrupt
-		 * request is generated by mem free. If this happens
-		 * between freeing and reassigning the context, our vsync
-		 * interrupt will call into dc and cause a memory
-		 * corruption BSOD. Hence, we first reassign the context,
-		 * then free the old context.
+	stream_status = dc_stream_get_status(stream);
+	context = dc->current_state;
+
+	update_type = dc_check_update_surfaces_for_stream(
+				dc, srf_updates, surface_count, stream_update, stream_status);
+
+	if (update_type >= update_surface_trace_level)
+		update_surface_trace(dc, srf_updates, surface_count);
+
+
+	if (update_type >= UPDATE_TYPE_FULL)
+		dc_resource_state_copy_construct(state, context);
+
+
+	for (i = 0; i < surface_count; i++) {
+		struct dc_plane_state *surface = srf_updates[i].surface;
+
+		/* TODO: On flip we don't build the state, so it still has the
+		 * old address. Which is why we are updating the address here
 		 */
-
-		struct dc_state *old = dc->current_state;
-
-		dc->current_state = context;
-		dc_release_state(old);
+		if (srf_updates[i].flip_addr)
+			surface->address = srf_updates[i].flip_addr->address;
 
 	}
+
+
+	commit_planes_for_stream(
+				dc,
+				srf_updates,
+				surface_count,
+				stream,
+				stream_update,
+				update_type,
+				context);
+
+	dc_post_update_surfaces_to_stream(dc);
+
 	return;
 
-fail:
-	dc_release_state(context);
 }
 
 uint8_t dc_get_current_stream_count(struct dc *dc)
