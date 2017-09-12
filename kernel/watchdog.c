@@ -125,16 +125,18 @@ void __weak watchdog_nmi_disable(unsigned int cpu)
  * - sysctl_hardlockup_all_cpu_backtrace
  * - hardlockup_panic
  */
-void __weak watchdog_nmi_reconfigure(void)
-{
-}
-
+void __weak watchdog_nmi_reconfigure(void) { }
 
 #ifdef CONFIG_SOFTLOCKUP_DETECTOR
 
 /* Helper for online, unparked cpus. */
 #define for_each_watchdog_cpu(cpu) \
 	for_each_cpu_and((cpu), cpu_online_mask, &watchdog_cpumask)
+
+/* Global variables, exported for sysctl */
+unsigned int __read_mostly softlockup_panic =
+			CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC_VALUE;
+int __read_mostly soft_watchdog_enabled;
 
 static u64 __read_mostly sample_period;
 
@@ -149,13 +151,9 @@ static DEFINE_PER_CPU(struct task_struct *, softlockup_task_ptr_saved);
 static DEFINE_PER_CPU(unsigned long, hrtimer_interrupts_saved);
 static unsigned long soft_lockup_nmi_warn;
 
-unsigned int __read_mostly softlockup_panic =
-			CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC_VALUE;
-
 static int __init softlockup_panic_setup(char *str)
 {
 	softlockup_panic = simple_strtoul(str, NULL, 0);
-
 	return 1;
 }
 __setup("softlockup_panic=", softlockup_panic_setup);
@@ -593,44 +591,13 @@ static void watchdog_disable_all_cpus(void)
 	}
 }
 
-#ifdef CONFIG_SYSCTL
-static int watchdog_update_cpus(void)
-{
-	return smpboot_update_cpumask_percpu_thread(
-		    &watchdog_threads, &watchdog_cpumask);
-}
-#endif
-
-#else /* SOFTLOCKUP */
-static int watchdog_park_threads(void)
-{
-	return 0;
-}
-
-static void watchdog_unpark_threads(void)
-{
-}
-
-static int watchdog_enable_all_cpus(void)
-{
-	return 0;
-}
-
-static void watchdog_disable_all_cpus(void)
-{
-}
-
-#ifdef CONFIG_SYSCTL
-static int watchdog_update_cpus(void)
-{
-	return 0;
-}
-#endif
-
-static void set_sample_period(void)
-{
-}
-#endif /* SOFTLOCKUP */
+#else /* CONFIG_SOFTLOCKUP_DETECTOR */
+static inline int watchdog_park_threads(void) { return 0; }
+static inline void watchdog_unpark_threads(void) { }
+static inline int watchdog_enable_all_cpus(void) { return 0; }
+static inline void watchdog_disable_all_cpus(void) { }
+static inline void set_sample_period(void) { }
+#endif /* !CONFIG_SOFTLOCKUP_DETECTOR */
 
 static void __lockup_detector_cleanup(void)
 {
@@ -825,6 +792,15 @@ out:
 	mutex_unlock(&watchdog_mutex);
 	cpu_hotplug_enable();
 	return err;
+}
+
+static int watchdog_update_cpus(void)
+{
+	if (IS_ENABLED(CONFIG_SOFTLOCKUP_DETECTOR)) {
+		return smpboot_update_cpumask_percpu_thread(&watchdog_threads,
+							    &watchdog_cpumask);
+	}
+	return 0;
 }
 
 /*
