@@ -141,5 +141,10 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu);
 
 void intel_vgpu_clean_submission(struct intel_vgpu *vgpu);
 
+struct intel_vgpu_workload *
+intel_vgpu_create_workload(struct intel_vgpu *vgpu);
+
+void intel_vgpu_destroy_workload(struct intel_vgpu_workload *workload);
+
 void release_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx);
 #endif

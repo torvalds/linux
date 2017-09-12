@@ -781,3 +781,54 @@ out_shadow_ctx:
 	i915_gem_context_put(s->shadow_ctx);
 	return ret;
 }
+
+/**
+ * intel_vgpu_destroy_workload - destroy a vGPU workload
+ * @vgpu: a vGPU
+ *
+ * This function is called when destroy a vGPU workload.
+ *
+ */
+void intel_vgpu_destroy_workload(struct intel_vgpu_workload *workload)
+{
+	struct intel_vgpu_submission *s = &workload->vgpu->submission;
+
+	if (workload->shadow_mm)
+		intel_gvt_mm_unreference(workload->shadow_mm);
+
+	kmem_cache_free(s->workloads, workload);
+}
+
+/**
+ * intel_vgpu_create_workload - create a vGPU workload
+ * @vgpu: a vGPU
+ *
+ * This function is called when creating a vGPU workload.
+ *
+ * Returns:
+ * struct intel_vgpu_workload * on success, negative error code in
+ * pointer if failed.
+ *
+ */
+struct intel_vgpu_workload *
+intel_vgpu_create_workload(struct intel_vgpu *vgpu)
+{
+	struct intel_vgpu_submission *s = &vgpu->submission;
+	struct intel_vgpu_workload *workload;
+
+	workload = kmem_cache_zalloc(s->workloads, GFP_KERNEL);
+	if (!workload)
+		return ERR_PTR(-ENOMEM);
+
+	INIT_LIST_HEAD(&workload->list);
+	INIT_LIST_HEAD(&workload->shadow_bb);
+
+	init_waitqueue_head(&workload->shadow_ctx_status_wq);
+	atomic_set(&workload->shadow_ctx_active, 0);
+
+	workload->status = -EINPROGRESS;
+	workload->shadowed = false;
+	workload->vgpu = vgpu;
+
+	return workload;
+}

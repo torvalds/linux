@@ -358,12 +358,6 @@ static int emulate_execlist_schedule_in(struct intel_vgpu_execlist *execlist,
 	return 0;
 }
 
-static void free_workload(struct intel_vgpu_workload *workload)
-{
-	intel_gvt_mm_unreference(workload->shadow_mm);
-	kmem_cache_free(workload->vgpu->submission.workloads, workload);
-}
-
 #define get_desc_from_elsp_dwords(ed, i) \
 	((struct execlist_ctx_descriptor_format *)&((ed)->data[i * 2]))
 
@@ -586,7 +580,7 @@ static int complete_execlist_workload(struct intel_vgpu_workload *workload)
 	ret = emulate_execlist_ctx_schedule_out(execlist, &workload->ctx_desc);
 out:
 	intel_vgpu_unpin_mm(workload->shadow_mm);
-	free_workload(workload);
+	intel_vgpu_destroy_workload(workload);
 	return ret;
 }
 
@@ -687,10 +681,6 @@ static int submit_context(struct intel_vgpu *vgpu, int ring_id,
 
 	gvt_dbg_el("ring id %d begin a new workload\n", ring_id);
 
-	workload = kmem_cache_zalloc(s->workloads, GFP_KERNEL);
-	if (!workload)
-		return -ENOMEM;
-
 	/* record some ring buffer register values for scan and shadow */
 	intel_gvt_hypervisor_read_gpa(vgpu, ring_context_gpa +
 			RING_CTX_OFF(rb_start.val), &start, 4);
@@ -699,13 +689,10 @@ static int submit_context(struct intel_vgpu *vgpu, int ring_id,
 	intel_gvt_hypervisor_read_gpa(vgpu, ring_context_gpa +
 			RING_CTX_OFF(ctx_ctrl.val), &ctx_ctl, 4);
 
-	INIT_LIST_HEAD(&workload->list);
-	INIT_LIST_HEAD(&workload->shadow_bb);
+	workload = intel_vgpu_create_workload(vgpu);
+	if (IS_ERR(workload))
+		return PTR_ERR(workload);
 
-	init_waitqueue_head(&workload->shadow_ctx_status_wq);
-	atomic_set(&workload->shadow_ctx_active, 0);
-
-	workload->vgpu = vgpu;
 	workload->ring_id = ring_id;
 	workload->ctx_desc = *desc;
 	workload->ring_context_gpa = ring_context_gpa;
@@ -715,9 +702,7 @@ static int submit_context(struct intel_vgpu *vgpu, int ring_id,
 	workload->rb_ctl = ctl;
 	workload->prepare = prepare_execlist_workload;
 	workload->complete = complete_execlist_workload;
-	workload->status = -EINPROGRESS;
 	workload->emulate_schedule_in = emulate_schedule_in;
-	workload->shadowed = false;
 
 	if (ring_id == RCS) {
 		intel_gvt_hypervisor_read_gpa(vgpu, ring_context_gpa +
@@ -764,7 +749,7 @@ static int submit_context(struct intel_vgpu *vgpu, int ring_id,
 	if (ret == 0)
 		queue_workload(workload);
 	else {
-		free_workload(workload);
+		intel_vgpu_destroy_workload(workload);
 		if (vgpu_is_vm_unhealthy(ret)) {
 			intel_vgpu_clean_execlist(vgpu);
 			enter_failsafe_mode(vgpu, GVT_FAILSAFE_GUEST_ERR);
@@ -853,7 +838,7 @@ static void clean_workloads(struct intel_vgpu *vgpu, unsigned long engine_mask)
 		list_for_each_entry_safe(pos, n,
 			&s->workload_q_head[engine->id], list) {
 			list_del_init(&pos->list);
-			free_workload(pos);
+			intel_vgpu_destroy_workload(pos);
 		}
 		clear_bit(engine->id, s->shadow_ctx_desc_updated);
 	}
