@@ -485,21 +485,6 @@ static void watchdog(unsigned int cpu)
 	__this_cpu_write(soft_lockup_hrtimer_cnt,
 			 __this_cpu_read(hrtimer_interrupts));
 	__touch_watchdog();
-
-	/*
-	 * watchdog_nmi_enable() clears the NMI_WATCHDOG_ENABLED bit in the
-	 * failure path. Check for failures that can occur asynchronously -
-	 * for example, when CPUs are on-lined - and shut down the hardware
-	 * perf event on each CPU accordingly.
-	 *
-	 * The only non-obvious place this bit can be cleared is through
-	 * watchdog_nmi_enable(), so a pr_info() is placed there.  Placing a
-	 * pr_info here would be too noisy as it would result in a message
-	 * every few seconds if the hardlockup was disabled but the softlockup
-	 * enabled.
-	 */
-	if (!(watchdog_enabled & NMI_WATCHDOG_ENABLED))
-		watchdog_nmi_disable(cpu);
 }
 
 static struct smp_hotplug_thread watchdog_threads = {

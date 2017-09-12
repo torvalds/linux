@@ -23,6 +23,7 @@ static DEFINE_PER_CPU(bool, watchdog_nmi_touch);
 static DEFINE_PER_CPU(struct perf_event *, watchdog_ev);
 
 static unsigned long hardlockup_allcpu_dumped;
+static bool hardlockup_detector_disabled;
 
 void arch_touch_nmi_watchdog(void)
 {
@@ -178,6 +179,10 @@ int watchdog_nmi_enable(unsigned int cpu)
 	if (!(watchdog_enabled & NMI_WATCHDOG_ENABLED))
 		goto out;
 
+	/* A failure disabled the hardlockup detector permanently */
+	if (hardlockup_detector_disabled)
+		return -ENODEV;
+
 	/* is it already setup and enabled? */
 	if (event && event->state > PERF_EVENT_STATE_OFF)
 		goto out;
@@ -206,18 +211,6 @@ int watchdog_nmi_enable(unsigned int cpu)
 		goto out_save;
 	}
 
-	/*
-	 * Disable the hard lockup detector if _any_ CPU fails to set up
-	 * set up the hardware perf event. The watchdog() function checks
-	 * the NMI_WATCHDOG_ENABLED bit periodically.
-	 *
-	 * The barriers are for syncing up watchdog_enabled across all the
-	 * cpus, as clear_bit() does not use barriers.
-	 */
-	smp_mb__before_atomic();
-	clear_bit(NMI_WATCHDOG_ENABLED_BIT, &watchdog_enabled);
-	smp_mb__after_atomic();
-
 	/* skip displaying the same error again */
 	if (!firstcpu && (PTR_ERR(event) == firstcpu_err))
 		return PTR_ERR(event);
@@ -232,7 +225,8 @@ int watchdog_nmi_enable(unsigned int cpu)
 		pr_err("disabled (cpu%i): unable to create perf event: %ld\n",
 			cpu, PTR_ERR(event));
 
-	pr_info("Shutting down hard lockup detector on all cpus\n");
+	pr_info("Disabling hard lockup detector permanently\n");
+	hardlockup_detector_disabled = true;
 
 	return PTR_ERR(event);
 
