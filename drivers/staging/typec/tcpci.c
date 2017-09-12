@@ -20,11 +20,11 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/regmap.h>
+#include <linux/usb/pd.h>
+#include <linux/usb/tcpm.h>
 #include <linux/usb/typec.h>
 
-#include "pd.h"
 #include "tcpci.h"
-#include "tcpm.h"
 
 #define PD_RETRY_COUNT 3
 

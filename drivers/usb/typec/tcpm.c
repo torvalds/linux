@@ -26,13 +26,12 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/usb/pd.h>
+#include <linux/usb/pd_bdo.h>
+#include <linux/usb/pd_vdo.h>
+#include <linux/usb/tcpm.h>
 #include <linux/usb/typec.h>
 #include <linux/workqueue.h>
-
-#include "pd.h"
-#include "pd_vdo.h"
-#include "pd_bdo.h"
-#include "tcpm.h"
 
 #define FOREACH_STATE(S)			\
 	S(INVALID_STATE),			\

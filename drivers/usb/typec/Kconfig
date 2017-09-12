@@ -4,6 +4,14 @@ menu "USB Power Delivery and Type-C drivers"
 config TYPEC
 	tristate
 
+config TYPEC_TCPM
+	tristate "USB Type-C Port Controller Manager"
+	depends on USB
+	select TYPEC
+	help
+	  The Type-C Port Controller Manager provides a USB PD and USB Type-C
+	  state machine for use with Type-C Port Controllers.
+
 config TYPEC_WCOVE
 	tristate "Intel WhiskeyCove PMIC USB Type-C PHY driver"
 	depends on ACPI
