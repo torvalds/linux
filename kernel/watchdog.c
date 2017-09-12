@@ -792,8 +792,27 @@ static int watchdog_update_cpus(void)
 	if (IS_ENABLED(CONFIG_SOFTLOCKUP_DETECTOR)) {
 		return smpboot_update_cpumask_percpu_thread(&watchdog_threads,
 							    &watchdog_cpumask);
+		__lockup_detector_cleanup();
 	}
 	return 0;
+}
+
+static void proc_watchdog_cpumask_update(void)
+{
+	/* Remove impossible cpus to keep sysctl output clean. */
+	cpumask_and(&watchdog_cpumask, &watchdog_cpumask, cpu_possible_mask);
+
+	if (watchdog_running) {
+		/*
+		 * Failure would be due to being unable to allocate a
+		 * temporary cpumask, so we are likely not in a position to
+		 * do much else to make things better.
+		 */
+		if (watchdog_update_cpus() != 0)
+			pr_err("cpumask update failed\n");
+	}
+
+	watchdog_nmi_reconfigure();
 }
 
 /*
@@ -811,30 +830,13 @@ int proc_watchdog_cpumask(struct ctl_table *table, int write,
 	mutex_lock(&watchdog_mutex);
 
 	err = proc_do_large_bitmap(table, write, buffer, lenp, ppos);
-	if (!err && write) {
-		/* Remove impossible cpus to keep sysctl output cleaner. */
-		cpumask_and(&watchdog_cpumask, &watchdog_cpumask,
-			    cpu_possible_mask);
-
-		if (watchdog_running) {
-			/*
-			 * Failure would be due to being unable to allocate
-			 * a temporary cpumask, so we are likely not in a
-			 * position to do much else to make things better.
-			 */
-			if (watchdog_update_cpus() != 0)
-				pr_err("cpumask update failed\n");
-		}
-
-		watchdog_nmi_reconfigure();
-		__lockup_detector_cleanup();
-	}
+	if (!err && write)
+		proc_watchdog_cpumask_update();
 
 	mutex_unlock(&watchdog_mutex);
 	cpu_hotplug_enable();
 	return err;
 }
-
 #endif /* CONFIG_SYSCTL */
 
 void __init lockup_detector_init(void)
