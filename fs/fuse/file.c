@@ -2181,9 +2181,6 @@ static int fuse_setlk(struct file *file, struct file_lock *fl, int flock)
 	if ((fl->fl_flags & FL_CLOSE_POSIX) == FL_CLOSE_POSIX)
 		return 0;
 
-	if (pid && pid_nr == 0)
-		return -EOVERFLOW;
-
 	fuse_lk_fill(&args, file, fl, opcode, pid_nr, flock, &inarg);
 	err = fuse_simple_request(fc, &args);
 
