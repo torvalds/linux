@@ -142,7 +142,8 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu);
 void intel_vgpu_clean_submission(struct intel_vgpu *vgpu);
 
 struct intel_vgpu_workload *
-intel_vgpu_create_workload(struct intel_vgpu *vgpu);
+intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
+			   struct execlist_ctx_descriptor_format *desc);
 
 void intel_vgpu_destroy_workload(struct intel_vgpu_workload *workload);
 
