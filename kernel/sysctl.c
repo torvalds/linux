@@ -871,9 +871,9 @@ static struct ctl_table kern_table[] = {
 #if defined(CONFIG_LOCKUP_DETECTOR)
 	{
 		.procname       = "watchdog",
-		.data           = &watchdog_user_enabled,
-		.maxlen         = sizeof (int),
-		.mode           = 0644,
+		.data		= &watchdog_user_enabled,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
 		.proc_handler   = proc_watchdog,
 		.extra1		= &zero,
 		.extra2		= &one,
@@ -889,8 +889,8 @@ static struct ctl_table kern_table[] = {
 	},
 	{
 		.procname       = "nmi_watchdog",
-		.data           = &nmi_watchdog_enabled,
-		.maxlen         = sizeof (int),
+		.data		= &nmi_watchdog_user_enabled,
+		.maxlen		= sizeof(int),
 		.mode		= NMI_WATCHDOG_SYSCTL_PERM,
 		.proc_handler   = proc_nmi_watchdog,
 		.extra1		= &zero,
@@ -906,9 +906,9 @@ static struct ctl_table kern_table[] = {
 #ifdef CONFIG_SOFTLOCKUP_DETECTOR
 	{
 		.procname       = "soft_watchdog",
-		.data           = &soft_watchdog_enabled,
-		.maxlen         = sizeof (int),
-		.mode           = 0644,
+		.data		= &soft_watchdog_user_enabled,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
 		.proc_handler   = proc_soft_watchdog,
 		.extra1		= &zero,
 		.extra2		= &one,

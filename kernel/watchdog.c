@@ -31,14 +31,23 @@
 
 static DEFINE_MUTEX(watchdog_mutex);
 
-int __read_mostly nmi_watchdog_enabled;
-
 #if defined(CONFIG_HARDLOCKUP_DETECTOR) || defined(CONFIG_HAVE_NMI_WATCHDOG)
 unsigned long __read_mostly watchdog_enabled = SOFT_WATCHDOG_ENABLED |
 						NMI_WATCHDOG_ENABLED;
 #else
 unsigned long __read_mostly watchdog_enabled = SOFT_WATCHDOG_ENABLED;
 #endif
+
+int __read_mostly nmi_watchdog_user_enabled;
+int __read_mostly soft_watchdog_user_enabled;
+int __read_mostly watchdog_user_enabled;
+int __read_mostly watchdog_thresh = 10;
+
+struct cpumask watchdog_allowed_mask __read_mostly;
+static bool softlockup_threads_initialized __read_mostly;
+
+struct cpumask watchdog_cpumask __read_mostly;
+unsigned long *watchdog_cpumask_bits = cpumask_bits(&watchdog_cpumask);
 
 #ifdef CONFIG_HARDLOCKUP_DETECTOR
 /*
@@ -85,12 +94,6 @@ __setup("hardlockup_all_cpu_backtrace=", hardlockup_all_cpu_backtrace_setup);
 # endif /* CONFIG_SMP */
 #endif /* CONFIG_HARDLOCKUP_DETECTOR */
 
-int __read_mostly watchdog_user_enabled;
-int __read_mostly watchdog_thresh = 10;
-
-struct cpumask watchdog_cpumask __read_mostly;
-unsigned long *watchdog_cpumask_bits = cpumask_bits(&watchdog_cpumask);
-
 /*
  * These functions can be overridden if an architecture implements its
  * own hardlockup detector.
@@ -113,7 +116,7 @@ void __weak watchdog_nmi_disable(unsigned int cpu)
  * watchdog_nmi_reconfigure can be implemented to be notified after any
  * watchdog configuration change. The arch hardlockup watchdog should
  * respond to the following variables:
- * - nmi_watchdog_enabled
+ * - watchdog_enabled
  * - watchdog_thresh
  * - watchdog_cpumask
  * - sysctl_hardlockup_all_cpu_backtrace
@@ -126,10 +129,6 @@ void __weak watchdog_nmi_reconfigure(void) { }
 /* Global variables, exported for sysctl */
 unsigned int __read_mostly softlockup_panic =
 			CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC_VALUE;
-int __read_mostly soft_watchdog_enabled;
-
-struct cpumask watchdog_allowed_mask __read_mostly;
-static bool softlockup_threads_initialized __read_mostly;
 
 static u64 __read_mostly sample_period;
 
@@ -606,14 +605,14 @@ static void proc_watchdog_update(void)
 /*
  * common function for watchdog, nmi_watchdog and soft_watchdog parameter
  *
- * caller             | table->data points to | 'which' contains the flag(s)
- * -------------------|-----------------------|-----------------------------
- * proc_watchdog      | watchdog_user_enabled | NMI_WATCHDOG_ENABLED or'ed
- *                    |                       | with SOFT_WATCHDOG_ENABLED
- * -------------------|-----------------------|-----------------------------
- * proc_nmi_watchdog  | nmi_watchdog_enabled  | NMI_WATCHDOG_ENABLED
- * -------------------|-----------------------|-----------------------------
- * proc_soft_watchdog | soft_watchdog_enabled | SOFT_WATCHDOG_ENABLED
+ * caller             | table->data points to      | 'which'
+ * -------------------|----------------------------|--------------------------
+ * proc_watchdog      | watchdog_user_enabled      | NMI_WATCHDOG_ENABLED |
+ *                    |                            | SOFT_WATCHDOG_ENABLED
+ * -------------------|----------------------------|--------------------------
+ * proc_nmi_watchdog  | nmi_watchdog_user_enabled  | NMI_WATCHDOG_ENABLED
+ * -------------------|----------------------------|--------------------------
+ * proc_soft_watchdog | soft_watchdog_user_enabled | SOFT_WATCHDOG_ENABLED
  */
 static int proc_watchdog_common(int which, struct ctl_table *table, int write,
 				void __user *buffer, size_t *lenp, loff_t *ppos)

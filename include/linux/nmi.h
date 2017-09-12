@@ -17,8 +17,8 @@ void lockup_detector_cleanup(void);
 bool is_hardlockup(void);
 
 extern int watchdog_user_enabled;
-extern int nmi_watchdog_enabled;
-extern int soft_watchdog_enabled;
+extern int nmi_watchdog_user_enabled;
+extern int soft_watchdog_user_enabled;
 extern int watchdog_thresh;
 extern unsigned long watchdog_enabled;
 
@@ -62,12 +62,12 @@ static inline void reset_hung_task_detector(void) { }
  * 'watchdog_enabled' variable. Each lockup detector has its dedicated bit -
  * bit 0 for the hard lockup detector and bit 1 for the soft lockup detector.
  *
- * 'watchdog_user_enabled', 'nmi_watchdog_enabled' and 'soft_watchdog_enabled'
- * are variables that are only used as an 'interface' between the parameters
- * in /proc/sys/kernel and the internal state bits in 'watchdog_enabled'. The
- * 'watchdog_thresh' variable is handled differently because its value is not
- * boolean, and the lockup detectors are 'suspended' while 'watchdog_thresh'
- * is equal zero.
+ * 'watchdog_user_enabled', 'nmi_watchdog_user_enabled' and
+ * 'soft_watchdog_user_enabled' are variables that are only used as an
+ * 'interface' between the parameters in /proc/sys/kernel and the internal
+ * state bits in 'watchdog_enabled'. The 'watchdog_thresh' variable is
+ * handled differently because its value is not boolean, and the lockup
+ * detectors are 'suspended' while 'watchdog_thresh' is equal zero.
  */
 #define NMI_WATCHDOG_ENABLED_BIT   0
 #define SOFT_WATCHDOG_ENABLED_BIT  1
