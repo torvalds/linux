@@ -72,6 +72,10 @@ struct si_sm_io {
 	void *addr_source_data;
 
 	int irq;
+	int (*irq_setup)(struct si_sm_io *io);
+	void *irq_handler_data;
+	void (*irq_cleanup)(struct si_sm_io *io);
+
 	u8 slave_addr;
 	enum si_type si_type;
 	struct device *dev;

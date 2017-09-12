@@ -175,8 +175,6 @@ struct smi_info {
 	struct si_sm_io io;
 	int (*io_setup)(struct smi_info *info);
 	void (*io_cleanup)(struct smi_info *info);
-	int (*irq_setup)(struct smi_info *info);
-	void (*irq_cleanup)(struct smi_info *info);
 	unsigned int io_size;
 
 	/*
@@ -1177,10 +1175,16 @@ do_mod_timer:
 	spin_unlock_irqrestore(&(smi_info->si_lock), flags);
 }
 
-static irqreturn_t si_irq_handler(int irq, void *data)
+irqreturn_t ipmi_si_irq_handler(int irq, void *data)
 {
 	struct smi_info *smi_info = data;
 	unsigned long   flags;
+
+	if (smi_info->io.si_type == SI_BT)
+		/* We need to clear the IRQ flag for the BT interface. */
+		smi_info->io.outputb(&smi_info->io, IPMI_BT_INTMASK_REG,
+				     IPMI_BT_INTMASK_CLEAR_IRQ_BIT
+				     | IPMI_BT_INTMASK_ENABLE_IRQ_BIT);
 
 	spin_lock_irqsave(&(smi_info->si_lock), flags);
 
@@ -1191,16 +1195,6 @@ static irqreturn_t si_irq_handler(int irq, void *data)
 	smi_event_handler(smi_info, 0);
 	spin_unlock_irqrestore(&(smi_info->si_lock), flags);
 	return IRQ_HANDLED;
-}
-
-static irqreturn_t si_bt_irq_handler(int irq, void *data)
-{
-	struct smi_info *smi_info = data;
-	/* We need to clear the IRQ flag for the BT interface. */
-	smi_info->io.outputb(&smi_info->io, IPMI_BT_INTMASK_REG,
-			     IPMI_BT_INTMASK_CLEAR_IRQ_BIT
-			     | IPMI_BT_INTMASK_ENABLE_IRQ_BIT);
-	return si_irq_handler(irq, data);
 }
 
 static int smi_start_processing(void       *send_info,
@@ -1216,8 +1210,10 @@ static int smi_start_processing(void       *send_info,
 	smi_mod_timer(new_smi, jiffies + SI_TIMEOUT_JIFFIES);
 
 	/* Try to claim any interrupts. */
-	if (new_smi->irq_setup)
-		new_smi->irq_setup(new_smi);
+	if (new_smi->io.irq_setup) {
+		new_smi->io.irq_handler_data = new_smi;
+		new_smi->io.irq_setup(&new_smi->io);
+	}
 
 	/*
 	 * Check if the user forcefully enabled the daemon.
@@ -1400,46 +1396,48 @@ MODULE_PARM_DESC(kipmid_max_busy_us,
 		 " sleeping. 0 (default) means to wait forever. Set to 100-500"
 		 " if kipmid is using up a lot of CPU time.");
 
-
-static void std_irq_cleanup(struct smi_info *info)
+void ipmi_irq_finish_setup(struct si_sm_io *io)
 {
-	if (info->io.si_type == SI_BT)
-		/* Disable the interrupt in the BT interface. */
-		info->io.outputb(&info->io, IPMI_BT_INTMASK_REG, 0);
-	free_irq(info->io.irq, info);
+	if (io->si_type == SI_BT)
+		/* Enable the interrupt in the BT interface. */
+		io->outputb(io, IPMI_BT_INTMASK_REG,
+			    IPMI_BT_INTMASK_ENABLE_IRQ_BIT);
 }
 
-static int std_irq_setup(struct smi_info *info)
+void ipmi_irq_start_cleanup(struct si_sm_io *io)
+{
+	if (io->si_type == SI_BT)
+		/* Disable the interrupt in the BT interface. */
+		io->outputb(io, IPMI_BT_INTMASK_REG, 0);
+}
+
+static void std_irq_cleanup(struct si_sm_io *io)
+{
+	ipmi_irq_start_cleanup(io);
+	free_irq(io->irq, io->irq_handler_data);
+}
+
+int ipmi_std_irq_setup(struct si_sm_io *io)
 {
 	int rv;
 
-	if (!info->io.irq)
+	if (!io->irq)
 		return 0;
 
-	if (info->io.si_type == SI_BT) {
-		rv = request_irq(info->io.irq,
-				 si_bt_irq_handler,
-				 IRQF_SHARED,
-				 DEVICE_NAME,
-				 info);
-		if (!rv)
-			/* Enable the interrupt in the BT interface. */
-			info->io.outputb(&info->io, IPMI_BT_INTMASK_REG,
-					 IPMI_BT_INTMASK_ENABLE_IRQ_BIT);
-	} else
-		rv = request_irq(info->io.irq,
-				 si_irq_handler,
-				 IRQF_SHARED,
-				 DEVICE_NAME,
-				 info);
+	rv = request_irq(io->irq,
+			 ipmi_si_irq_handler,
+			 IRQF_SHARED,
+			 DEVICE_NAME,
+			 io->irq_handler_data);
 	if (rv) {
-		dev_warn(info->io.dev, "%s unable to claim interrupt %d,"
+		dev_warn(io->dev, "%s unable to claim interrupt %d,"
 			 " running polled\n",
-			 DEVICE_NAME, info->io.irq);
-		info->io.irq = 0;
+			 DEVICE_NAME, io->irq);
+		io->irq = 0;
 	} else {
-		info->irq_cleanup = std_irq_cleanup;
-		dev_info(info->io.dev, "Using irq %d\n", info->io.irq);
+		io->irq_cleanup = std_irq_cleanup;
+		ipmi_irq_finish_setup(io);
+		dev_info(io->dev, "Using irq %d\n", io->irq);
 	}
 
 	return rv;
@@ -1920,7 +1918,7 @@ static int hotmod_handler(const char *val, struct kernel_param *kp)
 			info->io.regshift = regshift;
 			info->io.irq = irq;
 			if (info->io.irq)
-				info->irq_setup = std_irq_setup;
+				info->io.irq_setup = ipmi_std_irq_setup;
 			info->io.slave_addr = ipmb;
 
 			rv = ipmi_si_add_smi(info);
@@ -2014,7 +2012,7 @@ static int hardcode_find_bmc(void)
 		info->io.regshift = regshifts[i];
 		info->io.irq = irqs[i];
 		if (info->io.irq)
-			info->irq_setup = std_irq_setup;
+			info->io.irq_setup = ipmi_std_irq_setup;
 		info->io.slave_addr = slave_addrs[i];
 
 		if (!ipmi_si_add_smi(info)) {
@@ -2043,49 +2041,43 @@ static int acpi_failure;
 static u32 ipmi_acpi_gpe(acpi_handle gpe_device,
 	u32 gpe_number, void *context)
 {
-	struct smi_info *smi_info = context;
-	unsigned long   flags;
+	struct si_sm_io *io = context;
 
-	spin_lock_irqsave(&(smi_info->si_lock), flags);
-
-	smi_inc_stat(smi_info, interrupts);
-
-	debug_timestamp("ACPI_GPE");
-
-	smi_event_handler(smi_info, 0);
-	spin_unlock_irqrestore(&(smi_info->si_lock), flags);
-
+	ipmi_si_irq_handler(io->irq, io->irq_handler_data);
 	return ACPI_INTERRUPT_HANDLED;
 }
 
-static void acpi_gpe_irq_cleanup(struct smi_info *info)
+static void acpi_gpe_irq_cleanup(struct si_sm_io *io)
 {
-	if (!info->io.irq)
+	if (!io->irq)
 		return;
 
-	acpi_remove_gpe_handler(NULL, info->io.irq, &ipmi_acpi_gpe);
+	ipmi_irq_start_cleanup(io);
+	acpi_remove_gpe_handler(NULL, io->irq, &ipmi_acpi_gpe);
 }
 
-static int acpi_gpe_irq_setup(struct smi_info *info)
+static int acpi_gpe_irq_setup(struct si_sm_io *io)
 {
 	acpi_status status;
 
-	if (!info->io.irq)
+	if (!io->irq)
 		return 0;
 
 	status = acpi_install_gpe_handler(NULL,
-					  info->io.irq,
+					  io->irq,
 					  ACPI_GPE_LEVEL_TRIGGERED,
 					  &ipmi_acpi_gpe,
-					  info);
+					  io);
 	if (status != AE_OK) {
-		dev_warn(info->io.dev, "%s unable to claim ACPI GPE %d,"
-			 " running polled\n", DEVICE_NAME, info->io.irq);
-		info->io.irq = 0;
+		dev_warn(io->dev,
+			 "Unable to claim ACPI GPE %d, running polled\n",
+			 io->irq);
+		io->irq = 0;
 		return -EINVAL;
 	} else {
-		info->irq_cleanup = acpi_gpe_irq_cleanup;
-		dev_info(info->io.dev, "Using ACPI GPE %d\n", info->io.irq);
+		io->irq_cleanup = acpi_gpe_irq_cleanup;
+		ipmi_irq_finish_setup(io);
+		dev_info(io->dev, "Using ACPI GPE %d\n", io->irq);
 		return 0;
 	}
 }
@@ -2179,15 +2171,15 @@ static int try_init_spmi(struct SPMITable *spmi)
 	if (spmi->InterruptType & 1) {
 		/* We've got a GPE interrupt. */
 		info->io.irq = spmi->GPE;
-		info->irq_setup = acpi_gpe_irq_setup;
+		info->io.irq_setup = acpi_gpe_irq_setup;
 	} else if (spmi->InterruptType & 2) {
 		/* We've got an APIC/SAPIC interrupt. */
 		info->io.irq = spmi->GlobalSystemInterrupt;
-		info->irq_setup = std_irq_setup;
+		info->io.irq_setup = ipmi_std_irq_setup;
 	} else {
 		/* Use the default interrupt setting. */
 		info->io.irq = 0;
-		info->irq_setup = NULL;
+		info->io.irq_setup = NULL;
 	}
 
 	if (spmi->addr.bit_width) {
@@ -2342,7 +2334,7 @@ static int dmi_ipmi_probe(struct platform_device *pdev)
 
 	info->io.irq = platform_get_irq(pdev, 0);
 	if (info->io.irq > 0)
-		info->irq_setup = std_irq_setup;
+		info->io.irq_setup = ipmi_std_irq_setup;
 	else
 		info->io.irq = 0;
 
@@ -2479,7 +2471,7 @@ static int ipmi_pci_probe(struct pci_dev *pdev,
 
 	info->io.irq = pdev->irq;
 	if (info->io.irq)
-		info->irq_setup = std_irq_setup;
+		info->io.irq_setup = ipmi_std_irq_setup;
 
 	info->io.dev = &pdev->dev;
 	pci_set_drvdata(pdev, info);
@@ -2583,7 +2575,7 @@ static int of_ipmi_probe(struct platform_device *pdev)
 
 	info->io.si_type	= (enum si_type) match->data;
 	info->io.addr_source	= SI_DEVICETREE;
-	info->io.irq_setup	= std_irq_setup;
+	info->io.irq_setup	= ipmi_std_irq_setup;
 
 	if (resource.flags & IORESOURCE_IO) {
 		info->io_setup		= port_setup;
@@ -2715,13 +2707,13 @@ static int acpi_ipmi_probe(struct platform_device *pdev)
 	status = acpi_evaluate_integer(handle, "_GPE", NULL, &tmp);
 	if (ACPI_SUCCESS(status)) {
 		info->io.irq = tmp;
-		info->irq_setup = acpi_gpe_irq_setup;
+		info->io.irq_setup = acpi_gpe_irq_setup;
 	} else {
 		int irq = platform_get_irq(pdev, 0);
 
 		if (irq > 0) {
 			info->io.irq = irq;
-			info->irq_setup = std_irq_setup;
+			info->io.irq_setup = ipmi_std_irq_setup;
 		}
 	}
 
@@ -2809,7 +2801,7 @@ static int __init ipmi_parisc_probe(struct parisc_device *dev)
 	info->io.regspacing	= 1;
 	info->io.regshift	= 0;
 	info->io.irq		= 0; /* no interrupt */
-	info->irq_setup		= NULL;
+	info->io.irq_setup	= NULL;
 	info->io.dev		= &dev->dev;
 
 	dev_dbg(&dev->dev, "addr 0x%lx\n", info->io.addr_data);
@@ -3665,9 +3657,9 @@ out_err:
 		ipmi_unregister_smi(intf);
 	}
 
-	if (new_smi->irq_cleanup) {
-		new_smi->irq_cleanup(new_smi);
-		new_smi->irq_cleanup = NULL;
+	if (new_smi->io.irq_cleanup) {
+		new_smi->io.irq_cleanup(&new_smi->io);
+		new_smi->io.irq_cleanup = NULL;
 	}
 
 	/*
@@ -3842,8 +3834,8 @@ static void cleanup_one_si(struct smi_info *to_clean)
 	 * Make sure that interrupts, the timer and the thread are
 	 * stopped and will not run again.
 	 */
-	if (to_clean->irq_cleanup)
-		to_clean->irq_cleanup(to_clean);
+	if (to_clean->io.irq_cleanup)
+		to_clean->io.irq_cleanup(&to_clean->io);
 	wait_for_timer_and_thread(to_clean);
 
 	/*
