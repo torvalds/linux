@@ -56,6 +56,7 @@
 #include <asm/dasd.h>
 #include <asm/idals.h>
 #include <linux/bitops.h>
+#include <linux/blk-mq.h>
 
 /* DASD discipline magic */
 #define DASD_ECKD_MAGIC 0xC5C3D2C4
@@ -185,6 +186,7 @@ struct dasd_ccw_req {
 	char status;			/* status of this request */
 	short retries;			/* A retry counter */
 	unsigned long flags;        	/* flags of this request */
+	struct dasd_queue *dq;
 
 	/* ... and how */
 	unsigned long starttime;	/* jiffies time of request start */
@@ -247,6 +249,16 @@ struct dasd_ccw_req {
 #define DASD_CQR_SUPPRESS_FP	5	/* Suppress 'File Protected' error*/
 #define DASD_CQR_SUPPRESS_IL	6	/* Suppress 'Incorrect Length' error */
 #define DASD_CQR_SUPPRESS_CR	7	/* Suppress 'Command Reject' error */
+
+/*
+ * There is no reliable way to determine the number of available CPUs on
+ * LPAR but there is no big performance difference between 1 and the
+ * maximum CPU number.
+ * 64 is a good trade off performance wise.
+ */
+#define DASD_NR_HW_QUEUES 64
+#define DASD_MAX_LCU_DEV 256
+#define DASD_REQ_PER_DEV 4
 
 /* Signature for error recovery functions. */
 typedef struct dasd_ccw_req *(*dasd_erp_fn_t) (struct dasd_ccw_req *);
@@ -539,6 +551,7 @@ struct dasd_block {
 	struct gendisk *gdp;
 	struct request_queue *request_queue;
 	spinlock_t request_queue_lock;
+	struct blk_mq_tag_set tag_set;
 	struct block_device *bdev;
 	atomic_t open_count;
 
@@ -561,6 +574,10 @@ struct dasd_block {
 struct dasd_attention_data {
 	struct dasd_device *device;
 	__u8 lpum;
+};
+
+struct dasd_queue {
+	spinlock_t lock;
 };
 
 /* reasons why device (ccw_device_start) was stopped */
@@ -731,7 +748,7 @@ void dasd_free_device(struct dasd_device *);
 struct dasd_block *dasd_alloc_block(void);
 void dasd_free_block(struct dasd_block *);
 
-enum blk_eh_timer_return dasd_times_out(struct request *req);
+enum blk_eh_timer_return dasd_times_out(struct request *req, bool reserved);
 
 void dasd_enable_device(struct dasd_device *);
 void dasd_set_target_state(struct dasd_device *, int);
