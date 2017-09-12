@@ -122,10 +122,6 @@ struct connection {
 	struct connection *othercon;
 	struct work_struct rwork; /* Receive workqueue */
 	struct work_struct swork; /* Send workqueue */
-	void (*orig_error_report)(struct sock *);
-	void (*orig_data_ready)(struct sock *);
-	void (*orig_state_change)(struct sock *);
-	void (*orig_write_space)(struct sock *);
 };
 #define sock2con(x) ((struct connection *)(x)->sk_user_data)
 
@@ -147,6 +143,13 @@ struct dlm_node_addr {
 	int curr_addr_index;
 	struct sockaddr_storage *addr[DLM_MAX_ADDR_COUNT];
 };
+
+static struct listen_sock_callbacks {
+	void (*sk_error_report)(struct sock *);
+	void (*sk_data_ready)(struct sock *);
+	void (*sk_state_change)(struct sock *);
+	void (*sk_write_space)(struct sock *);
+} listen_sock;
 
 static LIST_HEAD(dlm_node_addrs);
 static DEFINE_SPINLOCK(dlm_node_addrs_spin);
@@ -477,7 +480,7 @@ static void lowcomms_error_report(struct sock *sk)
 	if (con == NULL)
 		goto out;
 
-	orig_report = con->orig_error_report;
+	orig_report = listen_sock.sk_error_report;
 	if (con->sock == NULL ||
 	    kernel_getpeername(con->sock, (struct sockaddr *)&saddr, &buflen)) {
 		printk_ratelimited(KERN_ERR "dlm: node %d: socket error "
@@ -514,22 +517,26 @@ out:
 }
 
 /* Note: sk_callback_lock must be locked before calling this function. */
-static void save_callbacks(struct connection *con, struct sock *sk)
+static void save_listen_callbacks(struct socket *sock)
 {
-	con->orig_data_ready = sk->sk_data_ready;
-	con->orig_state_change = sk->sk_state_change;
-	con->orig_write_space = sk->sk_write_space;
-	con->orig_error_report = sk->sk_error_report;
+	struct sock *sk = sock->sk;
+
+	listen_sock.sk_data_ready = sk->sk_data_ready;
+	listen_sock.sk_state_change = sk->sk_state_change;
+	listen_sock.sk_write_space = sk->sk_write_space;
+	listen_sock.sk_error_report = sk->sk_error_report;
 }
 
-static void restore_callbacks(struct connection *con, struct sock *sk)
+static void restore_callbacks(struct socket *sock)
 {
+	struct sock *sk = sock->sk;
+
 	write_lock_bh(&sk->sk_callback_lock);
 	sk->sk_user_data = NULL;
-	sk->sk_data_ready = con->orig_data_ready;
-	sk->sk_state_change = con->orig_state_change;
-	sk->sk_write_space = con->orig_write_space;
-	sk->sk_error_report = con->orig_error_report;
+	sk->sk_data_ready = listen_sock.sk_data_ready;
+	sk->sk_state_change = listen_sock.sk_state_change;
+	sk->sk_write_space = listen_sock.sk_write_space;
+	sk->sk_error_report = listen_sock.sk_error_report;
 	write_unlock_bh(&sk->sk_callback_lock);
 }
 
@@ -542,8 +549,6 @@ static void add_sock(struct socket *sock, struct connection *con, bool save_cb)
 	con->sock = sock;
 
 	sk->sk_user_data = con;
-	if (save_cb)
-		save_callbacks(con, sk);
 	/* Install a data_ready callback */
 	sk->sk_data_ready = lowcomms_data_ready;
 	sk->sk_write_space = lowcomms_write_space;
@@ -583,8 +588,7 @@ static void close_connection(struct connection *con, bool and_other,
 
 	mutex_lock(&con->sock_mutex);
 	if (con->sock) {
-		if (!test_bit(CF_IS_OTHERCON, &con->flags))
-			restore_callbacks(con, con->sock->sk);
+		restore_callbacks(con->sock);
 		sock_release(con->sock);
 		con->sock = NULL;
 	}
@@ -1226,7 +1230,7 @@ static struct socket *tcp_create_listen_sock(struct connection *con,
 		log_print("Failed to set SO_REUSEADDR on socket: %d", result);
 	}
 	sock->sk->sk_user_data = con;
-
+	save_listen_callbacks(sock);
 	con->rx_action = tcp_accept_from_sock;
 	con->connect_action = tcp_connect_to_sock;
 
@@ -1310,6 +1314,7 @@ static int sctp_listen_for_all(void)
 	write_lock_bh(&sock->sk->sk_callback_lock);
 	/* Init con struct */
 	sock->sk->sk_user_data = con;
+	save_listen_callbacks(sock);
 	con->sock = sock;
 	con->sock->sk->sk_data_ready = lowcomms_data_ready;
 	con->rx_action = sctp_accept_from_sock;
