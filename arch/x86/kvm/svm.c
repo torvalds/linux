@@ -1200,7 +1200,6 @@ static void avic_init_vmcb(struct vcpu_svm *svm)
 	vmcb->control.avic_physical_id = ppa & AVIC_HPA_MASK;
 	vmcb->control.avic_physical_id |= AVIC_MAX_PHYSICAL_ID_COUNT;
 	vmcb->control.int_ctl |= AVIC_ENABLE_MASK;
-	svm->vcpu.arch.apicv_active = true;
 }
 
 static void init_vmcb(struct vcpu_svm *svm)
@@ -1316,7 +1315,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 		set_intercept(svm, INTERCEPT_PAUSE);
 	}
 
-	if (avic)
+	if (kvm_vcpu_apicv_active(&svm->vcpu))
 		avic_init_vmcb(svm);
 
 	/*
@@ -1604,7 +1603,7 @@ static int avic_init_vcpu(struct vcpu_svm *svm)
 {
 	int ret;
 
-	if (!avic)
+	if (!kvm_vcpu_apicv_active(&svm->vcpu))
 		return 0;
 
 	ret = avic_init_backing_page(&svm->vcpu);
@@ -4409,7 +4408,7 @@ static void svm_set_virtual_x2apic_mode(struct kvm_vcpu *vcpu, bool set)
 
 static bool svm_get_enable_apicv(struct kvm_vcpu *vcpu)
 {
-	return avic;
+	return avic && irqchip_split(vcpu->kvm);
 }
 
 static void svm_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr)
@@ -4426,7 +4425,7 @@ static void svm_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb = svm->vmcb;
 
-	if (!avic)
+	if (!kvm_vcpu_apicv_active(&svm->vcpu))
 		return;
 
 	vmcb->control.int_ctl &= ~AVIC_ENABLE_MASK;
