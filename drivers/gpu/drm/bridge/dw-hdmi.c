@@ -2061,14 +2061,14 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 	/* HDMI Initialization Step B.1 */
 	hdmi_av_composer(hdmi, mode);
 
-	/* HDMI Initialization Step B.2 */
-	dw_hdmi_enable_video_path(hdmi);
-
-	/* HDMI Initializateion Step B.3 */
+	/* HDMI Initializateion Step B.2 */
 	ret = hdmi->phy.ops->init(hdmi, hdmi->phy.data, &hdmi->previous_mode);
 	if (ret)
 		return ret;
 	hdmi->phy.enabled = true;
+
+	/* HDMI Initialization Step B.3 */
+	dw_hdmi_enable_video_path(hdmi);
 
 	if (hdmi->sink_has_audio) {
 		dev_dbg(hdmi->dev, "sink has audio support\n");
