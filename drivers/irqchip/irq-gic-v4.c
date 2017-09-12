@@ -173,7 +173,9 @@ int its_map_vlpi(int irq, struct its_vlpi_map *map)
 {
 	struct its_cmd_info info = {
 		.cmd_type = MAP_VLPI,
-		.map      = map,
+		{
+			.map      = map,
+		},
 	};
 
 	/*
@@ -189,7 +191,9 @@ int its_get_vlpi(int irq, struct its_vlpi_map *map)
 {
 	struct its_cmd_info info = {
 		.cmd_type = GET_VLPI,
-		.map      = map,
+		{
+			.map      = map,
+		},
 	};
 
 	return irq_set_vcpu_affinity(irq, &info);
@@ -205,7 +209,9 @@ int its_prop_update_vlpi(int irq, u8 config, bool inv)
 {
 	struct its_cmd_info info = {
 		.cmd_type = inv ? PROP_UPDATE_AND_INV_VLPI : PROP_UPDATE_VLPI,
-		.config   = config,
+		{
+			.config   = config,
+		},
 	};
 
 	return irq_set_vcpu_affinity(irq, &info);
