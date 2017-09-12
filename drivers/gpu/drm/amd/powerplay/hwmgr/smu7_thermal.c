@@ -86,8 +86,7 @@ int smu7_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t *speed)
 	uint32_t crystal_clock_freq;
 
 	if (hwmgr->thermal_controller.fanInfo.bNoFan ||
-			(hwmgr->thermal_controller.fanInfo.
-				ucTachometerPulsesPerRevolution == 0))
+	    !hwmgr->thermal_controller.fanInfo.ucTachometerPulsesPerRevolution)
 		return -ENODEV;
 
 	tach_period = PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
