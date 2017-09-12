@@ -47,10 +47,10 @@ typedef u16 efi_char16_t;		/* UNICODE character */
 typedef u64 efi_physical_addr_t;
 typedef void *efi_handle_t;
 
-typedef uuid_le efi_guid_t;
+typedef guid_t efi_guid_t;
 
 #define EFI_GUID(a,b,c,d0,d1,d2,d3,d4,d5,d6,d7) \
-	UUID_LE(a, b, c, d0, d1, d2, d3, d4, d5, d6, d7)
+	GUID_INIT(a, b, c, d0, d1, d2, d3, d4, d5, d6, d7)
 
 /*
  * Generic EFI table header
