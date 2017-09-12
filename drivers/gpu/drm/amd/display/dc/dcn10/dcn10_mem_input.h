@@ -120,6 +120,8 @@
 	SR(DCHUBBUB_SDPIF_FB_BASE),\
 	SR(DCHUBBUB_SDPIF_FB_OFFSET)
 
+
+
 struct dcn_mi_registers {
 	uint32_t DCHUBP_CNTL;
 	uint32_t HUBPREQ_DEBUG_DB;
