@@ -411,17 +411,23 @@ int dlm_lowcomms_addr(int nodeid, struct sockaddr_storage *addr, int len)
 /* Data available on socket or listen socket received a connect */
 static void lowcomms_data_ready(struct sock *sk)
 {
-	struct connection *con = sock2con(sk);
+	struct connection *con;
+
+	read_lock_bh(&sk->sk_callback_lock);
+	con = sock2con(sk);
 	if (con && !test_and_set_bit(CF_READ_PENDING, &con->flags))
 		queue_work(recv_workqueue, &con->rwork);
+	read_unlock_bh(&sk->sk_callback_lock);
 }
 
 static void lowcomms_write_space(struct sock *sk)
 {
-	struct connection *con = sock2con(sk);
+	struct connection *con;
 
+	read_lock_bh(&sk->sk_callback_lock);
+	con = sock2con(sk);
 	if (!con)
-		return;
+		goto out;
 
 	clear_bit(SOCK_NOSPACE, &con->sock->flags);
 
@@ -431,6 +437,8 @@ static void lowcomms_write_space(struct sock *sk)
 	}
 
 	queue_work(send_workqueue, &con->swork);
+out:
+	read_unlock_bh(&sk->sk_callback_lock);
 }
 
 static inline void lowcomms_connect_sock(struct connection *con)
@@ -797,8 +805,6 @@ static int tcp_accept_from_sock(struct connection *con)
 		mutex_lock_nested(&othercon->sock_mutex, 2);
 		if (!othercon->sock) {
 			newcon->othercon = othercon;
-			othercon->sock = newsock;
-			newsock->sk->sk_user_data = othercon;
 			add_sock(newsock, othercon);
 			addcon = othercon;
 			mutex_unlock(&othercon->sock_mutex);
@@ -812,7 +818,6 @@ static int tcp_accept_from_sock(struct connection *con)
 		}
 	}
 	else {
-		newsock->sk->sk_user_data = newcon;
 		newcon->rx_action = receive_from_sock;
 		/* accept copies the sk after we've saved the callbacks, so we
 		   don't want to save them a second time or comm errors will
@@ -918,8 +923,6 @@ static int sctp_accept_from_sock(struct connection *con)
 		mutex_lock_nested(&othercon->sock_mutex, 2);
 		if (!othercon->sock) {
 			newcon->othercon = othercon;
-			othercon->sock = newsock;
-			newsock->sk->sk_user_data = othercon;
 			add_sock(newsock, othercon);
 			addcon = othercon;
 			mutex_unlock(&othercon->sock_mutex);
@@ -931,7 +934,6 @@ static int sctp_accept_from_sock(struct connection *con)
 			goto accept_err;
 		}
 	} else {
-		newsock->sk->sk_user_data = newcon;
 		newcon->rx_action = receive_from_sock;
 		add_sock(newsock, newcon);
 		addcon = newcon;
@@ -1058,7 +1060,6 @@ static void sctp_connect_to_sock(struct connection *con)
 	if (result < 0)
 		goto socket_err;
 
-	sock->sk->sk_user_data = con;
 	con->rx_action = receive_from_sock;
 	con->connect_action = sctp_connect_to_sock;
 	add_sock(sock, con);
@@ -1143,7 +1144,6 @@ static void tcp_connect_to_sock(struct connection *con)
 		goto out_err;
 	}
 
-	sock->sk->sk_user_data = con;
 	con->rx_action = receive_from_sock;
 	con->connect_action = tcp_connect_to_sock;
 	add_sock(sock, con);
@@ -1233,10 +1233,12 @@ static struct socket *tcp_create_listen_sock(struct connection *con,
 	if (result < 0) {
 		log_print("Failed to set SO_REUSEADDR on socket: %d", result);
 	}
+	write_lock_bh(&sock->sk->sk_callback_lock);
 	sock->sk->sk_user_data = con;
 	save_listen_callbacks(sock);
 	con->rx_action = tcp_accept_from_sock;
 	con->connect_action = tcp_connect_to_sock;
+	write_unlock_bh(&sock->sk->sk_callback_lock);
 
 	/* Bind to our port */
 	make_sockaddr(saddr, dlm_config.ci_tcp_port, &addr_len);
@@ -1639,8 +1641,11 @@ static void _stop_conn(struct connection *con, bool and_other)
 	set_bit(CF_CLOSE, &con->flags);
 	set_bit(CF_READ_PENDING, &con->flags);
 	set_bit(CF_WRITE_PENDING, &con->flags);
-	if (con->sock && con->sock->sk)
+	if (con->sock && con->sock->sk) {
+		write_lock_bh(&con->sock->sk->sk_callback_lock);
 		con->sock->sk->sk_user_data = NULL;
+		write_unlock_bh(&con->sock->sk->sk_callback_lock);
+	}
 	if (con->othercon && and_other)
 		_stop_conn(con->othercon, false);
 	mutex_unlock(&con->sock_mutex);
