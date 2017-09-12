@@ -150,13 +150,11 @@ int smu7_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 {
 	int result;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_ODFuzzyFanControlSupport)) {
+	if (PP_CAP(PHM_PlatformCaps_ODFuzzyFanControlSupport)) {
 		cgs_write_register(hwmgr->device, mmSMC_MSG_ARG_0, FAN_CONTROL_FUZZY);
 		result = smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_StartFanControl);
 
-		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_FanSpeedInTableIsRPM))
+		if (PP_CAP(PHM_PlatformCaps_FanSpeedInTableIsRPM))
 			hwmgr->hwmgr_func->set_max_fan_rpm_output(hwmgr,
 					hwmgr->thermal_controller.
 					advanceFanControlParameters.usMaxFanRPM);
@@ -207,8 +205,7 @@ int smu7_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
 	if (speed > 100)
 		speed = 100;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_MicrocodeFanControl))
+	if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
 		smu7_fan_ctrl_stop_smc_fan_control(hwmgr);
 
 	duty100 = PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
@@ -239,8 +236,7 @@ int smu7_fan_ctrl_reset_fan_speed_to_default(struct pp_hwmgr *hwmgr)
 	if (hwmgr->thermal_controller.fanInfo.bNoFan)
 		return 0;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_MicrocodeFanControl)) {
+	if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl)) {
 		result = smu7_fan_ctrl_set_static_mode(hwmgr, FDO_PWM_MODE_STATIC);
 		if (!result)
 			result = smu7_fan_ctrl_start_smc_fan_control(hwmgr);
@@ -268,8 +264,7 @@ int smu7_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed)
 			(speed > hwmgr->thermal_controller.fanInfo.ulMaxRPM))
 		return 0;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_MicrocodeFanControl))
+	if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
 		smu7_fan_ctrl_stop_smc_fan_control(hwmgr);
 
 	crystal_clock_freq = smu7_get_xclk(hwmgr);
@@ -429,8 +424,7 @@ static int tf_smu7_thermal_start_smc_fan_control(struct pp_hwmgr *hwmgr,
  * this function was included in the table.
  * Make sure that we still think controlling the fan is OK.
 */
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_MicrocodeFanControl)) {
+	if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl)) {
 		smu7_fan_ctrl_start_smc_fan_control(hwmgr);
 		smu7_fan_ctrl_set_static_mode(hwmgr, FDO_PWM_MODE_STATIC);
 	}
