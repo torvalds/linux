@@ -55,7 +55,7 @@ unsigned int __read_mostly hardlockup_panic =
  * kernel command line parameters are parsed, because otherwise it is not
  * possible to override this in hardlockup_panic_setup().
  */
-void hardlockup_detector_disable(void)
+void __init hardlockup_detector_disable(void)
 {
 	watchdog_enabled &= ~NMI_WATCHDOG_ENABLED;
 }
