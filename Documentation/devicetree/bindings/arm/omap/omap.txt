@@ -80,6 +80,9 @@ SoCs:
 - OMAP5432
   compatible = "ti,omap5432", "ti,omap5"
 
+- DRA762
+  compatible = "ti,dra762", "ti,dra7"
+
 - DRA742
   compatible = "ti,dra742", "ti,dra74", "ti,dra7"
 
@@ -154,6 +157,9 @@ Boards:
 - AM335X phyCORE-AM335x: Development kit
   compatible = "phytec,am335x-pcm-953", "phytec,am335x-phycore-som", "ti,am33xx"
 
+- AM335X UC-8100-ME-T: Communication-centric industrial computing platform
+  compatible = "moxa,uc-8100-me-t", "ti,am33xx";
+
 - OMAP5 EVM : Evaluation Module
   compatible = "ti,omap5-evm", "ti,omap5"
 
@@ -183,6 +189,9 @@ Boards:
 
 - AM5718 IDK
   compatible = "ti,am5718-idk", "ti,am5718", "ti,dra7"
+
+- DRA762 EVM:  Software Development Board for DRA762
+  compatible = "ti,dra76-evm", "ti,dra762", "ti,dra7"
 
 - DRA742 EVM:  Software Development Board for DRA742
   compatible = "ti,dra7-evm", "ti,dra742", "ti,dra74", "ti,dra7"

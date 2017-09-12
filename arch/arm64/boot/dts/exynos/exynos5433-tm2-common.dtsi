@@ -307,20 +307,6 @@
 	samsung,pll-clock-frequency = <24000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&te_irq>;
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@1 {
-			reg = <1>;
-
-			dsi_out: endpoint {
-				samsung,burst-clock-frequency = <512000000>;
-				samsung,esc-clock-frequency = <16000000>;
-			};
-		};
-	};
 };
 
 &hdmi {
@@ -843,7 +829,6 @@
 
 &mshc_0 {
 	status = "okay";
-	num-slots = <1>;
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
 	cap-mmc-highspeed;
@@ -865,7 +850,6 @@
 
 &mshc_2 {
 	status = "okay";
-	num-slots = <1>;
 	cap-sd-highspeed;
 	disable-wp;
 	cd-gpios = <&gpa2 4 GPIO_ACTIVE_HIGH>;
@@ -1210,8 +1194,9 @@
 	status = "okay";
 };
 
-&usbdrd_dwc3_0 {
+&usbdrd_dwc3 {
 	dr_mode = "otg";
+	extcon = <&muic>;
 };
 
 &usbdrd30_phy {

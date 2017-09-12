@@ -12,7 +12,7 @@
  * The D-chip (digital chip) is the same as the PXs2 die.
  * Reuse the PXs2 device tree with some properties overridden.
  */
-/include/ "uniphier-pxs2.dtsi"
+#include "uniphier-pxs2.dtsi"
 
 / {
 	compatible = "socionext,uniphier-ld6b";

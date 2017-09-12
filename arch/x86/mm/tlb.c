@@ -241,7 +241,7 @@ void initialize_tlbstate_and_flush(void)
 	 * doesn't work like other CR4 bits because it can only be set from
 	 * long mode.)
 	 */
-	WARN_ON(boot_cpu_has(X86_CR4_PCIDE) &&
+	WARN_ON(boot_cpu_has(X86_FEATURE_PCID) &&
 		!(cr4_read_shadow() & X86_CR4_PCIDE));
 
 	/* Force ASID 0 and force a TLB flush. */

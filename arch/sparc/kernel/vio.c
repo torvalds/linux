@@ -246,6 +246,7 @@ u64 vio_vdev_node(struct mdesc_handle *hp, struct vio_dev *vdev)
 
 	return node;
 }
+EXPORT_SYMBOL(vio_vdev_node);
 
 static void vio_fill_channel_info(struct mdesc_handle *hp, u64 mp,
 				  struct vio_dev *vdev)
