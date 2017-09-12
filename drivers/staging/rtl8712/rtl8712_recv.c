@@ -883,10 +883,10 @@ static void query_rx_phy_status(struct _adapter *padapter,
 	 * from 0~100. It is assigned to the BSS List in
 	 * GetValueFromBeaconOrProbeRsp().
 	 */
-	if (bcck_rate)
+	if (bcck_rate) {
 		prframe->u.hdr.attrib.signal_strength =
 			 (u8)r8712_signal_scale_mapping(pwdb_all);
-	else {
+	} else {
 		if (rf_rx_num != 0)
 			prframe->u.hdr.attrib.signal_strength =
 				 (u8)(r8712_signal_scale_mapping(total_rssi /=
