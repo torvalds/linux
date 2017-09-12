@@ -572,5 +572,4 @@ void pp_smu7_thermal_fini(struct pp_hwmgr *hwmgr)
 {
 	phm_destroy_table(hwmgr, &(hwmgr->set_temperature_range));
 	phm_destroy_table(hwmgr, &(hwmgr->start_thermal_controller));
-	return;
 }
