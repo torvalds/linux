@@ -41,7 +41,6 @@ unsigned long __read_mostly watchdog_enabled = SOFT_WATCHDOG_ENABLED;
 #endif
 
 #ifdef CONFIG_HARDLOCKUP_DETECTOR
-/* boot commands */
 /*
  * Should we panic when a soft-lockup or hard-lockup occurs:
  */
@@ -74,19 +73,21 @@ static int __init hardlockup_panic_setup(char *str)
 }
 __setup("nmi_watchdog=", hardlockup_panic_setup);
 
-#endif
+# ifdef CONFIG_SMP
+int __read_mostly sysctl_hardlockup_all_cpu_backtrace;
 
-#ifdef CONFIG_SOFTLOCKUP_DETECTOR
-int __read_mostly soft_watchdog_enabled;
-#endif
+static int __init hardlockup_all_cpu_backtrace_setup(char *str)
+{
+	sysctl_hardlockup_all_cpu_backtrace = !!simple_strtol(str, NULL, 0);
+	return 1;
+}
+__setup("hardlockup_all_cpu_backtrace=", hardlockup_all_cpu_backtrace_setup);
+# endif /* CONFIG_SMP */
+#endif /* CONFIG_HARDLOCKUP_DETECTOR */
 
 int __read_mostly watchdog_user_enabled;
 int __read_mostly watchdog_thresh = 10;
 
-#ifdef CONFIG_SMP
-int __read_mostly sysctl_softlockup_all_cpu_backtrace;
-int __read_mostly sysctl_hardlockup_all_cpu_backtrace;
-#endif
 struct cpumask watchdog_cpumask __read_mostly;
 unsigned long *watchdog_cpumask_bits = cpumask_bits(&watchdog_cpumask);
 
@@ -173,22 +174,14 @@ static int __init nosoftlockup_setup(char *str)
 __setup("nosoftlockup", nosoftlockup_setup);
 
 #ifdef CONFIG_SMP
+int __read_mostly sysctl_softlockup_all_cpu_backtrace;
+
 static int __init softlockup_all_cpu_backtrace_setup(char *str)
 {
-	sysctl_softlockup_all_cpu_backtrace =
-		!!simple_strtol(str, NULL, 0);
+	sysctl_softlockup_all_cpu_backtrace = !!simple_strtol(str, NULL, 0);
 	return 1;
 }
 __setup("softlockup_all_cpu_backtrace=", softlockup_all_cpu_backtrace_setup);
-#ifdef CONFIG_HARDLOCKUP_DETECTOR
-static int __init hardlockup_all_cpu_backtrace_setup(char *str)
-{
-	sysctl_hardlockup_all_cpu_backtrace =
-		!!simple_strtol(str, NULL, 0);
-	return 1;
-}
-__setup("hardlockup_all_cpu_backtrace=", hardlockup_all_cpu_backtrace_setup);
-#endif
 #endif
 
 static void __lockup_detector_cleanup(void);
