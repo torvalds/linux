@@ -44,6 +44,7 @@ int __read_mostly watchdog_user_enabled = 1;
 int __read_mostly nmi_watchdog_user_enabled = NMI_WATCHDOG_DEFAULT;
 int __read_mostly soft_watchdog_user_enabled = 1;
 int __read_mostly watchdog_thresh = 10;
+int __read_mostly nmi_watchdog_available;
 
 struct cpumask watchdog_allowed_mask __read_mostly;
 static bool softlockup_threads_initialized __read_mostly;
@@ -114,6 +115,12 @@ void __weak watchdog_nmi_disable(unsigned int cpu)
 	hardlockup_detector_perf_disable();
 }
 
+/* Return 0, if a NMI watchdog is available. Error code otherwise */
+int __weak __init watchdog_nmi_probe(void)
+{
+	return hardlockup_detector_perf_init();
+}
+
 /**
  * watchdog_nmi_reconfigure - Optional function to reconfigure NMI watchdogs
  * @run:	If false stop the watchdogs on all enabled CPUs
@@ -145,7 +152,7 @@ static void lockup_detector_update_enable(void)
 	watchdog_enabled = 0;
 	if (!watchdog_user_enabled)
 		return;
-	if (nmi_watchdog_user_enabled)
+	if (nmi_watchdog_available && nmi_watchdog_user_enabled)
 		watchdog_enabled |= NMI_WATCHDOG_ENABLED;
 	if (soft_watchdog_user_enabled)
 		watchdog_enabled |= SOFT_WATCHDOG_ENABLED;
@@ -692,6 +699,8 @@ int proc_watchdog(struct ctl_table *table, int write,
 int proc_nmi_watchdog(struct ctl_table *table, int write,
 		      void __user *buffer, size_t *lenp, loff_t *ppos)
 {
+	if (!nmi_watchdog_available && write)
+		return -ENOTSUPP;
 	return proc_watchdog_common(NMI_WATCHDOG_ENABLED,
 				    table, write, buffer, lenp, ppos);
 }
@@ -764,5 +773,7 @@ void __init lockup_detector_init(void)
 	cpumask_copy(&watchdog_cpumask, cpu_possible_mask);
 #endif
 
+	if (!watchdog_nmi_probe())
+		nmi_watchdog_available = true;
 	softlockup_init_threads();
 }
