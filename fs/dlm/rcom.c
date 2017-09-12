@@ -155,6 +155,7 @@ int dlm_rcom_status(struct dlm_ls *ls, int nodeid, uint32_t status_flags)
 		goto out;
 	}
 
+retry:
 	error = create_rcom(ls, nodeid, DLM_RCOM_STATUS,
 			    sizeof(struct rcom_status), &rc, &mh);
 	if (error)
@@ -169,6 +170,8 @@ int dlm_rcom_status(struct dlm_ls *ls, int nodeid, uint32_t status_flags)
 
 	error = dlm_wait_function(ls, &rcom_response);
 	disallow_sync_reply(ls);
+	if (error == -ETIMEDOUT)
+		goto retry;
 	if (error)
 		goto out;
 
@@ -276,6 +279,7 @@ int dlm_rcom_names(struct dlm_ls *ls, int nodeid, char *last_name, int last_len)
 
 	ls->ls_recover_nodeid = nodeid;
 
+retry:
 	error = create_rcom(ls, nodeid, DLM_RCOM_NAMES, last_len, &rc, &mh);
 	if (error)
 		goto out;
@@ -288,6 +292,8 @@ int dlm_rcom_names(struct dlm_ls *ls, int nodeid, char *last_name, int last_len)
 
 	error = dlm_wait_function(ls, &rcom_response);
 	disallow_sync_reply(ls);
+	if (error == -ETIMEDOUT)
+		goto retry;
  out:
 	return error;
 }
