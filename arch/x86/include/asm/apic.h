@@ -523,13 +523,6 @@ extern void default_setup_apic_routing(void);
 
 extern struct apic apic_noop;
 
-#ifdef CONFIG_X86_32
-static inline int noop_x86_32_early_logical_apicid(int cpu)
-{
-	return BAD_APICID;
-}
-#endif
-
 extern int flat_cpu_mask_to_apicid(const struct cpumask *cpumask,
 				   struct irq_data *irqdata,
 				   unsigned int *apicid);

@@ -108,6 +108,13 @@ static void noop_apic_write(u32 reg, u32 v)
 	WARN_ON_ONCE(boot_cpu_has(X86_FEATURE_APIC) && !disable_apic);
 }
 
+#ifdef CONFIG_X86_32
+static int noop_x86_32_early_logical_apicid(int cpu)
+{
+	return BAD_APICID;
+}
+#endif
+
 struct apic apic_noop __ro_after_init = {
 	.name				= "noop",
 	.probe				= noop_probe,
