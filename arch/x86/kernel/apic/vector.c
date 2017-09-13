@@ -175,7 +175,7 @@ next:
 		if (unlikely(current_vector == vector))
 			goto next_cpu;
 
-		if (test_bit(vector, used_vectors))
+		if (test_bit(vector, system_vectors))
 			goto next;
 
 		for_each_cpu(new_cpu, vector_searchmask) {

@@ -134,7 +134,7 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	seq_puts(p, "  Machine check polls\n");
 #endif
 #if IS_ENABLED(CONFIG_HYPERV) || defined(CONFIG_XEN)
-	if (test_bit(HYPERVISOR_CALLBACK_VECTOR, used_vectors)) {
+	if (test_bit(HYPERVISOR_CALLBACK_VECTOR, system_vectors)) {
 		seq_printf(p, "%*s: ", prec, "HYP");
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ",
@@ -416,7 +416,7 @@ int check_irq_vectors_for_cpu_disable(void)
 		 */
 		for (vector = FIRST_EXTERNAL_VECTOR;
 		     vector < FIRST_SYSTEM_VECTOR; vector++) {
-			if (!test_bit(vector, used_vectors) &&
+			if (!test_bit(vector, system_vectors) &&
 			    IS_ERR_OR_NULL(per_cpu(vector_irq, cpu)[vector])) {
 				if (++count == this_count)
 					return 0;
