@@ -180,7 +180,7 @@ static int tcf_del_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
 	idr_for_each_entry_ext(idr, p, id) {
 		ret = __tcf_idr_release(p, false, true);
 		if (ret == ACT_P_DELETED) {
-			module_put(p->ops->owner);
+			module_put(ops->owner);
 			n_i++;
 		} else if (ret < 0) {
 			goto nla_put_failure;
@@ -514,13 +514,15 @@ EXPORT_SYMBOL(tcf_action_exec);
 
 int tcf_action_destroy(struct list_head *actions, int bind)
 {
+	const struct tc_action_ops *ops;
 	struct tc_action *a, *tmp;
 	int ret = 0;
 
 	list_for_each_entry_safe(a, tmp, actions, list) {
+		ops = a->ops;
 		ret = __tcf_idr_release(a, bind, true);
 		if (ret == ACT_P_DELETED)
-			module_put(a->ops->owner);
+			module_put(ops->owner);
 		else if (ret < 0)
 			return ret;
 	}
