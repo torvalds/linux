@@ -258,17 +258,6 @@ static int assign_irq_vector_any_locked(struct irq_data *irqd)
 	return assign_vector_locked(irqd, cpu_online_mask);
 }
 
-static int assign_irq_vector_any(struct irq_data *irqd)
-{
-	unsigned long flags;
-	int ret;
-
-	raw_spin_lock_irqsave(&vector_lock, flags);
-	ret = assign_irq_vector_any_locked(irqd);
-	raw_spin_unlock_irqrestore(&vector_lock, flags);
-	return ret;
-}
-
 static int
 assign_irq_vector_policy(struct irq_data *irqd, struct irq_alloc_info *info)
 {
@@ -276,10 +265,10 @@ assign_irq_vector_policy(struct irq_data *irqd, struct irq_alloc_info *info)
 		return reserve_managed_vector(irqd);
 	if (info->mask)
 		return assign_irq_vector(irqd, info->mask);
-	if (info->type != X86_IRQ_ALLOC_TYPE_MSI &&
-	    info->type != X86_IRQ_ALLOC_TYPE_MSIX)
-		return assign_irq_vector_any(irqd);
-	/* For MSI(X) make only a global reservation with no guarantee */
+	/*
+	 * Make only a global reservation with no guarantee. A real vector
+	 * is associated at activation time.
+	 */
 	return reserve_irq_vector(irqd);
 }
 
@@ -456,13 +445,39 @@ static void x86_vector_free_irqs(struct irq_domain *domain,
 	}
 }
 
+static bool vector_configure_legacy(unsigned int virq, struct irq_data *irqd,
+				    struct apic_chip_data *apicd)
+{
+	unsigned long flags;
+	bool realloc = false;
+
+	apicd->vector = ISA_IRQ_VECTOR(virq);
+	apicd->cpu = 0;
+
+	raw_spin_lock_irqsave(&vector_lock, flags);
+	/*
+	 * If the interrupt is activated, then it must stay at this vector
+	 * position. That's usually the timer interrupt (0).
+	 */
+	if (irqd_is_activated(irqd)) {
+		trace_vector_setup(virq, true, 0);
+		apic_update_irq_cfg(irqd, apicd->vector, apicd->cpu);
+	} else {
+		/* Release the vector */
+		apicd->can_reserve = true;
+		clear_irq_vector(irqd);
+		realloc = true;
+	}
+	raw_spin_unlock_irqrestore(&vector_lock, flags);
+	return realloc;
+}
+
 static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 				 unsigned int nr_irqs, void *arg)
 {
 	struct irq_alloc_info *info = arg;
 	struct apic_chip_data *apicd;
 	struct irq_data *irqd;
-	unsigned long flags;
 	int i, err, node;
 
 	if (disable_apic)
@@ -496,13 +511,8 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 		 * config.
 		 */
 		if (info->flags & X86_IRQ_ALLOC_LEGACY) {
-			apicd->vector = ISA_IRQ_VECTOR(virq + i);
-			apicd->cpu = 0;
-			trace_vector_setup(virq + i, true, 0);
-			raw_spin_lock_irqsave(&vector_lock, flags);
-			apic_update_irq_cfg(irqd, apicd->vector, apicd->cpu);
-			raw_spin_unlock_irqrestore(&vector_lock, flags);
-			continue;
+			if (!vector_configure_legacy(virq + i, irqd, apicd))
+				continue;
 		}
 
 		err = assign_irq_vector_policy(irqd, info);
