@@ -1013,6 +1013,7 @@ static int alloc_isa_irq_from_domain(struct irq_domain *domain,
 					  info->ioapic_pin))
 			return -ENOMEM;
 	} else {
+		info->flags |= X86_IRQ_ALLOC_LEGACY;
 		irq = __irq_domain_alloc_irqs(domain, irq, 1, node, info, true,
 					      NULL);
 		if (irq >= 0) {
