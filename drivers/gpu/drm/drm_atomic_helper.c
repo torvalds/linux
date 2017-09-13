@@ -1262,12 +1262,12 @@ EXPORT_SYMBOL(drm_atomic_helper_wait_for_vblanks);
 void drm_atomic_helper_wait_for_flip_done(struct drm_device *dev,
 					  struct drm_atomic_state *old_state)
 {
-	struct drm_crtc_state *unused;
+	struct drm_crtc_state *new_crtc_state;
 	struct drm_crtc *crtc;
 	int i;
 
-	for_each_new_crtc_in_state(old_state, crtc, unused, i) {
-		struct drm_crtc_commit *commit = old_state->crtcs[i].commit;
+	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i) {
+		struct drm_crtc_commit *commit = new_crtc_state->commit;
 		int ret;
 
 		if (!commit)
@@ -1388,35 +1388,31 @@ int drm_atomic_helper_async_check(struct drm_device *dev,
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
-	struct drm_crtc_commit *commit;
-	struct drm_plane *__plane, *plane = NULL;
-	struct drm_plane_state *__plane_state, *plane_state = NULL;
+	struct drm_plane *plane;
+	struct drm_plane_state *old_plane_state, *new_plane_state;
 	const struct drm_plane_helper_funcs *funcs;
-	int i, j, n_planes = 0;
+	int i, n_planes = 0;
 
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		if (drm_atomic_crtc_needs_modeset(crtc_state))
 			return -EINVAL;
 	}
 
-	for_each_new_plane_in_state(state, __plane, __plane_state, i) {
+	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i)
 		n_planes++;
-		plane = __plane;
-		plane_state = __plane_state;
-	}
 
 	/* FIXME: we support only single plane updates for now */
-	if (!plane || n_planes != 1)
+	if (n_planes != 1)
 		return -EINVAL;
 
-	if (!plane_state->crtc)
+	if (!new_plane_state->crtc)
 		return -EINVAL;
 
 	funcs = plane->helper_private;
 	if (!funcs->atomic_async_update)
 		return -EINVAL;
 
-	if (plane_state->fence)
+	if (new_plane_state->fence)
 		return -EINVAL;
 
 	/*
@@ -1424,31 +1420,11 @@ int drm_atomic_helper_async_check(struct drm_device *dev,
 	 * the plane.  This prevents our async update's changes from getting
 	 * overridden by a previous synchronous update's state.
 	 */
-	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
-		if (plane->crtc != crtc)
-			continue;
+	if (old_plane_state->commit &&
+	    !try_wait_for_completion(&old_plane_state->commit->hw_done))
+		return -EBUSY;
 
-		spin_lock(&crtc->commit_lock);
-		commit = list_first_entry_or_null(&crtc->commit_list,
-						  struct drm_crtc_commit,
-						  commit_entry);
-		if (!commit) {
-			spin_unlock(&crtc->commit_lock);
-			continue;
-		}
-		spin_unlock(&crtc->commit_lock);
-
-		if (!crtc->state->state)
-			continue;
-
-		for_each_plane_in_state(crtc->state->state, __plane,
-					__plane_state, j) {
-			if (__plane == plane)
-				return -EINVAL;
-		}
-	}
-
-	return funcs->atomic_async_check(plane, plane_state);
+	return funcs->atomic_async_check(plane, new_plane_state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_async_check);
 
@@ -1633,8 +1609,7 @@ static int stall_checks(struct drm_crtc *crtc, bool nonblock)
 				return -EBUSY;
 			}
 		} else if (i == 1) {
-			stall_commit = commit;
-			drm_crtc_commit_get(stall_commit);
+			stall_commit = drm_crtc_commit_get(commit);
 			break;
 		}
 
@@ -1666,6 +1641,38 @@ static void release_crtc_commit(struct completion *completion)
 						      flip_done);
 
 	drm_crtc_commit_put(commit);
+}
+
+static void init_commit(struct drm_crtc_commit *commit, struct drm_crtc *crtc)
+{
+	init_completion(&commit->flip_done);
+	init_completion(&commit->hw_done);
+	init_completion(&commit->cleanup_done);
+	INIT_LIST_HEAD(&commit->commit_entry);
+	kref_init(&commit->ref);
+	commit->crtc = crtc;
+}
+
+static struct drm_crtc_commit *
+crtc_or_fake_commit(struct drm_atomic_state *state, struct drm_crtc *crtc)
+{
+	if (crtc) {
+		struct drm_crtc_state *new_crtc_state;
+
+		new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+
+		return new_crtc_state->commit;
+	}
+
+	if (!state->fake_commit) {
+		state->fake_commit = kzalloc(sizeof(*state->fake_commit), GFP_KERNEL);
+		if (!state->fake_commit)
+			return NULL;
+
+		init_commit(state->fake_commit, NULL);
+	}
+
+	return state->fake_commit;
 }
 
 /**
@@ -1716,6 +1723,10 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	struct drm_connector *conn;
+	struct drm_connector_state *old_conn_state, *new_conn_state;
+	struct drm_plane *plane;
+	struct drm_plane_state *old_plane_state, *new_plane_state;
 	struct drm_crtc_commit *commit;
 	int i, ret;
 
@@ -1724,14 +1735,9 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 		if (!commit)
 			return -ENOMEM;
 
-		init_completion(&commit->flip_done);
-		init_completion(&commit->hw_done);
-		init_completion(&commit->cleanup_done);
-		INIT_LIST_HEAD(&commit->commit_entry);
-		kref_init(&commit->ref);
-		commit->crtc = crtc;
+		init_commit(commit, crtc);
 
-		state->crtcs[i].commit = commit;
+		new_crtc_state->commit = commit;
 
 		ret = stall_checks(crtc, nonblock);
 		if (ret)
@@ -1765,25 +1771,46 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 		drm_crtc_commit_get(commit);
 	}
 
+	for_each_oldnew_connector_in_state(state, conn, old_conn_state, new_conn_state, i) {
+		/* commit tracked through new_crtc_state->commit, no need to do it explicitly */
+		if (new_conn_state->crtc)
+			continue;
+
+		/* Userspace is not allowed to get ahead of the previous
+		 * commit with nonblocking ones. */
+		if (nonblock && old_conn_state->commit &&
+		    !try_wait_for_completion(&old_conn_state->commit->flip_done))
+			return -EBUSY;
+
+		commit = crtc_or_fake_commit(state, old_conn_state->crtc);
+		if (!commit)
+			return -ENOMEM;
+
+		new_conn_state->commit = drm_crtc_commit_get(commit);
+	}
+
+	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
+		/*
+		 * Unlike connectors, always track planes explicitly for
+		 * async pageflip support.
+		 */
+
+		/* Userspace is not allowed to get ahead of the previous
+		 * commit with nonblocking ones. */
+		if (nonblock && old_plane_state->commit &&
+		    !try_wait_for_completion(&old_plane_state->commit->flip_done))
+			return -EBUSY;
+
+		commit = crtc_or_fake_commit(state, old_plane_state->crtc);
+		if (!commit)
+			return -ENOMEM;
+
+		new_plane_state->commit = drm_crtc_commit_get(commit);
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(drm_atomic_helper_setup_commit);
-
-
-static struct drm_crtc_commit *preceeding_commit(struct drm_crtc *crtc)
-{
-	struct drm_crtc_commit *commit;
-	int i = 0;
-
-	list_for_each_entry(commit, &crtc->commit_list, commit_entry) {
-		/* skip the first entry, that's the current commit */
-		if (i == 1)
-			return commit;
-		i++;
-	}
-
-	return NULL;
-}
 
 /**
  * drm_atomic_helper_wait_for_dependencies - wait for required preceeding commits
@@ -1800,17 +1827,17 @@ static struct drm_crtc_commit *preceeding_commit(struct drm_crtc *crtc)
 void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *old_state)
 {
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *new_crtc_state;
+	struct drm_crtc_state *old_crtc_state;
+	struct drm_plane *plane;
+	struct drm_plane_state *old_plane_state;
+	struct drm_connector *conn;
+	struct drm_connector_state *old_conn_state;
 	struct drm_crtc_commit *commit;
 	int i;
 	long ret;
 
-	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i) {
-		spin_lock(&crtc->commit_lock);
-		commit = preceeding_commit(crtc);
-		if (commit)
-			drm_crtc_commit_get(commit);
-		spin_unlock(&crtc->commit_lock);
+	for_each_old_crtc_in_state(old_state, crtc, old_crtc_state, i) {
+		commit = old_crtc_state->commit;
 
 		if (!commit)
 			continue;
@@ -1828,8 +1855,48 @@ void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *old_state)
 		if (ret == 0)
 			DRM_ERROR("[CRTC:%d:%s] flip_done timed out\n",
 				  crtc->base.id, crtc->name);
+	}
 
-		drm_crtc_commit_put(commit);
+	for_each_old_connector_in_state(old_state, conn, old_conn_state, i) {
+		commit = old_conn_state->commit;
+
+		if (!commit)
+			continue;
+
+		ret = wait_for_completion_timeout(&commit->hw_done,
+						  10*HZ);
+		if (ret == 0)
+			DRM_ERROR("[CONNECTOR:%d:%s] hw_done timed out\n",
+				  conn->base.id, conn->name);
+
+		/* Currently no support for overwriting flips, hence
+		 * stall for previous one to execute completely. */
+		ret = wait_for_completion_timeout(&commit->flip_done,
+						  10*HZ);
+		if (ret == 0)
+			DRM_ERROR("[CONNECTOR:%d:%s] flip_done timed out\n",
+				  conn->base.id, conn->name);
+	}
+
+	for_each_old_plane_in_state(old_state, plane, old_plane_state, i) {
+		commit = old_plane_state->commit;
+
+		if (!commit)
+			continue;
+
+		ret = wait_for_completion_timeout(&commit->hw_done,
+						  10*HZ);
+		if (ret == 0)
+			DRM_ERROR("[PLANE:%d:%s] hw_done timed out\n",
+				  plane->base.id, plane->name);
+
+		/* Currently no support for overwriting flips, hence
+		 * stall for previous one to execute completely. */
+		ret = wait_for_completion_timeout(&commit->flip_done,
+						  10*HZ);
+		if (ret == 0)
+			DRM_ERROR("[PLANE:%d:%s] flip_done timed out\n",
+				  plane->base.id, plane->name);
 	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_wait_for_dependencies);
@@ -1852,18 +1919,33 @@ EXPORT_SYMBOL(drm_atomic_helper_wait_for_dependencies);
 void drm_atomic_helper_commit_hw_done(struct drm_atomic_state *old_state)
 {
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *new_crtc_state;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct drm_crtc_commit *commit;
 	int i;
 
-	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i) {
-		commit = old_state->crtcs[i].commit;
+	for_each_oldnew_crtc_in_state(old_state, crtc, old_crtc_state, new_crtc_state, i) {
+		commit = new_crtc_state->commit;
 		if (!commit)
 			continue;
+
+		/*
+		 * copy new_crtc_state->commit to old_crtc_state->commit,
+		 * it's unsafe to touch new_crtc_state after hw_done,
+		 * but we still need to do so in cleanup_done().
+		 */
+		if (old_crtc_state->commit)
+			drm_crtc_commit_put(old_crtc_state->commit);
+
+		old_crtc_state->commit = drm_crtc_commit_get(commit);
 
 		/* backend must have consumed any event by now */
 		WARN_ON(new_crtc_state->event);
 		complete_all(&commit->hw_done);
+	}
+
+	if (old_state->fake_commit) {
+		complete_all(&old_state->fake_commit->hw_done);
+		complete_all(&old_state->fake_commit->flip_done);
 	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_hw_done);
@@ -1882,39 +1964,25 @@ EXPORT_SYMBOL(drm_atomic_helper_commit_hw_done);
 void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *old_state)
 {
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *new_crtc_state;
+	struct drm_crtc_state *old_crtc_state;
 	struct drm_crtc_commit *commit;
 	int i;
-	long ret;
 
-	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i) {
-		commit = old_state->crtcs[i].commit;
+	for_each_old_crtc_in_state(old_state, crtc, old_crtc_state, i) {
+		commit = old_crtc_state->commit;
 		if (WARN_ON(!commit))
 			continue;
 
 		complete_all(&commit->cleanup_done);
 		WARN_ON(!try_wait_for_completion(&commit->hw_done));
 
-		/* commit_list borrows our reference, need to remove before we
-		 * clean up our drm_atomic_state. But only after it actually
-		 * completed, otherwise subsequent commits won't stall properly. */
-		if (try_wait_for_completion(&commit->flip_done))
-			goto del_commit;
-
-		/* We must wait for the vblank event to signal our completion
-		 * before releasing our reference, since the vblank work does
-		 * not hold a reference of its own. */
-		ret = wait_for_completion_timeout(&commit->flip_done,
-						  10*HZ);
-		if (ret == 0)
-			DRM_ERROR("[CRTC:%d:%s] flip_done timed out\n",
-				  crtc->base.id, crtc->name);
-
-del_commit:
 		spin_lock(&crtc->commit_lock);
 		list_del(&commit->commit_entry);
 		spin_unlock(&crtc->commit_lock);
 	}
+
+	if (old_state->fake_commit)
+		complete_all(&old_state->fake_commit->cleanup_done);
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_cleanup_done);
 
@@ -2294,20 +2362,44 @@ int drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 	struct drm_private_state *old_obj_state, *new_obj_state;
 
 	if (stall) {
-		for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
-			spin_lock(&crtc->commit_lock);
-			commit = list_first_entry_or_null(&crtc->commit_list,
-					struct drm_crtc_commit, commit_entry);
-			if (commit)
-				drm_crtc_commit_get(commit);
-			spin_unlock(&crtc->commit_lock);
+		/*
+		 * We have to stall for hw_done here before
+		 * drm_atomic_helper_wait_for_dependencies() because flip
+		 * depth > 1 is not yet supported by all drivers. As long as
+		 * obj->state is directly dereferenced anywhere in the drivers
+		 * atomic_commit_tail function, then it's unsafe to swap state
+		 * before drm_atomic_helper_commit_hw_done() is called.
+		 */
+
+		for_each_old_crtc_in_state(state, crtc, old_crtc_state, i) {
+			commit = old_crtc_state->commit;
 
 			if (!commit)
 				continue;
 
 			ret = wait_for_completion_interruptible(&commit->hw_done);
-			drm_crtc_commit_put(commit);
+			if (ret)
+				return ret;
+		}
 
+		for_each_old_connector_in_state(state, connector, old_conn_state, i) {
+			commit = old_conn_state->commit;
+
+			if (!commit)
+				continue;
+
+			ret = wait_for_completion_interruptible(&commit->hw_done);
+			if (ret)
+				return ret;
+		}
+
+		for_each_old_plane_in_state(state, plane, old_plane_state, i) {
+			commit = old_plane_state->commit;
+
+			if (!commit)
+				continue;
+
+			ret = wait_for_completion_interruptible(&commit->hw_done);
 			if (ret)
 				return ret;
 		}
@@ -2332,13 +2424,13 @@ int drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 		state->crtcs[i].state = old_crtc_state;
 		crtc->state = new_crtc_state;
 
-		if (state->crtcs[i].commit) {
+		if (new_crtc_state->commit) {
 			spin_lock(&crtc->commit_lock);
-			list_add(&state->crtcs[i].commit->commit_entry,
+			list_add(&new_crtc_state->commit->commit_entry,
 				 &crtc->commit_list);
 			spin_unlock(&crtc->commit_lock);
 
-			state->crtcs[i].commit->event = NULL;
+			new_crtc_state->commit->event = NULL;
 		}
 	}
 
@@ -3186,6 +3278,7 @@ void __drm_atomic_helper_crtc_duplicate_state(struct drm_crtc *crtc,
 	state->connectors_changed = false;
 	state->color_mgmt_changed = false;
 	state->zpos_changed = false;
+	state->commit = NULL;
 	state->event = NULL;
 	state->pageflip_flags = 0;
 }
@@ -3224,6 +3317,12 @@ EXPORT_SYMBOL(drm_atomic_helper_crtc_duplicate_state);
  */
 void __drm_atomic_helper_crtc_destroy_state(struct drm_crtc_state *state)
 {
+	if (state->commit) {
+		kfree(state->commit->event);
+		state->commit->event = NULL;
+		drm_crtc_commit_put(state->commit);
+	}
+
 	drm_property_blob_put(state->mode_blob);
 	drm_property_blob_put(state->degamma_lut);
 	drm_property_blob_put(state->ctm);
@@ -3286,6 +3385,7 @@ void __drm_atomic_helper_plane_duplicate_state(struct drm_plane *plane,
 		drm_framebuffer_get(state->fb);
 
 	state->fence = NULL;
+	state->commit = NULL;
 }
 EXPORT_SYMBOL(__drm_atomic_helper_plane_duplicate_state);
 
@@ -3327,6 +3427,9 @@ void __drm_atomic_helper_plane_destroy_state(struct drm_plane_state *state)
 
 	if (state->fence)
 		dma_fence_put(state->fence);
+
+	if (state->commit)
+		drm_crtc_commit_put(state->commit);
 }
 EXPORT_SYMBOL(__drm_atomic_helper_plane_destroy_state);
 
@@ -3405,6 +3508,7 @@ __drm_atomic_helper_connector_duplicate_state(struct drm_connector *connector,
 	memcpy(state, connector->state, sizeof(*state));
 	if (state->crtc)
 		drm_connector_get(connector);
+	state->commit = NULL;
 }
 EXPORT_SYMBOL(__drm_atomic_helper_connector_duplicate_state);
 
@@ -3531,6 +3635,9 @@ __drm_atomic_helper_connector_destroy_state(struct drm_connector_state *state)
 {
 	if (state->crtc)
 		drm_connector_put(state->connector);
+
+	if (state->commit)
+		drm_crtc_commit_put(state->commit);
 }
 EXPORT_SYMBOL(__drm_atomic_helper_connector_destroy_state);
 

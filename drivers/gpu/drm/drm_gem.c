@@ -334,6 +334,12 @@ int drm_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 	if (!obj)
 		return -ENOENT;
 
+	/* Don't allow imported objects to be mapped */
+	if (obj->import_attach) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	ret = drm_gem_create_mmap_offset(obj);
 	if (ret)
 		goto out;

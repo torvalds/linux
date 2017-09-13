@@ -871,6 +871,18 @@ void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]);
 u8 drm_dp_link_rate_to_bw_code(int link_rate);
 int drm_dp_bw_code_to_link_rate(u8 link_bw);
 
+#define DP_SDP_AUDIO_TIMESTAMP		0x01
+#define DP_SDP_AUDIO_STREAM		0x02
+#define DP_SDP_EXTENSION		0x04 /* DP 1.1 */
+#define DP_SDP_AUDIO_COPYMANAGEMENT	0x05 /* DP 1.2 */
+#define DP_SDP_ISRC			0x06 /* DP 1.2 */
+#define DP_SDP_VSC			0x07 /* DP 1.2 */
+#define DP_SDP_CAMERA_GENERIC(i)	(0x08 + (i)) /* 0-7, DP 1.3 */
+#define DP_SDP_PPS			0x10 /* DP 1.4 */
+#define DP_SDP_VSC_EXT_VESA		0x20 /* DP 1.4 */
+#define DP_SDP_VSC_EXT_CEA		0x21 /* DP 1.4 */
+/* 0x80+ CEA-861 infoframe types */
+
 struct edp_sdp_header {
 	u8 HB0; /* Secondary Data Packet ID */
 	u8 HB1; /* Secondary Data Packet Type */

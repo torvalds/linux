@@ -177,6 +177,17 @@ following drivers still use ``struct_mutex``: ``msm``, ``omapdrm`` and
 
 Contact: Daniel Vetter, respective driver maintainers
 
+Convert instances of dev_info/dev_err/dev_warn to their DRM_DEV_* equivalent
+----------------------------------------------------------------------------
+
+For drivers which could have multiple instances, it is necessary to
+differentiate between which is which in the logs. Since DRM_INFO/WARN/ERROR
+don't do this, drivers used dev_info/warn/err to make this differentiation. We
+now have DRM_DEV_* variants of the drm print macros, so we can start to convert
+those drivers back to using drm-formwatted specific log messages.
+
+Contact: Sean Paul, Maintainer of the driver you plan to convert
+
 Core refactorings
 =================
 
