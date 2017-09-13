@@ -1218,6 +1218,58 @@ void __init sync_Arb_IDs(void)
 			APIC_INT_LEVELTRIG | APIC_DM_INIT);
 }
 
+enum apic_intr_mode {
+	APIC_PIC,
+	APIC_VIRTUAL_WIRE,
+	APIC_SYMMETRIC_IO,
+};
+
+static int __init apic_intr_mode_select(void)
+{
+	/* Check kernel option */
+	if (disable_apic) {
+		pr_info("APIC disabled via kernel command line\n");
+		return APIC_PIC;
+	}
+
+	/* Check BIOS */
+#ifdef CONFIG_X86_64
+	/* On 64-bit, the APIC must be integrated, Check local APIC only */
+	if (!boot_cpu_has(X86_FEATURE_APIC)) {
+		disable_apic = 1;
+		pr_info("APIC disabled by BIOS\n");
+		return APIC_PIC;
+	}
+#else
+	/* On 32-bit, the APIC may be integrated APIC or 82489DX */
+
+	/* Neither 82489DX nor integrated APIC ? */
+	if (!boot_cpu_has(X86_FEATURE_APIC) && !smp_found_config) {
+		disable_apic = 1;
+		return APIC_PIC;
+	}
+
+	/* If the BIOS pretends there is an integrated APIC ? */
+	if (!boot_cpu_has(X86_FEATURE_APIC) &&
+		APIC_INTEGRATED(boot_cpu_apic_version)) {
+		disable_apic = 1;
+		pr_err(FW_BUG "Local APIC %d not detected, force emulation\n",
+				       boot_cpu_physical_apicid);
+		return APIC_PIC;
+	}
+#endif
+
+	/* Check MP table or ACPI MADT configuration */
+	if (!smp_found_config) {
+		disable_ioapic_support();
+		if (!acpi_lapic)
+			pr_info("APIC: ACPI MADT or MP tables are not detected\n");
+		return APIC_VIRTUAL_WIRE;
+	}
+
+	return APIC_SYMMETRIC_IO;
+}
+
 /*
  * An initial setup of the virtual wire mode.
  */
