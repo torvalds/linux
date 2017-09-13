@@ -508,6 +508,8 @@ static int init_status_page(struct intel_engine_cs *engine)
 		 * actually map it).
 		 */
 		flags |= PIN_MAPPABLE;
+	else
+		flags |= PIN_HIGH;
 	ret = i915_vma_pin(vma, 0, 4096, flags);
 	if (ret)
 		goto err;
