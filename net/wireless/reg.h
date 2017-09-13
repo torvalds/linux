@@ -1,5 +1,8 @@
 #ifndef __NET_WIRELESS_REG_H
 #define __NET_WIRELESS_REG_H
+
+#include <net/cfg80211.h>
+
 /*
  * Copyright 2008-2011	Luis R. Rodriguez <mcgrof@qca.qualcomm.com>
  *
@@ -184,5 +187,10 @@ bool reg_dfs_domain_same(struct wiphy *wiphy1, struct wiphy *wiphy2);
  * reg_reload_regdb - reload the regulatory.db firmware file
  */
 int reg_reload_regdb(void);
+
+extern const u8 shipped_regdb_certs[];
+extern unsigned int shipped_regdb_certs_len;
+extern const u8 extra_regdb_certs[];
+extern unsigned int extra_regdb_certs_len;
 
 #endif  /* __NET_WIRELESS_REG_H */

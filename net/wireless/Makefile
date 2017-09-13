@@ -16,3 +16,25 @@ cfg80211-$(CONFIG_CFG80211_DEBUGFS) += debugfs.o
 cfg80211-$(CONFIG_CFG80211_WEXT) += wext-compat.o wext-sme.o
 
 CFLAGS_trace.o := -I$(src)
+
+cfg80211-$(CONFIG_CFG80211_USE_KERNEL_REGDB_KEYS) += shipped-certs.o
+ifneq ($(CONFIG_CFG80211_EXTRA_REGDB_KEYDIR),)
+cfg80211-y += extra-certs.o
+endif
+
+$(obj)/shipped-certs.c: $(wildcard $(srctree)/$(src)/certs/*.x509)
+	@echo "  GEN     $@"
+	@echo '#include "reg.h"' > $@
+	@echo 'const u8 shipped_regdb_certs[] = {' >> $@
+	@for f in $^ ; do hexdump -v -e '1/1 "0x%.2x," "\n"' < $$f >> $@ ; done
+	@echo '};' >> $@
+	@echo 'unsigned int shipped_regdb_certs_len = sizeof(shipped_regdb_certs);' >> $@
+
+$(obj)/extra-certs.c: $(CONFIG_CFG80211_EXTRA_REGDB_KEYDIR:"%"=%) \
+		      $(wildcard $(CONFIG_CFG80211_EXTRA_REGDB_KEYDIR:"%"=%)/*.x509)
+	@echo "  GEN     $@"
+	@echo '#include "reg.h"' > $@
+	@echo 'const u8 extra_regdb_certs[] = {' >> $@
+	@for f in $^ ; do test -f $$f && hexdump -v -e '1/1 "0x%.2x," "\n"' < $$f >> $@ || true ; done
+	@echo '};' >> $@
+	@echo 'unsigned int extra_regdb_certs_len = sizeof(extra_regdb_certs);' >> $@

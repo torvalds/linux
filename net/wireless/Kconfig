@@ -83,6 +83,36 @@ config CFG80211_CERTIFICATION_ONUS
 	  you are a wireless researcher and are working in a controlled
 	  and approved environment by your local regulatory agency.
 
+config CFG80211_REQUIRE_SIGNED_REGDB
+	bool "require regdb signature" if CFG80211_CERTIFICATION_ONUS
+	default y
+	select SYSTEM_DATA_VERIFICATION
+	help
+	  Require that in addition to the "regulatory.db" file a
+	  "regulatory.db.p7s" can be loaded with a valid PKCS#7
+	  signature for the regulatory.db file made by one of the
+	  keys in the certs/ directory.
+
+config CFG80211_USE_KERNEL_REGDB_KEYS
+	bool "allow regdb keys shipped with the kernel" if CFG80211_CERTIFICATION_ONUS
+	default y
+	depends on CFG80211_REQUIRE_SIGNED_REGDB
+	help
+	  Allow the regulatory database to be signed by one of the keys for
+	  which certificates are part of the kernel sources
+	  (in net/wireless/certs/).
+
+	  This is currently only Seth Forshee's key, who is the regulatory
+	  database maintainer.
+
+config CFG80211_EXTRA_REGDB_KEYDIR
+	string "additional regdb key directory" if CFG80211_CERTIFICATION_ONUS
+	depends on CFG80211_REQUIRE_SIGNED_REGDB
+	help
+	  If selected, point to a directory with DER-encoded X.509
+	  certificates like in the kernel sources (net/wireless/certs/)
+	  that shall be accepted for a signed regulatory database.
+
 config CFG80211_REG_CELLULAR_HINTS
 	bool "cfg80211 regulatory support for cellular base station hints"
 	depends on CFG80211_CERTIFICATION_ONUS
