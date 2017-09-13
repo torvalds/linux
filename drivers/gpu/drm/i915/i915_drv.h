@@ -4400,4 +4400,12 @@ int remap_io_mapping(struct vm_area_struct *vma,
 		     unsigned long addr, unsigned long pfn, unsigned long size,
 		     struct io_mapping *iomap);
 
+static inline int intel_hws_csb_write_index(struct drm_i915_private *i915)
+{
+	if (INTEL_GEN(i915) >= 10)
+		return CNL_HWS_CSB_WRITE_INDEX;
+	else
+		return I915_HWS_CSB_WRITE_INDEX;
+}
+
 #endif
