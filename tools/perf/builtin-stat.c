@@ -707,7 +707,7 @@ try_again:
 				process_interval();
 			}
 		}
-		wait(&status);
+		waitpid(child_pid, &status, 0);
 
 		if (workload_exec_errno) {
 			const char *emsg = str_error_r(workload_exec_errno, msg, sizeof(msg));
