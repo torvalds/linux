@@ -219,7 +219,12 @@ __irq_startup_managed(struct irq_desc *desc, struct cpumask *aff, bool force)
 		 */
 		return IRQ_STARTUP_ABORT;
 	}
-	irq_domain_activate_irq(d);
+	/*
+	 * Managed interrupts have reserved resources, so this should not
+	 * happen.
+	 */
+	if (WARN_ON(irq_domain_activate_irq(d)))
+		return IRQ_STARTUP_ABORT;
 	return IRQ_STARTUP_MANAGED;
 }
 #else
@@ -285,7 +290,7 @@ int irq_activate(struct irq_desc *desc)
 	struct irq_data *d = irq_desc_get_irq_data(desc);
 
 	if (!irqd_affinity_is_managed(d))
-		irq_domain_activate_irq(d);
+		return irq_domain_activate_irq(d);
 	return 0;
 }
 

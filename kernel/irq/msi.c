@@ -401,11 +401,26 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 			struct irq_data *irq_data;
 
 			irq_data = irq_domain_get_irq_data(domain, desc->irq);
-			irq_domain_activate_irq(irq_data);
+			ret = irq_domain_activate_irq(irq_data);
+			if (ret)
+				goto cleanup;
 		}
 	}
-
 	return 0;
+
+cleanup:
+	for_each_msi_entry(desc, dev) {
+		struct irq_data *irqd;
+
+		if (desc->irq == virq)
+			break;
+
+		irqd = irq_domain_get_irq_data(domain, desc->irq);
+		if (irqd_is_activated(irqd))
+			irq_domain_deactivate_irq(irqd);
+	}
+	msi_domain_free_irqs(domain, dev);
+	return ret;
 }
 
 /**

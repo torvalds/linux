@@ -441,7 +441,7 @@ extern int __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
 				   unsigned int nr_irqs, int node, void *arg,
 				   bool realloc, const struct cpumask *affinity);
 extern void irq_domain_free_irqs(unsigned int virq, unsigned int nr_irqs);
-extern void irq_domain_activate_irq(struct irq_data *irq_data);
+extern int irq_domain_activate_irq(struct irq_data *irq_data);
 extern void irq_domain_deactivate_irq(struct irq_data *irq_data);
 
 static inline int irq_domain_alloc_irqs(struct irq_domain *domain,
