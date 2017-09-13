@@ -467,15 +467,21 @@ int main(int argc, const char **argv)
 	 *  - cannot execute it externally (since it would just do
 	 *    the same thing over again)
 	 *
-	 * So we just directly call the internal command handler, and
-	 * die if that one cannot handle it.
+	 * So we just directly call the internal command handler. If that one
+	 * fails to handle this, then maybe we just run a renamed perf binary
+	 * that contains a dash in its name. To handle this scenario, we just
+	 * fall through and ignore the "xxxx" part of the command string.
 	 */
 	if (strstarts(cmd, "perf-")) {
 		cmd += 5;
 		argv[0] = cmd;
 		handle_internal_command(argc, argv);
-		fprintf(stderr, "cannot handle %s internally", cmd);
-		goto out;
+		/*
+		 * If the command is handled, the above function does not
+		 * return undo changes and fall through in such a case.
+		 */
+		cmd -= 5;
+		argv[0] = cmd;
 	}
 	if (strstarts(cmd, "trace")) {
 #ifdef HAVE_LIBAUDIT_SUPPORT
