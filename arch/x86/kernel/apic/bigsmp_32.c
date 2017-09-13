@@ -26,9 +26,9 @@ static int bigsmp_apic_id_registered(void)
 	return 1;
 }
 
-static unsigned long bigsmp_check_apicid_used(physid_mask_t *map, int apicid)
+static bool bigsmp_check_apicid_used(physid_mask_t *map, int apicid)
 {
-	return 0;
+	return false;
 }
 
 static int bigsmp_early_logical_apicid(int cpu)

@@ -289,7 +289,7 @@ struct apic {
 	int disable_esr;
 
 	int dest_logical;
-	unsigned long (*check_apicid_used)(physid_mask_t *map, int apicid);
+	bool (*check_apicid_used)(physid_mask_t *map, int apicid);
 
 	void (*vector_allocation_domain)(int cpu, struct cpumask *retmask,
 					 const struct cpumask *mask);
@@ -581,7 +581,7 @@ default_vector_allocation_domain(int cpu, struct cpumask *retmask,
 	cpumask_copy(retmask, cpumask_of(cpu));
 }
 
-static inline unsigned long default_check_apicid_used(physid_mask_t *map, int apicid)
+static inline bool default_check_apicid_used(physid_mask_t *map, int apicid)
 {
 	return physid_isset(apicid, *map);
 }
