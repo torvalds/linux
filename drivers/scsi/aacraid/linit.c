@@ -906,12 +906,14 @@ static int aac_eh_dev_reset(struct scsi_cmnd *cmd)
 
 	bus = aac_logical_to_phys(scmd_channel(cmd));
 	cid = scmd_id(cmd);
-	info = &aac->hba_map[bus][cid];
-	if (bus >= AAC_MAX_BUSES || cid >= AAC_MAX_TARGETS ||
-	    info->devtype != AAC_DEVTYPE_NATIVE_RAW)
+
+	if (bus >= AAC_MAX_BUSES || cid >= AAC_MAX_TARGETS)
 		return FAILED;
 
-	if (info->reset_state > 0)
+	info = &aac->hba_map[bus][cid];
+
+	if (info->devtype != AAC_DEVTYPE_NATIVE_RAW &&
+	    info->reset_state > 0)
 		return FAILED;
 
 	pr_err("%s: Host adapter reset request. SCSI hang ?\n",
@@ -962,12 +964,14 @@ static int aac_eh_target_reset(struct scsi_cmnd *cmd)
 
 	bus = aac_logical_to_phys(scmd_channel(cmd));
 	cid = scmd_id(cmd);
-	info = &aac->hba_map[bus][cid];
-	if (bus >= AAC_MAX_BUSES || cid >= AAC_MAX_TARGETS ||
-	    info->devtype != AAC_DEVTYPE_NATIVE_RAW)
+
+	if (bus >= AAC_MAX_BUSES || cid >= AAC_MAX_TARGETS)
 		return FAILED;
 
-	if (info->reset_state > 0)
+	info = &aac->hba_map[bus][cid];
+
+	if (info->devtype != AAC_DEVTYPE_NATIVE_RAW &&
+	    info->reset_state > 0)
 		return FAILED;
 
 	pr_err("%s: Host adapter reset request. SCSI hang ?\n",
