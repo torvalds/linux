@@ -450,6 +450,7 @@ int __init arch_early_irq_init(void)
 	return arch_early_ioapic_init();
 }
 
+#ifdef CONFIG_SMP
 /* Temporary hack to keep things working */
 static void vector_update_shutdown_irqs(void)
 {
@@ -517,6 +518,25 @@ void lapic_offline(void)
 	unlock_vector_lock();
 }
 
+static int apic_set_affinity(struct irq_data *irqd,
+			     const struct cpumask *dest, bool force)
+{
+	int err;
+
+	if (!IS_ENABLED(CONFIG_SMP))
+		return -EPERM;
+
+	if (!cpumask_intersects(dest, cpu_online_mask))
+		return -EINVAL;
+
+	err = assign_irq_vector(irqd, dest);
+	return err ? err : IRQ_SET_MASK_OK;
+}
+
+#else
+# define apic_set_affinity	NULL
+#endif
+
 static int apic_retrigger_irq(struct irq_data *irqd)
 {
 	struct apic_chip_data *apicd = apic_chip_data(irqd);
@@ -534,21 +554,6 @@ void apic_ack_edge(struct irq_data *irqd)
 	irq_complete_move(irqd_cfg(irqd));
 	irq_move_irq(irqd);
 	ack_APIC_irq();
-}
-
-static int apic_set_affinity(struct irq_data *irqd,
-			     const struct cpumask *dest, bool force)
-{
-	int err;
-
-	if (!IS_ENABLED(CONFIG_SMP))
-		return -EPERM;
-
-	if (!cpumask_intersects(dest, cpu_online_mask))
-		return -EINVAL;
-
-	err = assign_irq_vector(irqd, dest);
-	return err ? err : IRQ_SET_MASK_OK;
 }
 
 static struct irq_chip lapic_controller = {
