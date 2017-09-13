@@ -151,7 +151,6 @@ static struct apic apic_x2apic_phys __ro_after_init = {
 	.dest_logical			= 0,
 	.check_apicid_used		= NULL,
 
-	.vector_allocation_domain	= default_vector_allocation_domain,
 	.init_apic_ldr			= init_x2apic_ldr,
 
 	.ioapic_phys_id_map		= NULL,
@@ -164,7 +163,6 @@ static struct apic apic_x2apic_phys __ro_after_init = {
 	.get_apic_id			= x2apic_get_apic_id,
 	.set_apic_id			= x2apic_set_apic_id,
 
-	.cpu_mask_to_apicid		= default_cpu_mask_to_apicid,
 	.calc_dest_apicid		= apic_default_calc_apicid,
 
 	.send_IPI			= x2apic_send_IPI,

@@ -91,29 +91,6 @@ static void x2apic_send_IPI_all(int vector)
 	__x2apic_send_IPI_mask(cpu_online_mask, vector, APIC_DEST_ALLINC);
 }
 
-static int
-x2apic_cpu_mask_to_apicid(const struct cpumask *mask, struct irq_data *irqdata,
-			  unsigned int *apicid)
-{
-	struct cpumask *effmsk = irq_data_get_effective_affinity_mask(irqdata);
-	struct cluster_mask *cmsk;
-	unsigned int cpu;
-	u32 dest = 0;
-
-	cpu = cpumask_first(mask);
-	if (cpu >= nr_cpu_ids)
-		return -EINVAL;
-
-	cmsk = per_cpu(cluster_masks, cpu);
-	cpumask_clear(effmsk);
-	for_each_cpu_and(cpu, &cmsk->mask, mask) {
-		dest |= per_cpu(x86_cpu_to_logical_apicid, cpu);
-		cpumask_set_cpu(cpu, effmsk);
-	}
-	*apicid = dest;
-	return 0;
-}
-
 static u32 x2apic_calc_apicid(unsigned int cpu)
 {
 	return per_cpu(x86_cpu_to_logical_apicid, cpu);
@@ -198,29 +175,6 @@ static int x2apic_cluster_probe(void)
 	return 1;
 }
 
-/*
- * Each x2apic cluster is an allocation domain.
- */
-static void cluster_vector_allocation_domain(int cpu, struct cpumask *retmask,
-					     const struct cpumask *mask)
-{
-	struct cluster_mask *cmsk = per_cpu(cluster_masks, cpu);
-
-	/*
-	 * To minimize vector pressure, default case of boot, device bringup
-	 * etc will use a single cpu for the interrupt destination.
-	 *
-	 * On explicit migration requests coming from irqbalance etc,
-	 * interrupts will be routed to the x2apic cluster (cluster-id
-	 * derived from the first cpu in the mask) members specified
-	 * in the mask.
-	 */
-	if (cpumask_equal(mask, cpu_online_mask))
-		cpumask_copy(retmask, cpumask_of(cpu));
-	else
-		cpumask_and(retmask, mask, &cmsk->mask);
-}
-
 static struct apic apic_x2apic_cluster __ro_after_init = {
 
 	.name				= "cluster x2apic",
@@ -236,7 +190,6 @@ static struct apic apic_x2apic_cluster __ro_after_init = {
 	.dest_logical			= APIC_DEST_LOGICAL,
 	.check_apicid_used		= NULL,
 
-	.vector_allocation_domain	= cluster_vector_allocation_domain,
 	.init_apic_ldr			= init_x2apic_ldr,
 
 	.ioapic_phys_id_map		= NULL,
@@ -249,7 +202,6 @@ static struct apic apic_x2apic_cluster __ro_after_init = {
 	.get_apic_id			= x2apic_get_apic_id,
 	.set_apic_id			= x2apic_set_apic_id,
 
-	.cpu_mask_to_apicid		= x2apic_cpu_mask_to_apicid,
 	.calc_dest_apicid		= x2apic_calc_apicid,
 
 	.send_IPI			= x2apic_send_IPI,

@@ -525,18 +525,6 @@ static void uv_init_apic_ldr(void)
 {
 }
 
-static int
-uv_cpu_mask_to_apicid(const struct cpumask *mask, struct irq_data *irqdata,
-		      unsigned int *apicid)
-{
-	int ret = default_cpu_mask_to_apicid(mask, irqdata, apicid);
-
-	if (!ret)
-		*apicid |= uv_apicid_hibits;
-
-	return ret;
-}
-
 static u32 apic_uv_calc_apicid(unsigned int cpu)
 {
 	return apic_default_calc_apicid(cpu) | uv_apicid_hibits;
@@ -593,7 +581,6 @@ static struct apic apic_x2apic_uv_x __ro_after_init = {
 	.dest_logical			= APIC_DEST_LOGICAL,
 	.check_apicid_used		= NULL,
 
-	.vector_allocation_domain	= default_vector_allocation_domain,
 	.init_apic_ldr			= uv_init_apic_ldr,
 
 	.ioapic_phys_id_map		= NULL,
@@ -606,7 +593,6 @@ static struct apic apic_x2apic_uv_x __ro_after_init = {
 	.get_apic_id			= x2apic_get_apic_id,
 	.set_apic_id			= set_apic_id,
 
-	.cpu_mask_to_apicid		= uv_cpu_mask_to_apicid,
 	.calc_dest_apicid		= apic_uv_calc_apicid,
 
 	.send_IPI			= uv_send_IPI_one,

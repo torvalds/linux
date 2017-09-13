@@ -158,7 +158,6 @@ static struct apic apic_bigsmp __ro_after_init = {
 	.dest_logical			= 0,
 	.check_apicid_used		= bigsmp_check_apicid_used,
 
-	.vector_allocation_domain	= default_vector_allocation_domain,
 	.init_apic_ldr			= bigsmp_init_apic_ldr,
 
 	.ioapic_phys_id_map		= bigsmp_ioapic_phys_id_map,
@@ -171,7 +170,6 @@ static struct apic apic_bigsmp __ro_after_init = {
 	.get_apic_id			= bigsmp_get_apic_id,
 	.set_apic_id			= NULL,
 
-	.cpu_mask_to_apicid		= default_cpu_mask_to_apicid,
 	.calc_dest_apicid		= apic_default_calc_apicid,
 
 	.send_IPI			= default_send_IPI_single_phys,

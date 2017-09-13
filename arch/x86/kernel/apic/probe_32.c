@@ -113,7 +113,6 @@ static struct apic apic_default __ro_after_init = {
 	.dest_logical			= APIC_DEST_LOGICAL,
 	.check_apicid_used		= default_check_apicid_used,
 
-	.vector_allocation_domain	= flat_vector_allocation_domain,
 	.init_apic_ldr			= default_init_apic_ldr,
 
 	.ioapic_phys_id_map		= default_ioapic_phys_id_map,
@@ -126,7 +125,6 @@ static struct apic apic_default __ro_after_init = {
 	.get_apic_id			= default_get_apic_id,
 	.set_apic_id			= NULL,
 
-	.cpu_mask_to_apicid		= flat_cpu_mask_to_apicid,
 	.calc_dest_apicid		= apic_flat_calc_apicid,
 
 	.send_IPI			= default_send_IPI_single,

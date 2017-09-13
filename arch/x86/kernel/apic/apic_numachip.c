@@ -253,7 +253,6 @@ static const struct apic apic_numachip1 __refconst = {
 	.dest_logical			= 0,
 	.check_apicid_used		= NULL,
 
-	.vector_allocation_domain	= default_vector_allocation_domain,
 	.init_apic_ldr			= flat_init_apic_ldr,
 
 	.ioapic_phys_id_map		= NULL,
@@ -266,7 +265,6 @@ static const struct apic apic_numachip1 __refconst = {
 	.get_apic_id			= numachip1_get_apic_id,
 	.set_apic_id			= numachip1_set_apic_id,
 
-	.cpu_mask_to_apicid		= default_cpu_mask_to_apicid,
 	.calc_dest_apicid		= apic_default_calc_apicid,
 
 	.send_IPI			= numachip_send_IPI_one,
@@ -304,7 +302,6 @@ static const struct apic apic_numachip2 __refconst = {
 	.dest_logical			= 0,
 	.check_apicid_used		= NULL,
 
-	.vector_allocation_domain	= default_vector_allocation_domain,
 	.init_apic_ldr			= flat_init_apic_ldr,
 
 	.ioapic_phys_id_map		= NULL,
@@ -317,7 +314,6 @@ static const struct apic apic_numachip2 __refconst = {
 	.get_apic_id			= numachip2_get_apic_id,
 	.set_apic_id			= numachip2_set_apic_id,
 
-	.cpu_mask_to_apicid		= default_cpu_mask_to_apicid,
 	.calc_dest_apicid		= apic_default_calc_apicid,
 
 	.send_IPI			= numachip_send_IPI_one,
