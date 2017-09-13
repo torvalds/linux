@@ -70,6 +70,9 @@ enum dc_log_type {
 	LOG_SECTION_TOTAL_COUNT
 };
 
+#define DC_MIN_LOG_MASK ((1 << LOG_ERROR) | \
+		(1 << LOG_DETECTION_EDID_PARSER))
+
 #define DC_DEFAULT_LOG_MASK ((1 << LOG_ERROR) | \
 		(1 << LOG_WARNING) | \
 		(1 << LOG_EVENT_MODE_SET) | \
