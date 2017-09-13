@@ -53,6 +53,21 @@ void unlock_vector_lock(void)
 	raw_spin_unlock(&vector_lock);
 }
 
+void init_irq_alloc_info(struct irq_alloc_info *info,
+			 const struct cpumask *mask)
+{
+	memset(info, 0, sizeof(*info));
+	info->mask = mask;
+}
+
+void copy_irq_alloc_info(struct irq_alloc_info *dst, struct irq_alloc_info *src)
+{
+	if (src)
+		*dst = *src;
+	else
+		memset(dst, 0, sizeof(*dst));
+}
+
 static struct apic_chip_data *apic_chip_data(struct irq_data *irqd)
 {
 	if (!irqd)
@@ -280,21 +295,6 @@ static void clear_irq_vector(int irq, struct apic_chip_data *apicd)
 	per_cpu(vector_irq, apicd->prev_cpu)[vector] = VECTOR_UNUSED;
 	apicd->move_in_progress = 0;
 	hlist_del_init(&apicd->clist);
-}
-
-void init_irq_alloc_info(struct irq_alloc_info *info,
-			 const struct cpumask *mask)
-{
-	memset(info, 0, sizeof(*info));
-	info->mask = mask;
-}
-
-void copy_irq_alloc_info(struct irq_alloc_info *dst, struct irq_alloc_info *src)
-{
-	if (src)
-		*dst = *src;
-	else
-		memset(dst, 0, sizeof(*dst));
 }
 
 static void x86_vector_free_irqs(struct irq_domain *domain,
