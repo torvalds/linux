@@ -1606,7 +1606,6 @@ static int serial_omap_probe_rs485(struct uart_omap_port *up,
 				   struct device_node *np)
 {
 	struct serial_rs485 *rs485conf = &up->port.rs485;
-	u32 rs485_delay[2];
 	enum of_gpio_flags flags;
 	int ret;
 
@@ -1637,17 +1636,7 @@ static int serial_omap_probe_rs485(struct uart_omap_port *up,
 		up->rts_gpio = -EINVAL;
 	}
 
-	if (of_property_read_u32_array(np, "rs485-rts-delay",
-				    rs485_delay, 2) == 0) {
-		rs485conf->delay_rts_before_send = rs485_delay[0];
-		rs485conf->delay_rts_after_send = rs485_delay[1];
-	}
-
-	if (of_property_read_bool(np, "rs485-rx-during-tx"))
-		rs485conf->flags |= SER_RS485_RX_DURING_TX;
-
-	if (of_property_read_bool(np, "linux,rs485-enabled-at-boot-time"))
-		rs485conf->flags |= SER_RS485_ENABLED;
+	of_get_rs485_mode(np, rs485conf);
 
 	return 0;
 }
