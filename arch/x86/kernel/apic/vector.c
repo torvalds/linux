@@ -254,7 +254,7 @@ static int assign_irq_vector_policy(int irq, int node,
 				    struct irq_alloc_info *info,
 				    struct irq_data *irqd)
 {
-	if (info && info->mask)
+	if (info->mask)
 		return assign_irq_vector(irq, apicd, info->mask, irqd);
 	if (node != NUMA_NO_NODE &&
 	    assign_irq_vector(irq, apicd, cpumask_of_node(node), irqd) == 0)
