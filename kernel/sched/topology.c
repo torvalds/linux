@@ -14,11 +14,9 @@ cpumask_var_t sched_domains_tmpmask2;
 
 #ifdef CONFIG_SCHED_DEBUG
 
-static __read_mostly int sched_debug_enabled;
-
 static int __init sched_debug_setup(char *str)
 {
-	sched_debug_enabled = 1;
+	sched_debug_enabled = true;
 
 	return 0;
 }
