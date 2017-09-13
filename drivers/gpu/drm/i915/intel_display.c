@@ -1568,11 +1568,12 @@ static int intel_num_dvo_pipes(struct drm_i915_private *dev_priv)
 	return count;
 }
 
-static void i9xx_enable_pll(struct intel_crtc *crtc)
+static void i9xx_enable_pll(struct intel_crtc *crtc,
+			    const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	i915_reg_t reg = DPLL(crtc->pipe);
-	u32 dpll = crtc->config->dpll_hw_state.dpll;
+	u32 dpll = crtc_state->dpll_hw_state.dpll;
 	int i;
 
 	assert_pipe_disabled(dev_priv, crtc->pipe);
@@ -1609,7 +1610,7 @@ static void i9xx_enable_pll(struct intel_crtc *crtc)
 
 	if (INTEL_GEN(dev_priv) >= 4) {
 		I915_WRITE(DPLL_MD(crtc->pipe),
-			   crtc->config->dpll_hw_state.dpll_md);
+			   crtc_state->dpll_hw_state.dpll_md);
 	} else {
 		/* The pixel multiplier can only be updated once the
 		 * DPLL is enabled and the clocks are stable.
@@ -5895,7 +5896,7 @@ static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	intel_encoders_pre_enable(crtc, pipe_config, old_state);
 
-	i9xx_enable_pll(intel_crtc);
+	i9xx_enable_pll(intel_crtc, pipe_config);
 
 	i9xx_pfit_enable(intel_crtc);
 
