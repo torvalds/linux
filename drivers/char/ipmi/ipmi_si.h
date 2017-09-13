@@ -20,3 +20,5 @@ void ipmi_irq_start_cleanup(struct si_sm_io *io);
 int ipmi_std_irq_setup(struct si_sm_io *io);
 void ipmi_irq_finish_setup(struct si_sm_io *io);
 int ipmi_si_remove_by_dev(struct device *dev);
+void ipmi_si_remove_by_data(int addr_space, enum si_type si_type,
+			    unsigned long addr);
