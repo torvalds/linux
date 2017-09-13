@@ -1171,6 +1171,7 @@ static void power_down_encoders(struct dc *dc)
 {
 	int i;
 	enum connector_id connector_id;
+	enum signal_type signal = SIGNAL_TYPE_NONE;
 	for (i = 0; i < dc->link_count; i++) {
 		connector_id = dal_graphics_object_id_get_connector_id(dc->links[i]->link_id);
 		if ((connector_id == CONNECTOR_ID_DISPLAY_PORT) ||
@@ -1178,10 +1179,12 @@ static void power_down_encoders(struct dc *dc)
 
 			if (!dc->links[i]->wa_flags.dp_keep_receiver_powered)
 				dp_receiver_power_ctrl(dc->links[i], false);
+			if (connector_id == CONNECTOR_ID_EDP)
+				signal = SIGNAL_TYPE_EDP;
 		}
 
 		dc->links[i]->link_enc->funcs->disable_output(
-				dc->links[i]->link_enc, SIGNAL_TYPE_NONE);
+				dc->links[i]->link_enc, signal);
 	}
 }
 
