@@ -254,14 +254,14 @@ static void notrace start_secondary(void *unused)
 	check_tsc_sync_target();
 
 	/*
-	 * Lock vector_lock and initialize the vectors on this cpu
-	 * before setting the cpu online. We must set it online with
-	 * vector_lock held to prevent a concurrent setup/teardown
-	 * from seeing a half valid vector space.
+	 * Lock vector_lock, set CPU online and bring the vector
+	 * allocator online. Online must be set with vector_lock held
+	 * to prevent a concurrent irq setup/teardown from seeing a
+	 * half valid vector space.
 	 */
 	lock_vector_lock();
-	lapic_online();
 	set_cpu_online(smp_processor_id(), true);
+	lapic_online();
 	unlock_vector_lock();
 	cpu_set_state_online(smp_processor_id());
 	x86_platform.nmi_init();
