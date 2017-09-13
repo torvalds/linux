@@ -187,7 +187,7 @@ static int do_encrypt_iv(struct aead_request *req, u32 *tag, u32 *iv)
 	sk_req = skcipher_request_alloc(ctx->ctr, GFP_KERNEL);
 	if (!sk_req) {
 		pr_err("skcipher: Failed to allocate request\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	init_completion(&result.completion);
