@@ -990,6 +990,8 @@
  *	&NL80211_CMD_CONNECT or &NL80211_CMD_ROAM. If the 4 way handshake failed
  *	&NL80211_CMD_DISCONNECT should be indicated instead.
  *
+ * @NL80211_CMD_RELOAD_REGDB: Request that the regdb firmware file is reloaded.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -1193,6 +1195,8 @@ enum nl80211_commands {
 	NL80211_CMD_DEL_PMK,
 
 	NL80211_CMD_PORT_AUTHORIZED,
+
+	NL80211_CMD_RELOAD_REGDB,
 
 	/* add new commands above here */
 

@@ -179,4 +179,10 @@ void regulatory_propagate_dfs_state(struct wiphy *wiphy,
  * @wiphy2 - wiphy it's dfs_region to be checked against that of wiphy1
  */
 bool reg_dfs_domain_same(struct wiphy *wiphy1, struct wiphy *wiphy2);
+
+/**
+ * reg_reload_regdb - reload the regulatory.db firmware file
+ */
+int reg_reload_regdb(void);
+
 #endif  /* __NET_WIRELESS_REG_H */

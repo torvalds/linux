@@ -5678,6 +5678,11 @@ static int nl80211_req_set_reg(struct sk_buff *skb, struct genl_info *info)
 	}
 }
 
+static int nl80211_reload_regdb(struct sk_buff *skb, struct genl_info *info)
+{
+	return reg_reload_regdb();
+}
+
 static int nl80211_get_mesh_config(struct sk_buff *skb,
 				   struct genl_info *info)
 {
@@ -12705,6 +12710,12 @@ static const struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_REQ_SET_REG,
 		.doit = nl80211_req_set_reg,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_RELOAD_REGDB,
+		.doit = nl80211_reload_regdb,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 	},

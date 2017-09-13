@@ -781,6 +781,8 @@ static int query_regdb(const char *alpha2)
 	const struct fwdb_header *hdr = regdb;
 	const struct fwdb_country *country;
 
+	ASSERT_RTNL();
+
 	if (IS_ERR(regdb))
 		return PTR_ERR(regdb);
 
@@ -796,41 +798,47 @@ static int query_regdb(const char *alpha2)
 
 static void regdb_fw_cb(const struct firmware *fw, void *context)
 {
+	int set_error = 0;
+	bool restore = true;
 	void *db;
 
 	if (!fw) {
 		pr_info("failed to load regulatory.db\n");
-		regdb = ERR_PTR(-ENODATA);
-		goto restore;
-	}
-
-	if (!valid_regdb(fw->data, fw->size)) {
+		set_error = -ENODATA;
+	} else if (!valid_regdb(fw->data, fw->size)) {
 		pr_info("loaded regulatory.db is malformed\n");
-		release_firmware(fw);
-		regdb = ERR_PTR(-EINVAL);
-		goto restore;
+		set_error = -EINVAL;
 	}
 
-	db = kmemdup(fw->data, fw->size, GFP_KERNEL);
-	release_firmware(fw);
-
-	if (!db)
-		goto restore;
-	regdb = db;
-
-	if (query_regdb(context))
-		goto restore;
-	goto free;
- restore:
 	rtnl_lock();
-	restore_regulatory_settings(true);
+	if (WARN_ON(regdb && !IS_ERR(regdb))) {
+		/* just restore and free new db */
+	} else if (set_error) {
+		regdb = ERR_PTR(set_error);
+	} else if (fw) {
+		db = kmemdup(fw->data, fw->size, GFP_KERNEL);
+		if (db) {
+			regdb = db;
+			restore = context && query_regdb(context);
+		} else {
+			restore = true;
+		}
+	}
+
+	if (restore)
+		restore_regulatory_settings(true);
+
 	rtnl_unlock();
- free:
+
 	kfree(context);
+
+	release_firmware(fw);
 }
 
 static int query_regdb_file(const char *alpha2)
 {
+	ASSERT_RTNL();
+
 	if (regdb)
 		return query_regdb(alpha2);
 
@@ -841,6 +849,38 @@ static int query_regdb_file(const char *alpha2)
 	return request_firmware_nowait(THIS_MODULE, true, "regulatory.db",
 				       &reg_pdev->dev, GFP_KERNEL,
 				       (void *)alpha2, regdb_fw_cb);
+}
+
+int reg_reload_regdb(void)
+{
+	const struct firmware *fw;
+	void *db;
+	int err;
+
+	err = request_firmware(&fw, "regulatory.db", &reg_pdev->dev);
+	if (err)
+		return err;
+
+	if (!valid_regdb(fw->data, fw->size)) {
+		err = -ENODATA;
+		goto out;
+	}
+
+	db = kmemdup(fw->data, fw->size, GFP_KERNEL);
+	if (!db) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	rtnl_lock();
+	if (!IS_ERR_OR_NULL(regdb))
+		kfree(regdb);
+	regdb = db;
+	rtnl_unlock();
+
+ out:
+	release_firmware(fw);
+	return err;
 }
 
 static bool reg_query_database(struct regulatory_request *request)
