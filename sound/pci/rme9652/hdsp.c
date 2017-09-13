@@ -793,11 +793,8 @@ static int hdsp_get_iobox_version (struct hdsp *hdsp)
 
 		hdsp_write(hdsp, HDSP_control2Reg, HDSP_S200 | HDSP_PROGRAM);
 		hdsp_write (hdsp, HDSP_fifoData, 0);
-		if (hdsp_fifo_wait(hdsp, 0, HDSP_SHORT_WAIT) < 0) {
-			hdsp->io_type = Multiface;
-			dev_info(hdsp->card->dev, "Multiface found\n");
-			return 0;
-		}
+		if (hdsp_fifo_wait(hdsp, 0, HDSP_SHORT_WAIT) < 0)
+			goto set_multi;
 
 		hdsp_write(hdsp, HDSP_control2Reg, HDSP_S_LOAD);
 		hdsp_write(hdsp, HDSP_fifoData, 0);
@@ -810,20 +807,14 @@ static int hdsp_get_iobox_version (struct hdsp *hdsp)
 		hdsp_write(hdsp, HDSP_control2Reg, HDSP_S300);
 		hdsp_write(hdsp, HDSP_control2Reg, HDSP_S_LOAD);
 		hdsp_write(hdsp, HDSP_fifoData, 0);
-		if (hdsp_fifo_wait(hdsp, 0, HDSP_SHORT_WAIT) == 0) {
-			hdsp->io_type = Multiface;
-			dev_info(hdsp->card->dev, "Multiface found\n");
-			return 0;
-		}
+		if (hdsp_fifo_wait(hdsp, 0, HDSP_SHORT_WAIT) == 0)
+			goto set_multi;
 
 		hdsp_write(hdsp, HDSP_control2Reg, HDSP_S300);
 		hdsp_write(hdsp, HDSP_control2Reg, HDSP_S_LOAD);
 		hdsp_write(hdsp, HDSP_fifoData, 0);
-		if (hdsp_fifo_wait(hdsp, 0, HDSP_SHORT_WAIT) < 0) {
-			hdsp->io_type = Multiface;
-			dev_info(hdsp->card->dev, "Multiface found\n");
-			return 0;
-		}
+		if (hdsp_fifo_wait(hdsp, 0, HDSP_SHORT_WAIT) < 0)
+			goto set_multi;
 
 		hdsp->io_type = RPM;
 		dev_info(hdsp->card->dev, "RPM found\n");
@@ -837,6 +828,11 @@ static int hdsp_get_iobox_version (struct hdsp *hdsp)
 		else
 			hdsp->io_type = Digiface;
 	}
+	return 0;
+
+set_multi:
+	hdsp->io_type = Multiface;
+	dev_info(hdsp->card->dev, "Multiface found\n");
 	return 0;
 }
 
