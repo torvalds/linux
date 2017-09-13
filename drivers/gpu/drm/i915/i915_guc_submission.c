@@ -1314,7 +1314,7 @@ int intel_guc_suspend(struct drm_i915_private *dev_priv)
 	/* any value greater than GUC_POWER_D0 */
 	data[1] = GUC_POWER_D1;
 	/* first page is shared data with GuC */
-	data[2] = guc_ggtt_offset(ctx->engine[RCS].state);
+	data[2] = guc_ggtt_offset(ctx->engine[RCS].state) + LRC_GUCSHR_PN * PAGE_SIZE;
 
 	return intel_guc_send(guc, data, ARRAY_SIZE(data));
 }
@@ -1340,7 +1340,7 @@ int intel_guc_resume(struct drm_i915_private *dev_priv)
 	data[0] = INTEL_GUC_ACTION_EXIT_S_STATE;
 	data[1] = GUC_POWER_D0;
 	/* first page is shared data with GuC */
-	data[2] = guc_ggtt_offset(ctx->engine[RCS].state);
+	data[2] = guc_ggtt_offset(ctx->engine[RCS].state) + LRC_GUCSHR_PN * PAGE_SIZE;
 
 	return intel_guc_send(guc, data, ARRAY_SIZE(data));
 }
