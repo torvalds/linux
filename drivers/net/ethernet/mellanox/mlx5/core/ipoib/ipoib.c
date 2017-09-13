@@ -218,12 +218,6 @@ static int mlx5i_init_tx(struct mlx5e_priv *priv)
 		return err;
 	}
 
-	err = mlx5i_init_underlay_qp(priv);
-	if (err) {
-		mlx5_core_warn(priv->mdev, "intilize underlay QP failed, %d\n", err);
-		goto err_destroy_underlay_qp;
-	}
-
 	err = mlx5e_create_tis(priv->mdev, 0 /* tc */, ipriv->qp.qpn, &priv->tisn[0]);
 	if (err) {
 		mlx5_core_warn(priv->mdev, "create tis failed, %d\n", err);
@@ -285,7 +279,6 @@ static void mlx5i_destroy_flow_steering(struct mlx5e_priv *priv)
 
 static int mlx5i_init_rx(struct mlx5e_priv *priv)
 {
-	struct mlx5i_priv *ipriv  = priv->ppriv;
 	int err;
 
 	err = mlx5e_create_indirect_rqt(priv);
@@ -304,18 +297,12 @@ static int mlx5i_init_rx(struct mlx5e_priv *priv)
 	if (err)
 		goto err_destroy_indirect_tirs;
 
-	err = mlx5_fs_add_rx_underlay_qpn(priv->mdev, ipriv->qp.qpn);
+	err = mlx5i_create_flow_steering(priv);
 	if (err)
 		goto err_destroy_direct_tirs;
 
-	err = mlx5i_create_flow_steering(priv);
-	if (err)
-		goto err_remove_rx_underlay_qpn;
-
 	return 0;
 
-err_remove_rx_underlay_qpn:
-	mlx5_fs_remove_rx_underlay_qpn(priv->mdev, ipriv->qp.qpn);
 err_destroy_direct_tirs:
 	mlx5e_destroy_direct_tirs(priv);
 err_destroy_indirect_tirs:
@@ -329,9 +316,6 @@ err_destroy_indirect_rqts:
 
 static void mlx5i_cleanup_rx(struct mlx5e_priv *priv)
 {
-	struct mlx5i_priv *ipriv  = priv->ppriv;
-
-	mlx5_fs_remove_rx_underlay_qpn(priv->mdev, ipriv->qp.qpn);
 	mlx5i_destroy_flow_steering(priv);
 	mlx5e_destroy_direct_tirs(priv);
 	mlx5e_destroy_indirect_tirs(priv);
@@ -423,49 +407,71 @@ static void mlx5i_dev_cleanup(struct net_device *dev)
 
 static int mlx5i_open(struct net_device *netdev)
 {
-	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
+	struct mlx5e_priv *epriv = mlx5i_epriv(netdev);
+	struct mlx5i_priv *ipriv = epriv->ppriv;
+	struct mlx5_core_dev *mdev = epriv->mdev;
 	int err;
 
-	mutex_lock(&priv->state_lock);
+	mutex_lock(&epriv->state_lock);
 
-	set_bit(MLX5E_STATE_OPENED, &priv->state);
+	set_bit(MLX5E_STATE_OPENED, &epriv->state);
 
-	err = mlx5e_open_channels(priv, &priv->channels);
-	if (err)
+	err = mlx5i_init_underlay_qp(epriv);
+	if (err) {
+		mlx5_core_warn(mdev, "prepare underlay qp state failed, %d\n", err);
 		goto err_clear_state_opened_flag;
+	}
 
-	mlx5e_refresh_tirs(priv, false);
-	mlx5e_activate_priv_channels(priv);
-	mlx5e_timestamp_set(priv);
+	err = mlx5_fs_add_rx_underlay_qpn(mdev, ipriv->qp.qpn);
+	if (err) {
+		mlx5_core_warn(mdev, "attach underlay qp to ft failed, %d\n", err);
+		goto err_reset_qp;
+	}
 
-	mutex_unlock(&priv->state_lock);
+	err = mlx5e_open_channels(epriv, &epriv->channels);
+	if (err)
+		goto err_remove_fs_underlay_qp;
+
+	mlx5e_refresh_tirs(epriv, false);
+	mlx5e_activate_priv_channels(epriv);
+	mlx5e_timestamp_set(epriv);
+
+	mutex_unlock(&epriv->state_lock);
 	return 0;
 
+err_remove_fs_underlay_qp:
+	mlx5_fs_remove_rx_underlay_qpn(mdev, ipriv->qp.qpn);
+err_reset_qp:
+	mlx5i_uninit_underlay_qp(epriv);
 err_clear_state_opened_flag:
-	clear_bit(MLX5E_STATE_OPENED, &priv->state);
-	mutex_unlock(&priv->state_lock);
+	clear_bit(MLX5E_STATE_OPENED, &epriv->state);
+	mutex_unlock(&epriv->state_lock);
 	return err;
 }
 
 static int mlx5i_close(struct net_device *netdev)
 {
-	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
+	struct mlx5e_priv *epriv = mlx5i_epriv(netdev);
+	struct mlx5i_priv *ipriv = epriv->ppriv;
+	struct mlx5_core_dev *mdev = epriv->mdev;
 
 	/* May already be CLOSED in case a previous configuration operation
 	 * (e.g RX/TX queue size change) that involves close&open failed.
 	 */
-	mutex_lock(&priv->state_lock);
+	mutex_lock(&epriv->state_lock);
 
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
+	if (!test_bit(MLX5E_STATE_OPENED, &epriv->state))
 		goto unlock;
 
-	clear_bit(MLX5E_STATE_OPENED, &priv->state);
+	clear_bit(MLX5E_STATE_OPENED, &epriv->state);
 
-	netif_carrier_off(priv->netdev);
-	mlx5e_deactivate_priv_channels(priv);
-	mlx5e_close_channels(&priv->channels);
+	netif_carrier_off(epriv->netdev);
+	mlx5_fs_remove_rx_underlay_qpn(mdev, ipriv->qp.qpn);
+	mlx5i_uninit_underlay_qp(epriv);
+	mlx5e_deactivate_priv_channels(epriv);
+	mlx5e_close_channels(&epriv->channels);;
 unlock:
-	mutex_unlock(&priv->state_lock);
+	mutex_unlock(&epriv->state_lock);
 	return 0;
 }
 
