@@ -186,13 +186,13 @@ static const unsigned long exp[] __initconst = {
 	BITMAP_FROM_U64(0x22222222),
 	BITMAP_FROM_U64(0xffffffff),
 	BITMAP_FROM_U64(0xfffffffe),
-	BITMAP_FROM_U64(0x3333333311111111),
-	BITMAP_FROM_U64(0xffffffff77777777)
+	BITMAP_FROM_U64(0x3333333311111111ULL),
+	BITMAP_FROM_U64(0xffffffff77777777ULL)
 };
 
 static const unsigned long exp2[] __initconst = {
-	BITMAP_FROM_U64(0x3333333311111111),
-	BITMAP_FROM_U64(0xffffffff77777777)
+	BITMAP_FROM_U64(0x3333333311111111ULL),
+	BITMAP_FROM_U64(0xffffffff77777777ULL)
 };
 
 static const struct test_bitmap_parselist parselist_tests[] __initconst = {
