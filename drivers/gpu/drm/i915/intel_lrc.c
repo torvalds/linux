@@ -541,9 +541,16 @@ static void intel_lrc_irq_handler(unsigned long data)
 	while (test_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted)) {
 		u32 __iomem *csb_mmio =
 			dev_priv->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine));
-		u32 __iomem *buf =
-			dev_priv->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_BUF_LO(engine, 0));
+		/* The HWSP contains a (cacheable) mirror of the CSB */
+		const u32 *buf =
+			&engine->status_page.page_addr[I915_HWS_CSB_BUF0_INDEX];
 		unsigned int head, tail;
+
+		/* However GVT emulation depends upon intercepting CSB mmio */
+		if (unlikely(engine->csb_use_mmio)) {
+			buf = (u32 * __force)
+				(dev_priv->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_BUF_LO(engine, 0)));
+		}
 
 		/* The write will be ordered by the uncached read (itself
 		 * a memory barrier), so we do not need another in the form
@@ -584,13 +591,12 @@ static void intel_lrc_irq_handler(unsigned long data)
 			 * status notifier.
 			 */
 
-			status = readl(buf + 2 * head);
+			status = READ_ONCE(buf[2 * head]); /* maybe mmio! */
 			if (!(status & GEN8_CTX_STATUS_COMPLETED_MASK))
 				continue;
 
 			/* Check the context/desc id for this event matches */
-			GEM_DEBUG_BUG_ON(readl(buf + 2 * head + 1) !=
-					 port->context_id);
+			GEM_DEBUG_BUG_ON(buf[2 * head + 1] != port->context_id);
 
 			rq = port_unpack(port, &count);
 			GEM_BUG_ON(count == 0);
@@ -1720,6 +1726,23 @@ logical_ring_default_irqs(struct intel_engine_cs *engine)
 	engine->irq_keep_mask = GT_CONTEXT_SWITCH_INTERRUPT << shift;
 }
 
+static bool irq_handler_force_mmio(struct drm_i915_private *i915)
+{
+	/* GVT emulation depends upon intercepting CSB mmio */
+	if (intel_vgpu_active(i915))
+		return true;
+
+	/*
+	 * IOMMU adds unpredictable latency causing the CSB write (from the
+	 * GPU into the HWSP) to only be visible some time after the interrupt
+	 * (missed breadcrumb syndrome).
+	 */
+	if (intel_vtd_active())
+		return true;
+
+	return false;
+}
+
 static void
 logical_ring_setup(struct intel_engine_cs *engine)
 {
@@ -1730,6 +1753,8 @@ logical_ring_setup(struct intel_engine_cs *engine)
 
 	/* Intentionally left blank. */
 	engine->buffer = NULL;
+
+	engine->csb_use_mmio = irq_handler_force_mmio(dev_priv);
 
 	fw_domains = intel_uncore_forcewake_for_reg(dev_priv,
 						    RING_ELSP(engine),

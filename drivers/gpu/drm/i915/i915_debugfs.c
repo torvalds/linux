@@ -3315,6 +3315,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 			   upper_32_bits(addr), lower_32_bits(addr));
 
 		if (i915.enable_execlists) {
+			const u32 *hws = &engine->status_page.page_addr[I915_HWS_CSB_BUF0_INDEX];
 			u32 ptr, read, write;
 			unsigned int idx;
 
@@ -3337,10 +3338,12 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 				write += GEN8_CSB_ENTRIES;
 			while (read < write) {
 				idx = ++read % GEN8_CSB_ENTRIES;
-				seq_printf(m, "\tExeclist CSB[%d]: 0x%08x, context: %d\n",
+				seq_printf(m, "\tExeclist CSB[%d]: 0x%08x [0x%08x in hwsp], context: %d [%d in hwsp]\n",
 					   idx,
 					   I915_READ(RING_CONTEXT_STATUS_BUF_LO(engine, idx)),
-					   I915_READ(RING_CONTEXT_STATUS_BUF_HI(engine, idx)));
+					   hws[idx * 2],
+					   I915_READ(RING_CONTEXT_STATUS_BUF_HI(engine, idx)),
+					   hws[idx * 2 + 1]);
 			}
 
 			rcu_read_lock();
