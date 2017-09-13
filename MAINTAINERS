@@ -4391,6 +4391,12 @@ S:	Supported
 F:	drivers/gpu/drm/nouveau/
 F:	include/uapi/drm/nouveau_drm.h
 
+DRM DRIVER FOR PERVASIVE DISPLAYS REPAPER PANELS
+M:	Noralf Trønnes <noralf@tronnes.org>
+S:	Maintained
+F:	drivers/gpu/drm/tinydrm/repaper.c
+F:	Documentation/devicetree/bindings/display/repaper.txt
+
 DRM DRIVER FOR QEMU'S CIRRUS DEVICE
 M:	Dave Airlie <airlied@redhat.com>
 M:	Gerd Hoffmann <kraxel@redhat.com>
@@ -4408,12 +4414,6 @@ T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
 F:	drivers/gpu/drm/qxl/
 F:	include/uapi/drm/qxl_drm.h
-
-DRM DRIVER FOR PERVASIVE DISPLAYS REPAPER PANELS
-M:	Noralf Trønnes <noralf@tronnes.org>
-S:	Maintained
-F:	drivers/gpu/drm/tinydrm/repaper.c
-F:	Documentation/devicetree/bindings/display/repaper.txt
 
 DRM DRIVER FOR RAGE 128 VIDEO CARDS
 S:	Orphan / Obsolete
@@ -6208,6 +6208,14 @@ F:	include/uapi/linux/if_hippi.h
 F:	net/802/hippi.c
 F:	drivers/net/hippi/
 
+HISILICON NETWORK SUBSYSTEM 3 DRIVER (HNS3)
+M:	Yisen Zhuang <yisen.zhuang@huawei.com>
+M:	Salil Mehta <salil.mehta@huawei.com>
+L:	netdev@vger.kernel.org
+W:	http://www.hisilicon.com
+S:	Maintained
+F:	drivers/net/ethernet/hisilicon/hns3/
+
 HISILICON NETWORK SUBSYSTEM DRIVER
 M:	Yisen Zhuang <yisen.zhuang@huawei.com>
 M:	Salil Mehta <salil.mehta@huawei.com>
@@ -6216,14 +6224,6 @@ W:	http://www.hisilicon.com
 S:	Maintained
 F:	drivers/net/ethernet/hisilicon/
 F:	Documentation/devicetree/bindings/net/hisilicon*.txt
-
-HISILICON NETWORK SUBSYSTEM 3 DRIVER (HNS3)
-M:	Yisen Zhuang <yisen.zhuang@huawei.com>
-M:	Salil Mehta <salil.mehta@huawei.com>
-L:	netdev@vger.kernel.org
-W:	http://www.hisilicon.com
-S:	Maintained
-F:	drivers/net/ethernet/hisilicon/hns3/
 
 HISILICON ROCE DRIVER
 M:	Lijun Ou <oulijun@huawei.com>
@@ -6239,6 +6239,13 @@ W:	http://www.hisilicon.com
 S:	Supported
 F:	drivers/scsi/hisi_sas/
 F:	Documentation/devicetree/bindings/scsi/hisilicon-sas.txt
+
+HMM - Heterogeneous Memory Management
+M:	Jérôme Glisse <jglisse@redhat.com>
+L:	linux-mm@kvack.org
+S:	Maintained
+F:	mm/hmm*
+F:	include/linux/hmm*
 
 HOST AP DRIVER
 M:	Jouni Malinen <j@w1.fi>
@@ -7506,19 +7513,6 @@ F:	include/kvm/iodev.h
 F:	virt/kvm/*
 F:	tools/kvm/
 
-KERNEL VIRTUAL MACHINE FOR X86 (KVM/x86)
-M:	Paolo Bonzini <pbonzini@redhat.com>
-M:	Radim KrÄmÃ¡Å™ <rkrcmar@redhat.com>
-L:	kvm@vger.kernel.org
-W:	http://www.linux-kvm.org
-T:	git git://git.kernel.org/pub/scm/virt/kvm/kvm.git
-S:	Supported
-F:	arch/x86/kvm/
-F:	arch/x86/include/uapi/asm/kvm*
-F:	arch/x86/include/asm/kvm*
-F:	arch/x86/kernel/kvm.c
-F:	arch/x86/kernel/kvmclock.c
-
 KERNEL VIRTUAL MACHINE FOR AMD-V (KVM/amd)
 M:	Joerg Roedel <joro@8bytes.org>
 L:	kvm@vger.kernel.org
@@ -7541,17 +7535,6 @@ F:	arch/arm/kvm/
 F:	virt/kvm/arm/
 F:	include/kvm/arm_*
 
-KERNEL VIRTUAL MACHINE FOR POWERPC (KVM/powerpc)
-M:	Alexander Graf <agraf@suse.com>
-L:	kvm-ppc@vger.kernel.org
-W:	http://www.linux-kvm.org/
-T:	git git://github.com/agraf/linux-2.6.git
-S:	Supported
-F:	arch/powerpc/include/uapi/asm/kvm*
-F:	arch/powerpc/include/asm/kvm*
-F:	arch/powerpc/kvm/
-F:	arch/powerpc/kernel/kvm*
-
 KERNEL VIRTUAL MACHINE FOR ARM64 (KVM/arm64)
 M:	Christoffer Dall <christoffer.dall@linaro.org>
 M:	Marc Zyngier <marc.zyngier@arm.com>
@@ -7570,6 +7553,17 @@ F:	arch/mips/include/uapi/asm/kvm*
 F:	arch/mips/include/asm/kvm*
 F:	arch/mips/kvm/
 
+KERNEL VIRTUAL MACHINE FOR POWERPC (KVM/powerpc)
+M:	Alexander Graf <agraf@suse.com>
+L:	kvm-ppc@vger.kernel.org
+W:	http://www.linux-kvm.org/
+T:	git git://github.com/agraf/linux-2.6.git
+S:	Supported
+F:	arch/powerpc/include/uapi/asm/kvm*
+F:	arch/powerpc/include/asm/kvm*
+F:	arch/powerpc/kvm/
+F:	arch/powerpc/kernel/kvm*
+
 KERNEL VIRTUAL MACHINE for s390 (KVM/s390)
 M:	Christian Borntraeger <borntraeger@de.ibm.com>
 M:	Cornelia Huck <cohuck@redhat.com>
@@ -7582,6 +7576,19 @@ F:	arch/s390/include/asm/gmap.h
 F:	arch/s390/include/asm/kvm*
 F:	arch/s390/kvm/
 F:	arch/s390/mm/gmap.c
+
+KERNEL VIRTUAL MACHINE FOR X86 (KVM/x86)
+M:	Paolo Bonzini <pbonzini@redhat.com>
+M:	Radim Krčmář <rkrcmar@redhat.com>
+L:	kvm@vger.kernel.org
+W:	http://www.linux-kvm.org
+T:	git git://git.kernel.org/pub/scm/virt/kvm/kvm.git
+S:	Supported
+F:	arch/x86/kvm/
+F:	arch/x86/include/uapi/asm/kvm*
+F:	arch/x86/include/asm/kvm*
+F:	arch/x86/kernel/kvm.c
+F:	arch/x86/kernel/kvmclock.c
 
 KERNFS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
@@ -7821,13 +7828,6 @@ LIBLOCKDEP
 M:	Sasha Levin <alexander.levin@verizon.com>
 S:	Maintained
 F:	tools/lib/lockdep/
-
-HMM - Heterogeneous Memory Management
-M:	JÃ©rÃ´me Glisse <jglisse@redhat.com>
-L:	linux-mm@kvack.org
-S:	Maintained
-F:	mm/hmm*
-F:	include/linux/hmm*
 
 LIBNVDIMM BLK: MMIO-APERTURE DRIVER
 M:	Ross Zwisler <ross.zwisler@linux.intel.com>
@@ -8423,6 +8423,14 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Supported
 F:	drivers/media/dvb-frontends/cxd2841er*
 
+MEDIA DRIVERS FOR DIGITAL DEVICES PCIE DEVICES
+M:	Daniel Scheller <d.scheller.oss@gmail.com>
+L:	linux-media@vger.kernel.org
+W:	https://linuxtv.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/pci/ddbridge/*
+
 MEDIA DRIVERS FOR FREESCALE IMX
 M:	Steve Longerbeam <slongerbeam@gmail.com>
 M:	Philipp Zabel <p.zabel@pengutronix.de>
@@ -8544,14 +8552,6 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/dvb-frontends/stv6111*
 
-MEDIA DRIVERS FOR DIGITAL DEVICES PCIE DEVICES
-M:	Daniel Scheller <d.scheller.oss@gmail.com>
-L:	linux-media@vger.kernel.org
-W:	https://linuxtv.org
-T:	git git://linuxtv.org/media_tree.git
-S:	Maintained
-F:	drivers/media/pci/ddbridge/*
-
 MEDIA INPUT INFRASTRUCTURE (V4L/DVB)
 M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
 M:	Mauro Carvalho Chehab <mchehab@kernel.org>
@@ -8574,6 +8574,11 @@ F:	include/uapi/linux/v4l2-*
 F:	include/uapi/linux/meye.h
 F:	include/uapi/linux/ivtv*
 F:	include/uapi/linux/uvcvideo.h
+
+MEDIATEK CIR DRIVER
+M:	Sean Wang <sean.wang@mediatek.com>
+S:	Maintained
+F:	drivers/media/rc/mtk-cir.c
 
 MEDIATEK ETHERNET DRIVER
 M:	Felix Fietkau <nbd@openwrt.org>
@@ -8614,11 +8619,6 @@ M:	Jakub Kicinski <kubakici@wp.pl>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F:	drivers/net/wireless/mediatek/mt7601u/
-
-MEDIATEK CIR DRIVER
-M:	Sean Wang <sean.wang@mediatek.com>
-S:	Maintained
-F:	drivers/media/rc/mtk-cir.c
 
 MEDIATEK RANDOM NUMBER GENERATOR SUPPORT
 M:	Sean Wang <sean.wang@mediatek.com>
