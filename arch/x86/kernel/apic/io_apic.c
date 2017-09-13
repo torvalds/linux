@@ -2556,48 +2556,6 @@ int acpi_get_override_irq(u32 gsi, int *trigger, int *polarity)
  * This function updates target affinity of IOAPIC interrupts to include
  * the CPUs which came online during SMP bringup.
  */
-#ifdef CONFIG_SMP
-void __init setup_ioapic_dest(void)
-{
-	int pin, ioapic, irq, irq_entry;
-	const struct cpumask *mask;
-	struct irq_desc *desc;
-	struct irq_data *idata;
-	struct irq_chip *chip;
-
-	if (skip_ioapic_setup == 1)
-		return;
-
-	for_each_ioapic_pin(ioapic, pin) {
-		irq_entry = find_irq_entry(ioapic, pin, mp_INT);
-		if (irq_entry == -1)
-			continue;
-
-		irq = pin_2_irq(irq_entry, ioapic, pin, 0);
-		if (irq < 0 || !mp_init_irq_at_boot(ioapic, irq))
-			continue;
-
-		desc = irq_to_desc(irq);
-		raw_spin_lock_irq(&desc->lock);
-		idata = irq_desc_get_irq_data(desc);
-
-		/*
-		 * Honour affinities which have been set in early boot
-		 */
-		if (!irqd_can_balance(idata) || irqd_affinity_was_set(idata))
-			mask = irq_data_get_affinity_mask(idata);
-		else
-			mask = irq_default_affinity;
-
-		chip = irq_data_get_irq_chip(idata);
-		/* Might be lapic_chip for irq 0 */
-		if (chip->irq_set_affinity)
-			chip->irq_set_affinity(idata, mask, false);
-		raw_spin_unlock_irq(&desc->lock);
-	}
-}
-#endif
-
 #define IOAPIC_RESOURCE_NAME_SIZE 11
 
 static struct resource *ioapic_resources;
