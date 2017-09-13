@@ -47,6 +47,12 @@ enum export {
 	export_unused_gpl, export_gpl_future, export_unknown
 };
 
+/* In kernel, this size is defined in linux/module.h;
+ * here we use Elf_Addr instead of long for covering cross-compile
+ */
+
+#define MODULE_NAME_LEN (64 - sizeof(Elf_Addr))
+
 #define PRINTF __attribute__ ((format (printf, 1, 2)))
 
 PRINTF void fatal(const char *fmt, ...)
@@ -2111,6 +2117,23 @@ static void check_exports(struct module *mod)
 	}
 }
 
+static int check_modname_len(struct module *mod)
+{
+	const char *mod_name;
+
+	mod_name = strrchr(mod->name, '/');
+	if (mod_name == NULL)
+		mod_name = mod->name;
+	else
+		mod_name++;
+	if (strlen(mod_name) >= MODULE_NAME_LEN) {
+		merror("module name is too long [%s.ko]\n", mod->name);
+		return 1;
+	}
+
+	return 0;
+}
+
 /**
  * Header for the generated file
  **/
@@ -2149,11 +2172,6 @@ static void add_staging_flag(struct buffer *b, const char *name)
 	if (strncmp(staging_dir, name, strlen(staging_dir)) == 0)
 		buf_printf(b, "\nMODULE_INFO(staging, \"Y\");\n");
 }
-
-/* In kernel, this size is defined in linux/module.h;
- * here we use Elf_Addr instead of long for covering cross-compile
- */
-#define MODULE_NAME_LEN (64 - sizeof(Elf_Addr))
 
 /**
  * Record CRCs for unresolved symbols
@@ -2485,6 +2503,7 @@ int main(int argc, char **argv)
 
 		buf.pos = 0;
 
+		err |= check_modname_len(mod);
 		add_header(&buf, mod);
 		add_intree_flag(&buf, !external_module);
 		add_staging_flag(&buf, mod->name);
