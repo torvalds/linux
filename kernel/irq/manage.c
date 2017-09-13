@@ -1400,7 +1400,6 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 		wake_up_process(new->secondary->thread);
 
 	register_irq_proc(irq, desc);
-	irq_add_debugfs_entry(irq, desc);
 	new->dir = NULL;
 	register_handler_proc(irq, new);
 	return 0;
