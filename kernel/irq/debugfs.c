@@ -81,6 +81,8 @@ irq_debug_show_data(struct seq_file *m, struct irq_data *data, int ind)
 		   data->domain ? data->domain->name : "");
 	seq_printf(m, "%*shwirq:   0x%lx\n", ind + 1, "", data->hwirq);
 	irq_debug_show_chip(m, data, ind + 1);
+	if (data->domain && data->domain->ops && data->domain->ops->debug_show)
+		data->domain->ops->debug_show(m, NULL, data, ind + 1);
 #ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
 	if (!data->parent_data)
 		return;
