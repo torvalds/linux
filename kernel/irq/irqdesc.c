@@ -448,7 +448,7 @@ static int alloc_descs(unsigned int start, unsigned int cnt, int node,
 		}
 	}
 
-	flags = affinity ? IRQD_AFFINITY_MANAGED : 0;
+	flags = affinity ? IRQD_AFFINITY_MANAGED | IRQD_MANAGED_SHUTDOWN : 0;
 	mask = NULL;
 
 	for (i = 0; i < cnt; i++) {
