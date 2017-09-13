@@ -727,8 +727,7 @@ static void nand_command(struct mtd_info *mtd, unsigned int command,
 		chip->cmd_ctrl(mtd, page_addr, ctrl);
 		ctrl &= ~NAND_CTRL_CHANGE;
 		chip->cmd_ctrl(mtd, page_addr >> 8, ctrl);
-		/* One more address cycle for devices > 32MiB */
-		if (chip->chipsize > (32 << 20))
+		if (chip->options & NAND_ROW_ADDR_3)
 			chip->cmd_ctrl(mtd, page_addr >> 16, ctrl);
 	}
 	chip->cmd_ctrl(mtd, NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
@@ -854,8 +853,7 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 			chip->cmd_ctrl(mtd, page_addr, ctrl);
 			chip->cmd_ctrl(mtd, page_addr >> 8,
 				       NAND_NCE | NAND_ALE);
-			/* One more address cycle for devices > 128MiB */
-			if (chip->chipsize > (128 << 20))
+			if (chip->options & NAND_ROW_ADDR_3)
 				chip->cmd_ctrl(mtd, page_addr >> 16,
 					       NAND_NCE | NAND_ALE);
 		}
@@ -3999,6 +3997,9 @@ ident_done:
 		chip->chip_shift = ffs((unsigned)(chip->chipsize >> 32));
 		chip->chip_shift += 32 - 1;
 	}
+
+	if (chip->chip_shift - chip->page_shift > 16)
+		chip->options |= NAND_ROW_ADDR_3;
 
 	chip->badblockbits = 8;
 	chip->erase = single_erase;

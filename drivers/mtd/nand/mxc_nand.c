@@ -859,8 +859,7 @@ static void mxc_do_addr_cycle(struct mtd_info *mtd, int column, int page_addr)
 				host->devtype_data->send_addr(host,
 						(page_addr >> 8) & 0xff, true);
 		} else {
-			/* One more address cycle for higher density devices */
-			if (mtd->size >= 0x4000000) {
+			if (nand_chip->options & NAND_ROW_ADDR_3) {
 				/* paddr_8 - paddr_15 */
 				host->devtype_data->send_addr(host,
 						(page_addr >> 8) & 0xff,

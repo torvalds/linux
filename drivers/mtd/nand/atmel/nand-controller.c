@@ -718,8 +718,7 @@ static void atmel_nfc_set_op_addr(struct nand_chip *chip, int page, int column)
 		nc->op.addrs[nc->op.naddrs++] = page;
 		nc->op.addrs[nc->op.naddrs++] = page >> 8;
 
-		if ((mtd->writesize > 512 && chip->chipsize > SZ_128M) ||
-		    (mtd->writesize <= 512 && chip->chipsize > SZ_32M))
+		if (chip->options & NAND_ROW_ADDR_3)
 			nc->op.addrs[nc->op.naddrs++] = page >> 16;
 	}
 }
