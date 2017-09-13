@@ -123,6 +123,7 @@ static int mlx5i_init_underlay_qp(struct mlx5e_priv *priv)
 
 	context->flags = cpu_to_be32(MLX5_QP_PM_MIGRATED << 11);
 	context->pri_path.port = 1;
+	context->pri_path.pkey_index = cpu_to_be16(ipriv->pkey_index);
 	context->qkey = cpu_to_be32(IB_DEFAULT_Q_KEY);
 
 	ret = mlx5_core_qp_modify(mdev, MLX5_CMD_OP_RST2INIT_QP, 0, context, qp);
@@ -529,6 +530,13 @@ static int mlx5i_xmit(struct net_device *dev, struct sk_buff *skb,
 	return mlx5i_sq_xmit(sq, skb, &mah->av, dqpn, ipriv->qkey);
 }
 
+static void mlx5i_set_pkey_index(struct net_device *netdev, int id)
+{
+	struct mlx5i_priv *ipriv = netdev_priv(netdev);
+
+	ipriv->pkey_index = (u16)id;
+}
+
 static int mlx5i_check_required_hca_cap(struct mlx5_core_dev *mdev)
 {
 	if (MLX5_CAP_GEN(mdev, port_type) != MLX5_CAP_PORT_TYPE_IB)
@@ -593,6 +601,7 @@ struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
 	rn->send = mlx5i_xmit;
 	rn->attach_mcast = mlx5i_attach_mcast;
 	rn->detach_mcast = mlx5i_detach_mcast;
+	rn->set_id = mlx5i_set_pkey_index;
 
 	return netdev;
 

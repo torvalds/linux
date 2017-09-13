@@ -50,6 +50,7 @@ struct mlx5i_priv {
 	struct rdma_netdev rn; /* keep this first */
 	struct mlx5_core_qp qp;
 	u32    qkey;
+	u16    pkey_index;
 	char  *mlx5e_priv[0];
 };
 
