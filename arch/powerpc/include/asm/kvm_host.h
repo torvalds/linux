@@ -276,7 +276,7 @@ struct kvm_arch {
 	int tlbie_lock;
 	unsigned long lpcr;
 	unsigned long vrma_slb_v;
-	int hpte_setup_done;
+	int mmu_ready;
 	atomic_t vcpus_running;
 	u32 online_vcores;
 	atomic_t hpte_mod_interest;

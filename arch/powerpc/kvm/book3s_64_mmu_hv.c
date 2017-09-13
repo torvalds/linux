@@ -140,12 +140,12 @@ long kvmppc_alloc_reset_hpt(struct kvm *kvm, int order)
 		return -EINVAL;
 
 	mutex_lock(&kvm->lock);
-	if (kvm->arch.hpte_setup_done) {
-		kvm->arch.hpte_setup_done = 0;
-		/* order hpte_setup_done vs. vcpus_running */
+	if (kvm->arch.mmu_ready) {
+		kvm->arch.mmu_ready = 0;
+		/* order mmu_ready vs. vcpus_running */
 		smp_mb();
 		if (atomic_read(&kvm->arch.vcpus_running)) {
-			kvm->arch.hpte_setup_done = 1;
+			kvm->arch.mmu_ready = 1;
 			goto out;
 		}
 	}
@@ -1533,15 +1533,15 @@ long kvm_vm_ioctl_resize_hpt_commit(struct kvm *kvm,
 
 	/* This shouldn't be possible */
 	ret = -EIO;
-	if (WARN_ON(!kvm->arch.hpte_setup_done))
+	if (WARN_ON(!kvm->arch.mmu_ready))
 		goto out_no_hpt;
 
 	/* Stop VCPUs from running while we mess with the HPT */
-	kvm->arch.hpte_setup_done = 0;
+	kvm->arch.mmu_ready = 0;
 	smp_mb();
 
 	/* Boot all CPUs out of the guest so they re-read
-	 * hpte_setup_done */
+	 * mmu_ready */
 	on_each_cpu(resize_hpt_boot_vcpu, NULL, 1);
 
 	ret = -ENXIO;
@@ -1564,7 +1564,7 @@ long kvm_vm_ioctl_resize_hpt_commit(struct kvm *kvm,
 
 out:
 	/* Let VCPUs run again */
-	kvm->arch.hpte_setup_done = 1;
+	kvm->arch.mmu_ready = 1;
 	smp_mb();
 out_no_hpt:
 	resize_hpt_release(kvm, resize);
@@ -1802,7 +1802,7 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 	unsigned long tmp[2];
 	ssize_t nb;
 	long int err, ret;
-	int hpte_setup;
+	int mmu_ready;
 
 	if (!access_ok(VERIFY_READ, buf, count))
 		return -EFAULT;
@@ -1811,13 +1811,13 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 
 	/* lock out vcpus from running while we're doing this */
 	mutex_lock(&kvm->lock);
-	hpte_setup = kvm->arch.hpte_setup_done;
-	if (hpte_setup) {
-		kvm->arch.hpte_setup_done = 0;	/* temporarily */
-		/* order hpte_setup_done vs. vcpus_running */
+	mmu_ready = kvm->arch.mmu_ready;
+	if (mmu_ready) {
+		kvm->arch.mmu_ready = 0;	/* temporarily */
+		/* order mmu_ready vs. vcpus_running */
 		smp_mb();
 		if (atomic_read(&kvm->arch.vcpus_running)) {
-			kvm->arch.hpte_setup_done = 1;
+			kvm->arch.mmu_ready = 1;
 			mutex_unlock(&kvm->lock);
 			return -EBUSY;
 		}
@@ -1870,7 +1870,7 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 				       "r=%lx\n", ret, i, v, r);
 				goto out;
 			}
-			if (!hpte_setup && is_vrma_hpte(v)) {
+			if (!mmu_ready && is_vrma_hpte(v)) {
 				unsigned long psize = hpte_base_page_size(v, r);
 				unsigned long senc = slb_pgsize_encoding(psize);
 				unsigned long lpcr;
@@ -1879,7 +1879,7 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 					(VRMA_VSID << SLB_VSID_SHIFT_1T);
 				lpcr = senc << (LPCR_VRMASD_SH - 4);
 				kvmppc_update_lpcr(kvm, lpcr, LPCR_VRMASD);
-				hpte_setup = 1;
+				mmu_ready = 1;
 			}
 			++i;
 			hptp += 2;
@@ -1895,9 +1895,9 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 	}
 
  out:
-	/* Order HPTE updates vs. hpte_setup_done */
+	/* Order HPTE updates vs. mmu_ready */
 	smp_wmb();
-	kvm->arch.hpte_setup_done = hpte_setup;
+	kvm->arch.mmu_ready = mmu_ready;
 	mutex_unlock(&kvm->lock);
 
 	if (err)

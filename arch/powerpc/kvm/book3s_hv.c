@@ -115,6 +115,7 @@ MODULE_PARM_DESC(h_ipi_redirect, "Redirect H_IPI wakeup to a free host core");
 
 static void kvmppc_end_cede(struct kvm_vcpu *vcpu);
 static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu);
+static void kvmppc_setup_partition_table(struct kvm *kvm);
 
 static inline struct kvm_vcpu *next_runnable_thread(struct kvmppc_vcore *vc,
 		int *ip)
@@ -3198,6 +3199,7 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	unsigned long ebb_regs[3] = {};	/* shut up GCC */
 	unsigned long user_tar = 0;
 	unsigned int user_vrsave;
+	struct kvm *kvm;
 
 	if (!vcpu->arch.sane) {
 		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
@@ -3235,13 +3237,25 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		return -EINTR;
 	}
 
-	atomic_inc(&vcpu->kvm->arch.vcpus_running);
-	/* Order vcpus_running vs. hpte_setup_done, see kvmppc_alloc_reset_hpt */
+	kvm = vcpu->kvm;
+	atomic_inc(&kvm->arch.vcpus_running);
+	/* Order vcpus_running vs. mmu_ready, see kvmppc_alloc_reset_hpt */
 	smp_mb();
 
-	/* On the first time here, set up HTAB and VRMA */
-	if (!kvm_is_radix(vcpu->kvm) && !vcpu->kvm->arch.hpte_setup_done) {
-		r = kvmppc_hv_setup_htab_rma(vcpu);
+	/* On the first time here, set up MMU if necessary */
+	if (!vcpu->kvm->arch.mmu_ready) {
+		mutex_lock(&kvm->lock);
+		r = 0;
+		if (!kvm->arch.mmu_ready) {
+			if (!kvm_is_radix(vcpu->kvm))
+				r = kvmppc_hv_setup_htab_rma(vcpu);
+			if (!r) {
+				if (cpu_has_feature(CPU_FTR_ARCH_300))
+					kvmppc_setup_partition_table(kvm);
+				kvm->arch.mmu_ready = 1;
+			}
+		}
+		mutex_unlock(&kvm->lock);
 		if (r)
 			goto out;
 	}
@@ -3530,6 +3544,10 @@ static void kvmppc_setup_partition_table(struct kvm *kvm)
 	mmu_partition_table_set_entry(kvm->arch.lpid, dw0, dw1);
 }
 
+/*
+ * Set up HPT (hashed page table) and RMA (real-mode area).
+ * Must be called with kvm->lock held.
+ */
 static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 {
 	int err = 0;
@@ -3540,10 +3558,6 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 	unsigned long lpcr = 0, senc;
 	unsigned long psize, porder;
 	int srcu_idx;
-
-	mutex_lock(&kvm->lock);
-	if (kvm->arch.hpte_setup_done)
-		goto out;	/* another vcpu beat us to it */
 
 	/* Allocate hashed page table (if not done already) and reset it */
 	if (!kvm->arch.hpt.virt) {
@@ -3603,18 +3617,14 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 		/* the -4 is to account for senc values starting at 0x10 */
 		lpcr = senc << (LPCR_VRMASD_SH - 4);
 		kvmppc_update_lpcr(kvm, lpcr, LPCR_VRMASD);
-	} else {
-		kvmppc_setup_partition_table(kvm);
 	}
 
-	/* Order updates to kvm->arch.lpcr etc. vs. hpte_setup_done */
+	/* Order updates to kvm->arch.lpcr etc. vs. mmu_ready */
 	smp_wmb();
-	kvm->arch.hpte_setup_done = 1;
 	err = 0;
  out_srcu:
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
  out:
-	mutex_unlock(&kvm->lock);
 	return err;
 
  up_out:
@@ -3769,6 +3779,7 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	 */
 	if (radix_enabled()) {
 		kvm->arch.radix = 1;
+		kvm->arch.mmu_ready = 1;
 		lpcr &= ~LPCR_VPM1;
 		lpcr |= LPCR_UPRT | LPCR_GTSE | LPCR_HR;
 		ret = kvmppc_init_vm_radix(kvm);
