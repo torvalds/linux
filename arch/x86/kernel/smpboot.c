@@ -1296,7 +1296,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 
 	set_cpu_sibling_map(0);
 
-	apic_intr_mode_init();
+	x86_init.irqs.intr_mode_init();
 
 	smp_sanity_check();
 

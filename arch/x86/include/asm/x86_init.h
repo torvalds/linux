@@ -50,11 +50,13 @@ struct x86_init_resources {
  *				are set up.
  * @intr_init:			interrupt init code
  * @trap_init:			platform specific trap setup
+ * @intr_mode_init:		interrupt delivery mode setup
  */
 struct x86_init_irqs {
 	void (*pre_vector_init)(void);
 	void (*intr_init)(void);
 	void (*trap_init)(void);
+	void (*intr_mode_init)(void);
 };
 
 /**
