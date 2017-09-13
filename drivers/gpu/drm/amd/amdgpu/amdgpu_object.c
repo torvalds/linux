@@ -91,7 +91,10 @@ static void amdgpu_ttm_placement_init(struct amdgpu_device *adev,
 
 	if (domain & AMDGPU_GEM_DOMAIN_GTT) {
 		places[c].fpfn = 0;
-		places[c].lpfn = 0;
+		if (flags & AMDGPU_GEM_CREATE_SHADOW)
+			places[c].lpfn = adev->mc.gart_size >> PAGE_SHIFT;
+		else
+			places[c].lpfn = 0;
 		places[c].flags = TTM_PL_FLAG_TT;
 		if (flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC)
 			places[c].flags |= TTM_PL_FLAG_WC |
@@ -446,17 +449,16 @@ static int amdgpu_bo_create_shadow(struct amdgpu_device *adev,
 	if (bo->shadow)
 		return 0;
 
-	bo->flags |= AMDGPU_GEM_CREATE_SHADOW;
-	memset(&placements, 0,
-	       (AMDGPU_GEM_DOMAIN_MAX + 1) * sizeof(struct ttm_place));
-
-	amdgpu_ttm_placement_init(adev, &placement,
-				  placements, AMDGPU_GEM_DOMAIN_GTT,
-				  AMDGPU_GEM_CREATE_CPU_GTT_USWC);
+	memset(&placements, 0, sizeof(placements));
+	amdgpu_ttm_placement_init(adev, &placement, placements,
+				  AMDGPU_GEM_DOMAIN_GTT,
+				  AMDGPU_GEM_CREATE_CPU_GTT_USWC |
+				  AMDGPU_GEM_CREATE_SHADOW);
 
 	r = amdgpu_bo_create_restricted(adev, size, byte_align, true,
 					AMDGPU_GEM_DOMAIN_GTT,
-					AMDGPU_GEM_CREATE_CPU_GTT_USWC,
+					AMDGPU_GEM_CREATE_CPU_GTT_USWC |
+					AMDGPU_GEM_CREATE_SHADOW,
 					NULL, &placement,
 					bo->tbo.resv,
 					0,
@@ -484,30 +486,28 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 {
 	struct ttm_placement placement = {0};
 	struct ttm_place placements[AMDGPU_GEM_DOMAIN_MAX + 1];
+	uint64_t parent_flags = flags & ~AMDGPU_GEM_CREATE_SHADOW;
 	int r;
 
-	memset(&placements, 0,
-	       (AMDGPU_GEM_DOMAIN_MAX + 1) * sizeof(struct ttm_place));
+	memset(&placements, 0, sizeof(placements));
+	amdgpu_ttm_placement_init(adev, &placement, placements,
+				  domain, parent_flags);
 
-	amdgpu_ttm_placement_init(adev, &placement,
-				  placements, domain, flags);
-
-	r = amdgpu_bo_create_restricted(adev, size, byte_align, kernel,
-					domain, flags, sg, &placement,
-					resv, init_value, bo_ptr);
+	r = amdgpu_bo_create_restricted(adev, size, byte_align, kernel, domain,
+					parent_flags, sg, &placement, resv,
+					init_value, bo_ptr);
 	if (r)
 		return r;
 
-	if (amdgpu_need_backup(adev) && (flags & AMDGPU_GEM_CREATE_SHADOW)) {
-		if (!resv) {
-			r = ww_mutex_lock(&(*bo_ptr)->tbo.resv->lock, NULL);
-			WARN_ON(r != 0);
-		}
+	if ((flags & AMDGPU_GEM_CREATE_SHADOW) && amdgpu_need_backup(adev)) {
+		if (!resv)
+			WARN_ON(reservation_object_lock((*bo_ptr)->tbo.resv,
+							NULL));
 
 		r = amdgpu_bo_create_shadow(adev, size, byte_align, (*bo_ptr));
 
 		if (!resv)
-			ww_mutex_unlock(&(*bo_ptr)->tbo.resv->lock);
+			reservation_object_unlock((*bo_ptr)->tbo.resv);
 
 		if (r)
 			amdgpu_bo_unref(bo_ptr);
