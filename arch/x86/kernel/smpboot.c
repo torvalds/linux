@@ -1263,8 +1263,9 @@ static void __init smp_get_logical_apicid(void)
 }
 
 /*
- * Prepare for SMP bootup.  The MP table or ACPI has been read
- * earlier.  Just do some sanity checking here and enable APIC mode.
+ * Prepare for SMP bootup.
+ * @max_cpus: configured maximum number of CPUs, It is a legacy parameter
+ *            for common interface support.
  */
 void __init native_smp_prepare_cpus(unsigned int max_cpus)
 {
@@ -1295,8 +1296,6 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	set_sched_topology(x86_topology);
 
 	set_cpu_sibling_map(0);
-
-	x86_init.irqs.intr_mode_init();
 
 	smp_sanity_check();
 
