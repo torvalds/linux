@@ -178,6 +178,7 @@ static struct apic xen_pv_apic = {
 	.set_apic_id 			= xen_set_apic_id, /* Can be NULL on 32-bit. */
 
 	.cpu_mask_to_apicid		= flat_cpu_mask_to_apicid,
+	.calc_dest_apicid		= apic_flat_calc_apicid,
 
 #ifdef CONFIG_SMP
 	.send_IPI_mask 			= xen_send_IPI_mask,

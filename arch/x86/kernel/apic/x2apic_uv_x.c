@@ -537,6 +537,11 @@ uv_cpu_mask_to_apicid(const struct cpumask *mask, struct irq_data *irqdata,
 	return ret;
 }
 
+static u32 apic_uv_calc_apicid(unsigned int cpu)
+{
+	return apic_default_calc_apicid(cpu) | uv_apicid_hibits;
+}
+
 static unsigned int x2apic_get_apic_id(unsigned long x)
 {
 	unsigned int id;
@@ -602,6 +607,7 @@ static struct apic apic_x2apic_uv_x __ro_after_init = {
 	.set_apic_id			= set_apic_id,
 
 	.cpu_mask_to_apicid		= uv_cpu_mask_to_apicid,
+	.calc_dest_apicid		= apic_uv_calc_apicid,
 
 	.send_IPI			= uv_send_IPI_one,
 	.send_IPI_mask			= uv_send_IPI_mask,

@@ -172,6 +172,7 @@ static struct apic apic_bigsmp __ro_after_init = {
 	.set_apic_id			= NULL,
 
 	.cpu_mask_to_apicid		= default_cpu_mask_to_apicid,
+	.calc_dest_apicid		= apic_default_calc_apicid,
 
 	.send_IPI			= default_send_IPI_single_phys,
 	.send_IPI_mask			= default_send_IPI_mask_sequence_phys,

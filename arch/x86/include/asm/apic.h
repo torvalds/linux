@@ -303,6 +303,7 @@ struct apic {
 	int	(*cpu_mask_to_apicid)(const struct cpumask *cpumask,
 				      struct irq_data *irqdata,
 				      unsigned int *apicid);
+	u32	(*calc_dest_apicid)(unsigned int cpu);
 
 	/* ICR related functions */
 	u64	(*icr_read)(void);
@@ -486,6 +487,10 @@ static inline unsigned int read_apic_id(void)
 extern int default_apic_id_valid(int apicid);
 extern int default_acpi_madt_oem_check(char *, char *);
 extern void default_setup_apic_routing(void);
+
+extern u32 apic_default_calc_apicid(unsigned int cpu);
+extern u32 apic_flat_calc_apicid(unsigned int cpu);
+
 extern int flat_cpu_mask_to_apicid(const struct cpumask *cpumask,
 				   struct irq_data *irqdata,
 				   unsigned int *apicid);

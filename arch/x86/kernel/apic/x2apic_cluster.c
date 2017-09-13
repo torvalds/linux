@@ -114,6 +114,11 @@ x2apic_cpu_mask_to_apicid(const struct cpumask *mask, struct irq_data *irqdata,
 	return 0;
 }
 
+static u32 x2apic_calc_apicid(unsigned int cpu)
+{
+	return per_cpu(x86_cpu_to_logical_apicid, cpu);
+}
+
 static void init_x2apic_ldr(void)
 {
 	struct cluster_mask *cmsk = this_cpu_read(cluster_masks);
@@ -245,6 +250,7 @@ static struct apic apic_x2apic_cluster __ro_after_init = {
 	.set_apic_id			= x2apic_set_apic_id,
 
 	.cpu_mask_to_apicid		= x2apic_cpu_mask_to_apicid,
+	.calc_dest_apicid		= x2apic_calc_apicid,
 
 	.send_IPI			= x2apic_send_IPI,
 	.send_IPI_mask			= x2apic_send_IPI_mask,

@@ -6,6 +6,11 @@
 #include <linux/irq.h>
 #include <asm/apic.h>
 
+u32 apic_default_calc_apicid(unsigned int cpu)
+{
+	return per_cpu(x86_cpu_to_apicid, cpu);
+}
+
 int default_cpu_mask_to_apicid(const struct cpumask *msk, struct irq_data *irqd,
 			       unsigned int *apicid)
 {
@@ -16,6 +21,11 @@ int default_cpu_mask_to_apicid(const struct cpumask *msk, struct irq_data *irqd,
 	*apicid = per_cpu(x86_cpu_to_apicid, cpu);
 	irq_data_update_effective_affinity(irqd, cpumask_of(cpu));
 	return 0;
+}
+
+u32 apic_flat_calc_apicid(unsigned int cpu)
+{
+	return 1U << cpu;
 }
 
 int flat_cpu_mask_to_apicid(const struct cpumask *mask, struct irq_data *irqd,

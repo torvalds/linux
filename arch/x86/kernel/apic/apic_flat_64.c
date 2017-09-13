@@ -172,6 +172,7 @@ static struct apic apic_flat __ro_after_init = {
 	.set_apic_id			= set_apic_id,
 
 	.cpu_mask_to_apicid		= flat_cpu_mask_to_apicid,
+	.calc_dest_apicid		= apic_flat_calc_apicid,
 
 	.send_IPI			= default_send_IPI_single,
 	.send_IPI_mask			= flat_send_IPI_mask,
@@ -267,6 +268,7 @@ static struct apic apic_physflat __ro_after_init = {
 	.set_apic_id			= set_apic_id,
 
 	.cpu_mask_to_apicid		= default_cpu_mask_to_apicid,
+	.calc_dest_apicid		= apic_default_calc_apicid,
 
 	.send_IPI			= default_send_IPI_single_phys,
 	.send_IPI_mask			= default_send_IPI_mask_sequence_phys,
