@@ -76,8 +76,6 @@
 #define TELEM_IOSS_DX_D0IX_EVTS		25
 #define TELEM_IOSS_PG_EVTS		30
 
-#define TELEM_EVT_LEN(x) (sizeof(x)/sizeof((x)[0]))
-
 #define TELEM_DEBUGFS_CPU(model, data) \
 	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long)&data}
 
@@ -304,13 +302,13 @@ static struct telemetry_debugfs_conf telem_apl_debugfs_conf = {
 	.ioss_d0ix_data = telem_apl_ioss_d0ix_data,
 	.ioss_pg_data = telem_apl_ioss_pg_data,
 
-	.pss_idle_evts = TELEM_EVT_LEN(telem_apl_pss_idle_data),
-	.pcs_idle_blkd_evts = TELEM_EVT_LEN(telem_apl_pcs_idle_blkd_data),
-	.pcs_s0ix_blkd_evts = TELEM_EVT_LEN(telem_apl_pcs_s0ix_blkd_data),
-	.pss_ltr_evts = TELEM_EVT_LEN(telem_apl_pss_ltr_data),
-	.pss_wakeup_evts = TELEM_EVT_LEN(telem_apl_pss_wakeup),
-	.ioss_d0ix_evts = TELEM_EVT_LEN(telem_apl_ioss_d0ix_data),
-	.ioss_pg_evts = TELEM_EVT_LEN(telem_apl_ioss_pg_data),
+	.pss_idle_evts = ARRAY_SIZE(telem_apl_pss_idle_data),
+	.pcs_idle_blkd_evts = ARRAY_SIZE(telem_apl_pcs_idle_blkd_data),
+	.pcs_s0ix_blkd_evts = ARRAY_SIZE(telem_apl_pcs_s0ix_blkd_data),
+	.pss_ltr_evts = ARRAY_SIZE(telem_apl_pss_ltr_data),
+	.pss_wakeup_evts = ARRAY_SIZE(telem_apl_pss_wakeup),
+	.ioss_d0ix_evts = ARRAY_SIZE(telem_apl_ioss_d0ix_data),
+	.ioss_pg_evts = ARRAY_SIZE(telem_apl_ioss_pg_data),
 
 	.pstates_id = TELEM_APL_PSS_PSTATES_ID,
 	.pss_idle_id = TELEM_APL_PSS_IDLE_ID,
