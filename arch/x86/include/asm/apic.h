@@ -524,31 +524,10 @@ extern void default_setup_apic_routing(void);
 extern struct apic apic_noop;
 
 #ifdef CONFIG_X86_32
-
 static inline int noop_x86_32_early_logical_apicid(int cpu)
 {
 	return BAD_APICID;
 }
-
-/*
- * Set up the logical destination ID.
- *
- * Intel recommends to set DFR, LDR and TPR before enabling
- * an APIC.  See e.g. "AP-388 82489DX User's Manual" (Intel
- * document number 292116).  So here it goes...
- */
-extern void default_init_apic_ldr(void);
-
-static inline int default_apic_id_registered(void)
-{
-	return physid_isset(read_apic_id(), phys_cpu_present_map);
-}
-
-static inline int default_phys_pkg_id(int cpuid_apic, int index_msb)
-{
-	return cpuid_apic >> index_msb;
-}
-
 #endif
 
 extern int flat_cpu_mask_to_apicid(const struct cpumask *cpumask,
