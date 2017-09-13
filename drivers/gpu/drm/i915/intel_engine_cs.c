@@ -442,6 +442,114 @@ static void intel_engine_cleanup_scratch(struct intel_engine_cs *engine)
 	i915_vma_unpin_and_release(&engine->scratch);
 }
 
+static void cleanup_phys_status_page(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+
+	if (!dev_priv->status_page_dmah)
+		return;
+
+	drm_pci_free(&dev_priv->drm, dev_priv->status_page_dmah);
+	engine->status_page.page_addr = NULL;
+}
+
+static void cleanup_status_page(struct intel_engine_cs *engine)
+{
+	struct i915_vma *vma;
+	struct drm_i915_gem_object *obj;
+
+	vma = fetch_and_zero(&engine->status_page.vma);
+	if (!vma)
+		return;
+
+	obj = vma->obj;
+
+	i915_vma_unpin(vma);
+	i915_vma_close(vma);
+
+	i915_gem_object_unpin_map(obj);
+	__i915_gem_object_release_unless_active(obj);
+}
+
+static int init_status_page(struct intel_engine_cs *engine)
+{
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	unsigned int flags;
+	void *vaddr;
+	int ret;
+
+	obj = i915_gem_object_create_internal(engine->i915, PAGE_SIZE);
+	if (IS_ERR(obj)) {
+		DRM_ERROR("Failed to allocate status page\n");
+		return PTR_ERR(obj);
+	}
+
+	ret = i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
+	if (ret)
+		goto err;
+
+	vma = i915_vma_instance(obj, &engine->i915->ggtt.base, NULL);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
+		goto err;
+	}
+
+	flags = PIN_GLOBAL;
+	if (!HAS_LLC(engine->i915))
+		/* On g33, we cannot place HWS above 256MiB, so
+		 * restrict its pinning to the low mappable arena.
+		 * Though this restriction is not documented for
+		 * gen4, gen5, or byt, they also behave similarly
+		 * and hang if the HWS is placed at the top of the
+		 * GTT. To generalise, it appears that all !llc
+		 * platforms have issues with us placing the HWS
+		 * above the mappable region (even though we never
+		 * actually map it).
+		 */
+		flags |= PIN_MAPPABLE;
+	ret = i915_vma_pin(vma, 0, 4096, flags);
+	if (ret)
+		goto err;
+
+	vaddr = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	if (IS_ERR(vaddr)) {
+		ret = PTR_ERR(vaddr);
+		goto err_unpin;
+	}
+
+	engine->status_page.vma = vma;
+	engine->status_page.ggtt_offset = i915_ggtt_offset(vma);
+	engine->status_page.page_addr = memset(vaddr, 0, PAGE_SIZE);
+
+	DRM_DEBUG_DRIVER("%s hws offset: 0x%08x\n",
+			 engine->name, i915_ggtt_offset(vma));
+	return 0;
+
+err_unpin:
+	i915_vma_unpin(vma);
+err:
+	i915_gem_object_put(obj);
+	return ret;
+}
+
+static int init_phys_status_page(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+
+	GEM_BUG_ON(engine->id != RCS);
+
+	dev_priv->status_page_dmah =
+		drm_pci_alloc(&dev_priv->drm, PAGE_SIZE, PAGE_SIZE);
+	if (!dev_priv->status_page_dmah)
+		return -ENOMEM;
+
+	engine->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
+	memset(engine->status_page.page_addr, 0, PAGE_SIZE);
+
+	return 0;
+}
+
 /**
  * intel_engines_init_common - initialize cengine state which might require hw access
  * @engine: Engine to initialize.
@@ -477,10 +585,21 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 
 	ret = i915_gem_render_state_init(engine);
 	if (ret)
-		goto err_unpin;
+		goto err_breadcrumbs;
+
+	if (HWS_NEEDS_PHYSICAL(engine->i915))
+		ret = init_phys_status_page(engine);
+	else
+		ret = init_status_page(engine);
+	if (ret)
+		goto err_rs_fini;
 
 	return 0;
 
+err_rs_fini:
+	i915_gem_render_state_fini(engine);
+err_breadcrumbs:
+	intel_engine_fini_breadcrumbs(engine);
 err_unpin:
 	engine->context_unpin(engine, engine->i915->kernel_context);
 	return ret;
@@ -496,6 +615,11 @@ err_unpin:
 void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 {
 	intel_engine_cleanup_scratch(engine);
+
+	if (HWS_NEEDS_PHYSICAL(engine->i915))
+		cleanup_phys_status_page(engine);
+	else
+		cleanup_status_page(engine);
 
 	i915_gem_render_state_fini(engine);
 	intel_engine_fini_breadcrumbs(engine);
