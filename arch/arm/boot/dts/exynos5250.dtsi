@@ -637,7 +637,7 @@
 		};
 
 		gsc_0:  gsc@13e00000 {
-			compatible = "samsung,exynos5-gsc";
+			compatible = "samsung,exynos5250-gsc", "samsung,exynos5-gsc";
 			reg = <0x13e00000 0x1000>;
 			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 			power-domains = <&pd_gsc>;
@@ -647,7 +647,7 @@
 		};
 
 		gsc_1:  gsc@13e10000 {
-			compatible = "samsung,exynos5-gsc";
+			compatible = "samsung,exynos5250-gsc", "samsung,exynos5-gsc";
 			reg = <0x13e10000 0x1000>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 			power-domains = <&pd_gsc>;
@@ -657,7 +657,7 @@
 		};
 
 		gsc_2:  gsc@13e20000 {
-			compatible = "samsung,exynos5-gsc";
+			compatible = "samsung,exynos5250-gsc", "samsung,exynos5-gsc";
 			reg = <0x13e20000 0x1000>;
 			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
 			power-domains = <&pd_gsc>;
@@ -667,7 +667,7 @@
 		};
 
 		gsc_3:  gsc@13e30000 {
-			compatible = "samsung,exynos5-gsc";
+			compatible = "samsung,exynos5250-gsc", "samsung,exynos5-gsc";
 			reg = <0x13e30000 0x1000>;
 			interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
 			power-domains = <&pd_gsc>;
