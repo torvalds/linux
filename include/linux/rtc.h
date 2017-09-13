@@ -72,8 +72,6 @@ extern struct class *rtc_class;
  * issued through ioctl() ...
  */
 struct rtc_class_ops {
-	int (*open)(struct device *);
-	void (*release)(struct device *);
 	int (*ioctl)(struct device *, unsigned int, unsigned long);
 	int (*read_time)(struct device *, struct rtc_time *);
 	int (*set_time)(struct device *, struct rtc_time *);
