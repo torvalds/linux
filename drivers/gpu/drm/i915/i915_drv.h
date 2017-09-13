@@ -2881,23 +2881,21 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define INTEL_REVID(dev_priv)	((dev_priv)->drm.pdev->revision)
 
 #define GEN_FOREVER (0)
+
+#define INTEL_GEN_MASK(s, e) ( \
+	BUILD_BUG_ON_ZERO(!__builtin_constant_p(s)) + \
+	BUILD_BUG_ON_ZERO(!__builtin_constant_p(e)) + \
+	GENMASK((e) != GEN_FOREVER ? (e) - 1 : BITS_PER_LONG - 1, \
+		(s) != GEN_FOREVER ? (s) - 1 : 0) \
+)
+
 /*
  * Returns true if Gen is in inclusive range [Start, End].
  *
  * Use GEN_FOREVER for unbound start and or end.
  */
-#define IS_GEN(dev_priv, s, e) ({ \
-	unsigned int __s = (s), __e = (e); \
-	BUILD_BUG_ON(!__builtin_constant_p(s)); \
-	BUILD_BUG_ON(!__builtin_constant_p(e)); \
-	if ((__s) != GEN_FOREVER) \
-		__s = (s) - 1; \
-	if ((__e) == GEN_FOREVER) \
-		__e = BITS_PER_LONG - 1; \
-	else \
-		__e = (e) - 1; \
-	!!((dev_priv)->info.gen_mask & GENMASK((__e), (__s))); \
-})
+#define IS_GEN(dev_priv, s, e) \
+	(!!((dev_priv)->info.gen_mask & INTEL_GEN_MASK((s), (e))))
 
 /*
  * Return true if revision is in range [since,until] inclusive.
