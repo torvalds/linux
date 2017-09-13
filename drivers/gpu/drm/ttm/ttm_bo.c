@@ -557,6 +557,8 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 	}
 
 	ttm_bo_del_from_lru(bo);
+	if (!list_empty(&bo->ddestroy) && (bo->resv != &bo->ttm_resv))
+		reservation_object_fini(&bo->ttm_resv);
 	list_del_init(&bo->ddestroy);
 	kref_put(&bo->list_kref, ttm_bo_ref_bug);
 
