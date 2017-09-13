@@ -14,10 +14,9 @@
 #define DEFAULT_REGSPACING	1
 #define DEFAULT_REGSIZE		1
 
-struct smi_info;
-
-int ipmi_si_add_smi(struct smi_info *info);
+int ipmi_si_add_smi(struct si_sm_io *io);
 irqreturn_t ipmi_si_irq_handler(int irq, void *data);
 void ipmi_irq_start_cleanup(struct si_sm_io *io);
 int ipmi_std_irq_setup(struct si_sm_io *io);
 void ipmi_irq_finish_setup(struct si_sm_io *io);
+int ipmi_si_remove_by_dev(struct device *dev);

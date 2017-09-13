@@ -70,6 +70,7 @@ struct si_sm_io {
 	enum ipmi_addr_src addr_source; /* ACPI, PCI, SMBIOS, hardcode, etc. */
 	void (*addr_source_cleanup)(struct si_sm_io *io);
 	void *addr_source_data;
+	union ipmi_smi_info_union addr_info;
 
 	int (*io_setup)(struct si_sm_io *info);
 	void (*io_cleanup)(struct si_sm_io *info);
