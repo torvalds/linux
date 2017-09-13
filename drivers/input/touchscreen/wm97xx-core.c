@@ -44,6 +44,7 @@
 #include <linux/pm.h>
 #include <linux/interrupt.h>
 #include <linux/bitops.h>
+#include <linux/mfd/wm97xx.h>
 #include <linux/workqueue.h>
 #include <linux/wm97xx.h>
 #include <linux/uaccess.h>
@@ -766,6 +767,39 @@ static int wm97xx_remove(struct device *dev)
 	return 0;
 }
 
+static int wm97xx_mfd_probe(struct platform_device *pdev)
+{
+	struct wm97xx *wm;
+	struct wm97xx_platform_data *mfd_pdata = dev_get_platdata(&pdev->dev);
+	int ret;
+
+	wm = devm_kzalloc(&pdev->dev, sizeof(struct wm97xx), GFP_KERNEL);
+	if (!wm)
+		return -ENOMEM;
+
+	wm->dev = &pdev->dev;
+	wm->ac97 = mfd_pdata->ac97;
+
+	ret =  _wm97xx_probe(wm);
+	if (ret)
+		return ret;
+
+	ret = wm97xx_add_battery(wm, mfd_pdata->batt_pdata);
+	if (ret < 0)
+		goto batt_err;
+
+	return ret;
+
+batt_err:
+	wm97xx_unregister_touch(wm);
+	return ret;
+}
+
+static int wm97xx_mfd_remove(struct platform_device *pdev)
+{
+	return wm97xx_remove(&pdev->dev);
+}
+
 static int __maybe_unused wm97xx_suspend(struct device *dev)
 {
 	struct wm97xx *wm = dev_get_drvdata(dev);
@@ -862,21 +896,41 @@ EXPORT_SYMBOL_GPL(wm97xx_unregister_mach_ops);
 
 static struct device_driver wm97xx_driver = {
 	.name =		"wm97xx-ts",
+#ifdef CONFIG_AC97_BUS
 	.bus =		&ac97_bus_type,
+#endif
 	.owner =	THIS_MODULE,
 	.probe =	wm97xx_probe,
 	.remove =	wm97xx_remove,
 	.pm =		&wm97xx_pm_ops,
 };
 
+static struct platform_driver wm97xx_mfd_driver = {
+	.driver = {
+		.name =		"wm97xx-ts",
+		.pm =		&wm97xx_pm_ops,
+	},
+	.probe =	wm97xx_mfd_probe,
+	.remove =	wm97xx_mfd_remove,
+};
+
 static int __init wm97xx_init(void)
 {
-	return driver_register(&wm97xx_driver);
+	int ret;
+
+	ret = platform_driver_register(&wm97xx_mfd_driver);
+	if (ret)
+		return ret;
+
+	if (IS_BUILTIN(CONFIG_AC97_BUS))
+		ret =  driver_register(&wm97xx_driver);
+	return ret;
 }
 
 static void __exit wm97xx_exit(void)
 {
 	driver_unregister(&wm97xx_driver);
+	platform_driver_unregister(&wm97xx_mfd_driver);
 }
 
 module_init(wm97xx_init);
