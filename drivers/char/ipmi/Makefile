@@ -3,7 +3,7 @@
 #
 
 ipmi_si-y := ipmi_si_intf.o ipmi_kcs_sm.o ipmi_smic_sm.o ipmi_bt_sm.o \
-	ipmi_si_hotmod.o ipmi_si_hardcode.o
+	ipmi_si_hotmod.o ipmi_si_hardcode.o ipmi_si_platform.o
 
 obj-$(CONFIG_IPMI_HANDLER) += ipmi_msghandler.o
 obj-$(CONFIG_IPMI_DEVICE_INTERFACE) += ipmi_devintf.o

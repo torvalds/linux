@@ -14,6 +14,8 @@
 #define DEFAULT_REGSPACING	1
 #define DEFAULT_REGSIZE		1
 
+#define DEVICE_NAME "ipmi_si"
+
 int ipmi_si_add_smi(struct si_sm_io *io);
 irqreturn_t ipmi_si_irq_handler(int irq, void *data);
 void ipmi_irq_start_cleanup(struct si_sm_io *io);
@@ -23,3 +25,7 @@ int ipmi_si_remove_by_dev(struct device *dev);
 void ipmi_si_remove_by_data(int addr_space, enum si_type si_type,
 			    unsigned long addr);
 int ipmi_si_hardcode_find_bmc(void);
+void ipmi_si_platform_init(void);
+void ipmi_si_platform_shutdown(void);
+
+extern struct platform_driver ipmi_platform_driver;
