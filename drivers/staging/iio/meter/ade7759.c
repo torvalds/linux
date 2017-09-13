@@ -172,7 +172,7 @@ static int ade7759_spi_read_reg_40(struct device *dev,
 				reg_address);
 		goto error_ret;
 	}
-	*val = ((u64)st->rx[1] << 32) | (st->rx[2] << 24) |
+	*val = ((u64)st->rx[1] << 32) | ((u64)st->rx[2] << 24) |
 		(st->rx[3] << 16) | (st->rx[4] << 8) | st->rx[5];
 
 error_ret:
