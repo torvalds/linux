@@ -181,7 +181,7 @@ static void kvmppc_fast_vcpu_kick_hv(struct kvm_vcpu *vcpu)
 	struct swait_queue_head *wqp;
 
 	wqp = kvm_arch_vcpu_wq(vcpu);
-	if (swait_active(wqp)) {
+	if (swq_has_sleeper(wqp)) {
 		swake_up(wqp);
 		++vcpu->stat.halt_wakeup;
 	}
