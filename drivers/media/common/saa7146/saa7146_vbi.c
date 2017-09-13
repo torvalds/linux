@@ -488,7 +488,7 @@ static ssize_t vbi_read(struct file *file, char __user *data, size_t count, loff
 	return ret;
 }
 
-struct saa7146_use_ops saa7146_vbi_uops = {
+const struct saa7146_use_ops saa7146_vbi_uops = {
 	.init		= vbi_init,
 	.open		= vbi_open,
 	.release	= vbi_close,
