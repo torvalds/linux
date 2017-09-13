@@ -1413,7 +1413,7 @@ config MFD_TI_LP87565
 
 config MFD_TPS65218
 	tristate "TI TPS65218 Power Management chips"
-	depends on I2C
+	depends on I2C && OF
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
