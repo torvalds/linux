@@ -23,6 +23,8 @@
 
 struct apic_chip_data {
 	struct irq_cfg		cfg;
+	unsigned int		cpu;
+	unsigned int		prev_cpu;
 	cpumask_var_t		domain;
 	cpumask_var_t		old_domain;
 	u8			move_in_progress : 1;
@@ -214,6 +216,7 @@ update:
 	cpumask_and(d->old_domain, d->old_domain, cpu_online_mask);
 	d->move_in_progress = !cpumask_empty(d->old_domain);
 	d->cfg.old_vector = d->move_in_progress ? d->cfg.vector : 0;
+	d->prev_cpu = d->cpu;
 	d->cfg.vector = vector;
 	cpumask_copy(d->domain, vector_cpumask);
 success:
@@ -228,6 +231,7 @@ success:
 	cpumask_and(vector_searchmask, vector_searchmask, mask);
 	BUG_ON(apic->cpu_mask_to_apicid(vector_searchmask, irqd,
 					&d->cfg.dest_apicid));
+	d->cpu = cpumask_first(vector_searchmask);
 	return 0;
 }
 
@@ -428,6 +432,7 @@ static void __init init_legacy_irqs(void)
 
 		apicd->cfg.vector = ISA_IRQ_VECTOR(i);
 		cpumask_copy(apicd->domain, cpumask_of(0));
+		apicd->cpu = 0;
 		irq_set_chip_data(i, apicd);
 	}
 }
