@@ -980,7 +980,7 @@ static int tpm2_get_cc_attrs_tbl(struct tpm_chip *chip)
 {
 	struct tpm_buf buf;
 	u32 nr_commands;
-	u32 *attrs;
+	__be32 *attrs;
 	u32 cc;
 	int i;
 	int rc;
@@ -1020,7 +1020,7 @@ static int tpm2_get_cc_attrs_tbl(struct tpm_chip *chip)
 
 	chip->nr_commands = nr_commands;
 
-	attrs = (u32 *)&buf.data[TPM_HEADER_SIZE + 9];
+	attrs = (__be32 *)&buf.data[TPM_HEADER_SIZE + 9];
 	for (i = 0; i < nr_commands; i++, attrs++) {
 		chip->cc_attrs_tbl[i] = be32_to_cpup(attrs);
 		cc = chip->cc_attrs_tbl[i] & 0xFFFF;
