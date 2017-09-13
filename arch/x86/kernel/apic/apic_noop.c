@@ -83,12 +83,6 @@ static int noop_apic_id_registered(void)
 	return physid_isset(0, phys_cpu_present_map);
 }
 
-static const struct cpumask *noop_target_cpus(void)
-{
-	/* only BSP here */
-	return cpumask_of(0);
-}
-
 static void noop_vector_allocation_domain(int cpu, struct cpumask *retmask,
 					  const struct cpumask *mask)
 {
@@ -127,7 +121,6 @@ struct apic apic_noop __ro_after_init = {
 	/* logical delivery broadcast to all CPUs: */
 	.irq_dest_mode			= 1,
 
-	.target_cpus			= noop_target_cpus,
 	.disable_esr			= 0,
 	.dest_logical			= APIC_DEST_LOGICAL,
 	.check_apicid_used		= default_check_apicid_used,

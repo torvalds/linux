@@ -298,7 +298,6 @@ struct apic {
 	u32	irq_dest_mode;
 
 	/* Functions and data related to vector allocation */
-	const struct cpumask *(*target_cpus)(void);
 	void	(*vector_allocation_domain)(int cpu, struct cpumask *retmask,
 					    const struct cpumask *mask);
 	int	(*cpu_mask_to_apicid)(const struct cpumask *cpumask,
@@ -484,8 +483,6 @@ static inline unsigned int read_apic_id(void)
 	return apic->get_apic_id(reg);
 }
 
-extern const struct cpumask *default_target_cpus(void);
-extern const struct cpumask *online_target_cpus(void);
 extern int default_apic_id_valid(int apicid);
 extern int default_acpi_madt_oem_check(char *, char *);
 extern void default_setup_apic_routing(void);

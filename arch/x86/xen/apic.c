@@ -160,7 +160,6 @@ static struct apic xen_pv_apic = {
 	/* .irq_delivery_mode - used in native_compose_msi_msg only */
 	/* .irq_dest_mode     - used in native_compose_msi_msg only */
 
-	.target_cpus			= default_target_cpus,
 	.disable_esr			= 0,
 	/* .dest_logical      -  default_send_IPI_ use it but we use our own. */
 	.check_apicid_used		= default_check_apicid_used, /* Used on 32-bit */

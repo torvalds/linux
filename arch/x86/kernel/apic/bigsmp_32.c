@@ -154,7 +154,6 @@ static struct apic apic_bigsmp __ro_after_init = {
 	/* phys delivery to target CPU: */
 	.irq_dest_mode			= 0,
 
-	.target_cpus			= default_target_cpus,
 	.disable_esr			= 1,
 	.dest_logical			= 0,
 	.check_apicid_used		= bigsmp_check_apicid_used,

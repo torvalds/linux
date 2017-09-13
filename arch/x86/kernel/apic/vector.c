@@ -255,7 +255,7 @@ static int assign_irq_vector_policy(int irq, int node,
 	if (node != NUMA_NO_NODE &&
 	    assign_irq_vector(irq, data, cpumask_of_node(node), irqdata) == 0)
 		return 0;
-	return assign_irq_vector(irq, data, apic->target_cpus(), irqdata);
+	return assign_irq_vector(irq, data, cpu_online_mask, irqdata);
 }
 
 static void clear_irq_vector(int irq, struct apic_chip_data *data)

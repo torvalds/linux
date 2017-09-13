@@ -109,7 +109,6 @@ static struct apic apic_default __ro_after_init = {
 	/* logical delivery broadcast to all CPUs: */
 	.irq_dest_mode			= 1,
 
-	.target_cpus			= default_target_cpus,
 	.disable_esr			= 0,
 	.dest_logical			= APIC_DEST_LOGICAL,
 	.check_apicid_used		= default_check_apicid_used,

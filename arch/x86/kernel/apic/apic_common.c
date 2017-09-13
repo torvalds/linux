@@ -78,20 +78,6 @@ int default_check_phys_apicid_present(int phys_apicid)
 	return physid_isset(phys_apicid, phys_cpu_present_map);
 }
 
-const struct cpumask *default_target_cpus(void)
-{
-#ifdef CONFIG_SMP
-	return cpu_online_mask;
-#else
-	return cpumask_of(0);
-#endif
-}
-
-const struct cpumask *online_target_cpus(void)
-{
-	return cpu_online_mask;
-}
-
 int default_apic_id_valid(int apicid)
 {
 	return (apicid < 255);

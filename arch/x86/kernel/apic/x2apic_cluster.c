@@ -193,11 +193,6 @@ static int x2apic_cluster_probe(void)
 	return 1;
 }
 
-static const struct cpumask *x2apic_cluster_target_cpus(void)
-{
-	return cpu_all_mask;
-}
-
 /*
  * Each x2apic cluster is an allocation domain.
  */
@@ -215,7 +210,7 @@ static void cluster_vector_allocation_domain(int cpu, struct cpumask *retmask,
 	 * derived from the first cpu in the mask) members specified
 	 * in the mask.
 	 */
-	if (mask == x2apic_cluster_target_cpus())
+	if (cpumask_equal(mask, cpu_online_mask))
 		cpumask_copy(retmask, cpumask_of(cpu));
 	else
 		cpumask_and(retmask, mask, &cmsk->mask);
@@ -232,7 +227,6 @@ static struct apic apic_x2apic_cluster __ro_after_init = {
 	.irq_delivery_mode		= dest_LowestPrio,
 	.irq_dest_mode			= 1, /* logical */
 
-	.target_cpus			= x2apic_cluster_target_cpus,
 	.disable_esr			= 0,
 	.dest_logical			= APIC_DEST_LOGICAL,
 	.check_apicid_used		= NULL,
