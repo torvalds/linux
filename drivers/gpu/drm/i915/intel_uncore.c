@@ -1292,72 +1292,65 @@ void intel_uncore_fini(struct drm_i915_private *dev_priv)
 	intel_uncore_forcewake_reset(dev_priv, false);
 }
 
-#define GEN_RANGE(l, h) GENMASK((h) - 1, (l) - 1)
-
-static const struct register_whitelist {
-	i915_reg_t offset_ldw, offset_udw;
-	uint32_t size;
-	/* supported gens, 0x10 for 4, 0x30 for 4 and 5, etc. */
-	uint32_t gen_bitmask;
-} whitelist[] = {
-	{ .offset_ldw = RING_TIMESTAMP(RENDER_RING_BASE),
-	  .offset_udw = RING_TIMESTAMP_UDW(RENDER_RING_BASE),
-	  .size = 8, .gen_bitmask = GEN_RANGE(4, 10) },
-};
+static const struct reg_whitelist {
+	i915_reg_t offset_ldw;
+	i915_reg_t offset_udw;
+	u16 gen_mask;
+	u8 size;
+} reg_read_whitelist[] = { {
+	.offset_ldw = RING_TIMESTAMP(RENDER_RING_BASE),
+	.offset_udw = RING_TIMESTAMP_UDW(RENDER_RING_BASE),
+	.gen_mask = INTEL_GEN_MASK(4, 10),
+	.size = 8
+} };
 
 int i915_reg_read_ioctl(struct drm_device *dev,
 			void *data, struct drm_file *file)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_reg_read *reg = data;
-	struct register_whitelist const *entry = whitelist;
-	unsigned size;
-	i915_reg_t offset_ldw, offset_udw;
-	int i, ret = 0;
+	struct reg_whitelist const *entry;
+	unsigned int flags;
+	int remain;
+	int ret = 0;
 
-	for (i = 0; i < ARRAY_SIZE(whitelist); i++, entry++) {
-		if (i915_mmio_reg_offset(entry->offset_ldw) == (reg->offset & -entry->size) &&
-		    (INTEL_INFO(dev_priv)->gen_mask & entry->gen_bitmask))
+	entry = reg_read_whitelist;
+	remain = ARRAY_SIZE(reg_read_whitelist);
+	while (remain) {
+		u32 entry_offset = i915_mmio_reg_offset(entry->offset_ldw);
+
+		GEM_BUG_ON(!is_power_of_2(entry->size));
+		GEM_BUG_ON(entry->size > 8);
+		GEM_BUG_ON(entry_offset & (entry->size - 1));
+
+		if (INTEL_INFO(dev_priv)->gen_mask & entry->gen_mask &&
+		    entry_offset == (reg->offset & -entry->size))
 			break;
+		entry++;
+		remain--;
 	}
 
-	if (i == ARRAY_SIZE(whitelist))
+	if (!remain)
 		return -EINVAL;
 
-	/* We use the low bits to encode extra flags as the register should
-	 * be naturally aligned (and those that are not so aligned merely
-	 * limit the available flags for that register).
-	 */
-	offset_ldw = entry->offset_ldw;
-	offset_udw = entry->offset_udw;
-	size = entry->size;
-	size |= reg->offset ^ i915_mmio_reg_offset(offset_ldw);
+	flags = reg->offset & (entry->size - 1);
 
 	intel_runtime_pm_get(dev_priv);
-
-	switch (size) {
-	case 8 | 1:
-		reg->val = I915_READ64_2x32(offset_ldw, offset_udw);
-		break;
-	case 8:
-		reg->val = I915_READ64(offset_ldw);
-		break;
-	case 4:
-		reg->val = I915_READ(offset_ldw);
-		break;
-	case 2:
-		reg->val = I915_READ16(offset_ldw);
-		break;
-	case 1:
-		reg->val = I915_READ8(offset_ldw);
-		break;
-	default:
+	if (entry->size == 8 && flags == I915_REG_READ_8B_WA)
+		reg->val = I915_READ64_2x32(entry->offset_ldw,
+					    entry->offset_udw);
+	else if (entry->size == 8 && flags == 0)
+		reg->val = I915_READ64(entry->offset_ldw);
+	else if (entry->size == 4 && flags == 0)
+		reg->val = I915_READ(entry->offset_ldw);
+	else if (entry->size == 2 && flags == 0)
+		reg->val = I915_READ16(entry->offset_ldw);
+	else if (entry->size == 1 && flags == 0)
+		reg->val = I915_READ8(entry->offset_ldw);
+	else
 		ret = -EINVAL;
-		goto out;
-	}
-
-out:
 	intel_runtime_pm_put(dev_priv);
+
 	return ret;
 }
 

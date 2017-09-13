@@ -1308,14 +1308,16 @@ struct drm_i915_reg_read {
 	 * be specified
 	 */
 	__u64 offset;
+#define I915_REG_READ_8B_WA BIT(0)
+
 	__u64 val; /* Return value */
 };
 /* Known registers:
  *
  * Render engine timestamp - 0x2358 + 64bit - gen7+
  * - Note this register returns an invalid value if using the default
- *   single instruction 8byte read, in order to workaround that use
- *   offset (0x2538 | 1) instead.
+ *   single instruction 8byte read, in order to workaround that pass
+ *   flag I915_REG_READ_8B_WA in offset field.
  *
  */
 
