@@ -29,3 +29,11 @@ void ipmi_si_platform_init(void);
 void ipmi_si_platform_shutdown(void);
 
 extern struct platform_driver ipmi_platform_driver;
+
+#ifdef CONFIG_PCI
+void ipmi_si_pci_init(void);
+void ipmi_si_pci_shutdown(void);
+#else
+static inline void ipmi_si_pci_init(void) { }
+static inline void ipmi_si_pci_shutdown(void) { }
+#endif
