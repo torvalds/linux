@@ -1137,8 +1137,6 @@ static void denali_hw_init(struct denali_nand_info *denali)
 
 	iowrite32(0xffff, denali->reg + SPARE_AREA_MARKER);
 
-	/* Should set value for these registers when init */
-	iowrite32(0, denali->reg + TWO_ROW_ADDR_CYCLES);
 	iowrite32(1, denali->reg + ECC_ENABLE);
 }
 
@@ -1379,6 +1377,8 @@ int denali_init(struct denali_nand_info *denali)
 		  denali->reg + PAGES_PER_BLOCK);
 	iowrite32(chip->options & NAND_BUSWIDTH_16 ? 1 : 0,
 		  denali->reg + DEVICE_WIDTH);
+	iowrite32(chip->options & NAND_ROW_ADDR_3 ? 0 : TWO_ROW_ADDR_CYCLES__FLAG,
+		  denali->reg + TWO_ROW_ADDR_CYCLES);
 	iowrite32(mtd->writesize, denali->reg + DEVICE_MAIN_AREA_SIZE);
 	iowrite32(mtd->oobsize, denali->reg + DEVICE_SPARE_AREA_SIZE);
 
