@@ -945,7 +945,37 @@ void irq_force_complete_move(struct irq_desc *desc)
 unlock:
 	raw_spin_unlock(&vector_lock);
 }
-#endif
+
+#ifdef CONFIG_HOTPLUG_CPU
+/*
+ * Note, this is not accurate accounting, but at least good enough to
+ * prevent that the actual interrupt move will run out of vectors.
+ */
+int lapic_can_unplug_cpu(void)
+{
+	unsigned int rsvd, avl, tomove, cpu = smp_processor_id();
+	int ret = 0;
+
+	raw_spin_lock(&vector_lock);
+	tomove = irq_matrix_allocated(vector_matrix);
+	avl = irq_matrix_available(vector_matrix, true);
+	if (avl < tomove) {
+		pr_warn("CPU %u has %u vectors, %u available. Cannot disable CPU\n",
+			cpu, tomove, avl);
+		ret = -ENOSPC;
+		goto out;
+	}
+	rsvd = irq_matrix_reserved(vector_matrix);
+	if (avl < rsvd) {
+		pr_warn("Reserved vectors %u > available %u. IRQ request may fail\n",
+			rsvd, avl);
+	}
+out:
+	raw_spin_unlock(&vector_lock);
+	return ret;
+}
+#endif /* HOTPLUG_CPU */
+#endif /* SMP */
 
 static void __init print_APIC_field(int base)
 {

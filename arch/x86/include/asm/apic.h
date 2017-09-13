@@ -386,6 +386,7 @@ extern struct apic *__apicdrivers[], *__apicdrivers_end[];
  */
 #ifdef CONFIG_SMP
 extern int wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip);
+extern int lapic_can_unplug_cpu(void);
 #endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
