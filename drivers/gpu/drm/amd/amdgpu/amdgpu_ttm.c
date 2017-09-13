@@ -1696,9 +1696,9 @@ static ssize_t amdgpu_ttm_vram_read(struct file *f, char __user *buf,
 			return result;
 
 		spin_lock_irqsave(&adev->mmio_idx_lock, flags);
-		WREG32(mmMM_INDEX, ((uint32_t)*pos) | 0x80000000);
-		WREG32(mmMM_INDEX_HI, *pos >> 31);
-		value = RREG32(mmMM_DATA);
+		WREG32_NO_KIQ(mmMM_INDEX, ((uint32_t)*pos) | 0x80000000);
+		WREG32_NO_KIQ(mmMM_INDEX_HI, *pos >> 31);
+		value = RREG32_NO_KIQ(mmMM_DATA);
 		spin_unlock_irqrestore(&adev->mmio_idx_lock, flags);
 
 		r = put_user(value, (uint32_t *)buf);
@@ -1739,9 +1739,9 @@ static ssize_t amdgpu_ttm_vram_write(struct file *f, const char __user *buf,
 			return r;
 
 		spin_lock_irqsave(&adev->mmio_idx_lock, flags);
-		WREG32(mmMM_INDEX, ((uint32_t)*pos) | 0x80000000);
-		WREG32(mmMM_INDEX_HI, *pos >> 31);
-		WREG32(mmMM_DATA, value);
+		WREG32_NO_KIQ(mmMM_INDEX, ((uint32_t)*pos) | 0x80000000);
+		WREG32_NO_KIQ(mmMM_INDEX_HI, *pos >> 31);
+		WREG32_NO_KIQ(mmMM_DATA, value);
 		spin_unlock_irqrestore(&adev->mmio_idx_lock, flags);
 
 		result += 4;
