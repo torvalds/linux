@@ -5684,8 +5684,7 @@ enum {
 #define  CBR_PWM_CLOCK_MUX_SELECT	(1<<30)
 
 #define CBR4_VLV			_MMIO(VLV_DISPLAY_BASE + 0x70450)
-#define  CBR_DPLLBMD_PIPE_C		(1<<29)
-#define  CBR_DPLLBMD_PIPE_B		(1<<18)
+#define  CBR_DPLLBMD_PIPE(pipe)		(1<<(7+(pipe)*11)) /* pipes B and C */
 
 /* FIFO watermark sizes etc */
 #define G4X_FIFO_LINE_SIZE	64
