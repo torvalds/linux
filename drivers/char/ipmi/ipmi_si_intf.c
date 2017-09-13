@@ -1302,15 +1302,6 @@ int ipmi_std_irq_setup(struct si_sm_io *io)
 	return rv;
 }
 
-static struct smi_info *smi_info_alloc(void)
-{
-	struct smi_info *info = kzalloc(sizeof(*info), GFP_KERNEL);
-
-	if (info)
-		spin_lock_init(&info->si_lock);
-	return info;
-}
-
 static int wait_for_msg_done(struct smi_info *smi_info)
 {
 	enum si_sm_result     smi_result;
@@ -1902,9 +1893,10 @@ int ipmi_si_add_smi(struct si_sm_io *io)
 		}
 	}
 
-	new_smi = smi_info_alloc();
+	new_smi = kzalloc(sizeof(*new_smi), GFP_KERNEL);
 	if (!new_smi)
 		return -ENOMEM;
+	spin_lock_init(&new_smi->si_lock);
 
 	new_smi->io = *io;
 
