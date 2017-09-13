@@ -1667,29 +1667,6 @@ static void atmel_init_property(struct atmel_uart_port *atmel_port,
 	}
 }
 
-static void atmel_init_rs485(struct uart_port *port,
-				struct platform_device *pdev)
-{
-	struct device_node *np = pdev->dev.of_node;
-
-	struct serial_rs485 *rs485conf = &port->rs485;
-	u32 rs485_delay[2];
-
-	/* rs485 properties */
-	if (of_property_read_u32_array(np, "rs485-rts-delay",
-				       rs485_delay, 2) == 0) {
-		rs485conf->delay_rts_before_send = rs485_delay[0];
-		rs485conf->delay_rts_after_send = rs485_delay[1];
-		rs485conf->flags = 0;
-	}
-
-	if (of_get_property(np, "rs485-rx-during-tx", NULL))
-		rs485conf->flags |= SER_RS485_RX_DURING_TX;
-
-	if (of_get_property(np, "linux,rs485-enabled-at-boot-time", NULL))
-		rs485conf->flags |= SER_RS485_ENABLED;
-}
-
 static void atmel_set_ops(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
@@ -2373,7 +2350,7 @@ static int atmel_init_port(struct atmel_uart_port *atmel_port,
 	atmel_init_property(atmel_port, pdev);
 	atmel_set_ops(port);
 
-	atmel_init_rs485(port, pdev);
+	of_get_rs485_mode(pdev->dev.of_node, &port->rs485);
 
 	port->iotype		= UPIO_MEM;
 	port->flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP;
