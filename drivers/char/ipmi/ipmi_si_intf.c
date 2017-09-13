@@ -198,16 +198,6 @@ struct smi_info {
 	 */
 	bool                run_to_completion;
 
-	/* The I/O port of an SI interface. */
-	int                 port;
-
-	/*
-	 * The space between start addresses of the two ports.  For
-	 * instance, if the first port is 0xca2 and the spacing is 4, then
-	 * the second port is 0xca6.
-	 */
-	unsigned int        spacing;
-
 	/* The timer for this si. */
 	struct timer_list   si_timer;
 
