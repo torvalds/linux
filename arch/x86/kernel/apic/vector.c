@@ -32,7 +32,8 @@ struct apic_chip_data {
 	unsigned int		prev_cpu;
 	unsigned int		irq;
 	struct hlist_node	clist;
-	u8			move_in_progress : 1;
+	unsigned int		move_in_progress	: 1,
+				is_managed		: 1;
 };
 
 struct irq_domain *x86_vector_domain;
@@ -152,6 +153,28 @@ static void apic_update_vector(struct irq_data *irqd, unsigned int newvec,
 	per_cpu(vector_irq, newcpu)[newvec] = desc;
 }
 
+static void vector_assign_managed_shutdown(struct irq_data *irqd)
+{
+	unsigned int cpu = cpumask_first(cpu_online_mask);
+
+	apic_update_irq_cfg(irqd, MANAGED_IRQ_SHUTDOWN_VECTOR, cpu);
+}
+
+static int reserve_managed_vector(struct irq_data *irqd)
+{
+	const struct cpumask *affmsk = irq_data_get_affinity_mask(irqd);
+	struct apic_chip_data *apicd = apic_chip_data(irqd);
+	unsigned long flags;
+	int ret;
+
+	raw_spin_lock_irqsave(&vector_lock, flags);
+	apicd->is_managed = true;
+	ret = irq_matrix_reserve_managed(vector_matrix, affmsk);
+	raw_spin_unlock_irqrestore(&vector_lock, flags);
+	trace_vector_reserve_managed(irqd->irq, ret);
+	return ret;
+}
+
 static int allocate_vector(struct irq_data *irqd, const struct cpumask *dest)
 {
 	struct apic_chip_data *apicd = apic_chip_data(irqd);
@@ -200,20 +223,65 @@ static int assign_irq_vector(struct irq_data *irqd, const struct cpumask *dest)
 	return ret;
 }
 
-static int assign_irq_vector_policy(struct irq_data *irqd,
-				    struct irq_alloc_info *info, int node)
+static int assign_irq_vector_any_locked(struct irq_data *irqd)
 {
+	int node = irq_data_get_node(irqd);
+
+	if (node != NUMA_NO_NODE) {
+		if (!assign_vector_locked(irqd, cpumask_of_node(node)))
+			return 0;
+	}
+	return assign_vector_locked(irqd, cpu_online_mask);
+}
+
+static int assign_irq_vector_any(struct irq_data *irqd)
+{
+	unsigned long flags;
+	int ret;
+
+	raw_spin_lock_irqsave(&vector_lock, flags);
+	ret = assign_irq_vector_any_locked(irqd);
+	raw_spin_unlock_irqrestore(&vector_lock, flags);
+	return ret;
+}
+
+static int
+assign_irq_vector_policy(struct irq_data *irqd, struct irq_alloc_info *info)
+{
+	if (irqd_affinity_is_managed(irqd))
+		return reserve_managed_vector(irqd);
 	if (info->mask)
 		return assign_irq_vector(irqd, info->mask);
-	if (node != NUMA_NO_NODE &&
-	    !assign_irq_vector(irqd, cpumask_of_node(node)))
+	return assign_irq_vector_any(irqd);
+}
+
+static int
+assign_managed_vector(struct irq_data *irqd, const struct cpumask *dest)
+{
+	const struct cpumask *affmsk = irq_data_get_affinity_mask(irqd);
+	struct apic_chip_data *apicd = apic_chip_data(irqd);
+	int vector, cpu;
+
+	cpumask_and(vector_searchmask, vector_searchmask, affmsk);
+	cpu = cpumask_first(vector_searchmask);
+	if (cpu >= nr_cpu_ids)
+		return -EINVAL;
+	/* set_affinity might call here for nothing */
+	if (apicd->vector && cpumask_test_cpu(apicd->cpu, vector_searchmask))
 		return 0;
-	return assign_irq_vector(irqd, cpu_online_mask);
+	vector = irq_matrix_alloc_managed(vector_matrix, cpu);
+	trace_vector_alloc_managed(irqd->irq, vector, vector);
+	if (vector < 0)
+		return vector;
+	apic_update_vector(irqd, vector, cpu);
+	apic_update_irq_cfg(irqd, vector, cpu);
+	return 0;
 }
 
 static void clear_irq_vector(struct irq_data *irqd)
 {
 	struct apic_chip_data *apicd = apic_chip_data(irqd);
+	bool managed = irqd_affinity_is_managed(irqd);
 	unsigned int vector = apicd->vector;
 
 	lockdep_assert_held(&vector_lock);
@@ -225,7 +293,7 @@ static void clear_irq_vector(struct irq_data *irqd)
 			   apicd->prev_cpu);
 
 	per_cpu(vector_irq, apicd->cpu)[vector] = VECTOR_UNUSED;
-	irq_matrix_free(vector_matrix, apicd->cpu, vector, false);
+	irq_matrix_free(vector_matrix, apicd->cpu, vector, managed);
 	apicd->vector = 0;
 
 	/* Clean up move in progress */
@@ -234,10 +302,84 @@ static void clear_irq_vector(struct irq_data *irqd)
 		return;
 
 	per_cpu(vector_irq, apicd->prev_cpu)[vector] = VECTOR_UNUSED;
-	irq_matrix_free(vector_matrix, apicd->prev_cpu, vector, false);
+	irq_matrix_free(vector_matrix, apicd->prev_cpu, vector, managed);
 	apicd->prev_vector = 0;
 	apicd->move_in_progress = 0;
 	hlist_del_init(&apicd->clist);
+}
+
+static void x86_vector_deactivate(struct irq_domain *dom, struct irq_data *irqd)
+{
+	struct apic_chip_data *apicd = apic_chip_data(irqd);
+	unsigned long flags;
+
+	trace_vector_deactivate(irqd->irq, apicd->is_managed,
+				false, false);
+
+	if (apicd->is_managed)
+		return;
+
+	raw_spin_lock_irqsave(&vector_lock, flags);
+	clear_irq_vector(irqd);
+	vector_assign_managed_shutdown(irqd);
+	raw_spin_unlock_irqrestore(&vector_lock, flags);
+}
+
+static int activate_managed(struct irq_data *irqd)
+{
+	const struct cpumask *dest = irq_data_get_affinity_mask(irqd);
+	int ret;
+
+	cpumask_and(vector_searchmask, dest, cpu_online_mask);
+	if (WARN_ON_ONCE(cpumask_empty(vector_searchmask))) {
+		/* Something in the core code broke! Survive gracefully */
+		pr_err("Managed startup for irq %u, but no CPU\n", irqd->irq);
+		return EINVAL;
+	}
+
+	ret = assign_managed_vector(irqd, vector_searchmask);
+	/*
+	 * This should not happen. The vector reservation got buggered.  Handle
+	 * it gracefully.
+	 */
+	if (WARN_ON_ONCE(ret < 0)) {
+		pr_err("Managed startup irq %u, no vector available\n",
+		       irqd->irq);
+	}
+       return ret;
+}
+
+static int x86_vector_activate(struct irq_domain *dom, struct irq_data *irqd,
+			       bool early)
+{
+	struct apic_chip_data *apicd = apic_chip_data(irqd);
+	unsigned long flags;
+	int ret = 0;
+
+	trace_vector_activate(irqd->irq, apicd->is_managed,
+				false, early);
+
+	if (!apicd->is_managed)
+		return 0;
+
+	raw_spin_lock_irqsave(&vector_lock, flags);
+	if (early || irqd_is_managed_and_shutdown(irqd))
+		vector_assign_managed_shutdown(irqd);
+	else
+		ret = activate_managed(irqd);
+	raw_spin_unlock_irqrestore(&vector_lock, flags);
+	return ret;
+}
+
+static void vector_free_reserved_and_managed(struct irq_data *irqd)
+{
+	const struct cpumask *dest = irq_data_get_affinity_mask(irqd);
+	struct apic_chip_data *apicd = apic_chip_data(irqd);
+
+	trace_vector_teardown(irqd->irq, apicd->is_managed, false);
+
+	if (apicd->is_managed)
+		irq_matrix_remove_managed(vector_matrix, dest);
 }
 
 static void x86_vector_free_irqs(struct irq_domain *domain,
@@ -253,6 +395,7 @@ static void x86_vector_free_irqs(struct irq_domain *domain,
 		if (irqd && irqd->chip_data) {
 			raw_spin_lock_irqsave(&vector_lock, flags);
 			clear_irq_vector(irqd);
+			vector_free_reserved_and_managed(irqd);
 			apicd = irqd->chip_data;
 			irq_domain_reset_irq_data(irqd);
 			raw_spin_unlock_irqrestore(&vector_lock, flags);
@@ -310,7 +453,7 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 			continue;
 		}
 
-		err = assign_irq_vector_policy(irqd, info, node);
+		err = assign_irq_vector_policy(irqd, info);
 		trace_vector_setup(virq + i, false, err);
 		if (err)
 			goto error;
@@ -368,6 +511,8 @@ void x86_vector_debug_show(struct seq_file *m, struct irq_domain *d,
 static const struct irq_domain_ops x86_vector_domain_ops = {
 	.alloc		= x86_vector_alloc_irqs,
 	.free		= x86_vector_free_irqs,
+	.activate	= x86_vector_activate,
+	.deactivate	= x86_vector_deactivate,
 #ifdef CONFIG_GENERIC_IRQ_DEBUGFS
 	.debug_show	= x86_vector_debug_show,
 #endif
@@ -531,13 +676,13 @@ static int apic_set_affinity(struct irq_data *irqd,
 {
 	int err;
 
-	if (!IS_ENABLED(CONFIG_SMP))
-		return -EPERM;
-
-	if (!cpumask_intersects(dest, cpu_online_mask))
-		return -EINVAL;
-
-	err = assign_irq_vector(irqd, dest);
+	raw_spin_lock(&vector_lock);
+	cpumask_and(vector_searchmask, dest, cpu_online_mask);
+	if (irqd_affinity_is_managed(irqd))
+		err = assign_managed_vector(irqd, vector_searchmask);
+	else
+		err = assign_vector_locked(irqd, vector_searchmask);
+	raw_spin_unlock(&vector_lock);
 	return err ? err : IRQ_SET_MASK_OK;
 }
 
@@ -577,9 +722,18 @@ static void free_moved_vector(struct apic_chip_data *apicd)
 {
 	unsigned int vector = apicd->prev_vector;
 	unsigned int cpu = apicd->prev_cpu;
+	bool managed = apicd->is_managed;
 
-	trace_vector_free_moved(apicd->irq, vector, false);
-	irq_matrix_free(vector_matrix, cpu, vector, false);
+	/*
+	 * This should never happen. Managed interrupts are not
+	 * migrated except on CPU down, which does not involve the
+	 * cleanup vector. But try to keep the accounting correct
+	 * nevertheless.
+	 */
+	WARN_ON_ONCE(managed);
+
+	trace_vector_free_moved(apicd->irq, vector, managed);
+	irq_matrix_free(vector_matrix, cpu, vector, managed);
 	__this_cpu_write(vector_irq[vector], VECTOR_UNUSED);
 	hlist_del_init(&apicd->clist);
 	apicd->prev_vector = 0;
