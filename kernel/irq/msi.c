@@ -16,6 +16,8 @@
 #include <linux/msi.h>
 #include <linux/slab.h>
 
+#include "internals.h"
+
 /**
  * alloc_msi_entry - Allocate an initialize msi_entry
  * @dev:	Pointer to the device for which this is allocated
@@ -373,8 +375,10 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 			return ret;
 		}
 
-		for (i = 0; i < desc->nvec_used; i++)
+		for (i = 0; i < desc->nvec_used; i++) {
 			irq_set_msi_desc_off(virq, i, desc);
+			irq_debugfs_copy_devname(virq + i, dev);
+		}
 	}
 
 	if (ops->msi_finish)
