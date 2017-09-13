@@ -1421,8 +1421,7 @@ config MFD_TPS65218
 	  If you say yes here you get support for the TPS65218 series of
 	  Power Management chips.
 	  These include voltage regulators, gpio and other features
-	  that are often used in portable devices. Only regulator
-	  component is currently supported.
+	  that are often used in portable devices.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called tps65218.
