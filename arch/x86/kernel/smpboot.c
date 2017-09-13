@@ -1336,33 +1336,23 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 
 	set_cpu_sibling_map(0);
 
+	apic_intr_mode_init();
+
 	switch (smp_sanity_check(max_cpus)) {
 	case SMP_NO_CONFIG:
 		disable_smp();
-		if (APIC_init_uniprocessor())
-			pr_notice("Local APIC not detected. Using dummy APIC emulation.\n");
 		return;
 	case SMP_NO_APIC:
 		disable_smp();
 		return;
 	case SMP_FORCE_UP:
 		disable_smp();
-		apic_bsp_setup(false);
 		/* Setup local timer */
 		x86_init.timers.setup_percpu_clockev();
 		return;
 	case SMP_OK:
 		break;
 	}
-
-	if (read_apic_id() != boot_cpu_physical_apicid) {
-		panic("Boot APIC ID in local APIC unexpected (%d vs %d)",
-		     read_apic_id(), boot_cpu_physical_apicid);
-		/* Or can we switch back to PIC here? */
-	}
-
-	default_setup_apic_routing();
-	apic_bsp_setup(false);
 
 	/* Setup local timer */
 	x86_init.timers.setup_percpu_clockev();

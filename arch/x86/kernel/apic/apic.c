@@ -1221,7 +1221,9 @@ void __init sync_Arb_IDs(void)
 enum apic_intr_mode {
 	APIC_PIC,
 	APIC_VIRTUAL_WIRE,
+	APIC_VIRTUAL_WIRE_NO_CONFIG,
 	APIC_SYMMETRIC_IO,
+	APIC_SYMMETRIC_IO_NO_ROUTING,
 };
 
 static int __init apic_intr_mode_select(void)
@@ -1262,10 +1264,26 @@ static int __init apic_intr_mode_select(void)
 	/* Check MP table or ACPI MADT configuration */
 	if (!smp_found_config) {
 		disable_ioapic_support();
-		if (!acpi_lapic)
+		if (!acpi_lapic) {
 			pr_info("APIC: ACPI MADT or MP tables are not detected\n");
+			return APIC_VIRTUAL_WIRE_NO_CONFIG;
+		}
 		return APIC_VIRTUAL_WIRE;
 	}
+
+#ifdef CONFIG_SMP
+	/* If SMP should be disabled, then really disable it! */
+	if (!setup_max_cpus) {
+		pr_info("APIC: SMP mode deactivated\n");
+		return APIC_SYMMETRIC_IO_NO_ROUTING;
+	}
+
+	if (read_apic_id() != boot_cpu_physical_apicid) {
+		panic("Boot APIC ID in local APIC unexpected (%d vs %d)",
+		     read_apic_id(), boot_cpu_physical_apicid);
+		/* Or can we switch back to PIC here? */
+	}
+#endif
 
 	return APIC_SYMMETRIC_IO;
 }
@@ -1322,17 +1340,31 @@ void __init init_bsp_APIC(void)
 /* Init the interrupt delivery mode for the BSP */
 void __init apic_intr_mode_init(void)
 {
+	bool upmode = false;
+
 	switch (apic_intr_mode_select()) {
 	case APIC_PIC:
 		pr_info("APIC: Keep in PIC mode(8259)\n");
 		return;
 	case APIC_VIRTUAL_WIRE:
 		pr_info("APIC: Switch to virtual wire mode setup\n");
-		return;
+		default_setup_apic_routing();
+		break;
+	case APIC_VIRTUAL_WIRE_NO_CONFIG:
+		pr_info("APIC: Switch to virtual wire mode setup with no configuration\n");
+		upmode = true;
+		default_setup_apic_routing();
+		break;
 	case APIC_SYMMETRIC_IO:
 		pr_info("APIC: Switch to symmectic I/O mode setup\n");
-		return;
+		default_setup_apic_routing();
+		break;
+	case APIC_SYMMETRIC_IO_NO_ROUTING:
+		pr_info("APIC: Switch to symmectic I/O mode setup in no SMP routine\n");
+		break;
 	}
+
+	apic_bsp_setup(upmode);
 }
 
 static void lapic_setup_esr(void)
