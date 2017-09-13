@@ -25,7 +25,9 @@
 #include <asm/trace/irq_vectors.h>
 
 struct apic_chip_data {
-	struct irq_cfg		cfg;
+	struct irq_cfg		hw_irq_cfg;
+	unsigned int		vector;
+	unsigned int		prev_vector;
 	unsigned int		cpu;
 	unsigned int		prev_cpu;
 	unsigned int		irq;
@@ -86,7 +88,7 @@ struct irq_cfg *irqd_cfg(struct irq_data *irqd)
 {
 	struct apic_chip_data *apicd = apic_chip_data(irqd);
 
-	return apicd ? &apicd->cfg : NULL;
+	return apicd ? &apicd->hw_irq_cfg : NULL;
 }
 EXPORT_SYMBOL_GPL(irqd_cfg);
 
@@ -110,16 +112,18 @@ static void free_apic_chip_data(struct apic_chip_data *apicd)
 	kfree(apicd);
 }
 
-static void apic_update_irq_cfg(struct irq_data *irqd)
+static void apic_update_irq_cfg(struct irq_data *irqd, unsigned int vector,
+				unsigned int cpu)
 {
 	struct apic_chip_data *apicd = apic_chip_data(irqd);
 
 	lockdep_assert_held(&vector_lock);
 
-	apicd->cfg.dest_apicid = apic->calc_dest_apicid(apicd->cpu);
-	irq_data_update_effective_affinity(irqd, cpumask_of(apicd->cpu));
-	trace_vector_config(irqd->irq, apicd->cfg.vector, apicd->cpu,
-			    apicd->cfg.dest_apicid);
+	apicd->hw_irq_cfg.vector = vector;
+	apicd->hw_irq_cfg.dest_apicid = apic->calc_dest_apicid(cpu);
+	irq_data_update_effective_affinity(irqd, cpumask_of(cpu));
+	trace_vector_config(irqd->irq, vector, cpu,
+			    apicd->hw_irq_cfg.dest_apicid);
 }
 
 static void apic_update_vector(struct irq_data *irqd, unsigned int newvec,
@@ -130,19 +134,19 @@ static void apic_update_vector(struct irq_data *irqd, unsigned int newvec,
 
 	lockdep_assert_held(&vector_lock);
 
-	trace_vector_update(irqd->irq, newvec, newcpu, apicd->cfg.vector,
+	trace_vector_update(irqd->irq, newvec, newcpu, apicd->vector,
 			    apicd->cpu);
 
 	/* Setup the vector move, if required  */
-	if (apicd->cfg.vector && cpu_online(apicd->cpu)) {
+	if (apicd->vector && cpu_online(apicd->cpu)) {
 		apicd->move_in_progress = true;
-		apicd->cfg.old_vector = apicd->cfg.vector;
+		apicd->prev_vector = apicd->vector;
 		apicd->prev_cpu = apicd->cpu;
 	} else {
-		apicd->cfg.old_vector = 0;
+		apicd->prev_vector = 0;
 	}
 
-	apicd->cfg.vector = newvec;
+	apicd->vector = newvec;
 	apicd->cpu = newcpu;
 	BUG_ON(!IS_ERR_OR_NULL(per_cpu(vector_irq, newcpu)[newvec]));
 	per_cpu(vector_irq, newcpu)[newvec] = desc;
@@ -151,8 +155,10 @@ static void apic_update_vector(struct irq_data *irqd, unsigned int newvec,
 static int allocate_vector(struct irq_data *irqd, const struct cpumask *dest)
 {
 	struct apic_chip_data *apicd = apic_chip_data(irqd);
-	int vector = apicd->cfg.vector;
 	unsigned int cpu = apicd->cpu;
+	int vector = apicd->vector;
+
+	lockdep_assert_held(&vector_lock);
 
 	/*
 	 * If the current target CPU is online and in the new requested
@@ -172,12 +178,13 @@ static int allocate_vector(struct irq_data *irqd, const struct cpumask *dest)
 static int assign_vector_locked(struct irq_data *irqd,
 				const struct cpumask *dest)
 {
+	struct apic_chip_data *apicd = apic_chip_data(irqd);
 	int vector = allocate_vector(irqd, dest);
 
 	if (vector < 0)
 		return vector;
 
-	apic_update_irq_cfg(irqd);
+	apic_update_irq_cfg(irqd, apicd->vector, apicd->cpu);
 	return 0;
 }
 
@@ -207,27 +214,28 @@ static int assign_irq_vector_policy(struct irq_data *irqd,
 static void clear_irq_vector(struct irq_data *irqd)
 {
 	struct apic_chip_data *apicd = apic_chip_data(irqd);
-	unsigned int vector = apicd->cfg.vector;
+	unsigned int vector = apicd->vector;
 
 	lockdep_assert_held(&vector_lock);
+
 	if (!vector)
 		return;
 
-	trace_vector_clear(irqd->irq, vector, apicd->cpu, apicd->cfg.old_vector,
+	trace_vector_clear(irqd->irq, vector, apicd->cpu, apicd->prev_vector,
 			   apicd->prev_cpu);
 
 	per_cpu(vector_irq, apicd->cpu)[vector] = VECTOR_UNUSED;
 	irq_matrix_free(vector_matrix, apicd->cpu, vector, false);
-	apicd->cfg.vector = 0;
+	apicd->vector = 0;
 
 	/* Clean up move in progress */
-	vector = apicd->cfg.old_vector;
+	vector = apicd->prev_vector;
 	if (!vector)
 		return;
 
 	per_cpu(vector_irq, apicd->prev_cpu)[vector] = VECTOR_UNUSED;
 	irq_matrix_free(vector_matrix, apicd->prev_cpu, vector, false);
-	apicd->cfg.old_vector = 0;
+	apicd->prev_vector = 0;
 	apicd->move_in_progress = 0;
 	hlist_del_init(&apicd->clist);
 }
@@ -293,11 +301,11 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 		 * config.
 		 */
 		if (info->flags & X86_IRQ_ALLOC_LEGACY) {
-			apicd->cfg.vector = ISA_IRQ_VECTOR(virq + i);
+			apicd->vector = ISA_IRQ_VECTOR(virq + i);
 			apicd->cpu = 0;
 			trace_vector_setup(virq + i, true, 0);
 			raw_spin_lock_irqsave(&vector_lock, flags);
-			apic_update_irq_cfg(irqd);
+			apic_update_irq_cfg(irqd, apicd->vector, apicd->cpu);
 			raw_spin_unlock_irqrestore(&vector_lock, flags);
 			continue;
 		}
@@ -319,7 +327,7 @@ error:
 void x86_vector_debug_show(struct seq_file *m, struct irq_domain *d,
 			   struct irq_data *irqd, int ind)
 {
-	unsigned int cpu, vec, prev_cpu, prev_vec;
+	unsigned int cpu, vector, prev_cpu, prev_vector;
 	struct apic_chip_data *apicd;
 	unsigned long flags;
 	int irq;
@@ -344,14 +352,14 @@ void x86_vector_debug_show(struct seq_file *m, struct irq_domain *d,
 
 	raw_spin_lock_irqsave(&vector_lock, flags);
 	cpu = apicd->cpu;
-	vec = apicd->cfg.vector;
+	vector = apicd->vector;
 	prev_cpu = apicd->prev_cpu;
-	prev_vec = apicd->cfg.old_vector;
+	prev_vector = apicd->prev_vector;
 	raw_spin_unlock_irqrestore(&vector_lock, flags);
-	seq_printf(m, "%*sVector: %5u\n", ind, "", vec);
+	seq_printf(m, "%*sVector: %5u\n", ind, "", vector);
 	seq_printf(m, "%*sTarget: %5u\n", ind, "", cpu);
-	if (prev_vec) {
-		seq_printf(m, "%*sPrevious vector: %5u\n", ind, "", prev_vec);
+	if (prev_vector) {
+		seq_printf(m, "%*sPrevious vector: %5u\n", ind, "", prev_vector);
 		seq_printf(m, "%*sPrevious target: %5u\n", ind, "", prev_cpu);
 	}
 }
@@ -461,10 +469,10 @@ static void vector_update_shutdown_irqs(void)
 		struct irq_data *irqd = irq_desc_get_irq_data(desc);
 		struct apic_chip_data *ad = apic_chip_data(irqd);
 
-		if (!ad || !ad->cfg.vector || ad->cpu != smp_processor_id())
+		if (!ad || !ad->vector || ad->cpu != smp_processor_id())
 			continue;
-		this_cpu_write(vector_irq[ad->cfg.vector], desc);
-		irq_matrix_assign(vector_matrix, ad->cfg.vector);
+		this_cpu_write(vector_irq[ad->vector], desc);
+		irq_matrix_assign(vector_matrix, ad->vector);
 	}
 }
 
@@ -543,7 +551,7 @@ static int apic_retrigger_irq(struct irq_data *irqd)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&vector_lock, flags);
-	apic->send_IPI(apicd->cpu, apicd->cfg.vector);
+	apic->send_IPI(apicd->cpu, apicd->vector);
 	raw_spin_unlock_irqrestore(&vector_lock, flags);
 
 	return 1;
@@ -567,14 +575,14 @@ static struct irq_chip lapic_controller = {
 
 static void free_moved_vector(struct apic_chip_data *apicd)
 {
-	unsigned int vector = apicd->cfg.old_vector;
+	unsigned int vector = apicd->prev_vector;
 	unsigned int cpu = apicd->prev_cpu;
 
 	trace_vector_free_moved(apicd->irq, vector, false);
 	irq_matrix_free(vector_matrix, cpu, vector, false);
 	__this_cpu_write(vector_irq[vector], VECTOR_UNUSED);
 	hlist_del_init(&apicd->clist);
-	apicd->cfg.old_vector = 0;
+	apicd->prev_vector = 0;
 	apicd->move_in_progress = 0;
 }
 
@@ -589,7 +597,7 @@ asmlinkage __visible void __irq_entry smp_irq_move_cleanup_interrupt(void)
 	raw_spin_lock(&vector_lock);
 
 	hlist_for_each_entry_safe(apicd, tmp, clhead, clist) {
-		unsigned int irr, vector = apicd->cfg.old_vector;
+		unsigned int irr, vector = apicd->prev_vector;
 
 		/*
 		 * Paranoia: Check if the vector that needs to be cleaned
@@ -623,7 +631,7 @@ static void __send_cleanup_vector(struct apic_chip_data *apicd)
 		hlist_add_head(&apicd->clist, per_cpu_ptr(&cleanup_list, cpu));
 		apic->send_IPI(cpu, IRQ_MOVE_CLEANUP_VECTOR);
 	} else {
-		apicd->cfg.old_vector = 0;
+		apicd->prev_vector = 0;
 	}
 	raw_spin_unlock(&vector_lock);
 }
@@ -632,7 +640,7 @@ void send_cleanup_vector(struct irq_cfg *cfg)
 {
 	struct apic_chip_data *apicd;
 
-	apicd = container_of(cfg, struct apic_chip_data, cfg);
+	apicd = container_of(cfg, struct apic_chip_data, hw_irq_cfg);
 	if (apicd->move_in_progress)
 		__send_cleanup_vector(apicd);
 }
@@ -641,11 +649,11 @@ static void __irq_complete_move(struct irq_cfg *cfg, unsigned vector)
 {
 	struct apic_chip_data *apicd;
 
-	apicd = container_of(cfg, struct apic_chip_data, cfg);
+	apicd = container_of(cfg, struct apic_chip_data, hw_irq_cfg);
 	if (likely(!apicd->move_in_progress))
 		return;
 
-	if (vector == apicd->cfg.vector && apicd->cpu == smp_processor_id())
+	if (vector == apicd->vector && apicd->cpu == smp_processor_id())
 		__send_cleanup_vector(apicd);
 }
 
@@ -683,9 +691,9 @@ void irq_force_complete_move(struct irq_desc *desc)
 		goto unlock;
 
 	/*
-	 * If old_vector is empty, no action required.
+	 * If prev_vector is empty, no action required.
 	 */
-	vector = apicd->cfg.old_vector;
+	vector = apicd->prev_vector;
 	if (!vector)
 		goto unlock;
 
