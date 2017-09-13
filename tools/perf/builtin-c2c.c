@@ -2733,6 +2733,7 @@ static int perf_c2c__record(int argc, const char **argv)
 		if (!perf_mem_events[j].supported) {
 			pr_err("failed: event '%s' not supported\n",
 			       perf_mem_events[j].name);
+			free(rec_argv);
 			return -1;
 		}
 
