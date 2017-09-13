@@ -285,7 +285,7 @@ struct pm8916_wcd_analog_priv {
 	u16 codec_version;
 	bool	mbhc_btn_enabled;
 	/* special event to detect accessory type */
-	bool	mbhc_btn0_pressed;
+	int	mbhc_btn0_released;
 	bool	detect_accessory_type;
 	struct clk *mclk;
 	struct snd_soc_codec *codec;
@@ -483,7 +483,7 @@ static void pm8916_wcd_setup_mbhc(struct pm8916_wcd_analog_priv *wcd)
 
 	snd_soc_update_bits(codec, CDC_D_INT_EN_CLR, int_en_mask, 0);
 	snd_soc_update_bits(codec, CDC_D_INT_EN_SET, int_en_mask, int_en_mask);
-	wcd->mbhc_btn0_pressed = false;
+	wcd->mbhc_btn0_released = false;
 	wcd->detect_accessory_type = true;
 }
 
@@ -950,7 +950,7 @@ static irqreturn_t mbhc_btn_release_irq_handler(int irq, void *arg)
 
 		/* check if its BTN0 thats released */
 		if ((val != -1) && !(val & CDC_A_MBHC_RESULT_1_BTN_RESULT_MASK))
-			priv->mbhc_btn0_pressed = false;
+			priv->mbhc_btn0_released = true;
 
 	} else {
 		snd_soc_jack_report(priv->jack, 0, btn_mask);
@@ -983,9 +983,7 @@ static irqreturn_t mbhc_btn_press_irq_handler(int irq, void *arg)
 		break;
 	case 0x0:
 		/* handle BTN_0 specially for type detection */
-		if (priv->detect_accessory_type)
-			priv->mbhc_btn0_pressed = true;
-		else
+		if (!priv->detect_accessory_type)
 			snd_soc_jack_report(priv->jack,
 					    SND_JACK_BTN_0, btn_mask);
 		break;
@@ -1029,19 +1027,19 @@ static irqreturn_t pm8916_mbhc_switch_irq_handler(int irq, void *arg)
 		 * both press and release event received then its
 		 * a headset.
 		 */
-		if (priv->mbhc_btn0_pressed)
-			snd_soc_jack_report(priv->jack,
-					    SND_JACK_HEADPHONE, hs_jack_mask);
-		else
+		if (priv->mbhc_btn0_released)
 			snd_soc_jack_report(priv->jack,
 					    SND_JACK_HEADSET, hs_jack_mask);
+		else
+			snd_soc_jack_report(priv->jack,
+					    SND_JACK_HEADPHONE, hs_jack_mask);
 
 		priv->detect_accessory_type = false;
 
 	} else { /* removal */
 		snd_soc_jack_report(priv->jack, 0, hs_jack_mask);
 		priv->detect_accessory_type = true;
-		priv->mbhc_btn0_pressed = false;
+		priv->mbhc_btn0_released = false;
 	}
 
 	return IRQ_HANDLED;
