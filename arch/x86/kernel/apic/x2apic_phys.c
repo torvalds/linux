@@ -6,7 +6,8 @@
 #include <linux/dmar.h>
 
 #include <asm/smp.h>
-#include <asm/x2apic.h>
+#include <asm/ipi.h>
+#include "x2apic.h"
 
 int x2apic_phys;
 
@@ -96,6 +97,43 @@ static int x2apic_phys_probe(void)
 		return 1;
 
 	return apic == &apic_x2apic_phys;
+}
+
+/* Common x2apic functions, also used by x2apic_cluster */
+int x2apic_apic_id_valid(int apicid)
+{
+	return 1;
+}
+
+int x2apic_apic_id_registered(void)
+{
+	return 1;
+}
+
+void __x2apic_send_IPI_dest(unsigned int apicid, int vector, unsigned int dest)
+{
+	unsigned long cfg = __prepare_ICR(0, vector, dest);
+	native_x2apic_icr_write(cfg, apicid);
+}
+
+unsigned int x2apic_get_apic_id(unsigned long id)
+{
+	return id;
+}
+
+unsigned long x2apic_set_apic_id(unsigned int id)
+{
+	return id;
+}
+
+int x2apic_phys_pkg_id(int initial_apicid, int index_msb)
+{
+	return initial_apicid >> index_msb;
+}
+
+void x2apic_send_IPI_self(int vector)
+{
+	apic_write(APIC_SELF_IPI, vector);
 }
 
 static struct apic apic_x2apic_phys __ro_after_init = {

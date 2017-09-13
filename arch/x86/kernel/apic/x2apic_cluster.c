@@ -8,7 +8,7 @@
 #include <linux/cpu.h>
 
 #include <asm/smp.h>
-#include <asm/x2apic.h>
+#include "x2apic.h"
 
 static DEFINE_PER_CPU(u32, x86_cpu_to_logical_apicid);
 static DEFINE_PER_CPU(cpumask_var_t, cpus_in_cluster);
