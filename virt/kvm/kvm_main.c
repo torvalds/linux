@@ -674,6 +674,7 @@ out_err_no_irq_srcu:
 out_err_no_srcu:
 	hardware_disable_all();
 out_err_no_disable:
+	refcount_set(&kvm->users_count, 0);
 	for (i = 0; i < KVM_NR_BUSES; i++)
 		kfree(kvm_get_bus(kvm, i));
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++)
