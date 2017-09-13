@@ -460,7 +460,7 @@ static const char *cif_isp10_interface_string(
 		return "DVP_BT601_16Bit";
 	case PLTFRM_CAM_ITF_BT656_16:
 		return "DVP_BT656_16Bit";
-	case PLTFRM_CAM_ITF_BT656_8_INTERLACE:
+	case PLTFRM_CAM_ITF_BT656_8I:
 		return "DVP_BT656_8Bit_interlace";
 	default:
 		return "UNKNOWN/UNSUPPORTED";
@@ -2184,8 +2184,8 @@ static int cif_isp10_config_mi_mp(
 
 	mi_ctrl = cif_ioread32(dev->config.base_addr + CIF_MI_CTRL) |
 		CIF_MI_CTRL_MP_WRITE_FMT(writeformat) |
-		CIF_MI_CTRL_BURST_LEN_LUM_64 |
-		CIF_MI_CTRL_BURST_LEN_CHROM_64 |
+		CIF_MI_CTRL_BURST_LEN_LUM_16 |
+		CIF_MI_CTRL_BURST_LEN_CHROM_16 |
 		CIF_MI_CTRL_INIT_BASE_EN |
 		CIF_MI_CTRL_INIT_OFFSET_EN |
 		CIF_MI_MP_AUTOUPDATE_ENABLE;
@@ -2250,11 +2250,24 @@ static int cif_isp10_config_mi_sp(
 		height = height / 2;
 		dev->config.mi_config.sp.vir_len_offset =
 			width;
+	}
+	if (llength != width) {
+		if (!(width % 128))
+			burst_len = CIF_MI_CTRL_BURST_LEN_LUM_16 |
+				CIF_MI_CTRL_BURST_LEN_CHROM_16;
+		else if (!(width % 64))
+			burst_len = CIF_MI_CTRL_BURST_LEN_LUM_8 |
+				CIF_MI_CTRL_BURST_LEN_CHROM_8;
+		else
+			burst_len = CIF_MI_CTRL_BURST_LEN_LUM_4 |
+				CIF_MI_CTRL_BURST_LEN_CHROM_4;
+
+		if (width % 32)
+			cif_isp10_pltfrm_pr_warn(dev->dev,
+				"The width should be aligned to 32\n");
+	} else {
 		burst_len = CIF_MI_CTRL_BURST_LEN_LUM_16 |
 			CIF_MI_CTRL_BURST_LEN_CHROM_16;
-	} else {
-		burst_len = CIF_MI_CTRL_BURST_LEN_LUM_64 |
-			CIF_MI_CTRL_BURST_LEN_CHROM_64;
 	}
 
 	if (!CIF_ISP10_PIX_FMT_IS_YUV(in_pix_fmt)) {
@@ -3829,7 +3842,8 @@ static int cif_isp10_update_mi_sp(
 		cif_isp10_mi_update_buff_addr(dev, CIF_ISP10_STREAM_SP);
 		dev->config.mi_config.sp.curr_buff_addr =
 			dev->config.mi_config.sp.next_buff_addr;
-	} else if (PLTFRM_CAM_ITF_INTERLACE(dev->config.cam_itf.type)) {
+	} else if (PLTFRM_CAM_ITF_INTERLACE(dev->config.cam_itf.type) &&
+		dev->config.mi_config.sp.field_flag == FIELD_FLAGS_ODD) {
 		cif_iowrite32_verify(dev->config.mi_config.sp.next_buff_addr +
 			vir_len_offset,
 			dev->config.base_addr +
@@ -3902,6 +3916,13 @@ static int cif_isp10_s_fmt_mp(
 		strm_fmt->frm_fmt.quantization);
 
 	/* TBD: check whether format is a valid format for MP */
+
+	if (PLTFRM_CAM_ITF_INTERLACE(dev->config.cam_itf.type)) {
+		ret = -EINVAL;
+		cif_isp10_pltfrm_pr_err(dev->dev,
+			"MP doesn't support the interlace format!\n");
+		goto err;
+	}
 
 	if (CIF_ISP10_PIX_FMT_IS_JPEG(strm_fmt->frm_fmt.pix_fmt)) {
 		dev->config.jpeg_config.enable = true;
@@ -4155,12 +4176,6 @@ static int cif_isp10_mi_frame_end(
 	cif_isp10_pltfrm_pr_dbg(NULL, "%s\n",
 		cif_isp10_stream_id_string(stream_id));
 
-	/* BIT 2(current field information): 0 = odd, 1 = even */
-	if (PLTFRM_CAM_ITF_INTERLACE(dev->config.cam_itf.type))
-		dev->config.mi_config.sp.field_flag =
-			(cif_ioread32(dev->config.base_addr +
-				CIF_ISP_FLAGS_SHD) & 0x4) >> 2;
-
 	if (stream_id == CIF_ISP10_STREAM_MP) {
 		stream = &dev->mp_stream;
 		y_base_addr =
@@ -4230,7 +4245,8 @@ static int cif_isp10_mi_frame_end(
 		tmp_addr = sg_dma_address(sgt->sgl);
 #endif
 		if (tmp_addr != cif_ioread32(y_base_addr) &&
-			!PLTFRM_CAM_ITF_INTERLACE(dev->config.cam_itf.type)) {
+			(!PLTFRM_CAM_ITF_INTERLACE(dev->config.cam_itf.type) ||
+			dev->config.mi_config.sp.field_flag == FIELD_FLAGS_ODD)) {
 			cif_isp10_pltfrm_pr_warn(dev->dev,
 				"%s buffer queue is not advancing (0x%08x/0x%08x)\n",
 				cif_isp10_stream_id_string(stream_id),
@@ -4242,13 +4258,6 @@ static int cif_isp10_mi_frame_end(
 				cif_ioread32(y_base_addr));
 			stream->stall = true;
 		}
-
-		if (PLTFRM_CAM_ITF_INTERLACE(dev->config.cam_itf.type)) {
-			if (dev->config.mi_config.sp.field_flag)
-				stream->stall = true;
-			else
-				stream->stall = false;
-		}
 	}
 
 	if (!stream->stall) {
@@ -4259,7 +4268,9 @@ static int cif_isp10_mi_frame_end(
 		 * until new buffer queue;
 		 */
 		if ((stream->curr_buf) &&
-			(stream->next_buf)) {
+			(stream->next_buf) &&
+			(!PLTFRM_CAM_ITF_INTERLACE(dev->config.cam_itf.type) ||
+			dev->config.mi_config.sp.field_flag == FIELD_FLAGS_EVEN)) {
 			bool wake_now;
 
 			vb2_buf = &stream->curr_buf->vb.vb2_buf;
@@ -6475,6 +6486,13 @@ int cif_isp10_isp_isr(unsigned int isp_mis, void *cntxt)
 		dev->b_isp_frame_in = false;
 		dev->b_mi_frame_end = false;
 		cifisp_v_start(&dev->isp_dev, &tv);
+
+		/* BIT 2(current field information): 0 = odd, 1 = even */
+		if (PLTFRM_CAM_ITF_INTERLACE(dev->config.cam_itf.type))
+			dev->config.mi_config.sp.field_flag =
+				(cif_ioread32(dev->config.base_addr +
+				 CIF_ISP_FLAGS_SHD) & CIF_ISP_FLAGS_SHD_FIELD_INFO)
+				>> CIF_ISP_FLAGS_SHD_FIELD_BIT;
 
 		cif_iowrite32(CIF_ISP_V_START,
 		      dev->config.base_addr + CIF_ISP_ICR);

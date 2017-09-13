@@ -70,8 +70,16 @@
  *a frame image.
  *2. fix cif_isp10_img_src_v4l2_subdev_enum_strm_fmts defrect info get error.
  *3. fix cif_isp10_rk3399 cif_clk_pll info doesn't match with dts config.
+ *
+ *v0.1.0xa
+ *Based on version 0.1.9:
+ *1. To optimize the readability of the code.
+ *2. optimize CIF_MI_CTRL_BURST_LEN param.
+ *3. Add the check for cam_itf.type(PLTFRM_CAM_ITF_BT656_8I) on
+ * cif_isp10_s_fmt_mp.
+ *4. get field_flag value from cif_isp10_isp_isr.
  */
 
-#define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 1, 9)
+#define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 1, 0xa)
 
 #endif

@@ -141,12 +141,12 @@
 #define CIF_MI_SP_AUTOUPDATE_DISABLE       (0 << 14)
 #define CIF_MI_LAST_PIXEL_SIG_ENABLE       BIT(15)
 #define CIF_MI_LAST_PIXEL_SIG_DISABLE      (0 << 15)
-#define CIF_MI_CTRL_BURST_LEN_LUM_16       (0 << 16)
-#define CIF_MI_CTRL_BURST_LEN_LUM_32       BIT(16)
-#define CIF_MI_CTRL_BURST_LEN_LUM_64       (2 << 16)
-#define CIF_MI_CTRL_BURST_LEN_CHROM_16     (0 << 18)
-#define CIF_MI_CTRL_BURST_LEN_CHROM_32     BIT(18)
-#define CIF_MI_CTRL_BURST_LEN_CHROM_64     (2 << 18)
+#define CIF_MI_CTRL_BURST_LEN_LUM_4       (0 << 16)
+#define CIF_MI_CTRL_BURST_LEN_LUM_8       BIT(16)
+#define CIF_MI_CTRL_BURST_LEN_LUM_16      (2 << 16)
+#define CIF_MI_CTRL_BURST_LEN_CHROM_4     (0 << 18)
+#define CIF_MI_CTRL_BURST_LEN_CHROM_8     BIT(18)
+#define CIF_MI_CTRL_BURST_LEN_CHROM_16    (2 << 18)
 #define CIF_MI_CTRL_INIT_BASE_EN           BIT(20)
 #define CIF_MI_CTRL_INIT_BASE_DIS          (0 << 20)
 #define CIF_MI_CTRL_INIT_OFFSET_EN         BIT(21)
@@ -475,6 +475,11 @@
 #define CIF_FLASH_CONFIG_SRC_VSYNC      (0 << 3)
 #define CIF_FLASH_CONFIG_SRC_FL_TRIG    BIT(3)
 #define CIF_FLASH_CONFIG_DELAY(a)      ((a) << 4)
+/* ISP_FLAGS_SHD */
+#define CIF_ISP_FLAGS_SHD_FIELD_INFO  BIT(2)
+#define CIF_ISP_FLAGS_SHD_FIELD_BIT	2
+#define FIELD_FLAGS_ODD		0
+#define FIELD_FLAGS_EVEN	1
 
 /* BAD PIXEL DETECTION */
 
