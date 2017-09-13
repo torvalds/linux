@@ -73,8 +73,6 @@ struct kvm_resize_hpt {
 	struct kvm_hpt_info hpt;
 };
 
-static void kvmppc_rmap_reset(struct kvm *kvm);
-
 int kvmppc_allocate_hpt(struct kvm_hpt_info *info, u32 order)
 {
 	unsigned long hpt = 0;
@@ -136,9 +134,6 @@ long kvmppc_alloc_reset_hpt(struct kvm *kvm, int order)
 	long err = -EBUSY;
 	struct kvm_hpt_info info;
 
-	if (kvm_is_radix(kvm))
-		return -EINVAL;
-
 	mutex_lock(&kvm->lock);
 	if (kvm->arch.mmu_ready) {
 		kvm->arch.mmu_ready = 0;
@@ -149,6 +144,12 @@ long kvmppc_alloc_reset_hpt(struct kvm *kvm, int order)
 			goto out;
 		}
 	}
+	if (kvm_is_radix(kvm)) {
+		err = kvmppc_switch_mmu_to_hpt(kvm);
+		if (err)
+			goto out;
+	}
+
 	if (kvm->arch.hpt.order == order) {
 		/* We already have a suitable HPT */
 
@@ -182,6 +183,7 @@ out:
 void kvmppc_free_hpt(struct kvm_hpt_info *info)
 {
 	vfree(info->rev);
+	info->rev = NULL;
 	if (info->cma)
 		kvm_free_hpt_cma(virt_to_page(info->virt),
 				 1 << (info->order - PAGE_SHIFT));
@@ -348,6 +350,9 @@ static int kvmppc_mmu_book3s_64_hv_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	__be64 *hptep;
 	int index;
 	int virtmode = vcpu->arch.shregs.msr & (data ? MSR_DR : MSR_IR);
+
+	if (kvm_is_radix(vcpu->kvm))
+		return kvmppc_mmu_radix_xlate(vcpu, eaddr, gpte, data, iswrite);
 
 	/* Get SLB entry */
 	if (virtmode) {
@@ -710,7 +715,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	goto out_put;
 }
 
-static void kvmppc_rmap_reset(struct kvm *kvm)
+void kvmppc_rmap_reset(struct kvm *kvm)
 {
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
@@ -2089,10 +2094,7 @@ void kvmppc_mmu_book3s_hv_init(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.slb_nr = 32;		/* POWER7/POWER8 */
 
-	if (kvm_is_radix(vcpu->kvm))
-		mmu->xlate = kvmppc_mmu_radix_xlate;
-	else
-		mmu->xlate = kvmppc_mmu_book3s_64_hv_xlate;
+	mmu->xlate = kvmppc_mmu_book3s_64_hv_xlate;
 	mmu->reset_msr = kvmppc_mmu_book3s_64_hv_reset_msr;
 
 	vcpu->arch.hflags |= BOOK3S_HFLAG_SLB;

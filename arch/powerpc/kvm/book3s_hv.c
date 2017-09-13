@@ -2442,6 +2442,9 @@ static void prepare_threads(struct kvmppc_vcore *vc)
 	for_each_runnable_thread(i, vcpu, vc) {
 		if (signal_pending(vcpu->arch.run_task))
 			vcpu->arch.ret = -EINTR;
+		else if (kvm_is_radix(vc->kvm) != radix_enabled())
+			/* can't actually run HPT guest on radix host yet... */
+			vcpu->arch.ret = -EINVAL;
 		else if (vcpu->arch.vpa.update_pending ||
 			 vcpu->arch.slb_shadow.update_pending ||
 			 vcpu->arch.dtl.update_pending)
@@ -3339,13 +3342,6 @@ static int kvm_vm_ioctl_get_smmu_info_hv(struct kvm *kvm,
 	struct kvm_ppc_one_seg_page_size *sps;
 
 	/*
-	 * Since we don't yet support HPT guests on a radix host,
-	 * return an error if the host uses radix.
-	 */
-	if (radix_enabled())
-		return -EINVAL;
-
-	/*
 	 * POWER7, POWER8 and POWER9 all support 32 storage keys for data.
 	 * POWER7 doesn't support keys for instruction accesses,
 	 * POWER8 and POWER9 do.
@@ -3447,15 +3443,6 @@ static void kvmppc_core_free_memslot_hv(struct kvm_memory_slot *free,
 static int kvmppc_core_create_memslot_hv(struct kvm_memory_slot *slot,
 					 unsigned long npages)
 {
-	/*
-	 * For now, if radix_enabled() then we only support radix guests,
-	 * and in that case we don't need the rmap array.
-	 */
-	if (radix_enabled()) {
-		slot->arch.rmap = NULL;
-		return 0;
-	}
-
 	slot->arch.rmap = vzalloc(npages * sizeof(*slot->arch.rmap));
 	if (!slot->arch.rmap)
 		return -ENOMEM;
@@ -3628,6 +3615,34 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 	goto out_srcu;
 }
 
+/* Must be called with kvm->lock held and mmu_ready = 0 and no vcpus running */
+int kvmppc_switch_mmu_to_hpt(struct kvm *kvm)
+{
+	kvmppc_free_radix(kvm);
+	kvmppc_update_lpcr(kvm, LPCR_VPM1,
+			   LPCR_VPM1 | LPCR_UPRT | LPCR_GTSE | LPCR_HR);
+	kvmppc_rmap_reset(kvm);
+	kvm->arch.radix = 0;
+	kvm->arch.process_table = 0;
+	return 0;
+}
+
+/* Must be called with kvm->lock held and mmu_ready = 0 and no vcpus running */
+int kvmppc_switch_mmu_to_radix(struct kvm *kvm)
+{
+	int err;
+
+	err = kvmppc_init_vm_radix(kvm);
+	if (err)
+		return err;
+
+	kvmppc_free_hpt(&kvm->arch.hpt);
+	kvmppc_update_lpcr(kvm, LPCR_UPRT | LPCR_GTSE | LPCR_HR,
+			   LPCR_VPM1 | LPCR_UPRT | LPCR_GTSE | LPCR_HR);
+	kvm->arch.radix = 1;
+	return 0;
+}
+
 #ifdef CONFIG_KVM_XICS
 /*
  * Allocate a per-core structure for managing state about which cores are
@@ -3771,7 +3786,7 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	}
 
 	/*
-	 * For now, if the host uses radix, the guest must be radix.
+	 * If the host uses radix, the guest starts out as radix.
 	 */
 	if (radix_enabled()) {
 		kvm->arch.radix = 1;
@@ -3795,7 +3810,7 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	 * Work out how many sets the TLB has, for the use of
 	 * the TLB invalidation loop in book3s_hv_rmhandlers.S.
 	 */
-	if (kvm_is_radix(kvm))
+	if (radix_enabled())
 		kvm->arch.tlb_sets = POWER9_TLB_SETS_RADIX;	/* 128 */
 	else if (cpu_has_feature(CPU_FTR_ARCH_300))
 		kvm->arch.tlb_sets = POWER9_TLB_SETS_HASH;	/* 256 */
@@ -4185,6 +4200,7 @@ static int kvmhv_configure_mmu(struct kvm *kvm, struct kvm_ppc_mmuv3_cfg *cfg)
 {
 	unsigned long lpcr;
 	int radix;
+	int err;
 
 	/* If not on a POWER9, reject it */
 	if (!cpu_has_feature(CPU_FTR_ARCH_300))
@@ -4194,12 +4210,8 @@ static int kvmhv_configure_mmu(struct kvm *kvm, struct kvm_ppc_mmuv3_cfg *cfg)
 	if (cfg->flags & ~(KVM_PPC_MMUV3_RADIX | KVM_PPC_MMUV3_GTSE))
 		return -EINVAL;
 
-	/* We can't change a guest to/from radix yet */
-	radix = !!(cfg->flags & KVM_PPC_MMUV3_RADIX);
-	if (radix != kvm_is_radix(kvm))
-		return -EINVAL;
-
 	/* GR (guest radix) bit in process_table field must match */
+	radix = !!(cfg->flags & KVM_PPC_MMUV3_RADIX);
 	if (!!(cfg->process_table & PATB_GR) != radix)
 		return -EINVAL;
 
@@ -4207,15 +4219,40 @@ static int kvmhv_configure_mmu(struct kvm *kvm, struct kvm_ppc_mmuv3_cfg *cfg)
 	if ((cfg->process_table & PRTS_MASK) > 24)
 		return -EINVAL;
 
+	/* We can change a guest to/from radix now, if the host is radix */
+	if (radix && !radix_enabled())
+		return -EINVAL;
+
 	mutex_lock(&kvm->lock);
+	if (radix != kvm_is_radix(kvm)) {
+		if (kvm->arch.mmu_ready) {
+			kvm->arch.mmu_ready = 0;
+			/* order mmu_ready vs. vcpus_running */
+			smp_mb();
+			if (atomic_read(&kvm->arch.vcpus_running)) {
+				kvm->arch.mmu_ready = 1;
+				err = -EBUSY;
+				goto out_unlock;
+			}
+		}
+		if (radix)
+			err = kvmppc_switch_mmu_to_radix(kvm);
+		else
+			err = kvmppc_switch_mmu_to_hpt(kvm);
+		if (err)
+			goto out_unlock;
+	}
+
 	kvm->arch.process_table = cfg->process_table;
 	kvmppc_setup_partition_table(kvm);
 
 	lpcr = (cfg->flags & KVM_PPC_MMUV3_GTSE) ? LPCR_GTSE : 0;
 	kvmppc_update_lpcr(kvm, lpcr, LPCR_GTSE);
-	mutex_unlock(&kvm->lock);
+	err = 0;
 
-	return 0;
+ out_unlock:
+	mutex_unlock(&kvm->lock);
+	return err;
 }
 
 static struct kvmppc_ops kvm_ops_hv = {

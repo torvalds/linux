@@ -662,6 +662,7 @@ void kvmppc_free_radix(struct kvm *kvm)
 		pgd_clear(pgd);
 	}
 	pgd_free(kvm->mm, kvm->arch.pgtable);
+	kvm->arch.pgtable = NULL;
 }
 
 static void pte_ctor(void *addr)
