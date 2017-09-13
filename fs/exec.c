@@ -955,7 +955,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(kernel_read_file);
 
-int kernel_read_file_from_path(char *path, void **buf, loff_t *size,
+int kernel_read_file_from_path(const char *path, void **buf, loff_t *size,
 			       loff_t max_size, enum kernel_read_file_id id)
 {
 	struct file *file;

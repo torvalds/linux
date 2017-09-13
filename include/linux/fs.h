@@ -2815,7 +2815,7 @@ static inline const char *kernel_read_file_id_str(enum kernel_read_file_id id)
 
 extern int kernel_read_file(struct file *, void **, loff_t *, loff_t,
 			    enum kernel_read_file_id);
-extern int kernel_read_file_from_path(char *, void **, loff_t *, loff_t,
+extern int kernel_read_file_from_path(const char *, void **, loff_t *, loff_t,
 				      enum kernel_read_file_id);
 extern int kernel_read_file_from_fd(int, void **, loff_t *, loff_t,
 				    enum kernel_read_file_id);
