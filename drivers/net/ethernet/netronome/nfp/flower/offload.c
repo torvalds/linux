@@ -44,6 +44,16 @@
 #include "../nfp_net.h"
 #include "../nfp_port.h"
 
+#define NFP_FLOWER_WHITELIST_DISSECTOR \
+	(BIT(FLOW_DISSECTOR_KEY_CONTROL) | \
+	 BIT(FLOW_DISSECTOR_KEY_BASIC) | \
+	 BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_PORTS) | \
+	 BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_VLAN) | \
+	 BIT(FLOW_DISSECTOR_KEY_IP))
+
 static int
 nfp_flower_xmit_flow(struct net_device *netdev,
 		     struct nfp_fl_payload *nfp_flow, u8 mtype)
@@ -111,6 +121,9 @@ nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 	u32 key_layer_two;
 	u8 key_layer;
 	int key_size;
+
+	if (flow->dissector->used_keys & ~NFP_FLOWER_WHITELIST_DISSECTOR)
+		return -EOPNOTSUPP;
 
 	if (dissector_uses_key(flow->dissector,
 			       FLOW_DISSECTOR_KEY_ENC_CONTROL)) {
