@@ -144,7 +144,6 @@ void register_lapic_address(unsigned long address);
 extern void setup_boot_APIC_clock(void);
 extern void setup_secondary_APIC_clock(void);
 extern void lapic_update_tsc_freq(void);
-extern int APIC_init_uniprocessor(void);
 
 #ifdef CONFIG_X86_64
 static inline int apic_force_enable(unsigned long addr)
