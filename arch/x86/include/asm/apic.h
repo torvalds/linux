@@ -476,94 +476,45 @@ DECLARE_PER_CPU(int, x2apic_extra_bits);
 
 extern void generic_bigsmp_probe(void);
 
-
 #ifdef CONFIG_X86_LOCAL_APIC
 
 #include <asm/smp.h>
 
 #define APIC_DFR_VALUE	(APIC_DFR_FLAT)
 
-static inline const struct cpumask *default_target_cpus(void)
-{
-#ifdef CONFIG_SMP
-	return cpu_online_mask;
-#else
-	return cpumask_of(0);
-#endif
-}
-
-static inline const struct cpumask *online_target_cpus(void)
-{
-	return cpu_online_mask;
-}
-
 DECLARE_EARLY_PER_CPU_READ_MOSTLY(u16, x86_bios_cpu_apicid);
 
+extern struct apic apic_noop;
 
 static inline unsigned int read_apic_id(void)
 {
-	unsigned int reg;
-
-	reg = apic_read(APIC_ID);
+	unsigned int reg = apic_read(APIC_ID);
 
 	return apic->get_apic_id(reg);
 }
 
-static inline int default_apic_id_valid(int apicid)
-{
-	return (apicid < 255);
-}
-
+extern const struct cpumask *default_target_cpus(void);
+extern const struct cpumask *online_target_cpus(void);
+extern int default_apic_id_valid(int apicid);
 extern int default_acpi_madt_oem_check(char *, char *);
-
 extern void default_setup_apic_routing(void);
-
-extern struct apic apic_noop;
-
 extern int flat_cpu_mask_to_apicid(const struct cpumask *cpumask,
 				   struct irq_data *irqdata,
 				   unsigned int *apicid);
 extern int default_cpu_mask_to_apicid(const struct cpumask *cpumask,
 				      struct irq_data *irqdata,
 				      unsigned int *apicid);
-
-static inline void
-flat_vector_allocation_domain(int cpu, struct cpumask *retmask,
-			      const struct cpumask *mask)
-{
-	/* Careful. Some cpus do not strictly honor the set of cpus
-	 * specified in the interrupt destination when using lowest
-	 * priority interrupt delivery mode.
-	 *
-	 * In particular there was a hyperthreading cpu observed to
-	 * deliver interrupts to the wrong hyperthread when only one
-	 * hyperthread was specified in the interrupt desitination.
-	 */
-	cpumask_clear(retmask);
-	cpumask_bits(retmask)[0] = APIC_ALL_CPUS;
-}
-
-static inline void
-default_vector_allocation_domain(int cpu, struct cpumask *retmask,
-				 const struct cpumask *mask)
-{
-	cpumask_copy(retmask, cpumask_of(cpu));
-}
-
-static inline bool default_check_apicid_used(physid_mask_t *map, int apicid)
-{
-	return physid_isset(apicid, *map);
-}
-
-static inline void default_ioapic_phys_id_map(physid_mask_t *phys_map, physid_mask_t *retmap)
-{
-	*retmap = *phys_map;
-}
-
+extern bool default_check_apicid_used(physid_mask_t *map, int apicid);
+extern void flat_vector_allocation_domain(int cpu, struct cpumask *retmask,
+				   const struct cpumask *mask);
+extern void default_vector_allocation_domain(int cpu, struct cpumask *retmask,
+				      const struct cpumask *mask);
+extern void default_ioapic_phys_id_map(physid_mask_t *phys_map, physid_mask_t *retmap);
 extern int default_cpu_present_to_apicid(int mps_cpu);
 extern int default_check_phys_apicid_present(int phys_apicid);
 
 #endif /* CONFIG_X86_LOCAL_APIC */
+
 extern void irq_enter(void);
 extern void irq_exit(void);
 

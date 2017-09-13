@@ -2273,34 +2273,6 @@ int hard_smp_processor_id(void)
 	return read_apic_id();
 }
 
-int default_cpu_mask_to_apicid(const struct cpumask *mask,
-			       struct irq_data *irqdata,
-			       unsigned int *apicid)
-{
-	unsigned int cpu = cpumask_first(mask);
-
-	if (cpu >= nr_cpu_ids)
-		return -EINVAL;
-	*apicid = per_cpu(x86_cpu_to_apicid, cpu);
-	irq_data_update_effective_affinity(irqdata, cpumask_of(cpu));
-	return 0;
-}
-
-int flat_cpu_mask_to_apicid(const struct cpumask *mask,
-			    struct irq_data *irqdata,
-			    unsigned int *apicid)
-
-{
-	struct cpumask *effmsk = irq_data_get_effective_affinity_mask(irqdata);
-	unsigned long cpu_mask = cpumask_bits(mask)[0] & APIC_ALL_CPUS;
-
-	if (!cpu_mask)
-		return -EINVAL;
-	*apicid = (unsigned int)cpu_mask;
-	cpumask_bits(effmsk)[0] = cpu_mask;
-	return 0;
-}
-
 /*
  * Override the generic EOI implementation with an optimized version.
  * Only called during early boot when only one CPU is active and with
