@@ -11,6 +11,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/interrupt.h>
+#include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/compiler.h>
 #include <linux/slab.h>
@@ -373,9 +374,54 @@ error:
 	return err;
 }
 
+#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
+void x86_vector_debug_show(struct seq_file *m, struct irq_domain *d,
+			   struct irq_data *irqd, int ind)
+{
+	unsigned int cpu, vec, prev_cpu, prev_vec;
+	struct apic_chip_data *apicd;
+	unsigned long flags;
+	int irq;
+
+	if (!irqd) {
+		irq_matrix_debug_show(m, vector_matrix, ind);
+		return;
+	}
+
+	irq = irqd->irq;
+	if (irq < nr_legacy_irqs() && !test_bit(irq, &io_apic_irqs)) {
+		seq_printf(m, "%*sVector: %5d\n", ind, "", ISA_IRQ_VECTOR(irq));
+		seq_printf(m, "%*sTarget: Legacy PIC all CPUs\n", ind, "");
+		return;
+	}
+
+	apicd = irqd->chip_data;
+	if (!apicd) {
+		seq_printf(m, "%*sVector: Not assigned\n", ind, "");
+		return;
+	}
+
+	raw_spin_lock_irqsave(&vector_lock, flags);
+	cpu = apicd->cpu;
+	vec = apicd->cfg.vector;
+	prev_cpu = apicd->prev_cpu;
+	prev_vec = apicd->cfg.old_vector;
+	raw_spin_unlock_irqrestore(&vector_lock, flags);
+	seq_printf(m, "%*sVector: %5u\n", ind, "", vec);
+	seq_printf(m, "%*sTarget: %5u\n", ind, "", cpu);
+	if (prev_vec) {
+		seq_printf(m, "%*sPrevious vector: %5u\n", ind, "", prev_vec);
+		seq_printf(m, "%*sPrevious target: %5u\n", ind, "", prev_cpu);
+	}
+}
+#endif
+
 static const struct irq_domain_ops x86_vector_domain_ops = {
-	.alloc	= x86_vector_alloc_irqs,
-	.free	= x86_vector_free_irqs,
+	.alloc		= x86_vector_alloc_irqs,
+	.free		= x86_vector_free_irqs,
+#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
+	.debug_show	= x86_vector_debug_show,
+#endif
 };
 
 int __init arch_probe_nr_irqs(void)
