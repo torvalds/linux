@@ -436,6 +436,17 @@ static inline bool irq_fixup_move_pending(struct irq_desc *desc, bool fclear)
 }
 #endif /* !CONFIG_GENERIC_PENDING_IRQ */
 
+#if !defined(CONFIG_IRQ_DOMAIN) || !defined(CONFIG_IRQ_DOMAIN_HIERARCHY)
+static inline void irq_domain_activate_irq(struct irq_data *data)
+{
+	irqd_set_activated(data);
+}
+static inline void irq_domain_deactivate_irq(struct irq_data *data)
+{
+	irqd_clr_activated(data);
+}
+#endif
+
 #ifdef CONFIG_GENERIC_IRQ_DEBUGFS
 #include <linux/debugfs.h>
 

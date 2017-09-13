@@ -511,8 +511,6 @@ static inline bool irq_domain_is_msi_remap(struct irq_domain *domain)
 extern bool irq_domain_hierarchical_is_msi_remap(struct irq_domain *domain);
 
 #else	/* CONFIG_IRQ_DOMAIN_HIERARCHY */
-static inline void irq_domain_activate_irq(struct irq_data *data) { }
-static inline void irq_domain_deactivate_irq(struct irq_data *data) { }
 static inline int irq_domain_alloc_irqs(struct irq_domain *domain,
 			unsigned int nr_irqs, int node, void *arg)
 {
@@ -561,8 +559,6 @@ irq_domain_hierarchical_is_msi_remap(struct irq_domain *domain)
 
 #else /* CONFIG_IRQ_DOMAIN */
 static inline void irq_dispose_mapping(unsigned int virq) { }
-static inline void irq_domain_activate_irq(struct irq_data *data) { }
-static inline void irq_domain_deactivate_irq(struct irq_data *data) { }
 static inline struct irq_domain *irq_find_matching_fwnode(
 	struct fwnode_handle *fwnode, enum irq_domain_bus_token bus_token)
 {
