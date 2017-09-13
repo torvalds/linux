@@ -25,6 +25,7 @@ struct apic_chip_data {
 	struct irq_cfg		cfg;
 	unsigned int		cpu;
 	unsigned int		prev_cpu;
+	struct hlist_node	clist;
 	cpumask_var_t		domain;
 	cpumask_var_t		old_domain;
 	u8			move_in_progress : 1;
@@ -37,6 +38,9 @@ static cpumask_var_t vector_cpumask, vector_searchmask, searched_cpumask;
 static struct irq_chip lapic_controller;
 #ifdef	CONFIG_X86_IO_APIC
 static struct apic_chip_data *legacy_irq_data[NR_IRQS_LEGACY];
+#endif
+#ifdef CONFIG_SMP
+static DEFINE_PER_CPU(struct hlist_head, cleanup_list);
 #endif
 
 void lock_vector_lock(void)
@@ -87,6 +91,7 @@ static struct apic_chip_data *alloc_apic_chip_data(int node)
 		goto out_data;
 	if (!zalloc_cpumask_var_node(&apicd->old_domain, GFP_KERNEL, node))
 		goto out_domain;
+	INIT_HLIST_NODE(&apicd->clist);
 	return apicd;
 out_domain:
 	free_cpumask_var(apicd->domain);
@@ -127,8 +132,7 @@ static int __assign_irq_vector(int irq, struct apic_chip_data *d,
 	 * If there is still a move in progress or the previous move has not
 	 * been cleaned up completely, tell the caller to come back later.
 	 */
-	if (d->move_in_progress ||
-	    cpumask_intersects(d->old_domain, cpu_online_mask))
+	if (d->cfg.old_vector)
 		return -EBUSY;
 
 	/* Only try and allocate irqs on cpus that are present */
@@ -263,38 +267,22 @@ static int assign_irq_vector_policy(int irq, int node,
 
 static void clear_irq_vector(int irq, struct apic_chip_data *apicd)
 {
-	struct irq_desc *desc;
-	int cpu, vector;
+	unsigned int vector = apicd->cfg.vector;
 
-	if (!apicd->cfg.vector)
+	if (!vector)
 		return;
 
-	vector = apicd->cfg.vector;
-	for_each_cpu_and(cpu, apicd->domain, cpu_online_mask)
-		per_cpu(vector_irq, cpu)[vector] = VECTOR_UNUSED;
-
+	per_cpu(vector_irq, apicd->cpu)[vector] = VECTOR_UNUSED;
 	apicd->cfg.vector = 0;
-	cpumask_clear(apicd->domain);
 
-	/*
-	 * If move is in progress or the old_domain mask is not empty,
-	 * i.e. the cleanup IPI has not been processed yet, we need to remove
-	 * the old references to desc from all cpus vector tables.
-	 */
-	if (!apicd->move_in_progress && cpumask_empty(apicd->old_domain))
+	/* Clean up move in progress */
+	vector = apicd->cfg.old_vector;
+	if (!vector)
 		return;
 
-	desc = irq_to_desc(irq);
-	for_each_cpu_and(cpu, apicd->old_domain, cpu_online_mask) {
-		for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS;
-		     vector++) {
-			if (per_cpu(vector_irq, cpu)[vector] != desc)
-				continue;
-			per_cpu(vector_irq, cpu)[vector] = VECTOR_UNUSED;
-			break;
-		}
-	}
+	per_cpu(vector_irq, apicd->prev_cpu)[vector] = VECTOR_UNUSED;
 	apicd->move_in_progress = 0;
+	hlist_del_init(&apicd->clist);
 }
 
 void init_irq_alloc_info(struct irq_alloc_info *info,
@@ -474,7 +462,7 @@ static void vector_update_shutdown_irqs(void)
 		struct irq_data *irqd = irq_desc_get_irq_data(desc);
 		struct apic_chip_data *ad = apic_chip_data(irqd);
 
-		if (ad && cpumask_test_cpu(cpu, ad->domain) && ad->cfg.vector)
+		if (ad && ad->cfg.vector && ad->cpu == smp_processor_id())
 			this_cpu_write(vector_irq[ad->cfg.vector], desc);
 	}
 }
@@ -524,11 +512,9 @@ static int apic_retrigger_irq(struct irq_data *irqd)
 {
 	struct apic_chip_data *apicd = apic_chip_data(irqd);
 	unsigned long flags;
-	int cpu;
 
 	raw_spin_lock_irqsave(&vector_lock, flags);
-	cpu = cpumask_first_and(apicd->domain, cpu_online_mask);
-	apic->send_IPI_mask(cpumask_of(cpu), apicd->cfg.vector);
+	apic->send_IPI(apicd->cpu, apicd->cfg.vector);
 	raw_spin_unlock_irqrestore(&vector_lock, flags);
 
 	return 1;
@@ -565,13 +551,56 @@ static struct irq_chip lapic_controller = {
 };
 
 #ifdef CONFIG_SMP
+
+asmlinkage __visible void __irq_entry smp_irq_move_cleanup_interrupt(void)
+{
+	struct hlist_head *clhead = this_cpu_ptr(&cleanup_list);
+	struct apic_chip_data *apicd;
+	struct hlist_node *tmp;
+
+	entering_ack_irq();
+	/* Prevent vectors vanishing under us */
+	raw_spin_lock(&vector_lock);
+
+	hlist_for_each_entry_safe(apicd, tmp, clhead, clist) {
+		unsigned int irr, vector = apicd->cfg.old_vector;
+
+		/*
+		 * Paranoia: Check if the vector that needs to be cleaned
+		 * up is registered at the APICs IRR. If so, then this is
+		 * not the best time to clean it up. Clean it up in the
+		 * next attempt by sending another IRQ_MOVE_CLEANUP_VECTOR
+		 * to this CPU. IRQ_MOVE_CLEANUP_VECTOR is the lowest
+		 * priority external vector, so on return from this
+		 * interrupt the device interrupt will happen first.
+		 */
+		irr = apic_read(APIC_IRR + (vector / 32 * 0x10));
+		if (irr & (1U << (vector % 32))) {
+			apic->send_IPI_self(IRQ_MOVE_CLEANUP_VECTOR);
+			continue;
+		}
+		hlist_del_init(&apicd->clist);
+		__this_cpu_write(vector_irq[vector], VECTOR_UNUSED);
+		apicd->cfg.old_vector = 0;
+	}
+
+	raw_spin_unlock(&vector_lock);
+	exiting_irq();
+}
+
 static void __send_cleanup_vector(struct apic_chip_data *apicd)
 {
+	unsigned int cpu;
+
 	raw_spin_lock(&vector_lock);
-	cpumask_and(apicd->old_domain, apicd->old_domain, cpu_online_mask);
 	apicd->move_in_progress = 0;
-	if (!cpumask_empty(apicd->old_domain))
-		apic->send_IPI_mask(apicd->old_domain, IRQ_MOVE_CLEANUP_VECTOR);
+	cpu = apicd->prev_cpu;
+	if (cpu_online(cpu)) {
+		hlist_add_head(&apicd->clist, per_cpu_ptr(&cleanup_list, cpu));
+		apic->send_IPI(cpu, IRQ_MOVE_CLEANUP_VECTOR);
+	} else {
+		apicd->cfg.old_vector = 0;
+	}
 	raw_spin_unlock(&vector_lock);
 }
 
@@ -584,95 +613,15 @@ void send_cleanup_vector(struct irq_cfg *cfg)
 		__send_cleanup_vector(apicd);
 }
 
-asmlinkage __visible void __irq_entry smp_irq_move_cleanup_interrupt(void)
-{
-	unsigned vector, me;
-
-	entering_ack_irq();
-
-	/* Prevent vectors vanishing under us */
-	raw_spin_lock(&vector_lock);
-
-	me = smp_processor_id();
-	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
-		struct apic_chip_data *apicd;
-		struct irq_desc *desc;
-		unsigned int irr;
-
-	retry:
-		desc = __this_cpu_read(vector_irq[vector]);
-		if (IS_ERR_OR_NULL(desc))
-			continue;
-
-		if (!raw_spin_trylock(&desc->lock)) {
-			raw_spin_unlock(&vector_lock);
-			cpu_relax();
-			raw_spin_lock(&vector_lock);
-			goto retry;
-		}
-
-		apicd = apic_chip_data(irq_desc_get_irq_data(desc));
-		if (!apicd)
-			goto unlock;
-
-		/*
-		 * Nothing to cleanup if irq migration is in progress
-		 * or this cpu is not set in the cleanup mask.
-		 */
-		if (apicd->move_in_progress ||
-		    !cpumask_test_cpu(me, apicd->old_domain))
-			goto unlock;
-
-		/*
-		 * We have two cases to handle here:
-		 * 1) vector is unchanged but the target mask got reduced
-		 * 2) vector and the target mask has changed
-		 *
-		 * #1 is obvious, but in #2 we have two vectors with the same
-		 * irq descriptor: the old and the new vector. So we need to
-		 * make sure that we only cleanup the old vector. The new
-		 * vector has the current @vector number in the config and
-		 * this cpu is part of the target mask. We better leave that
-		 * one alone.
-		 */
-		if (vector == apicd->cfg.vector &&
-		    cpumask_test_cpu(me, apicd->domain))
-			goto unlock;
-
-		irr = apic_read(APIC_IRR + (vector / 32 * 0x10));
-		/*
-		 * Check if the vector that needs to be cleanedup is
-		 * registered at the cpu's IRR. If so, then this is not
-		 * the best time to clean it up. Lets clean it up in the
-		 * next attempt by sending another IRQ_MOVE_CLEANUP_VECTOR
-		 * to myself.
-		 */
-		if (irr  & (1 << (vector % 32))) {
-			apic->send_IPI_self(IRQ_MOVE_CLEANUP_VECTOR);
-			goto unlock;
-		}
-		__this_cpu_write(vector_irq[vector], VECTOR_UNUSED);
-		cpumask_clear_cpu(me, apicd->old_domain);
-unlock:
-		raw_spin_unlock(&desc->lock);
-	}
-
-	raw_spin_unlock(&vector_lock);
-
-	exiting_irq();
-}
-
 static void __irq_complete_move(struct irq_cfg *cfg, unsigned vector)
 {
-	unsigned me;
 	struct apic_chip_data *apicd;
 
 	apicd = container_of(cfg, struct apic_chip_data, cfg);
 	if (likely(!apicd->move_in_progress))
 		return;
 
-	me = smp_processor_id();
-	if (vector == apicd->cfg.vector && cpumask_test_cpu(me, apicd->domain))
+	if (vector == apicd->cfg.vector && apicd->cpu == smp_processor_id())
 		__send_cleanup_vector(apicd);
 }
 
@@ -686,10 +635,9 @@ void irq_complete_move(struct irq_cfg *cfg)
  */
 void irq_force_complete_move(struct irq_desc *desc)
 {
-	struct irq_data *irqd;
 	struct apic_chip_data *apicd;
-	struct irq_cfg *cfg;
-	unsigned int cpu;
+	struct irq_data *irqd;
+	unsigned int vector;
 
 	/*
 	 * The function is called for all descriptors regardless of which
@@ -701,42 +649,30 @@ void irq_force_complete_move(struct irq_desc *desc)
 	 * (apic_chip_data) before touching it any further.
 	 */
 	irqd = irq_domain_get_irq_data(x86_vector_domain,
-					  irq_desc_get_irq(desc));
+				       irq_desc_get_irq(desc));
 	if (!irqd)
 		return;
 
+	raw_spin_lock(&vector_lock);
 	apicd = apic_chip_data(irqd);
-	cfg = apicd ? &apicd->cfg : NULL;
-
-	if (!cfg)
-		return;
+	if (!apicd)
+		goto unlock;
 
 	/*
-	 * This is tricky. If the cleanup of @data->old_domain has not been
+	 * If old_vector is empty, no action required.
+	 */
+	vector = apicd->cfg.old_vector;
+	if (!vector)
+		goto unlock;
+
+	/*
+	 * This is tricky. If the cleanup of the old vector has not been
 	 * done yet, then the following setaffinity call will fail with
 	 * -EBUSY. This can leave the interrupt in a stale state.
 	 *
 	 * All CPUs are stuck in stop machine with interrupts disabled so
 	 * calling __irq_complete_move() would be completely pointless.
-	 */
-	raw_spin_lock(&vector_lock);
-	/*
-	 * Clean out all offline cpus (including the outgoing one) from the
-	 * old_domain mask.
-	 */
-	cpumask_and(apicd->old_domain, apicd->old_domain, cpu_online_mask);
-
-	/*
-	 * If move_in_progress is cleared and the old_domain mask is empty,
-	 * then there is nothing to cleanup. fixup_irqs() will take care of
-	 * the stale vectors on the outgoing cpu.
-	 */
-	if (!apicd->move_in_progress && cpumask_empty(apicd->old_domain)) {
-		raw_spin_unlock(&vector_lock);
-		return;
-	}
-
-	/*
+	 *
 	 * 1) The interrupt is in move_in_progress state. That means that we
 	 *    have not seen an interrupt since the io_apic was reprogrammed to
 	 *    the new vector.
@@ -778,18 +714,15 @@ void irq_force_complete_move(struct irq_desc *desc)
 		 * area arises.
 		 */
 		pr_warn("IRQ fixup: irq %d move in progress, old vector %d\n",
-			irqd->irq, cfg->old_vector);
+			irqd->irq, vector);
 	}
-	/*
-	 * If old_domain is not empty, then other cpus still have the irq
-	 * descriptor set in their vector array. Clean it up.
-	 */
-	for_each_cpu(cpu, apicd->old_domain)
-		per_cpu(vector_irq, cpu)[cfg->old_vector] = VECTOR_UNUSED;
-
+	per_cpu(vector_irq, apicd->prev_cpu)[vector] = VECTOR_UNUSED;
 	/* Cleanup the left overs of the (half finished) move */
 	cpumask_clear(apicd->old_domain);
+	apicd->cfg.old_vector = 0;
 	apicd->move_in_progress = 0;
+	hlist_del_init(&apicd->clist);
+unlock:
 	raw_spin_unlock(&vector_lock);
 }
 #endif
