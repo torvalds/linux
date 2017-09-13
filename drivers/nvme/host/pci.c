@@ -1612,21 +1612,23 @@ static void nvme_free_host_mem(struct nvme_dev *dev)
 	dev->host_mem_descs = NULL;
 }
 
-static int nvme_alloc_host_mem(struct nvme_dev *dev, u64 min, u64 preferred)
+static int __nvme_alloc_host_mem(struct nvme_dev *dev, u64 preferred,
+		u32 chunk_size)
 {
 	struct nvme_host_mem_buf_desc *descs;
-	u32 chunk_size, max_entries, len;
+	u32 max_entries, len;
 	dma_addr_t descs_dma;
 	int i = 0;
 	void **bufs;
 	u64 size = 0, tmp;
 
-	/* start big and work our way down */
-	chunk_size = min(preferred, (u64)PAGE_SIZE << MAX_ORDER);
-retry:
 	tmp = (preferred + chunk_size - 1);
 	do_div(tmp, chunk_size);
 	max_entries = tmp;
+
+	if (dev->ctrl.hmmaxd && dev->ctrl.hmmaxd < max_entries)
+		max_entries = dev->ctrl.hmmaxd;
+
 	descs = dma_zalloc_coherent(dev->dev, max_entries * sizeof(*descs),
 			&descs_dma, GFP_KERNEL);
 	if (!descs)
@@ -1650,15 +1652,9 @@ retry:
 		i++;
 	}
 
-	if (!size || (min && size < min)) {
-		dev_warn(dev->ctrl.device,
-			"failed to allocate host memory buffer.\n");
+	if (!size)
 		goto out_free_bufs;
-	}
 
-	dev_info(dev->ctrl.device,
-		"allocated %lld MiB host memory buffer.\n",
-		size >> ilog2(SZ_1M));
 	dev->nr_host_mem_descs = i;
 	dev->host_mem_size = size;
 	dev->host_mem_descs = descs;
@@ -1679,21 +1675,35 @@ out_free_descs:
 	dma_free_coherent(dev->dev, max_entries * sizeof(*descs), descs,
 			descs_dma);
 out:
-	/* try a smaller chunk size if we failed early */
-	if (chunk_size >= PAGE_SIZE * 2 && (i == 0 || size < min)) {
-		chunk_size /= 2;
-		goto retry;
-	}
 	dev->host_mem_descs = NULL;
 	return -ENOMEM;
 }
 
-static void nvme_setup_host_mem(struct nvme_dev *dev)
+static int nvme_alloc_host_mem(struct nvme_dev *dev, u64 min, u64 preferred)
+{
+	u32 chunk_size;
+
+	/* start big and work our way down */
+	for (chunk_size = min_t(u64, preferred, PAGE_SIZE * MAX_ORDER_NR_PAGES);
+	     chunk_size >= max_t(u32, dev->ctrl.hmminds * 4096, PAGE_SIZE * 2);
+	     chunk_size /= 2) {
+		if (!__nvme_alloc_host_mem(dev, preferred, chunk_size)) {
+			if (!min || dev->host_mem_size >= min)
+				return 0;
+			nvme_free_host_mem(dev);
+		}
+	}
+
+	return -ENOMEM;
+}
+
+static int nvme_setup_host_mem(struct nvme_dev *dev)
 {
 	u64 max = (u64)max_host_mem_size_mb * SZ_1M;
 	u64 preferred = (u64)dev->ctrl.hmpre * 4096;
 	u64 min = (u64)dev->ctrl.hmmin * 4096;
 	u32 enable_bits = NVME_HOST_MEM_ENABLE;
+	int ret = 0;
 
 	preferred = min(preferred, max);
 	if (min > max) {
@@ -1701,7 +1711,7 @@ static void nvme_setup_host_mem(struct nvme_dev *dev)
 			"min host memory (%lld MiB) above limit (%d MiB).\n",
 			min >> ilog2(SZ_1M), max_host_mem_size_mb);
 		nvme_free_host_mem(dev);
-		return;
+		return 0;
 	}
 
 	/*
@@ -1715,12 +1725,21 @@ static void nvme_setup_host_mem(struct nvme_dev *dev)
 	}
 
 	if (!dev->host_mem_descs) {
-		if (nvme_alloc_host_mem(dev, min, preferred))
-			return;
+		if (nvme_alloc_host_mem(dev, min, preferred)) {
+			dev_warn(dev->ctrl.device,
+				"failed to allocate host memory buffer.\n");
+			return 0; /* controller must work without HMB */
+		}
+
+		dev_info(dev->ctrl.device,
+			"allocated %lld MiB host memory buffer.\n",
+			dev->host_mem_size >> ilog2(SZ_1M));
 	}
 
-	if (nvme_set_host_mem(dev, enable_bits))
+	ret = nvme_set_host_mem(dev, enable_bits);
+	if (ret)
 		nvme_free_host_mem(dev);
+	return ret;
 }
 
 static int nvme_setup_io_queues(struct nvme_dev *dev)
@@ -2164,8 +2183,11 @@ static void nvme_reset_work(struct work_struct *work)
 				 "unable to allocate dma for dbbuf\n");
 	}
 
-	if (dev->ctrl.hmpre)
-		nvme_setup_host_mem(dev);
+	if (dev->ctrl.hmpre) {
+		result = nvme_setup_host_mem(dev);
+		if (result < 0)
+			goto out;
+	}
 
 	result = nvme_setup_io_queues(dev);
 	if (result)
@@ -2497,6 +2519,10 @@ static const struct pci_device_id nvme_id_table[] = {
 		.driver_data = NVME_QUIRK_DELAY_BEFORE_CHK_RDY, },
 	{ PCI_DEVICE(0x144d, 0xa822),   /* Samsung PM1725a */
 		.driver_data = NVME_QUIRK_DELAY_BEFORE_CHK_RDY, },
+	{ PCI_DEVICE(0x1d1d, 0x1f1f),	/* LighNVM qemu device */
+		.driver_data = NVME_QUIRK_LIGHTNVM, },
+	{ PCI_DEVICE(0x1d1d, 0x2807),	/* CNEX WL */
+		.driver_data = NVME_QUIRK_LIGHTNVM, },
 	{ PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xffffff) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_APPLE, 0x2001) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_APPLE, 0x2003) },

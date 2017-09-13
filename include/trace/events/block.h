@@ -397,7 +397,6 @@ DECLARE_EVENT_CLASS(block_get_rq,
 
 	TP_fast_assign(
 		__entry->dev		= bio ? bio_dev(bio) : 0;
-		__entry->dev		= bio_dev(bio);
 		__entry->sector		= bio ? bio->bi_iter.bi_sector : 0;
 		__entry->nr_sector	= bio ? bio_sectors(bio) : 0;
 		blk_fill_rwbs(__entry->rwbs,
@@ -414,7 +413,7 @@ DECLARE_EVENT_CLASS(block_get_rq,
 /**
  * block_getrq - get a free request entry in queue for block IO operations
  * @q: queue for operations
- * @bio: pending block IO operation
+ * @bio: pending block IO operation (can be %NULL)
  * @rw: low bit indicates a read (%0) or a write (%1)
  *
  * A request struct for queue @q has been allocated to handle the
@@ -430,7 +429,7 @@ DEFINE_EVENT(block_get_rq, block_getrq,
 /**
  * block_sleeprq - waiting to get a free request entry in queue for block IO operation
  * @q: queue for operation
- * @bio: pending block IO operation
+ * @bio: pending block IO operation (can be %NULL)
  * @rw: low bit indicates a read (%0) or a write (%1)
  *
  * In the case where a request struct cannot be provided for queue @q
