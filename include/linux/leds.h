@@ -40,16 +40,16 @@ struct led_classdev {
 	int			 flags;
 
 	/* Lower 16 bits reflect status */
-#define LED_SUSPENDED		(1 << 0)
-#define LED_UNREGISTERING	(1 << 1)
+#define LED_SUSPENDED		BIT(0)
+#define LED_UNREGISTERING	BIT(1)
 	/* Upper 16 bits reflect control information */
-#define LED_CORE_SUSPENDRESUME	(1 << 16)
-#define LED_SYSFS_DISABLE	(1 << 17)
-#define LED_DEV_CAP_FLASH	(1 << 18)
-#define LED_HW_PLUGGABLE	(1 << 19)
-#define LED_PANIC_INDICATOR	(1 << 20)
-#define LED_BRIGHT_HW_CHANGED	(1 << 21)
-#define LED_RETAIN_AT_SHUTDOWN	(1 << 22)
+#define LED_CORE_SUSPENDRESUME	BIT(16)
+#define LED_SYSFS_DISABLE	BIT(17)
+#define LED_DEV_CAP_FLASH	BIT(18)
+#define LED_HW_PLUGGABLE	BIT(19)
+#define LED_PANIC_INDICATOR	BIT(20)
+#define LED_BRIGHT_HW_CHANGED	BIT(21)
+#define LED_RETAIN_AT_SHUTDOWN	BIT(22)
 
 	/* set_brightness_work / blink_timer flags, atomic, private. */
 	unsigned long		work_flags;
