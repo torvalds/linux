@@ -444,7 +444,6 @@ int  vtl_ts_remove(struct i2c_client *client)
 	if(ts->driver->input_dev != NULL)
 	{
 		input_unregister_device(ts->driver->input_dev);
-		input_free_device(ts->driver->input_dev);
 	}
 
 	if ( ts->driver->proc_entry != NULL ){
@@ -633,7 +632,6 @@ ERR_IRQ_REQ:
 /* ERR_PROC_ENTRY: */
 	if(ts->driver->input_dev){
 		input_unregister_device(ts->driver->input_dev);
-		input_free_device(ts->driver->input_dev);
 		ts->driver->input_dev = NULL;
 	}
 ERR_INIT_INPUT:
