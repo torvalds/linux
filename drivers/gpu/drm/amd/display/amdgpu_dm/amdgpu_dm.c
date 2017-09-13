@@ -3709,10 +3709,10 @@ static void handle_cursor_update(struct drm_plane *plane,
 		return;
 
 	DRM_DEBUG_DRIVER("%s: crtc_id=%d with size %d to %d\n",
-		         __func__,
-		         amdgpu_crtc->crtc_id,
-		         plane->state->crtc_w,
-		         plane->state->crtc_h);
+			 __func__,
+			 amdgpu_crtc->crtc_id,
+			 plane->state->crtc_w,
+			 plane->state->crtc_h);
 
 	ret = get_cursor_position(plane, crtc, &position);
 	if (ret)
