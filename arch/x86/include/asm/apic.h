@@ -472,9 +472,6 @@ static inline unsigned default_get_apic_id(unsigned long x)
 extern void apic_send_IPI_self(int vector);
 
 DECLARE_PER_CPU(int, x2apic_extra_bits);
-
-extern int default_cpu_present_to_apicid(int mps_cpu);
-extern int default_check_phys_apicid_present(int phys_apicid);
 #endif
 
 extern void generic_bigsmp_probe(void);
@@ -563,35 +560,8 @@ static inline void default_ioapic_phys_id_map(physid_mask_t *phys_map, physid_ma
 	*retmap = *phys_map;
 }
 
-static inline int __default_cpu_present_to_apicid(int mps_cpu)
-{
-	if (mps_cpu < nr_cpu_ids && cpu_present(mps_cpu))
-		return (int)per_cpu(x86_bios_cpu_apicid, mps_cpu);
-	else
-		return BAD_APICID;
-}
-
-static inline int
-__default_check_phys_apicid_present(int phys_apicid)
-{
-	return physid_isset(phys_apicid, phys_cpu_present_map);
-}
-
-#ifdef CONFIG_X86_32
-static inline int default_cpu_present_to_apicid(int mps_cpu)
-{
-	return __default_cpu_present_to_apicid(mps_cpu);
-}
-
-static inline int
-default_check_phys_apicid_present(int phys_apicid)
-{
-	return __default_check_phys_apicid_present(phys_apicid);
-}
-#else
 extern int default_cpu_present_to_apicid(int mps_cpu);
 extern int default_check_phys_apicid_present(int phys_apicid);
-#endif
 
 #endif /* CONFIG_X86_LOCAL_APIC */
 extern void irq_enter(void);
