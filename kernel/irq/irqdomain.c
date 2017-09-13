@@ -1690,7 +1690,7 @@ static void __irq_domain_activate_irq(struct irq_data *irq_data)
 		if (irq_data->parent_data)
 			__irq_domain_activate_irq(irq_data->parent_data);
 		if (domain->ops->activate)
-			domain->ops->activate(domain, irq_data);
+			domain->ops->activate(domain, irq_data, false);
 	}
 }
 

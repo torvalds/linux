@@ -111,7 +111,7 @@ struct irq_domain_ops {
 		     unsigned int nr_irqs, void *arg);
 	void (*free)(struct irq_domain *d, unsigned int virq,
 		     unsigned int nr_irqs);
-	void (*activate)(struct irq_domain *d, struct irq_data *irq_data);
+	int (*activate)(struct irq_domain *d, struct irq_data *irqd, bool early);
 	void (*deactivate)(struct irq_domain *d, struct irq_data *irq_data);
 	int (*translate)(struct irq_domain *d, struct irq_fwspec *fwspec,
 			 unsigned long *out_hwirq, unsigned int *out_type);

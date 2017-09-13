@@ -2977,8 +2977,8 @@ void mp_irqdomain_free(struct irq_domain *domain, unsigned int virq,
 	irq_domain_free_irqs_top(domain, virq, nr_irqs);
 }
 
-void mp_irqdomain_activate(struct irq_domain *domain,
-			   struct irq_data *irq_data)
+int mp_irqdomain_activate(struct irq_domain *domain,
+			  struct irq_data *irq_data, bool early)
 {
 	unsigned long flags;
 	struct irq_pin_list *entry;
@@ -2988,6 +2988,7 @@ void mp_irqdomain_activate(struct irq_domain *domain,
 	for_each_irq_pin(entry, data->irq_2_pin)
 		__ioapic_write_entry(entry->apic, entry->pin, data->entry);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
+	return 0;
 }
 
 void mp_irqdomain_deactivate(struct irq_domain *domain,

@@ -140,8 +140,9 @@ static int xgene_gpio_sb_to_irq(struct gpio_chip *gc, u32 gpio)
 	return irq_create_fwspec_mapping(&fwspec);
 }
 
-static void xgene_gpio_sb_domain_activate(struct irq_domain *d,
-		struct irq_data *irq_data)
+static int xgene_gpio_sb_domain_activate(struct irq_domain *d,
+					 struct irq_data *irq_data,
+					 bool early)
 {
 	struct xgene_gpio_sb *priv = d->host_data;
 	u32 gpio = HWIRQ_TO_GPIO(priv, irq_data->hwirq);
@@ -150,11 +151,12 @@ static void xgene_gpio_sb_domain_activate(struct irq_domain *d,
 		dev_err(priv->gc.parent,
 		"Unable to configure XGene GPIO standby pin %d as IRQ\n",
 				gpio);
-		return;
+		return -ENOSPC;
 	}
 
 	xgene_gpio_set_bit(&priv->gc, priv->regs + MPA_GPIO_SEL_LO,
 			gpio * 2, 1);
+	return 0;
 }
 
 static void xgene_gpio_sb_domain_deactivate(struct irq_domain *d,

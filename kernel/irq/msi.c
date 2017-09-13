@@ -102,13 +102,14 @@ int msi_domain_set_affinity(struct irq_data *irq_data,
 	return ret;
 }
 
-static void msi_domain_activate(struct irq_domain *domain,
-				struct irq_data *irq_data)
+static int msi_domain_activate(struct irq_domain *domain,
+			       struct irq_data *irq_data, bool early)
 {
 	struct msi_msg msg;
 
 	BUG_ON(irq_chip_compose_msi_msg(irq_data, &msg));
 	irq_chip_write_msi_msg(irq_data, &msg);
+	return 0;
 }
 
 static void msi_domain_deactivate(struct irq_domain *domain,
