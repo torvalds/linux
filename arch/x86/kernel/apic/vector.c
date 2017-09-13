@@ -33,7 +33,9 @@ struct apic_chip_data {
 	unsigned int		irq;
 	struct hlist_node	clist;
 	unsigned int		move_in_progress	: 1,
-				is_managed		: 1;
+				is_managed		: 1,
+				can_reserve		: 1,
+				has_reserved		: 1;
 };
 
 struct irq_domain *x86_vector_domain;
@@ -175,9 +177,31 @@ static int reserve_managed_vector(struct irq_data *irqd)
 	return ret;
 }
 
+static void reserve_irq_vector_locked(struct irq_data *irqd)
+{
+	struct apic_chip_data *apicd = apic_chip_data(irqd);
+
+	irq_matrix_reserve(vector_matrix);
+	apicd->can_reserve = true;
+	apicd->has_reserved = true;
+	trace_vector_reserve(irqd->irq, 0);
+	vector_assign_managed_shutdown(irqd);
+}
+
+static int reserve_irq_vector(struct irq_data *irqd)
+{
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&vector_lock, flags);
+	reserve_irq_vector_locked(irqd);
+	raw_spin_unlock_irqrestore(&vector_lock, flags);
+	return 0;
+}
+
 static int allocate_vector(struct irq_data *irqd, const struct cpumask *dest)
 {
 	struct apic_chip_data *apicd = apic_chip_data(irqd);
+	bool resvd = apicd->has_reserved;
 	unsigned int cpu = apicd->cpu;
 	int vector = apicd->vector;
 
@@ -191,10 +215,10 @@ static int allocate_vector(struct irq_data *irqd, const struct cpumask *dest)
 	if (vector && cpu_online(cpu) && cpumask_test_cpu(cpu, dest))
 		return 0;
 
-	vector = irq_matrix_alloc(vector_matrix, dest, false, &cpu);
+	vector = irq_matrix_alloc(vector_matrix, dest, resvd, &cpu);
 	if (vector > 0)
 		apic_update_vector(irqd, vector, cpu);
-	trace_vector_alloc(irqd->irq, vector, false, vector);
+	trace_vector_alloc(irqd->irq, vector, resvd, vector);
 	return vector;
 }
 
@@ -252,7 +276,11 @@ assign_irq_vector_policy(struct irq_data *irqd, struct irq_alloc_info *info)
 		return reserve_managed_vector(irqd);
 	if (info->mask)
 		return assign_irq_vector(irqd, info->mask);
-	return assign_irq_vector_any(irqd);
+	if (info->type != X86_IRQ_ALLOC_TYPE_MSI &&
+	    info->type != X86_IRQ_ALLOC_TYPE_MSIX)
+		return assign_irq_vector_any(irqd);
+	/* For MSI(X) make only a global reservation with no guarantee */
+	return reserve_irq_vector(irqd);
 }
 
 static int
@@ -314,15 +342,33 @@ static void x86_vector_deactivate(struct irq_domain *dom, struct irq_data *irqd)
 	unsigned long flags;
 
 	trace_vector_deactivate(irqd->irq, apicd->is_managed,
-				false, false);
+				apicd->can_reserve, false);
 
-	if (apicd->is_managed)
+	/* Regular fixed assigned interrupt */
+	if (!apicd->is_managed && !apicd->can_reserve)
+		return;
+	/* If the interrupt has a global reservation, nothing to do */
+	if (apicd->has_reserved)
 		return;
 
 	raw_spin_lock_irqsave(&vector_lock, flags);
 	clear_irq_vector(irqd);
-	vector_assign_managed_shutdown(irqd);
+	if (apicd->can_reserve)
+		reserve_irq_vector_locked(irqd);
+	else
+		vector_assign_managed_shutdown(irqd);
 	raw_spin_unlock_irqrestore(&vector_lock, flags);
+}
+
+static int activate_reserved(struct irq_data *irqd)
+{
+	struct apic_chip_data *apicd = apic_chip_data(irqd);
+	int ret;
+
+	ret = assign_irq_vector_any_locked(irqd);
+	if (!ret)
+		apicd->has_reserved = false;
+	return ret;
 }
 
 static int activate_managed(struct irq_data *irqd)
@@ -357,16 +403,19 @@ static int x86_vector_activate(struct irq_domain *dom, struct irq_data *irqd,
 	int ret = 0;
 
 	trace_vector_activate(irqd->irq, apicd->is_managed,
-				false, early);
+			      apicd->can_reserve, early);
 
-	if (!apicd->is_managed)
+	/* Nothing to do for fixed assigned vectors */
+	if (!apicd->can_reserve && !apicd->is_managed)
 		return 0;
 
 	raw_spin_lock_irqsave(&vector_lock, flags);
 	if (early || irqd_is_managed_and_shutdown(irqd))
 		vector_assign_managed_shutdown(irqd);
-	else
+	else if (apicd->is_managed)
 		ret = activate_managed(irqd);
+	else if (apicd->has_reserved)
+		ret = activate_reserved(irqd);
 	raw_spin_unlock_irqrestore(&vector_lock, flags);
 	return ret;
 }
@@ -376,8 +425,11 @@ static void vector_free_reserved_and_managed(struct irq_data *irqd)
 	const struct cpumask *dest = irq_data_get_affinity_mask(irqd);
 	struct apic_chip_data *apicd = apic_chip_data(irqd);
 
-	trace_vector_teardown(irqd->irq, apicd->is_managed, false);
+	trace_vector_teardown(irqd->irq, apicd->is_managed,
+			      apicd->has_reserved);
 
+	if (apicd->has_reserved)
+		irq_matrix_remove_reserved(vector_matrix);
 	if (apicd->is_managed)
 		irq_matrix_remove_managed(vector_matrix, dest);
 }
@@ -604,22 +656,6 @@ int __init arch_early_irq_init(void)
 }
 
 #ifdef CONFIG_SMP
-/* Temporary hack to keep things working */
-static void vector_update_shutdown_irqs(void)
-{
-	struct irq_desc *desc;
-	int irq;
-
-	for_each_irq_desc(irq, desc) {
-		struct irq_data *irqd = irq_desc_get_irq_data(desc);
-		struct apic_chip_data *ad = apic_chip_data(irqd);
-
-		if (!ad || !ad->vector || ad->cpu != smp_processor_id())
-			continue;
-		this_cpu_write(vector_irq[ad->vector], desc);
-		irq_matrix_assign(vector_matrix, ad->vector);
-	}
-}
 
 static struct irq_desc *__setup_vector_irq(int vector)
 {
@@ -655,13 +691,6 @@ void lapic_online(void)
 	 */
 	for (vector = 0; vector < NR_VECTORS; vector++)
 		this_cpu_write(vector_irq[vector], __setup_vector_irq(vector));
-
-	/*
-	 * Until the rewrite of the managed interrupt management is in
-	 * place it's necessary to walk the irq descriptors and check for
-	 * interrupts which are targeted at this CPU.
-	 */
-	vector_update_shutdown_irqs();
 }
 
 void lapic_offline(void)
