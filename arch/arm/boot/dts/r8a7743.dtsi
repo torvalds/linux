@@ -28,6 +28,7 @@
 		i2c6 = &iic0;
 		i2c7 = &iic1;
 		i2c8 = &iic3;
+		spi0 = &qspi;
 	};
 
 	cpus {
@@ -832,6 +833,22 @@
 			resets = <&cpg 315>;
 			reg-io-width = <4>;
 			max-frequency = <97500000>;
+			status = "disabled";
+		};
+
+		qspi: spi@e6b10000 {
+			compatible = "renesas,qspi-r8a7743", "renesas,qspi";
+			reg = <0 0xe6b10000 0 0x2c>;
+			interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 917>;
+			dmas = <&dmac0 0x17>, <&dmac0 0x18>,
+			       <&dmac1 0x17>, <&dmac1 0x18>;
+			dma-names = "tx", "rx", "tx", "rx";
+			power-domains = <&sysc R8A7743_PD_ALWAYS_ON>;
+			num-cs = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			resets = <&cpg 917>;
 			status = "disabled";
 		};
 
