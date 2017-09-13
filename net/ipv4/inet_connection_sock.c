@@ -39,11 +39,11 @@ EXPORT_SYMBOL(inet_csk_timer_bug_msg);
  *                          IPV6_ADDR_ANY only equals to IPV6_ADDR_ANY,
  *                          and 0.0.0.0 equals to 0.0.0.0 only
  */
-static int ipv6_rcv_saddr_equal(const struct in6_addr *sk1_rcv_saddr6,
-				const struct in6_addr *sk2_rcv_saddr6,
-				__be32 sk1_rcv_saddr, __be32 sk2_rcv_saddr,
-				bool sk1_ipv6only, bool sk2_ipv6only,
-				bool match_wildcard)
+static bool ipv6_rcv_saddr_equal(const struct in6_addr *sk1_rcv_saddr6,
+				 const struct in6_addr *sk2_rcv_saddr6,
+				 __be32 sk1_rcv_saddr, __be32 sk2_rcv_saddr,
+				 bool sk1_ipv6only, bool sk2_ipv6only,
+				 bool match_wildcard)
 {
 	int addr_type = ipv6_addr_type(sk1_rcv_saddr6);
 	int addr_type2 = sk2_rcv_saddr6 ? ipv6_addr_type(sk2_rcv_saddr6) : IPV6_ADDR_MAPPED;
@@ -52,29 +52,29 @@ static int ipv6_rcv_saddr_equal(const struct in6_addr *sk1_rcv_saddr6,
 	if (addr_type == IPV6_ADDR_MAPPED && addr_type2 == IPV6_ADDR_MAPPED) {
 		if (!sk2_ipv6only) {
 			if (sk1_rcv_saddr == sk2_rcv_saddr)
-				return 1;
+				return true;
 			if (!sk1_rcv_saddr || !sk2_rcv_saddr)
 				return match_wildcard;
 		}
-		return 0;
+		return false;
 	}
 
 	if (addr_type == IPV6_ADDR_ANY && addr_type2 == IPV6_ADDR_ANY)
-		return 1;
+		return true;
 
 	if (addr_type2 == IPV6_ADDR_ANY && match_wildcard &&
 	    !(sk2_ipv6only && addr_type == IPV6_ADDR_MAPPED))
-		return 1;
+		return true;
 
 	if (addr_type == IPV6_ADDR_ANY && match_wildcard &&
 	    !(sk1_ipv6only && addr_type2 == IPV6_ADDR_MAPPED))
-		return 1;
+		return true;
 
 	if (sk2_rcv_saddr6 &&
 	    ipv6_addr_equal(sk1_rcv_saddr6, sk2_rcv_saddr6))
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 #endif
 
@@ -82,20 +82,20 @@ static int ipv6_rcv_saddr_equal(const struct in6_addr *sk1_rcv_saddr6,
  * match_wildcard == false: addresses must be exactly the same, i.e.
  *                          0.0.0.0 only equals to 0.0.0.0
  */
-static int ipv4_rcv_saddr_equal(__be32 sk1_rcv_saddr, __be32 sk2_rcv_saddr,
-				bool sk2_ipv6only, bool match_wildcard)
+static bool ipv4_rcv_saddr_equal(__be32 sk1_rcv_saddr, __be32 sk2_rcv_saddr,
+				 bool sk2_ipv6only, bool match_wildcard)
 {
 	if (!sk2_ipv6only) {
 		if (sk1_rcv_saddr == sk2_rcv_saddr)
-			return 1;
+			return true;
 		if (!sk1_rcv_saddr || !sk2_rcv_saddr)
 			return match_wildcard;
 	}
-	return 0;
+	return false;
 }
 
-int inet_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2,
-			 bool match_wildcard)
+bool inet_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2,
+			  bool match_wildcard)
 {
 #if IS_ENABLED(CONFIG_IPV6)
 	if (sk->sk_family == AF_INET6)
