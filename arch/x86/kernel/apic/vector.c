@@ -459,33 +459,32 @@ int __init arch_early_irq_init(void)
 	return arch_early_ioapic_init();
 }
 
-/* Initialize vector_irq on a new cpu */
-static void __setup_vector_irq(int cpu)
+/* Temporary hack to keep things working */
+static void vector_update_shutdown_irqs(void)
 {
-	struct apic_chip_data *data;
 	struct irq_desc *desc;
-	int irq, vector;
+	int irq;
 
-	/* Mark the inuse vectors */
 	for_each_irq_desc(irq, desc) {
-		struct irq_data *idata = irq_desc_get_irq_data(desc);
+		struct irq_data *irqd = irq_desc_get_irq_data(desc);
+		struct apic_chip_data *ad = apic_chip_data(irqd);
 
-		data = apic_chip_data(idata);
-		if (!data || !cpumask_test_cpu(cpu, data->domain))
-			continue;
-		vector = data->cfg.vector;
-		per_cpu(vector_irq, cpu)[vector] = desc;
+		if (ad && cpumask_test_cpu(cpu, ad->domain) && ad->cfg.vector)
+			this_cpu_write(vector_irq[ad->cfg.vector], desc);
 	}
-	/* Mark the free vectors */
-	for (vector = 0; vector < NR_VECTORS; ++vector) {
-		desc = per_cpu(vector_irq, cpu)[vector];
-		if (IS_ERR_OR_NULL(desc))
-			continue;
+}
 
-		data = apic_chip_data(irq_desc_get_irq_data(desc));
-		if (!cpumask_test_cpu(cpu, data->domain))
-			per_cpu(vector_irq, cpu)[vector] = VECTOR_UNUSED;
-	}
+static struct irq_desc *__setup_vector_irq(int vector)
+{
+	int isairq = vector - ISA_IRQ_VECTOR(0);
+
+	/* Check whether the irq is in the legacy space */
+	if (isairq < 0 || isairq >= nr_legacy_irqs())
+		return VECTOR_UNUSED;
+	/* Check whether the irq is handled by the IOAPIC */
+	if (test_bit(isairq, &io_apic_irqs))
+		return VECTOR_UNUSED;
+	return irq_to_desc(isairq);
 }
 
 /*
@@ -493,20 +492,27 @@ static void __setup_vector_irq(int cpu)
  */
 void setup_vector_irq(int cpu)
 {
-	int irq;
+	unsigned int vector;
 
 	lockdep_assert_held(&vector_lock);
 	/*
-	 * On most of the platforms, legacy PIC delivers the interrupts on the
-	 * boot cpu. But there are certain platforms where PIC interrupts are
-	 * delivered to multiple cpu's. If the legacy IRQ is handled by the
-	 * legacy PIC, for the new cpu that is coming online, setup the static
-	 * legacy vector to irq mapping:
+	 * The interrupt affinity logic never targets interrupts to offline
+	 * CPUs. The exception are the legacy PIC interrupts. In general
+	 * they are only targeted to CPU0, but depending on the platform
+	 * they can be distributed to any online CPU in hardware. The
+	 * kernel has no influence on that. So all active legacy vectors
+	 * must be installed on all CPUs. All non legacy interrupts can be
+	 * cleared.
 	 */
-	for (irq = 0; irq < nr_legacy_irqs(); irq++)
-		per_cpu(vector_irq, cpu)[ISA_IRQ_VECTOR(irq)] = irq_to_desc(irq);
+	for (vector = 0; vector < NR_VECTORS; vector++)
+		this_cpu_write(vector_irq[vector], __setup_vector_irq(vector));
 
-	__setup_vector_irq(cpu);
+	/*
+	 * Until the rewrite of the managed interrupt management is in
+	 * place it's necessary to walk the irq descriptors and check for
+	 * interrupts which are targeted at this CPU.
+	 */
+	vector_update_shutdown_irqs();
 }
 
 static int apic_retrigger_irq(struct irq_data *irq_data)
