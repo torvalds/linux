@@ -1862,26 +1862,36 @@ static void ioapic_ir_ack_level(struct irq_data *irq_data)
 	eoi_ioapic_pin(data->entry.vector, data);
 }
 
+static void ioapic_configure_entry(struct irq_data *irqd)
+{
+	struct mp_chip_data *mpd = irqd->chip_data;
+	struct irq_cfg *cfg = irqd_cfg(irqd);
+	struct irq_pin_list *entry;
+
+	/*
+	 * Only update when the parent is the vector domain, don't touch it
+	 * if the parent is the remapping domain. Check the installed
+	 * ioapic chip to verify that.
+	 */
+	if (irqd->chip == &ioapic_chip) {
+		mpd->entry.dest = cfg->dest_apicid;
+		mpd->entry.vector = cfg->vector;
+	}
+	for_each_irq_pin(entry, mpd->irq_2_pin)
+		__ioapic_write_entry(entry->apic, entry->pin, mpd->entry);
+}
+
 static int ioapic_set_affinity(struct irq_data *irq_data,
 			       const struct cpumask *mask, bool force)
 {
 	struct irq_data *parent = irq_data->parent_data;
-	struct mp_chip_data *data = irq_data->chip_data;
-	struct irq_pin_list *entry;
-	struct irq_cfg *cfg;
 	unsigned long flags;
 	int ret;
 
 	ret = parent->chip->irq_set_affinity(parent, mask, force);
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
-	if (ret >= 0 && ret != IRQ_SET_MASK_OK_DONE) {
-		cfg = irqd_cfg(irq_data);
-		data->entry.dest = cfg->dest_apicid;
-		data->entry.vector = cfg->vector;
-		for_each_irq_pin(entry, data->irq_2_pin)
-			__ioapic_write_entry(entry->apic, entry->pin,
-					     data->entry);
-	}
+	if (ret >= 0 && ret != IRQ_SET_MASK_OK_DONE)
+		ioapic_configure_entry(irq_data);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
 
 	return ret;
@@ -2980,12 +2990,9 @@ int mp_irqdomain_activate(struct irq_domain *domain,
 			  struct irq_data *irq_data, bool early)
 {
 	unsigned long flags;
-	struct irq_pin_list *entry;
-	struct mp_chip_data *data = irq_data->chip_data;
 
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
-	for_each_irq_pin(entry, data->irq_2_pin)
-		__ioapic_write_entry(entry->apic, entry->pin, data->entry);
+	ioapic_configure_entry(irq_data);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
 	return 0;
 }
