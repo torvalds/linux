@@ -274,73 +274,63 @@ struct irq_data;
  * James Cleverdon.
  */
 struct apic {
-	char *name;
+	/* Hotpath functions first */
+	void	(*eoi_write)(u32 reg, u32 v);
+	void	(*native_eoi_write)(u32 reg, u32 v);
+	void	(*write)(u32 reg, u32 v);
+	u32	(*read)(u32 reg);
 
-	int (*probe)(void);
-	int (*acpi_madt_oem_check)(char *oem_id, char *oem_table_id);
-	int (*apic_id_valid)(int apicid);
-	int (*apic_id_registered)(void);
+	/* IPI related functions */
+	void	(*wait_icr_idle)(void);
+	u32	(*safe_wait_icr_idle)(void);
 
-	u32 irq_delivery_mode;
-	u32 irq_dest_mode;
+	void	(*send_IPI)(int cpu, int vector);
+	void	(*send_IPI_mask)(const struct cpumask *mask, int vector);
+	void	(*send_IPI_mask_allbutself)(const struct cpumask *msk, int vec);
+	void	(*send_IPI_allbutself)(int vector);
+	void	(*send_IPI_all)(int vector);
+	void	(*send_IPI_self)(int vector);
 
+	/* dest_logical is used by the IPI functions */
+	u32	dest_logical;
+	u32	disable_esr;
+	u32	irq_delivery_mode;
+	u32	irq_dest_mode;
+
+	/* Functions and data related to vector allocation */
 	const struct cpumask *(*target_cpus)(void);
+	void	(*vector_allocation_domain)(int cpu, struct cpumask *retmask,
+					    const struct cpumask *mask);
+	int	(*cpu_mask_to_apicid)(const struct cpumask *cpumask,
+				      struct irq_data *irqdata,
+				      unsigned int *apicid);
 
-	int disable_esr;
+	/* ICR related functions */
+	u64	(*icr_read)(void);
+	void	(*icr_write)(u32 low, u32 high);
 
-	int dest_logical;
-	bool (*check_apicid_used)(physid_mask_t *map, int apicid);
+	/* Probe, setup and smpboot functions */
+	int	(*probe)(void);
+	int	(*acpi_madt_oem_check)(char *oem_id, char *oem_table_id);
+	int	(*apic_id_valid)(int apicid);
+	int	(*apic_id_registered)(void);
 
-	void (*vector_allocation_domain)(int cpu, struct cpumask *retmask,
-					 const struct cpumask *mask);
-	void (*init_apic_ldr)(void);
+	bool	(*check_apicid_used)(physid_mask_t *map, int apicid);
+	void	(*init_apic_ldr)(void);
+	void	(*ioapic_phys_id_map)(physid_mask_t *phys_map, physid_mask_t *retmap);
+	void	(*setup_apic_routing)(void);
+	int	(*cpu_present_to_apicid)(int mps_cpu);
+	void	(*apicid_to_cpu_present)(int phys_apicid, physid_mask_t *retmap);
+	int	(*check_phys_apicid_present)(int phys_apicid);
+	int	(*phys_pkg_id)(int cpuid_apic, int index_msb);
 
-	void (*ioapic_phys_id_map)(physid_mask_t *phys_map, physid_mask_t *retmap);
-
-	void (*setup_apic_routing)(void);
-	int (*cpu_present_to_apicid)(int mps_cpu);
-	void (*apicid_to_cpu_present)(int phys_apicid, physid_mask_t *retmap);
-	int (*check_phys_apicid_present)(int phys_apicid);
-	int (*phys_pkg_id)(int cpuid_apic, int index_msb);
-
-	unsigned int (*get_apic_id)(unsigned long x);
-	/* Can't be NULL on 64-bit */
-	u32 (*set_apic_id)(unsigned int id);
-
-	int (*cpu_mask_to_apicid)(const struct cpumask *cpumask,
-				  struct irq_data *irqdata,
-				  unsigned int *apicid);
-
-	/* ipi */
-	void (*send_IPI)(int cpu, int vector);
-	void (*send_IPI_mask)(const struct cpumask *mask, int vector);
-	void (*send_IPI_mask_allbutself)(const struct cpumask *mask,
-					 int vector);
-	void (*send_IPI_allbutself)(int vector);
-	void (*send_IPI_all)(int vector);
-	void (*send_IPI_self)(int vector);
+	u32	(*get_apic_id)(unsigned long x);
+	u32	(*set_apic_id)(unsigned int id);
 
 	/* wakeup_secondary_cpu */
-	int (*wakeup_secondary_cpu)(int apicid, unsigned long start_eip);
+	int	(*wakeup_secondary_cpu)(int apicid, unsigned long start_eip);
 
-	void (*inquire_remote_apic)(int apicid);
-
-	/* apic ops */
-	u32 (*read)(u32 reg);
-	void (*write)(u32 reg, u32 v);
-	/*
-	 * ->eoi_write() has the same signature as ->write().
-	 *
-	 * Drivers can support both ->eoi_write() and ->write() by passing the same
-	 * callback value. Kernel can override ->eoi_write() and fall back
-	 * on write for EOI.
-	 */
-	void (*eoi_write)(u32 reg, u32 v);
-	void (*native_eoi_write)(u32 reg, u32 v);
-	u64 (*icr_read)(void);
-	void (*icr_write)(u32 low, u32 high);
-	void (*wait_icr_idle)(void);
-	u32 (*safe_wait_icr_idle)(void);
+	void	(*inquire_remote_apic)(int apicid);
 
 #ifdef CONFIG_X86_32
 	/*
@@ -355,6 +345,7 @@ struct apic {
 	 */
 	int (*x86_32_early_logical_apicid)(int cpu);
 #endif
+	char	*name;
 };
 
 /*
