@@ -40,7 +40,6 @@ my $virtualenv = 1;
 #
 
 my %texlive = (
-	'adjustbox.sty'      => 'texlive-adjustbox',
 	'amsfonts.sty'       => 'texlive-amsfonts',
 	'amsmath.sty'        => 'texlive-amsmath',
 	'amssymb.sty'        => 'texlive-amsfonts',
