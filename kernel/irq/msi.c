@@ -404,6 +404,8 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 			ret = irq_domain_activate_irq(irq_data, true);
 			if (ret)
 				goto cleanup;
+			if (info->flags & MSI_FLAG_MUST_REACTIVATE)
+				irqd_clr_activated(irq_data);
 		}
 	}
 	return 0;
