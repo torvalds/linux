@@ -36,6 +36,7 @@ EXPORT_SYMBOL_GPL(x86_vector_domain);
 static DEFINE_RAW_SPINLOCK(vector_lock);
 static cpumask_var_t vector_cpumask, vector_searchmask, searched_cpumask;
 static struct irq_chip lapic_controller;
+static struct irq_matrix *vector_matrix;
 #ifdef CONFIG_SMP
 static DEFINE_PER_CPU(struct hlist_head, cleanup_list);
 #endif
@@ -404,6 +405,36 @@ int __init arch_probe_nr_irqs(void)
 	return legacy_pic->probe();
 }
 
+void lapic_assign_legacy_vector(unsigned int irq, bool replace)
+{
+	/*
+	 * Use assign system here so it wont get accounted as allocated
+	 * and moveable in the cpu hotplug check and it prevents managed
+	 * irq reservation from touching it.
+	 */
+	irq_matrix_assign_system(vector_matrix, ISA_IRQ_VECTOR(irq), replace);
+}
+
+void __init lapic_assign_system_vectors(void)
+{
+	unsigned int i, vector = 0;
+
+	for_each_set_bit_from(vector, system_vectors, NR_VECTORS)
+		irq_matrix_assign_system(vector_matrix, vector, false);
+
+	if (nr_legacy_irqs() > 1)
+		lapic_assign_legacy_vector(PIC_CASCADE_IR, false);
+
+	/* System vectors are reserved, online it */
+	irq_matrix_online(vector_matrix);
+
+	/* Mark the preallocated legacy interrupts */
+	for (i = 0; i < nr_legacy_irqs(); i++) {
+		if (i != PIC_CASCADE_IR)
+			irq_matrix_assign(vector_matrix, ISA_IRQ_VECTOR(i));
+	}
+}
+
 int __init arch_early_irq_init(void)
 {
 	struct fwnode_handle *fn;
@@ -422,6 +453,14 @@ int __init arch_early_irq_init(void)
 	BUG_ON(!alloc_cpumask_var(&vector_cpumask, GFP_KERNEL));
 	BUG_ON(!alloc_cpumask_var(&vector_searchmask, GFP_KERNEL));
 	BUG_ON(!alloc_cpumask_var(&searched_cpumask, GFP_KERNEL));
+
+	/*
+	 * Allocate the vector matrix allocator data structure and limit the
+	 * search area.
+	 */
+	vector_matrix = irq_alloc_matrix(NR_VECTORS, FIRST_EXTERNAL_VECTOR,
+					 FIRST_SYSTEM_VECTOR);
+	BUG_ON(!vector_matrix);
 
 	return arch_early_ioapic_init();
 }
@@ -454,14 +493,16 @@ static struct irq_desc *__setup_vector_irq(int vector)
 	return irq_to_desc(isairq);
 }
 
-/*
- * Setup the vector to irq mappings. Must be called with vector_lock held.
- */
-void setup_vector_irq(int cpu)
+/* Online the local APIC infrastructure and initialize the vectors */
+void lapic_online(void)
 {
 	unsigned int vector;
 
 	lockdep_assert_held(&vector_lock);
+
+	/* Online the vector matrix array for this CPU */
+	irq_matrix_online(vector_matrix);
+
 	/*
 	 * The interrupt affinity logic never targets interrupts to offline
 	 * CPUs. The exception are the legacy PIC interrupts. In general
@@ -480,6 +521,13 @@ void setup_vector_irq(int cpu)
 	 * interrupts which are targeted at this CPU.
 	 */
 	vector_update_shutdown_irqs();
+}
+
+void lapic_offline(void)
+{
+	lock_vector_lock();
+	irq_matrix_offline(vector_matrix);
+	unlock_vector_lock();
 }
 
 static int apic_retrigger_irq(struct irq_data *irqd)
