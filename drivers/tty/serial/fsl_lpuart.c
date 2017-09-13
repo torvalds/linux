@@ -2222,6 +2222,24 @@ static int lpuart_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	of_get_rs485_mode(np, &sport->port.rs485);
+
+	if (sport->port.rs485.flags & SER_RS485_RX_DURING_TX) {
+		dev_err(&pdev->dev, "driver doesn't support RX during TX\n");
+		return -ENOSYS;
+	}
+
+	if (sport->port.rs485.delay_rts_before_send ||
+	    sport->port.rs485.delay_rts_after_send) {
+		dev_err(&pdev->dev, "driver doesn't support RTS delays\n");
+		return -ENOSYS;
+	}
+
+	if (sport->port.rs485.flags & SER_RS485_ENABLED) {
+		sport->port.rs485.flags |= SER_RS485_RTS_ON_SEND;
+		writeb(UARTMODEM_TXRTSE, sport->port.membase + UARTMODEM);
+	}
+
 	sport->dma_tx_chan = dma_request_slave_channel(sport->port.dev, "tx");
 	if (!sport->dma_tx_chan)
 		dev_info(sport->port.dev, "DMA tx channel request failed, "
@@ -2231,12 +2249,6 @@ static int lpuart_probe(struct platform_device *pdev)
 	if (!sport->dma_rx_chan)
 		dev_info(sport->port.dev, "DMA rx channel request failed, "
 				"operating without rx DMA\n");
-
-	if (of_property_read_bool(np, "linux,rs485-enabled-at-boot-time")) {
-		sport->port.rs485.flags |= SER_RS485_ENABLED;
-		sport->port.rs485.flags |= SER_RS485_RTS_ON_SEND;
-		writeb(UARTMODEM_TXRTSE, sport->port.membase + UARTMODEM);
-	}
 
 	return 0;
 }
