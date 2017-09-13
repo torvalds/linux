@@ -48,6 +48,6 @@ unsigned long ccu_frac_helper_read_rate(struct ccu_common *common,
 
 int ccu_frac_helper_set_rate(struct ccu_common *common,
 			     struct ccu_frac_internal *cf,
-			     unsigned long rate);
+			     unsigned long rate, u32 lock);
 
 #endif /* _CCU_FRAC_H_ */

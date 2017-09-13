@@ -67,9 +67,9 @@
 #define SCLK_SPI			108
 #define SCLK_SARADC			109
 #define SCLK_TSADC			110
-#define SCLK_MACPHY_PRE			111
-#define SCLK_MACPHY			112
-#define SCLK_MACPHY_RX			113
+#define SCLK_MAC_PRE			111
+#define SCLK_MAC			112
+#define SCLK_MAC_RX			113
 #define SCLK_MAC_REF			114
 #define SCLK_MAC_REFOUT			115
 #define SCLK_DSP_PFM			116
@@ -110,6 +110,7 @@
 #define ACLK_CIF2			207
 #define ACLK_CIF3			208
 #define ACLK_PERI			209
+#define ACLK_GMAC			210
 
 /* pclk gates */
 #define PCLK_GPIO1			256
@@ -141,6 +142,7 @@
 #define PCLK_EFUSE0			282
 #define PCLK_EFUSE1			283
 #define PCLK_WDT			284
+#define PCLK_GMAC			285
 
 /* hclk gates */
 #define HCLK_I2S0_8CH			320

@@ -138,8 +138,8 @@ static void __init of_ti_clockdomain_setup(struct device_node *node)
 	for (i = 0; i < num_clks; i++) {
 		clk = of_clk_get(node, i);
 		if (IS_ERR(clk)) {
-			pr_err("%s: Failed get %s' clock nr %d (%ld)\n",
-			       __func__, node->full_name, i, PTR_ERR(clk));
+			pr_err("%s: Failed get %pOF' clock nr %d (%ld)\n",
+			       __func__, node, i, PTR_ERR(clk));
 			continue;
 		}
 		clk_hw = __clk_get_hw(clk);
