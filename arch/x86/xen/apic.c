@@ -30,7 +30,7 @@ static unsigned int xen_io_apic_read(unsigned apic, unsigned reg)
 	return 0xfd;
 }
 
-static unsigned long xen_set_apic_id(unsigned int x)
+static u32 xen_set_apic_id(unsigned int x)
 {
 	WARN_ON(1);
 	return x;

@@ -38,7 +38,7 @@ static unsigned int numachip1_get_apic_id(unsigned long x)
 	return id;
 }
 
-static unsigned long numachip1_set_apic_id(unsigned int id)
+static u32 numachip1_set_apic_id(unsigned int id)
 {
 	return (id & 0xff) << 24;
 }
@@ -51,7 +51,7 @@ static unsigned int numachip2_get_apic_id(unsigned long x)
 	return ((mcfg >> (28 - 8)) & 0xfff00) | (x >> 24);
 }
 
-static unsigned long numachip2_set_apic_id(unsigned int id)
+static u32 numachip2_set_apic_id(unsigned int id)
 {
 	return id << 24;
 }

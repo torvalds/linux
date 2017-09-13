@@ -119,7 +119,7 @@ static unsigned int flat_get_apic_id(unsigned long x)
 	return (x >> 24) & 0xFF;
 }
 
-static unsigned long set_apic_id(unsigned int id)
+static u32 set_apic_id(unsigned int id)
 {
 	return (id & 0xFF) << 24;
 }

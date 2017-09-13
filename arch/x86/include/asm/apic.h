@@ -305,7 +305,7 @@ struct apic {
 
 	unsigned int (*get_apic_id)(unsigned long x);
 	/* Can't be NULL on 64-bit */
-	unsigned long (*set_apic_id)(unsigned int id);
+	u32 (*set_apic_id)(unsigned int id);
 
 	int (*cpu_mask_to_apicid)(const struct cpumask *cpumask,
 				  struct irq_data *irqdata,

@@ -121,7 +121,7 @@ unsigned int x2apic_get_apic_id(unsigned long id)
 	return id;
 }
 
-unsigned long x2apic_set_apic_id(unsigned int id)
+u32 x2apic_set_apic_id(unsigned int id)
 {
 	return id;
 }

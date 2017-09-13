@@ -547,7 +547,7 @@ static unsigned int x2apic_get_apic_id(unsigned long x)
 	return id;
 }
 
-static unsigned long set_apic_id(unsigned int id)
+static u32 set_apic_id(unsigned int id)
 {
 	/* CHECKME: Do we need to mask out the xapic extra bits? */
 	return id;
