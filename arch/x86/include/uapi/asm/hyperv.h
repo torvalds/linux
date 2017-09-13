@@ -153,12 +153,6 @@
 #define HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED	(1 << 11)
 
 /*
- * HV_VP_SET available
- */
-#define HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED	(1 << 11)
-
-
-/*
  * Crash notification flag.
  */
 #define HV_CRASH_CTL_CRASH_NOTIFY (1ULL << 63)

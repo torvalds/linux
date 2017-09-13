@@ -426,10 +426,8 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
 {
 	int changed = !pte_same(*ptep, entry);
 
-	if (changed && dirty) {
+	if (changed && dirty)
 		*ptep = entry;
-		pte_update(vma->vm_mm, address, ptep);
-	}
 
 	return changed;
 }
@@ -485,9 +483,6 @@ int ptep_test_and_clear_young(struct vm_area_struct *vma,
 	if (pte_young(*ptep))
 		ret = test_and_clear_bit(_PAGE_BIT_ACCESSED,
 					 (unsigned long *) &ptep->pte);
-
-	if (ret)
-		pte_update(vma->vm_mm, addr, ptep);
 
 	return ret;
 }
