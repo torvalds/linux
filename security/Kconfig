@@ -30,14 +30,16 @@ config SECURITY
 	  model will be used.
 
 	  If you are unsure how to answer this question, answer N.
+
 config KAISER
 	bool "Remove the kernel mapping in user mode"
 	default y
-	depends on X86_64
-	depends on !PARAVIRT
+	depends on X86_64 && SMP && !PARAVIRT
 	help
-	  This enforces a strict kernel and user space isolation in order to close
-	  hardware side channels on kernel address information.
+	  This enforces a strict kernel and user space isolation, in order
+	  to close hardware side channels on kernel address information.
+
+	  If you are unsure how to answer this question, answer Y.
 
 config KAISER_REAL_SWITCH
 	bool "KAISER: actually switch page tables"
