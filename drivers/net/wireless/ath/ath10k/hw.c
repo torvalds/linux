@@ -310,7 +310,7 @@ static struct ath10k_hw_ce_dst_src_wm_regs wcn3990_wm_dst_ring = {
 	.wm_high	= &wcn3990_dst_wm_high,
 };
 
-struct ath10k_hw_ce_regs wcn3990_ce_regs = {
+const struct ath10k_hw_ce_regs wcn3990_ce_regs = {
 	.sr_base_addr		= 0x00000000,
 	.sr_size_addr		= 0x00000008,
 	.dr_base_addr		= 0x0000000c,
@@ -457,7 +457,7 @@ static struct ath10k_hw_ce_dst_src_wm_regs qcax_wm_dst_ring = {
 	.wm_high	= &qcax_dst_wm_high,
 };
 
-struct ath10k_hw_ce_regs qcax_ce_regs = {
+const struct ath10k_hw_ce_regs qcax_ce_regs = {
 	.sr_base_addr		= 0x00000000,
 	.sr_size_addr		= 0x00000004,
 	.dr_base_addr		= 0x00000008,
