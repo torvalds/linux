@@ -1763,9 +1763,9 @@ static int do_execveat_common(int fd, struct filename *filename,
 		bprm->filename = filename->name;
 	} else {
 		if (filename->name[0] == '\0')
-			pathbuf = kasprintf(GFP_TEMPORARY, "/dev/fd/%d", fd);
+			pathbuf = kasprintf(GFP_KERNEL, "/dev/fd/%d", fd);
 		else
-			pathbuf = kasprintf(GFP_TEMPORARY, "/dev/fd/%d/%s",
+			pathbuf = kasprintf(GFP_KERNEL, "/dev/fd/%d/%s",
 					    fd, filename->name);
 		if (!pathbuf) {
 			retval = -ENOMEM;
