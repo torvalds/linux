@@ -36,9 +36,6 @@ EXPORT_SYMBOL_GPL(x86_vector_domain);
 static DEFINE_RAW_SPINLOCK(vector_lock);
 static cpumask_var_t vector_cpumask, vector_searchmask, searched_cpumask;
 static struct irq_chip lapic_controller;
-#ifdef	CONFIG_X86_IO_APIC
-static struct apic_chip_data *legacy_irq_data[NR_IRQS_LEGACY];
-#endif
 #ifdef CONFIG_SMP
 static DEFINE_PER_CPU(struct hlist_head, cleanup_list);
 #endif
@@ -317,10 +314,6 @@ static void x86_vector_free_irqs(struct irq_domain *domain,
 			irq_domain_reset_irq_data(irqd);
 			raw_spin_unlock_irqrestore(&vector_lock, flags);
 			free_apic_chip_data(apicd);
-#ifdef	CONFIG_X86_IO_APIC
-			if (virq + i < nr_legacy_irqs())
-				legacy_irq_data[virq + i] = NULL;
-#endif
 		}
 	}
 }
@@ -344,12 +337,8 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 		irqd = irq_domain_get_irq_data(domain, virq + i);
 		BUG_ON(!irqd);
 		node = irq_data_get_node(irqd);
-#ifdef	CONFIG_X86_IO_APIC
-		if (virq + i < nr_legacy_irqs() && legacy_irq_data[virq + i])
-			apicd = legacy_irq_data[virq + i];
-		else
-#endif
-			apicd = alloc_apic_chip_data(node);
+		WARN_ON_ONCE(irqd->chip_data);
+		apicd = alloc_apic_chip_data(node);
 		if (!apicd) {
 			err = -ENOMEM;
 			goto error;
@@ -359,6 +348,17 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 		irqd->chip_data = apicd;
 		irqd->hwirq = virq + i;
 		irqd_set_single_target(irqd);
+		/*
+		 * Make sure, that the legacy to IOAPIC transition stays on
+		 * the same vector. This is required for check_timer() to
+		 * work correctly as it might switch back to legacy mode.
+		 */
+		if (info->flags & X86_IRQ_ALLOC_LEGACY) {
+			apicd->cfg.vector = ISA_IRQ_VECTOR(virq + i);
+			apicd->cpu = 0;
+			cpumask_copy(apicd->domain, cpumask_of(0));
+		}
+
 		err = assign_irq_vector_policy(virq + i, node, apicd, info,
 					       irqd);
 		if (err)
@@ -404,35 +404,9 @@ int __init arch_probe_nr_irqs(void)
 	return legacy_pic->probe();
 }
 
-#ifdef	CONFIG_X86_IO_APIC
-static void __init init_legacy_irqs(void)
-{
-	int i, node = cpu_to_node(0);
-	struct apic_chip_data *apicd;
-
-	/*
-	 * For legacy IRQ's, start with assigning irq0 to irq15 to
-	 * ISA_IRQ_VECTOR(i) for all cpu's.
-	 */
-	for (i = 0; i < nr_legacy_irqs(); i++) {
-		apicd = legacy_irq_data[i] = alloc_apic_chip_data(node);
-		BUG_ON(!apicd);
-
-		apicd->cfg.vector = ISA_IRQ_VECTOR(i);
-		cpumask_copy(apicd->domain, cpumask_of(0));
-		apicd->cpu = 0;
-		irq_set_chip_data(i, apicd);
-	}
-}
-#else
-static inline void init_legacy_irqs(void) { }
-#endif
-
 int __init arch_early_irq_init(void)
 {
 	struct fwnode_handle *fn;
-
-	init_legacy_irqs();
 
 	fn = irq_domain_alloc_named_fwnode("VECTOR");
 	BUG_ON(!fn);
