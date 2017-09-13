@@ -1694,7 +1694,7 @@ static void __irq_domain_deactivate_irq(struct irq_data *irq_data)
 	}
 }
 
-static int __irq_domain_activate_irq(struct irq_data *irqd)
+static int __irq_domain_activate_irq(struct irq_data *irqd, bool early)
 {
 	int ret = 0;
 
@@ -1702,9 +1702,10 @@ static int __irq_domain_activate_irq(struct irq_data *irqd)
 		struct irq_domain *domain = irqd->domain;
 
 		if (irqd->parent_data)
-			ret = __irq_domain_activate_irq(irqd->parent_data);
+			ret = __irq_domain_activate_irq(irqd->parent_data,
+							early);
 		if (!ret && domain->ops->activate) {
-			ret = domain->ops->activate(domain, irqd, false);
+			ret = domain->ops->activate(domain, irqd, early);
 			/* Rollback in case of error */
 			if (ret && irqd->parent_data)
 				__irq_domain_deactivate_irq(irqd->parent_data);
@@ -1721,12 +1722,12 @@ static int __irq_domain_activate_irq(struct irq_data *irqd)
  * This is the second step to call domain_ops->activate to program interrupt
  * controllers, so the interrupt could actually get delivered.
  */
-int irq_domain_activate_irq(struct irq_data *irq_data)
+int irq_domain_activate_irq(struct irq_data *irq_data, bool early)
 {
 	int ret = 0;
 
 	if (!irqd_is_activated(irq_data))
-		ret = __irq_domain_activate_irq(irq_data);
+		ret = __irq_domain_activate_irq(irq_data, early);
 	if (!ret)
 		irqd_set_activated(irq_data);
 	return ret;

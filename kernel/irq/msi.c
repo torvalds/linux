@@ -401,7 +401,7 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 			struct irq_data *irq_data;
 
 			irq_data = irq_domain_get_irq_data(domain, desc->irq);
-			ret = irq_domain_activate_irq(irq_data);
+			ret = irq_domain_activate_irq(irq_data, true);
 			if (ret)
 				goto cleanup;
 		}
