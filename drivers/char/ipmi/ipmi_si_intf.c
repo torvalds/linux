@@ -63,11 +63,6 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 
-#ifdef CONFIG_PARISC
-#include <asm/hardware.h>	/* for register_parisc_driver() stuff */
-#include <asm/parisc-device.h>
-#endif
-
 #define PFX "ipmi_si: "
 
 /* Measure times between events in the driver. */
@@ -282,9 +277,6 @@ struct smi_info {
 #define IPMI_MAX_INTFS 4
 static int force_kipmid[IPMI_MAX_INTFS];
 static int num_force_kipmid;
-#ifdef CONFIG_PARISC
-static bool parisc_registered;
-#endif
 
 static unsigned int kipmid_max_busy_us[IPMI_MAX_INTFS];
 static int num_max_busy_us;
@@ -1581,47 +1573,6 @@ static struct smi_info *smi_info_alloc(void)
 	return info;
 }
 
-#ifdef CONFIG_PARISC
-static int __init ipmi_parisc_probe(struct parisc_device *dev)
-{
-	struct si_sm_io io;
-
-	io.si_type	= SI_KCS;
-	io.addr_source	= SI_DEVICETREE;
-	io.addr_type	= IPMI_MEM_ADDR_SPACE;
-	io.addr_data	= dev->hpa.start;
-	io.regsize	= 1;
-	io.regspacing	= 1;
-	io.regshift	= 0;
-	io.irq		= 0; /* no interrupt */
-	io.irq_setup	= NULL;
-	io.dev		= &dev->dev;
-
-	dev_dbg(&dev->dev, "addr 0x%lx\n", io.addr_data);
-
-	return ipmi_si_add_smi(&io);
-}
-
-static int __exit ipmi_parisc_remove(struct parisc_device *dev)
-{
-	return ipmi_si_remove_by_dev(&pdev->dev);
-}
-
-static const struct parisc_device_id ipmi_parisc_tbl[] __initconst = {
-	{ HPHW_MC, HVERSION_REV_ANY_ID, 0x004, 0xC0 },
-	{ 0, }
-};
-
-MODULE_DEVICE_TABLE(parisc, ipmi_parisc_tbl);
-
-static struct parisc_driver ipmi_parisc_driver __refdata = {
-	.name =		"ipmi",
-	.id_table =	ipmi_parisc_tbl,
-	.probe =	ipmi_parisc_probe,
-	.remove =	__exit_p(ipmi_parisc_remove),
-};
-#endif /* CONFIG_PARISC */
-
 static int wait_for_msg_done(struct smi_info *smi_info)
 {
 	enum si_sm_result     smi_result;
@@ -2522,10 +2473,7 @@ static int init_ipmi_si(void)
 
 	ipmi_si_pci_init();
 
-#ifdef CONFIG_PARISC
-	register_parisc_driver(&ipmi_parisc_driver);
-	parisc_registered = true;
-#endif
+	ipmi_si_parisc_init();
 
 	/* We prefer devices with interrupts, but in the case of a machine
 	   with multiple BMCs we assume that there will be several instances
@@ -2682,10 +2630,8 @@ static void cleanup_ipmi_si(void)
 		return;
 
 	ipmi_si_pci_shutdown();
-#ifdef CONFIG_PARISC
-	if (parisc_registered)
-		unregister_parisc_driver(&ipmi_parisc_driver);
-#endif
+
+	ipmi_si_parisc_shutdown();
 
 	ipmi_si_platform_shutdown();
 

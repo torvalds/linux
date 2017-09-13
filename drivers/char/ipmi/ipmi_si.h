@@ -37,3 +37,10 @@ void ipmi_si_pci_shutdown(void);
 static inline void ipmi_si_pci_init(void) { }
 static inline void ipmi_si_pci_shutdown(void) { }
 #endif
+#ifdef CONFIG_PARISC
+void ipmi_si_parisc_init(void);
+void ipmi_si_parisc_shutdown(void);
+#else
+static inline void ipmi_si_parisc_init(void) { }
+static inline void ipmi_si_parisc_shutdown(void) { }
+#endif

@@ -7,6 +7,9 @@ ipmi_si-y := ipmi_si_intf.o ipmi_kcs_sm.o ipmi_smic_sm.o ipmi_bt_sm.o \
 ifdef CONFIG_PCI
 ipmi_si-y += ipmi_si_pci.o
 endif
+ifdef CONFIG_PARISC
+ipmi_si-y += ipmi_si_parisc.o
+endif
 
 obj-$(CONFIG_IPMI_HANDLER) += ipmi_msghandler.o
 obj-$(CONFIG_IPMI_DEVICE_INTERFACE) += ipmi_devintf.o
