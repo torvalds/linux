@@ -341,7 +341,7 @@ int fix_alignment(struct pt_regs *regs)
 
 	type = op.type & INSTR_TYPE_MASK;
 	if (!OP_IS_LOAD_STORE(type)) {
-		if (type != CACHEOP + DCBZ)
+		if (op.type != CACHEOP + DCBZ)
 			return -EINVAL;
 		PPC_WARN_ALIGNMENT(dcbz, regs);
 		r = emulate_dcbz(op.ea, regs);
