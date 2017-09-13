@@ -477,7 +477,7 @@ int metricgroup__parse_groups(const struct option *opt,
 	memset(&parse_error, 0, sizeof(struct parse_events_error));
 	ret = parse_events(perf_evlist, extra_events.buf, &parse_error);
 	if (ret) {
-		pr_err("Cannot set up events %s\n", extra_events.buf);
+		parse_events_print_error(&parse_error, extra_events.buf);
 		goto out;
 	}
 	strbuf_release(&extra_events);

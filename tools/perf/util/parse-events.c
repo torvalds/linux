@@ -1219,11 +1219,17 @@ static int __parse_events_add_pmu(struct parse_events_state *parse_state,
 	struct perf_pmu_info info;
 	struct perf_pmu *pmu;
 	struct perf_evsel *evsel;
+	struct parse_events_error *err = parse_state->error;
 	LIST_HEAD(config_terms);
 
 	pmu = perf_pmu__find(name);
-	if (!pmu)
+	if (!pmu) {
+		if (asprintf(&err->str,
+				"Cannot find PMU `%s'. Missing kernel support?",
+				name) < 0)
+			err->str = NULL;
 		return -EINVAL;
+	}
 
 	if (pmu->default_config) {
 		memcpy(&attr, pmu->default_config,
@@ -1733,8 +1739,8 @@ static int get_term_width(void)
 	return ws.ws_col > MAX_WIDTH ? MAX_WIDTH : ws.ws_col;
 }
 
-static void parse_events_print_error(struct parse_events_error *err,
-				     const char *event)
+void parse_events_print_error(struct parse_events_error *err,
+			      const char *event)
 {
 	const char *str = "invalid or unsupported event: ";
 	char _buf[MAX_WIDTH];
@@ -1789,8 +1795,6 @@ static void parse_events_print_error(struct parse_events_error *err,
 		zfree(&err->str);
 		zfree(&err->help);
 	}
-
-	fprintf(stderr, "Run 'perf list' for a list of valid events\n");
 }
 
 #undef MAX_WIDTH
@@ -1802,8 +1806,10 @@ int parse_events_option(const struct option *opt, const char *str,
 	struct parse_events_error err = { .idx = 0, };
 	int ret = parse_events(evlist, str, &err);
 
-	if (ret)
+	if (ret) {
 		parse_events_print_error(&err, str);
+		fprintf(stderr, "Run 'perf list' for a list of valid events\n");
+	}
 
 	return ret;
 }
