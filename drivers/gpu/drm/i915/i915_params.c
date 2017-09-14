@@ -105,8 +105,8 @@ MODULE_PARM_DESC(lvds_channel_mode,
 	 "Specify LVDS channel mode "
 	 "(0=probe BIOS [default], 1=single-channel, 2=dual-channel)");
 
-module_param_named_unsafe(lvds_use_ssc, i915.panel_use_ssc, int, 0600);
-MODULE_PARM_DESC(lvds_use_ssc,
+module_param_named_unsafe(panel_use_ssc, i915.panel_use_ssc, int, 0600);
+MODULE_PARM_DESC(panel_use_ssc,
 	"Use Spread Spectrum Clock with panels [LVDS/eDP] "
 	"(default: auto from VBT)");
 
