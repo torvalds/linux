@@ -126,7 +126,7 @@ static bool memconsole_ebda_init(void)
 	return false;
 }
 
-static struct dmi_system_id memconsole_dmi_table[] __initdata = {
+static const struct dmi_system_id memconsole_dmi_table[] __initconst = {
 	{
 		.ident = "Google Board",
 		.matches = {

@@ -3600,7 +3600,7 @@ static const struct rt5645_platform_data buddy_platform_data = {
 	.level_trigger_irq = true,
 };
 
-static struct dmi_system_id dmi_platform_intel_broadwell[] = {
+static const struct dmi_system_id dmi_platform_intel_broadwell[] = {
 	{
 		.ident = "Chrome Buddy",
 		.matches = {
