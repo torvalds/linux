@@ -399,10 +399,10 @@ out_err:
  * lookup/new thread inserted.
  */
 static struct thread *____machine__findnew_thread(struct machine *machine,
+						  struct threads *threads,
 						  pid_t pid, pid_t tid,
 						  bool create)
 {
-	struct threads *threads = machine__threads(machine, tid);
 	struct rb_node **p = &threads->entries.rb_node;
 	struct rb_node *parent = NULL;
 	struct thread *th;
@@ -473,7 +473,7 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 
 struct thread *__machine__findnew_thread(struct machine *machine, pid_t pid, pid_t tid)
 {
-	return ____machine__findnew_thread(machine, pid, tid, true);
+	return ____machine__findnew_thread(machine, machine__threads(machine, tid), pid, tid, true);
 }
 
 struct thread *machine__findnew_thread(struct machine *machine, pid_t pid,
@@ -495,7 +495,7 @@ struct thread *machine__find_thread(struct machine *machine, pid_t pid,
 	struct thread *th;
 
 	pthread_rwlock_rdlock(&threads->lock);
-	th =  ____machine__findnew_thread(machine, pid, tid, false);
+	th =  ____machine__findnew_thread(machine, threads, pid, tid, false);
 	pthread_rwlock_unlock(&threads->lock);
 	return th;
 }
