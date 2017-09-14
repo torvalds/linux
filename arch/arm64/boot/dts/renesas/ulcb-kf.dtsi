@@ -94,6 +94,14 @@
 		interrupt-parent = <&gpio5>;
 		interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
 	};
+
+	i2cswitch4: i2c-switch@71 {
+		compatible = "nxp,pca9548";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x71>;
+		reset-gpios= <&gpio3 15 GPIO_ACTIVE_LOW>;
+	};
 };
 
 &ohci0 {
