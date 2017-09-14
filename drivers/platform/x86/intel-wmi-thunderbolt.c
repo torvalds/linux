@@ -41,13 +41,10 @@ static ssize_t force_power_store(struct device *dev,
 	if (mode == 0 || mode == 1) {
 		status = wmi_evaluate_method(INTEL_WMI_THUNDERBOLT_GUID, 0, 1,
 					     &input, NULL);
-		if (ACPI_FAILURE(status)) {
-			pr_err("intel-wmi-thunderbolt: failed setting %s\n",
-			       buf);
+		if (ACPI_FAILURE(status))
 			return -ENODEV;
-		}
 	} else {
-		pr_err("intel-wmi-thunderbolt: unsupported mode: %d", mode);
+		return -EINVAL;
 	}
 	return count;
 }
