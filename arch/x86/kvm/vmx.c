@@ -11491,16 +11491,18 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	 */
 	kvm_make_request(KVM_REQ_APIC_PAGE_RELOAD, vcpu);
 
-	/*
-	 * Exiting from L2 to L1, we're now back to L1 which thinks it just
-	 * finished a VMLAUNCH or VMRESUME instruction, so we need to set the
-	 * success or failure flag accordingly.
-	 */
 	if (unlikely(vmx->fail)) {
+		/*
+		 * After an early L2 VM-entry failure, we're now back
+		 * in L1 which thinks it just finished a VMLAUNCH or
+		 * VMRESUME instruction, so we need to set the failure
+		 * flag and the VM-instruction error field of the VMCS
+		 * accordingly.
+		 */
 		vmx->fail = 0;
 		nested_vmx_failValid(vcpu, vm_inst_error);
-	} else
-		nested_vmx_succeed(vcpu);
+	}
+
 	if (enable_shadow_vmcs)
 		vmx->nested.sync_shadow_vmcs = true;
 
