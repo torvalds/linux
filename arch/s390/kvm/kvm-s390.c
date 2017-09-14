@@ -3283,7 +3283,7 @@ static void sync_regs(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	 */
 	if ((kvm_run->kvm_dirty_regs & KVM_SYNC_RICCB) &&
 	    test_kvm_facility(vcpu->kvm, 64) &&
-	    riccb->valid &&
+	    riccb->v &&
 	    !(vcpu->arch.sie_block->ecb3 & ECB3_RI)) {
 		VCPU_EVENT(vcpu, 3, "%s", "ENABLE: RI (sync_regs)");
 		vcpu->arch.sie_block->ecb3 |= ECB3_RI;
