@@ -36,6 +36,7 @@
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
 
+#include "core.h"
 #include "pinctrl-utils.h"
 #include "pinctrl-amd.h"
 
@@ -725,6 +726,69 @@ static const struct pinconf_ops amd_pinconf_ops = {
 	.pin_config_group_set = amd_pinconf_group_set,
 };
 
+#ifdef CONFIG_PM_SLEEP
+static bool amd_gpio_should_save(struct amd_gpio *gpio_dev, unsigned int pin)
+{
+	const struct pin_desc *pd = pin_desc_get(gpio_dev->pctrl, pin);
+
+	if (!pd)
+		return false;
+
+	/*
+	 * Only restore the pin if it is actually in use by the kernel (or
+	 * by userspace).
+	 */
+	if (pd->mux_owner || pd->gpio_owner ||
+	    gpiochip_line_is_irq(&gpio_dev->gc, pin))
+		return true;
+
+	return false;
+}
+
+int amd_gpio_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct amd_gpio *gpio_dev = platform_get_drvdata(pdev);
+	struct pinctrl_desc *desc = gpio_dev->pctrl->desc;
+	int i;
+
+	for (i = 0; i < desc->npins; i++) {
+		int pin = desc->pins[i].number;
+
+		if (!amd_gpio_should_save(gpio_dev, pin))
+			continue;
+
+		gpio_dev->saved_regs[i] = readl(gpio_dev->base + pin*4);
+	}
+
+	return 0;
+}
+
+int amd_gpio_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct amd_gpio *gpio_dev = platform_get_drvdata(pdev);
+	struct pinctrl_desc *desc = gpio_dev->pctrl->desc;
+	int i;
+
+	for (i = 0; i < desc->npins; i++) {
+		int pin = desc->pins[i].number;
+
+		if (!amd_gpio_should_save(gpio_dev, pin))
+			continue;
+
+		writel(gpio_dev->saved_regs[i], gpio_dev->base + pin*4);
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops amd_gpio_pm_ops = {
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(amd_gpio_suspend,
+				     amd_gpio_resume)
+};
+#endif
+
 static struct pinctrl_desc amd_pinctrl_desc = {
 	.pins	= kerncz_pins,
 	.npins = ARRAY_SIZE(kerncz_pins),
@@ -763,6 +827,14 @@ static int amd_gpio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to get gpio IRQ: %d\n", irq_base);
 		return irq_base;
 	}
+
+#ifdef CONFIG_PM_SLEEP
+	gpio_dev->saved_regs = devm_kcalloc(&pdev->dev, amd_pinctrl_desc.npins,
+					    sizeof(*gpio_dev->saved_regs),
+					    GFP_KERNEL);
+	if (!gpio_dev->saved_regs)
+		return -ENOMEM;
+#endif
 
 	gpio_dev->pdev = pdev;
 	gpio_dev->gc.direction_input	= amd_gpio_direction_input;
@@ -853,6 +925,9 @@ static struct platform_driver amd_gpio_driver = {
 	.driver		= {
 		.name	= "amd_gpio",
 		.acpi_match_table = ACPI_PTR(amd_gpio_acpi_match),
+#ifdef CONFIG_PM_SLEEP
+		.pm	= &amd_gpio_pm_ops,
+#endif
 	},
 	.probe		= amd_gpio_probe,
 	.remove		= amd_gpio_remove,
