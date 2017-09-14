@@ -630,7 +630,7 @@ static int rcar_drif_enable_rx(struct rcar_drif_sdr *sdr)
 {
 	unsigned int i;
 	u32 ctr;
-	int ret;
+	int ret = -EINVAL;
 
 	/*
 	 * When both internal channels are enabled, they can be synchronized
