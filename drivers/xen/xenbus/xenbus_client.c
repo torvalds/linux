@@ -519,64 +519,6 @@ static int __xenbus_map_ring(struct xenbus_device *dev,
 	return err;
 }
 
-static int xenbus_map_ring_valloc_pv(struct xenbus_device *dev,
-				     grant_ref_t *gnt_refs,
-				     unsigned int nr_grefs,
-				     void **vaddr)
-{
-	struct xenbus_map_node *node;
-	struct vm_struct *area;
-	pte_t *ptes[XENBUS_MAX_RING_GRANTS];
-	phys_addr_t phys_addrs[XENBUS_MAX_RING_GRANTS];
-	int err = GNTST_okay;
-	int i;
-	bool leaked;
-
-	*vaddr = NULL;
-
-	if (nr_grefs > XENBUS_MAX_RING_GRANTS)
-		return -EINVAL;
-
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
-
-	area = alloc_vm_area(XEN_PAGE_SIZE * nr_grefs, ptes);
-	if (!area) {
-		kfree(node);
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < nr_grefs; i++)
-		phys_addrs[i] = arbitrary_virt_to_machine(ptes[i]).maddr;
-
-	err = __xenbus_map_ring(dev, gnt_refs, nr_grefs, node->handles,
-				phys_addrs,
-				GNTMAP_host_map | GNTMAP_contains_pte,
-				&leaked);
-	if (err)
-		goto failed;
-
-	node->nr_handles = nr_grefs;
-	node->pv.area = area;
-
-	spin_lock(&xenbus_valloc_lock);
-	list_add(&node->next, &xenbus_valloc_pages);
-	spin_unlock(&xenbus_valloc_lock);
-
-	*vaddr = area->addr;
-	return 0;
-
-failed:
-	if (!leaked)
-		free_vm_area(area);
-	else
-		pr_alert("leaking VM area %p size %u page(s)", area, nr_grefs);
-
-	kfree(node);
-	return err;
-}
-
 struct map_ring_valloc_hvm
 {
 	unsigned int idx;
@@ -725,6 +667,65 @@ int xenbus_unmap_ring_vfree(struct xenbus_device *dev, void *vaddr)
 }
 EXPORT_SYMBOL_GPL(xenbus_unmap_ring_vfree);
 
+#ifdef CONFIG_XEN_PV
+static int xenbus_map_ring_valloc_pv(struct xenbus_device *dev,
+				     grant_ref_t *gnt_refs,
+				     unsigned int nr_grefs,
+				     void **vaddr)
+{
+	struct xenbus_map_node *node;
+	struct vm_struct *area;
+	pte_t *ptes[XENBUS_MAX_RING_GRANTS];
+	phys_addr_t phys_addrs[XENBUS_MAX_RING_GRANTS];
+	int err = GNTST_okay;
+	int i;
+	bool leaked;
+
+	*vaddr = NULL;
+
+	if (nr_grefs > XENBUS_MAX_RING_GRANTS)
+		return -EINVAL;
+
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node)
+		return -ENOMEM;
+
+	area = alloc_vm_area(XEN_PAGE_SIZE * nr_grefs, ptes);
+	if (!area) {
+		kfree(node);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < nr_grefs; i++)
+		phys_addrs[i] = arbitrary_virt_to_machine(ptes[i]).maddr;
+
+	err = __xenbus_map_ring(dev, gnt_refs, nr_grefs, node->handles,
+				phys_addrs,
+				GNTMAP_host_map | GNTMAP_contains_pte,
+				&leaked);
+	if (err)
+		goto failed;
+
+	node->nr_handles = nr_grefs;
+	node->pv.area = area;
+
+	spin_lock(&xenbus_valloc_lock);
+	list_add(&node->next, &xenbus_valloc_pages);
+	spin_unlock(&xenbus_valloc_lock);
+
+	*vaddr = area->addr;
+	return 0;
+
+failed:
+	if (!leaked)
+		free_vm_area(area);
+	else
+		pr_alert("leaking VM area %p size %u page(s)", area, nr_grefs);
+
+	kfree(node);
+	return err;
+}
+
 static int xenbus_unmap_ring_vfree_pv(struct xenbus_device *dev, void *vaddr)
 {
 	struct xenbus_map_node *node;
@@ -787,6 +788,12 @@ static int xenbus_unmap_ring_vfree_pv(struct xenbus_device *dev, void *vaddr)
 	kfree(node);
 	return err;
 }
+
+static const struct xenbus_ring_ops ring_ops_pv = {
+	.map = xenbus_map_ring_valloc_pv,
+	.unmap = xenbus_unmap_ring_vfree_pv,
+};
+#endif
 
 struct unmap_ring_vfree_hvm
 {
@@ -916,11 +923,6 @@ enum xenbus_state xenbus_read_driver_state(const char *path)
 }
 EXPORT_SYMBOL_GPL(xenbus_read_driver_state);
 
-static const struct xenbus_ring_ops ring_ops_pv = {
-	.map = xenbus_map_ring_valloc_pv,
-	.unmap = xenbus_unmap_ring_vfree_pv,
-};
-
 static const struct xenbus_ring_ops ring_ops_hvm = {
 	.map = xenbus_map_ring_valloc_hvm,
 	.unmap = xenbus_unmap_ring_vfree_hvm,
@@ -928,8 +930,10 @@ static const struct xenbus_ring_ops ring_ops_hvm = {
 
 void __init xenbus_ring_ops_init(void)
 {
+#ifdef CONFIG_XEN_PV
 	if (!xen_feature(XENFEAT_auto_translated_physmap))
 		ring_ops = &ring_ops_pv;
 	else
+#endif
 		ring_ops = &ring_ops_hvm;
 }
