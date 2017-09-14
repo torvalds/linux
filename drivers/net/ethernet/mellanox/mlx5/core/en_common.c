@@ -134,6 +134,7 @@ void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev)
 	mlx5_core_destroy_mkey(mdev, &res->mkey);
 	mlx5_core_dealloc_transport_domain(mdev, res->td.tdn);
 	mlx5_core_dealloc_pd(mdev, res->pdn);
+	memset(res, 0, sizeof(*res));
 }
 
 int mlx5e_refresh_tirs(struct mlx5e_priv *priv, bool enable_uc_lb)

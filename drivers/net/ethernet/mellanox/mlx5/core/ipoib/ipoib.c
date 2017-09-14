@@ -560,12 +560,13 @@ struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
 					  const char *name,
 					  void (*setup)(struct net_device *))
 {
-	const struct mlx5e_profile *profile = &mlx5i_nic_profile;
-	int nch = profile->max_nch(mdev);
+	const struct mlx5e_profile *profile;
 	struct net_device *netdev;
 	struct mlx5i_priv *ipriv;
 	struct mlx5e_priv *epriv;
 	struct rdma_netdev *rn;
+	bool sub_interface;
+	int nch;
 	int err;
 
 	if (mlx5i_check_required_hca_cap(mdev)) {
@@ -573,10 +574,15 @@ struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
-	/* This function should only be called once per mdev */
-	err = mlx5e_create_mdev_resources(mdev);
-	if (err)
-		return NULL;
+	/* TODO: Need to find a better way to check if child device*/
+	sub_interface = (mdev->mlx5e_res.pdn != 0);
+
+	if (sub_interface)
+		profile = mlx5i_pkey_get_profile();
+	else
+		profile = &mlx5i_nic_profile;
+
+	nch = profile->max_nch(mdev);
 
 	netdev = alloc_netdev_mqs(sizeof(struct mlx5i_priv) + sizeof(struct mlx5e_priv),
 				  name, NET_NAME_UNKNOWN,
@@ -585,7 +591,7 @@ struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
 				  nch);
 	if (!netdev) {
 		mlx5_core_warn(mdev, "alloc_netdev_mqs failed\n");
-		goto free_mdev_resources;
+		return NULL;
 	}
 
 	ipriv = netdev_priv(netdev);
@@ -595,10 +601,18 @@ struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
 	if (!epriv->wq)
 		goto err_free_netdev;
 
-	err = mlx5i_pkey_qpn_ht_init(netdev);
-	if (err) {
-		mlx5_core_warn(mdev, "allocate qpn_to_netdev ht failed\n");
-		goto destroy_wq;
+	ipriv->sub_interface = sub_interface;
+	if (!ipriv->sub_interface) {
+		err = mlx5i_pkey_qpn_ht_init(netdev);
+		if (err) {
+			mlx5_core_warn(mdev, "allocate qpn_to_netdev ht failed\n");
+			goto destroy_wq;
+		}
+
+		/* This should only be called once per mdev */
+		err = mlx5e_create_mdev_resources(mdev);
+		if (err)
+			goto destroy_ht;
 	}
 
 	profile->init(mdev, netdev, profile, ipriv);
@@ -616,12 +630,12 @@ struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
 
 	return netdev;
 
+destroy_ht:
+	mlx5i_pkey_qpn_ht_cleanup(netdev);
 destroy_wq:
 	destroy_workqueue(epriv->wq);
 err_free_netdev:
 	free_netdev(netdev);
-free_mdev_resources:
-	mlx5e_destroy_mdev_resources(mdev);
 
 	return NULL;
 }
@@ -629,16 +643,18 @@ EXPORT_SYMBOL(mlx5_rdma_netdev_alloc);
 
 void mlx5_rdma_netdev_free(struct net_device *netdev)
 {
-	struct mlx5e_priv          *priv    = mlx5i_epriv(netdev);
+	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
+	struct mlx5i_priv *ipriv = priv->ppriv;
 	const struct mlx5e_profile *profile = priv->profile;
-	struct mlx5_core_dev       *mdev    = priv->mdev;
 
 	mlx5e_detach_netdev(priv);
 	profile->cleanup(priv);
 	destroy_workqueue(priv->wq);
-	mlx5i_pkey_qpn_ht_cleanup(netdev);
-	free_netdev(netdev);
 
-	mlx5e_destroy_mdev_resources(mdev);
+	if (!ipriv->sub_interface) {
+		mlx5i_pkey_qpn_ht_cleanup(netdev);
+		mlx5e_destroy_mdev_resources(priv->mdev);
+	}
+	free_netdev(netdev);
 }
 EXPORT_SYMBOL(mlx5_rdma_netdev_free);

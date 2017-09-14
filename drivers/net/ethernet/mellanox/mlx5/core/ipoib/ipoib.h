@@ -50,6 +50,7 @@ extern const struct ethtool_ops mlx5i_pkey_ethtool_ops;
 struct mlx5i_priv {
 	struct rdma_netdev rn; /* keep this first */
 	struct mlx5_core_qp qp;
+	bool   sub_interface;
 	u32    qkey;
 	u16    pkey_index;
 	struct mlx5i_pkey_qpn_ht *qpn_htbl;
