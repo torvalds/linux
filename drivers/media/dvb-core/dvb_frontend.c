@@ -1308,7 +1308,7 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 				    struct dtv_property *tvp,
 				    struct file *file)
 {
-	int r, ncaps;
+	int ncaps;
 
 	switch(tvp->cmd) {
 	case DTV_ENUM_DELSYS:
@@ -1517,13 +1517,6 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 			"%s: FE property %d doesn't exist\n",
 			__func__, tvp->cmd);
 		return -EINVAL;
-	}
-
-	/* Allow the frontend to override outgoing properties */
-	if (fe->ops.get_property) {
-		r = fe->ops.get_property(fe, tvp);
-		if (r < 0)
-			return r;
 	}
 
 	dtv_property_dump(fe, false, tvp);
