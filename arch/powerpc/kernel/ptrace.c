@@ -131,7 +131,7 @@ static void flush_tmregs_to_thread(struct task_struct *tsk)
 	 * in the appropriate thread structures from live.
 	 */
 
-	if (tsk != current)
+	if ((!cpu_has_feature(CPU_FTR_TM)) || (tsk != current))
 		return;
 
 	if (MSR_TM_SUSPENDED(mfmsr())) {
