@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <asm/div64.h>
+#include <drm/amdgpu_drm.h>
 #include "pp_acpi.h"
 #include "ppatomctrl.h"
 #include "atombios.h"
@@ -607,13 +608,20 @@ static int smu7_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
 		data->dpm_table.pcie_speed_table.count = 6;
 	}
 	/* Populate last level for boot PCIE level, but do not increment count. */
-	phm_setup_pcie_table_entry(&data->dpm_table.pcie_speed_table,
+	if (hwmgr->chip_family == AMDGPU_FAMILY_CI) {
+		for (i = 0; i <= data->dpm_table.pcie_speed_table.count; i++)
+			phm_setup_pcie_table_entry(&data->dpm_table.pcie_speed_table, i,
+				get_pcie_gen_support(data->pcie_gen_cap,
+						PP_Max_PCIEGen),
+				data->vbios_boot_state.pcie_lane_bootup_value);
+	} else {
+		phm_setup_pcie_table_entry(&data->dpm_table.pcie_speed_table,
 			data->dpm_table.pcie_speed_table.count,
 			get_pcie_gen_support(data->pcie_gen_cap,
 					PP_Min_PCIEGen),
 			get_pcie_lane_support(data->pcie_lane_cap,
 					PP_Max_PCIELane));
-
+	}
 	return 0;
 }
 
@@ -689,7 +697,7 @@ static int smu7_setup_dpm_tables_v0(struct pp_hwmgr *hwmgr)
 				allowed_vdd_sclk_table->entries[i].clk) {
 			data->dpm_table.sclk_table.dpm_levels[data->dpm_table.sclk_table.count].value =
 				allowed_vdd_sclk_table->entries[i].clk;
-			data->dpm_table.sclk_table.dpm_levels[data->dpm_table.sclk_table.count].enabled = 1; /*(i==0) ? 1 : 0; to do */
+			data->dpm_table.sclk_table.dpm_levels[data->dpm_table.sclk_table.count].enabled = (i == 0) ? 1 : 0;
 			data->dpm_table.sclk_table.count++;
 		}
 	}
@@ -703,7 +711,7 @@ static int smu7_setup_dpm_tables_v0(struct pp_hwmgr *hwmgr)
 			allowed_vdd_mclk_table->entries[i].clk) {
 			data->dpm_table.mclk_table.dpm_levels[data->dpm_table.mclk_table.count].value =
 				allowed_vdd_mclk_table->entries[i].clk;
-			data->dpm_table.mclk_table.dpm_levels[data->dpm_table.mclk_table.count].enabled = 1; /*(i==0) ? 1 : 0; */
+			data->dpm_table.mclk_table.dpm_levels[data->dpm_table.mclk_table.count].enabled = (i == 0) ? 1 : 0;
 			data->dpm_table.mclk_table.count++;
 		}
 	}
@@ -963,13 +971,24 @@ static int smu7_enable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 
 		PHM_WRITE_FIELD(hwmgr->device, MC_SEQ_CNTL_3, CAC_EN, 0x1);
 
-		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_MC0_CNTL, 0x5);
-		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_MC1_CNTL, 0x5);
-		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_CPL_CNTL, 0x100005);
-		udelay(10);
-		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_MC0_CNTL, 0x400005);
-		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_MC1_CNTL, 0x400005);
-		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_CPL_CNTL, 0x500005);
+
+		if (hwmgr->chip_family == AMDGPU_FAMILY_CI) {
+			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, 0xc0400d30, 0x5);
+			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, 0xc0400d3c, 0x5);
+			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, 0xc0400d80, 0x100005);
+			udelay(10);
+			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, 0xc0400d30, 0x400005);
+			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, 0xc0400d3c, 0x400005);
+			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, 0xc0400d80, 0x500005);
+		} else {
+			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_MC0_CNTL, 0x5);
+			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_MC1_CNTL, 0x5);
+			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_CPL_CNTL, 0x100005);
+			udelay(10);
+			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_MC0_CNTL, 0x400005);
+			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_MC1_CNTL, 0x400005);
+			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_CPL_CNTL, 0x500005);
+		}
 	}
 
 	return 0;
@@ -997,6 +1016,10 @@ static int smu7_start_dpm(struct pp_hwmgr *hwmgr)
 						VoltageChangeTimeout), 0x1000);
 	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__PCIE,
 			SWRST_COMMAND_1, RESETLC, 0x0);
+
+	if (hwmgr->chip_family == AMDGPU_FAMILY_CI)
+		cgs_write_register(hwmgr->device, 0x1488,
+			(cgs_read_register(hwmgr->device, 0x1488) & ~0x1));
 
 	if (smu7_enable_sclk_mclk_dpm(hwmgr)) {
 		pr_err("Failed to enable Sclk DPM and Mclk DPM!");
@@ -1389,12 +1412,29 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 						&tmp3);
 		tmp3 = (tmp3 >> 5) & 0x3;
 		data->vddc_phase_shed_control = ((tmp3 << 1) | (tmp3 >> 1)) & 0x3;
+	} else if (hwmgr->chip_family == AMDGPU_FAMILY_CI) {
+		data->vddc_phase_shed_control = 1;
+	} else {
+		data->vddc_phase_shed_control = 0;
+	}
+
+	if (hwmgr->chip_id  == CHIP_HAWAII) {
+		data->thermal_temp_setting.temperature_low = 94500;
+		data->thermal_temp_setting.temperature_high = 95000;
+		data->thermal_temp_setting.temperature_shutdown = 104000;
+	} else {
+		data->thermal_temp_setting.temperature_low = 99500;
+		data->thermal_temp_setting.temperature_high = 100000;
+		data->thermal_temp_setting.temperature_shutdown = 104000;
 	}
 
 	data->fast_watermark_threshold = 100;
 	if (atomctrl_is_voltage_controlled_by_gpio_v3(hwmgr,
 			VOLTAGE_TYPE_VDDC, VOLTAGE_OBJ_SVID2))
 		data->voltage_control = SMU7_VOLTAGE_CONTROL_BY_SVID2;
+	else if (atomctrl_is_voltage_controlled_by_gpio_v3(hwmgr,
+			VOLTAGE_TYPE_VDDC, VOLTAGE_OBJ_GPIO_LUT))
+		data->voltage_control = SMU7_VOLTAGE_CONTROL_BY_GPIO;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_ControlVDDGFX)) {
@@ -1414,10 +1454,9 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 			data->mvdd_control = SMU7_VOLTAGE_CONTROL_BY_SVID2;
 	}
 
-	if (SMU7_VOLTAGE_CONTROL_NONE == data->vdd_gfx_control) {
+	if (SMU7_VOLTAGE_CONTROL_NONE == data->vdd_gfx_control)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_ControlVDDGFX);
-	}
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_ControlVDDCI)) {
@@ -2274,7 +2313,7 @@ static int smu7_set_private_data_based_on_pptable_v0(struct pp_hwmgr *hwmgr)
 		data->max_vddci_in_pptable = (uint16_t)allowed_mclk_vddci_table->entries[allowed_mclk_vddci_table->count - 1].v;
 	}
 
-	if (hwmgr->dyn_state.vddci_dependency_on_mclk != NULL && hwmgr->dyn_state.vddci_dependency_on_mclk->count > 1)
+	if (hwmgr->dyn_state.vddci_dependency_on_mclk != NULL && hwmgr->dyn_state.vddci_dependency_on_mclk->count >= 1)
 		hwmgr->dyn_state.max_clock_voltage_on_ac.vddci = hwmgr->dyn_state.vddci_dependency_on_mclk->entries[hwmgr->dyn_state.vddci_dependency_on_mclk->count - 1].v;
 
 	return 0;
@@ -2290,10 +2329,38 @@ static int smu7_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int smu7_get_elb_voltages(struct pp_hwmgr *hwmgr)
+{
+	uint16_t virtual_voltage_id, vddc, vddci, efuse_voltage_id;
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	int i;
+
+	if (atomctrl_get_leakage_id_from_efuse(hwmgr, &efuse_voltage_id) == 0) {
+		for (i = 0; i < SMU7_MAX_LEAKAGE_COUNT; i++) {
+			virtual_voltage_id = ATOM_VIRTUAL_VOLTAGE_ID0 + i;
+			if (atomctrl_get_leakage_vddc_base_on_leakage(hwmgr, &vddc, &vddci,
+								virtual_voltage_id,
+								efuse_voltage_id) == 0) {
+				if (vddc != 0 && vddc != virtual_voltage_id) {
+					data->vddc_leakage.actual_voltage[data->vddc_leakage.count] = vddc;
+					data->vddc_leakage.leakage_id[data->vddc_leakage.count] = virtual_voltage_id;
+					data->vddc_leakage.count++;
+				}
+				if (vddci != 0 && vddci != virtual_voltage_id) {
+					data->vddci_leakage.actual_voltage[data->vddci_leakage.count] = vddci;
+					data->vddci_leakage.leakage_id[data->vddci_leakage.count] = virtual_voltage_id;
+					data->vddci_leakage.count++;
+				}
+			}
+		}
+	}
+	return 0;
+}
+
 static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data;
-	int result;
+	int result = 0;
 
 	data = kzalloc(sizeof(struct smu7_hwmgr), GFP_KERNEL);
 	if (data == NULL)
@@ -2304,11 +2371,15 @@ static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	smu7_init_dpm_defaults(hwmgr);
 
 	/* Get leakage voltage based on leakage ID. */
-	result = smu7_get_evv_voltages(hwmgr);
-
-	if (result) {
-		pr_info("Get EVV Voltage Failed.  Abort Driver loading!\n");
-		return -EINVAL;
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_EVV)) {
+		result = smu7_get_evv_voltages(hwmgr);
+		if (result) {
+			pr_info("Get EVV Voltage Failed.  Abort Driver loading!\n");
+			return -EINVAL;
+		}
+	} else {
+		smu7_get_elb_voltages(hwmgr);
 	}
 
 	if (hwmgr->pp_table_version == PP_TABLE_V1) {
@@ -3777,11 +3848,14 @@ static int smu7_notify_link_speed_change_after_state_change(
 static int smu7_notify_smc_display(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	int ret = 0;
 
-	if (hwmgr->feature_mask & PP_VBI_TIME_SUPPORT_MASK)
+	if (hwmgr->feature_mask & PP_VBI_TIME_SUPPORT_MASK) {
 		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 			(PPSMC_Msg)PPSMC_MSG_SetVBITimeout, data->frame_time_x2);
-	return (smum_send_msg_to_smc(hwmgr->smumgr, (PPSMC_Msg)PPSMC_HasDisplay) == 0) ?  0 : -EINVAL;
+		ret = (smum_send_msg_to_smc(hwmgr->smumgr, (PPSMC_Msg)PPSMC_HasDisplay) == 0) ?  0 : -EINVAL;
+	}
+	return ret;
 }
 
 static int smu7_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)
