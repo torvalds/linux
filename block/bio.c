@@ -2033,37 +2033,6 @@ int bio_associate_blkcg(struct bio *bio, struct cgroup_subsys_state *blkcg_css)
 EXPORT_SYMBOL_GPL(bio_associate_blkcg);
 
 /**
- * bio_associate_current - associate a bio with %current
- * @bio: target bio
- *
- * Associate @bio with %current if it hasn't been associated yet.  Block
- * layer will treat @bio as if it were issued by %current no matter which
- * task actually issues it.
- *
- * This function takes an extra reference of @task's io_context and blkcg
- * which will be put when @bio is released.  The caller must own @bio,
- * ensure %current->io_context exists, and is responsible for synchronizing
- * calls to this function.
- */
-int bio_associate_current(struct bio *bio)
-{
-	struct io_context *ioc;
-
-	if (bio->bi_css)
-		return -EBUSY;
-
-	ioc = current->io_context;
-	if (!ioc)
-		return -ENOENT;
-
-	get_io_context_active(ioc);
-	bio->bi_ioc = ioc;
-	bio->bi_css = task_get_css(current, io_cgrp_id);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(bio_associate_current);
-
-/**
  * bio_disassociate_task - undo bio_associate_current()
  * @bio: target bio
  */
