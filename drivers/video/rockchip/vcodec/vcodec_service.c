@@ -47,6 +47,7 @@
 
 #include <linux/dma-buf.h>
 #include <linux/rockchip-iovmm.h>
+#include <video/rk_vpu_service.h>
 
 #include "vcodec_hw_info.h"
 #include "vcodec_hw_vpu.h"
@@ -130,7 +131,6 @@ struct extra_info_elem {
 	u32 index;
 	u32 offset;
 };
-
 
 struct extra_info_for_iommu {
 	u32 magic;
@@ -230,79 +230,11 @@ static const struct vcodec_device_info rkvd_device_info = {
 #define vpu_err(fmt, args...)				\
 		pr_err("%s:%d: " fmt, __func__, __LINE__, ##args)
 
-enum VPU_DEC_FMT {
-	VPU_DEC_FMT_H264,
-	VPU_DEC_FMT_MPEG4,
-	VPU_DEC_FMT_H263,
-	VPU_DEC_FMT_JPEG,
-	VPU_DEC_FMT_VC1,
-	VPU_DEC_FMT_MPEG2,
-	VPU_DEC_FMT_MPEG1,
-	VPU_DEC_FMT_VP6,
-	VPU_DEC_FMT_RESERV0,
-	VPU_DEC_FMT_VP7,
-	VPU_DEC_FMT_VP8,
-	VPU_DEC_FMT_AVS,
-	VPU_DEC_FMT_RES
-};
-
-/**
- * struct for process session which connect to vpu
- *
- * @author ChenHengming (2011-5-3)
- */
-struct vpu_session {
-	enum VPU_CLIENT_TYPE type;
-	/* a linked list of data so we can access them for debugging */
-	struct list_head list_session;
-	/* a linked list of register data waiting for process */
-	struct list_head waiting;
-	/* a linked list of register data in processing */
-	struct list_head running;
-	/* a linked list of register data processed */
-	struct list_head done;
-	wait_queue_head_t wait;
-	pid_t pid;
-	atomic_t task_running;
-};
-
-/**
- * struct for process register set
- *
- * @author ChenHengming (2011-5-4)
- */
-struct vpu_reg {
-	enum VPU_CLIENT_TYPE type;
-	enum VPU_FREQ freq;
-	struct vpu_session *session;
-	struct vpu_subdev_data *data;
-	struct vpu_task_info *task;
-	const struct vpu_trans_info *trans;
-
-	/* link to vpu service session */
-	struct list_head session_link;
-	/* link to register set list */
-	struct list_head status_link;
-
-	unsigned long size;
-	struct list_head mem_region_list;
-	u32 dec_base;
-	u32 *reg;
-};
-
 struct vpu_device {
 	atomic_t irq_count_codec;
 	atomic_t irq_count_pp;
 	unsigned int iosize;
 	u32 *regs;
-};
-
-enum vcodec_device_id {
-	VCODEC_DEVICE_ID_VPU,
-	VCODEC_DEVICE_ID_HEVC,
-	VCODEC_DEVICE_ID_COMBO,
-	VCODEC_DEVICE_ID_RKVDEC,
-	VCODEC_DEVICE_ID_BUTT
 };
 
 enum VCODEC_RUNNING_MODE {
@@ -321,6 +253,26 @@ struct vcodec_mem_region {
 	unsigned long len;
 	u32 reg_idx;
 	int hdl;
+};
+
+/* struct for process register set */
+struct vpu_reg {
+	enum VPU_CLIENT_TYPE type;
+	enum VPU_FREQ freq;
+	struct vpu_session *session;
+	struct vpu_subdev_data *data;
+	struct vpu_task_info *task;
+	const struct vpu_trans_info *trans;
+
+	/* link to vpu service session */
+	struct list_head session_link;
+	/* link to register set list */
+	struct list_head status_link;
+
+	unsigned long size;
+	struct list_head mem_region_list;
+	u32 dec_base;
+	u32 *reg;
 };
 
 enum vpu_ctx_state {
@@ -446,11 +398,6 @@ struct vpu_service_info {
 	u32 alloc_type;
 };
 
-struct vpu_request {
-	u32 *req;
-	u32 size;
-};
-
 #ifdef CONFIG_COMPAT
 struct compat_vpu_request {
 	compat_uptr_t req;
@@ -560,6 +507,10 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 	struct vpu_service_info *pservice = data->pservice;
 	struct vpu_subdev_data *subdata, *n;
 
+	/*
+	 * For the RK3228H, it is not necessary to write a register to
+	 * switch vpu combo mode, it is unsafe to write the grf.
+	 */
 	if (pservice->subcnt < 2 || pservice->mode_ctrl == 0) {
 		if (data->mmu_dev && !test_bit(MMU_ACTIVATED, &data->state)) {
 			set_bit(MMU_ACTIVATED, &data->state);
@@ -590,14 +541,8 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 		}
 	}
 
-	/*
-	 * For the RK3228H, it is not necessary to write a register to
-	 * switch vpu combo mode, it is unsafe to write the grf.
-	 */
-	if (pservice->mode_ctrl) {
-		if (grf_combo_switch(data))
-			return;
-	}
+	if (grf_combo_switch(data))
+		return;
 
 	if (data->mmu_dev && !test_bit(MMU_ACTIVATED, &data->state)) {
 		set_bit(MMU_ACTIVATED, &data->state);
@@ -785,11 +730,6 @@ static void vpu_service_clear(struct vpu_subdev_data *data)
 		wake_up(&session->wait);
 }
 
-static void vpu_service_dump(struct vpu_service_info *pservice)
-{
-}
-
-
 static void vpu_service_power_off(struct vpu_service_info *pservice)
 {
 	int total_running;
@@ -805,7 +745,6 @@ static void vpu_service_power_off(struct vpu_service_info *pservice)
 			 total_running);
 		mdelay(50);
 		pr_alert("alert: delay 50 ms for running task\n");
-		vpu_service_dump(pservice);
 	}
 
 	dev_dbg(pservice->dev, "power off...\n");
@@ -1787,14 +1726,24 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 	struct vpu_session *session = (struct vpu_session *)filp->private_data;
 
 	vpu_debug_enter();
+
+	vpu_debug(DEBUG_IOCTL, "cmd %x, VPU_IOC_SET_CLIENT_TYPE %x\n", cmd,
+		  (u32)VPU_IOC_SET_CLIENT_TYPE);
+
 	if (NULL == session)
 		return -EINVAL;
 
 	switch (cmd) {
 	case VPU_IOC_SET_CLIENT_TYPE: {
+		int secure_mode;
+
+		secure_mode = (arg & 0xffff0000) >> 16;
+		session->type = (enum VPU_CLIENT_TYPE)(arg & 0xffff);
+		atomic_set(&pservice->secure_mode, secure_mode);
+
 		session->type = (enum VPU_CLIENT_TYPE)arg;
-		vpu_debug(DEBUG_IOCTL, "pid %d set client type %d\n",
-			  session->pid, session->type);
+		vpu_debug(DEBUG_IOCTL, "pid %d set client type %d, secure mode = %d\n",
+			  session->pid, session->type, secure_mode);
 	} break;
 	case VPU_IOC_GET_HW_FUSE_STATUS: {
 		struct vpu_request req;
@@ -1825,6 +1774,16 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 
 		vpu_debug(DEBUG_IOCTL, "pid %d set reg type %d\n",
 			  session->pid, session->type);
+
+		if (atomic_read(&pservice->secure_mode) == 1) {
+			vpu_service_power_on(data, pservice);
+			pservice->wait_secure_isr = &session->wait;
+			if (!pservice->secure_isr &&
+			    !pservice->secure_irq_status)
+				enable_irq(data->irq_dec);
+			break;
+		}
+
 		if (copy_from_user(&req, (void __user *)arg,
 				   sizeof(struct vpu_request))) {
 			vpu_err("error: set reg copy_from_user failed\n");
@@ -1845,6 +1804,19 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 
 		vpu_debug(DEBUG_IOCTL, "pid %d get reg type %d\n",
 			  session->pid, session->type);
+
+		if (atomic_read(&pservice->secure_mode) == 1) {
+			ret = wait_event_timeout(session->wait,
+						 pservice->secure_isr,
+						 VPU_TIMEOUT_DELAY);
+			if (ret < 0) {
+				pr_info("warning: secure wait timeout\n");
+				ret = 0;
+			}
+			pservice->secure_isr = false;
+			break;
+		}
+
 		if (copy_from_user(&req, (void __user *)arg,
 				   sizeof(struct vpu_request))) {
 			vpu_err("error: get reg copy_from_user failed\n");
@@ -1876,7 +1848,6 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 			int task_running = atomic_read(&session->task_running);
 
 			mutex_lock(&pservice->lock);
-			vpu_service_dump(pservice);
 			if (task_running) {
 				atomic_set(&session->task_running, 0);
 				atomic_sub(task_running,
@@ -1899,6 +1870,7 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 		mutex_unlock(&pservice->lock);
 	} break;
 	case VPU_IOC_PROBE_IOMMU_STATUS: {
+		/* It must be 1, keeping backward compatibility */
 		int iommu_enable = 1;
 
 		vpu_debug(DEBUG_IOCTL, "VPU_IOC_PROBE_IOMMU_STATUS\n");
@@ -1911,182 +1883,96 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 	} break;
 	default: {
 		vpu_err("error: unknow vpu service ioctl cmd %x\n", cmd);
+		return -ENOIOCTLCMD;
 	} break;
 	}
+
 	vpu_debug_leave();
 	return 0;
 }
 
 #ifdef CONFIG_COMPAT
-static long compat_vpu_service_ioctl(struct file *filp, unsigned int cmd,
+#define VPU_IOC_SET_CLIENT_TYPE32          _IOW(VPU_IOC_MAGIC, 1, u32)
+#define VPU_IOC_GET_HW_FUSE_STATUS32       _IOW(VPU_IOC_MAGIC, 2, \
+						compat_ulong_t)
+#define VPU_IOC_SET_REG32                  _IOW(VPU_IOC_MAGIC, 3, \
+						compat_ulong_t)
+#define VPU_IOC_GET_REG32                  _IOW(VPU_IOC_MAGIC, 4, \
+						compat_ulong_t)
+#define VPU_IOC_PROBE_IOMMU_STATUS32       _IOR(VPU_IOC_MAGIC, 5, u32)
+
+static long native_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	long ret = -ENOIOCTLCMD;
+
+	if (file->f_op->unlocked_ioctl)
+		ret = file->f_op->unlocked_ioctl(file, cmd, arg);
+
+	return ret;
+}
+
+static long compat_vpu_service_ioctl(struct file *file, unsigned int cmd,
 				     unsigned long arg)
 {
-	struct vpu_subdev_data *data =
-		container_of(filp->f_path.dentry->d_inode->i_cdev,
-			     struct vpu_subdev_data, cdev);
-	struct vpu_service_info *pservice = data->pservice;
-	struct vpu_session *session = (struct vpu_session *)filp->private_data;
+	struct vpu_request req;
+	void __user *up = compat_ptr(arg);
+	int compatible_arg = 1;
+	long err = 0;
 
 	vpu_debug_enter();
-	vpu_debug(3, "cmd %x, COMPAT_VPU_IOC_SET_CLIENT_TYPE %x\n", cmd,
-		  (u32)COMPAT_VPU_IOC_SET_CLIENT_TYPE);
-	if (NULL == session)
-		return -EINVAL;
+	vpu_debug(DEBUG_IOCTL, "cmd %x, VPU_IOC_SET_CLIENT_TYPE32 %x\n", cmd,
+		  (u32)VPU_IOC_SET_CLIENT_TYPE32);
+	/* First, convert the command. */
+	switch (cmd) {
+	case VPU_IOC_SET_CLIENT_TYPE32:
+		cmd = VPU_IOC_SET_CLIENT_TYPE;
+		break;
+	case VPU_IOC_GET_HW_FUSE_STATUS32:
+		cmd = VPU_IOC_GET_HW_FUSE_STATUS;
+		break;
+	case VPU_IOC_SET_REG32:
+		cmd = VPU_IOC_SET_REG;
+		break;
+	case VPU_IOC_GET_REG32:
+		cmd = VPU_IOC_GET_REG;
+		break;
+	case VPU_IOC_PROBE_IOMMU_STATUS32:
+		cmd = VPU_IOC_PROBE_IOMMU_STATUS;
+		break;
+	}
 
 	switch (cmd) {
-	case COMPAT_VPU_IOC_SET_CLIENT_TYPE: {
-		int secure_mode;
+	case VPU_IOC_SET_REG:
+	case VPU_IOC_GET_REG:
+	case VPU_IOC_GET_HW_FUSE_STATUS: {
+		compat_uptr_t req_ptr;
+		struct compat_vpu_request __user *req32 = NULL;
 
-		dev_info(pservice->dev, "set client type!\n");
-		session->type = (enum VPU_CLIENT_TYPE)arg;
-		secure_mode = (session->type & 0xffff0000) >> 16;
-		session->type = session->type & 0xffff;
-		dev_info(pservice->dev, "set client type, secure mode = %d\n",
-			 secure_mode);
-		atomic_set(&pservice->secure_mode, secure_mode);
-	} break;
-	case COMPAT_VPU_IOC_GET_HW_FUSE_STATUS: {
-		struct compat_vpu_request req;
+		req32 = (struct compat_vpu_request __user *)up;
+		memset(&req, 0, sizeof(req));
 
-		vpu_debug(DEBUG_IOCTL, "compat get hw status %d\n",
-			  session->type);
-		if (copy_from_user(&req, compat_ptr((compat_uptr_t)arg),
-				   sizeof(struct compat_vpu_request))) {
+		if (get_user(req_ptr, &req32->req) ||
+		    get_user(req.size, &req32->size)) {
 			vpu_err("error: compat get hw status copy_from_user failed\n");
 			return -EFAULT;
-		} else {
-			void *config = (session->type != VPU_ENC) ?
-				       ((void *)&pservice->dec_config) :
-				       ((void *)&pservice->enc_config);
-			size_t size = (session->type != VPU_ENC) ?
-				      (sizeof(struct vpu_dec_config)) :
-				      (sizeof(struct vpu_enc_config));
-
-			if (copy_to_user(compat_ptr((compat_uptr_t)req.req),
-					 config, size)) {
-				vpu_err("error: compat get hw status copy_to_user failed type %d\n",
-					session->type);
-				return -EFAULT;
-			}
 		}
-	} break;
-	case COMPAT_VPU_IOC_SET_REG: {
-		struct compat_vpu_request req;
-		struct vpu_reg *reg;
-
-		vpu_debug(DEBUG_IOCTL, "compat set reg type %d\n",
-			  session->type);
-		if (atomic_read(&pservice->secure_mode) == 1) {
-			vpu_service_power_on(data, pservice);
-			pservice->wait_secure_isr = &session->wait;
-			if (!pservice->secure_isr &&
-			    !pservice->secure_irq_status)
-				enable_irq(data->irq_dec);
-		} else {
-			if (copy_from_user(&req, compat_ptr((compat_uptr_t)arg),
-					   sizeof(struct compat_vpu_request))) {
-				vpu_err("compat set_reg copy_from_user failed\n");
-				return -EFAULT;
-			}
-			reg = reg_init(data, session,
-				       compat_ptr((compat_uptr_t)req.req),
-				       req.size);
-			if (NULL == reg)
-				return -EFAULT;
-			else
-				queue_work(pservice->set_workq,
-					   &data->set_work);
-		}
-	} break;
-	case COMPAT_VPU_IOC_GET_REG: {
-		struct compat_vpu_request req;
-		struct vpu_reg *reg;
-		int ret;
-
-		vpu_debug(DEBUG_IOCTL, "compat get reg type %d\n",
-			  session->type);
-
-		if (atomic_read(&pservice->secure_mode) == 1) {
-			ret = wait_event_timeout(session->wait,
-						 pservice->secure_isr,
-						 VPU_TIMEOUT_DELAY);
-			if (ret < 0) {
-				pr_info("warning: secure wait timeout\n");
-				ret = 0;
-			}
-			pservice->secure_isr = false;
-		} else {
-			if (copy_from_user(&req, compat_ptr((compat_uptr_t)arg),
-					   sizeof(struct compat_vpu_request))) {
-				vpu_err("compat get reg copy_from_user failed\n");
-				return -EFAULT;
-			}
-
-			ret = wait_event_timeout(session->wait,
-						 !list_empty(&session->done),
-						 VPU_TIMEOUT_DELAY);
-
-			if (!list_empty(&session->done)) {
-				if (ret < 0)
-					vpu_err("warning: pid %d wait task error ret %d\n",
-						session->pid, ret);
-				ret = 0;
-			} else {
-				if (unlikely(ret < 0)) {
-					vpu_err("error: pid %d wait task ret %d\n",
-						session->pid, ret);
-				} else if (ret == 0) {
-					vpu_err("error: pid %d wait %d task done timeout\n",
-						session->pid,
-						atomic_read(&session->task_running));
-					ret = -ETIMEDOUT;
-				}
-			}
-
-			if (ret < 0) {
-				int task_running = atomic_read(&session->task_running);
-
-				mutex_lock(&pservice->lock);
-				vpu_service_dump(pservice);
-				if (task_running) {
-					atomic_set(&session->task_running, 0);
-					atomic_sub(task_running,
-						   &pservice->total_running);
-					dev_err(pservice->dev,
-						"%d task is running but not return, reset hardware...",
-						task_running);
-					vpu_reset(data);
-					dev_err(pservice->dev, "done\n");
-				}
-				vpu_service_session_clear(data, session);
-				mutex_unlock(&pservice->lock);
-				return ret;
-			}
-
-			mutex_lock(&pservice->lock);
-			reg = list_entry(session->done.next,
-					 struct vpu_reg, session_link);
-			return_reg(data, reg, compat_ptr((compat_uptr_t)req.req));
-			mutex_unlock(&pservice->lock);
-		}
-	} break;
-	case COMPAT_VPU_IOC_PROBE_IOMMU_STATUS: {
-		int iommu_enable = 1;
-
-		vpu_debug(DEBUG_IOCTL, "COMPAT_VPU_IOC_PROBE_IOMMU_STATUS\n");
-
-		if (copy_to_user(compat_ptr((compat_uptr_t)arg),
-				 &iommu_enable, sizeof(int))) {
-			vpu_err("error: VPU_IOC_PROBE_IOMMU_STATUS copy_to_user failed\n");
-			return -EFAULT;
-		}
-	} break;
-	default: {
-		vpu_err("error: unknow vpu service ioctl cmd %x\n", cmd);
+		req.req = compat_ptr(req_ptr);
+		compatible_arg = 0;
 	} break;
 	}
+
+	if (compatible_arg) {
+		err = native_ioctl(file, cmd, (unsigned long)up);
+	} else {
+		mm_segment_t old_fs = get_fs();
+
+		set_fs(KERNEL_DS);
+		err = native_ioctl(file, cmd, (unsigned long)&req);
+		set_fs(old_fs);
+	}
+
 	vpu_debug_leave();
-	return 0;
+	return err;
 }
 #endif
 
@@ -2356,7 +2242,7 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 		break;
 	}
 
-	if (pservice->reg_base == 0) {
+	if (!pservice->reg_base) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		data->regs = devm_ioremap_resource(dev, res);
 		if (IS_ERR(data->regs)) {
@@ -2849,7 +2735,6 @@ static struct platform_driver vcodec_driver = {
 	.shutdown = vcodec_shutdown,
 	.driver = {
 		.name = "rk-vcodec",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(vcodec_service_dt_ids),
 	},
 };
