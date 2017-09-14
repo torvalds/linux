@@ -314,5 +314,11 @@ extern int atomctrl_get_avfs_information(struct pp_hwmgr *hwmgr, struct pp_atom_
 extern int  atomctrl_get_svi2_info(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 				uint8_t *svd_gpio_id, uint8_t *svc_gpio_id,
 				uint16_t *load_line);
+
+extern int atomctrl_get_leakage_vddc_base_on_leakage(struct pp_hwmgr *hwmgr,
+					uint16_t *vddc, uint16_t *vddci,
+					uint16_t virtual_voltage_id,
+					uint16_t efuse_voltage_id);
+extern int atomctrl_get_leakage_id_from_efuse(struct pp_hwmgr *hwmgr, uint16_t *virtual_voltage_id);
 #endif
 

@@ -1418,3 +1418,83 @@ int  atomctrl_get_svi2_info(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 
 	return 0;
 }
+
+int atomctrl_get_leakage_id_from_efuse(struct pp_hwmgr *hwmgr, uint16_t *virtual_voltage_id)
+{
+	int result;
+	SET_VOLTAGE_PS_ALLOCATION allocation;
+	SET_VOLTAGE_PARAMETERS_V1_3 *voltage_parameters =
+			(SET_VOLTAGE_PARAMETERS_V1_3 *)&allocation.sASICSetVoltage;
+
+	voltage_parameters->ucVoltageMode = ATOM_GET_LEAKAGE_ID;
+
+	result = cgs_atom_exec_cmd_table(hwmgr->device,
+			GetIndexIntoMasterTable(COMMAND, SetVoltage),
+			voltage_parameters);
+
+	*virtual_voltage_id = voltage_parameters->usVoltageLevel;
+
+	return result;
+}
+
+int atomctrl_get_leakage_vddc_base_on_leakage(struct pp_hwmgr *hwmgr,
+					uint16_t *vddc, uint16_t *vddci,
+					uint16_t virtual_voltage_id,
+					uint16_t efuse_voltage_id)
+{
+	int i, j;
+	int ix;
+	u16 *leakage_bin, *vddc_id_buf, *vddc_buf, *vddci_id_buf, *vddci_buf;
+	ATOM_ASIC_PROFILING_INFO_V2_1 *profile;
+
+	*vddc = 0;
+	*vddci = 0;
+
+	ix = GetIndexIntoMasterTable(DATA, ASIC_ProfilingInfo);
+
+	profile = (ATOM_ASIC_PROFILING_INFO_V2_1 *)
+			cgs_atom_get_data_table(hwmgr->device,
+					ix,
+					NULL, NULL, NULL);
+	if (!profile)
+		return -EINVAL;
+
+	if ((profile->asHeader.ucTableFormatRevision >= 2) &&
+		(profile->asHeader.ucTableContentRevision >= 1) &&
+		(profile->asHeader.usStructureSize >= sizeof(ATOM_ASIC_PROFILING_INFO_V2_1))) {
+		leakage_bin = (u16 *)((char *)profile + profile->usLeakageBinArrayOffset);
+		vddc_id_buf = (u16 *)((char *)profile + profile->usElbVDDC_IdArrayOffset);
+		vddc_buf = (u16 *)((char *)profile + profile->usElbVDDC_LevelArrayOffset);
+		if (profile->ucElbVDDC_Num > 0) {
+			for (i = 0; i < profile->ucElbVDDC_Num; i++) {
+				if (vddc_id_buf[i] == virtual_voltage_id) {
+					for (j = 0; j < profile->ucLeakageBinNum; j++) {
+						if (efuse_voltage_id <= leakage_bin[j]) {
+							*vddc = vddc_buf[j * profile->ucElbVDDC_Num + i];
+							break;
+						}
+					}
+					break;
+				}
+			}
+		}
+
+		vddci_id_buf = (u16 *)((char *)profile + profile->usElbVDDCI_IdArrayOffset);
+		vddci_buf   = (u16 *)((char *)profile + profile->usElbVDDCI_LevelArrayOffset);
+		if (profile->ucElbVDDCI_Num > 0) {
+			for (i = 0; i < profile->ucElbVDDCI_Num; i++) {
+				if (vddci_id_buf[i] == virtual_voltage_id) {
+					for (j = 0; j < profile->ucLeakageBinNum; j++) {
+						if (efuse_voltage_id <= leakage_bin[j]) {
+							*vddci = vddci_buf[j * profile->ucElbVDDC_Num + i];
+							break;
+						}
+					}
+					break;
+				}
+			}
+		}
+	}
+
+	return 0;
+}
