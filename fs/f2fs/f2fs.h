@@ -2674,7 +2674,8 @@ struct f2fs_stat_info {
 	int free_nids, avail_nids, alloc_nids;
 	int total_count, utilization;
 	int bg_gc, nr_wb_cp_data, nr_wb_data;
-	int nr_flushing, nr_flushed, nr_discarding, nr_discarded;
+	int nr_flushing, nr_flushed, flush_list_empty;
+	int nr_discarding, nr_discarded;
 	int nr_discard_cmd;
 	unsigned int undiscard_blks;
 	int inline_xattr, inline_inode, inline_dir, append, update, orphans;
