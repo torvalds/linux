@@ -120,7 +120,7 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_mikrobus2_uart>;
 				atmel,use-dma-rx;
-				atmel-use-dma-tx;
+				atmel,use-dma-tx;
 				status = "okay";
 			};
 
@@ -178,7 +178,7 @@
 			uart4: serial@fc00c000 {
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
-				pinctrl-name = "default";
+				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_mikrobus1_uart>;
 				status = "okay";
 			};
