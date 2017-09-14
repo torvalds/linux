@@ -376,7 +376,7 @@ static int sys_init_dir(struct sys_dir *sys_dir, struct ssi_drvdata *drvdata,
 		return -ENOMEM;
 	/* allocate memory for directory's attributes list */
 	sys_dir->sys_dir_attr_list =
-		kzalloc(sizeof(struct attribute *) * (num_of_attrs + 1),
+		kcalloc(num_of_attrs + 1, sizeof(struct attribute *),
 			GFP_KERNEL);
 
 	if (!(sys_dir->sys_dir_attr_list)) {
