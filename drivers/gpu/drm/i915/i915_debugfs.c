@@ -2450,8 +2450,6 @@ static void i915_guc_client_info(struct seq_file *m,
 	seq_printf(m, "\tWQ size %d, offset: 0x%x, tail %d\n",
 		client->wq_size, client->wq_offset, client->wq_tail);
 
-	seq_printf(m, "\tWork queue full: %u\n", client->no_wq_space);
-
 	for_each_engine(engine, dev_priv, id) {
 		u64 submissions = client->submissions[id];
 		tot += submissions;

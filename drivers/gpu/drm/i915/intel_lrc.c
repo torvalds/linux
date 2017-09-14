@@ -988,27 +988,14 @@ static int execlists_request_alloc(struct drm_i915_gem_request *request)
 	 */
 	request->reserved_space += EXECLISTS_REQUEST_SIZE;
 
-	if (i915.enable_guc_submission) {
-		/*
-		 * Check that the GuC has space for the request before
-		 * going any further, as the i915_add_request() call
-		 * later on mustn't fail ...
-		 */
-		ret = i915_guc_wq_reserve(request);
-		if (ret)
-			goto err;
-	}
-
 	cs = intel_ring_begin(request, 0);
-	if (IS_ERR(cs)) {
-		ret = PTR_ERR(cs);
-		goto err_unreserve;
-	}
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
 
 	if (!ce->initialised) {
 		ret = engine->init_context(request);
 		if (ret)
-			goto err_unreserve;
+			return ret;
 
 		ce->initialised = true;
 	}
@@ -1022,12 +1009,6 @@ static int execlists_request_alloc(struct drm_i915_gem_request *request)
 
 	request->reserved_space -= EXECLISTS_REQUEST_SIZE;
 	return 0;
-
-err_unreserve:
-	if (i915.enable_guc_submission)
-		i915_guc_wq_unreserve(request);
-err:
-	return ret;
 }
 
 /*
