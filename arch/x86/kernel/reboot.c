@@ -150,7 +150,7 @@ static int __init set_kbd_reboot(const struct dmi_system_id *d)
 /*
  * This is a single dmi_table handling all reboot quirks.
  */
-static struct dmi_system_id __initdata reboot_dmi_table[] = {
+static const struct dmi_system_id reboot_dmi_table[] __initconst = {
 
 	/* Acer */
 	{	/* Handle reboot issue on Acer Aspire one */

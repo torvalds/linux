@@ -312,7 +312,7 @@ static int __init dmi_disable_osi_win8(const struct dmi_system_id *d)
  * Note that _OSI("Linux")/_OSI("Darwin") determined here can be overridden
  * by acpi_osi=!Linux/acpi_osi=!Darwin command line options.
  */
-static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
+static const struct dmi_system_id acpi_osi_dmi_table[] __initconst = {
 	{
 	.callback = dmi_disable_osi_vista,
 	.ident = "Fujitsu Siemens",
