@@ -508,6 +508,7 @@ struct section *elf_create_rela_section(struct elf *elf, struct section *base)
 	strcat(relaname, base->name);
 
 	sec = elf_create_section(elf, relaname, sizeof(GElf_Rela), 0);
+	free(relaname);
 	if (!sec)
 		return NULL;
 
