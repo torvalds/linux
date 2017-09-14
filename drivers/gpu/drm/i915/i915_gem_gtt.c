@@ -230,13 +230,13 @@ static gen8_pte_t gen8_pte_encode(dma_addr_t addr,
 
 	switch (level) {
 	case I915_CACHE_NONE:
-		pte |= PPAT_UNCACHED_INDEX;
+		pte |= PPAT_UNCACHED;
 		break;
 	case I915_CACHE_WT:
-		pte |= PPAT_DISPLAY_ELLC_INDEX;
+		pte |= PPAT_DISPLAY_ELLC;
 		break;
 	default:
-		pte |= PPAT_CACHED_INDEX;
+		pte |= PPAT_CACHED;
 		break;
 	}
 
@@ -249,9 +249,9 @@ static gen8_pde_t gen8_pde_encode(const dma_addr_t addr,
 	gen8_pde_t pde = _PAGE_PRESENT | _PAGE_RW;
 	pde |= addr;
 	if (level != I915_CACHE_NONE)
-		pde |= PPAT_CACHED_PDE_INDEX;
+		pde |= PPAT_CACHED_PDE;
 	else
-		pde |= PPAT_UNCACHED_INDEX;
+		pde |= PPAT_UNCACHED;
 	return pde;
 }
 

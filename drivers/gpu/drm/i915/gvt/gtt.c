@@ -1971,7 +1971,7 @@ static int alloc_scratch_pages(struct intel_vgpu *vgpu,
 		 */
 		se.val64 |= _PAGE_PRESENT | _PAGE_RW;
 		if (type == GTT_TYPE_PPGTT_PDE_PT)
-			se.val64 |= PPAT_CACHED_INDEX;
+			se.val64 |= PPAT_CACHED;
 
 		for (i = 0; i < page_entry_num; i++)
 			ops->set_entry(scratch_pt, &se, i, false, 0, vgpu);

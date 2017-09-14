@@ -126,10 +126,10 @@ typedef u64 gen8_ppgtt_pml4e_t;
  * tables */
 #define GEN8_PDPE_MASK			0x1ff
 
-#define PPAT_UNCACHED_INDEX		(_PAGE_PWT | _PAGE_PCD)
-#define PPAT_CACHED_PDE_INDEX		0 /* WB LLC */
-#define PPAT_CACHED_INDEX		_PAGE_PAT /* WB LLCeLLC */
-#define PPAT_DISPLAY_ELLC_INDEX		_PAGE_PCD /* WT eLLC */
+#define PPAT_UNCACHED			(_PAGE_PWT | _PAGE_PCD)
+#define PPAT_CACHED_PDE			0 /* WB LLC */
+#define PPAT_CACHED			_PAGE_PAT /* WB LLCeLLC */
+#define PPAT_DISPLAY_ELLC		_PAGE_PCD /* WT eLLC */
 
 #define CHV_PPAT_SNOOP			(1<<6)
 #define GEN8_PPAT_AGE(x)		((x)<<4)
