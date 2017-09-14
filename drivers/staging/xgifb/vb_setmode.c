@@ -5479,8 +5479,9 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 						   ModeIdIndex))
 				return 0;
 
-		pVBInfo->ModeType = XGI330_EModeIDTable[ModeIdIndex].
-						Ext_ModeFlag & ModeTypeMask;
+		pVBInfo->ModeType =
+			XGI330_EModeIDTable[ModeIdIndex].Ext_ModeFlag
+			& ModeTypeMask;
 
 		pVBInfo->SetFlag = 0;
 		pVBInfo->VBInfo = DisableCRT2Display;
