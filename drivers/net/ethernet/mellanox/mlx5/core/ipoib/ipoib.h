@@ -55,6 +55,10 @@ struct mlx5i_priv {
 	char  *mlx5e_priv[0];
 };
 
+/* Underlay QP create/destroy functions */
+int mlx5i_create_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp);
+void mlx5i_destroy_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp);
+
 /* Allocate/Free underlay QPN to net-device hash table */
 int mlx5i_pkey_qpn_ht_init(struct net_device *netdev);
 void mlx5i_pkey_qpn_ht_cleanup(struct net_device *netdev);
@@ -65,6 +69,15 @@ int mlx5i_pkey_del_qpn(struct net_device *netdev, u32 qpn);
 
 /* Get the net-device corresponding to the given underlay QPN */
 struct net_device *mlx5i_pkey_get_netdev(struct net_device *netdev, u32 qpn);
+
+/* Parent profile functions */
+void mlx5i_init(struct mlx5_core_dev *mdev,
+		struct net_device *netdev,
+		const struct mlx5e_profile *profile,
+		void *ppriv);
+
+/* Get child interface nic profile */
+const struct mlx5e_profile *mlx5i_pkey_get_profile(void);
 
 /* Extract mlx5e_priv from IPoIB netdev */
 #define mlx5i_epriv(netdev) ((void *)(((struct mlx5i_priv *)netdev_priv(netdev))->mlx5e_priv))

@@ -134,3 +134,86 @@ struct net_device *mlx5i_pkey_get_netdev(struct net_device *netdev, u32 qpn)
 
 	return node->netdev;
 }
+
+/* Called directly after IPoIB netdevice was created to initialize SW structs */
+static void mlx5i_pkey_init(struct mlx5_core_dev *mdev,
+			     struct net_device *netdev,
+			     const struct mlx5e_profile *profile,
+			     void *ppriv)
+{
+	struct mlx5e_priv *priv  = mlx5i_epriv(netdev);
+
+	mlx5i_init(mdev, netdev, profile, ppriv);
+
+	/* Override parent ndo */
+	netdev->netdev_ops = NULL;
+
+	/* Currently no ethtool support */
+	netdev->ethtool_ops = NULL;
+
+	/* Use dummy rqs */
+	priv->channels.params.log_rq_size = MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE;
+}
+
+/* Called directly before IPoIB netdevice is destroyed to cleanup SW structs */
+static void mlx5i_pkey_cleanup(struct mlx5e_priv *priv)
+{
+	/* Do nothing .. */
+}
+
+static int mlx5i_pkey_init_tx(struct mlx5e_priv *priv)
+{
+	struct mlx5i_priv *ipriv = priv->ppriv;
+	int err;
+
+	err = mlx5i_create_underlay_qp(priv->mdev, &ipriv->qp);
+	if (err) {
+		mlx5_core_warn(priv->mdev, "create child underlay QP failed, %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
+static void mlx5i_pkey_cleanup_tx(struct mlx5e_priv *priv)
+{
+	struct mlx5i_priv *ipriv = priv->ppriv;
+
+	mlx5i_destroy_underlay_qp(priv->mdev, &ipriv->qp);
+}
+
+static int mlx5i_pkey_init_rx(struct mlx5e_priv *priv)
+{
+	/* Since the rx resources are shared between child and parent, the
+	 * parent interface is taking care of rx resource allocation and init
+	 */
+	return 0;
+}
+
+static void mlx5i_pkey_cleanup_rx(struct mlx5e_priv *priv)
+{
+	/* Since the rx resources are shared between child and parent, the
+	 * parent interface is taking care of rx resource free and de-init
+	 */
+}
+
+static const struct mlx5e_profile mlx5i_pkey_nic_profile = {
+	.init		   = mlx5i_pkey_init,
+	.cleanup	   = mlx5i_pkey_cleanup,
+	.init_tx	   = mlx5i_pkey_init_tx,
+	.cleanup_tx	   = mlx5i_pkey_cleanup_tx,
+	.init_rx	   = mlx5i_pkey_init_rx,
+	.cleanup_rx	   = mlx5i_pkey_cleanup_rx,
+	.enable		   = NULL,
+	.disable	   = NULL,
+	.update_stats	   = NULL,
+	.max_nch	   = mlx5e_get_max_num_channels,
+	.rx_handlers.handle_rx_cqe       = mlx5i_handle_rx_cqe,
+	.rx_handlers.handle_rx_cqe_mpwqe = NULL, /* Not supported */
+	.max_tc		   = MLX5I_MAX_NUM_TC,
+};
+
+const struct mlx5e_profile *mlx5i_pkey_get_profile(void)
+{
+	return &mlx5i_pkey_nic_profile;
+}

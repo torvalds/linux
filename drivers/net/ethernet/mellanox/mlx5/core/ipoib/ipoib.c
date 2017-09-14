@@ -70,10 +70,10 @@ static void mlx5i_build_nic_params(struct mlx5_core_dev *mdev,
 }
 
 /* Called directly after IPoIB netdevice was created to initialize SW structs */
-static void mlx5i_init(struct mlx5_core_dev *mdev,
-		       struct net_device *netdev,
-		       const struct mlx5e_profile *profile,
-		       void *ppriv)
+void mlx5i_init(struct mlx5_core_dev *mdev,
+		struct net_device *netdev,
+		const struct mlx5e_profile *profile,
+		void *ppriv)
 {
 	struct mlx5e_priv *priv  = mlx5i_epriv(netdev);
 
@@ -169,7 +169,7 @@ static void mlx5i_uninit_underlay_qp(struct mlx5e_priv *priv)
 
 #define MLX5_QP_ENHANCED_ULP_STATELESS_MODE 2
 
-static int mlx5i_create_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp)
+int mlx5i_create_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp)
 {
 	u32 *in = NULL;
 	void *addr_path;
@@ -203,7 +203,7 @@ out:
 	return ret;
 }
 
-static void mlx5i_destroy_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp)
+void mlx5i_destroy_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp)
 {
 	mlx5_core_destroy_qp(mdev, qp);
 }
