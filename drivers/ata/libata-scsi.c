@@ -106,10 +106,11 @@ static const u8 def_control_mpage[CONTROL_MPAGE_LEN] = {
 };
 
 static const char *ata_lpm_policy_names[] = {
-	[ATA_LPM_UNKNOWN]	= "max_performance",
-	[ATA_LPM_MAX_POWER]	= "max_performance",
-	[ATA_LPM_MED_POWER]	= "medium_power",
-	[ATA_LPM_MIN_POWER]	= "min_power",
+	[ATA_LPM_UNKNOWN]		= "max_performance",
+	[ATA_LPM_MAX_POWER]		= "max_performance",
+	[ATA_LPM_MED_POWER]		= "medium_power",
+	[ATA_LPM_MED_POWER_WITH_DIPM]	= "med_power_with_dipm",
+	[ATA_LPM_MIN_POWER]		= "min_power",
 };
 
 static ssize_t ata_scsi_lpm_store(struct device *device,
