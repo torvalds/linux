@@ -279,6 +279,18 @@ static int mpc10_mpcc_add(struct mpc *mpc, struct mpcc_cfg *cfg)
 	if (z_idx == cfg->tree_cfg->num_pipes) {
 		ASSERT(cfg->z_index <= cfg->tree_cfg->num_pipes);
 		mpcc_id = mpc10_get_idle_mpcc_id(mpc10);
+
+		/*
+		 * TODO: remove hack
+		 * Note: currently there is a bug in init_hw such that
+		 * on resume from hibernate, BIOS sets up MPCC0, and
+		 * we do mpcc_remove but the mpcc cannot go to idle
+		 * after remove. This cause us to pick mpcc1 here,
+		 * which causes a pstate hang for yet unknown reason.
+		 */
+		mpcc_id = cfg->dpp_id;
+		/* end hack*/
+
 		ASSERT(!(mpc10->mpcc_in_use_mask & 1 << mpcc_id));
 
 		if (mpc->ctx->dc->debug.sanity_checks)
