@@ -905,7 +905,6 @@ int smu7_enable_power_containment(struct pp_hwmgr *hwmgr)
 			if (0 == smc_result) {
 				uint32_t default_limit =
 					(uint32_t)(cac_table->usMaximumPowerDeliveryLimit * 256);
-
 				data->power_containment_features |=
 						POWERCONTAINMENT_FEATURE_PkgPwrLimit;
 
@@ -976,10 +975,12 @@ int smu7_power_control_set_level(struct pp_hwmgr *hwmgr)
 		adjust_percent = hwmgr->platform_descriptor.TDPAdjustmentPolarity ?
 				hwmgr->platform_descriptor.TDPAdjustment :
 				(-1 * hwmgr->platform_descriptor.TDPAdjustment);
-		/* SMC requested that target_tdp to be 7 bit fraction in DPM table
-		 * but message to be 8 bit fraction for messages
-		 */
-		target_tdp = ((100 + adjust_percent) * (int)(cac_table->usTDP * 256)) / 100;
+
+		 if (hwmgr->chip_id > CHIP_TONGA)
+			target_tdp = ((100 + adjust_percent) * (int)(cac_table->usTDP * 256)) / 100;
+		else
+			target_tdp = ((100 + adjust_percent) * (int)(cac_table->usConfigurableTDP * 256)) / 100;
+
 		result = smu7_set_overdriver_target_tdp(hwmgr, (uint32_t)target_tdp);
 	}
 
