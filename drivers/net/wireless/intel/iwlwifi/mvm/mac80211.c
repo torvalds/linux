@@ -3406,10 +3406,24 @@ static void iwl_mvm_change_chanctx(struct ieee80211_hw *hw,
 		return;
 
 	mutex_lock(&mvm->mutex);
+
+	/* we are only changing the min_width, may be a noop */
+	if (changed == IEEE80211_CHANCTX_CHANGE_MIN_WIDTH) {
+		if (phy_ctxt->width == ctx->min_def.width)
+			goto out_unlock;
+
+		/* we are just toggling between 20_NOHT and 20 */
+		if (phy_ctxt->width <= NL80211_CHAN_WIDTH_20 &&
+		    ctx->min_def.width <= NL80211_CHAN_WIDTH_20)
+			goto out_unlock;
+	}
+
 	iwl_mvm_bt_coex_vif_change(mvm);
 	iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &ctx->min_def,
 				 ctx->rx_chains_static,
 				 ctx->rx_chains_dynamic);
+
+out_unlock:
 	mutex_unlock(&mvm->mutex);
 }
 
