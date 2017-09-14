@@ -235,7 +235,9 @@ sh_css_load_firmware(const char *fw_data,
 		sh_css_blob_info = NULL;
 	}
 
-	fw_minibuffer = kzalloc(sh_css_num_binaries * sizeof(struct fw_param), GFP_KERNEL);
+	fw_minibuffer = kcalloc(sh_css_num_binaries, sizeof(struct fw_param),
+				GFP_KERNEL);
+
 	if (fw_minibuffer == NULL)
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 
