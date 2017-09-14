@@ -738,6 +738,11 @@
 #define DP_RECEIVER_ALPM_STATUS		    0x200b  /* eDP 1.4 */
 # define DP_ALPM_LOCK_TIMEOUT_ERROR	    (1 << 0)
 
+#define DP_LANE0_1_STATUS_ESI                  0x200c /* status same as 0x202 */
+#define DP_LANE2_3_STATUS_ESI                  0x200d /* status same as 0x203 */
+#define DP_LANE_ALIGN_STATUS_UPDATED_ESI       0x200e /* status same as 0x204 */
+#define DP_SINK_STATUS_ESI                     0x200f /* status same as 0x205 */
+
 #define DP_DPRX_FEATURE_ENUMERATION_LIST    0x2210  /* DP 1.3 */
 # define DP_GTC_CAP					(1 << 0)  /* DP 1.3 */
 # define DP_SST_SPLIT_SDP_CAP				(1 << 1)  /* DP 1.4 */
