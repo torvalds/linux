@@ -800,6 +800,10 @@ dw_hdmi_rockchip_attatch_properties(struct drm_connector *connector,
 		hdmi->outputmode_capacity = prop;
 		drm_object_attach_property(&connector->base, prop, 0);
 	}
+
+	prop = connector->dev->mode_config.hdr_source_metadata_property;
+	if (version >= 0x211a)
+		drm_object_attach_property(&connector->base, prop, 0);
 }
 
 static void
@@ -841,12 +845,15 @@ dw_hdmi_rockchip_set_property(struct drm_connector *connector,
 			      void *data)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+	struct drm_mode_config *config = &connector->dev->mode_config;
 
 	if (property == hdmi->color_depth_property) {
 		hdmi->colordepth = val;
 		return 0;
 	} else if (property == hdmi->hdmi_output_property) {
 		hdmi->hdmi_output = val;
+		return 0;
+	} else if (property == config->hdr_source_metadata_property) {
 		return 0;
 	}
 
@@ -863,6 +870,8 @@ dw_hdmi_rockchip_get_property(struct drm_connector *connector,
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
 	struct drm_display_info *info = &connector->display_info;
+	struct drm_mode_config *config = &connector->dev->mode_config;
+	const struct drm_connector_state *conn_state = connector->state;
 
 	if (property == hdmi->color_depth_property) {
 		*val = hdmi->colordepth;
@@ -897,6 +906,9 @@ dw_hdmi_rockchip_get_property(struct drm_connector *connector,
 		if (connector->ycbcr_420_allowed &&
 		    info->color_formats & DRM_COLOR_FORMAT_YCRCB420)
 			*val |= BIT(DRM_HDMI_OUTPUT_YCBCR420);
+		return 0;
+	} else if (property == config->hdr_source_metadata_property) {
+		*val = conn_state->blob_id;
 		return 0;
 	}
 
