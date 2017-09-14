@@ -17,6 +17,8 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
+#include <uapi/linux/videodev2.h>
+
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"
 
@@ -112,6 +114,7 @@ struct rockchip_hdmi {
 	bool unsupported_deep_color;
 	unsigned long bus_format;
 	unsigned long output_bus_format;
+	unsigned long enc_out_encoding;
 
 	struct drm_property *color_depth_property;
 	struct drm_property *hdmi_output_property;
@@ -542,10 +545,14 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 			       struct drm_crtc_state *crtc_state,
 			       struct rockchip_hdmi *hdmi,
 			       unsigned int *color_format,
-			       unsigned int *color_depth)
+			       unsigned int *color_depth,
+			       unsigned long *enc_out_encoding,
+			       unsigned int *eotf)
 {
 	struct drm_display_info *info = &conn_state->connector->display_info;
 	struct drm_display_mode *mode = &crtc_state->mode;
+	struct hdr_static_metadata *hdr_metadata;
+	u32 vic = drm_match_cea_mode(mode);
 
 	*color_format = DRM_HDMI_OUTPUT_DEFAULT_RGB;
 
@@ -595,6 +602,31 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 	*color_depth = dw_hdmi_rockchip_check_depth(info, mode,
 						    *color_format,
 						    hdmi->colordepth);
+	*eotf = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
+	if (conn_state->hdr_output_metadata) {
+		hdr_metadata = (struct hdr_static_metadata *)
+			conn_state->hdr_output_metadata->data;
+		if (hdr_metadata->eotf > HDMI_EOTF_TRADITIONAL_GAMMA_SDR &&
+		    hdr_metadata->eotf <= HDMI_EOTF_BT_2100_HLG)
+			*eotf = hdr_metadata->eotf;
+	}
+
+	if (*eotf > HDMI_EOTF_TRADITIONAL_GAMMA_SDR &&
+	    conn_state->connector->hdr_sink_metadata.hdmi_type1.eotf &
+	    BIT(*eotf))
+		*enc_out_encoding = V4L2_YCBCR_ENC_BT2020;
+	else if ((vic == 6) || (vic == 7) || (vic == 21) || (vic == 22) ||
+		   (vic == 2) || (vic == 3) || (vic == 17) || (vic == 18))
+		*enc_out_encoding = V4L2_YCBCR_ENC_601;
+	else
+		*enc_out_encoding = V4L2_YCBCR_ENC_709;
+
+	if (*enc_out_encoding == V4L2_YCBCR_ENC_BT2020) {
+		/* According to ITU.BT2020, color depth is at lest 10bit */
+		*color_depth = 10;
+		if (info->color_formats & DRM_COLOR_FORMAT_YCRCB422)
+			*color_format = DRM_HDMI_OUTPUT_YCBCR422;
+	}
 }
 
 static int
@@ -607,7 +639,8 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 	unsigned int colordepth, colorformat, bus_width;
 
 	dw_hdmi_rockchip_select_output(conn_state, crtc_state, hdmi,
-				       &colorformat, &colordepth);
+				       &colorformat, &colordepth,
+				       &hdmi->enc_out_encoding, &s->eotf);
 
 	if (colorformat == DRM_HDMI_OUTPUT_YCBCR420) {
 		s->output_mode = ROCKCHIP_OUT_MODE_YUV420;
@@ -657,6 +690,15 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 		hdmi->output_bus_format = s->bus_format;
 	}
 
+	if (hdmi->enc_out_encoding == V4L2_YCBCR_ENC_BT2020)
+		s->color_space = V4L2_COLORSPACE_BT2020;
+	else if (colorformat == DRM_HDMI_OUTPUT_DEFAULT_RGB)
+		s->color_space = V4L2_COLORSPACE_DEFAULT;
+	else if (hdmi->enc_out_encoding == V4L2_YCBCR_ENC_709)
+		s->color_space = V4L2_COLORSPACE_REC709;
+	else
+		s->color_space = V4L2_COLORSPACE_SMPTE170M;
+
 	return 0;
 }
 
@@ -675,6 +717,14 @@ dw_hdmi_rockchip_get_output_bus_format(void *data)
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
 
 	return hdmi->output_bus_format;
+}
+
+static unsigned long
+dw_hdmi_rockchip_get_enc_out_encoding(void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	return hdmi->enc_out_encoding;
 }
 
 static unsigned long
@@ -1200,6 +1250,8 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		dw_hdmi_rockchip_get_input_bus_format;
 	plat_data->get_output_bus_format =
 		dw_hdmi_rockchip_get_output_bus_format;
+	plat_data->get_enc_out_encoding =
+		dw_hdmi_rockchip_get_enc_out_encoding;
 	plat_data->get_quant_range =
 		dw_hdmi_rockchip_get_quant_range;
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
