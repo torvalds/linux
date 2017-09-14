@@ -530,6 +530,7 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 		return;
 	}
 
+	WARN_ON(dev_priv->drrs.dp);
 	mutex_lock(&dev_priv->psr.lock);
 	if (dev_priv->psr.enabled) {
 		DRM_DEBUG_KMS("PSR already in use\n");

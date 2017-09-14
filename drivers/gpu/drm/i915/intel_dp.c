@@ -5467,11 +5467,6 @@ static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	/*
-	 * FIXME: This needs proper synchronization with psr state for some
-	 * platforms that cannot have PSR and DRRS enabled at the same time.
-	 */
-
 	dig_port = dp_to_dig_port(intel_dp);
 	encoder = &dig_port->base;
 	intel_crtc = to_intel_crtc(encoder->base.crtc);
@@ -5552,6 +5547,11 @@ void intel_edp_drrs_enable(struct intel_dp *intel_dp,
 
 	if (!crtc_state->has_drrs) {
 		DRM_DEBUG_KMS("Panel doesn't support DRRS\n");
+		return;
+	}
+
+	if (dev_priv->psr.enabled) {
+		DRM_DEBUG_KMS("PSR enabled. Not enabling DRRS.\n");
 		return;
 	}
 
