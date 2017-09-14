@@ -601,7 +601,6 @@ static void __i915_guc_submit(struct drm_i915_gem_request *rq)
 	struct intel_guc *guc = &rq->i915->guc;
 	struct i915_guc_client *client = guc->execbuf_client;
 	unsigned long flags;
-	int b_ret;
 
 	/* WA to flush out the pending GMADR writes to ring buffer. */
 	if (i915_vma_is_map_and_fenceable(rq->ring->vma))
@@ -610,7 +609,7 @@ static void __i915_guc_submit(struct drm_i915_gem_request *rq)
 	spin_lock_irqsave(&client->wq_lock, flags);
 
 	guc_wq_item_append(client, rq);
-	b_ret = guc_ring_doorbell(client);
+	WARN_ON(guc_ring_doorbell(client));
 
 	client->submissions[engine_id] += 1;
 
