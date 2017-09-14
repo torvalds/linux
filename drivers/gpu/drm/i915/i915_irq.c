@@ -567,62 +567,16 @@ void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
 	POSTING_READ(SDEIMR);
 }
 
-static void
-__i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
-		       u32 enable_mask, u32 status_mask)
+u32 i915_pipestat_enable_mask(struct drm_i915_private *dev_priv,
+			      enum pipe pipe)
 {
-	i915_reg_t reg = PIPESTAT(pipe);
-	u32 pipestat = I915_READ(reg) & PIPESTAT_INT_ENABLE_MASK;
-
-	lockdep_assert_held(&dev_priv->irq_lock);
-	WARN_ON(!intel_irqs_enabled(dev_priv));
-
-	if (WARN_ONCE(enable_mask & ~PIPESTAT_INT_ENABLE_MASK ||
-		      status_mask & ~PIPESTAT_INT_STATUS_MASK,
-		      "pipe %c: enable_mask=0x%x, status_mask=0x%x\n",
-		      pipe_name(pipe), enable_mask, status_mask))
-		return;
-
-	if ((pipestat & enable_mask) == enable_mask)
-		return;
-
-	dev_priv->pipestat_irq_mask[pipe] |= status_mask;
-
-	/* Enable the interrupt, clear any pending status */
-	pipestat |= enable_mask | status_mask;
-	I915_WRITE(reg, pipestat);
-	POSTING_READ(reg);
-}
-
-static void
-__i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
-		        u32 enable_mask, u32 status_mask)
-{
-	i915_reg_t reg = PIPESTAT(pipe);
-	u32 pipestat = I915_READ(reg) & PIPESTAT_INT_ENABLE_MASK;
-
-	lockdep_assert_held(&dev_priv->irq_lock);
-	WARN_ON(!intel_irqs_enabled(dev_priv));
-
-	if (WARN_ONCE(enable_mask & ~PIPESTAT_INT_ENABLE_MASK ||
-		      status_mask & ~PIPESTAT_INT_STATUS_MASK,
-		      "pipe %c: enable_mask=0x%x, status_mask=0x%x\n",
-		      pipe_name(pipe), enable_mask, status_mask))
-		return;
-
-	if ((pipestat & enable_mask) == 0)
-		return;
-
-	dev_priv->pipestat_irq_mask[pipe] &= ~status_mask;
-
-	pipestat &= ~enable_mask;
-	I915_WRITE(reg, pipestat);
-	POSTING_READ(reg);
-}
-
-static u32 vlv_get_pipestat_enable_mask(struct drm_device *dev, u32 status_mask)
-{
+	u32 status_mask = dev_priv->pipestat_irq_mask[pipe];
 	u32 enable_mask = status_mask << 16;
+
+	lockdep_assert_held(&dev_priv->irq_lock);
+
+	if (INTEL_GEN(dev_priv) < 5)
+		goto out;
 
 	/*
 	 * On pipe A we don't support the PSR interrupt yet,
@@ -645,35 +599,59 @@ static u32 vlv_get_pipestat_enable_mask(struct drm_device *dev, u32 status_mask)
 	if (status_mask & SPRITE1_FLIP_DONE_INT_STATUS_VLV)
 		enable_mask |= SPRITE1_FLIP_DONE_INT_EN_VLV;
 
+out:
+	WARN_ONCE(enable_mask & ~PIPESTAT_INT_ENABLE_MASK ||
+		  status_mask & ~PIPESTAT_INT_STATUS_MASK,
+		  "pipe %c: enable_mask=0x%x, status_mask=0x%x\n",
+		  pipe_name(pipe), enable_mask, status_mask);
+
 	return enable_mask;
 }
 
-void
-i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
-		     u32 status_mask)
+void i915_enable_pipestat(struct drm_i915_private *dev_priv,
+			  enum pipe pipe, u32 status_mask)
 {
+	i915_reg_t reg = PIPESTAT(pipe);
 	u32 enable_mask;
 
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		enable_mask = vlv_get_pipestat_enable_mask(&dev_priv->drm,
-							   status_mask);
-	else
-		enable_mask = status_mask << 16;
-	__i915_enable_pipestat(dev_priv, pipe, enable_mask, status_mask);
+	WARN_ONCE(status_mask & ~PIPESTAT_INT_STATUS_MASK,
+		  "pipe %c: status_mask=0x%x\n",
+		  pipe_name(pipe), status_mask);
+
+	lockdep_assert_held(&dev_priv->irq_lock);
+	WARN_ON(!intel_irqs_enabled(dev_priv));
+
+	if ((dev_priv->pipestat_irq_mask[pipe] & status_mask) == status_mask)
+		return;
+
+	dev_priv->pipestat_irq_mask[pipe] |= status_mask;
+	enable_mask = i915_pipestat_enable_mask(dev_priv, pipe);
+
+	I915_WRITE(reg, enable_mask | status_mask);
+	POSTING_READ(reg);
 }
 
-void
-i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
-		      u32 status_mask)
+void i915_disable_pipestat(struct drm_i915_private *dev_priv,
+			   enum pipe pipe, u32 status_mask)
 {
+	i915_reg_t reg = PIPESTAT(pipe);
 	u32 enable_mask;
 
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		enable_mask = vlv_get_pipestat_enable_mask(&dev_priv->drm,
-							   status_mask);
-	else
-		enable_mask = status_mask << 16;
-	__i915_disable_pipestat(dev_priv, pipe, enable_mask, status_mask);
+	WARN_ONCE(status_mask & ~PIPESTAT_INT_STATUS_MASK,
+		  "pipe %c: status_mask=0x%x\n",
+		  pipe_name(pipe), status_mask);
+
+	lockdep_assert_held(&dev_priv->irq_lock);
+	WARN_ON(!intel_irqs_enabled(dev_priv));
+
+	if ((dev_priv->pipestat_irq_mask[pipe] & status_mask) == 0)
+		return;
+
+	dev_priv->pipestat_irq_mask[pipe] &= ~status_mask;
+	enable_mask = i915_pipestat_enable_mask(dev_priv, pipe);
+
+	I915_WRITE(reg, enable_mask | status_mask);
+	POSTING_READ(reg);
 }
 
 /**
@@ -1775,7 +1753,7 @@ static void i9xx_pipestat_irq_ack(struct drm_i915_private *dev_priv,
 
 	for_each_pipe(dev_priv, pipe) {
 		i915_reg_t reg;
-		u32 mask, iir_bit = 0;
+		u32 status_mask, enable_mask, iir_bit = 0;
 
 		/*
 		 * PIPESTAT bits get signalled even when the interrupt is
@@ -1786,7 +1764,7 @@ static void i9xx_pipestat_irq_ack(struct drm_i915_private *dev_priv,
 		 */
 
 		/* fifo underruns are filterered in the underrun handler. */
-		mask = PIPE_FIFO_UNDERRUN_STATUS;
+		status_mask = PIPE_FIFO_UNDERRUN_STATUS;
 
 		switch (pipe) {
 		case PIPE_A:
@@ -1800,21 +1778,20 @@ static void i9xx_pipestat_irq_ack(struct drm_i915_private *dev_priv,
 			break;
 		}
 		if (iir & iir_bit)
-			mask |= dev_priv->pipestat_irq_mask[pipe];
+			status_mask |= dev_priv->pipestat_irq_mask[pipe];
 
-		if (!mask)
+		if (!status_mask)
 			continue;
 
 		reg = PIPESTAT(pipe);
-		mask |= PIPESTAT_INT_ENABLE_MASK;
-		pipe_stats[pipe] = I915_READ(reg) & mask;
+		pipe_stats[pipe] = I915_READ(reg) & status_mask;
+		enable_mask = i915_pipestat_enable_mask(dev_priv, pipe);
 
 		/*
 		 * Clear the PIPE*STAT regs before the IIR
 		 */
-		if (pipe_stats[pipe] & (PIPE_FIFO_UNDERRUN_STATUS |
-					PIPESTAT_INT_STATUS_MASK))
-			I915_WRITE(reg, pipe_stats[pipe]);
+		if (pipe_stats[pipe])
+			I915_WRITE(reg, enable_mask | pipe_stats[pipe]);
 	}
 	spin_unlock(&dev_priv->irq_lock);
 }
