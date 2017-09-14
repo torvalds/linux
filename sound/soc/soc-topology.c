@@ -1378,6 +1378,9 @@ err_se:
 	for (; i >= 0; i--) {
 		/* free values and texts */
 		se = (struct soc_enum *)kc[i].private_value;
+		if (!se)
+			continue;
+
 		kfree(se->dobj.control.dvalues);
 		for (j = 0; j < ec->items; j++)
 			kfree(se->dobj.control.dtexts[j]);
