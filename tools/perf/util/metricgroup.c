@@ -373,9 +373,6 @@ static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 	int ret = -EINVAL;
 	int i, j;
 
-	strbuf_init(events, 100);
-	strbuf_addf(events, "%s", "");
-
 	if (!map)
 		return 0;
 
@@ -433,6 +430,10 @@ static int metricgroup__add_metric_list(const char *list, struct strbuf *events,
 	if (!nlist)
 		return -ENOMEM;
 	llist = nlist;
+
+	strbuf_init(events, 100);
+	strbuf_addf(events, "%s", "");
+
 	while ((p = strsep(&llist, ",")) != NULL) {
 		ret = metricgroup__add_metric(p, events, group_list);
 		if (ret == -EINVAL) {
