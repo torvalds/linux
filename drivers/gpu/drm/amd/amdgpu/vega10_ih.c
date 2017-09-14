@@ -219,9 +219,9 @@ static u32 vega10_ih_get_wptr(struct amdgpu_device *adev)
 			wptr, adev->irq.ih.rptr, tmp);
 		adev->irq.ih.rptr = tmp;
 
-		tmp = RREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL));
+		tmp = RREG32_NO_KIQ(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL));
 		tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 1);
-		WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL), tmp);
+		WREG32_NO_KIQ(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL), tmp);
 	}
 	return (wptr & adev->irq.ih.ptr_mask);
 }
