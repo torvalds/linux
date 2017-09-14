@@ -373,7 +373,6 @@ int drm_agp_free(struct drm_device *dev, struct drm_agp_buffer *request)
 EXPORT_SYMBOL(drm_agp_free);
 
 
-
 int drm_agp_free_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
