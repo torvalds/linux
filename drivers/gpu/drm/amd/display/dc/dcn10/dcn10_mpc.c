@@ -313,10 +313,34 @@ static int mpc10_mpcc_add(struct mpc *mpc, struct mpcc_cfg *cfg)
 	return mpcc_id;
 }
 
+static void mpc10_update_blend_mode(
+		struct mpc *mpc,
+		struct mpcc_cfg *cfg)
+{
+	struct dcn10_mpc *mpc10 = TO_DCN10_MPC(mpc);
+	int mpcc_id, z_idx;
+	int alpha_blnd_mode = cfg->per_pixel_alpha ?
+			BLND_PP_ALPHA : BLND_GLOBAL_ALPHA;
+
+	/* find z_idx for the dpp that requires blending mode update*/
+	for (z_idx = 0; z_idx < cfg->tree_cfg->num_pipes; z_idx++)
+		if (cfg->tree_cfg->dpp[z_idx] == cfg->dpp_id)
+			break;
+
+	ASSERT(z_idx < cfg->tree_cfg->num_pipes);
+	mpcc_id = cfg->tree_cfg->mpcc[z_idx];
+
+	REG_UPDATE_2(MPCC_CONTROL[mpcc_id],
+			MPCC_ALPHA_BLND_MODE, alpha_blnd_mode,
+			MPCC_ALPHA_MULTIPLIED_MODE, cfg->pre_multiplied_alpha);
+}
+
 const struct mpc_funcs dcn10_mpc_funcs = {
 		.add = mpc10_mpcc_add,
 		.remove = mpc10_mpcc_remove,
-		.wait_for_idle = mpc10_assert_idle_mpcc
+		.wait_for_idle = mpc10_assert_idle_mpcc,
+		.set_denorm = NULL,
+		.update_blend_mode = mpc10_update_blend_mode
 };
 
 void dcn10_mpc_construct(struct dcn10_mpc *mpc10,
@@ -337,3 +361,4 @@ void dcn10_mpc_construct(struct dcn10_mpc *mpc10,
 	mpc10->mpcc_in_use_mask = 0;
 	mpc10->num_mpcc = num_mpcc;
 }
+

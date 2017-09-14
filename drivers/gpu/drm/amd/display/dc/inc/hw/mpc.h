@@ -51,6 +51,10 @@ struct mpc_funcs {
 			int opp_id,
 			int mpcc_inst);
 	void (*wait_for_idle)(struct mpc *mpc, int id);
+	void (*set_denorm)(struct mpc *mpc,
+			int opp_id,
+			enum dc_color_depth output_depth);
+	void (*update_blend_mode)(struct mpc *mpc, struct mpcc_cfg *cfg);
 };
 
 #endif
