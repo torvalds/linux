@@ -1215,7 +1215,6 @@ static int rockchip_get_system_status_rate(struct device_node *np,
 static void rockchip_dmcfreq_update_target(struct rockchip_dmcfreq *dmcfreq)
 {
 	struct devfreq *df = dmcfreq->devfreq;
-	unsigned long min_freq = 0, max_freq = 0;
 
 	mutex_lock(&df->lock);
 
@@ -1225,38 +1224,8 @@ static void rockchip_dmcfreq_update_target(struct rockchip_dmcfreq *dmcfreq)
 		dmcfreq->last_refresh = dmcfreq->refresh;
 	}
 
-	if (dmcfreq->auto_freq_en && !dmcfreq->is_dualview) {
-		if (dmcfreq->status_rate)
-			min_freq = dmcfreq->status_rate;
-		else if (dmcfreq->auto_min_rate)
-			min_freq = dmcfreq->auto_min_rate;
-		min_freq = max(min_freq, dmcfreq->vop_req_rate);
-		if (!min_freq)
-			min_freq = dmcfreq->min;
-		max_freq = dmcfreq->max;
-	} else {
-		if (dmcfreq->status_rate) {
-			min_freq = dmcfreq->status_rate;
-			max_freq = dmcfreq->status_rate;
-		} else if (dmcfreq->normal_rate) {
-			min_freq = dmcfreq->normal_rate;
-			max_freq = dmcfreq->normal_rate;
-		} else {
-			dev_err(&df->dev, "Invalid status\n");
-			goto out;
-		}
-	}
-
-	if (min_freq == df->min_freq && max_freq == df->max_freq)
-		goto out;
-	df->min_freq = min_freq;
-	df->max_freq = max_freq;
-
-	dev_dbg(&df->dev, "min=%lu max=%lu\n", df->min_freq, df->max_freq);
-
 	update_devfreq(df);
 
-out:
 	mutex_unlock(&df->lock);
 }
 
@@ -1570,29 +1539,6 @@ static ssize_t rockchip_dmcfreq_status_store(struct device *dev,
 static DEVICE_ATTR(system_status, 0644, rockchip_dmcfreq_status_show,
 		   rockchip_dmcfreq_status_store);
 
-static void rockchip_dmcfreq_vop_up(struct rockchip_dmcfreq *dmcfreq)
-{
-	rockchip_dmcfreq_update_target(dmcfreq);
-}
-
-static void rockchip_dmcfreq_vop_down(struct rockchip_dmcfreq *dmcfreq)
-{
-	struct devfreq *df = dmcfreq->devfreq;
-	unsigned long min_freq = 0;
-
-	mutex_lock(&df->lock);
-
-	min_freq = max3(dmcfreq->status_rate, dmcfreq->auto_min_rate,
-			dmcfreq->vop_req_rate);
-	if (!min_freq)
-		min_freq = dmcfreq->min;
-
-	df->min_freq = min_freq;
-	df->max_freq = dmcfreq->max;
-
-	mutex_unlock(&df->lock);
-}
-
 void rockchip_dmcfreq_vop_bandwidth_update(unsigned int bw_mbyte)
 {
 	struct rockchip_dmcfreq *dmcfreq = rk_dmcfreq;
@@ -1616,9 +1562,7 @@ void rockchip_dmcfreq_vop_bandwidth_update(unsigned int bw_mbyte)
 	dmcfreq->vop_req_rate = target;
 
 	if (target > vop_last_rate)
-		rockchip_dmcfreq_vop_up(dmcfreq);
-	else
-		rockchip_dmcfreq_vop_down(dmcfreq);
+		rockchip_dmcfreq_update_target(dmcfreq);
 }
 
 int rockchip_dmcfreq_vop_bandwidth_request(unsigned int bw_mbyte)
@@ -1641,6 +1585,138 @@ int rockchip_dmcfreq_vop_bandwidth_request(unsigned int bw_mbyte)
 	else
 		return -EINVAL;
 }
+
+static int devfreq_dmc_ondemand_func(struct devfreq *df,
+				     unsigned long *freq)
+{
+	int err;
+	struct devfreq_dev_status *stat;
+	unsigned long long a, b;
+	struct devfreq_simple_ondemand_data *data = df->data;
+	unsigned int upthreshold = data->upthreshold;
+	unsigned int downdifferential = data->downdifferential;
+	unsigned long max_freq = (df->max_freq) ? df->max_freq : UINT_MAX;
+	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(df->dev.parent);
+	unsigned long target_freq = 0;
+
+	if (dmcfreq->auto_freq_en && !dmcfreq->is_dualview) {
+		if (dmcfreq->status_rate)
+			target_freq = dmcfreq->status_rate;
+		else if (dmcfreq->auto_min_rate)
+			target_freq = dmcfreq->auto_min_rate;
+		target_freq = max(target_freq, dmcfreq->vop_req_rate);
+	} else {
+		if (dmcfreq->status_rate)
+			target_freq = dmcfreq->status_rate;
+		else if (dmcfreq->normal_rate)
+			target_freq = dmcfreq->normal_rate;
+		if (target_freq)
+			*freq = target_freq;
+		goto next;
+	}
+
+	if (!upthreshold || !downdifferential)
+		goto next;
+
+	if (upthreshold > 100 ||
+	    upthreshold < downdifferential)
+		goto next;
+
+	err = devfreq_update_stats(df);
+	if (err)
+		goto next;
+
+	stat = &df->last_status;
+
+	/* Assume MAX if it is going to be divided by zero */
+	if (stat->total_time == 0) {
+		*freq = max_freq;
+		return 0;
+	}
+
+	/* Prevent overflow */
+	if (stat->busy_time >= (1 << 24) || stat->total_time >= (1 << 24)) {
+		stat->busy_time >>= 7;
+		stat->total_time >>= 7;
+	}
+
+	/* Set MAX if it's busy enough */
+	if (stat->busy_time * 100 >
+	    stat->total_time * upthreshold) {
+		*freq = max_freq;
+		return 0;
+	}
+
+	/* Set MAX if we do not know the initial frequency */
+	if (stat->current_frequency == 0) {
+		*freq = max_freq;
+		return 0;
+	}
+
+	/* Keep the current frequency */
+	if (stat->busy_time * 100 >
+	    stat->total_time * (upthreshold - downdifferential)) {
+		*freq = max(target_freq, stat->current_frequency);
+		goto next;
+	}
+
+	/* Set the desired frequency based on the load */
+	a = stat->busy_time;
+	a *= stat->current_frequency;
+	b = div_u64(a, stat->total_time);
+	b *= 100;
+	b = div_u64(b, (upthreshold - downdifferential / 2));
+	*freq = max_t(unsigned long, target_freq, b);
+
+next:
+	if (df->min_freq && *freq < df->min_freq)
+		*freq = df->min_freq;
+	if (df->max_freq && *freq > df->max_freq)
+		*freq = df->max_freq;
+
+	return 0;
+}
+
+static int devfreq_dmc_ondemand_handler(struct devfreq *devfreq,
+					unsigned int event, void *data)
+{
+	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(devfreq->dev.parent);
+
+	switch (event) {
+	case DEVFREQ_GOV_START:
+		if (!devfreq->data)
+			devfreq->data = &dmcfreq->ondemand_data;
+		devfreq_monitor_start(devfreq);
+		break;
+
+	case DEVFREQ_GOV_STOP:
+		devfreq_monitor_stop(devfreq);
+		break;
+
+	case DEVFREQ_GOV_INTERVAL:
+		devfreq_interval_update(devfreq, (unsigned int *)data);
+		break;
+
+	case DEVFREQ_GOV_SUSPEND:
+		devfreq_monitor_suspend(devfreq);
+		break;
+
+	case DEVFREQ_GOV_RESUME:
+		devfreq_monitor_resume(devfreq);
+		break;
+
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static struct devfreq_governor devfreq_dmc_ondemand = {
+	.name = "dmc_ondemand",
+	.get_target_freq = devfreq_dmc_ondemand_func,
+	.event_handler = devfreq_dmc_ondemand_handler,
+};
 
 static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 {
@@ -1723,8 +1799,14 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 
 	devp->initial_freq = data->rate;
 
+	ret = devfreq_add_governor(&devfreq_dmc_ondemand);
+	if (ret) {
+		dev_err(dev, "Failed to add rockchip governor: %d\n", ret);
+		return ret;
+	}
+
 	data->devfreq = devm_devfreq_add_device(dev, devp,
-						"simple_ondemand",
+						"dmc_ondemand",
 						&data->ondemand_data);
 	if (IS_ERR(data->devfreq))
 		return PTR_ERR(data->devfreq);
