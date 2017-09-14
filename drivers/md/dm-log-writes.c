@@ -100,6 +100,7 @@ struct log_writes_c {
 	struct dm_dev *logdev;
 	u64 logged_entries;
 	u32 sectorsize;
+	u32 sectorshift;
 	atomic_t io_blocks;
 	atomic_t pending_blocks;
 	sector_t next_sector;
@@ -127,6 +128,18 @@ struct pending_block {
 struct per_bio_data {
 	struct pending_block *block;
 };
+
+static inline sector_t bio_to_dev_sectors(struct log_writes_c *lc,
+					  sector_t sectors)
+{
+	return sectors >> (lc->sectorshift - SECTOR_SHIFT);
+}
+
+static inline sector_t dev_to_bio_sectors(struct log_writes_c *lc,
+					  sector_t sectors)
+{
+	return sectors << (lc->sectorshift - SECTOR_SHIFT);
+}
 
 static void put_pending_block(struct log_writes_c *lc)
 {
@@ -253,7 +266,7 @@ static int log_one_block(struct log_writes_c *lc,
 
 	if (!block->vec_cnt)
 		goto out;
-	sector++;
+	sector += dev_to_bio_sectors(lc, 1);
 
 	atomic_inc(&lc->io_blocks);
 	bio = bio_alloc(GFP_KERNEL, min(block->vec_cnt, BIO_MAX_PAGES));
@@ -354,10 +367,9 @@ static int log_writes_kthread(void *arg)
 				goto next;
 
 			sector = lc->next_sector;
-			if (block->flags & LOG_DISCARD_FLAG)
-				lc->next_sector++;
-			else
-				lc->next_sector += block->nr_sectors + 1;
+			if (!(block->flags & LOG_DISCARD_FLAG))
+				lc->next_sector += dev_to_bio_sectors(lc, block->nr_sectors);
+			lc->next_sector += dev_to_bio_sectors(lc, 1);
 
 			/*
 			 * Apparently the size of the device may not be known
@@ -399,7 +411,7 @@ next:
 		if (!try_to_freeze()) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			if (!kthread_should_stop() &&
-			    !atomic_read(&lc->pending_blocks))
+			    list_empty(&lc->logging_blocks))
 				schedule();
 			__set_current_state(TASK_RUNNING);
 		}
@@ -435,7 +447,6 @@ static int log_writes_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	INIT_LIST_HEAD(&lc->unflushed_blocks);
 	INIT_LIST_HEAD(&lc->logging_blocks);
 	init_waitqueue_head(&lc->wait);
-	lc->sectorsize = 1 << SECTOR_SHIFT;
 	atomic_set(&lc->io_blocks, 0);
 	atomic_set(&lc->pending_blocks, 0);
 
@@ -455,6 +466,8 @@ static int log_writes_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
+	lc->sectorsize = bdev_logical_block_size(lc->dev->bdev);
+	lc->sectorshift = ilog2(lc->sectorsize);
 	lc->log_kthread = kthread_run(log_writes_kthread, lc, "log-write");
 	if (IS_ERR(lc->log_kthread)) {
 		ret = PTR_ERR(lc->log_kthread);
@@ -464,8 +477,12 @@ static int log_writes_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
-	/* We put the super at sector 0, start logging at sector 1 */
-	lc->next_sector = 1;
+	/*
+	 * next_sector is in 512b sectors to correspond to what bi_sector expects.
+	 * The super starts at sector 0, and the next_sector is the next logical
+	 * one based on the sectorsize of the device.
+	 */
+	lc->next_sector = lc->sectorsize >> SECTOR_SHIFT;
 	lc->logging_enabled = true;
 	lc->end_sector = logdev_last_sector(lc);
 	lc->device_supports_discard = true;
@@ -599,8 +616,8 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 	if (discard_bio)
 		block->flags |= LOG_DISCARD_FLAG;
 
-	block->sector = bio->bi_iter.bi_sector;
-	block->nr_sectors = bio_sectors(bio);
+	block->sector = bio_to_dev_sectors(lc, bio->bi_iter.bi_sector);
+	block->nr_sectors = bio_to_dev_sectors(lc, bio_sectors(bio));
 
 	/* We don't need the data, just submit */
 	if (discard_bio) {
@@ -767,9 +784,12 @@ static void log_writes_io_hints(struct dm_target *ti, struct queue_limits *limit
 
 	if (!q || !blk_queue_discard(q)) {
 		lc->device_supports_discard = false;
-		limits->discard_granularity = 1 << SECTOR_SHIFT;
+		limits->discard_granularity = lc->sectorsize;
 		limits->max_discard_sectors = (UINT_MAX >> SECTOR_SHIFT);
 	}
+	limits->logical_block_size = bdev_logical_block_size(lc->dev->bdev);
+	limits->physical_block_size = bdev_physical_block_size(lc->dev->bdev);
+	limits->io_min = limits->physical_block_size;
 }
 
 static struct target_type log_writes_target = {

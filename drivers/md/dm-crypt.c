@@ -2529,7 +2529,7 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 {
 	struct crypt_config *cc = ti->private;
 	struct dm_arg_set as;
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, 6, "Invalid number of feature args"},
 	};
 	unsigned int opt_params, val;
