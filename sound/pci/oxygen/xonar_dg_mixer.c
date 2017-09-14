@@ -449,7 +449,7 @@ static int dg_mixer_init(struct oxygen *chip)
 	return 0;
 }
 
-struct oxygen_model model_xonar_dg = {
+const struct oxygen_model model_xonar_dg = {
 	.longname = "C-Media Oxygen HD Audio",
 	.chip = "CMI8786",
 	.init = dg_init,
