@@ -192,13 +192,12 @@ static int __create_doorbell(struct i915_guc_client *client)
 
 	doorbell = __get_doorbell(client);
 	doorbell->db_status = GUC_DOORBELL_ENABLED;
-	doorbell->cookie = client->doorbell_cookie;
+	doorbell->cookie = 0;
 
 	err = __guc_allocate_doorbell(client->guc, client->stage_id);
-	if (err) {
+	if (err)
 		doorbell->db_status = GUC_DOORBELL_DISABLED;
-		doorbell->cookie = 0;
-	}
+
 	return err;
 }
 
@@ -466,57 +465,24 @@ static void guc_reset_wq(struct i915_guc_client *client)
 	client->wq_tail = 0;
 }
 
-static int guc_ring_doorbell(struct i915_guc_client *client)
+static void guc_ring_doorbell(struct i915_guc_client *client)
 {
 	struct guc_process_desc *desc = __get_process_desc(client);
-	union guc_doorbell_qw db_cmp, db_exc, db_ret;
-	union guc_doorbell_qw *db;
-	int attempt = 2, ret = -EAGAIN;
+	struct guc_doorbell_info *db;
+	u32 cookie;
 
 	/* Update the tail so it is visible to GuC */
 	desc->tail = client->wq_tail;
 
-	/* current cookie */
-	db_cmp.db_status = GUC_DOORBELL_ENABLED;
-	db_cmp.cookie = client->doorbell_cookie;
-
-	/* cookie to be updated */
-	db_exc.db_status = GUC_DOORBELL_ENABLED;
-	db_exc.cookie = client->doorbell_cookie + 1;
-	if (db_exc.cookie == 0)
-		db_exc.cookie = 1;
-
 	/* pointer of current doorbell cacheline */
-	db = (union guc_doorbell_qw *)__get_doorbell(client);
+	db = __get_doorbell(client);
 
-	while (attempt--) {
-		/* lets ring the doorbell */
-		db_ret.value_qw = atomic64_cmpxchg((atomic64_t *)db,
-			db_cmp.value_qw, db_exc.value_qw);
+	/* we're not expecting the doorbell cookie to change behind our back */
+	cookie = READ_ONCE(db->cookie);
+	WARN_ON_ONCE(xchg(&db->cookie, cookie + 1) != cookie);
 
-		/* if the exchange was successfully executed */
-		if (db_ret.value_qw == db_cmp.value_qw) {
-			/* db was successfully rung */
-			client->doorbell_cookie = db_exc.cookie;
-			ret = 0;
-			break;
-		}
-
-		/* XXX: doorbell was lost and need to acquire it again */
-		if (db_ret.db_status == GUC_DOORBELL_DISABLED)
-			break;
-
-		DRM_WARN("Cookie mismatch. Expected %d, found %d\n",
-			 db_cmp.cookie, db_ret.cookie);
-
-		/* update the cookie to newly read cookie from GuC */
-		db_cmp.cookie = db_ret.cookie;
-		db_exc.cookie = db_ret.cookie + 1;
-		if (db_exc.cookie == 0)
-			db_exc.cookie = 1;
-	}
-
-	return ret;
+	/* XXX: doorbell was lost and need to acquire it again */
+	GEM_BUG_ON(db->db_status != GUC_DOORBELL_ENABLED);
 }
 
 /**
@@ -549,7 +515,7 @@ static void i915_guc_submit(struct intel_engine_cs *engine)
 			spin_lock(&client->wq_lock);
 
 			guc_wq_item_append(client, rq);
-			WARN_ON(guc_ring_doorbell(client));
+			guc_ring_doorbell(client);
 
 			client->submissions[engine_id] += 1;
 

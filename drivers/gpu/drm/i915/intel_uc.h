@@ -66,7 +66,6 @@ struct i915_guc_client {
 
 	u16 doorbell_id;
 	unsigned long doorbell_offset;
-	u32 doorbell_cookie;
 
 	spinlock_t wq_lock;
 	uint32_t wq_offset;
