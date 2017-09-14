@@ -1201,14 +1201,14 @@ static int amdgpu_ttm_access_memory(struct ttm_buffer_object *bo,
 		}
 
 		spin_lock_irqsave(&adev->mmio_idx_lock, flags);
-		WREG32(mmMM_INDEX, ((uint32_t)aligned_pos) | 0x80000000);
-		WREG32(mmMM_INDEX_HI, aligned_pos >> 31);
+		WREG32_NO_KIQ(mmMM_INDEX, ((uint32_t)aligned_pos) | 0x80000000);
+		WREG32_NO_KIQ(mmMM_INDEX_HI, aligned_pos >> 31);
 		if (!write || mask != 0xffffffff)
-			value = RREG32(mmMM_DATA);
+			value = RREG32_NO_KIQ(mmMM_DATA);
 		if (write) {
 			value &= ~mask;
 			value |= (*(uint32_t *)buf << shift) & mask;
-			WREG32(mmMM_DATA, value);
+			WREG32_NO_KIQ(mmMM_DATA, value);
 		}
 		spin_unlock_irqrestore(&adev->mmio_idx_lock, flags);
 		if (!write) {
