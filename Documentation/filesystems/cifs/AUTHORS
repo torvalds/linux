@@ -41,6 +41,11 @@ Igor Mammedov (DFS support)
 Jeff Layton (many, many fixes, as well as great work on the cifs Kerberos code)
 Scott Lovenberg
 Pavel Shilovsky (for great work adding SMB2 support, and various SMB3 features)
+Aurelien Aptel (for DFS SMB3 work and some key bug fixes)
+Ronnie Sahlberg (for SMB3 xattr work and bug fixes)
+Shirish Pargaonkar (for many ACL patches over the years)
+Sachin Prabhu (many bug fixes, including for reconnect, copy offload and security)
+
 
 Test case and Bug Report contributors
 -------------------------------------
