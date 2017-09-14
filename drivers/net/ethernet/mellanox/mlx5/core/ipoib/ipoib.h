@@ -59,6 +59,10 @@ struct mlx5i_priv {
 int mlx5i_create_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp);
 void mlx5i_destroy_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp);
 
+/* Underlay QP state modification init/uninit functions */
+int mlx5i_init_underlay_qp(struct mlx5e_priv *priv);
+void mlx5i_uninit_underlay_qp(struct mlx5e_priv *priv);
+
 /* Allocate/Free underlay QPN to net-device hash table */
 int mlx5i_pkey_qpn_ht_init(struct net_device *netdev);
 void mlx5i_pkey_qpn_ht_cleanup(struct net_device *netdev);
@@ -69,6 +73,10 @@ int mlx5i_pkey_del_qpn(struct net_device *netdev, u32 qpn);
 
 /* Get the net-device corresponding to the given underlay QPN */
 struct net_device *mlx5i_pkey_get_netdev(struct net_device *netdev, u32 qpn);
+
+/* Shared ndo functionts */
+int mlx5i_dev_init(struct net_device *dev);
+void mlx5i_dev_cleanup(struct net_device *dev);
 
 /* Parent profile functions */
 void mlx5i_init(struct mlx5_core_dev *mdev,

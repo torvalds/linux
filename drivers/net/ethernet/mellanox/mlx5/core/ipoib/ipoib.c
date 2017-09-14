@@ -40,8 +40,6 @@
 
 static int mlx5i_open(struct net_device *netdev);
 static int mlx5i_close(struct net_device *netdev);
-static int  mlx5i_dev_init(struct net_device *dev);
-static void mlx5i_dev_cleanup(struct net_device *dev);
 static int mlx5i_change_mtu(struct net_device *netdev, int new_mtu);
 static int mlx5i_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 
@@ -108,7 +106,7 @@ static void mlx5i_cleanup(struct mlx5e_priv *priv)
 	/* Do nothing .. */
 }
 
-static int mlx5i_init_underlay_qp(struct mlx5e_priv *priv)
+int mlx5i_init_underlay_qp(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5i_priv *ipriv = priv->ppriv;
@@ -154,7 +152,7 @@ err_qp_modify_to_err:
 	return ret;
 }
 
-static void mlx5i_uninit_underlay_qp(struct mlx5e_priv *priv)
+void mlx5i_uninit_underlay_qp(struct mlx5e_priv *priv)
 {
 	struct mlx5i_priv *ipriv = priv->ppriv;
 	struct mlx5_core_dev *mdev = priv->mdev;
@@ -372,7 +370,7 @@ out:
 	return err;
 }
 
-static int mlx5i_dev_init(struct net_device *dev)
+int mlx5i_dev_init(struct net_device *dev)
 {
 	struct mlx5e_priv    *priv   = mlx5i_epriv(dev);
 	struct mlx5i_priv    *ipriv  = priv->ppriv;
@@ -402,7 +400,7 @@ static int mlx5i_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	}
 }
 
-static void mlx5i_dev_cleanup(struct net_device *dev)
+void mlx5i_dev_cleanup(struct net_device *dev)
 {
 	struct mlx5e_priv    *priv   = mlx5i_epriv(dev);
 	struct mlx5i_priv    *ipriv = priv->ppriv;
