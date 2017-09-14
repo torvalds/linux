@@ -776,6 +776,8 @@ static void lock_torture_cleanup(void)
 	else
 		lock_torture_print_module_parms(cxt.cur_ops,
 						"End of test: SUCCESS");
+	kfree(cxt.lwsa);
+	kfree(cxt.lrsa);
 	torture_cleanup_end();
 }
 
@@ -917,6 +919,8 @@ static int __init lock_torture_init(void)
 				       GFP_KERNEL);
 		if (reader_tasks == NULL) {
 			VERBOSE_TOROUT_ERRSTRING("reader_tasks: Out of memory");
+			kfree(writer_tasks);
+			writer_tasks = NULL;
 			firsterr = -ENOMEM;
 			goto unwind;
 		}
