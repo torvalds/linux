@@ -189,7 +189,7 @@ static void ccw_putcs(struct vc_data *vc, struct fb_info *info,
 }
 
 static void ccw_clear_margins(struct vc_data *vc, struct fb_info *info,
-			     int bottom_only)
+			      int color, int bottom_only)
 {
 	unsigned int cw = vc->vc_font.width;
 	unsigned int ch = vc->vc_font.height;
@@ -198,7 +198,7 @@ static void ccw_clear_margins(struct vc_data *vc, struct fb_info *info,
 	unsigned int bs = vc->vc_rows*ch;
 	struct fb_fillrect region;
 
-	region.color = 0;
+	region.color = color;
 	region.rop = ROP_COPY;
 
 	if (rw && !bottom_only) {
@@ -418,7 +418,3 @@ void fbcon_rotate_ccw(struct fbcon_ops *ops)
 	ops->update_start = ccw_update_start;
 }
 EXPORT_SYMBOL(fbcon_rotate_ccw);
-
-MODULE_AUTHOR("Antonino Daplas <adaplas@pol.net>");
-MODULE_DESCRIPTION("Console Rotation (270 degrees) Support");
-MODULE_LICENSE("GPL");

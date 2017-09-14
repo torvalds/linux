@@ -60,7 +60,7 @@ struct fbcon_ops {
 		      const unsigned short *s, int count, int yy, int xx,
 		      int fg, int bg);
 	void (*clear_margins)(struct vc_data *vc, struct fb_info *info,
-			      int bottom_only);
+			      int color, int bottom_only);
 	void (*cursor)(struct vc_data *vc, struct fb_info *info, int mode,
 		       int softback_lines, int fg, int bg);
 	int  (*update_start)(struct fb_info *info);
@@ -261,5 +261,10 @@ extern void fbcon_set_rotate(struct fbcon_ops *ops);
 #define fbcon_set_rotate(x) do {} while(0)
 #endif /* CONFIG_FRAMEBUFFER_CONSOLE_ROTATION */
 
-#endif /* _VIDEO_FBCON_H */
+#ifdef CONFIG_DMI
+int fbcon_platform_get_rotate(struct fb_info *info);
+#else
+#define fbcon_platform_get_rotate(i) FB_ROTATE_UR
+#endif /* CONFIG_DMI */
 
+#endif /* _VIDEO_FBCON_H */

@@ -68,6 +68,7 @@
 #include <linux/kd.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
+#include <linux/fbcon.h>
 #include <linux/vt_kern.h>
 #include <linux/selection.h>
 #include <linux/font.h>
@@ -135,8 +136,9 @@ static char fontname[40];
 static int info_idx = -1;
 
 /* console rotation */
-static int initial_rotation;
+static int initial_rotation = -1;
 static int fbcon_has_sysfs;
+static int margin_color;
 
 static const struct consw fb_con;
 
@@ -491,6 +493,13 @@ static int __init fb_console_setup(char *this_opt)
 				initial_rotation = 0;
 			continue;
 		}
+
+		if (!strncmp(options, "margin:", 7)) {
+			options += 7;
+			if (*options)
+				margin_color = simple_strtoul(options, &options, 0);
+			continue;
+		}
 	}
 	return 1;
 }
@@ -563,7 +572,7 @@ static void fbcon_prepare_logo(struct vc_data *vc, struct fb_info *info,
 	unsigned short *save = NULL, *r, *q;
 	int logo_height;
 
-	if (info->flags & FBINFO_MODULE) {
+	if (info->fbops->owner) {
 		logo_shown = FBCON_LOGO_DONTSHOW;
 		return;
 	}
@@ -954,7 +963,10 @@ static const char *fbcon_startup(void)
 	ops->cur_rotate = -1;
 	ops->cur_blink_jiffies = HZ / 5;
 	info->fbcon_par = ops;
-	p->con_rotate = initial_rotation;
+	if (initial_rotation != -1)
+		p->con_rotate = initial_rotation;
+	else
+		p->con_rotate = fbcon_platform_get_rotate(info);
 	set_blitting_type(vc, info);
 
 	if (info->fix.type != FB_TYPE_TEXT) {
@@ -1091,7 +1103,10 @@ static void fbcon_init(struct vc_data *vc, int init)
 
 	ops = info->fbcon_par;
 	ops->cur_blink_jiffies = msecs_to_jiffies(vc->vc_cur_blink_ms);
-	p->con_rotate = initial_rotation;
+	if (initial_rotation != -1)
+		p->con_rotate = initial_rotation;
+	else
+		p->con_rotate = fbcon_platform_get_rotate(info);
 	set_blitting_type(vc, info);
 
 	cols = vc->vc_cols;
@@ -1299,7 +1314,7 @@ static void fbcon_clear_margins(struct vc_data *vc, int bottom_only)
 	struct fbcon_ops *ops = info->fbcon_par;
 
 	if (!fbcon_is_inactive(vc, info))
-		ops->clear_margins(vc, info, bottom_only);
+		ops->clear_margins(vc, info, margin_color, bottom_only);
 }
 
 static void fbcon_cursor(struct vc_data *vc, int mode)
@@ -3606,7 +3621,7 @@ static void fbcon_exit(void)
 	fbcon_has_exited = 1;
 }
 
-static int __init fb_console_init(void)
+void __init fb_console_init(void)
 {
 	int i;
 
@@ -3628,10 +3643,7 @@ static int __init fb_console_init(void)
 
 	console_unlock();
 	fbcon_start();
-	return 0;
 }
-
-fs_initcall(fb_console_init);
 
 #ifdef MODULE
 
@@ -3647,7 +3659,7 @@ static void __exit fbcon_deinit_device(void)
 	}
 }
 
-static void __exit fb_console_exit(void)
+void __exit fb_console_exit(void)
 {
 	console_lock();
 	fb_unregister_client(&fbcon_event_notifier);
@@ -3657,9 +3669,4 @@ static void __exit fb_console_exit(void)
 	do_unregister_con_driver(&fb_con);
 	console_unlock();
 }	
-
-module_exit(fb_console_exit);
-
 #endif
-
-MODULE_LICENSE("GPL");

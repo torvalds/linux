@@ -74,7 +74,7 @@ static void tile_putcs(struct vc_data *vc, struct fb_info *info,
 }
 
 static void tile_clear_margins(struct vc_data *vc, struct fb_info *info,
-			       int bottom_only)
+			       int color, int bottom_only)
 {
 	return;
 }
@@ -152,8 +152,3 @@ void fbcon_set_tileops(struct vc_data *vc, struct fb_info *info)
 }
 
 EXPORT_SYMBOL(fbcon_set_tileops);
-
-MODULE_AUTHOR("Antonino Daplas <adaplas@pol.net>");
-MODULE_DESCRIPTION("Tile Blitting Operation");
-MODULE_LICENSE("GPL");
-

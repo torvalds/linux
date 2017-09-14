@@ -81,7 +81,7 @@ static struct vga_regset vt8623_line_compare_regs[]  = {{0x18, 0, 7}, {0x07, 4, 
 static struct vga_regset vt8623_fetch_count_regs[]   = {{0x1C, 0, 7}, {0x1D, 0, 1}, VGA_REGSET_END};
 static struct vga_regset vt8623_start_address_regs[] = {{0x0d, 0, 7}, {0x0c, 0, 7}, {0x34, 0, 7}, {0x48, 0, 1}, VGA_REGSET_END};
 
-static struct svga_timing_regs vt8623_timing_regs     = {
+static const struct svga_timing_regs vt8623_timing_regs     = {
 	vt8623_h_total_regs, vt8623_h_display_regs, vt8623_h_blank_start_regs,
 	vt8623_h_blank_end_regs, vt8623_h_sync_start_regs, vt8623_h_sync_end_regs,
 	vt8623_v_total_regs, vt8623_v_display_regs, vt8623_v_blank_start_regs,
@@ -888,7 +888,7 @@ fail:
 
 /* List of boards that we are trying to support */
 
-static struct pci_device_id vt8623_devices[] = {
+static const struct pci_device_id vt8623_devices[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_VIA, 0x3122)},
 	{0, 0, 0, 0, 0, 0, 0}
 };

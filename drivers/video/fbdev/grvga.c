@@ -70,7 +70,7 @@ static const struct fb_videomode grvga_modedb[] = {
     }
  };
 
-static struct fb_fix_screeninfo grvga_fix = {
+static const struct fb_fix_screeninfo grvga_fix = {
 	.id =		"AG SVGACTRL",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =       FB_VISUAL_PSEUDOCOLOR,

@@ -39,7 +39,7 @@
 
 static struct fb_info fb_info;
 
-static struct fb_var_screeninfo maxinefb_defined = {
+static const struct fb_var_screeninfo maxinefb_defined = {
 	.xres =		1024,
 	.yres =		768,
 	.xres_virtual =	1024,
