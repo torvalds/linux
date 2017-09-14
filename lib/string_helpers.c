@@ -576,7 +576,7 @@ char *kstrdup_quotable_cmdline(struct task_struct *task, gfp_t gfp)
 	char *buffer, *quoted;
 	int i, res;
 
-	buffer = kmalloc(PAGE_SIZE, GFP_TEMPORARY);
+	buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buffer)
 		return NULL;
 
@@ -612,7 +612,7 @@ char *kstrdup_quotable_file(struct file *file, gfp_t gfp)
 		return kstrdup("<unknown>", gfp);
 
 	/* We add 11 spaces for ' (deleted)' to be appended */
-	temp = kmalloc(PATH_MAX + 11, GFP_TEMPORARY);
+	temp = kmalloc(PATH_MAX + 11, GFP_KERNEL);
 	if (!temp)
 		return kstrdup("<no_memory>", gfp);
 

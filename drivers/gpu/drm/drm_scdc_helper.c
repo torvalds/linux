@@ -102,7 +102,7 @@ ssize_t drm_scdc_write(struct i2c_adapter *adapter, u8 offset,
 	void *data;
 	int err;
 
-	data = kmalloc(1 + size, GFP_TEMPORARY);
+	data = kmalloc(1 + size, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
