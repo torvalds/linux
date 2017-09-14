@@ -309,10 +309,15 @@ int mlx5e_vlan_rx_add_vid(struct net_device *dev, __always_unused __be16 proto,
 			  u16 vid)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
+	int err;
 
 	set_bit(vid, priv->fs.vlan.active_cvlans);
 
-	return mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_CTAG_VID, vid);
+	err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_CTAG_VID, vid);
+	if (err)
+		clear_bit(vid, priv->fs.vlan.active_cvlans);
+
+	return err;
 }
 
 int mlx5e_vlan_rx_kill_vid(struct net_device *dev, __always_unused __be16 proto,
