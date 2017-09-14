@@ -1727,6 +1727,8 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 			goto restore;
 		}
 
+		btrfs_qgroup_rescan_resume(fs_info);
+
 		if (!fs_info->uuid_root) {
 			btrfs_info(fs_info, "creating UUID tree");
 			ret = btrfs_create_uuid_tree(fs_info);
