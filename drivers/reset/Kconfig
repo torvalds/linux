@@ -28,6 +28,12 @@ config RESET_ATH79
 	  This enables the ATH79 reset controller driver that supports the
 	  AR71xx SoC reset controller.
 
+config RESET_AXS10X
+	bool "AXS10x Reset Driver" if COMPILE_TEST
+	default ARC_PLAT_AXS10X
+	help
+	  This enables the reset controller driver for AXS10x.
+
 config RESET_BERLIN
 	bool "Berlin Reset Driver" if COMPILE_TEST
 	default ARCH_BERLIN
