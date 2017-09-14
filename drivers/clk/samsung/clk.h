@@ -305,7 +305,7 @@ struct samsung_pll_clock {
 		.dev_name	= _dname,				\
 		.name		= _name,				\
 		.parent_name	= _pname,				\
-		.flags		= CLK_GET_RATE_NOCACHE,			\
+		.flags		= _flags,				\
 		.con_offset	= _con,					\
 		.lock_offset	= _lock,				\
 		.rate_table	= _rtable,				\
