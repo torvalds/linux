@@ -45,4 +45,6 @@ extern int psp_v10_0_cmd_submit(struct psp_context *psp,
 extern bool psp_v10_0_compare_sram_data(struct psp_context *psp,
 				       struct amdgpu_firmware_info *ucode,
 				       enum AMDGPU_UCODE_ID ucode_type);
+
+extern int psp_v10_0_mode1_reset(struct psp_context *psp);
 #endif

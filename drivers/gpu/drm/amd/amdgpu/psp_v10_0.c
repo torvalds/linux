@@ -407,3 +407,10 @@ bool psp_v10_0_compare_sram_data(struct psp_context *psp,
 
 	return true;
 }
+
+
+int psp_v10_0_mode1_reset(struct psp_context *psp)
+{
+	DRM_INFO("psp mode 1 reset not supported now! \n");
+	return -EINVAL;
+}

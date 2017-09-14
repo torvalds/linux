@@ -76,6 +76,7 @@ struct psp_context
 				  struct amdgpu_firmware_info *ucode,
 				  enum AMDGPU_UCODE_ID ucode_type);
 	bool (*smu_reload_quirk)(struct psp_context *psp);
+	int (*mode1_reset)(struct psp_context *psp);
 
 	/* fence buffer */
 	struct amdgpu_bo 		*fw_pri_bo;
@@ -139,6 +140,8 @@ struct amdgpu_psp_funcs {
 		((psp)->bootloader_load_sos ? (psp)->bootloader_load_sos((psp)) : 0)
 #define psp_smu_reload_quirk(psp) \
 		((psp)->smu_reload_quirk ? (psp)->smu_reload_quirk((psp)) : false)
+#define psp_mode1_reset(psp) \
+		((psp)->mode1_reset ? (psp)->mode1_reset((psp)) : false)
 
 extern const struct amd_ip_funcs psp_ip_funcs;
 

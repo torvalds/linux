@@ -2581,7 +2581,8 @@ static bool amdgpu_need_full_reset(struct amdgpu_device *adev)
 		if ((adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC) ||
 		    (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC) ||
 		    (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_ACP) ||
-		    (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_DCE)) {
+		    (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_DCE) ||
+		     adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_PSP) {
 			if (adev->ip_blocks[i].status.hang) {
 				DRM_INFO("Some block need full reset!\n");
 				return true;

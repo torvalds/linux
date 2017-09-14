@@ -53,4 +53,5 @@ extern bool psp_v3_1_compare_sram_data(struct psp_context *psp,
 				       struct amdgpu_firmware_info *ucode,
 				       enum AMDGPU_UCODE_ID ucode_type);
 extern bool psp_v3_1_smu_reload_quirk(struct psp_context *psp);
+extern int psp_v3_1_mode1_reset(struct psp_context *psp);
 #endif
