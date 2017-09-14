@@ -279,8 +279,8 @@ static void mlx5i_pkey_init(struct mlx5_core_dev *mdev,
 	/* Override parent ndo */
 	netdev->netdev_ops = &mlx5i_pkey_netdev_ops;
 
-	/* Currently no ethtool support */
-	netdev->ethtool_ops = NULL;
+	/* Set child limited ethtool support */
+	netdev->ethtool_ops = &mlx5i_pkey_ethtool_ops;
 
 	/* Use dummy rqs */
 	priv->channels.params.log_rq_size = MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE;
