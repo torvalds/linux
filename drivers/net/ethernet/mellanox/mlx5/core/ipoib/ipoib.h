@@ -51,8 +51,20 @@ struct mlx5i_priv {
 	struct mlx5_core_qp qp;
 	u32    qkey;
 	u16    pkey_index;
+	struct mlx5i_pkey_qpn_ht *qpn_htbl;
 	char  *mlx5e_priv[0];
 };
+
+/* Allocate/Free underlay QPN to net-device hash table */
+int mlx5i_pkey_qpn_ht_init(struct net_device *netdev);
+void mlx5i_pkey_qpn_ht_cleanup(struct net_device *netdev);
+
+/* Add/Remove an underlay QPN to net-device mapping to/from the hash table */
+int mlx5i_pkey_add_qpn(struct net_device *netdev, u32 qpn);
+int mlx5i_pkey_del_qpn(struct net_device *netdev, u32 qpn);
+
+/* Get the net-device corresponding to the given underlay QPN */
+struct net_device *mlx5i_pkey_get_netdev(struct net_device *netdev, u32 qpn);
 
 /* Extract mlx5e_priv from IPoIB netdev */
 #define mlx5i_epriv(netdev) ((void *)(((struct mlx5i_priv *)netdev_priv(netdev))->mlx5e_priv))

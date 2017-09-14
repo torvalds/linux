@@ -382,6 +382,9 @@ static int mlx5i_dev_init(struct net_device *dev)
 	dev->dev_addr[2] = (ipriv->qp.qpn >>  8) & 0xff;
 	dev->dev_addr[3] = (ipriv->qp.qpn) & 0xff;
 
+	/* Add QPN to net-device mapping to HT */
+	mlx5i_pkey_add_qpn(dev ,ipriv->qp.qpn);
+
 	return 0;
 }
 
@@ -402,8 +405,12 @@ static int mlx5i_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 static void mlx5i_dev_cleanup(struct net_device *dev)
 {
 	struct mlx5e_priv    *priv   = mlx5i_epriv(dev);
+	struct mlx5i_priv    *ipriv = priv->ppriv;
 
 	mlx5i_uninit_underlay_qp(priv);
+
+	/* Delete QPN to net-device mapping from HT */
+	mlx5i_pkey_del_qpn(dev, ipriv->qp.qpn);
 }
 
 static int mlx5i_open(struct net_device *netdev)
@@ -590,6 +597,12 @@ struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
 	if (!epriv->wq)
 		goto err_free_netdev;
 
+	err = mlx5i_pkey_qpn_ht_init(netdev);
+	if (err) {
+		mlx5_core_warn(mdev, "allocate qpn_to_netdev ht failed\n");
+		goto destroy_wq;
+	}
+
 	profile->init(mdev, netdev, profile, ipriv);
 
 	mlx5e_attach_netdev(epriv);
@@ -605,6 +618,8 @@ struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
 
 	return netdev;
 
+destroy_wq:
+	destroy_workqueue(epriv->wq);
 err_free_netdev:
 	free_netdev(netdev);
 free_mdev_resources:
@@ -623,6 +638,7 @@ void mlx5_rdma_netdev_free(struct net_device *netdev)
 	mlx5e_detach_netdev(priv);
 	profile->cleanup(priv);
 	destroy_workqueue(priv->wq);
+	mlx5i_pkey_qpn_ht_cleanup(netdev);
 	free_netdev(netdev);
 
 	mlx5e_destroy_mdev_resources(mdev);

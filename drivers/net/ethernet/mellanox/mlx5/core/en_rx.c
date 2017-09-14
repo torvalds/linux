@@ -1163,10 +1163,24 @@ static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
 					 u32 cqe_bcnt,
 					 struct sk_buff *skb)
 {
-	struct net_device *netdev = rq->netdev;
+	struct net_device *netdev;
 	char *pseudo_header;
+	u32 qpn;
 	u8 *dgid;
 	u8 g;
+
+	qpn = be32_to_cpu(cqe->sop_drop_qpn) & 0xffffff;
+	netdev = mlx5i_pkey_get_netdev(rq->netdev, qpn);
+
+	/* No mapping present, cannot process SKB. This might happen if a child
+	 * interface is going down while having unprocessed CQEs on parent RQ
+	 */
+	if (unlikely(!netdev)) {
+		/* TODO: add drop counters support */
+		skb->dev = NULL;
+		pr_warn_once("Unable to map QPN %u to dev - dropping skb\n", qpn);
+		return;
+	}
 
 	g = (be32_to_cpu(cqe->flags_rqpn) >> 28) & 3;
 	dgid = skb->data + MLX5_IB_GRH_DGID_OFFSET;
@@ -1230,6 +1244,10 @@ void mlx5i_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 		goto wq_free_wqe;
 
 	mlx5i_complete_rx_cqe(rq, cqe, cqe_bcnt, skb);
+	if (unlikely(!skb->dev)) {
+		dev_kfree_skb_any(skb);
+		goto wq_free_wqe;
+	}
 	napi_gro_receive(rq->cq.napi, skb);
 
 wq_free_wqe:
