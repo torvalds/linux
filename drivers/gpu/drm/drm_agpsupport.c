@@ -101,7 +101,8 @@ int drm_agp_acquire(struct drm_device *dev)
 		return -ENODEV;
 	if (dev->agp->acquired)
 		return -EBUSY;
-	if (!(dev->agp->bridge = agp_backend_acquire(dev->pdev)))
+	dev->agp->bridge = agp_backend_acquire(dev->pdev);
+	if (!dev->agp->bridge)
 		return -ENODEV;
 	dev->agp->acquired = 1;
 	return 0;
@@ -203,12 +204,14 @@ int drm_agp_alloc(struct drm_device *dev, struct drm_agp_buffer *request)
 
 	if (!dev->agp || !dev->agp->acquired)
 		return -EINVAL;
-	if (!(entry = kzalloc(sizeof(*entry), GFP_KERNEL)))
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
 		return -ENOMEM;
 
 	pages = (request->size + PAGE_SIZE - 1) / PAGE_SIZE;
 	type = (u32) request->type;
-	if (!(memory = agp_allocate_memory(dev->agp->bridge, pages, type))) {
+	memory = agp_allocate_memory(dev->agp->bridge, pages, type);
+	if (!memory) {
 		kfree(entry);
 		return -ENOMEM;
 	}
@@ -275,9 +278,8 @@ int drm_agp_unbind(struct drm_device *dev, struct drm_agp_binding *request)
 
 	if (!dev->agp || !dev->agp->acquired)
 		return -EINVAL;
-	if (!(entry = drm_agp_lookup_entry(dev, request->handle)))
-		return -EINVAL;
-	if (!entry->bound)
+	entry = drm_agp_lookup_entry(dev, request->handle);
+	if (!entry || !entry->bound)
 		return -EINVAL;
 	ret = drm_unbind_agp(entry->memory);
 	if (ret == 0)
@@ -316,12 +318,12 @@ int drm_agp_bind(struct drm_device *dev, struct drm_agp_binding *request)
 
 	if (!dev->agp || !dev->agp->acquired)
 		return -EINVAL;
-	if (!(entry = drm_agp_lookup_entry(dev, request->handle)))
-		return -EINVAL;
-	if (entry->bound)
+	entry = drm_agp_lookup_entry(dev, request->handle);
+	if (!entry || entry->bound)
 		return -EINVAL;
 	page = (request->offset + PAGE_SIZE - 1) / PAGE_SIZE;
-	if ((retcode = drm_bind_agp(entry->memory, page)))
+	retcode = drm_bind_agp(entry->memory, page);
+	if (retcode)
 		return retcode;
 	entry->bound = dev->agp->base + (page << PAGE_SHIFT);
 	DRM_DEBUG("base = 0x%lx entry->bound = 0x%lx\n",
@@ -359,7 +361,8 @@ int drm_agp_free(struct drm_device *dev, struct drm_agp_buffer *request)
 
 	if (!dev->agp || !dev->agp->acquired)
 		return -EINVAL;
-	if (!(entry = drm_agp_lookup_entry(dev, request->handle)))
+	entry = drm_agp_lookup_entry(dev, request->handle);
+	if (!entry)
 		return -EINVAL;
 	if (entry->bound)
 		drm_unbind_agp(entry->memory);
@@ -398,11 +401,13 @@ struct drm_agp_head *drm_agp_init(struct drm_device *dev)
 {
 	struct drm_agp_head *head = NULL;
 
-	if (!(head = kzalloc(sizeof(*head), GFP_KERNEL)))
+	head = kzalloc(sizeof(*head), GFP_KERNEL);
+	if (!head)
 		return NULL;
 	head->bridge = agp_find_bridge(dev->pdev);
 	if (!head->bridge) {
-		if (!(head->bridge = agp_backend_acquire(dev->pdev))) {
+		head->bridge = agp_backend_acquire(dev->pdev);
+		if (!head->bridge) {
 			kfree(head);
 			return NULL;
 		}
