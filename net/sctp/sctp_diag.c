@@ -309,7 +309,6 @@ static int sctp_sock_dump(struct sctp_transport *tsp, void *p)
 					cb->nlh->nlmsg_seq,
 					NLM_F_MULTI, cb->nlh,
 					commp->net_admin) < 0) {
-			cb->args[3] = 1;
 			err = 1;
 			goto release;
 		}
