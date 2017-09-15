@@ -646,6 +646,7 @@
 			clock-names = "mixer", "hdmi", "sclk_hdmi";
 			power-domains = <&disp_pd>;
 			iommus = <&sysmmu_tv>;
+			status = "disabled";
 		};
 
 		rotator: rotator@11C00000 {
