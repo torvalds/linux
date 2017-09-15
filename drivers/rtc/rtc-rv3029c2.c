@@ -876,6 +876,8 @@ static const struct i2c_device_id rv3029_id[] = {
 MODULE_DEVICE_TABLE(i2c, rv3029_id);
 
 static const struct of_device_id rv3029_of_match[] = {
+	{ .compatible = "microcrystal,rv3029" },
+	/* Backward compatibility only, do not use compatibles below: */
 	{ .compatible = "rv3029" },
 	{ .compatible = "rv3029c2" },
 	{ .compatible = "mc,rv3029c2" },
