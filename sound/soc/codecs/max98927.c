@@ -1,7 +1,7 @@
 /*
  * max98927.c  --  MAX98927 ALSA Soc Audio driver
  *
- * Copyright (C) 2016 Maxim Integrated Products
+ * Copyright (C) 2016-2017 Maxim Integrated Products
  * Author: Ryan Lee <ryans.lee@maximintegrated.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -146,6 +146,7 @@ static int max98927_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct max98927_priv *max98927 = snd_soc_codec_get_drvdata(codec);
 	unsigned int mode = 0;
 	unsigned int format = 0;
+	bool use_pdm = false;
 	unsigned int invert = 0;
 
 	dev_dbg(codec->dev, "%s: fmt 0x%08X\n", __func__, fmt);
@@ -187,22 +188,27 @@ static int max98927_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	/* interface format */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		max98927->iface |= SND_SOC_DAIFMT_I2S;
 		format = MAX98927_PCM_FORMAT_I2S;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		max98927->iface |= SND_SOC_DAIFMT_LEFT_J;
 		format = MAX98927_PCM_FORMAT_LJ;
 		break;
+	case SND_SOC_DAIFMT_DSP_A:
+		format = MAX98927_PCM_FORMAT_TDM_MODE1;
+		break;
+	case SND_SOC_DAIFMT_DSP_B:
+		format = MAX98927_PCM_FORMAT_TDM_MODE0;
+		break;
 	case SND_SOC_DAIFMT_PDM:
-		max98927->iface |= SND_SOC_DAIFMT_PDM;
+		use_pdm = true;
 		break;
 	default:
 		return -EINVAL;
 	}
+	max98927->iface = fmt & SND_SOC_DAIFMT_FORMAT_MASK;
 
-	/* pcm channel configuration */
-	if (max98927->iface & (SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_LEFT_J)) {
+	if (!use_pdm) {
+		/* pcm channel configuration */
 		regmap_update_bits(max98927->regmap,
 			MAX98927_R0018_PCM_RX_EN_A,
 			MAX98927_PCM_RX_CH0_EN | MAX98927_PCM_RX_CH1_EN,
@@ -217,13 +223,11 @@ static int max98927_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 			MAX98927_R003B_SPK_SRC_SEL,
 			MAX98927_SPK_SRC_MASK, 0);
 
-	} else
 		regmap_update_bits(max98927->regmap,
-			MAX98927_R0018_PCM_RX_EN_A,
-			MAX98927_PCM_RX_CH0_EN | MAX98927_PCM_RX_CH1_EN, 0);
-
-	/* pdm channel configuration */
-	if (max98927->iface & SND_SOC_DAIFMT_PDM) {
+			MAX98927_R0035_PDM_RX_CTRL,
+			MAX98927_PDM_RX_EN_MASK, 0);
+	} else {
+		/* pdm channel configuration */
 		regmap_update_bits(max98927->regmap,
 			MAX98927_R0035_PDM_RX_CTRL,
 			MAX98927_PDM_RX_EN_MASK, 1);
@@ -231,10 +235,11 @@ static int max98927_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		regmap_update_bits(max98927->regmap,
 			MAX98927_R003B_SPK_SRC_SEL,
 			MAX98927_SPK_SRC_MASK, 3);
-	} else
+
 		regmap_update_bits(max98927->regmap,
-			MAX98927_R0035_PDM_RX_CTRL,
-			MAX98927_PDM_RX_EN_MASK, 0);
+			MAX98927_R0018_PCM_RX_EN_A,
+			MAX98927_PCM_RX_CH0_EN | MAX98927_PCM_RX_CH1_EN, 0);
+	}
 	return 0;
 }
 
