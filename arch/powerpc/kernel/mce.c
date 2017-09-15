@@ -470,6 +470,34 @@ long hmi_exception_realmode(struct pt_regs *regs)
 {
 	__this_cpu_inc(irq_stat.hmi_exceptions);
 
+#ifdef CONFIG_PPC_BOOK3S_64
+	/* Workaround for P9 vector CI loads (see p9_hmi_special_emu) */
+	if (pvr_version_is(PVR_POWER9)) {
+		unsigned long hmer = mfspr(SPRN_HMER);
+
+		/* Do we have the debug bit set */
+		if (hmer & PPC_BIT(17)) {
+			hmer &= ~PPC_BIT(17);
+			mtspr(SPRN_HMER, hmer);
+
+			/*
+			 * Now to avoid problems with soft-disable we
+			 * only do the emulation if we are coming from
+			 * user space
+			 */
+			if (user_mode(regs))
+				local_paca->hmi_p9_special_emu = 1;
+
+			/*
+			 * Don't bother going to OPAL if that's the
+			 * only relevant bit.
+			 */
+			if (!(hmer & mfspr(SPRN_HMEER)))
+				return local_paca->hmi_p9_special_emu;
+		}
+	}
+#endif /* CONFIG_PPC_BOOK3S_64 */
+
 	wait_for_subcore_guest_exit();
 
 	if (ppc_md.hmi_exception_early)
@@ -477,5 +505,5 @@ long hmi_exception_realmode(struct pt_regs *regs)
 
 	wait_for_tb_resync();
 
-	return 0;
+	return 1;
 }

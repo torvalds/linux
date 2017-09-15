@@ -49,6 +49,13 @@
 
 static void pnv_smp_setup_cpu(int cpu)
 {
+	/*
+	 * P9 workaround for CI vector load (see traps.c),
+	 * enable the corresponding HMI interrupt
+	 */
+	if (pvr_version_is(PVR_POWER9))
+		mtspr(SPRN_HMEER, mfspr(SPRN_HMEER) | PPC_BIT(17));
+
 	if (xive_enabled())
 		xive_smp_setup_cpu();
 	else if (cpu != boot_cpuid)
