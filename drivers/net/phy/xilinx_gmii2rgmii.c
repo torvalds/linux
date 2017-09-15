@@ -44,7 +44,7 @@ static int xgmiitorgmii_read_status(struct phy_device *phydev)
 	priv->phy_drv->read_status(phydev);
 
 	val = mdiobus_read(phydev->mdio.bus, priv->addr, XILINX_GMII2RGMII_REG);
-	val &= XILINX_GMII2RGMII_SPEED_MASK;
+	val &= ~XILINX_GMII2RGMII_SPEED_MASK;
 
 	if (phydev->speed == SPEED_1000)
 		val |= BMCR_SPEED1000;
