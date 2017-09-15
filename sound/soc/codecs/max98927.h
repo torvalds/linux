@@ -270,5 +270,6 @@ struct max98927_priv {
 	unsigned int iface;
 	unsigned int master;
 	unsigned int digital_gain;
+	bool tdm_mode;
 };
 #endif
