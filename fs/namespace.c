@@ -1182,12 +1182,10 @@ static LLIST_HEAD(delayed_mntput_list);
 static void delayed_mntput(struct work_struct *unused)
 {
 	struct llist_node *node = llist_del_all(&delayed_mntput_list);
-	struct llist_node *next;
+	struct mount *m, *t;
 
-	for (; node; node = next) {
-		next = llist_next(node);
-		cleanup_mnt(llist_entry(node, struct mount, mnt_llist));
-	}
+	llist_for_each_entry_safe(m, t, node, mnt_llist)
+		cleanup_mnt(m);
 }
 static DECLARE_DELAYED_WORK(delayed_mntput_work, delayed_mntput);
 
