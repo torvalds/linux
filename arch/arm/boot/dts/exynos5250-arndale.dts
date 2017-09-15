@@ -152,6 +152,7 @@
 };
 
 &hdmi {
+	status = "okay";
 	ddc = <&i2c_2>;
 	hpd-gpios = <&gpx3 7 GPIO_ACTIVE_LOW>;
 	vdd_osc-supply = <&ldo10_reg>;
@@ -502,6 +503,10 @@
 };
 
 &i2s0 {
+	status = "okay";
+};
+
+&mixer {
 	status = "okay";
 };
 

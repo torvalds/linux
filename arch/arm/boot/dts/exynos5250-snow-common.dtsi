@@ -261,6 +261,7 @@
 };
 
 &hdmi {
+	status = "okay";
 	hpd-gpios = <&gpx3 7 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_hpd_irq>;
@@ -515,6 +516,10 @@
 };
 
 &i2s0 {
+	status = "okay";
+};
+
+&mixer {
 	status = "okay";
 };
 

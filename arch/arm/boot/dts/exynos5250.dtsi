@@ -693,6 +693,7 @@
 					"sclk_hdmiphy", "mout_hdmi";
 			samsung,syscon-phandle = <&pmu_system_controller>;
 			phy = <&hdmiphy>;
+			status = "disabled";
 		};
 
 		hdmicec: cec@101B0000 {
@@ -708,7 +709,7 @@
 			status = "disabled";
 		};
 
-		mixer@14450000 {
+		mixer: mixer@14450000 {
 			compatible = "samsung,exynos5250-mixer";
 			reg = <0x14450000 0x10000>;
 			power-domains = <&pd_disp1>;
@@ -717,6 +718,7 @@
 				 <&clock CLK_SCLK_HDMI>;
 			clock-names = "mixer", "hdmi", "sclk_hdmi";
 			iommus = <&sysmmu_tv>;
+			status = "disabled";
 		};
 
 		dp_phy: video-phy {
