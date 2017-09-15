@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/hardirq.h>
+#include <linux/kprobes.h>
 #include <linux/time.h>
 #include <linux/module.h>
 #include <linux/sched/signal.h>
@@ -38,12 +39,13 @@ struct mcck_struct {
 
 static DEFINE_PER_CPU(struct mcck_struct, cpu_mcck);
 
-static void s390_handle_damage(void)
+static notrace void s390_handle_damage(void)
 {
-	smp_send_stop();
+	smp_emergency_stop();
 	disabled_wait((unsigned long) __builtin_return_address(0));
 	while (1);
 }
+NOKPROBE_SYMBOL(s390_handle_damage);
 
 /*
  * Main machine check handler function. Will be called with interrupts enabled
@@ -275,6 +277,7 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 
 	return kill_task;
 }
+NOKPROBE_SYMBOL(s390_validate_registers);
 
 /*
  * Backup the guest's machine check info to its description block
@@ -300,6 +303,7 @@ static void notrace s390_backup_mcck_info(struct pt_regs *regs)
 	mcck_backup->failing_storage_address
 			= S390_lowcore.failing_storage_address;
 }
+NOKPROBE_SYMBOL(s390_backup_mcck_info);
 
 #define MAX_IPD_COUNT	29
 #define MAX_IPD_TIME	(5 * 60 * USEC_PER_SEC) /* 5 minutes */
@@ -443,6 +447,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	clear_cpu_flag(CIF_MCCK_GUEST);
 	nmi_exit();
 }
+NOKPROBE_SYMBOL(s390_do_machine_check);
 
 static int __init machine_check_init(void)
 {

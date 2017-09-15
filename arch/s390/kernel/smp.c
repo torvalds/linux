@@ -36,6 +36,7 @@
 #include <linux/sched/task_stack.h>
 #include <linux/crash_dump.h>
 #include <linux/memblock.h>
+#include <linux/kprobes.h>
 #include <asm/asm-offsets.h>
 #include <asm/diag.h>
 #include <asm/switch_to.h>
@@ -422,13 +423,17 @@ void smp_yield_cpu(int cpu)
  * Send cpus emergency shutdown signal. This gives the cpus the
  * opportunity to complete outstanding interrupts.
  */
-static void smp_emergency_stop(cpumask_t *cpumask)
+void notrace smp_emergency_stop(void)
 {
+	cpumask_t cpumask;
 	u64 end;
 	int cpu;
 
+	cpumask_copy(&cpumask, cpu_online_mask);
+	cpumask_clear_cpu(smp_processor_id(), &cpumask);
+
 	end = get_tod_clock() + (1000000UL << 12);
-	for_each_cpu(cpu, cpumask) {
+	for_each_cpu(cpu, &cpumask) {
 		struct pcpu *pcpu = pcpu_devices + cpu;
 		set_bit(ec_stop_cpu, &pcpu->ec_mask);
 		while (__pcpu_sigp(pcpu->address, SIGP_EMERGENCY_SIGNAL,
@@ -437,21 +442,21 @@ static void smp_emergency_stop(cpumask_t *cpumask)
 			cpu_relax();
 	}
 	while (get_tod_clock() < end) {
-		for_each_cpu(cpu, cpumask)
+		for_each_cpu(cpu, &cpumask)
 			if (pcpu_stopped(pcpu_devices + cpu))
-				cpumask_clear_cpu(cpu, cpumask);
-		if (cpumask_empty(cpumask))
+				cpumask_clear_cpu(cpu, &cpumask);
+		if (cpumask_empty(&cpumask))
 			break;
 		cpu_relax();
 	}
 }
+NOKPROBE_SYMBOL(smp_emergency_stop);
 
 /*
  * Stop all cpus but the current one.
  */
 void smp_send_stop(void)
 {
-	cpumask_t cpumask;
 	int cpu;
 
 	/* Disable all interrupts/machine checks */
@@ -459,17 +464,16 @@ void smp_send_stop(void)
 	trace_hardirqs_off();
 
 	debug_set_critical();
-	cpumask_copy(&cpumask, cpu_online_mask);
-	cpumask_clear_cpu(smp_processor_id(), &cpumask);
 
 	if (oops_in_progress)
-		smp_emergency_stop(&cpumask);
+		smp_emergency_stop();
 
 	/* stop all processors */
-	for_each_cpu(cpu, &cpumask) {
-		struct pcpu *pcpu = pcpu_devices + cpu;
-		pcpu_sigp_retry(pcpu, SIGP_STOP, 0);
-		while (!pcpu_stopped(pcpu))
+	for_each_online_cpu(cpu) {
+		if (cpu == smp_processor_id())
+			continue;
+		pcpu_sigp_retry(pcpu_devices + cpu, SIGP_STOP, 0);
+		while (!pcpu_stopped(pcpu_devices + cpu))
 			cpu_relax();
 	}
 }
