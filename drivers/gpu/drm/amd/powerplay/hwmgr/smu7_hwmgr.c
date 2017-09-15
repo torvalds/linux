@@ -388,6 +388,7 @@ static int smu7_enable_display_gap(struct pp_hwmgr *hwmgr)
 static int smu7_program_voting_clients(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	int i;
 
 	/* Clear reset for voting clients before enabling DPM */
 	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
@@ -395,50 +396,26 @@ static int smu7_program_voting_clients(struct pp_hwmgr *hwmgr)
 	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 			SCLK_PWRMGT_CNTL, RESET_BUSY_CNT, 0);
 
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixCG_FREQ_TRAN_VOTING_0, data->voting_rights_clients0);
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixCG_FREQ_TRAN_VOTING_1, data->voting_rights_clients1);
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixCG_FREQ_TRAN_VOTING_2, data->voting_rights_clients2);
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixCG_FREQ_TRAN_VOTING_3, data->voting_rights_clients3);
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixCG_FREQ_TRAN_VOTING_4, data->voting_rights_clients4);
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixCG_FREQ_TRAN_VOTING_5, data->voting_rights_clients5);
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixCG_FREQ_TRAN_VOTING_6, data->voting_rights_clients6);
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixCG_FREQ_TRAN_VOTING_7, data->voting_rights_clients7);
-
+	for (i = 0; i < 8; i++)
+		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+					ixCG_FREQ_TRAN_VOTING_0 + i * 4,
+					data->voting_rights_clients[i]);
 	return 0;
 }
 
 static int smu7_clear_voting_clients(struct pp_hwmgr *hwmgr)
 {
+	int i;
+
 	/* Reset voting clients before disabling DPM */
 	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 			SCLK_PWRMGT_CNTL, RESET_SCLK_CNT, 1);
 	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 			SCLK_PWRMGT_CNTL, RESET_BUSY_CNT, 1);
 
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixCG_FREQ_TRAN_VOTING_0, 0);
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixCG_FREQ_TRAN_VOTING_1, 0);
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixCG_FREQ_TRAN_VOTING_2, 0);
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixCG_FREQ_TRAN_VOTING_3, 0);
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixCG_FREQ_TRAN_VOTING_4, 0);
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixCG_FREQ_TRAN_VOTING_5, 0);
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixCG_FREQ_TRAN_VOTING_6, 0);
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixCG_FREQ_TRAN_VOTING_7, 0);
+	for (i = 0; i < 8; i++)
+		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+				ixCG_FREQ_TRAN_VOTING_0 + i * 4, 0);
 
 	return 0;
 }
@@ -1384,14 +1361,14 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	data->vddc_vddgfx_delta = 300;
 	data->static_screen_threshold = SMU7_STATICSCREENTHRESHOLD_DFLT;
 	data->static_screen_threshold_unit = SMU7_STATICSCREENTHRESHOLDUNIT_DFLT;
-	data->voting_rights_clients0 = SMU7_VOTINGRIGHTSCLIENTS_DFLT0;
-	data->voting_rights_clients1 = SMU7_VOTINGRIGHTSCLIENTS_DFLT1;
-	data->voting_rights_clients2 = SMU7_VOTINGRIGHTSCLIENTS_DFLT2;
-	data->voting_rights_clients3 = SMU7_VOTINGRIGHTSCLIENTS_DFLT3;
-	data->voting_rights_clients4 = SMU7_VOTINGRIGHTSCLIENTS_DFLT4;
-	data->voting_rights_clients5 = SMU7_VOTINGRIGHTSCLIENTS_DFLT5;
-	data->voting_rights_clients6 = SMU7_VOTINGRIGHTSCLIENTS_DFLT6;
-	data->voting_rights_clients7 = SMU7_VOTINGRIGHTSCLIENTS_DFLT7;
+	data->voting_rights_clients[0] = SMU7_VOTINGRIGHTSCLIENTS_DFLT0;
+	data->voting_rights_clients[1]= SMU7_VOTINGRIGHTSCLIENTS_DFLT1;
+	data->voting_rights_clients[2] = SMU7_VOTINGRIGHTSCLIENTS_DFLT2;
+	data->voting_rights_clients[3]= SMU7_VOTINGRIGHTSCLIENTS_DFLT3;
+	data->voting_rights_clients[4]= SMU7_VOTINGRIGHTSCLIENTS_DFLT4;
+	data->voting_rights_clients[5]= SMU7_VOTINGRIGHTSCLIENTS_DFLT5;
+	data->voting_rights_clients[6]= SMU7_VOTINGRIGHTSCLIENTS_DFLT6;
+	data->voting_rights_clients[7]= SMU7_VOTINGRIGHTSCLIENTS_DFLT7;
 
 	data->mclk_dpm_key_disabled = hwmgr->feature_mask & PP_MCLK_DPM_MASK ? false : true;
 	data->sclk_dpm_key_disabled = hwmgr->feature_mask & PP_SCLK_DPM_MASK ? false : true;
