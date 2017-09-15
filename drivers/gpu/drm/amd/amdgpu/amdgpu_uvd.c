@@ -269,6 +269,7 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 
 int amdgpu_uvd_sw_fini(struct amdgpu_device *adev)
 {
+	int i;
 	kfree(adev->uvd.saved_bo);
 
 	amd_sched_entity_fini(&adev->uvd.ring.sched, &adev->uvd.entity);
@@ -278,6 +279,9 @@ int amdgpu_uvd_sw_fini(struct amdgpu_device *adev)
 			      (void **)&adev->uvd.cpu_addr);
 
 	amdgpu_ring_fini(&adev->uvd.ring);
+
+	for (i = 0; i < AMDGPU_MAX_UVD_ENC_RINGS; ++i)
+		amdgpu_ring_fini(&adev->uvd.ring_enc[i]);
 
 	release_firmware(adev->uvd.fw);
 
