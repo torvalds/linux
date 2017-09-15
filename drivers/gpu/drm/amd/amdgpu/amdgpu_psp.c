@@ -255,15 +255,18 @@ static int psp_asd_load(struct psp_context *psp)
 
 static int psp_hw_start(struct psp_context *psp)
 {
+	struct amdgpu_device *adev = psp->adev;
 	int ret;
 
-	ret = psp_bootloader_load_sysdrv(psp);
-	if (ret)
-		return ret;
+	if (!amdgpu_sriov_vf(adev) || !adev->in_sriov_reset) {
+		ret = psp_bootloader_load_sysdrv(psp);
+		if (ret)
+			return ret;
 
-	ret = psp_bootloader_load_sos(psp);
-	if (ret)
-		return ret;
+		ret = psp_bootloader_load_sos(psp);
+		if (ret)
+			return ret;
+	}
 
 	ret = psp_ring_create(psp, PSP_RING_TYPE__KM);
 	if (ret)
