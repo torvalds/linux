@@ -1918,7 +1918,7 @@ static int do_journal_release(struct reiserfs_transaction_handle *th,
 	 * we only want to flush out transactions if we were
 	 * called with error == 0
 	 */
-	if (!error && !(sb->s_flags & MS_RDONLY)) {
+	if (!error && !sb_rdonly(sb)) {
 		/* end the current trans */
 		BUG_ON(!th->t_trans_id);
 		do_journal_end(th, FLUSH_ALL);

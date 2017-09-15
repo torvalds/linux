@@ -645,7 +645,7 @@ int gfs2_sys_fs_add(struct gfs2_sbd *sdp)
 	char *envp[] = { ro, spectator, NULL };
 	int sysfs_frees_sdp = 0;
 
-	sprintf(ro, "RDONLY=%d", (sb->s_flags & MS_RDONLY) ? 1 : 0);
+	sprintf(ro, "RDONLY=%d", sb_rdonly(sb));
 	sprintf(spectator, "SPECTATOR=%d", sdp->sd_args.ar_spectator ? 1 : 0);
 
 	sdp->sd_kobj.kset = gfs2_kset;

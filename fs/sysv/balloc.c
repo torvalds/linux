@@ -231,7 +231,7 @@ trust_sb:
 Ecount:
 	printk("sysv_count_free_blocks: free block count was %d, "
 		"correcting to %d\n", sb_count, count);
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		*sbi->s_free_blocks = cpu_to_fs32(sbi, count);
 		dirty_sb(sb);
 	}
