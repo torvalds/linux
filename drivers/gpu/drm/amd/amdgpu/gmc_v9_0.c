@@ -696,12 +696,6 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	/* After HDP is initialized, flush HDP.*/
-	if (adev->flags & AMD_IS_APU)
-		nbio_v7_0_hdp_flush(adev);
-	else
-		nbio_v6_1_hdp_flush(adev);
-
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
 		mmhub_v1_0_initialize_power_gating(adev);
@@ -723,6 +717,12 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 
 	tmp = RREG32_SOC15(HDP, 0, mmHDP_HOST_PATH_CNTL);
 	WREG32_SOC15(HDP, 0, mmHDP_HOST_PATH_CNTL, tmp);
+
+	/* After HDP is initialized, flush HDP.*/
+	if (adev->flags & AMD_IS_APU)
+		nbio_v7_0_hdp_flush(adev);
+	else
+		nbio_v6_1_hdp_flush(adev);
 
 	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS)
 		value = false;
