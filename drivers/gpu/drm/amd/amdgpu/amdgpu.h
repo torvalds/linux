@@ -1018,7 +1018,6 @@ struct amdgpu_gfx {
 	/* reset mask */
 	uint32_t                        grbm_soft_reset;
 	uint32_t                        srbm_soft_reset;
-	bool                            in_reset;
 	/* s3/s4 mask */
 	bool                            in_suspend;
 	/* NGG */
@@ -1583,6 +1582,7 @@ struct amdgpu_device {
 
 	/* record last mm index being written through WREG32*/
 	unsigned long last_mm_index;
+	bool                            in_sriov_reset;
 };
 
 static inline struct amdgpu_device *amdgpu_ttm_adev(struct ttm_bo_device *bdev)

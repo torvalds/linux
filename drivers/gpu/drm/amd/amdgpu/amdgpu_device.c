@@ -2690,7 +2690,7 @@ int amdgpu_sriov_gpu_reset(struct amdgpu_device *adev, struct amdgpu_job *job)
 
 	mutex_lock(&adev->virt.lock_reset);
 	atomic_inc(&adev->gpu_reset_counter);
-	adev->gfx.in_reset = true;
+	adev->in_sriov_reset = true;
 
 	/* block TTM */
 	resched = ttm_bo_lock_delayed_workqueue(&adev->mman.bdev);
@@ -2801,7 +2801,7 @@ give_up_reset:
 		dev_info(adev->dev, "GPU reset successed!\n");
 	}
 
-	adev->gfx.in_reset = false;
+	adev->in_sriov_reset = false;
 	mutex_unlock(&adev->virt.lock_reset);
 	return r;
 }
