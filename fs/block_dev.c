@@ -1740,6 +1740,8 @@ static int blkdev_open(struct inode * inode, struct file * filp)
 	 */
 	filp->f_flags |= O_LARGEFILE;
 
+	filp->f_mode |= FMODE_NOWAIT;
+
 	if (filp->f_flags & O_NDELAY)
 		filp->f_mode |= FMODE_NDELAY;
 	if (filp->f_flags & O_EXCL)
@@ -1891,6 +1893,9 @@ ssize_t blkdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	if (iocb->ki_pos >= size)
 		return -ENOSPC;
+
+	if ((iocb->ki_flags & (IOCB_NOWAIT | IOCB_DIRECT)) == IOCB_NOWAIT)
+		return -EOPNOTSUPP;
 
 	iov_iter_truncate(from, size - iocb->ki_pos);
 
