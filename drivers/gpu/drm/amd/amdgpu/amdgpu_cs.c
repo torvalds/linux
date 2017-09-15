@@ -1129,6 +1129,8 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	struct amd_sched_entity *entity = &p->ctx->rings[ring->idx].entity;
 	struct amdgpu_job *job;
 	unsigned i;
+	uint64_t seq;
+
 	int r;
 
 	amdgpu_mn_lock(p->mn);
@@ -1158,10 +1160,20 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	job->fence_ctx = entity->fence_context;
 	p->fence = dma_fence_get(&job->base.s_fence->finished);
 
+	r = amdgpu_ctx_add_fence(p->ctx, ring, p->fence, &seq);
+	if (r) {
+		dma_fence_put(p->fence);
+		dma_fence_put(&job->base.s_fence->finished);
+		amdgpu_job_free(job);
+		amdgpu_mn_unlock(p->mn);
+		return r;
+	}
+
 	amdgpu_cs_post_dependencies(p);
 
-	cs->out.handle = amdgpu_ctx_add_fence(p->ctx, ring, p->fence);
-	job->uf_sequence = cs->out.handle;
+	cs->out.handle = seq;
+	job->uf_sequence = seq;
+
 	amdgpu_job_free_resources(job);
 
 	trace_amdgpu_cs_ioctl(job);
