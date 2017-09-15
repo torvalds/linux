@@ -533,7 +533,7 @@ static int vop_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 
 	if (!dev->of_node) {
-		dev_err(dev, "can't find vop devices\n");
+		DRM_DEV_ERROR(dev, "can't find vop devices\n");
 		return -ENODEV;
 	}
 
