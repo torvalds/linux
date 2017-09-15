@@ -52,6 +52,10 @@ Optional properties:
     Operating Points for the GPU, as defined in
     Documentation/devicetree/bindings/opp/opp.txt
 
+  - power-domains:
+    A power domain consumer specifier as defined in
+    Documentation/devicetree/bindings/power/power_domain.txt
+
 Vendor-specific bindings
 ------------------------
 
