@@ -127,7 +127,8 @@ int sctp_transport_lookup_process(int (*cb)(struct sctp_transport *, void *),
 				  const union sctp_addr *laddr,
 				  const union sctp_addr *paddr, void *p);
 int sctp_for_each_transport(int (*cb)(struct sctp_transport *, void *),
-			    struct net *net, int pos, void *p);
+			    int (*cb_done)(struct sctp_transport *, void *),
+			    struct net *net, int *pos, void *p);
 int sctp_for_each_endpoint(int (*cb)(struct sctp_endpoint *, void *), void *p);
 int sctp_get_sctp_info(struct sock *sk, struct sctp_association *asoc,
 		       struct sctp_info *info);
