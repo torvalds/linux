@@ -1790,10 +1790,8 @@ static int amdgpu_fini(struct amdgpu_device *adev)
 		adev->ip_blocks[i].status.late_initialized = false;
 	}
 
-	if (amdgpu_sriov_vf(adev)) {
-		amdgpu_bo_free_kernel(&adev->virt.csa_obj, &adev->virt.csa_vmid0_addr, NULL);
+	if (amdgpu_sriov_vf(adev))
 		amdgpu_virt_release_full_gpu(adev, false);
-	}
 
 	return 0;
 }
