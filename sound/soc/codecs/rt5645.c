@@ -3637,14 +3637,14 @@ static const struct dmi_system_id dmi_platform_gpd_win[] = {
 	{}
 };
 
-static struct rt5645_platform_data general_platform_data2 = {
+static const struct rt5645_platform_data general_platform_data2 = {
 	.dmic1_data_pin = RT5645_DMIC_DATA_IN2N,
 	.dmic2_data_pin = RT5645_DMIC2_DISABLE,
 	.jd_mode = 3,
 	.inv_jd1_1 = true,
 };
 
-static struct dmi_system_id dmi_platform_asus_t100ha[] = {
+static const struct dmi_system_id dmi_platform_asus_t100ha[] = {
 	{
 		.ident = "ASUS T100HAN",
 		.matches = {
@@ -3655,11 +3655,11 @@ static struct dmi_system_id dmi_platform_asus_t100ha[] = {
 	{ }
 };
 
-static struct rt5645_platform_data minix_z83_4_platform_data = {
+static const struct rt5645_platform_data minix_z83_4_platform_data = {
 	.jd_mode = 3,
 };
 
-static struct dmi_system_id dmi_platform_minix_z83_4[] = {
+static const struct dmi_system_id dmi_platform_minix_z83_4[] = {
 	{
 		.ident = "MINIX Z83-4",
 		.matches = {
