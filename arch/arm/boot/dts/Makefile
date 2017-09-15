@@ -518,6 +518,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3066a-marsboard.dtb \
 	rk3066a-rayeager.dtb \
 	rk3126-evb.dtb \
+	rk3128-fireprime.dtb \
 	rk3188-radxarock.dtb \
 	rk3228-evb.dtb \
 	rk3229-echo-v10.dtb \
