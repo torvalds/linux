@@ -286,7 +286,7 @@ static void snapshot_buf(struct msm_rd_state *rd,
 	if (!(submit->bos[idx].flags & MSM_SUBMIT_BO_READ))
 		return;
 
-	buf = msm_gem_get_vaddr(&obj->base);
+	buf = msm_gem_get_vaddr_active(&obj->base);
 	if (IS_ERR(buf))
 		return;
 
