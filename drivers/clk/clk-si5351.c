@@ -1619,6 +1619,18 @@ err_clk:
 	return ret;
 }
 
+static int si5351_i2c_remove(struct i2c_client *client)
+{
+	struct si5351_driver_data *drvdata = i2c_get_clientdata(client);
+
+	of_clk_del_provider(client->dev.of_node);
+	if (!IS_ERR(drvdata->pxtal))
+		clk_disable_unprepare(drvdata->pxtal);
+	if (!IS_ERR(drvdata->pclkin))
+		clk_disable_unprepare(drvdata->pclkin);
+	return 0;
+}
+
 static const struct i2c_device_id si5351_i2c_ids[] = {
 	{ "si5351a", SI5351_VARIANT_A },
 	{ "si5351a-msop", SI5351_VARIANT_A3 },
@@ -1634,6 +1646,7 @@ static struct i2c_driver si5351_driver = {
 		.of_match_table = of_match_ptr(si5351_dt_ids),
 	},
 	.probe = si5351_i2c_probe,
+	.remove = si5351_i2c_remove,
 	.id_table = si5351_i2c_ids,
 };
 module_i2c_driver(si5351_driver);
