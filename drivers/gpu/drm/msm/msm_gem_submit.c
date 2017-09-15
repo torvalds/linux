@@ -161,7 +161,8 @@ out:
 	return ret;
 }
 
-static void submit_unlock_unpin_bo(struct msm_gem_submit *submit, int i)
+static void submit_unlock_unpin_bo(struct msm_gem_submit *submit,
+		int i, bool backoff)
 {
 	struct msm_gem_object *msm_obj = submit->bos[i].obj;
 
@@ -171,7 +172,7 @@ static void submit_unlock_unpin_bo(struct msm_gem_submit *submit, int i)
 	if (submit->bos[i].flags & BO_LOCKED)
 		ww_mutex_unlock(&msm_obj->resv->lock);
 
-	if (!(submit->bos[i].flags & BO_VALID))
+	if (backoff && !(submit->bos[i].flags & BO_VALID))
 		submit->bos[i].iova = 0;
 
 	submit->bos[i].flags &= ~(BO_LOCKED | BO_PINNED);
@@ -206,10 +207,10 @@ retry:
 
 fail:
 	for (; i >= 0; i--)
-		submit_unlock_unpin_bo(submit, i);
+		submit_unlock_unpin_bo(submit, i, true);
 
 	if (slow_locked > 0)
-		submit_unlock_unpin_bo(submit, slow_locked);
+		submit_unlock_unpin_bo(submit, slow_locked, true);
 
 	if (ret == -EDEADLK) {
 		struct msm_gem_object *msm_obj = submit->bos[contended].obj;
@@ -393,7 +394,7 @@ static void submit_cleanup(struct msm_gem_submit *submit)
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct msm_gem_object *msm_obj = submit->bos[i].obj;
-		submit_unlock_unpin_bo(submit, i);
+		submit_unlock_unpin_bo(submit, i, false);
 		list_del_init(&msm_obj->submit_entry);
 		drm_gem_object_unreference(&msm_obj->base);
 	}
