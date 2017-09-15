@@ -1135,7 +1135,7 @@ static u8 search_max_mac_id(struct adapter *padapter)
 
 #if defined(CONFIG_88EU_AP_MODE)
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
-		for (aid = (pstapriv->max_num_sta); aid > 0; aid--) {
+		for (aid = pstapriv->max_num_sta; aid > 0; aid--) {
 			if (pstapriv->sta_aid[aid-1])
 				break;
 		}
@@ -1143,7 +1143,7 @@ static u8 search_max_mac_id(struct adapter *padapter)
 	} else
 #endif
 	{/* adhoc  id =  31~2 */
-		for (mac_id = (NUM_STA-1); mac_id >= IBSS_START_MAC_ID; mac_id--) {
+		for (mac_id = NUM_STA-1; mac_id >= IBSS_START_MAC_ID; mac_id--) {
 			if (pmlmeinfo->FW_sta_info[mac_id].status == 1)
 				break;
 		}
@@ -1569,7 +1569,7 @@ int rtw_set_auth(struct adapter *adapter, struct security_priv *psecuritypriv)
 	psetauthparm->mode = (unsigned char)psecuritypriv->dot11AuthAlgrthm;
 	pcmd->cmdcode = _SetAuth_CMD_;
 	pcmd->parmbuf = (unsigned char *)psetauthparm;
-	pcmd->cmdsz =  (sizeof(struct setauth_parm));
+	pcmd->cmdsz =  sizeof(struct setauth_parm);
 	pcmd->rsp = NULL;
 	pcmd->rspsz = 0;
 	INIT_LIST_HEAD(&pcmd->list);
@@ -1648,7 +1648,7 @@ int rtw_set_key(struct adapter *adapter, struct security_priv *psecuritypriv, in
 	}
 	pcmd->cmdcode = _SetKey_CMD_;
 	pcmd->parmbuf = (u8 *)psetkeyparm;
-	pcmd->cmdsz =  (sizeof(struct setkey_parm));
+	pcmd->cmdsz =  sizeof(struct setkey_parm);
 	pcmd->rsp = NULL;
 	pcmd->rspsz = 0;
 	INIT_LIST_HEAD(&pcmd->list);
@@ -1814,45 +1814,45 @@ void rtw_update_registrypriv_dev_network(struct adapter *adapter)
 	struct	security_priv *psecuritypriv = &adapter->securitypriv;
 	struct	wlan_network	*cur_network = &adapter->mlmepriv.cur_network;
 
-	pdev_network->Privacy = (psecuritypriv->dot11PrivacyAlgrthm > 0 ? 1 : 0); /*  adhoc no 802.1x */
+	pdev_network->Privacy = psecuritypriv->dot11PrivacyAlgrthm > 0 ? 1 : 0; /*  adhoc no 802.1x */
 
 	pdev_network->Rssi = 0;
 
 	switch (pregistrypriv->wireless_mode) {
 	case WIRELESS_11B:
-		pdev_network->NetworkTypeInUse = (Ndis802_11DS);
+		pdev_network->NetworkTypeInUse = Ndis802_11DS;
 		break;
 	case WIRELESS_11G:
 	case WIRELESS_11BG:
 	case WIRELESS_11_24N:
 	case WIRELESS_11G_24N:
 	case WIRELESS_11BG_24N:
-		pdev_network->NetworkTypeInUse = (Ndis802_11OFDM24);
+		pdev_network->NetworkTypeInUse = Ndis802_11OFDM24;
 		break;
 	case WIRELESS_11A:
 	case WIRELESS_11A_5N:
-		pdev_network->NetworkTypeInUse = (Ndis802_11OFDM5);
+		pdev_network->NetworkTypeInUse = Ndis802_11OFDM5;
 		break;
 	case WIRELESS_11ABGN:
 		if (pregistrypriv->channel > 14)
-			pdev_network->NetworkTypeInUse = (Ndis802_11OFDM5);
+			pdev_network->NetworkTypeInUse = Ndis802_11OFDM5;
 		else
-			pdev_network->NetworkTypeInUse = (Ndis802_11OFDM24);
+			pdev_network->NetworkTypeInUse = Ndis802_11OFDM24;
 		break;
 	default:
 		/*  TODO */
 		break;
 	}
 
-	pdev_network->Configuration.DSConfig = (pregistrypriv->channel);
+	pdev_network->Configuration.DSConfig = pregistrypriv->channel;
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
 		 ("pregistrypriv->channel=%d, pdev_network->Configuration.DSConfig=0x%x\n",
 		 pregistrypriv->channel, pdev_network->Configuration.DSConfig));
 
 	if (cur_network->network.InfrastructureMode == Ndis802_11IBSS)
-		pdev_network->Configuration.ATIMWindow = (0);
+		pdev_network->Configuration.ATIMWindow = 0;
 
-	pdev_network->InfrastructureMode = (cur_network->network.InfrastructureMode);
+	pdev_network->InfrastructureMode = cur_network->network.InfrastructureMode;
 
 	/*  1. Supported rates */
 	/*  2. IE */
