@@ -1002,8 +1002,6 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	if (clone_it) {
 		TCP_SKB_CB(skb)->tx.in_flight = TCP_SKB_CB(skb)->end_seq
 			- tp->snd_una;
-		tcp_rate_skb_sent(sk, skb);
-
 		oskb = skb;
 		if (unlikely(skb_cloned(skb)))
 			skb = pskb_copy(skb, gfp_mask);
@@ -1128,9 +1126,10 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 		tcp_enter_cwr(sk);
 		err = net_xmit_eval(err);
 	}
-	if (!err && oskb)
+	if (!err && oskb) {
 		oskb->skb_mstamp = tp->tcp_mstamp;
-
+		tcp_rate_skb_sent(sk, oskb);
+	}
 	return err;
 }
 
