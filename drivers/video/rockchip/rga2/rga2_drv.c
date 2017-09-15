@@ -246,10 +246,6 @@ static void rga2_power_on(void)
 	static ktime_t last;
 	ktime_t now = ktime_get();
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
-	pm_runtime_get_sync(rga2_drvdata->dev);
-#endif
-
 	if (ktime_to_ns(ktime_sub(now, last)) > NSEC_PER_SEC) {
 		cancel_delayed_work_sync(&rga2_drvdata->power_off_work);
 		rga2_queue_power_off_work();
@@ -258,6 +254,10 @@ static void rga2_power_on(void)
 
 	if (rga2_service.enable)
 		return;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+	pm_runtime_get_sync(rga2_drvdata->dev);
+#endif
 
 	clk_prepare_enable(rga2_drvdata->rga2);
 	clk_prepare_enable(rga2_drvdata->aclk_rga2);
