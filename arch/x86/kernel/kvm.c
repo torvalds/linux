@@ -180,7 +180,7 @@ static void apf_task_wake_one(struct kvm_task_sleep_node *n)
 	hlist_del_init(&n->link);
 	if (n->halted)
 		smp_send_reschedule(n->cpu);
-	else if (swait_active(&n->wq))
+	else if (swq_has_sleeper(&n->wq))
 		swake_up(&n->wq);
 }
 
