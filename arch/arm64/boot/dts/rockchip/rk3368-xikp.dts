@@ -634,6 +634,17 @@
 		mpu-debug = <1>;
 	};
 
+	sensor@4c {
+		status = "okay";
+		compatible = "gs_mc3230";
+		reg = <0x4c>;
+		type = <SENSOR_TYPE_ACCEL>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		layout = <1>;
+		support-hw-poweroff = <1>;
+	};
+
 	sensor@19 {
 		status = "okay";
 		compatible = "gs_lis3dh";
