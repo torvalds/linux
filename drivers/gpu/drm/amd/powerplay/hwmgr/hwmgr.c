@@ -26,8 +26,8 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/pci.h>
 #include <drm/amdgpu_drm.h>
-#include "cgs_common.h"
 #include "power_state.h"
 #include "hwmgr.h"
 #include "pppcielanes.h"
@@ -50,6 +50,75 @@ uint8_t convert_to_vid(uint16_t vddc)
 {
 	return (uint8_t) ((6200 - (vddc * VOLTAGE_SCALE)) / 25);
 }
+
+static int phm_get_pci_bus_devfn(struct pp_hwmgr *hwmgr,
+		struct cgs_system_info *sys_info)
+{
+	sys_info->size = sizeof(struct cgs_system_info);
+	sys_info->info_id = CGS_SYSTEM_INFO_PCIE_BUS_DEVFN;
+
+	return cgs_query_system_info(hwmgr->device, sys_info);
+}
+
+static int phm_thermal_l2h_irq(void *private_data,
+		 unsigned src_id, const uint32_t *iv_entry)
+{
+	struct pp_hwmgr *hwmgr = (struct pp_hwmgr *)private_data;
+	struct cgs_system_info sys_info = {0};
+	int result;
+
+	result = phm_get_pci_bus_devfn(hwmgr, &sys_info);
+	if (result)
+		return -EINVAL;
+
+	pr_warn("GPU over temperature range detected on PCIe %lld:%lld.%lld!\n",
+			PCI_BUS_NUM(sys_info.value),
+			PCI_SLOT(sys_info.value),
+			PCI_FUNC(sys_info.value));
+	return 0;
+}
+
+static int phm_thermal_h2l_irq(void *private_data,
+		 unsigned src_id, const uint32_t *iv_entry)
+{
+	struct pp_hwmgr *hwmgr = (struct pp_hwmgr *)private_data;
+	struct cgs_system_info sys_info = {0};
+	int result;
+
+	result = phm_get_pci_bus_devfn(hwmgr, &sys_info);
+	if (result)
+		return -EINVAL;
+
+	pr_warn("GPU under temperature range detected on PCIe %lld:%lld.%lld!\n",
+			PCI_BUS_NUM(sys_info.value),
+			PCI_SLOT(sys_info.value),
+			PCI_FUNC(sys_info.value));
+	return 0;
+}
+
+static int phm_ctf_irq(void *private_data,
+		 unsigned src_id, const uint32_t *iv_entry)
+{
+	struct pp_hwmgr *hwmgr = (struct pp_hwmgr *)private_data;
+	struct cgs_system_info sys_info = {0};
+	int result;
+
+	result = phm_get_pci_bus_devfn(hwmgr, &sys_info);
+	if (result)
+		return -EINVAL;
+
+	pr_warn("GPU Critical Temperature Fault detected on PCIe %lld:%lld.%lld!\n",
+			PCI_BUS_NUM(sys_info.value),
+			PCI_SLOT(sys_info.value),
+			PCI_FUNC(sys_info.value));
+	return 0;
+}
+
+static const struct cgs_irq_src_funcs thermal_irq_src[3] = {
+	{NULL, phm_thermal_l2h_irq},
+	{NULL, phm_thermal_h2l_irq},
+	{NULL, phm_ctf_irq}
+};
 
 int hwmgr_early_init(struct pp_instance *handle)
 {
@@ -176,6 +245,10 @@ int hwmgr_hw_init(struct pp_instance *handle)
 		goto err2;
 	ret = phm_start_thermal_controller(hwmgr, NULL);
 	ret |= psm_set_performance_states(hwmgr);
+	if (ret)
+		goto err2;
+
+	ret = phm_register_thermal_interrupt(hwmgr, &thermal_irq_src);
 	if (ret)
 		goto err2;
 

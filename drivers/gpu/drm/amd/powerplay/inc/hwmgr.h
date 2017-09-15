@@ -32,6 +32,7 @@
 #include "ppatomctrl.h"
 #include "hwmgr_ppt.h"
 #include "power_state.h"
+#include "cgs_linux.h"
 
 struct pp_instance;
 struct pp_hwmgr;
@@ -744,6 +745,11 @@ struct pp_hwmgr {
 	struct amd_pp_profile default_compute_power_profile;
 	enum amd_pp_profile_type current_power_profile;
 	bool en_umd_pstate;
+};
+
+struct cgs_irq_src_funcs {
+	cgs_irq_source_set_func_t set;
+	cgs_irq_handler_func_t handler;
 };
 
 extern int hwmgr_early_init(struct pp_instance *handle);
