@@ -1261,7 +1261,7 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 		else
 			seq_printf(seq, ",compress=%s", compress_type);
 		if (info->compress_level)
-			seq_printf(seq, "%d", info->compress_level);
+			seq_printf(seq, ":%d", info->compress_level);
 	}
 	if (btrfs_test_opt(info, NOSSD))
 		seq_puts(seq, ",nossd");
