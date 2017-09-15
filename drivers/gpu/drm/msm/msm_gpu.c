@@ -557,7 +557,7 @@ void msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 
 	list_add_tail(&submit->node, &ring->submits);
 
-	msm_rd_dump_submit(priv->rd, submit);
+	msm_rd_dump_submit(priv->rd, submit, NULL);
 
 	update_sw_cntrs(gpu);
 

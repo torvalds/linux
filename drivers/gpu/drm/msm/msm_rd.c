@@ -338,11 +338,12 @@ static void snapshot_buf(struct msm_rd_state *rd,
 }
 
 /* called under struct_mutex */
-void msm_rd_dump_submit(struct msm_rd_state *rd, struct msm_gem_submit *submit)
+void msm_rd_dump_submit(struct msm_rd_state *rd, struct msm_gem_submit *submit,
+		const char *fmt, ...)
 {
 	struct drm_device *dev = submit->dev;
 	struct task_struct *task;
-	char msg[128];
+	char msg[256];
 	int i, n;
 
 	if (!rd->open)
@@ -352,6 +353,16 @@ void msm_rd_dump_submit(struct msm_rd_state *rd, struct msm_gem_submit *submit)
 	 * rd->read_lock is used to serialize the reads
 	 */
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
+	if (fmt) {
+		va_list args;
+
+		va_start(args, fmt);
+		n = vsnprintf(msg, sizeof(msg), fmt, args);
+		va_end(args);
+
+		rd_write_section(rd, RD_CMD, msg, ALIGN(n, 4));
+	}
 
 	rcu_read_lock();
 	task = pid_task(submit->pid, PIDTYPE_PID);
