@@ -325,6 +325,7 @@ config PHY_ROCKCHIP_INNO_USB2
 	depends on ARCH_ROCKCHIP && OF
 	depends on COMMON_CLK
 	depends on USB_SUPPORT
+	select EXTCON
 	select GENERIC_PHY
 	select USB_COMMON
 	help
