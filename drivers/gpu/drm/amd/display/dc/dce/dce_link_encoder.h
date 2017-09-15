@@ -69,10 +69,6 @@
 	SRI(DP_DPHY_FAST_TRAINING, DP, id), \
 	SRI(DP_SEC_CNTL1, DP, id)
 
-#define LE_EDP_REG_LIST(id)\
-	SR(LVTMA_PWRSEQ_CNTL), \
-	SR(LVTMA_PWRSEQ_STATE)
-
 #define LE_COMMON_REG_LIST(id)\
 	LE_COMMON_REG_LIST_BASE(id), \
 	SRI(DP_DPHY_BS_SR_SWAP_CNTL, DP, id), \
@@ -81,38 +77,32 @@
 
 #define LE_DCE80_REG_LIST(id)\
 	SRI(DP_DPHY_INTERNAL_CTRL, DP, id), \
-	LE_COMMON_REG_LIST_BASE(id), \
-	LE_EDP_REG_LIST(id)
+	LE_COMMON_REG_LIST_BASE(id)
 
 #define LE_DCE100_REG_LIST(id)\
 	LE_COMMON_REG_LIST_BASE(id), \
 	SRI(DP_DPHY_BS_SR_SWAP_CNTL, DP, id), \
 	SRI(DP_DPHY_INTERNAL_CTRL, DP, id), \
-	SR(DCI_MEM_PWR_STATUS), \
-	LE_EDP_REG_LIST(id)
+	SR(DCI_MEM_PWR_STATUS)
 
 #define LE_DCE110_REG_LIST(id)\
 	LE_COMMON_REG_LIST_BASE(id), \
 	SRI(DP_DPHY_BS_SR_SWAP_CNTL, DP, id), \
 	SRI(DP_DPHY_INTERNAL_CTRL, DP, id), \
 	SRI(DP_DPHY_HBR2_PATTERN_CONTROL, DP, id), \
-	SR(DCI_MEM_PWR_STATUS), \
-	LE_EDP_REG_LIST(id)
+	SR(DCI_MEM_PWR_STATUS)
 
 #define LE_DCE120_REG_LIST(id)\
 	LE_COMMON_REG_LIST_BASE(id), \
 	SRI(DP_DPHY_BS_SR_SWAP_CNTL, DP, id), \
 	SRI(DP_DPHY_HBR2_PATTERN_CONTROL, DP, id), \
-	SR(DCI_MEM_PWR_STATUS), \
-	LE_EDP_REG_LIST(id)
+	SR(DCI_MEM_PWR_STATUS)
 
 #define LE_DCN10_REG_LIST(id)\
 	LE_COMMON_REG_LIST_BASE(id), \
 	SRI(DP_DPHY_BS_SR_SWAP_CNTL, DP, id), \
 	SRI(DP_DPHY_INTERNAL_CTRL, DP, id), \
-	SRI(DP_DPHY_HBR2_PATTERN_CONTROL, DP, id), \
-	SR(DMU_MEM_PWR_CNTL), \
-	LE_EDP_REG_LIST(id)
+	SRI(DP_DPHY_HBR2_PATTERN_CONTROL, DP, id)
 
 struct dce110_link_enc_aux_registers {
 	uint32_t AUX_CONTROL;
@@ -243,7 +233,8 @@ void dce110_link_encoder_enable_dp_mst_output(
 /* disable PHY output */
 void dce110_link_encoder_disable_output(
 	struct link_encoder *link_enc,
-	enum signal_type signal);
+	enum signal_type signal,
+	struct dc_link *link);
 
 /* set DP lane settings */
 void dce110_link_encoder_dp_set_lane_settings(
@@ -258,10 +249,6 @@ void dce110_link_encoder_dp_set_phy_pattern(
 void dce110_link_encoder_update_mst_stream_allocation_table(
 	struct link_encoder *enc,
 	const struct link_mst_stream_allocation_table *table);
-
-void dce110_link_encoder_edp_backlight_control(
-	struct link_encoder *enc,
-	bool enable);
 
 void dce110_link_encoder_edp_power_control(
 	struct link_encoder *enc,

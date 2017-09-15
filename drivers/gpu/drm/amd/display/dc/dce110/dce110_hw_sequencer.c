@@ -56,6 +56,15 @@
 #include "dce/dce_11_0_sh_mask.h"
 #include "custom_float.h"
 
+#define CTX \
+	hws->ctx
+#define REG(reg)\
+	hws->regs->reg
+
+#undef FN
+#define FN(reg_name, field_name) \
+	hws->shifts->field_name, hws->masks->field_name
+
 struct dce110_hw_seq_reg_offsets {
 	uint32_t crtc;
 };
@@ -761,6 +770,92 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 
 }
 
+/*todo: cloned in stream enc, fix*/
+static bool is_panel_backlight_on(struct dce_hwseq *hws)
+{
+	uint32_t value;
+
+	REG_GET(LVTMA_PWRSEQ_CNTL, LVTMA_BLON, &value);
+
+	return value;
+}
+
+static enum bp_result link_transmitter_control(
+		struct dc_link *link,
+	struct bp_transmitter_control *cntl)
+{
+	enum bp_result result;
+	struct dc_bios *bp = link->dc->ctx->dc_bios;
+
+	result = bp->funcs->transmitter_control(bp, cntl);
+
+	return result;
+}
+
+
+/*todo: cloned in stream enc, fix*/
+/*
+ * @brief
+ * eDP only. Control the backlight of the eDP panel
+ */
+void hwss_blacklight_control(
+	struct dc_link *link,
+	bool enable)
+{
+	struct dce_hwseq *hws = link->dc->hwseq;
+	struct dc_context *ctx = link->dc->ctx;
+	struct bp_transmitter_control cntl = { 0 };
+
+	if (dal_graphics_object_id_get_connector_id(link->link_id)
+		!= CONNECTOR_ID_EDP) {
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+
+	if (enable && is_panel_backlight_on(hws)) {
+		dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
+				"%s: panel already powered up. Do nothing.\n",
+				__func__);
+		return;
+	}
+
+	if (!enable && !is_panel_backlight_on(hws)) {
+		dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
+				"%s: panel already powered down. Do nothing.\n",
+				__func__);
+		return;
+	}
+
+	/* Send VBIOS command to control eDP panel backlight */
+
+	dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
+			"%s: backlight action: %s\n",
+			__func__, (enable ? "On":"Off"));
+
+	cntl.action = enable ?
+		TRANSMITTER_CONTROL_BACKLIGHT_ON :
+		TRANSMITTER_CONTROL_BACKLIGHT_OFF;
+	/*cntl.engine_id = ctx->engine;*/
+	cntl.transmitter = link->link_enc->transmitter;
+	cntl.connector_obj_id = link->link_enc->connector;
+	/*todo: unhardcode*/
+	cntl.lanes_number = LANE_COUNT_FOUR;
+	cntl.hpd_sel = link->link_enc->hpd_source;
+
+	/* For eDP, the following delays might need to be considered
+	 * after link training completed:
+	 * idle period - min. accounts for required BS-Idle pattern,
+	 * max. allows for source frame synchronization);
+	 * 50 msec max. delay from valid video data from source
+	 * to video on dislpay or backlight enable.
+	 *
+	 * Disable the delay for now.
+	 * Enable it in the future if necessary.
+	 */
+	/* dc_service_sleep_in_milliseconds(50); */
+	link_transmitter_control(link, &cntl);
+}
+
 void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
@@ -798,7 +893,7 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 	/* blank at encoder level */
 	if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
 		if (pipe_ctx->stream->sink->link->connector_signal == SIGNAL_TYPE_EDP)
-			link->link_enc->funcs->backlight_control(link->link_enc, false);
+			hwss_blacklight_control(link, false);
 		pipe_ctx->stream_res.stream_enc->funcs->dp_blank(pipe_ctx->stream_res.stream_enc);
 	}
 	link->link_enc->funcs->connect_dig_be_to_fe(
@@ -820,7 +915,7 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 	params.link_settings.link_rate = link_settings->link_rate;
 	pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(pipe_ctx->stream_res.stream_enc, &params);
 	if (link->connector_signal == SIGNAL_TYPE_EDP)
-			link->link_enc->funcs->backlight_control(link->link_enc, true);
+		hwss_blacklight_control(link, true);
 }
 
 
@@ -1184,7 +1279,7 @@ static void power_down_encoders(struct dc *dc)
 		}
 
 		dc->links[i]->link_enc->funcs->disable_output(
-				dc->links[i]->link_enc, signal);
+				dc->links[i]->link_enc, signal, dc->links[i]);
 	}
 }
 
@@ -2733,7 +2828,7 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.wait_for_mpcc_disconnect = dce110_wait_for_mpcc_disconnect,
 	.ready_shared_resources = ready_shared_resources,
 	.optimize_shared_resources = optimize_shared_resources,
-
+	.backlight_control = hwss_blacklight_control
 };
 
 void dce110_hw_sequencer_construct(struct dc *dc)

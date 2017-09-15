@@ -122,7 +122,6 @@ static const struct link_encoder_funcs dce110_lnk_enc_funcs = {
 	.psr_program_dp_dphy_fast_training =
 			dce110_psr_program_dp_dphy_fast_training,
 	.psr_program_secondary_packet = dce110_psr_program_secondary_packet,
-	.backlight_control = dce110_link_encoder_edp_backlight_control,
 	.power_control = dce110_link_encoder_edp_power_control,
 	.connect_dig_be_to_fe = dce110_link_encoder_connect_dig_be_to_fe,
 	.enable_hpd = dce110_link_encoder_enable_hpd,
@@ -674,16 +673,6 @@ static void aux_initialize(
 
 }
 
-/*todo: cloned in stream enc, fix*/
-static bool is_panel_backlight_on(struct dce110_link_encoder *enc110)
-{
-	uint32_t value;
-
-	REG_GET(LVTMA_PWRSEQ_CNTL, LVTMA_BLON, &value);
-
-	return value;
-}
-
 void dce110_psr_program_dp_dphy_fast_training(struct link_encoder *enc,
 			bool exit_link_training_required)
 {
@@ -716,69 +705,6 @@ void dce110_psr_program_secondary_packet(struct link_encoder *enc,
 	REG_UPDATE_2(DP_SEC_CNTL1,
 		DP_SEC_GSP0_LINE_NUM, sdp_transmit_line_num_deadline,
 		DP_SEC_GSP0_PRIORITY, 1);
-}
-
-/*todo: cloned in stream enc, fix*/
-/*
- * @brief
- * eDP only. Control the backlight of the eDP panel
- */
-void dce110_link_encoder_edp_backlight_control(
-	struct link_encoder *enc,
-	bool enable)
-{
-	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
-	struct dc_context *ctx = enc110->base.ctx;
-	struct bp_transmitter_control cntl = { 0 };
-
-	if (dal_graphics_object_id_get_connector_id(enc110->base.connector)
-		!= CONNECTOR_ID_EDP) {
-		BREAK_TO_DEBUGGER();
-		return;
-	}
-
-	if (enable && is_panel_backlight_on(enc110)) {
-		dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
-				"%s: panel already powered up. Do nothing.\n",
-				__func__);
-		return;
-	}
-
-	if (!enable && !is_panel_backlight_on(enc110)) {
-		dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
-				"%s: panel already powered down. Do nothing.\n",
-				__func__);
-		return;
-	}
-
-	/* Send VBIOS command to control eDP panel backlight */
-
-	dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
-			"%s: backlight action: %s\n",
-			__func__, (enable ? "On":"Off"));
-
-	cntl.action = enable ?
-		TRANSMITTER_CONTROL_BACKLIGHT_ON :
-		TRANSMITTER_CONTROL_BACKLIGHT_OFF;
-	/*cntl.engine_id = ctx->engine;*/
-	cntl.transmitter = enc110->base.transmitter;
-	cntl.connector_obj_id = enc110->base.connector;
-	/*todo: unhardcode*/
-	cntl.lanes_number = LANE_COUNT_FOUR;
-	cntl.hpd_sel = enc110->base.hpd_source;
-
-	/* For eDP, the following delays might need to be considered
-	 * after link training completed:
-	 * idle period - min. accounts for required BS-Idle pattern,
-	 * max. allows for source frame synchronization);
-	 * 50 msec max. delay from valid video data from source
-	 * to video on dislpay or backlight enable.
-	 *
-	 * Disable the delay for now.
-	 * Enable it in the future if necessary.
-	 */
-	/* dc_service_sleep_in_milliseconds(50); */
-	link_transmitter_control(enc110, &cntl);
 }
 
 static bool is_dig_enabled(const struct dce110_link_encoder *enc110)
@@ -1279,7 +1205,8 @@ void dce110_link_encoder_enable_dp_mst_output(
  */
 void dce110_link_encoder_disable_output(
 	struct link_encoder *enc,
-	enum signal_type signal)
+	enum signal_type signal,
+	struct dc_link *link)
 {
 	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
 	struct dc_context *ctx = enc110->base.ctx;
@@ -1291,7 +1218,7 @@ void dce110_link_encoder_disable_output(
 		return;
 	}
 	if (enc110->base.connector.id == CONNECTOR_ID_EDP)
-		dce110_link_encoder_edp_backlight_control(enc, false);
+		ctx->dc->hwss.backlight_control(link, false);
 	/* Power-down RX and disable GPU PHY should be paired.
 	 * Disabling PHY without powering down RX may cause
 	 * symbol lock loss, on which we will get DP Sink interrupt. */

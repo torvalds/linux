@@ -111,7 +111,7 @@ struct link_encoder_funcs {
 		const struct dc_link_settings *link_settings,
 		enum clock_source_id clock_source);
 	void (*disable_output)(struct link_encoder *link_enc,
-		enum signal_type signal);
+		enum signal_type signal, struct dc_link *link);
 	void (*dp_set_lane_settings)(struct link_encoder *enc,
 		const struct link_training_settings *link_settings);
 	void (*dp_set_phy_pattern)(struct link_encoder *enc,
@@ -123,8 +123,6 @@ struct link_encoder_funcs {
 			bool exit_link_training_required);
 	void (*psr_program_secondary_packet)(struct link_encoder *enc,
 				unsigned int sdp_transmit_line_num_deadline);
-	void (*backlight_control) (struct link_encoder *enc,
-		bool enable);
 	void (*power_control) (struct link_encoder *enc,
 		bool power_up);
 	void (*connect_dig_be_to_fe)(struct link_encoder *enc,

@@ -176,6 +176,10 @@ struct hw_sequencer_funcs {
 
 	void (*ready_shared_resources)(struct dc *dc, struct dc_state *context);
 	void (*optimize_shared_resources)(struct dc *dc);
+
+	void (*backlight_control)(
+			struct dc_link *link,
+			bool enable);
 };
 
 void color_space_to_black_color(
