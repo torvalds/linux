@@ -2190,6 +2190,16 @@ uint32_t polaris10_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU74_SoftRegisters, VBlankTimeout);
 		case UcodeLoadStatus:
 			return offsetof(SMU74_SoftRegisters, UcodeLoadStatus);
+		case DRAM_LOG_ADDR_H:
+			return offsetof(SMU74_SoftRegisters, DRAM_LOG_ADDR_H);
+		case DRAM_LOG_ADDR_L:
+			return offsetof(SMU74_SoftRegisters, DRAM_LOG_ADDR_L);
+		case DRAM_LOG_PHY_ADDR_H:
+			return offsetof(SMU74_SoftRegisters, DRAM_LOG_PHY_ADDR_H);
+		case DRAM_LOG_PHY_ADDR_L:
+			return offsetof(SMU74_SoftRegisters, DRAM_LOG_PHY_ADDR_L);
+		case DRAM_LOG_BUFF_SIZE:
+			return offsetof(SMU74_SoftRegisters, DRAM_LOG_BUFF_SIZE);
 		}
 	case SMU_Discrete_DpmTable:
 		switch (member) {

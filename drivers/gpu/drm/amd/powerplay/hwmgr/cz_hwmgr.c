@@ -1871,6 +1871,33 @@ static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 	}
 }
 
+static int cz_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
+					uint32_t virtual_addr_low,
+					uint32_t virtual_addr_hi,
+					uint32_t mc_addr_low,
+					uint32_t mc_addr_hi,
+					uint32_t size)
+{
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_DramAddrHiVirtual,
+					mc_addr_hi);
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_DramAddrLoVirtual,
+					mc_addr_low);
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_DramAddrHiPhysical,
+					virtual_addr_hi);
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_DramAddrLoPhysical,
+					virtual_addr_low);
+
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_DramBufferSize,
+					size);
+	return 0;
+}
+
+
 static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.backend_init = cz_hwmgr_backend_init,
 	.backend_fini = cz_hwmgr_backend_fini,
@@ -1901,6 +1928,7 @@ static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.dynamic_state_management_enable = cz_enable_dpm_tasks,
 	.power_state_set = cz_set_power_state_tasks,
 	.dynamic_state_management_disable = cz_disable_dpm_tasks,
+	.notify_cac_buffer_info = cz_notify_cac_buffer_info,
 };
 
 int cz_init_function_pointers(struct pp_hwmgr *hwmgr)

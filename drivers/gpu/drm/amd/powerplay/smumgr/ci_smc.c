@@ -2266,6 +2266,16 @@ static uint32_t ci_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU7_SoftRegisters, PreVBlankGap);
 		case VBlankTimeout:
 			return offsetof(SMU7_SoftRegisters, VBlankTimeout);
+		case DRAM_LOG_ADDR_H:
+			return offsetof(SMU7_SoftRegisters, DRAM_LOG_ADDR_H);
+		case DRAM_LOG_ADDR_L:
+			return offsetof(SMU7_SoftRegisters, DRAM_LOG_ADDR_L);
+		case DRAM_LOG_PHY_ADDR_H:
+			return offsetof(SMU7_SoftRegisters, DRAM_LOG_PHY_ADDR_H);
+		case DRAM_LOG_PHY_ADDR_L:
+			return offsetof(SMU7_SoftRegisters, DRAM_LOG_PHY_ADDR_L);
+		case DRAM_LOG_BUFF_SIZE:
+			return offsetof(SMU7_SoftRegisters, DRAM_LOG_BUFF_SIZE);
 		}
 	case SMU_Discrete_DpmTable:
 		switch (member) {

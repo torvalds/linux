@@ -2668,6 +2668,16 @@ uint32_t tonga_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU72_SoftRegisters, VBlankTimeout);
 		case UcodeLoadStatus:
 			return offsetof(SMU72_SoftRegisters, UcodeLoadStatus);
+		case DRAM_LOG_ADDR_H:
+			return offsetof(SMU72_SoftRegisters, DRAM_LOG_ADDR_H);
+		case DRAM_LOG_ADDR_L:
+			return offsetof(SMU72_SoftRegisters, DRAM_LOG_ADDR_L);
+		case DRAM_LOG_PHY_ADDR_H:
+			return offsetof(SMU72_SoftRegisters, DRAM_LOG_PHY_ADDR_H);
+		case DRAM_LOG_PHY_ADDR_L:
+			return offsetof(SMU72_SoftRegisters, DRAM_LOG_PHY_ADDR_L);
+		case DRAM_LOG_BUFF_SIZE:
+			return offsetof(SMU72_SoftRegisters, DRAM_LOG_BUFF_SIZE);
 		}
 	case SMU_Discrete_DpmTable:
 		switch (member) {
