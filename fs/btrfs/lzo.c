@@ -430,10 +430,15 @@ out:
 	return ret;
 }
 
+static void lzo_set_level(struct list_head *ws, unsigned int type)
+{
+}
+
 const struct btrfs_compress_op btrfs_lzo_compress = {
 	.alloc_workspace	= lzo_alloc_workspace,
 	.free_workspace		= lzo_free_workspace,
 	.compress_pages		= lzo_compress_pages,
 	.decompress_bio		= lzo_decompress_bio,
 	.decompress		= lzo_decompress,
+	.set_level		= lzo_set_level,
 };

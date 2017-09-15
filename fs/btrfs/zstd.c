@@ -423,10 +423,15 @@ finish:
 	return ret;
 }
 
+static void zstd_set_level(struct list_head *ws, unsigned int type)
+{
+}
+
 const struct btrfs_compress_op btrfs_zstd_compress = {
 	.alloc_workspace = zstd_alloc_workspace,
 	.free_workspace = zstd_free_workspace,
 	.compress_pages = zstd_compress_pages,
 	.decompress_bio = zstd_decompress_bio,
 	.decompress = zstd_decompress,
+	.set_level = zstd_set_level,
 };

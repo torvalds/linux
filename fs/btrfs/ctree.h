@@ -790,6 +790,7 @@ struct btrfs_fs_info {
 	 */
 	unsigned long pending_changes;
 	unsigned long compress_type:4;
+	unsigned int compress_level;
 	int commit_interval;
 	/*
 	 * It is a suggestive number, the read side is safe even it gets a

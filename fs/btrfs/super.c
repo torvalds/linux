@@ -508,6 +508,8 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			    strncmp(args[0].from, "zlib", 4) == 0) {
 				compress_type = "zlib";
 				info->compress_type = BTRFS_COMPRESS_ZLIB;
+				info->compress_level =
+					btrfs_compress_str2level(args[0].from);
 				btrfs_set_opt(info->mount_opt, COMPRESS);
 				btrfs_clear_opt(info->mount_opt, NODATACOW);
 				btrfs_clear_opt(info->mount_opt, NODATASUM);
@@ -555,9 +557,9 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			      compress_force != saved_compress_force)) ||
 			    (!btrfs_test_opt(info, COMPRESS) &&
 			     no_compress == 1)) {
-				btrfs_info(info, "%s %s compression",
+				btrfs_info(info, "%s %s compression, level %d",
 					   (compress_force) ? "force" : "use",
-					   compress_type);
+					   compress_type, info->compress_level);
 			}
 			compress_force = false;
 			break;
@@ -1258,6 +1260,8 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 			seq_printf(seq, ",compress-force=%s", compress_type);
 		else
 			seq_printf(seq, ",compress=%s", compress_type);
+		if (info->compress_level)
+			seq_printf(seq, "%d", info->compress_level);
 	}
 	if (btrfs_test_opt(info, NOSSD))
 		seq_puts(seq, ",nossd");

@@ -884,6 +884,11 @@ static void free_workspaces(void)
  * Given an address space and start and length, compress the bytes into @pages
  * that are allocated on demand.
  *
+ * @type_level is encoded algorithm and level, where level 0 means whatever
+ * default the algorithm chooses and is opaque here;
+ * - compression algo are 0-3
+ * - the level are bits 4-7
+ *
  * @out_pages is an in/out parameter, holds maximum number of pages to allocate
  * and returns number of actually allocated pages
  *
@@ -898,7 +903,7 @@ static void free_workspaces(void)
  * @max_out tells us the max number of bytes that we're allowed to
  * stuff into pages
  */
-int btrfs_compress_pages(int type, struct address_space *mapping,
+int btrfs_compress_pages(unsigned int type_level, struct address_space *mapping,
 			 u64 start, struct page **pages,
 			 unsigned long *out_pages,
 			 unsigned long *total_in,
@@ -906,9 +911,11 @@ int btrfs_compress_pages(int type, struct address_space *mapping,
 {
 	struct list_head *workspace;
 	int ret;
+	int type = type_level & 0xF;
 
 	workspace = find_workspace(type);
 
+	btrfs_compress_op[type - 1]->set_level(workspace, type_level);
 	ret = btrfs_compress_op[type-1]->compress_pages(workspace, mapping,
 						      start, pages,
 						      out_pages,
@@ -1097,4 +1104,15 @@ int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end)
 	}
 
 	return ret;
+}
+
+unsigned int btrfs_compress_str2level(const char *str)
+{
+	if (strncmp(str, "zlib", 4) != 0)
+		return 0;
+
+	if ('1' <= str[4] && str[4] <= '9' )
+		return str[4] - '0';
+
+	return 0;
 }

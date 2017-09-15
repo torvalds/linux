@@ -539,7 +539,10 @@ again:
 		 */
 		extent_range_clear_dirty_for_io(inode, start, end);
 		redirty = 1;
-		ret = btrfs_compress_pages(compress_type,
+
+		/* Compression level is applied here and only here */
+		ret = btrfs_compress_pages(
+			compress_type | (fs_info->compress_level << 4),
 					   inode->i_mapping, start,
 					   pages,
 					   &nr_pages,
