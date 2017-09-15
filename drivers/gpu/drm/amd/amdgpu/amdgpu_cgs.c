@@ -875,6 +875,9 @@ static int amdgpu_cgs_query_system_info(struct cgs_device *cgs_device,
 	case CGS_SYSTEM_INFO_PCIE_SUB_SYS_VENDOR_ID:
 		sys_info->value = adev->pdev->subsystem_vendor;
 		break;
+	case CGS_SYSTEM_INFO_PCIE_BUS_DEVFN:
+		sys_info->value = adev->pdev->devfn;
+		break;
 	default:
 		return -ENODEV;
 	}
