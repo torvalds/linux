@@ -1750,6 +1750,10 @@ static void sdma_v3_0_set_buffer_funcs(struct amdgpu_device *adev)
 static const struct amdgpu_vm_pte_funcs sdma_v3_0_vm_pte_funcs = {
 	.copy_pte = sdma_v3_0_vm_copy_pte,
 	.write_pte = sdma_v3_0_vm_write_pte,
+
+	/* not 0x3fffff due to HW limitation */
+	.set_max_nums_pte_pde = 0x3fffe0 >> 3,
+	.set_pte_pde_num_dw = 10,
 	.set_pte_pde = sdma_v3_0_vm_set_pte_pde,
 };
 

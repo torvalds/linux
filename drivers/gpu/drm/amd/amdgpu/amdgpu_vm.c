@@ -1606,10 +1606,11 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 	} else {
 		/* set page commands needed */
-		ndw += ncmds * 10;
+		ndw += ncmds * adev->vm_manager.vm_pte_funcs->set_pte_pde_num_dw;
 
 		/* extra commands for begin/end fragments */
-		ndw += 2 * 10 * adev->vm_manager.fragment_size;
+		ndw += 2 * adev->vm_manager.vm_pte_funcs->set_pte_pde_num_dw
+				* adev->vm_manager.fragment_size;
 
 		params.func = amdgpu_vm_do_set_ptes;
 	}

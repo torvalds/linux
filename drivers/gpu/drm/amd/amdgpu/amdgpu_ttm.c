@@ -1527,8 +1527,8 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 		       struct dma_fence **fence)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
-	/* max_bytes applies to SDMA_OP_PTEPDE as well as SDMA_OP_CONST_FILL*/
-	uint32_t max_bytes = adev->mman.buffer_funcs->fill_max_bytes;
+	uint32_t max_bytes = 8 *
+			adev->vm_manager.vm_pte_funcs->set_max_nums_pte_pde;
 	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
 
 	struct drm_mm_node *mm_node;
@@ -1560,8 +1560,8 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 		++mm_node;
 	}
 
-	/* 10 double words for each SDMA_OP_PTEPDE cmd */
-	num_dw = num_loops * 10;
+	/* num of dwords for each SDMA_OP_PTEPDE cmd */
+	num_dw = num_loops * adev->vm_manager.vm_pte_funcs->set_pte_pde_num_dw;
 
 	/* for IB padding */
 	num_dw += 64;
