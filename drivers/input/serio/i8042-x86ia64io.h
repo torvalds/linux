@@ -905,6 +905,13 @@ static const struct dmi_system_id __initconst i8042_dmi_kbdreset_table[] = {
 		},
 	},
 	{
+		/* Gigabyte P57 - Elantech touchpad */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GIGABYTE"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "P57"),
+		},
+	},
+	{
 		/* Schenker XMG C504 - Elantech touchpad */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "XMG"),
