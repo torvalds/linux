@@ -175,19 +175,20 @@ static int read_sections(struct elf *elf)
 			return -1;
 		}
 
-		sec->data = elf_getdata(s, NULL);
-		if (!sec->data) {
-			WARN_ELF("elf_getdata");
-			return -1;
+		if (sec->sh.sh_size != 0) {
+			sec->data = elf_getdata(s, NULL);
+			if (!sec->data) {
+				WARN_ELF("elf_getdata");
+				return -1;
+			}
+			if (sec->data->d_off != 0 ||
+			    sec->data->d_size != sec->sh.sh_size) {
+				WARN("unexpected data attributes for %s",
+				     sec->name);
+				return -1;
+			}
 		}
-
-		if (sec->data->d_off != 0 ||
-		    sec->data->d_size != sec->sh.sh_size) {
-			WARN("unexpected data attributes for %s", sec->name);
-			return -1;
-		}
-
-		sec->len = sec->data->d_size;
+		sec->len = sec->sh.sh_size;
 	}
 
 	/* sanity check, one more call to elf_nextscn() should return NULL */
