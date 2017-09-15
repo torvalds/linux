@@ -1329,7 +1329,7 @@ void rtw_cpwm_event_callback(struct adapter *padapter, u8 *pbuf)
 }
 
 /*
- * _rtw_join_timeout_handler - Timeout/faliure handler for CMD JoinBss
+ * _rtw_join_timeout_handler - Timeout/failure handler for CMD JoinBss
  * @adapter: pointer to struct adapter structure
  */
 void _rtw_join_timeout_handler (unsigned long data)

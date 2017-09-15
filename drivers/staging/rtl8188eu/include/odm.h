@@ -478,7 +478,7 @@ enum odm_operation_mode {
 
 /*  ODM_CMNINFO_WM_MODE */
 enum odm_wireless_mode {
-	ODM_WM_UNKNOW	= 0x0,
+	ODM_WM_UNKNOWN	= 0x0,
 	ODM_WM_B	= BIT(0),
 	ODM_WM_G	= BIT(1),
 	ODM_WM_A	= BIT(2),

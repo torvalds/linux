@@ -15,7 +15,7 @@
 #ifndef __RTL8188E_SPEC_H__
 #define __RTL8188E_SPEC_H__
 
-/*        8192C Regsiter offset definition */
+/*        8192C Register offset definition */
 
 #define		HAL_PS_TIMER_INT_DELAY	50	/*   50 microseconds */
 #define		HAL_92C_NAV_UPPER_UNIT	128	/*  micro-second */
@@ -701,7 +701,7 @@ Current IOREG MAP
 
 #define REG_USB_HRPWM			0xFE58
 #define REG_USB_HCPWM			0xFE57
-/*        8192C Regsiter Bit and Content definition */
+/*        8192C Register Bit and Content definition */
 /*	0x0000h ~ 0x00FFh	System Configuration */
 
 /* 2 SYS_ISO_CTRL */
