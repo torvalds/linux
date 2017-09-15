@@ -108,7 +108,8 @@ struct msm_drm_private {
 
 	struct drm_fb_helper *fbdev;
 
-	struct msm_rd_state *rd;
+	struct msm_rd_state *rd;       /* debugfs to dump all submits */
+	struct msm_rd_state *hangrd;   /* debugfs to dump hanging submits */
 	struct msm_perf_state *perf;
 
 	/* list of GEM objects: */
@@ -298,7 +299,7 @@ void msm_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m);
 int msm_debugfs_late_init(struct drm_device *dev);
 int msm_rd_debugfs_init(struct drm_minor *minor);
 void msm_rd_debugfs_cleanup(struct msm_drm_private *priv);
-void msm_rd_dump_submit(struct msm_gem_submit *submit);
+void msm_rd_dump_submit(struct msm_rd_state *rd, struct msm_gem_submit *submit);
 int msm_perf_debugfs_init(struct drm_minor *minor);
 void msm_perf_debugfs_cleanup(struct msm_drm_private *priv);
 #else
