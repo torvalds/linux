@@ -1100,10 +1100,10 @@ int atomctrl_get_voltage_evv(struct pp_hwmgr *hwmgr,
 		}
 	}
 
-	PP_ASSERT_WITH_CODE(entry_id < hwmgr->dyn_state.vddc_dependency_on_sclk->count,
-	        "Can't find requested voltage id in vddc_dependency_on_sclk table!",
+	if (entry_id >= hwmgr->dyn_state.vddc_dependency_on_sclk->count) {
+	        pr_debug("Can't find requested voltage id in vddc_dependency_on_sclk table!\n");
 	        return -EINVAL;
-	);
+	}
 
 	get_voltage_info_param_space.ucVoltageType = VOLTAGE_TYPE_VDDC;
 	get_voltage_info_param_space.ucVoltageMode = ATOM_GET_VOLTAGE_EVV_VOLTAGE;
