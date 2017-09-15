@@ -782,6 +782,24 @@ static u32 *gen6_signal(struct drm_i915_gem_request *req, u32 *cs)
 	return cs;
 }
 
+static void cancel_requests(struct intel_engine_cs *engine)
+{
+	struct drm_i915_gem_request *request;
+	unsigned long flags;
+
+	spin_lock_irqsave(&engine->timeline->lock, flags);
+
+	/* Mark all submitted requests as skipped. */
+	list_for_each_entry(request, &engine->timeline->requests, link) {
+		GEM_BUG_ON(!request->global_seqno);
+		if (!i915_gem_request_completed(request))
+			dma_fence_set_error(&request->fence, -EIO);
+	}
+	/* Remaining _unready_ requests will be nop'ed when submitted */
+
+	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+}
+
 static void i9xx_submit_request(struct drm_i915_gem_request *request)
 {
 	struct drm_i915_private *dev_priv = request->i915;
@@ -1996,11 +2014,13 @@ static void intel_ring_init_irq(struct drm_i915_private *dev_priv,
 static void i9xx_set_default_submission(struct intel_engine_cs *engine)
 {
 	engine->submit_request = i9xx_submit_request;
+	engine->cancel_requests = cancel_requests;
 }
 
 static void gen6_bsd_set_default_submission(struct intel_engine_cs *engine)
 {
 	engine->submit_request = gen6_bsd_submit_request;
+	engine->cancel_requests = cancel_requests;
 }
 
 static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,

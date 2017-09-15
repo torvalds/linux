@@ -506,6 +506,65 @@ done:
 		execlists_submit_ports(engine);
 }
 
+static void execlists_cancel_requests(struct intel_engine_cs *engine)
+{
+	struct execlist_port *port = engine->execlist_port;
+	struct drm_i915_gem_request *rq, *rn;
+	struct rb_node *rb;
+	unsigned long flags;
+	unsigned long n;
+
+	spin_lock_irqsave(&engine->timeline->lock, flags);
+
+	/* Cancel the requests on the HW and clear the ELSP tracker. */
+	for (n = 0; n < ARRAY_SIZE(engine->execlist_port); n++)
+		i915_gem_request_put(port_request(&port[n]));
+	memset(engine->execlist_port, 0, sizeof(engine->execlist_port));
+
+	/* Mark all executing requests as skipped. */
+	list_for_each_entry(rq, &engine->timeline->requests, link) {
+		GEM_BUG_ON(!rq->global_seqno);
+		if (!i915_gem_request_completed(rq))
+			dma_fence_set_error(&rq->fence, -EIO);
+	}
+
+	/* Flush the queued requests to the timeline list (for retiring). */
+	rb = engine->execlist_first;
+	while (rb) {
+		struct i915_priolist *p = rb_entry(rb, typeof(*p), node);
+
+		list_for_each_entry_safe(rq, rn, &p->requests, priotree.link) {
+			INIT_LIST_HEAD(&rq->priotree.link);
+			rq->priotree.priority = INT_MAX;
+
+			dma_fence_set_error(&rq->fence, -EIO);
+			__i915_gem_request_submit(rq);
+		}
+
+		rb = rb_next(rb);
+		rb_erase(&p->node, &engine->execlist_queue);
+		INIT_LIST_HEAD(&p->requests);
+		if (p->priority != I915_PRIORITY_NORMAL)
+			kmem_cache_free(engine->i915->priorities, p);
+	}
+
+	/* Remaining _unready_ requests will be nop'ed when submitted */
+
+	engine->execlist_queue = RB_ROOT;
+	engine->execlist_first = NULL;
+	GEM_BUG_ON(port_isset(&port[0]));
+
+	/*
+	 * The port is checked prior to scheduling a tasklet, but
+	 * just in case we have suspended the tasklet to do the
+	 * wedging make sure that when it wakes, it decides there
+	 * is no work to do by clearing the irq_posted bit.
+	 */
+	clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
+
+	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+}
+
 static bool execlists_elsp_ready(const struct intel_engine_cs *engine)
 {
 	const struct execlist_port *port = engine->execlist_port;
@@ -1704,6 +1763,7 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 static void execlists_set_default_submission(struct intel_engine_cs *engine)
 {
 	engine->submit_request = execlists_submit_request;
+	engine->cancel_requests = execlists_cancel_requests;
 	engine->schedule = execlists_schedule;
 	engine->irq_tasklet.func = intel_lrc_irq_handler;
 }

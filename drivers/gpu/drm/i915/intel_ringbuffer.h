@@ -306,6 +306,14 @@ struct intel_engine_cs {
 	void		(*schedule)(struct drm_i915_gem_request *request,
 				    int priority);
 
+	/*
+	 * Cancel all requests on the hardware, or queued for execution.
+	 * This should only cancel the ready requests that have been
+	 * submitted to the engine (via the engine->submit_request callback).
+	 * This is called when marking the device as wedged.
+	 */
+	void		(*cancel_requests)(struct intel_engine_cs *engine);
+
 	/* Some chipsets are not quite as coherent as advertised and need
 	 * an expensive kick to force a true read of the up-to-date seqno.
 	 * However, the up-to-date seqno is not always required and the last
