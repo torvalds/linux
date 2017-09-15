@@ -257,34 +257,16 @@ static void recover_worker(struct work_struct *work)
 {
 	struct msm_gpu *gpu = container_of(work, struct msm_gpu, recover_work);
 	struct drm_device *dev = gpu->dev;
+	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gem_submit *submit;
 	struct msm_ringbuffer *cur_ring = gpu->funcs->active_ring(gpu);
-	uint64_t fence;
 	int i;
-
-	/* Update all the rings with the latest and greatest fence */
-	for (i = 0; i < ARRAY_SIZE(gpu->rb); i++) {
-		struct msm_ringbuffer *ring = gpu->rb[i];
-
-		fence = ring->memptrs->fence;
-
-		/*
-		 * For the current (faulting?) ring/submit advance the fence by
-		 * one more to clear the faulting submit
-		 */
-		if (ring == cur_ring)
-			fence = fence + 1;
-
-		update_fences(gpu, ring, fence);
-	}
 
 	mutex_lock(&dev->struct_mutex);
 
-
 	dev_err(dev->dev, "%s: hangcheck recover!\n", gpu->name);
-	fence = cur_ring->memptrs->fence + 1;
 
-	submit = find_submit(cur_ring, fence);
+	submit = find_submit(cur_ring, cur_ring->memptrs->fence + 1);
 	if (submit) {
 		struct task_struct *task;
 
@@ -309,9 +291,34 @@ static void recover_worker(struct work_struct *work)
 
 			dev_err(dev->dev, "%s: offending task: %s (%s)\n",
 				gpu->name, task->comm, cmd);
+
+			msm_rd_dump_submit(priv->hangrd, submit,
+				"offending task: %s (%s)", task->comm, cmd);
+		} else {
+			msm_rd_dump_submit(priv->hangrd, submit, NULL);
 		}
 		rcu_read_unlock();
+	}
 
+
+	/*
+	 * Update all the rings with the latest and greatest fence.. this
+	 * needs to happen after msm_rd_dump_submit() to ensure that the
+	 * bo's referenced by the offending submit are still around.
+	 */
+	for (i = 0; i < ARRAY_SIZE(gpu->rb); i++) {
+		struct msm_ringbuffer *ring = gpu->rb[i];
+
+		uint32_t fence = ring->memptrs->fence;
+
+		/*
+		 * For the current (faulting?) ring/submit advance the fence by
+		 * one more to clear the faulting submit
+		 */
+		if (ring == cur_ring)
+			fence++;
+
+		update_fences(gpu, ring, fence);
 	}
 
 	if (msm_gpu_active(gpu)) {
