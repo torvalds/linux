@@ -264,7 +264,6 @@
 	hpd-gpios = <&gpx3 7 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_hpd_irq>;
-	phy = <&hdmiphy>;
 	ddc = <&i2c_2>;
 	hdmi-en-supply = <&tps65090_fet7>;
 	vdd-supply = <&ldo8_reg>;
@@ -514,13 +513,9 @@
 
 &i2c_8 {
 	status = "okay";
+	/* used by HDMI PHY */
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <378000>;
-
-	hdmiphy: hdmiphy@38 {
-		compatible = "samsung,exynos4212-hdmiphy";
-		reg = <0x38>;
-	};
 };
 
 &i2s0 {

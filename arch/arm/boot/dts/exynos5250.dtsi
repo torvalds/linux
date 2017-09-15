@@ -367,6 +367,11 @@
 			clocks = <&clock CLK_I2C_HDMI>;
 			clock-names = "i2c";
 			status = "disabled";
+
+			hdmiphy: hdmiphy@38 {
+				compatible = "samsung,exynos4212-hdmiphy";
+				reg = <0x38>;
+			};
 		};
 
 		i2c_9: i2c@121D0000 {
@@ -687,6 +692,7 @@
 			clock-names = "hdmi", "sclk_hdmi", "sclk_pixel",
 					"sclk_hdmiphy", "mout_hdmi";
 			samsung,syscon-phandle = <&pmu_system_controller>;
+			phy = <&hdmiphy>;
 		};
 
 		hdmicec: cec@101B0000 {
