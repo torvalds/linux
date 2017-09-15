@@ -7,6 +7,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/clock/rk3188-cru.h>
+#include <dt-bindings/power/rk3188-power.h>
 #include "rk3xxx.dtsi"
 
 / {
@@ -80,6 +81,7 @@
 		interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_LCDC0>, <&cru DCLK_LCDC0>, <&cru HCLK_LCDC0>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		power-domains = <&power RK3188_PD_VIO>;
 		resets = <&cru SRST_LCDC0_AXI>, <&cru SRST_LCDC0_AHB>, <&cru SRST_LCDC0_DCLK>;
 		reset-names = "axi", "ahb", "dclk";
 		status = "disabled";
@@ -96,6 +98,7 @@
 		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_LCDC1>, <&cru DCLK_LCDC1>, <&cru HCLK_LCDC1>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		power-domains = <&power RK3188_PD_VIO>;
 		resets = <&cru SRST_LCDC1_AXI>, <&cru SRST_LCDC1_AHB>, <&cru SRST_LCDC1_DCLK>;
 		reset-names = "axi", "ahb", "dclk";
 		status = "disabled";
@@ -620,6 +623,7 @@
 			  "ppmmu2",
 			  "pp3",
 			  "ppmmu3";
+	power-domains = <&power RK3188_PD_GPU>;
 };
 
 &i2c0 {
@@ -650,6 +654,53 @@
 	compatible = "rockchip,rk3188-i2c";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4_xfer>;
+};
+
+&pmu {
+	power: power-controller {
+		compatible = "rockchip,rk3188-power-controller";
+		#power-domain-cells = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pd_vio@RK3188_PD_VIO {
+			reg = <RK3188_PD_VIO>;
+			clocks = <&cru ACLK_LCDC0>,
+				 <&cru ACLK_LCDC1>,
+				 <&cru DCLK_LCDC0>,
+				 <&cru DCLK_LCDC1>,
+				 <&cru HCLK_LCDC0>,
+				 <&cru HCLK_LCDC1>,
+				 <&cru SCLK_CIF0>,
+				 <&cru ACLK_CIF0>,
+				 <&cru HCLK_CIF0>,
+				 <&cru ACLK_IPP>,
+				 <&cru HCLK_IPP>,
+				 <&cru ACLK_RGA>,
+				 <&cru HCLK_RGA>;
+			pm_qos = <&qos_lcdc0>,
+				 <&qos_lcdc1>,
+				 <&qos_cif0>,
+				 <&qos_cif1>,
+				 <&qos_ipp>,
+				 <&qos_rga>;
+		};
+
+		pd_video@RK3188_PD_VIDEO {
+			reg = <RK3188_PD_VIDEO>;
+			clocks = <&cru ACLK_VDPU>,
+				 <&cru ACLK_VEPU>,
+				 <&cru HCLK_VDPU>,
+				 <&cru HCLK_VEPU>;
+			pm_qos = <&qos_vpu>;
+		};
+
+		pd_gpu@RK3188_PD_GPU {
+			reg = <RK3188_PD_GPU>;
+			clocks = <&cru ACLK_GPU>;
+			pm_qos = <&qos_gpu>;
+		};
+	};
 };
 
 &pwm0 {
