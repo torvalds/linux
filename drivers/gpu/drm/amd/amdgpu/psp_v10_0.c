@@ -35,6 +35,8 @@
 #include "raven1/GC/gc_9_1_offset.h"
 #include "raven1/SDMA0/sdma0_4_1_offset.h"
 
+MODULE_FIRMWARE("amdgpu/raven_asd.bin");
+
 static int
 psp_v10_0_get_fw_type(struct amdgpu_firmware_info *ucode, enum psp_gfx_fw_type *type)
 {
