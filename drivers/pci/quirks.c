@@ -4807,6 +4807,27 @@ static void quirk_intel_no_flr(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x1502, quirk_intel_no_flr);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x1503, quirk_intel_no_flr);
 
+static void quirk_intel_th_rtit_bar(struct pci_dev *dev)
+{
+	struct resource *r = &dev->resource[4];
+
+	/*
+	 * Hello, Denverton!
+	 * Denverton reports 2k of RTIT_BAR (resource 4), which can't be
+	 * right given the 16 threads. When Intel TH gets enabled, the
+	 * actual resource overlaps the XHCI MMIO space and causes it
+	 * to die.
+	 * We're not really using RTIT_BAR at all at the moment, so it's
+	 * a safe choice to disable this resource.
+	 */
+	if (r->end == r->start + 0x7ff) {
+		r->flags = 0;
+		r->start = 0;
+		r->end   = 0;
+	}
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x19e1, quirk_intel_th_rtit_bar);
+
 static void quirk_no_ext_tags(struct pci_dev *pdev)
 {
 	struct pci_host_bridge *bridge = pci_find_host_bridge(pdev->bus);
