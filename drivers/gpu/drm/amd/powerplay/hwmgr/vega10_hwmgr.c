@@ -4994,6 +4994,33 @@ static int vega10_set_mclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
 	return 0;
 }
 
+static int vega10_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
+					uint32_t virtual_addr_low,
+					uint32_t virtual_addr_hi,
+					uint32_t mc_addr_low,
+					uint32_t mc_addr_hi,
+					uint32_t size)
+{
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetSystemVirtualDramAddrHigh,
+					virtual_addr_hi);
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetSystemVirtualDramAddrLow,
+					virtual_addr_low);
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_DramLogSetDramAddrHigh,
+					mc_addr_hi);
+
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_DramLogSetDramAddrLow,
+					mc_addr_low);
+
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_DramLogSetDramSize,
+					size);
+	return 0;
+}
+
 static int vega10_register_thermal_interrupt(struct pp_hwmgr *hwmgr,
 		const void *info)
 {
@@ -5079,6 +5106,7 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.get_mclk_od = vega10_get_mclk_od,
 	.set_mclk_od = vega10_set_mclk_od,
 	.avfs_control = vega10_avfs_enable,
+	.notify_cac_buffer_info = vega10_notify_cac_buffer_info,
 	.register_internal_thermal_interrupt = vega10_register_thermal_interrupt,
 };
 
