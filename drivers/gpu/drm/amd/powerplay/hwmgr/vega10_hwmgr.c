@@ -4994,6 +4994,38 @@ static int vega10_set_mclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
 	return 0;
 }
 
+static int vega10_register_thermal_interrupt(struct pp_hwmgr *hwmgr,
+		const void *info)
+{
+	struct cgs_irq_src_funcs *irq_src =
+			(struct cgs_irq_src_funcs *)info;
+
+	if (hwmgr->thermal_controller.ucType ==
+			ATOM_VEGA10_PP_THERMALCONTROLLER_VEGA10 ||
+		hwmgr->thermal_controller.ucType ==
+			ATOM_VEGA10_PP_THERMALCONTROLLER_EMC2103_WITH_INTERNAL) {
+		PP_ASSERT_WITH_CODE(!cgs_add_irq_source(hwmgr->device,
+				0xf, /* AMDGPU_IH_CLIENTID_THM */
+				0, 0, irq_src[0].set, irq_src[0].handler, hwmgr),
+				"Failed to register high thermal interrupt!",
+				return -EINVAL);
+		PP_ASSERT_WITH_CODE(!cgs_add_irq_source(hwmgr->device,
+				0xf, /* AMDGPU_IH_CLIENTID_THM */
+				1, 0, irq_src[1].set, irq_src[1].handler, hwmgr),
+				"Failed to register low thermal interrupt!",
+				return -EINVAL);
+	}
+
+	/* Register CTF(GPIO_19) interrupt */
+	PP_ASSERT_WITH_CODE(!cgs_add_irq_source(hwmgr->device,
+			0x16, /* AMDGPU_IH_CLIENTID_ROM_SMUIO, */
+			83, 0, irq_src[2].set, irq_src[2].handler, hwmgr),
+			"Failed to register CTF thermal interrupt!",
+			return -EINVAL);
+
+	return 0;
+}
+
 static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.backend_init = vega10_hwmgr_backend_init,
 	.backend_fini = vega10_hwmgr_backend_fini,
@@ -5047,6 +5079,7 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.get_mclk_od = vega10_get_mclk_od,
 	.set_mclk_od = vega10_set_mclk_od,
 	.avfs_control = vega10_avfs_enable,
+	.register_internal_thermal_interrupt = vega10_register_thermal_interrupt,
 };
 
 int vega10_hwmgr_init(struct pp_hwmgr *hwmgr)
