@@ -178,7 +178,7 @@ extern int do_setitimer(int which, struct itimerval *value,
 			struct itimerval *ovalue);
 extern int do_getitimer(int which, struct itimerval *value);
 
-extern long do_utimes(int dfd, const char __user *filename, struct timespec *times, int flags);
+extern long do_utimes(int dfd, const char __user *filename, struct timespec64 *times, int flags);
 
 /*
  * Similar to the struct tm in userspace <time.h>, but it needs to be here so

@@ -171,15 +171,6 @@ extern int get_compat_itimerspec64(struct itimerspec64 *its,
 extern int put_compat_itimerspec64(const struct itimerspec64 *its,
 			struct compat_itimerspec __user *uits);
 
-/*
- * This function convert a timespec if necessary and returns a *user
- * space* pointer.  If no conversion is necessary, it returns the
- * initial pointer.  NULL is a legitimate argument and will always
- * output NULL.
- */
-extern int compat_convert_timespec(struct timespec __user **,
-				   const void __user *);
-
 struct compat_iovec {
 	compat_uptr_t	iov_base;
 	compat_size_t	iov_len;

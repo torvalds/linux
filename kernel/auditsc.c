@@ -1235,11 +1235,11 @@ static void show_special(struct audit_context *context, int *call_panic)
 	case AUDIT_MQ_SENDRECV:
 		audit_log_format(ab,
 			"mqdes=%d msg_len=%zd msg_prio=%u "
-			"abs_timeout_sec=%ld abs_timeout_nsec=%ld",
+			"abs_timeout_sec=%lld abs_timeout_nsec=%ld",
 			context->mq_sendrecv.mqdes,
 			context->mq_sendrecv.msg_len,
 			context->mq_sendrecv.msg_prio,
-			context->mq_sendrecv.abs_timeout.tv_sec,
+			(long long) context->mq_sendrecv.abs_timeout.tv_sec,
 			context->mq_sendrecv.abs_timeout.tv_nsec);
 		break;
 	case AUDIT_MQ_NOTIFY:
@@ -2083,15 +2083,15 @@ void __audit_mq_open(int oflag, umode_t mode, struct mq_attr *attr)
  *
  */
 void __audit_mq_sendrecv(mqd_t mqdes, size_t msg_len, unsigned int msg_prio,
-			const struct timespec *abs_timeout)
+			const struct timespec64 *abs_timeout)
 {
 	struct audit_context *context = current->audit_context;
-	struct timespec *p = &context->mq_sendrecv.abs_timeout;
+	struct timespec64 *p = &context->mq_sendrecv.abs_timeout;
 
 	if (abs_timeout)
-		memcpy(p, abs_timeout, sizeof(struct timespec));
+		memcpy(p, abs_timeout, sizeof(*p));
 	else
-		memset(p, 0, sizeof(struct timespec));
+		memset(p, 0, sizeof(*p));
 
 	context->mq_sendrecv.mqdes = mqdes;
 	context->mq_sendrecv.msg_len = msg_len;

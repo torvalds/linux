@@ -182,7 +182,7 @@ struct audit_context {
 			mqd_t			mqdes;
 			size_t			msg_len;
 			unsigned int		msg_prio;
-			struct timespec		abs_timeout;
+			struct timespec64	abs_timeout;
 		} mq_sendrecv;
 		struct {
 			int			oflag;
