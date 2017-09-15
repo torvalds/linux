@@ -129,7 +129,7 @@ struct sdhci_msm_host {
 	int pwr_irq;		/* power irq */
 	struct clk *bus_clk;	/* SDHC bus voter clock */
 	struct clk *xo_clk;	/* TCXO clk needed for FLL feature of cm_dll*/
-	struct clk_bulk_data bulk_clks[2]; /* core, iface clocks */
+	struct clk_bulk_data bulk_clks[4]; /* core, iface, cal, sleep clocks */
 	unsigned long clk_rate;
 	struct mmc_host *mmc;
 	bool use_14lpp_dll_reset;
@@ -1183,6 +1183,16 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	ret = clk_set_rate(clk, INT_MAX);
 	if (ret)
 		dev_warn(&pdev->dev, "core clock boost failed\n");
+
+	clk = devm_clk_get(&pdev->dev, "cal");
+	if (IS_ERR(clk))
+		clk = NULL;
+	msm_host->bulk_clks[2].clk = clk;
+
+	clk = devm_clk_get(&pdev->dev, "sleep");
+	if (IS_ERR(clk))
+		clk = NULL;
+	msm_host->bulk_clks[3].clk = clk;
 
 	ret = clk_bulk_prepare_enable(ARRAY_SIZE(msm_host->bulk_clks),
 				      msm_host->bulk_clks);
