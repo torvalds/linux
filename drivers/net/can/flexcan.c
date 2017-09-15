@@ -182,14 +182,14 @@
 /* FLEXCAN hardware feature flags
  *
  * Below is some version info we got:
- *    SOC   Version   IP-Version  Glitch- [TR]WRN_INT Memory err RTR re-
- *                                Filter? connected?  detection  ception in MB
- *   MX25  FlexCAN2  03.00.00.00     no        no         no        no
- *   MX28  FlexCAN2  03.00.04.00    yes       yes         no        no
- *   MX35  FlexCAN2  03.00.00.00     no        no         no        no
- *   MX53  FlexCAN2  03.00.00.00    yes        no         no        no
- *   MX6s  FlexCAN3  10.00.12.00    yes       yes         no       yes
- *   VF610 FlexCAN3  ?               no       yes        yes       yes?
+ *    SOC   Version   IP-Version  Glitch- [TR]WRN_INT IRQ Err Memory err RTR re-
+ *                                Filter? connected?  Passive detection  ception in MB
+ *   MX25  FlexCAN2  03.00.00.00     no        no         ?       no        no
+ *   MX28  FlexCAN2  03.00.04.00    yes       yes        no       no        no
+ *   MX35  FlexCAN2  03.00.00.00     no        no         ?       no        no
+ *   MX53  FlexCAN2  03.00.00.00    yes        no        no       no        no
+ *   MX6s  FlexCAN3  10.00.12.00    yes       yes        no       no       yes
+ *   VF610 FlexCAN3  ?               no       yes         ?      yes       yes?
  *
  * Some SOCs do not have the RX_WARN & TX_WARN interrupt line connected.
  */
@@ -198,6 +198,7 @@
 #define FLEXCAN_QUIRK_ENABLE_EACEN_RRS	BIT(3) /* Enable EACEN and RRS bit in ctrl2 */
 #define FLEXCAN_QUIRK_DISABLE_MECR	BIT(4) /* Disable Memory error detection */
 #define FLEXCAN_QUIRK_USE_OFF_TIMESTAMP	BIT(5) /* Use timestamp based offloading */
+#define FLEXCAN_QUIRK_BROKEN_PERR_STATE	BIT(6) /* No interrupt for error passive */
 
 /* Structure of the message buffer */
 struct flexcan_mb {
@@ -334,6 +335,22 @@ static inline void flexcan_write(u32 val, void __iomem *addr)
 	writel(val, addr);
 }
 #endif
+
+static inline void flexcan_error_irq_enable(const struct flexcan_priv *priv)
+{
+	struct flexcan_regs __iomem *regs = priv->regs;
+	u32 reg_ctrl = (priv->reg_ctrl_default | FLEXCAN_CTRL_ERR_MSK);
+
+	flexcan_write(reg_ctrl, &regs->ctrl);
+}
+
+static inline void flexcan_error_irq_disable(const struct flexcan_priv *priv)
+{
+	struct flexcan_regs __iomem *regs = priv->regs;
+	u32 reg_ctrl = (priv->reg_ctrl_default & ~FLEXCAN_CTRL_ERR_MSK);
+
+	flexcan_write(reg_ctrl, &regs->ctrl);
+}
 
 static inline int flexcan_transceiver_enable(const struct flexcan_priv *priv)
 {
@@ -713,6 +730,7 @@ static irqreturn_t flexcan_irq(int irq, void *dev_id)
 	struct flexcan_regs __iomem *regs = priv->regs;
 	irqreturn_t handled = IRQ_NONE;
 	u32 reg_iflag1, reg_esr;
+	enum can_state last_state = priv->can.state;
 
 	reg_iflag1 = flexcan_read(&regs->iflag1);
 
@@ -767,13 +785,52 @@ static irqreturn_t flexcan_irq(int irq, void *dev_id)
 
 	/* state change interrupt or broken error state quirk fix is enabled */
 	if ((reg_esr & FLEXCAN_ESR_ERR_STATE) ||
-	    (priv->devtype_data->quirks & FLEXCAN_QUIRK_BROKEN_WERR_STATE))
+	    (priv->devtype_data->quirks & (FLEXCAN_QUIRK_BROKEN_WERR_STATE |
+	                                   FLEXCAN_QUIRK_BROKEN_PERR_STATE)))
 		flexcan_irq_state(dev, reg_esr);
 
 	/* bus error IRQ - handle if bus error reporting is activated */
 	if ((reg_esr & FLEXCAN_ESR_ERR_BUS) &&
 	    (priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING))
 		flexcan_irq_bus_err(dev, reg_esr);
+
+	/* availability of error interrupt among state transitions in case
+	 * bus error reporting is de-activated and
+	 * FLEXCAN_QUIRK_BROKEN_PERR_STATE is enabled:
+	 *  +--------------------------------------------------------------+
+	 *  | +----------------------------------------------+ [stopped /  |
+	 *  | |                                              |  sleeping] -+
+	 *  +-+-> active <-> warning <-> passive -> bus off -+
+	 *        ___________^^^^^^^^^^^^_______________________________
+	 *        disabled(1)  enabled             disabled
+	 *
+	 * (1): enabled if FLEXCAN_QUIRK_BROKEN_WERR_STATE is enabled
+	 */
+	if ((last_state != priv->can.state) &&
+	    (priv->devtype_data->quirks & FLEXCAN_QUIRK_BROKEN_PERR_STATE) &&
+	    !(priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING)) {
+		switch (priv->can.state) {
+		case CAN_STATE_ERROR_ACTIVE:
+			if (priv->devtype_data->quirks &
+			    FLEXCAN_QUIRK_BROKEN_WERR_STATE)
+				flexcan_error_irq_enable(priv);
+			else
+				flexcan_error_irq_disable(priv);
+			break;
+
+		case CAN_STATE_ERROR_WARNING:
+			flexcan_error_irq_enable(priv);
+			break;
+
+		case CAN_STATE_ERROR_PASSIVE:
+		case CAN_STATE_BUS_OFF:
+			flexcan_error_irq_disable(priv);
+			break;
+
+		default:
+			break;
+		}
+	}
 
 	return handled;
 }
