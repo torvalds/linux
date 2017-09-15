@@ -1170,8 +1170,8 @@ out_failed:
 
 		/* remember fatal errors */
 		if (nfs_error_is_fatal(desc->pg_error))
-			mapping_set_error(desc->pg_inode->i_mapping,
-					  desc->pg_error);
+			nfs_context_set_write_error(req->wb_context,
+						    desc->pg_error);
 
 		func = desc->pg_completion_ops->error_cleanup;
 		for (midx = 0; midx < desc->pg_mirror_count; midx++) {

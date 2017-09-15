@@ -1664,7 +1664,7 @@ pnfs_update_layout(struct inode *ino,
 		.offset = pos,
 		.length = count,
 	};
-	unsigned pg_offset, seq;
+	unsigned pg_offset;
 	struct nfs_server *server = NFS_SERVER(ino);
 	struct nfs_client *clp = server->nfs_client;
 	struct pnfs_layout_hdr *lo = NULL;
@@ -1754,10 +1754,14 @@ lookup_again:
 		}
 
 		first = true;
-		do {
-			seq = read_seqbegin(&ctx->state->seqlock);
-			nfs4_stateid_copy(&stateid, &ctx->state->stateid);
-		} while (read_seqretry(&ctx->state->seqlock, seq));
+		if (nfs4_select_rw_stateid(ctx->state,
+					iomode == IOMODE_RW ? FMODE_WRITE : FMODE_READ,
+					NULL, &stateid, NULL) != 0) {
+			trace_pnfs_update_layout(ino, pos, count,
+					iomode, lo, lseg,
+					PNFS_UPDATE_LAYOUT_INVALID_OPEN);
+			goto out_unlock;
+		}
 	} else {
 		nfs4_stateid_copy(&stateid, &lo->plh_stateid);
 	}
