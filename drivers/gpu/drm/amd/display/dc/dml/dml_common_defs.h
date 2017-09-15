@@ -36,6 +36,9 @@
 
 double dml_min(double a, double b);
 double dml_max(double a, double b);
+double dml_max3(double a, double b, double c);
+double dml_max4(double a, double b, double c, double d);
+double dml_max5(double a, double b, double c, double d, double e);
 bool dml_util_is_420(enum source_format_class sorce_format);
 double dml_ceil_ex(double x, double granularity);
 double dml_floor_ex(double x, double granularity);

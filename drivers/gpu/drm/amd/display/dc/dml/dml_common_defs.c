@@ -35,6 +35,18 @@ double dml_max(double a, double b)
 {
 	return (double) dcn_bw_max2(a, b);
 }
+double dml_max3(double a, double b, double c)
+{
+	return dml_max(dml_max(a, b), c);
+}
+double dml_max4(double a, double b, double c, double d)
+{
+	return dml_max(dml_max(a, b), dml_max(c, d));
+}
+double dml_max5(double a, double b, double c, double d, double e)
+{
+	return dml_max(dml_max4(a, b, c, d), e);
+}
 
 double dml_ceil(double a, double granularity)
 {

@@ -26,7 +26,7 @@
 #define __DISPLAY_MODE_ENUMS_H__
 
 enum output_encoder_class {
-	dm_dp = 0, dm_hdmi = 1, dm_wb = 2
+	dm_dp = 0, dm_hdmi = 1, dm_wb = 2, dm_edp
 };
 enum output_format_class {
 	dm_444 = 0, dm_420 = 1, dm_n422, dm_s422
@@ -39,7 +39,9 @@ enum source_format_class {
 	dm_420_10 = 4,
 	dm_422_8 = 5,
 	dm_422_10 = 6,
-	dm_444_8 = 7
+	dm_444_8 = 7,
+	dm_mono_8,
+	dm_mono_16
 };
 enum output_bpc_class {
 	dm_out_6 = 0, dm_out_8 = 1, dm_out_10 = 2, dm_out_12 = 3, dm_out_16 = 4
@@ -79,7 +81,9 @@ enum dm_swizzle_mode {
 	dm_sw_SPARE_15 = 28,
 	dm_sw_var_s_x = 29,
 	dm_sw_var_d_x = 30,
-	dm_sw_64kb_r_x
+	dm_sw_64kb_r_x,
+	dm_sw_gfx7_2d_thin_lvp,
+	dm_sw_gfx7_2d_thin_gl
 };
 enum lb_depth {
 	dm_lb_10 = 0, dm_lb_8 = 1, dm_lb_6 = 2, dm_lb_12 = 3, dm_lb_16

@@ -66,6 +66,7 @@ struct _vcs_dpi_mode_evaluation_st {
 
 struct _vcs_dpi_voltage_scaling_st {
 	int state;
+	double dscclk_mhz;
 	double dcfclk_mhz;
 	double socclk_mhz;
 	double dram_speed_mhz;
@@ -131,6 +132,9 @@ struct	_vcs_dpi_ip_params_st	{
 	unsigned int	writeback_chroma_line_buffer_width_pixels;
 	unsigned int	max_page_table_levels;
 	unsigned int	max_num_dpp;
+	unsigned int	max_num_otg;
+	unsigned int	cursor_chunk_size;
+	unsigned int	cursor_buffer_size;
 	unsigned int	max_num_wb;
 	unsigned int	max_dchub_pscl_bw_pix_per_clk;
 	unsigned int	max_pscl_lb_bw_pix_per_clk;
@@ -224,6 +228,7 @@ struct writeback_st {
 };
 
 struct	_vcs_dpi_display_output_params_st	{
+	int	dp_lanes;
 	int	output_bpp;
 	int	dsc_enable;
 	int	wb_enable;
