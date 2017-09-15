@@ -850,7 +850,6 @@ sg_fill_request_table(Sg_fd *sfp, sg_req_info_t *rinfo)
 	list_for_each_entry(srp, &sfp->rq_list, entry) {
 		if (val > SG_MAX_QUEUE)
 			break;
-		memset(&rinfo[val], 0, SZ_SG_REQ_INFO);
 		rinfo[val].req_state = srp->done + 1;
 		rinfo[val].problem =
 			srp->header.masked_status &
@@ -1067,8 +1066,8 @@ sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 		else {
 			sg_req_info_t *rinfo;
 
-			rinfo = kmalloc(SZ_SG_REQ_INFO * SG_MAX_QUEUE,
-								GFP_KERNEL);
+			rinfo = kzalloc(SZ_SG_REQ_INFO * SG_MAX_QUEUE,
+					GFP_KERNEL);
 			if (!rinfo)
 				return -ENOMEM;
 			read_lock_irqsave(&sfp->rq_list_lock, iflags);
