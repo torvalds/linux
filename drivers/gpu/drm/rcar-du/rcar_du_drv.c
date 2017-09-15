@@ -22,6 +22,7 @@
 #include <linux/wait.h>
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
@@ -309,9 +310,19 @@ static struct drm_driver rcar_du_driver = {
 static int rcar_du_pm_suspend(struct device *dev)
 {
 	struct rcar_du_device *rcdu = dev_get_drvdata(dev);
+	struct drm_atomic_state *state;
 
 	drm_kms_helper_poll_disable(rcdu->ddev);
-	/* TODO Suspend the CRTC */
+	drm_fbdev_cma_set_suspend_unlocked(rcdu->fbdev, true);
+
+	state = drm_atomic_helper_suspend(rcdu->ddev);
+	if (IS_ERR(state)) {
+		drm_fbdev_cma_set_suspend_unlocked(rcdu->fbdev, false);
+		drm_kms_helper_poll_enable(rcdu->ddev);
+		return PTR_ERR(state);
+	}
+
+	rcdu->suspend_state = state;
 
 	return 0;
 }
@@ -320,9 +331,10 @@ static int rcar_du_pm_resume(struct device *dev)
 {
 	struct rcar_du_device *rcdu = dev_get_drvdata(dev);
 
-	/* TODO Resume the CRTC */
-
+	drm_atomic_helper_resume(rcdu->ddev, rcdu->suspend_state);
+	drm_fbdev_cma_set_suspend_unlocked(rcdu->fbdev, false);
 	drm_kms_helper_poll_enable(rcdu->ddev);
+
 	return 0;
 }
 #endif
