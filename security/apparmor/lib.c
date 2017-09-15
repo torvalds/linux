@@ -317,14 +317,11 @@ static u32 map_other(u32 x)
 void aa_compute_perms(struct aa_dfa *dfa, unsigned int state,
 		      struct aa_perms *perms)
 {
-	perms->deny = 0;
-	perms->kill = perms->stop = 0;
-	perms->complain = perms->cond = 0;
-	perms->hide = 0;
-	perms->prompt = 0;
-	perms->allow = dfa_user_allow(dfa, state);
-	perms->audit = dfa_user_audit(dfa, state);
-	perms->quiet = dfa_user_quiet(dfa, state);
+	*perms = (struct aa_perms) {
+		.allow = dfa_user_allow(dfa, state),
+		.audit = dfa_user_audit(dfa, state),
+		.quiet = dfa_user_quiet(dfa, state),
+	};
 
 	/* for v5 perm mapping in the policydb, the other set is used
 	 * to extend the general perm set
