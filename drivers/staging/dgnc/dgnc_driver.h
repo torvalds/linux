@@ -311,8 +311,6 @@ struct un_t {
  * @ch_err_overrun: Count of overruns on channel.
  * @ch_xon_sends: Count of xons transmitted.
  * @ch_xoff_sends: Count of xoffs transmitted.
- * @proc_entry_pointer: Proc/<board>/<channel> entry.
- * @dgnc_channel_table: Proc/<board>/<channel> entry.
  */
 struct channel_t {
 	struct dgnc_board *ch_bd;
@@ -381,10 +379,6 @@ struct channel_t {
 
 	ulong		ch_xon_sends;
 	ulong		ch_xoff_sends;
-
-	struct proc_dir_entry *proc_entry_pointer;
-	struct dgnc_proc_entry *dgnc_channel_table;
-
 };
 
 extern uint		dgnc_major;		/* Our driver/mgmt major */
