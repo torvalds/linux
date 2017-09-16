@@ -27,6 +27,8 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 
+#include "i2c-stm32.h"
+
 /* STM32F4 I2C offset registers */
 #define STM32F4_I2C_CR1			0x00
 #define STM32F4_I2C_CR2			0x04
@@ -89,12 +91,6 @@
 #define STM32F4_I2C_MIN_FAST_FREQ	6U
 #define STM32F4_I2C_MAX_FREQ		46U
 #define HZ_TO_MHZ			1000000
-
-enum stm32f4_i2c_speed {
-	STM32F4_I2C_SPEED_STANDARD, /* 100 kHz */
-	STM32F4_I2C_SPEED_FAST, /* 400 kHz */
-	STM32F4_I2C_SPEED_END,
-};
 
 /**
  * struct stm32f4_i2c_msg - client specific data
@@ -159,7 +155,7 @@ static int stm32f4_i2c_set_periph_clk_freq(struct stm32f4_i2c_dev *i2c_dev)
 	i2c_dev->parent_rate = clk_get_rate(i2c_dev->clk);
 	freq = DIV_ROUND_UP(i2c_dev->parent_rate, HZ_TO_MHZ);
 
-	if (i2c_dev->speed == STM32F4_I2C_SPEED_STANDARD) {
+	if (i2c_dev->speed == STM32_I2C_SPEED_STANDARD) {
 		/*
 		 * To reach 100 kHz, the parent clk frequency should be between
 		 * a minimum value of 2 MHz and a maximum value of 46 MHz due
@@ -216,7 +212,7 @@ static void stm32f4_i2c_set_rise_time(struct stm32f4_i2c_dev *i2c_dev)
 	 * is not higher than 46 MHz . As a result trise is at most 4 bits wide
 	 * and so fits into the TRISE bits [5:0].
 	 */
-	if (i2c_dev->speed == STM32F4_I2C_SPEED_STANDARD)
+	if (i2c_dev->speed == STM32_I2C_SPEED_STANDARD)
 		trise = freq + 1;
 	else
 		trise = freq * 3 / 10 + 1;
@@ -230,7 +226,7 @@ static void stm32f4_i2c_set_speed_mode(struct stm32f4_i2c_dev *i2c_dev)
 	u32 val;
 	u32 ccr = 0;
 
-	if (i2c_dev->speed == STM32F4_I2C_SPEED_STANDARD) {
+	if (i2c_dev->speed == STM32_I2C_SPEED_STANDARD) {
 		/*
 		 * In standard mode:
 		 * t_scl_high = t_scl_low = CCR * I2C parent clk period
@@ -808,10 +804,10 @@ static int stm32f4_i2c_probe(struct platform_device *pdev)
 	udelay(2);
 	reset_control_deassert(rst);
 
-	i2c_dev->speed = STM32F4_I2C_SPEED_STANDARD;
+	i2c_dev->speed = STM32_I2C_SPEED_STANDARD;
 	ret = of_property_read_u32(np, "clock-frequency", &clk_rate);
 	if (!ret && clk_rate >= 400000)
-		i2c_dev->speed = STM32F4_I2C_SPEED_FAST;
+		i2c_dev->speed = STM32_I2C_SPEED_FAST;
 
 	i2c_dev->dev = &pdev->dev;
 
