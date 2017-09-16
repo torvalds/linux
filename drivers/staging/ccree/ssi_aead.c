@@ -1809,7 +1809,6 @@ static inline int ssi_aead_gcm(
 	unsigned int *seq_size)
 {
 	struct aead_req_ctx *req_ctx = aead_request_ctx(req);
-	unsigned int idx = *seq_size;
 	unsigned int cipher_flow_mode;
 
 	if (req_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT) {
@@ -1826,7 +1825,6 @@ static inline int ssi_aead_gcm(
 		ssi_aead_create_assoc_desc(req, DIN_HASH, desc, seq_size);
 		ssi_aead_gcm_setup_gctr_desc(req, desc, seq_size);
 		ssi_aead_process_gcm_result_desc(req, desc, seq_size);
-		idx = *seq_size;
 		return 0;
 	}
 
@@ -1841,7 +1839,6 @@ static inline int ssi_aead_gcm(
 		ssi_aead_process_cipher_data_desc(req, cipher_flow_mode, desc, seq_size);
 	ssi_aead_process_gcm_result_desc(req, desc, seq_size);
 
-	idx = *seq_size;
 	return 0;
 }
 
