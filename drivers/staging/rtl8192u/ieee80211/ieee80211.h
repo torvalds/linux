@@ -457,12 +457,12 @@ do { if (ieee80211_debug_level & (level)) \
 //wb added to debug out data buf
 //if you want print DATA buffer related BA, please set ieee80211_debug_level to DATA|BA
 #define IEEE80211_DEBUG_DATA(level, data, datalen)	\
-	do{ if ((ieee80211_debug_level & (level)) == (level))	\
+	do { if ((ieee80211_debug_level & (level)) == (level))	\
 		{	\
 			int i;					\
 			u8 *pdata = (u8 *) data;			\
 			printk(KERN_DEBUG "ieee80211: %s()\n", __func__);	\
-			for(i = 0; i < (int)(datalen); i++)			\
+			for (i = 0; i < (int)(datalen); i++)			\
 			{						\
 				printk("%2x ", pdata[i]);		\
 				if ((i + 1) % 16 == 0) printk("\n");	\
@@ -471,8 +471,8 @@ do { if (ieee80211_debug_level & (level)) \
 		}					\
 	} while (0)
 #else
-#define IEEE80211_DEBUG(level, fmt, args...) do {} while (0)
-#define IEEE80211_DEBUG_DATA(level, data, datalen) do {} while(0)
+#define IEEE80211_DEBUG (level, fmt, args...) do {} while (0)
+#define IEEE80211_DEBUG_DATA (level, data, datalen) do {} while(0)
 #endif	/* CONFIG_IEEE80211_DEBUG */
 
 /* debug macros not dependent on CONFIG_IEEE80211_DEBUG */
@@ -2112,7 +2112,7 @@ static inline int ieee80211_get_hdrlen(u16 fc)
 	case IEEE80211_FTYPE_DATA:
 		if ((fc & IEEE80211_FCTL_FROMDS) && (fc & IEEE80211_FCTL_TODS))
 			hdrlen = IEEE80211_4ADDR_LEN; /* Addr4 */
-		if(IEEE80211_QOS_HAS_SEQ(fc))
+		if (IEEE80211_QOS_HAS_SEQ(fc))
 			hdrlen += 2; /* QOS ctrl*/
 		break;
 	case IEEE80211_FTYPE_CTL:
