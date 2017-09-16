@@ -215,17 +215,13 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 		}
 	}
 
-	if (need_mm)
-		mm = get_task_mm(alloc->tsk);
+	/* Same as mmget_not_zero() in later kernel versions */
+	if (need_mm && atomic_inc_not_zero(&alloc->vma_vm_mm->mm_users))
+		mm = alloc->vma_vm_mm;
 
 	if (mm) {
 		down_write(&mm->mmap_sem);
 		vma = alloc->vma;
-		if (vma && mm != alloc->vma_vm_mm) {
-			pr_err("%d: vma mm and task mm mismatch\n",
-				alloc->pid);
-			vma = NULL;
-		}
 	}
 
 	if (!vma && need_mm) {
@@ -718,6 +714,8 @@ int binder_alloc_mmap_handler(struct binder_alloc *alloc,
 	barrier();
 	alloc->vma = vma;
 	alloc->vma_vm_mm = vma->vm_mm;
+	/* Same as mmgrab() in later kernel versions */
+	atomic_inc(&alloc->vma_vm_mm->mm_count);
 
 	return 0;
 
@@ -793,6 +791,8 @@ void binder_alloc_deferred_release(struct binder_alloc *alloc)
 		vfree(alloc->buffer);
 	}
 	mutex_unlock(&alloc->mutex);
+	if (alloc->vma_vm_mm)
+		mmdrop(alloc->vma_vm_mm);
 
 	binder_alloc_debug(BINDER_DEBUG_OPEN_CLOSE,
 		     "%s: %d buffers %d, pages %d\n",
@@ -887,7 +887,6 @@ int binder_alloc_get_allocated_count(struct binder_alloc *alloc)
 void binder_alloc_vma_close(struct binder_alloc *alloc)
 {
 	WRITE_ONCE(alloc->vma, NULL);
-	WRITE_ONCE(alloc->vma_vm_mm, NULL);
 }
 
 /**
@@ -924,9 +923,10 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
 	page_addr = (uintptr_t)alloc->buffer + index * PAGE_SIZE;
 	vma = alloc->vma;
 	if (vma) {
-		mm = get_task_mm(alloc->tsk);
-		if (!mm)
-			goto err_get_task_mm_failed;
+		/* Same as mmget_not_zero() in later kernel versions */
+		if (!atomic_inc_not_zero(&alloc->vma_vm_mm->mm_users))
+			goto err_mmget;
+		mm = alloc->vma_vm_mm;
 		if (!down_write_trylock(&mm->mmap_sem))
 			goto err_down_write_mmap_sem_failed;
 	}
@@ -962,7 +962,7 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
 
 err_down_write_mmap_sem_failed:
 	mmput_async(mm);
-err_get_task_mm_failed:
+err_mmget:
 err_page_already_freed:
 	mutex_unlock(&alloc->mutex);
 err_get_alloc_mutex_failed:
@@ -1001,7 +1001,6 @@ struct shrinker binder_shrinker = {
  */
 void binder_alloc_init(struct binder_alloc *alloc)
 {
-	alloc->tsk = current->group_leader;
 	alloc->pid = current->group_leader->pid;
 	mutex_init(&alloc->mutex);
 	INIT_LIST_HEAD(&alloc->buffers);
