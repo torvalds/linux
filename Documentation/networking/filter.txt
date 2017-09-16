@@ -45,7 +45,7 @@ in many more places. There's xt_bpf for netfilter, cls_bpf in the kernel
 qdisc layer, SECCOMP-BPF (SECure COMPuting [1]), and lots of other places
 such as team driver, PTP code, etc where BPF is being used.
 
- [1] Documentation/prctl/seccomp_filter.txt
+ [1] Documentation/userspace-api/seccomp_filter.rst
 
 Original BPF paper:
 
