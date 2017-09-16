@@ -233,7 +233,6 @@ struct device;
  */
 struct un_t {
 	struct	channel_t *un_ch;
-	ulong	un_time;
 	uint	un_type;
 	uint	un_open_count;
 	struct tty_struct *un_tty;
