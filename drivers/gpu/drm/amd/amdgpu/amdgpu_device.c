@@ -1062,11 +1062,11 @@ static void amdgpu_check_arguments(struct amdgpu_device *adev)
 		amdgpu_sched_jobs = roundup_pow_of_two(amdgpu_sched_jobs);
 	}
 
-	if (amdgpu_gart_size < 32) {
+	if (amdgpu_gart_size != -1 && amdgpu_gart_size < 32) {
 		/* gart size must be greater or equal to 32M */
 		dev_warn(adev->dev, "gart size (%d) too small\n",
 			 amdgpu_gart_size);
-		amdgpu_gart_size = 32;
+		amdgpu_gart_size = -1;
 	}
 
 	if (amdgpu_gtt_size != -1 && amdgpu_gtt_size < 32) {
@@ -2619,12 +2619,6 @@ static int amdgpu_recover_vram_from_shadow(struct amdgpu_device *adev,
 		r = amdgpu_bo_validate(bo->shadow);
 		if (r) {
 			DRM_ERROR("bo validate failed!\n");
-			goto err;
-		}
-
-		r = amdgpu_ttm_bind(&bo->shadow->tbo, &bo->shadow->tbo.mem);
-		if (r) {
-			DRM_ERROR("%p bind failed\n", bo->shadow);
 			goto err;
 		}
 

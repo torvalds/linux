@@ -56,7 +56,6 @@ struct amdgpu_gart {
 	const struct amdgpu_gart_funcs *gart_funcs;
 };
 
-void amdgpu_gart_set_defaults(struct amdgpu_device *adev);
 int amdgpu_gart_table_ram_alloc(struct amdgpu_device *adev);
 void amdgpu_gart_table_ram_free(struct amdgpu_device *adev);
 int amdgpu_gart_table_vram_alloc(struct amdgpu_device *adev);

@@ -138,7 +138,7 @@ static void mmhub_v1_0_init_tlb_regs(struct amdgpu_device *adev)
 
 static void mmhub_v1_0_init_cache_regs(struct amdgpu_device *adev)
 {
-	uint32_t tmp, field;
+	uint32_t tmp;
 
 	/* Setup L2 cache */
 	tmp = RREG32_SOC15(MMHUB, 0, mmVM_L2_CNTL);
@@ -157,9 +157,8 @@ static void mmhub_v1_0_init_cache_regs(struct amdgpu_device *adev)
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL2, INVALIDATE_L2_CACHE, 1);
 	WREG32_SOC15(MMHUB, 0, mmVM_L2_CNTL2, tmp);
 
-	field = adev->vm_manager.fragment_size;
 	tmp = mmVM_L2_CNTL3_DEFAULT;
-	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL3, BANK_SELECT, field);
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL3, BANK_SELECT, 9);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL3, L2_CACHE_BIGK_FRAGMENT_SIZE, 6);
 	WREG32_SOC15(MMHUB, 0, mmVM_L2_CNTL3, tmp);
 
