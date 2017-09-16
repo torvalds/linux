@@ -154,10 +154,10 @@ static int __init nosysemu_cmd_param(char *str, int* add)
 
 __uml_setup("nosysemu", nosysemu_cmd_param,
 "nosysemu\n"
-"    Turns off syscall emulation patch for ptrace (SYSEMU) on.\n"
+"    Turns off syscall emulation patch for ptrace (SYSEMU).\n"
 "    SYSEMU is a performance-patch introduced by Laurent Vivier. It changes\n"
-"    behaviour of ptrace() and helps reducing host context switch rate.\n"
-"    To make it working, you need a kernel patch for your host, too.\n"
+"    behaviour of ptrace() and helps reduce host context switch rates.\n"
+"    To make it work, you need a kernel patch for your host, too.\n"
 "    See http://perso.wanadoo.fr/laurent.vivier/UML/ for further \n"
 "    information.\n\n");
 
