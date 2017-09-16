@@ -1983,7 +1983,8 @@ int cmd_kmem(int argc, const char **argv)
 
 	if (perf_time__parse_str(&ptime, time_str) != 0) {
 		pr_err("Invalid time string\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_delete;
 	}
 
 	if (!strcmp(argv[0], "stat")) {
