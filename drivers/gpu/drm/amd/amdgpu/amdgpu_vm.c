@@ -1035,7 +1035,7 @@ static int amdgpu_vm_wait_pd(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	int r;
 
 	amdgpu_sync_create(&sync);
-	amdgpu_sync_resv(adev, &sync, vm->root.base.bo->tbo.resv, owner);
+	amdgpu_sync_resv(adev, &sync, vm->root.base.bo->tbo.resv, owner, false);
 	r = amdgpu_sync_wait(&sync, true);
 	amdgpu_sync_free(&sync);
 
@@ -1176,11 +1176,11 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 			amdgpu_ring_pad_ib(ring, params.ib);
 			amdgpu_sync_resv(adev, &job->sync,
 					 parent->base.bo->tbo.resv,
-					 AMDGPU_FENCE_OWNER_VM);
+					 AMDGPU_FENCE_OWNER_VM, false);
 			if (shadow)
 				amdgpu_sync_resv(adev, &job->sync,
 						 shadow->tbo.resv,
-						 AMDGPU_FENCE_OWNER_VM);
+						 AMDGPU_FENCE_OWNER_VM, false);
 
 			WARN_ON(params.ib->length_dw > ndw);
 			r = amdgpu_job_submit(job, ring, &vm->entity,
@@ -1644,7 +1644,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		goto error_free;
 
 	r = amdgpu_sync_resv(adev, &job->sync, vm->root.base.bo->tbo.resv,
-			     owner);
+			     owner, false);
 	if (r)
 		goto error_free;
 

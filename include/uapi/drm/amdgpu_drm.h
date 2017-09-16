@@ -91,6 +91,8 @@ extern "C" {
 #define AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS	(1 << 5)
 /* Flag that BO is always valid in this VM */
 #define AMDGPU_GEM_CREATE_VM_ALWAYS_VALID	(1 << 6)
+/* Flag that BO sharing will be explicitly synchronized */
+#define AMDGPU_GEM_CREATE_EXPLICIT_SYNC		(1 << 7)
 
 struct drm_amdgpu_gem_create_in  {
 	/** the requested memory size */

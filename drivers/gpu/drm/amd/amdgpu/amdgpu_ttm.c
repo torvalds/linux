@@ -1489,7 +1489,8 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 	job->vm_needs_flush = vm_needs_flush;
 	if (resv) {
 		r = amdgpu_sync_resv(adev, &job->sync, resv,
-				     AMDGPU_FENCE_OWNER_UNDEFINED);
+				     AMDGPU_FENCE_OWNER_UNDEFINED,
+				     false);
 		if (r) {
 			DRM_ERROR("sync failed (%d).\n", r);
 			goto error_free;
@@ -1581,7 +1582,7 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 
 	if (resv) {
 		r = amdgpu_sync_resv(adev, &job->sync, resv,
-				     AMDGPU_FENCE_OWNER_UNDEFINED);
+				     AMDGPU_FENCE_OWNER_UNDEFINED, false);
 		if (r) {
 			DRM_ERROR("sync failed (%d).\n", r);
 			goto error_free;

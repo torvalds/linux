@@ -193,6 +193,14 @@ static inline bool amdgpu_bo_gpu_accessible(struct amdgpu_bo *bo)
 	}
 }
 
+/**
+ * amdgpu_bo_explicit_sync - return whether the bo is explicitly synced
+ */
+static inline bool amdgpu_bo_explicit_sync(struct amdgpu_bo *bo)
+{
+	return bo->flags & AMDGPU_GEM_CREATE_EXPLICIT_SYNC;
+}
+
 int amdgpu_bo_create(struct amdgpu_device *adev,
 			    unsigned long size, int byte_align,
 			    bool kernel, u32 domain, u64 flags,
