@@ -82,6 +82,42 @@ static void of_i2c_gpio_get_props(struct device_node *np,
 		of_property_read_bool(np, "i2c-gpio,scl-output-only");
 }
 
+static struct gpio_desc *i2c_gpio_get_desc(struct device *dev,
+					   const char *con_id,
+					   unsigned int index,
+					   enum gpiod_flags gflags)
+{
+	struct gpio_desc *retdesc;
+	int ret;
+
+	retdesc = devm_gpiod_get(dev, con_id, gflags);
+	if (!IS_ERR(retdesc)) {
+		dev_dbg(dev, "got GPIO from name %s\n", con_id);
+		return retdesc;
+	}
+
+	retdesc = devm_gpiod_get_index(dev, NULL, index, gflags);
+	if (!IS_ERR(retdesc)) {
+		dev_dbg(dev, "got GPIO from index %u\n", index);
+		return retdesc;
+	}
+
+	ret = PTR_ERR(retdesc);
+
+	/* FIXME: hack in the old code, is this really necessary? */
+	if (ret == -EINVAL)
+		retdesc = ERR_PTR(-EPROBE_DEFER);
+
+	/* This happens if the GPIO driver is not yet probed, let's defer */
+	if (ret == -ENOENT)
+		retdesc = ERR_PTR(-EPROBE_DEFER);
+
+	if (ret != -EPROBE_DEFER)
+		dev_err(dev, "error trying to get descriptor: %d\n", ret);
+
+	return retdesc;
+}
+
 static int i2c_gpio_probe(struct platform_device *pdev)
 {
 	struct i2c_gpio_private_data *priv;
@@ -124,14 +160,10 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 		gflags = GPIOD_OUT_HIGH;
 	else
 		gflags = GPIOD_OUT_HIGH_OPEN_DRAIN;
-	priv->sda = devm_gpiod_get_index(dev, NULL, 0, gflags);
-	if (IS_ERR(priv->sda)) {
-		ret = PTR_ERR(priv->sda);
-		/* FIXME: hack in the old code, is this really necessary? */
-		if (ret == -EINVAL)
-			ret = -EPROBE_DEFER;
-		return ret;
-	}
+	priv->sda = i2c_gpio_get_desc(dev, "sda", 0, gflags);
+	if (IS_ERR(priv->sda))
+		return PTR_ERR(priv->sda);
+
 	/*
 	 * If the SCL line is marked from platform data or device tree as
 	 * "open drain" it means something outside of our control is making
@@ -143,14 +175,9 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 		gflags = GPIOD_OUT_LOW;
 	else
 		gflags = GPIOD_OUT_LOW_OPEN_DRAIN;
-	priv->scl = devm_gpiod_get_index(dev, NULL, 1, gflags);
-	if (IS_ERR(priv->scl)) {
-		ret = PTR_ERR(priv->scl);
-		/* FIXME: hack in the old code, is this really necessary? */
-		if (ret == -EINVAL)
-			ret = -EPROBE_DEFER;
-		return ret;
-	}
+	priv->scl = i2c_gpio_get_desc(dev, "scl", 1, gflags);
+	if (IS_ERR(priv->scl))
+		return PTR_ERR(priv->scl);
 
 	bit_data->setsda = i2c_gpio_setsda_val;
 	bit_data->setscl = i2c_gpio_setscl_val;
