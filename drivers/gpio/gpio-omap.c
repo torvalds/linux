@@ -1010,7 +1010,7 @@ static void omap_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 /*---------------------------------------------------------------------*/
 
-static void __init omap_gpio_show_rev(struct gpio_bank *bank)
+static void omap_gpio_show_rev(struct gpio_bank *bank)
 {
 	static bool called;
 	u32 rev;
