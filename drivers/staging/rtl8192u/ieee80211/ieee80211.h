@@ -420,7 +420,7 @@ typedef struct ieee_param {
 #define SN_LESS(a, b)		(((a - b) & 0x800) != 0)
 #define SN_EQUAL(a, b)	(a == b)
 #define MAX_DEV_ADDR_SIZE 8
-typedef enum _ACT_CATEGORY{
+typedef enum _ACT_CATEGORY {
 	ACT_CAT_QOS = 1,
 	ACT_CAT_DLS = 2,
 	ACT_CAT_BA  = 3,
@@ -428,20 +428,20 @@ typedef enum _ACT_CATEGORY{
 	ACT_CAT_WMM = 17,
 } ACT_CATEGORY, *PACT_CATEGORY;
 
-typedef enum _TS_ACTION{
+typedef enum _TS_ACTION {
 	ACT_ADDTSREQ = 0,
 	ACT_ADDTSRSP = 1,
 	ACT_DELTS    = 2,
 	ACT_SCHEDULE = 3,
 } TS_ACTION, *PTS_ACTION;
 
-typedef enum _BA_ACTION{
+typedef enum _BA_ACTION {
 	ACT_ADDBAREQ = 0,
 	ACT_ADDBARSP = 1,
 	ACT_DELBA    = 2,
 } BA_ACTION, *PBA_ACTION;
 
-typedef enum _InitialGainOpType{
+typedef enum _InitialGainOpType {
 	IG_Backup = 0,
 	IG_Restore,
 	IG_Max
@@ -1209,7 +1209,7 @@ struct eapol {
 	u16 length;
 } __packed;
 
-struct ieee80211_softmac_stats{
+struct ieee80211_softmac_stats {
 	unsigned int rx_ass_ok;
 	unsigned int rx_ass_err;
 	unsigned int rx_probe_rq;
@@ -1320,7 +1320,7 @@ struct	ether_header {
 #define	ETHERTYPE_IP	0x0800		/* IP protocol */
 #endif
 
-typedef enum _erp_t{
+typedef enum _erp_t {
 	ERP_NonERPpresent	= 0x01,
 	ERP_UseProtection	= 0x02,
 	ERP_BarkerPreambleMode = 0x04,
@@ -1479,7 +1479,7 @@ typedef struct _RX_REORDER_ENTRY {
 	struct ieee80211_rxb *prxb;
 } RX_REORDER_ENTRY, *PRX_REORDER_ENTRY;
 //added by amy for order
-typedef enum _Fsync_State{
+typedef enum _Fsync_State {
 	Default_Fsync,
 	HW_Fsync,
 	SW_Fsync
@@ -1500,14 +1500,14 @@ typedef enum _IPS_CALLBACK_FUNCION
 	IPS_CALLBACK_JOIN_REQUEST = 2,
 } IPS_CALLBACK_FUNCION;
 
-typedef enum _RT_JOIN_ACTION{
+typedef enum _RT_JOIN_ACTION {
 	RT_JOIN_INFRA   = 1,
 	RT_JOIN_IBSS  = 2,
 	RT_START_IBSS = 3,
 	RT_NO_ACTION  = 4,
 } RT_JOIN_ACTION;
 
-typedef struct _IbssParms{
+typedef struct _IbssParms {
 	u16   atimWin;
 } IbssParms, *PIbssParms;
 #define MAX_NUM_RATES	264 // Max num of support rates element: 8,  Max num of ext. support rate: 255. 061122, by rcnjko.
@@ -1588,7 +1588,7 @@ typedef enum
 } country_code_type_t;
 
 #define RT_MAX_LD_SLOT_NUM	10
-typedef struct _RT_LINK_DETECT_T{
+typedef struct _RT_LINK_DETECT_T {
 
 	u32				NumRecvBcnInPeriod;
 	u32				NumRecvDataInPeriod;
