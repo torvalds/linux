@@ -412,12 +412,12 @@ typedef struct ieee_param {
 #define IEEE80211_QCTL_TID              0x000F
 
 #define	FC_QOS_BIT					BIT(7)
-#define IsDataFrame(pdu)			( ((pdu[0] & 0x0C)==0x08) ? true : false )
-#define	IsLegacyDataFrame(pdu)	(IsDataFrame(pdu) && (!(pdu[0]&FC_QOS_BIT)) )
+#define IsDataFrame(pdu)			( ((pdu[0] & 0x0C) == 0x08) ? true : false )
+#define	IsLegacyDataFrame(pdu)	(IsDataFrame(pdu) && (!(pdu[0] & FC_QOS_BIT)) )
 //added by wb. Is this right?
-#define IsQoSDataFrame(pframe)  ((*(u16 *)pframe&(IEEE80211_STYPE_QOS_DATA|IEEE80211_FTYPE_DATA)) == (IEEE80211_STYPE_QOS_DATA|IEEE80211_FTYPE_DATA))
-#define Frame_Order(pframe)     (*(u16 *)pframe&IEEE80211_FCTL_ORDER)
-#define SN_LESS(a, b)		(((a-b)&0x800)!=0)
+#define IsQoSDataFrame(pframe)  ((*(u16 *)pframe & (IEEE80211_STYPE_QOS_DATA | IEEE80211_FTYPE_DATA)) == (IEEE80211_STYPE_QOS_DATA | IEEE80211_FTYPE_DATA))
+#define Frame_Order(pframe)     (*(u16 *)pframe & IEEE80211_FCTL_ORDER)
+#define SN_LESS(a, b)		(((a - b) & 0x800) != 0)
 #define SN_EQUAL(a, b)	(a == b)
 #define MAX_DEV_ADDR_SIZE 8
 typedef enum _ACT_CATEGORY{
@@ -442,7 +442,7 @@ typedef enum _BA_ACTION{
 } BA_ACTION, *PBA_ACTION;
 
 typedef enum _InitialGainOpType{
-	IG_Backup=0,
+	IG_Backup = 0,
 	IG_Restore,
 	IG_Max
 }InitialGainOpType;
@@ -462,10 +462,10 @@ do { if (ieee80211_debug_level & (level)) \
 			int i;					\
 			u8 *pdata = (u8 *) data;			\
 			printk(KERN_DEBUG "ieee80211: %s()\n", __func__);	\
-			for(i=0; i<(int)(datalen); i++)			\
+			for(i = 0; i < (int)(datalen); i++)			\
 			{						\
 				printk("%2x ", pdata[i]);		\
-				if ((i+1)%16 == 0) printk("\n");	\
+				if ((i + 1) % 16 == 0) printk("\n");	\
 			}				\
 			printk("\n");			\
 		}					\
@@ -876,9 +876,9 @@ enum ieee80211_mfie {
 	MFIE_TYPE_ERP = 42,
 	MFIE_TYPE_RSN = 48,
 	MFIE_TYPE_RATES_EX = 50,
-	MFIE_TYPE_HT_CAP= 45,
-	 MFIE_TYPE_HT_INFO= 61,
-	 MFIE_TYPE_AIRONET=133,
+	MFIE_TYPE_HT_CAP = 45,
+	 MFIE_TYPE_HT_INFO = 61,
+	 MFIE_TYPE_AIRONET = 133,
 	MFIE_TYPE_GENERIC = 221,
 	MFIE_TYPE_QOS_PARAMETER = 222,
 };
@@ -1196,7 +1196,7 @@ static inline u8 Frame_QoSTID(u8 *buf)
 	u16 fc;
 	hdr = (struct rtl_80211_hdr_3addr *)buf;
 	fc = le16_to_cpu(hdr->frame_ctl);
-	return (u8)((frameqos *)(buf + (((fc & IEEE80211_FCTL_TODS)&&(fc & IEEE80211_FCTL_FROMDS))? 30 : 24)))->field.tid;
+	return (u8)((frameqos *)(buf + (((fc & IEEE80211_FCTL_TODS) && (fc & IEEE80211_FCTL_FROMDS)) ? 30 : 24)))->field.tid;
 }
 
 //added by amy for reorder
@@ -2023,7 +2023,7 @@ struct ieee80211_device {
 #define IEEE_G            (1<<2)
 #define IEEE_N_24G		  (1<<4)
 #define	IEEE_N_5G		  (1<<5)
-#define IEEE_MODE_MASK    (IEEE_A|IEEE_B|IEEE_G)
+#define IEEE_MODE_MASK    (IEEE_A | IEEE_B | IEEE_G)
 
 /* Generate a 802.11 header */
 
