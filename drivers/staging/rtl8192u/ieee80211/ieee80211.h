@@ -1486,15 +1486,13 @@ typedef enum _Fsync_State {
 } Fsync_State;
 
 // Power save mode configured.
-typedef	enum _RT_PS_MODE
-{
+typedef	enum _RT_PS_MODE {
 	eActive,	// Active/Continuous access.
 	eMaxPs,		// Max power save mode.
 	eFastPs		// Fast power save mode.
 } RT_PS_MODE;
 
-typedef enum _IPS_CALLBACK_FUNCION
-{
+typedef enum _IPS_CALLBACK_FUNCION {
 	IPS_CALLBACK_NONE = 0,
 	IPS_CALLBACK_MGNT_LINK_REQUEST = 1,
 	IPS_CALLBACK_JOIN_REQUEST = 2,
@@ -1572,8 +1570,7 @@ typedef u32 RT_RF_CHANGE_SOURCE;
 #define RF_CHANGE_BY_IPS	BIT(28)
 #define RF_CHANGE_BY_INIT	0	// Do not change the RFOff reason. Defined by Bruce, 2008-01-17.
 
-typedef enum
-{
+typedef enum {
 	COUNTRY_CODE_FCC = 0,
 	COUNTRY_CODE_IC = 1,
 	COUNTRY_CODE_ETSI = 2,
