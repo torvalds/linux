@@ -1182,7 +1182,6 @@ static int neo_drain(struct tty_struct *tty, uint seconds)
 	unsigned long flags;
 	struct channel_t *ch;
 	struct un_t *un;
-	int rc = 0;
 
 	if (!tty)
 		return -ENXIO;
@@ -1199,12 +1198,10 @@ static int neo_drain(struct tty_struct *tty, uint seconds)
 	un->un_flags |= UN_EMPTY;
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 
-	rc = wait_event_interruptible_timeout(un->un_flags_wait,
-					      ((un->un_flags & UN_EMPTY) == 0),
-					      msecs_to_jiffies(seconds * 1000));
-
-	/* If ret is non-zero, user ctrl-c'ed us */
-	return rc;
+	/* If returned value is non-zero, user ctrl-c'ed us */
+	return wait_event_interruptible_timeout(un->un_flags_wait,
+					((un->un_flags & UN_EMPTY) == 0),
+					msecs_to_jiffies(seconds * 1000));
 }
 
 /*
