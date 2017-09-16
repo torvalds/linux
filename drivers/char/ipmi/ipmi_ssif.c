@@ -1344,6 +1344,7 @@ static int ssif_detect(struct i2c_client *client, struct i2c_board_info *info)
 	return rv;
 }
 
+#ifdef CONFIG_IPMI_PROC_INTERFACE
 static int smi_type_proc_show(struct seq_file *m, void *v)
 {
 	seq_puts(m, "ssif\n");
@@ -1407,6 +1408,7 @@ static const struct file_operations smi_stats_proc_ops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
+#endif
 
 static int strcmp_nospace(char *s1, char *s2)
 {
@@ -1742,6 +1744,7 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		goto out_remove_attr;
 	}
 
+#ifdef CONFIG_IPMI_PROC_INTERFACE
 	rv = ipmi_smi_add_proc_entry(ssif_info->intf, "type",
 				     &smi_type_proc_ops,
 				     ssif_info);
@@ -1757,6 +1760,7 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		pr_err(PFX "Unable to create proc entry: %d\n", rv);
 		goto out_err_unreg;
 	}
+#endif
 
  out:
 	if (rv) {
@@ -1775,8 +1779,10 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	kfree(resp);
 	return rv;
 
+#ifdef CONFIG_IPMI_PROC_INTERFACE
 out_err_unreg:
 	ipmi_unregister_smi(ssif_info->intf);
+#endif
 
 out_remove_attr:
 	device_remove_group(&ssif_info->client->dev, &ipmi_ssif_dev_attr_group);

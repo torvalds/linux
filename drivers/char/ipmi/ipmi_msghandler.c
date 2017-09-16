@@ -132,9 +132,9 @@ module_param_cb(panic_op, &panic_op_ops, NULL, 0600);
 MODULE_PARM_DESC(panic_op, "Sets if the IPMI driver will attempt to store panic information in the event log in the event of a panic.  Set to 'none' for no, 'event' for a single event, or 'string' for a generic event and the panic string in IPMI OEM events.");
 
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_IPMI_PROC_INTERFACE
 static struct proc_dir_entry *proc_ipmi_root;
-#endif /* CONFIG_PROC_FS */
+#endif /* CONFIG_IPMI_PROC_INTERFACE */
 
 /* Remain in auto-maintenance mode for this amount of time (in ms). */
 #define IPMI_MAINTENANCE_MODE_TIMEOUT 30000
@@ -267,7 +267,7 @@ struct ipmi_my_addrinfo {
 	unsigned char lun;
 };
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_IPMI_PROC_INTERFACE
 struct ipmi_proc_entry {
 	char                   *name;
 	struct ipmi_proc_entry *next;
@@ -449,10 +449,13 @@ struct ipmi_smi {
 	const struct ipmi_smi_handlers *handlers;
 	void                     *send_info;
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_IPMI_PROC_INTERFACE
 	/* A list of proc entries for this interface. */
 	struct mutex           proc_entry_lock;
 	struct ipmi_proc_entry *proc_entries;
+
+	struct proc_dir_entry *proc_dir;
+	char                  proc_dir_name[10];
 #endif
 
 	/* Driver-model device for the system interface. */
@@ -541,10 +544,6 @@ struct ipmi_smi {
 	struct ipmi_channel_set wchannels[2];
 	struct ipmi_my_addrinfo addrinfo[IPMI_MAX_CHANNELS];
 	bool channels_ready;
-
-	/* Proc FS stuff. */
-	struct proc_dir_entry *proc_dir;
-	char                  proc_dir_name[10];
 
 	atomic_t stats[IPMI_NUM_STATS];
 
@@ -2363,7 +2362,7 @@ static int bmc_get_device_id(ipmi_smi_t intf, struct bmc_device *bmc,
 	return __bmc_get_device_id(intf, bmc, id, guid_set, guid, -1);
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_IPMI_PROC_INTERFACE
 static int smi_ipmb_proc_show(struct seq_file *m, void *v)
 {
 	ipmi_smi_t intf = m->private;
@@ -2492,14 +2491,12 @@ static const struct file_operations smi_stats_proc_ops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
-#endif /* CONFIG_PROC_FS */
 
 int ipmi_smi_add_proc_entry(ipmi_smi_t smi, char *name,
 			    const struct file_operations *proc_ops,
 			    void *data)
 {
 	int                    rv = 0;
-#ifdef CONFIG_PROC_FS
 	struct proc_dir_entry  *file;
 	struct ipmi_proc_entry *entry;
 
@@ -2525,7 +2522,6 @@ int ipmi_smi_add_proc_entry(ipmi_smi_t smi, char *name,
 		smi->proc_entries = entry;
 		mutex_unlock(&smi->proc_entry_lock);
 	}
-#endif /* CONFIG_PROC_FS */
 
 	return rv;
 }
@@ -2535,7 +2531,6 @@ static int add_proc_entries(ipmi_smi_t smi, int num)
 {
 	int rv = 0;
 
-#ifdef CONFIG_PROC_FS
 	sprintf(smi->proc_dir_name, "%d", num);
 	smi->proc_dir = proc_mkdir(smi->proc_dir_name, proc_ipmi_root);
 	if (!smi->proc_dir)
@@ -2555,14 +2550,12 @@ static int add_proc_entries(ipmi_smi_t smi, int num)
 		rv = ipmi_smi_add_proc_entry(smi, "version",
 					     &smi_version_proc_ops,
 					     smi);
-#endif /* CONFIG_PROC_FS */
 
 	return rv;
 }
 
 static void remove_proc_entries(ipmi_smi_t smi)
 {
-#ifdef CONFIG_PROC_FS
 	struct ipmi_proc_entry *entry;
 
 	mutex_lock(&smi->proc_entry_lock);
@@ -2576,8 +2569,8 @@ static void remove_proc_entries(ipmi_smi_t smi)
 	}
 	mutex_unlock(&smi->proc_entry_lock);
 	remove_proc_entry(smi->proc_dir_name, proc_ipmi_root);
-#endif /* CONFIG_PROC_FS */
 }
+#endif /* CONFIG_IPMI_PROC_INTERFACE */
 
 static ssize_t device_id_show(struct device *dev,
 			      struct device_attribute *attr,
@@ -3419,7 +3412,7 @@ int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
 		intf->seq_table[j].seqid = 0;
 	}
 	intf->curr_seq = 0;
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_IPMI_PROC_INTERFACE
 	mutex_init(&intf->proc_entry_lock);
 #endif
 	spin_lock_init(&intf->waiting_rcv_msgs_lock);
@@ -3443,7 +3436,9 @@ int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
 	for (i = 0; i < IPMI_NUM_STATS; i++)
 		atomic_set(&intf->stats[i], 0);
 
+#ifdef CONFIG_IPMI_PROC_INTERFACE
 	intf->proc_dir = NULL;
+#endif
 
 	mutex_lock(&smi_watchers_mutex);
 	mutex_lock(&ipmi_interfaces_mutex);
@@ -3479,13 +3474,17 @@ int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
 	if (rv)
 		goto out;
 
+#ifdef CONFIG_IPMI_PROC_INTERFACE
 	rv = add_proc_entries(intf, i);
+#endif
 
  out:
 	if (rv) {
 		ipmi_bmc_unregister(intf);
+#ifdef CONFIG_IPMI_PROC_INTERFACE
 		if (intf->proc_dir)
 			remove_proc_entries(intf);
+#endif
 		intf->handlers = NULL;
 		list_del_rcu(&intf->link);
 		mutex_unlock(&ipmi_interfaces_mutex);
@@ -3590,7 +3589,9 @@ int ipmi_unregister_smi(ipmi_smi_t intf)
 	intf->handlers = NULL;
 	mutex_unlock(&ipmi_interfaces_mutex);
 
+#ifdef CONFIG_IPMI_PROC_INTERFACE
 	remove_proc_entries(intf);
+#endif
 	ipmi_bmc_unregister(intf);
 
 	/*
@@ -5170,7 +5171,7 @@ static int ipmi_init_msghandler(void)
 	printk(KERN_INFO "ipmi message handler version "
 	       IPMI_DRIVER_VERSION "\n");
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_IPMI_PROC_INTERFACE
 	proc_ipmi_root = proc_mkdir("ipmi", NULL);
 	if (!proc_ipmi_root) {
 	    printk(KERN_ERR PFX "Unable to create IPMI proc dir");
@@ -5178,7 +5179,7 @@ static int ipmi_init_msghandler(void)
 	    return -ENOMEM;
 	}
 
-#endif /* CONFIG_PROC_FS */
+#endif /* CONFIG_IPMI_PROC_INTERFACE */
 
 	setup_timer(&ipmi_timer, ipmi_timeout, 0);
 	mod_timer(&ipmi_timer, jiffies + IPMI_TIMEOUT_JIFFIES);
@@ -5218,9 +5219,9 @@ static void __exit cleanup_ipmi(void)
 	atomic_inc(&stop_operation);
 	del_timer_sync(&ipmi_timer);
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_IPMI_PROC_INTERFACE
 	proc_remove(proc_ipmi_root);
-#endif /* CONFIG_PROC_FS */
+#endif /* CONFIG_IPMI_PROC_INTERFACE */
 
 	driver_unregister(&ipmidriver.driver);
 

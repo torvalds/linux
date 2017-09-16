@@ -1605,6 +1605,7 @@ out:
 	return rv;
 }
 
+#ifdef CONFIG_IPMI_PROC_INTERFACE
 static int smi_type_proc_show(struct seq_file *m, void *v)
 {
 	struct smi_info *smi = m->private;
@@ -1698,6 +1699,7 @@ static const struct file_operations smi_params_proc_ops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
+#endif
 
 #define IPMI_SI_ATTR(name) \
 static ssize_t ipmi_##name##_show(struct device *dev,			\
@@ -2191,6 +2193,7 @@ static int try_smi_init(struct smi_info *new_smi)
 		goto out_err_remove_attrs;
 	}
 
+#ifdef CONFIG_IPMI_PROC_INTERFACE
 	rv = ipmi_smi_add_proc_entry(new_smi->intf, "type",
 				     &smi_type_proc_ops,
 				     new_smi);
@@ -2217,6 +2220,7 @@ static int try_smi_init(struct smi_info *new_smi)
 			"Unable to create proc entry: %d\n", rv);
 		goto out_err_stop_timer;
 	}
+#endif
 
 	/* Don't increment till we know we have succeeded. */
 	smi_num++;
