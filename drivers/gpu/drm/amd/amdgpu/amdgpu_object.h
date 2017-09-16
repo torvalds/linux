@@ -94,6 +94,11 @@ struct amdgpu_bo {
 	};
 };
 
+static inline struct amdgpu_bo *ttm_to_amdgpu_bo(struct ttm_buffer_object *tbo)
+{
+	return container_of(tbo, struct amdgpu_bo, tbo);
+}
+
 /**
  * amdgpu_mem_type_to_domain - return domain corresponding to mem_type
  * @mem_type:	ttm memory type

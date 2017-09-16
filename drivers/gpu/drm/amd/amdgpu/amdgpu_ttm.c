@@ -44,6 +44,7 @@
 #include <linux/debugfs.h>
 #include <linux/iommu.h>
 #include "amdgpu.h"
+#include "amdgpu_object.h"
 #include "amdgpu_trace.h"
 #include "bif/bif_4_1_d.h"
 
@@ -209,7 +210,7 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 		placement->num_busy_placement = 1;
 		return;
 	}
-	abo = container_of(bo, struct amdgpu_bo, tbo);
+	abo = ttm_to_amdgpu_bo(bo);
 	switch (bo->mem.mem_type) {
 	case TTM_PL_VRAM:
 		if (adev->mman.buffer_funcs &&
@@ -257,7 +258,7 @@ gtt:
 
 static int amdgpu_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
-	struct amdgpu_bo *abo = container_of(bo, struct amdgpu_bo, tbo);
+	struct amdgpu_bo *abo = ttm_to_amdgpu_bo(bo);
 
 	if (amdgpu_ttm_tt_get_usermm(bo->ttm))
 		return -EPERM;
@@ -484,7 +485,7 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo,
 	int r;
 
 	/* Can't move a pinned BO */
-	abo = container_of(bo, struct amdgpu_bo, tbo);
+	abo = ttm_to_amdgpu_bo(bo);
 	if (WARN_ON_ONCE(abo->pin_count > 0))
 		return -EINVAL;
 
@@ -1142,7 +1143,7 @@ static int amdgpu_ttm_access_memory(struct ttm_buffer_object *bo,
 				    unsigned long offset,
 				    void *buf, int len, int write)
 {
-	struct amdgpu_bo *abo = container_of(bo, struct amdgpu_bo, tbo);
+	struct amdgpu_bo *abo = ttm_to_amdgpu_bo(bo);
 	struct amdgpu_device *adev = amdgpu_ttm_adev(abo->tbo.bdev);
 	struct drm_mm_node *nodes = abo->tbo.mem.mm_node;
 	uint32_t value = 0;
