@@ -1297,6 +1297,9 @@ static int si5351_dt_parse(struct i2c_client *client,
 
 		pdata->clkout[num].pll_master =
 			of_property_read_bool(child, "silabs,pll-master");
+
+		pdata->clkout[num].pll_reset =
+			of_property_read_bool(child, "silabs,pll-reset");
 	}
 	client->dev.platform_data = pdata;
 
