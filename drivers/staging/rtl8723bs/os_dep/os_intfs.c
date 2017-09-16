@@ -719,7 +719,7 @@ void devobj_deinit(struct dvobj_priv *pdvobj)
 	mutex_destroy(&pdvobj->setch_mutex);
 	mutex_destroy(&pdvobj->setbw_mutex);
 
-	kfree((u8 *)pdvobj);
+	kfree(pdvobj);
 }
 
 u8 rtw_reset_drv_sw(struct adapter *padapter)
