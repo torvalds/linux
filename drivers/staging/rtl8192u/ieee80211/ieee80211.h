@@ -1914,11 +1914,11 @@ struct ieee80211_device {
 			       struct net_device *dev);
 
 	int (*reset_port)(struct net_device *dev);
-	int (*is_queue_full) (struct net_device *dev, int pri);
+	int (*is_queue_full)(struct net_device *dev, int pri);
 
-	int (*handle_management) (struct net_device *dev,
+	int (*handle_management)(struct net_device *dev,
 				  struct ieee80211_network *network, u16 type);
-	int (*is_qos_active) (struct net_device *dev, struct sk_buff *skb);
+	int (*is_qos_active)(struct net_device *dev, struct sk_buff *skb);
 
 	/* Softmac-generated frames (management) are TXed via this
 	 * callback if the flag IEEE_SOFTMAC_SINGLE_QUEUE is
@@ -1986,16 +1986,16 @@ struct ieee80211_device {
 	 * stop_send_bacons is NOT guaranteed to be called only
 	 * after start_send_beacons.
 	 */
-	void (*start_send_beacons) (struct net_device *dev,u16 tx_rate);
-	void (*stop_send_beacons) (struct net_device *dev);
+	void (*start_send_beacons)(struct net_device *dev,u16 tx_rate);
+	void (*stop_send_beacons)(struct net_device *dev);
 
 	/* power save mode related */
-	void (*sta_wake_up) (struct net_device *dev);
-	void (*ps_request_tx_ack) (struct net_device *dev);
-	void (*enter_sleep_state) (struct net_device *dev, u32 th, u32 tl);
-	short (*ps_is_queue_empty) (struct net_device *dev);
-	int (*handle_beacon) (struct net_device *dev, struct ieee80211_beacon *beacon, struct ieee80211_network *network);
-	int (*handle_assoc_response) (struct net_device *dev, struct ieee80211_assoc_response_frame *resp, struct ieee80211_network *network);
+	void (*sta_wake_up)(struct net_device *dev);
+	void (*ps_request_tx_ack)(struct net_device *dev);
+	void (*enter_sleep_state)(struct net_device *dev, u32 th, u32 tl);
+	short (*ps_is_queue_empty)(struct net_device *dev);
+	int (*handle_beacon)(struct net_device *dev, struct ieee80211_beacon *beacon, struct ieee80211_network *network);
+	int (*handle_assoc_response)(struct net_device *dev, struct ieee80211_assoc_response_frame *resp, struct ieee80211_network *network);
 
 
 	/* check whether Tx hw resource available */
