@@ -1986,7 +1986,7 @@ struct ieee80211_device {
 	 * stop_send_bacons is NOT guaranteed to be called only
 	 * after start_send_beacons.
 	 */
-	void (*start_send_beacons)(struct net_device *dev,u16 tx_rate);
+	void (*start_send_beacons)(struct net_device *dev, u16 tx_rate);
 	void (*stop_send_beacons)(struct net_device *dev);
 
 	/* power save mode related */
