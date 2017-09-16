@@ -48,6 +48,7 @@
 #define CP0_ENTRYLO0 $2
 #define CP0_ENTRYLO1 $3
 #define CP0_CONF $3
+#define CP0_GLOBALNUMBER $3, 1
 #define CP0_CONTEXT $4
 #define CP0_PAGEMASK $5
 #define CP0_SEGCTL0 $5, 2
@@ -146,6 +147,16 @@
 #define MIPS_ENTRYLO_PFN_SHIFT	6
 #define MIPS_ENTRYLO_XI		(_ULCAST_(1) << (BITS_PER_LONG - 2))
 #define MIPS_ENTRYLO_RI		(_ULCAST_(1) << (BITS_PER_LONG - 1))
+
+/*
+ * MIPSr6+ GlobalNumber register definitions
+ */
+#define MIPS_GLOBALNUMBER_VP_SHF	0
+#define MIPS_GLOBALNUMBER_VP		(_ULCAST_(0xff) << MIPS_GLOBALNUMBER_VP_SHF)
+#define MIPS_GLOBALNUMBER_CORE_SHF	8
+#define MIPS_GLOBALNUMBER_CORE		(_ULCAST_(0xff) << MIPS_GLOBALNUMBER_CORE_SHF)
+#define MIPS_GLOBALNUMBER_CLUSTER_SHF	16
+#define MIPS_GLOBALNUMBER_CLUSTER	(_ULCAST_(0xf) << MIPS_GLOBALNUMBER_CLUSTER_SHF)
 
 /*
  * Values for PageMask register
@@ -1445,6 +1456,8 @@ do {									\
 
 #define read_c0_conf()		__read_32bit_c0_register($3, 0)
 #define write_c0_conf(val)	__write_32bit_c0_register($3, 0, val)
+
+#define read_c0_globalnumber()	__read_32bit_c0_register($3, 1)
 
 #define read_c0_context()	__read_ulong_c0_register($4, 0)
 #define write_c0_context(val)	__write_ulong_c0_register($4, 0, val)

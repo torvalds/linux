@@ -139,7 +139,7 @@ void pci_load_of_ranges(struct pci_controller *hose, struct device_node *node)
 	struct of_pci_range range;
 	struct of_pci_range_parser parser;
 
-	pr_info("PCI host bridge %s ranges:\n", node->full_name);
+	pr_info("PCI host bridge %pOF ranges:\n", node);
 	hose->of_node = node;
 
 	if (of_pci_range_parser_init(&parser, node))

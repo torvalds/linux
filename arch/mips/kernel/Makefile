@@ -35,11 +35,15 @@ obj-$(CONFIG_MODULES)		+= module.o
 obj-$(CONFIG_FTRACE_SYSCALLS)	+= ftrace.o
 obj-$(CONFIG_FUNCTION_TRACER)	+= mcount.o ftrace.o
 
-obj-$(CONFIG_CPU_R4K_FPU)	+= r4k_fpu.o r4k_switch.o
-obj-$(CONFIG_CPU_R3000)		+= r2300_fpu.o r2300_switch.o
-obj-$(CONFIG_CPU_R6000)		+= r6000_fpu.o r4k_switch.o
-obj-$(CONFIG_CPU_TX39XX)	+= r2300_fpu.o r2300_switch.o
-obj-$(CONFIG_CPU_CAVIUM_OCTEON)	+= r4k_fpu.o octeon_switch.o
+sw-y				:= r4k_switch.o
+sw-$(CONFIG_CPU_R3000)		:= r2300_switch.o
+sw-$(CONFIG_CPU_TX39XX)		:= r2300_switch.o
+sw-$(CONFIG_CPU_CAVIUM_OCTEON)	:= octeon_switch.o
+obj-y				+= $(sw-y)
+
+obj-$(CONFIG_CPU_R4K_FPU)	+= r4k_fpu.o
+obj-$(CONFIG_CPU_R3000)		+= r2300_fpu.o
+obj-$(CONFIG_CPU_TX39XX)	+= r2300_fpu.o
 
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_SMP_UP)		+= smp-up.o

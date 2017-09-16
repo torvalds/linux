@@ -17,8 +17,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cacheops.h>
 #include <asm/idle.h>
-#include <asm/mips-cm.h>
-#include <asm/mips-cpc.h>
+#include <asm/mips-cps.h>
 #include <asm/mipsmtregs.h>
 #include <asm/pm.h>
 #include <asm/pm-cps.h>
@@ -49,7 +48,7 @@ static DEFINE_PER_CPU_READ_MOSTLY(cps_nc_entry_fn[CPS_PM_STATE_COUNT],
 				  nc_asm_enter);
 
 /* Bitmap indicating which states are supported by the system */
-DECLARE_BITMAP(state_support, CPS_PM_STATE_COUNT);
+static DECLARE_BITMAP(state_support, CPS_PM_STATE_COUNT);
 
 /*
  * Indicates the number of coupled VPEs ready to operate in a non-coherent
@@ -114,7 +113,7 @@ static void coupled_barrier(atomic_t *a, unsigned online)
 int cps_pm_enter_state(enum cps_pm_state state)
 {
 	unsigned cpu = smp_processor_id();
-	unsigned core = current_cpu_data.core;
+	unsigned core = cpu_core(&current_cpu_data);
 	unsigned online, left;
 	cpumask_t *coupled_mask = this_cpu_ptr(&online_coupled);
 	u32 *core_ready_count, *nc_core_ready_count;
@@ -486,7 +485,7 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 		* defined by the interAptiv & proAptiv SUMs as ensuring that the
 		*  operation resulting from the preceding store is complete.
 		*/
-		uasm_i_addiu(&p, t0, zero, 1 << cpu_data[cpu].core);
+		uasm_i_addiu(&p, t0, zero, 1 << cpu_core(&cpu_data[cpu]));
 		uasm_i_sw(&p, t0, 0, r_pcohctl);
 		uasm_i_lw(&p, t0, 0, r_pcohctl);
 
@@ -569,8 +568,8 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 	 * rest will just be performing a rather unusual nop.
 	 */
 	uasm_i_addiu(&p, t0, zero, mips_cm_revision() < CM_REV_CM3
-				? CM_GCR_Cx_COHERENCE_COHDOMAINEN_MSK
-				: CM3_GCR_Cx_COHERENCE_COHEN_MSK);
+				? CM_GCR_Cx_COHERENCE_COHDOMAINEN
+				: CM3_GCR_Cx_COHERENCE_COHEN);
 
 	uasm_i_sw(&p, t0, 0, r_pcohctl);
 	uasm_i_lw(&p, t0, 0, r_pcohctl);
@@ -640,7 +639,7 @@ out_err:
 static int cps_pm_online_cpu(unsigned int cpu)
 {
 	enum cps_pm_state state;
-	unsigned core = cpu_data[cpu].core;
+	unsigned core = cpu_core(&cpu_data[cpu]);
 	void *entry_fn, *core_rc;
 
 	for (state = CPS_PM_NC_WAIT; state < CPS_PM_STATE_COUNT; state++) {
@@ -692,7 +691,7 @@ static int __init cps_pm_init(void)
 	/* Detect whether a CPC is present */
 	if (mips_cpc_present()) {
 		/* Detect whether clock gating is implemented */
-		if (read_cpc_cl_stat_conf() & CPC_Cx_STAT_CONF_CLKGAT_IMPL_MSK)
+		if (read_cpc_cl_stat_conf() & CPC_Cx_STAT_CONF_CLKGAT_IMPL)
 			set_bit(CPS_PM_CLOCK_GATED, state_support);
 		else
 			pr_warn("pm-cps: CPC does not support clock gating\n");
