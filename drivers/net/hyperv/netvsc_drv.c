@@ -49,7 +49,7 @@
 #define NETVSC_MIN_TX_SECTIONS	10
 #define NETVSC_DEFAULT_TX	192	/* ~1M */
 #define NETVSC_MIN_RX_SECTIONS	10	/* ~64K */
-#define NETVSC_DEFAULT_RX	2048	/* ~4M */
+#define NETVSC_DEFAULT_RX	10485   /* Max ~16M */
 
 #define LINKCHANGE_INT (2 * HZ)
 #define VF_TAKEOVER_INT (HZ / 10)
@@ -853,10 +853,7 @@ static int netvsc_set_channels(struct net_device *net,
 	rndis_filter_device_remove(dev, nvdev);
 
 	nvdev = rndis_filter_device_add(dev, &device_info);
-	if (!IS_ERR(nvdev)) {
-		netif_set_real_num_tx_queues(net, nvdev->num_chn);
-		netif_set_real_num_rx_queues(net, nvdev->num_chn);
-	} else {
+	if (IS_ERR(nvdev)) {
 		ret = PTR_ERR(nvdev);
 		device_info.num_chn = orig;
 		nvdev = rndis_filter_device_add(dev, &device_info);
@@ -1954,9 +1951,6 @@ static int netvsc_probe(struct hv_device *dev,
 		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
 	net->vlan_features = net->features;
 
-	netif_set_real_num_tx_queues(net, nvdev->num_chn);
-	netif_set_real_num_rx_queues(net, nvdev->num_chn);
-
 	netdev_lockdep_set_classes(net);
 
 	/* MTU range: 68 - 1500 or 65521 */
@@ -2012,9 +2006,10 @@ static int netvsc_remove(struct hv_device *dev)
 	if (vf_netdev)
 		netvsc_unregister_vf(vf_netdev);
 
+	unregister_netdevice(net);
+
 	rndis_filter_device_remove(dev,
 				   rtnl_dereference(ndev_ctx->nvdev));
-	unregister_netdevice(net);
 	rtnl_unlock();
 
 	hv_set_drvdata(dev, NULL);

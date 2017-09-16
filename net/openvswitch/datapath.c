@@ -1112,7 +1112,8 @@ static int ovs_nla_init_match_and_action(struct net *net,
 		if (!a[OVS_FLOW_ATTR_KEY]) {
 			OVS_NLERR(log,
 				  "Flow key attribute not present in set flow.");
-			return -EINVAL;
+			error = -EINVAL;
+			goto error;
 		}
 
 		*acts = get_flow_actions(net, a[OVS_FLOW_ATTR_ACTIONS], key,

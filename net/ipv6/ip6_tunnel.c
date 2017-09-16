@@ -171,7 +171,7 @@ ip6_tnl_lookup(struct net *net, const struct in6_addr *remote, const struct in6_
 	}
 
 	t = rcu_dereference(ip6n->collect_md_tun);
-	if (t)
+	if (t && t->dev->flags & IFF_UP)
 		return t;
 
 	t = rcu_dereference(ip6n->tnls_wc[0]);

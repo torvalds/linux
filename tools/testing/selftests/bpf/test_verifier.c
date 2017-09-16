@@ -6629,6 +6629,22 @@ static struct bpf_test tests[] = {
 		.result = REJECT,
 		.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 	},
+	{
+		"invalid 64-bit BPF_END",
+		.insns = {
+			BPF_MOV32_IMM(BPF_REG_0, 0),
+			{
+				.code  = BPF_ALU64 | BPF_END | BPF_TO_LE,
+				.dst_reg = BPF_REG_0,
+				.src_reg = 0,
+				.off   = 0,
+				.imm   = 32,
+			},
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "BPF_END uses reserved fields",
+		.result = REJECT,
+	},
 };
 
 static int probe_filter_length(const struct bpf_insn *fp)

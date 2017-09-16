@@ -279,9 +279,11 @@ out:
 	return err;
 }
 
-static int sctp_sock_dump(struct sock *sk, void *p)
+static int sctp_sock_dump(struct sctp_transport *tsp, void *p)
 {
+	struct sctp_endpoint *ep = tsp->asoc->ep;
 	struct sctp_comm_param *commp = p;
+	struct sock *sk = ep->base.sk;
 	struct sk_buff *skb = commp->skb;
 	struct netlink_callback *cb = commp->cb;
 	const struct inet_diag_req_v2 *r = commp->r;
@@ -289,9 +291,7 @@ static int sctp_sock_dump(struct sock *sk, void *p)
 	int err = 0;
 
 	lock_sock(sk);
-	if (!sctp_sk(sk)->ep)
-		goto release;
-	list_for_each_entry(assoc, &sctp_sk(sk)->ep->asocs, asocs) {
+	list_for_each_entry(assoc, &ep->asocs, asocs) {
 		if (cb->args[4] < cb->args[1])
 			goto next;
 
@@ -309,7 +309,6 @@ static int sctp_sock_dump(struct sock *sk, void *p)
 					cb->nlh->nlmsg_seq,
 					NLM_F_MULTI, cb->nlh,
 					commp->net_admin) < 0) {
-			cb->args[3] = 1;
 			err = 1;
 			goto release;
 		}
@@ -327,40 +326,30 @@ next:
 		cb->args[4]++;
 	}
 	cb->args[1] = 0;
-	cb->args[2]++;
 	cb->args[3] = 0;
 	cb->args[4] = 0;
 release:
 	release_sock(sk);
-	sock_put(sk);
 	return err;
 }
 
-static int sctp_get_sock(struct sctp_transport *tsp, void *p)
+static int sctp_sock_filter(struct sctp_transport *tsp, void *p)
 {
 	struct sctp_endpoint *ep = tsp->asoc->ep;
 	struct sctp_comm_param *commp = p;
 	struct sock *sk = ep->base.sk;
-	struct netlink_callback *cb = commp->cb;
 	const struct inet_diag_req_v2 *r = commp->r;
 	struct sctp_association *assoc =
 		list_entry(ep->asocs.next, struct sctp_association, asocs);
 
 	/* find the ep only once through the transports by this condition */
 	if (tsp->asoc != assoc)
-		goto out;
+		return 0;
 
 	if (r->sdiag_family != AF_UNSPEC && sk->sk_family != r->sdiag_family)
-		goto out;
-
-	sock_hold(sk);
-	cb->args[5] = (long)sk;
+		return 0;
 
 	return 1;
-
-out:
-	cb->args[2]++;
-	return 0;
 }
 
 static int sctp_ep_dump(struct sctp_endpoint *ep, void *p)
@@ -503,12 +492,8 @@ skip:
 	if (!(idiag_states & ~(TCPF_LISTEN | TCPF_CLOSE)))
 		goto done;
 
-next:
-	cb->args[5] = 0;
-	sctp_for_each_transport(sctp_get_sock, net, cb->args[2], &commp);
-
-	if (cb->args[5] && !sctp_sock_dump((struct sock *)cb->args[5], &commp))
-		goto next;
+	sctp_for_each_transport(sctp_sock_filter, sctp_sock_dump,
+				net, (int *)&cb->args[2], &commp);
 
 done:
 	cb->args[1] = cb->args[4];
