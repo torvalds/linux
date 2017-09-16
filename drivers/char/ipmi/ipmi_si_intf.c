@@ -1699,6 +1699,92 @@ static const struct file_operations smi_params_proc_ops = {
 	.release	= single_release,
 };
 
+#define IPMI_SI_ATTR(name) \
+static ssize_t ipmi_##name##_show(struct device *dev,			\
+				  struct device_attribute *attr,	\
+				  char *buf)				\
+{									\
+	struct smi_info *smi_info = dev_get_drvdata(dev);		\
+									\
+	return snprintf(buf, 10, "%u\n", smi_get_stat(smi_info, name));	\
+}									\
+static DEVICE_ATTR(name, S_IRUGO, ipmi_##name##_show, NULL)
+
+static ssize_t ipmi_type_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	struct smi_info *smi_info = dev_get_drvdata(dev);
+
+	return snprintf(buf, 10, "%s\n", si_to_str[smi_info->io.si_type]);
+}
+static DEVICE_ATTR(type, S_IRUGO, ipmi_type_show, NULL);
+
+static ssize_t ipmi_interrupts_enabled_show(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
+{
+	struct smi_info *smi_info = dev_get_drvdata(dev);
+	int enabled = smi_info->io.irq && !smi_info->interrupt_disabled;
+
+	return snprintf(buf, 10, "%d\n", enabled);
+}
+static DEVICE_ATTR(interrupts_enabled, S_IRUGO,
+		   ipmi_interrupts_enabled_show, NULL);
+
+IPMI_SI_ATTR(short_timeouts);
+IPMI_SI_ATTR(long_timeouts);
+IPMI_SI_ATTR(idles);
+IPMI_SI_ATTR(interrupts);
+IPMI_SI_ATTR(attentions);
+IPMI_SI_ATTR(flag_fetches);
+IPMI_SI_ATTR(hosed_count);
+IPMI_SI_ATTR(complete_transactions);
+IPMI_SI_ATTR(events);
+IPMI_SI_ATTR(watchdog_pretimeouts);
+IPMI_SI_ATTR(incoming_messages);
+
+static ssize_t ipmi_params_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct smi_info *smi_info = dev_get_drvdata(dev);
+
+	return snprintf(buf, 200,
+			"%s,%s,0x%lx,rsp=%d,rsi=%d,rsh=%d,irq=%d,ipmb=%d\n",
+			si_to_str[smi_info->io.si_type],
+			addr_space_to_str[smi_info->io.addr_type],
+			smi_info->io.addr_data,
+			smi_info->io.regspacing,
+			smi_info->io.regsize,
+			smi_info->io.regshift,
+			smi_info->io.irq,
+			smi_info->io.slave_addr);
+}
+static DEVICE_ATTR(params, S_IRUGO, ipmi_params_show, NULL);
+
+static struct attribute *ipmi_si_dev_attrs[] = {
+	&dev_attr_type.attr,
+	&dev_attr_interrupts_enabled.attr,
+	&dev_attr_short_timeouts.attr,
+	&dev_attr_long_timeouts.attr,
+	&dev_attr_idles.attr,
+	&dev_attr_interrupts.attr,
+	&dev_attr_attentions.attr,
+	&dev_attr_flag_fetches.attr,
+	&dev_attr_hosed_count.attr,
+	&dev_attr_complete_transactions.attr,
+	&dev_attr_events.attr,
+	&dev_attr_watchdog_pretimeouts.attr,
+	&dev_attr_incoming_messages.attr,
+	&dev_attr_params.attr,
+	NULL
+};
+
+static const struct attribute_group ipmi_si_dev_attr_group = {
+	.attrs		= ipmi_si_dev_attrs,
+};
+
 /*
  * oem_data_avail_to_receive_msg_avail
  * @info - smi_info structure with msg_flags set
@@ -2085,6 +2171,15 @@ static int try_smi_init(struct smi_info *new_smi)
 		}
 	}
 
+	dev_set_drvdata(new_smi->io.dev, new_smi);
+	rv = device_add_group(new_smi->io.dev, &ipmi_si_dev_attr_group);
+	if (rv) {
+		dev_err(new_smi->io.dev,
+			"Unable to add device attributes: error %d\n",
+			rv);
+		goto out_err_stop_timer;
+	}
+
 	rv = ipmi_register_smi(&handlers,
 			       new_smi,
 			       new_smi->io.dev,
@@ -2093,7 +2188,7 @@ static int try_smi_init(struct smi_info *new_smi)
 		dev_err(new_smi->io.dev,
 			"Unable to register device: error %d\n",
 			rv);
-		goto out_err_stop_timer;
+		goto out_err_remove_attrs;
 	}
 
 	rv = ipmi_smi_add_proc_entry(new_smi->intf, "type",
@@ -2133,6 +2228,10 @@ static int try_smi_init(struct smi_info *new_smi)
 	kfree(init_name);
 
 	return 0;
+
+out_err_remove_attrs:
+	device_remove_group(new_smi->io.dev, &ipmi_si_dev_attr_group);
+	dev_set_drvdata(new_smi->io.dev, NULL);
 
 out_err_stop_timer:
 	wait_for_timer_and_thread(new_smi);
@@ -2273,6 +2372,9 @@ static void cleanup_one_si(struct smi_info *to_clean)
 			       rv);
 		}
 	}
+
+	device_remove_group(to_clean->io.dev, &ipmi_si_dev_attr_group);
+	dev_set_drvdata(to_clean->io.dev, NULL);
 
 	list_del(&to_clean->link);
 
