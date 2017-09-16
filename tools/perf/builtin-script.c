@@ -3074,7 +3074,8 @@ int cmd_script(int argc, const char **argv)
 					 machine__resolve_kernel_addr,
 					 &session->machines.host) < 0) {
 		pr_err("%s: failed to set libtraceevent function resolver\n", __func__);
-		return -1;
+		err = -1;
+		goto out_delete;
 	}
 
 	if (generate_script_lang) {
@@ -3134,7 +3135,8 @@ int cmd_script(int argc, const char **argv)
 	/* needs to be parsed after looking up reference time */
 	if (perf_time__parse_str(&script.ptime, script.time_str) != 0) {
 		pr_err("Invalid time string\n");
-		return -EINVAL;
+		err = -EINVAL;
+		goto out_delete;
 	}
 
 	err = __cmd_script(&script);
