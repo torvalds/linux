@@ -1308,9 +1308,6 @@ static u8 gtiir[] = {
 static int gen8_init_common_ring(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	struct execlist_port *port = engine->execlist_port;
-	unsigned int n;
-	bool submit;
 	int ret;
 
 	ret = intel_mocs_init_engine(engine);
@@ -1346,26 +1343,8 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 	engine->csb_head = -1;
 
 	/* After a GPU reset, we may have requests to replay */
-	submit = false;
-	for (n = 0; n < ARRAY_SIZE(engine->execlist_port); n++) {
-		if (!port_isset(&port[n]))
-			break;
-
-		DRM_DEBUG_DRIVER("Restarting %s:%d from 0x%x\n",
-				 engine->name, n,
-				 port_request(&port[n])->global_seqno);
-
-		/* Discard the current inflight count */
-		port_set(&port[n], port_request(&port[n]));
-		submit = true;
-	}
-
-	if (!i915.enable_guc_submission) {
-		if (submit)
-			execlists_submit_ports(engine);
-		else if (engine->execlist_first)
-			tasklet_schedule(&engine->irq_tasklet);
-	}
+	if (!i915.enable_guc_submission && engine->execlist_first)
+		tasklet_schedule(&engine->irq_tasklet);
 
 	return 0;
 }
@@ -1407,8 +1386,12 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 			      struct drm_i915_gem_request *request)
 {
 	struct execlist_port *port = engine->execlist_port;
+	struct drm_i915_gem_request *rq, *rn;
 	struct intel_context *ce;
+	unsigned long flags;
 	unsigned int n;
+
+	spin_lock_irqsave(&engine->timeline->lock, flags);
 
 	/*
 	 * Catch up with any missed context-switch interrupts.
@@ -1419,20 +1402,28 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	 * guessing the missed context-switch events by looking at what
 	 * requests were completed.
 	 */
-	if (!request) {
-		for (n = 0; n < ARRAY_SIZE(engine->execlist_port); n++)
-			i915_gem_request_put(port_request(&port[n]));
-		memset(engine->execlist_port, 0, sizeof(engine->execlist_port));
-		return;
+	for (n = 0; n < ARRAY_SIZE(engine->execlist_port); n++)
+		i915_gem_request_put(port_request(&port[n]));
+	memset(engine->execlist_port, 0, sizeof(engine->execlist_port));
+
+	/* Push back any incomplete requests for replay after the reset. */
+	list_for_each_entry_safe_reverse(rq, rn,
+					 &engine->timeline->requests, link) {
+		struct i915_priolist *p;
+
+		if (i915_gem_request_completed(rq))
+			break;
+
+		__i915_gem_request_unsubmit(rq);
+
+		p = lookup_priolist(engine,
+				    &rq->priotree,
+				    rq->priotree.priority);
+		list_add(&rq->priotree.link,
+			 &ptr_mask_bits(p, 1)->requests);
 	}
 
-	if (request->ctx != port_request(port)->ctx) {
-		i915_gem_request_put(port_request(port));
-		port[0] = port[1];
-		memset(&port[1], 0, sizeof(port[1]));
-	}
-
-	GEM_BUG_ON(request->ctx != port_request(port)->ctx);
+	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 
 	/* If the request was innocent, we leave the request in the ELSP
 	 * and will try to replay it on restarting. The context image may
@@ -1444,7 +1435,7 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	 * and have to at least restore the RING register in the context
 	 * image back to the expected values to skip over the guilty request.
 	 */
-	if (request->fence.error != -EIO)
+	if (!request || request->fence.error != -EIO)
 		return;
 
 	/* We want a simple context + ring to execute the breadcrumb update.
