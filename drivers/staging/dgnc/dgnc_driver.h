@@ -104,7 +104,6 @@ struct board_ops {
  * struct dgnc_board - Per board information.
  * @boardnum: Board number (0 - 32).
  *
- * @type: Type of board.
  * @name: Product name.
  * @pdev: Pointer to the pci_dev structure.
  * @bd_flags: Board flags.
@@ -140,13 +139,9 @@ struct board_ops {
  * @dpastatus: Board status as defined by DPA.
  * @bd_dividend: Board/UART's specific dividend.
  * @bd_ops: Pointer to board operations structure.
- * @proc_entry_pointer: Proc/<board> entry
- * @dgnc_board_table: Proc/<board> entry
  */
 struct dgnc_board {
 	int		boardnum;
-
-	int		type;
 	char		*name;
 	struct pci_dev	*pdev;
 	unsigned long	bd_flags;
@@ -200,10 +195,6 @@ struct dgnc_board {
 	uint		bd_dividend;
 
 	struct board_ops *bd_ops;
-
-	struct proc_dir_entry *proc_entry_pointer;
-	struct dgnc_proc_entry *dgnc_board_table;
-
 };
 
 /* Unit flag definitions for un_flags. */
