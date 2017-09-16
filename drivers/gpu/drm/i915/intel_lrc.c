@@ -286,10 +286,10 @@ intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
 	ce->lrc_desc = desc;
 }
 
-static bool
-insert_request(struct intel_engine_cs *engine,
-	       struct i915_priotree *pt,
-	       int prio)
+static struct i915_priolist *
+lookup_priolist(struct intel_engine_cs *engine,
+		struct i915_priotree *pt,
+		int prio)
 {
 	struct i915_priolist *p;
 	struct rb_node **parent, *rb;
@@ -311,8 +311,7 @@ find_priolist:
 			parent = &rb->rb_right;
 			first = false;
 		} else {
-			list_add_tail(&pt->link, &p->requests);
-			return false;
+			return p;
 		}
 	}
 
@@ -338,16 +337,14 @@ find_priolist:
 	}
 
 	p->priority = prio;
+	INIT_LIST_HEAD(&p->requests);
 	rb_link_node(&p->node, rb, parent);
 	rb_insert_color(&p->node, &engine->execlist_queue);
-
-	INIT_LIST_HEAD(&p->requests);
-	list_add_tail(&pt->link, &p->requests);
 
 	if (first)
 		engine->execlist_first = &p->node;
 
-	return first;
+	return ptr_pack_bits(p, first, 1);
 }
 
 static inline void
@@ -764,6 +761,17 @@ static void intel_lrc_irq_handler(unsigned long data)
 	intel_uncore_forcewake_put(dev_priv, engine->fw_domains);
 }
 
+static void insert_request(struct intel_engine_cs *engine,
+			   struct i915_priotree *pt,
+			   int prio)
+{
+	struct i915_priolist *p = lookup_priolist(engine, pt, prio);
+
+	list_add_tail(&pt->link, &ptr_mask_bits(p, 1)->requests);
+	if (ptr_unmask_bits(p, 1) && execlists_elsp_ready(engine))
+		tasklet_hi_schedule(&engine->irq_tasklet);
+}
+
 static void execlists_submit_request(struct drm_i915_gem_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
@@ -772,12 +780,7 @@ static void execlists_submit_request(struct drm_i915_gem_request *request)
 	/* Will be called from irq-context when using foreign fences. */
 	spin_lock_irqsave(&engine->timeline->lock, flags);
 
-	if (insert_request(engine,
-			   &request->priotree,
-			   request->priotree.priority)) {
-		if (execlists_elsp_ready(engine))
-			tasklet_hi_schedule(&engine->irq_tasklet);
-	}
+	insert_request(engine, &request->priotree, request->priotree.priority);
 
 	GEM_BUG_ON(!engine->execlist_first);
 	GEM_BUG_ON(list_empty(&request->priotree.link));
