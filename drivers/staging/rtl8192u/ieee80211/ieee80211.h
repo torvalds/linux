@@ -323,7 +323,7 @@ typedef struct ieee_param {
 			u8 key[0];
 		} crypt;
 	} u;
-}ieee_param;
+} ieee_param;
 
 
 // linux under 2.6.9 release may not support it, so modify it for common use
@@ -445,7 +445,7 @@ typedef enum _InitialGainOpType{
 	IG_Backup = 0,
 	IG_Restore,
 	IG_Max
-}InitialGainOpType;
+} InitialGainOpType;
 
 /* debug macros */
 #define CONFIG_IEEE80211_DEBUG
@@ -1051,7 +1051,7 @@ typedef union _frameqos {
 		u16 ack_policy:2;
 		u16 reserved:1;
 		u16 txop:8;
-	}field;
+	} field;
 } frameqos, *pframeqos;
 
 /* SWEEP TABLE ENTRIES NUMBER*/
@@ -1483,7 +1483,7 @@ typedef enum _Fsync_State{
 	Default_Fsync,
 	HW_Fsync,
 	SW_Fsync
-}Fsync_State;
+} Fsync_State;
 
 // Power save mode configured.
 typedef	enum _RT_PS_MODE
@@ -1491,25 +1491,25 @@ typedef	enum _RT_PS_MODE
 	eActive,	// Active/Continuous access.
 	eMaxPs,		// Max power save mode.
 	eFastPs		// Fast power save mode.
-}RT_PS_MODE;
+} RT_PS_MODE;
 
 typedef enum _IPS_CALLBACK_FUNCION
 {
 	IPS_CALLBACK_NONE = 0,
 	IPS_CALLBACK_MGNT_LINK_REQUEST = 1,
 	IPS_CALLBACK_JOIN_REQUEST = 2,
-}IPS_CALLBACK_FUNCION;
+} IPS_CALLBACK_FUNCION;
 
 typedef enum _RT_JOIN_ACTION{
 	RT_JOIN_INFRA   = 1,
 	RT_JOIN_IBSS  = 2,
 	RT_START_IBSS = 3,
 	RT_NO_ACTION  = 4,
-}RT_JOIN_ACTION;
+} RT_JOIN_ACTION;
 
 typedef struct _IbssParms{
 	u16   atimWin;
-}IbssParms, *PIbssParms;
+} IbssParms, *PIbssParms;
 #define MAX_NUM_RATES	264 // Max num of support rates element: 8,  Max num of ext. support rate: 255. 061122, by rcnjko.
 
 // RF state.
@@ -1517,7 +1517,7 @@ typedef	enum _RT_RF_POWER_STATE {
 	eRfOn,
 	eRfSleep,
 	eRfOff
-}RT_RF_POWER_STATE;
+} RT_RF_POWER_STATE;
 
 typedef struct _RT_POWER_SAVE_CONTROL {
 
@@ -1585,7 +1585,7 @@ typedef enum
 	COUNTRY_CODE_TELEC,
 	COUNTRY_CODE_MIC,
 	COUNTRY_CODE_GLOBAL_DOMAIN
-}country_code_type_t;
+} country_code_type_t;
 
 #define RT_MAX_LD_SLOT_NUM	10
 typedef struct _RT_LINK_DETECT_T{
@@ -1601,7 +1601,7 @@ typedef struct _RT_LINK_DETECT_T{
 	u32				NumTxOkInPeriod;
 	u32				NumRxOkInPeriod;
 	bool				bBusyTraffic;
-}RT_LINK_DETECT_T, *PRT_LINK_DETECT_T;
+} RT_LINK_DETECT_T, *PRT_LINK_DETECT_T;
 
 
 struct ieee80211_device {
