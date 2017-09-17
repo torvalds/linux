@@ -66,8 +66,8 @@
 #include <asm/mach-rc32434/dma_v.h>
 
 #define DRV_NAME	"korina"
-#define DRV_VERSION	"0.10"
-#define DRV_RELDATE	"04Mar2008"
+#define DRV_VERSION	"0.20"
+#define DRV_RELDATE	"15Sep2017"
 
 #define STATION_ADDRESS_HIGH(dev) (((dev)->dev_addr[0] << 8) | \
 				   ((dev)->dev_addr[1]))
