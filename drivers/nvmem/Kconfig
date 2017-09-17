@@ -144,4 +144,14 @@ config MESON_EFUSE
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_meson_efuse.
 
+config NVMEM_SNVS_LPGPR
+	tristate "Support for Low Power General Purpose Register"
+	depends on SOC_IMX6 || COMPILE_TEST
+	help
+	  This is a driver for Low Power General Purpose Register (LPGPR) available on
+	  i.MX6 SoCs in Secure Non-Volatile Storage (SNVS) of this chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-snvs-lpgpr.
+
 endif
