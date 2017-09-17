@@ -1082,7 +1082,7 @@ static int korina_probe(struct platform_device *pdev)
 	dev->netdev_ops = &korina_netdev_ops;
 	dev->ethtool_ops = &netdev_ethtool_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	netif_napi_add(dev, &lp->napi, korina_poll, 64);
+	netif_napi_add(dev, &lp->napi, korina_poll, NAPI_POLL_WEIGHT);
 
 	lp->phy_addr = (((lp->rx_irq == 0x2c? 1:0) << 8) | 0x05);
 	lp->mii_if.dev = dev;
