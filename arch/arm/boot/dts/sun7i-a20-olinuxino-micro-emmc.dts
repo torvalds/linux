@@ -1,5 +1,6 @@
-/*
- * Copyright (C) 2016 Milo Kim <woogyom.kim@gmail.com>
+ /*
+ * Copyright 2017 Olimex Ltd.
+ * Stefan Mavrodiev <stefan@olimex.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -40,31 +41,30 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "sun8i-h3-nanopi.dtsi"
+#include "sun7i-a20-olinuxino-micro.dts"
 
 / {
-	model = "FriendlyArm NanoPi M1";
-	compatible = "friendlyarm,nanopi-m1", "allwinner,sun8i-h3";
+	model = "Olimex A20-OLinuXino-MICRO-eMMC";
+	compatible = "olimex,a20-olinuxino-micro-emmc", "allwinner,sun7i-a20";
+
+	mmc2_pwrseq: pwrseq {
+		compatible = "mmc-pwrseq-emmc";
+		reset-gpios = <&pio 2 16 GPIO_ACTIVE_LOW>;
+	};
 };
 
-&ehci1 {
-	status = "okay";
-};
-
-&ehci2 {
-	status = "okay";
-};
-
-&ir {
+&mmc2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir_pins_a>;
+	pinctrl-0 = <&mmc2_pins_a>;
+	vmmc-supply = <&reg_vcc3v3>;
+	bus-width = <4>;
+	non-removable;
+	mmc-pwrseq = <&mmc2_pwrseq>;
 	status = "okay";
-};
 
-&ohci1 {
-	status = "okay";
-};
-
-&ohci2 {
-	status = "okay";
+	emmc: emmc@0 {
+		reg = <0>;
+		compatible = "mmc-card";
+		broken-hpi;
+	};
 };

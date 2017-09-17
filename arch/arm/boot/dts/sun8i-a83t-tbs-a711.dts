@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2016 Chen-Yu Tsai <wens@csie.org>
+ * Copyright (C) 2017 Touchless Biometric Systems AG
+ * Tomas Novotny <tomas@novotny.cz>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -41,15 +42,12 @@
  */
 
 /dts-v1/;
-#include "sun8i-h3.dtsi"
+#include "sun8i-a83t.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/input/input.h>
-
 / {
-	model = "Banana Pi BPI-M2-Plus";
-	compatible = "sinovoip,bpi-m2-plus", "allwinner,sun8i-h3";
+	model = "TBS A711 Tablet";
+	compatible = "tbs-biometrics,a711", "allwinner,sun8i-a83t";
 
 	aliases {
 		serial0 = &uart0;
@@ -60,139 +58,142 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	leds {
-		compatible = "gpio-leds";
-		pinctrl-names = "default";
-
-		pwr_led {
-			label = "bananapi-m2-plus:red:pwr";
-			gpios = <&r_pio 0 10 GPIO_ACTIVE_HIGH>; /* PL10 */
-			default-state = "on";
-		};
+	reg_vbat: reg-vbat {
+		compatible = "regulator-fixed";
+		regulator-name = "vbat";
+		regulator-min-microvolt = <3700000>;
+		regulator-max-microvolt = <3700000>;
 	};
 
-	gpio_keys {
-		compatible = "gpio-keys";
-		pinctrl-names = "default";
-
-		sw4 {
-			label = "power";
-			linux,code = <BTN_0>;
-			gpios = <&r_pio 0 3 GPIO_ACTIVE_LOW>;
-		};
-	};
-
-	reg_gmac_3v3: gmac-3v3 {
-		      compatible = "regulator-fixed";
-		      regulator-name = "gmac-3v3";
-		      regulator-min-microvolt = <3300000>;
-		      regulator-max-microvolt = <3300000>;
-		      startup-delay-us = <100000>;
-		      enable-active-high;
-		      gpio = <&pio 3 6 GPIO_ACTIVE_HIGH>;
+	reg_vmain: reg-vmain {
+		compatible = "regulator-fixed";
+		regulator-name = "vmain";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&r_pio 0 9 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&reg_vbat>;
 	};
 
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		pinctrl-names = "default";
-		reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
+		reset-gpios = <&r_pio 0 2 GPIO_ACTIVE_LOW>; /* PL2 WL-PMU-EN */
+
+		/*
+		 * This is actually Bluetooth's clock, but we have to
+		 * hook it up somewheere
+		 */
+		clocks = <&ac100_rtc 1>;
+		clock-names = "ext_clock";
 	};
 };
 
+/*
+ * An USB-2 hub is connected here, which also means we don't need to
+ * enable the OHCI controller.
+ */
 &ehci0 {
 	status = "okay";
 };
 
+/*
+ * There's a modem connected here that needs to be initialised before
+ * being able to be enumerated.
+ */
 &ehci1 {
 	status = "okay";
 };
 
-&ehci2 {
-	status = "okay";
-};
-
-&ir {
-	pinctrl-names = "default";
-	pinctrl-0 = <&ir_pins_a>;
-	status = "okay";
-};
-
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin>;
 	vmmc-supply = <&reg_vcc3v3>;
-	bus-width = <4>;
-	cd-gpios = <&pio 5 6 GPIO_ACTIVE_HIGH>; /* PF6 */
-	cd-inverted;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc0_pins>;
+	cd-gpios = <&pio 5 6 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
 &mmc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>;
-	vmmc-supply = <&reg_vcc3v3>;
-	vqmmc-supply = <&reg_vcc3v3>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
+	vmmc-supply = <&reg_vcc3v3>;
+	vqmmc-supply = <&reg_vcc3v3>;
 	non-removable;
+	wakeup-source;
 	status = "okay";
 
 	brcmf: wifi@1 {
 		reg = <1>;
 		compatible = "brcm,bcm4329-fmac";
-		interrupt-parent = <&pio>;
-		interrupts = <6 10 IRQ_TYPE_LEVEL_LOW>; /* PG10 / EINT10 */
+		interrupt-parent = <&r_pio>;
+		interrupts = <0 3 IRQ_TYPE_LEVEL_LOW>; /* PL3 WL_WAKE_UP */
 		interrupt-names = "host-wake";
 	};
 };
 
 &mmc2 {
+	pinctrl-0 = <&mmc2_8bit_emmc_pins>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc2_8bit_pins>;
 	vmmc-supply = <&reg_vcc3v3>;
 	vqmmc-supply = <&reg_vcc3v3>;
 	bus-width = <8>;
 	non-removable;
+	cap-mmc-hw-reset;
 	status = "okay";
 };
 
-&ohci0 {
+&r_rsb {
 	status = "okay";
-};
 
-&ohci1 {
-	status = "okay";
-};
+	axp813: pmic@3a3 {
+		compatible = "x-powers,axp813";
+		reg = <0x3a3>;
+		interrupt-parent = <&r_intc>;
+		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+	};
 
-&ohci2 {
-	status = "okay";
-};
+	ac100: codec@e89 {
+		compatible = "x-powers,ac100";
+		reg = <0xe89>;
 
-&reg_usb0_vbus {
-	gpio = <&pio 3 11 GPIO_ACTIVE_HIGH>; /* PD11 */
-	status = "okay";
+		ac100_codec: codec {
+			compatible = "x-powers,ac100-codec";
+			interrupt-parent = <&r_pio>;
+			interrupts = <0 12 IRQ_TYPE_LEVEL_LOW>; /* PL12 */
+			#clock-cells = <0>;
+			clock-output-names = "4M_adda";
+		};
+
+		ac100_rtc: rtc {
+			compatible = "x-powers,ac100-rtc";
+			interrupt-parent = <&r_intc>;
+			interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+			clocks = <&ac100_codec>;
+			#clock-cells = <1>;
+			clock-output-names = "cko1_rtc",
+					     "cko2_rtc",
+					     "cko3_rtc";
+		};
+	};
+
 };
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 
+/* There's the BT part of the AP6210 connected to that UART */
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1_pins>, <&uart1_rts_cts_pins>;
 	status = "okay";
 };
 
-&usb_otg {
-	dr_mode = "otg";
-	status = "okay";
-};
-
 &usbphy {
-	usb0_id_det-gpios = <&r_pio 0 6 GPIO_ACTIVE_HIGH>; /* PL6 */
-	usb0_vbus-supply = <&reg_usb0_vbus>;
-	/* USB host VBUS is on as long as VCC-IO is on */
+	usb1_vbus_supply = <&reg_vcc5v0>;
+	usb2_vbus_supply = <&reg_vcc5v0>;
 	status = "okay";
 };
