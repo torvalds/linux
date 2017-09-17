@@ -2,11 +2,9 @@
 The Linux Kernel API
 ====================
 
-Data Types
-==========
 
-Doubly Linked Lists
--------------------
+List Management Functions
+=========================
 
 .. kernel-doc:: include/linux/list.h
    :internal:
