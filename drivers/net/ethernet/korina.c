@@ -363,59 +363,60 @@ static int korina_rx(struct net_device *dev, int limit)
 		if ((KORINA_RBSIZE - (u32)DMA_COUNT(rd->control)) == 0)
 			break;
 
-		/* Update statistics counters */
-		if (devcs & ETH_RX_CRC)
-			dev->stats.rx_crc_errors++;
-		if (devcs & ETH_RX_LOR)
-			dev->stats.rx_length_errors++;
-		if (devcs & ETH_RX_LE)
-			dev->stats.rx_length_errors++;
-		if (devcs & ETH_RX_OVR)
-			dev->stats.rx_fifo_errors++;
-		if (devcs & ETH_RX_CV)
-			dev->stats.rx_frame_errors++;
-		if (devcs & ETH_RX_CES)
-			dev->stats.rx_length_errors++;
+		/* check that this is a whole packet
+		 * WARNING: DMA_FD bit incorrectly set
+		 * in Rc32434 (errata ref #077) */
+		if (!(devcs & ETH_RX_LD))
+			goto next;
+
+		if (!(devcs & ETH_RX_ROK)) {
+			/* Update statistics counters */
+			dev->stats.rx_errors++;
+			dev->stats.rx_dropped++;
+			if (devcs & ETH_RX_CRC)
+				dev->stats.rx_crc_errors++;
+			if (devcs & ETH_RX_LE)
+				dev->stats.rx_length_errors++;
+			if (devcs & ETH_RX_OVR)
+				dev->stats.rx_fifo_errors++;
+			if (devcs & ETH_RX_CV)
+				dev->stats.rx_frame_errors++;
+			if (devcs & ETH_RX_CES)
+				dev->stats.rx_frame_errors++;
+
+			goto next;
+		}
+
+		pkt_len = RCVPKT_LENGTH(devcs);
+
+		/* must be the (first and) last
+		 * descriptor then */
+		pkt_buf = (u8 *)lp->rx_skb[lp->rx_next_done]->data;
+
+		/* invalidate the cache */
+		dma_cache_inv((unsigned long)pkt_buf, pkt_len - 4);
+
+		/* Malloc up new buffer. */
+		skb_new = netdev_alloc_skb_ip_align(dev, KORINA_RBSIZE);
+
+		if (!skb_new)
+			break;
+		/* Do not count the CRC */
+		skb_put(skb, pkt_len - 4);
+		skb->protocol = eth_type_trans(skb, dev);
+
+		/* Pass the packet to upper layers */
+		netif_receive_skb(skb);
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += pkt_len;
+
+		/* Update the mcast stats */
 		if (devcs & ETH_RX_MP)
 			dev->stats.multicast++;
 
-		if ((devcs & ETH_RX_LD) != ETH_RX_LD) {
-			/* check that this is a whole packet
-			 * WARNING: DMA_FD bit incorrectly set
-			 * in Rc32434 (errata ref #077) */
-			dev->stats.rx_errors++;
-			dev->stats.rx_dropped++;
-		} else if ((devcs & ETH_RX_ROK)) {
-			pkt_len = RCVPKT_LENGTH(devcs);
+		lp->rx_skb[lp->rx_next_done] = skb_new;
 
-			/* must be the (first and) last
-			 * descriptor then */
-			pkt_buf = (u8 *)lp->rx_skb[lp->rx_next_done]->data;
-
-			/* invalidate the cache */
-			dma_cache_inv((unsigned long)pkt_buf, pkt_len - 4);
-
-			/* Malloc up new buffer. */
-			skb_new = netdev_alloc_skb_ip_align(dev, KORINA_RBSIZE);
-
-			if (!skb_new)
-				break;
-			/* Do not count the CRC */
-			skb_put(skb, pkt_len - 4);
-			skb->protocol = eth_type_trans(skb, dev);
-
-			/* Pass the packet to upper layers */
-			netif_receive_skb(skb);
-			dev->stats.rx_packets++;
-			dev->stats.rx_bytes += pkt_len;
-
-			/* Update the mcast stats */
-			if (devcs & ETH_RX_MP)
-				dev->stats.multicast++;
-
-			lp->rx_skb[lp->rx_next_done] = skb_new;
-		}
-
+next:
 		rd->devcs = 0;
 
 		/* Restore descriptor's curr_addr */
