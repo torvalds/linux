@@ -322,6 +322,10 @@ static const struct st_sensor_settings st_magn_sensors_settings[] = {
 				.mask = 0x07,
 			},
 		},
+		.sim = {
+			.addr = 0x22,
+			.value = BIT(2),
+		},
 		.multi_read_bit = true,
 		.bootime = 2,
 	},
