@@ -406,7 +406,7 @@ static int korina_rx(struct net_device *dev, int limit)
 		skb->protocol = eth_type_trans(skb, dev);
 
 		/* Pass the packet to upper layers */
-		netif_receive_skb(skb);
+		napi_gro_receive(&lp->napi, skb);
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += pkt_len;
 
