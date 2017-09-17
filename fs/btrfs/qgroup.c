@@ -1305,6 +1305,8 @@ int btrfs_remove_qgroup(struct btrfs_trans_handle *trans,
 		}
 	}
 	ret = del_qgroup_item(trans, quota_root, qgroupid);
+	if (ret && ret != -ENOENT)
+		goto out;
 
 	while (!list_empty(&qgroup->groups)) {
 		list = list_first_entry(&qgroup->groups,
