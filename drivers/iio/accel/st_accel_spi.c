@@ -86,6 +86,10 @@ static const struct of_device_id st_accel_of_match[] = {
 		.compatible = "st,lis2dw12",
 		.data = LIS2DW12_ACCEL_DEV_NAME,
 	},
+	{
+		.compatible = "st,lis3dhh",
+		.data = LIS3DHH_ACCEL_DEV_NAME,
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(of, st_accel_of_match);
@@ -138,6 +142,7 @@ static const struct spi_device_id st_accel_id_table[] = {
 	{ LIS331DL_ACCEL_DEV_NAME },
 	{ LIS3LV02DL_ACCEL_DEV_NAME },
 	{ LIS2DW12_ACCEL_DEV_NAME },
+	{ LIS3DHH_ACCEL_DEV_NAME },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, st_accel_id_table);

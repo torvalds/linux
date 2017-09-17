@@ -777,6 +777,58 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 		.multi_read_bit = false,
 		.bootime = 2,
 	},
+	{
+		.wai = 0x11,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
+		.sensors_supported = {
+			[0] = LIS3DHH_ACCEL_DEV_NAME,
+		},
+		.ch = (struct iio_chan_spec *)st_accel_16bit_channels,
+		.odr = {
+			/* just ODR = 1100Hz available */
+			.odr_avl = {
+				{ .hz = 1100, .value = 0x00, },
+			},
+		},
+		.pw = {
+			.addr = 0x20,
+			.mask = 0x80,
+			.value_on = ST_SENSORS_DEFAULT_POWER_ON_VALUE,
+			.value_off = ST_SENSORS_DEFAULT_POWER_OFF_VALUE,
+		},
+		.fs = {
+			.fs_avl = {
+				[0] = {
+					.num = ST_ACCEL_FS_AVL_2G,
+					.gain = IIO_G_TO_M_S_2(76),
+				},
+			},
+		},
+		.bdu = {
+			.addr = 0x20,
+			.mask = 0x01,
+		},
+		.drdy_irq = {
+			.int1 = {
+				.addr = 0x21,
+				.mask = 0x80,
+				.addr_od = 0x23,
+				.mask_od = 0x04,
+			},
+			.int2 = {
+				.addr = 0x22,
+				.mask = 0x80,
+				.addr_od = 0x23,
+				.mask_od = 0x08,
+			},
+			.stat_drdy = {
+				.addr = ST_SENSORS_DEFAULT_STAT_ADDR,
+				.mask = 0x07,
+			},
+		},
+		.multi_read_bit = false,
+		.bootime = 2,
+	},
 };
 
 static int st_accel_read_raw(struct iio_dev *indio_dev,
