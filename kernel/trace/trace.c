@@ -4701,7 +4701,7 @@ static int tracing_wait_pipe(struct file *filp)
 		 *
 		 * iter->pos will be 0 if we haven't read anything.
 		 */
-		if (!tracing_is_on() && iter->pos)
+		if (!tracer_tracing_is_on(iter->tr) && iter->pos)
 			break;
 
 		mutex_unlock(&iter->mutex);
