@@ -125,6 +125,10 @@ static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 				.mask = 0x07,
 			},
 		},
+		.sim = {
+			.addr = 0x23,
+			.value = BIT(0),
+		},
 		.multi_read_bit = true,
 		.bootime = 2,
 	},
@@ -200,6 +204,10 @@ static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 				.mask = 0x07,
 			},
 		},
+		.sim = {
+			.addr = 0x23,
+			.value = BIT(0),
+		},
 		.multi_read_bit = true,
 		.bootime = 2,
 	},
@@ -269,6 +277,10 @@ static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 				.addr = ST_SENSORS_DEFAULT_STAT_ADDR,
 				.mask = 0x07,
 			},
+		},
+		.sim = {
+			.addr = 0x23,
+			.value = BIT(0),
 		},
 		.multi_read_bit = true,
 		.bootime = 2,
