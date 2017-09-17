@@ -283,15 +283,17 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 			.int1 = {
 				.addr = 0x22,
 				.mask = 0x04,
+				.addr_od = 0x22,
+				.mask_od = 0x40,
 			},
 			.int2 = {
 				.addr = 0x22,
 				.mask = 0x20,
+				.addr_od = 0x22,
+				.mask_od = 0x40,
 			},
 			.addr_ihl = 0x22,
 			.mask_ihl = 0x80,
-			.addr_od = 0x22,
-			.mask_od = 0x40,
 			.stat_drdy = {
 				.addr = ST_SENSORS_DEFAULT_STAT_ADDR,
 				.mask = 0x03,
@@ -404,11 +406,11 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 			.int1 = {
 				.addr = 0x23,
 				.mask = 0x01,
+				.addr_od = 0x22,
+				.mask_od = 0x40,
 			},
 			.addr_ihl = 0x22,
 			.mask_ihl = 0x80,
-			.addr_od = 0x22,
-			.mask_od = 0x40,
 			.stat_drdy = {
 				.addr = ST_SENSORS_DEFAULT_STAT_ADDR,
 				.mask = 0x03,
@@ -473,11 +475,11 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 			.int1 = {
 				.addr = 0x12,
 				.mask = 0x04,
+				.addr_od = 0x12,
+				.mask_od = 0x40,
 			},
 			.addr_ihl = 0x12,
 			.mask_ihl = 0x80,
-			.addr_od = 0x12,
-			.mask_od = 0x40,
 			.stat_drdy = {
 				.addr = ST_SENSORS_DEFAULT_STAT_ADDR,
 				.mask = 0x03,
