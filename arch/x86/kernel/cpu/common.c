@@ -838,6 +838,14 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	setup_force_cpu_bug(X86_BUG_SPECTRE_V2);
 
 	fpu__init_system(c);
+
+#ifdef CONFIG_X86_32
+	/*
+	 * Regardless of whether PCID is enumerated, the SDM says
+	 * that it can't be enabled in 32-bit mode.
+	 */
+	setup_clear_cpu_cap(X86_FEATURE_PCID);
+#endif
 }
 
 void __init early_cpu_init(void)
