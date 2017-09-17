@@ -47,6 +47,7 @@ Accelerometers:
 - st,lng2dm-accel
 - st,lis3l02dq
 - st,lis2dw12
+- st,lis3dhh
 
 Gyroscopes:
 - st,l3g4200d-gyro
