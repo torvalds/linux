@@ -1030,6 +1030,72 @@ static const struct iio_trigger_ops kxcjk1013_trigger_ops = {
 	.try_reenable = kxcjk1013_trig_try_reen,
 };
 
+static void kxcjk1013_report_motion_event(struct iio_dev *indio_dev)
+{
+	struct kxcjk1013_data *data = iio_priv(indio_dev);
+
+	int ret = i2c_smbus_read_byte_data(data->client,
+					   KXCJK1013_REG_INT_SRC2);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error reading reg_int_src2\n");
+		return;
+	}
+
+	if (ret & KXCJK1013_REG_INT_SRC2_BIT_XN)
+		iio_push_event(indio_dev,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
+						  0,
+						  IIO_MOD_X,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_FALLING),
+			       data->timestamp);
+
+	if (ret & KXCJK1013_REG_INT_SRC2_BIT_XP)
+		iio_push_event(indio_dev,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
+						  0,
+						  IIO_MOD_X,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_RISING),
+			       data->timestamp);
+
+	if (ret & KXCJK1013_REG_INT_SRC2_BIT_YN)
+		iio_push_event(indio_dev,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
+						  0,
+						  IIO_MOD_Y,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_FALLING),
+			       data->timestamp);
+
+	if (ret & KXCJK1013_REG_INT_SRC2_BIT_YP)
+		iio_push_event(indio_dev,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
+						  0,
+						  IIO_MOD_Y,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_RISING),
+			       data->timestamp);
+
+	if (ret & KXCJK1013_REG_INT_SRC2_BIT_ZN)
+		iio_push_event(indio_dev,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
+						  0,
+						  IIO_MOD_Z,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_FALLING),
+			       data->timestamp);
+
+	if (ret & KXCJK1013_REG_INT_SRC2_BIT_ZP)
+		iio_push_event(indio_dev,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
+						  0,
+						  IIO_MOD_Z,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_RISING),
+			       data->timestamp);
+}
+
 static irqreturn_t kxcjk1013_event_handler(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
@@ -1043,65 +1109,7 @@ static irqreturn_t kxcjk1013_event_handler(int irq, void *private)
 	}
 
 	if (ret & KXCJK1013_REG_INT_SRC1_BIT_WUFS) {
-		ret = i2c_smbus_read_byte_data(data->client,
-					       KXCJK1013_REG_INT_SRC2);
-		if (ret < 0) {
-			dev_err(&data->client->dev,
-				"Error reading reg_int_src2\n");
-			goto ack_intr;
-		}
-
-		if (ret & KXCJK1013_REG_INT_SRC2_BIT_XN)
-			iio_push_event(indio_dev,
-				       IIO_MOD_EVENT_CODE(IIO_ACCEL,
-				       0,
-				       IIO_MOD_X,
-				       IIO_EV_TYPE_THRESH,
-				       IIO_EV_DIR_FALLING),
-				       data->timestamp);
-		if (ret & KXCJK1013_REG_INT_SRC2_BIT_XP)
-			iio_push_event(indio_dev,
-				       IIO_MOD_EVENT_CODE(IIO_ACCEL,
-				       0,
-				       IIO_MOD_X,
-				       IIO_EV_TYPE_THRESH,
-				       IIO_EV_DIR_RISING),
-				       data->timestamp);
-
-
-		if (ret & KXCJK1013_REG_INT_SRC2_BIT_YN)
-			iio_push_event(indio_dev,
-				       IIO_MOD_EVENT_CODE(IIO_ACCEL,
-				       0,
-				       IIO_MOD_Y,
-				       IIO_EV_TYPE_THRESH,
-				       IIO_EV_DIR_FALLING),
-				       data->timestamp);
-		if (ret & KXCJK1013_REG_INT_SRC2_BIT_YP)
-			iio_push_event(indio_dev,
-				       IIO_MOD_EVENT_CODE(IIO_ACCEL,
-				       0,
-				       IIO_MOD_Y,
-				       IIO_EV_TYPE_THRESH,
-				       IIO_EV_DIR_RISING),
-				       data->timestamp);
-
-		if (ret & KXCJK1013_REG_INT_SRC2_BIT_ZN)
-			iio_push_event(indio_dev,
-				       IIO_MOD_EVENT_CODE(IIO_ACCEL,
-				       0,
-				       IIO_MOD_Z,
-				       IIO_EV_TYPE_THRESH,
-				       IIO_EV_DIR_FALLING),
-				       data->timestamp);
-		if (ret & KXCJK1013_REG_INT_SRC2_BIT_ZP)
-			iio_push_event(indio_dev,
-				       IIO_MOD_EVENT_CODE(IIO_ACCEL,
-				       0,
-				       IIO_MOD_Z,
-				       IIO_EV_TYPE_THRESH,
-				       IIO_EV_DIR_RISING),
-				       data->timestamp);
+		kxcjk1013_report_motion_event(indio_dev);
 	}
 
 ack_intr:
