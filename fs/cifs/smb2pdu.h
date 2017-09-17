@@ -716,7 +716,7 @@ struct validate_negotiate_info_req {
 	__u8   Guid[SMB2_CLIENT_GUID_SIZE];
 	__le16 SecurityMode;
 	__le16 DialectCount;
-	__le16 Dialects[1]; /* dialect (someday maybe list) client asked for */
+	__le16 Dialects[3]; /* BB expand this if autonegotiate > 3 dialects */
 } __packed;
 
 struct validate_negotiate_info_rsp {

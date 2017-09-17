@@ -491,10 +491,25 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 
 	req->hdr.sync_hdr.SessionId = 0;
 
-	req->Dialects[0] = cpu_to_le16(ses->server->vals->protocol_id);
-
-	req->DialectCount = cpu_to_le16(1); /* One vers= at a time for now */
-	inc_rfc1001_len(req, 2);
+	if (strcmp(ses->server->vals->version_string,
+		   SMB3ANY_VERSION_STRING) == 0) {
+		req->Dialects[0] = cpu_to_le16(SMB30_PROT_ID);
+		req->Dialects[1] = cpu_to_le16(SMB302_PROT_ID);
+		req->DialectCount = cpu_to_le16(2);
+		inc_rfc1001_len(req, 4);
+	} else if (strcmp(ses->server->vals->version_string,
+		   SMBDEFAULT_VERSION_STRING) == 0) {
+		req->Dialects[0] = cpu_to_le16(SMB21_PROT_ID);
+		req->Dialects[1] = cpu_to_le16(SMB30_PROT_ID);
+		req->Dialects[2] = cpu_to_le16(SMB302_PROT_ID);
+		req->DialectCount = cpu_to_le16(3);
+		inc_rfc1001_len(req, 6);
+	} else {
+		/* otherwise send specific dialect */
+		req->Dialects[0] = cpu_to_le16(ses->server->vals->protocol_id);
+		req->DialectCount = cpu_to_le16(1);
+		inc_rfc1001_len(req, 2);
+	}
 
 	/* only one of SMB2 signing flags may be set in SMB2 request */
 	if (ses->sign)
@@ -528,16 +543,42 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	 */
 	if (rc == -EOPNOTSUPP) {
 		cifs_dbg(VFS, "Dialect not supported by server. Consider "
-			"specifying vers=1.0 or vers=2.1 on mount for accessing"
+			"specifying vers=1.0 or vers=2.0 on mount for accessing"
 			" older servers\n");
 		goto neg_exit;
 	} else if (rc != 0)
 		goto neg_exit;
 
+	if (strcmp(ses->server->vals->version_string,
+		   SMB3ANY_VERSION_STRING) == 0) {
+		if (rsp->DialectRevision == cpu_to_le16(SMB20_PROT_ID)) {
+			cifs_dbg(VFS,
+				"SMB2 dialect returned but not requested\n");
+			return -EIO;
+		} else if (rsp->DialectRevision == cpu_to_le16(SMB21_PROT_ID)) {
+			cifs_dbg(VFS,
+				"SMB2.1 dialect returned but not requested\n");
+			return -EIO;
+		}
+	} else if (strcmp(ses->server->vals->version_string,
+		   SMBDEFAULT_VERSION_STRING) == 0) {
+		if (rsp->DialectRevision == cpu_to_le16(SMB20_PROT_ID)) {
+			cifs_dbg(VFS,
+				"SMB2 dialect returned but not requested\n");
+			return -EIO;
+		} else if (rsp->DialectRevision == cpu_to_le16(SMB21_PROT_ID)) {
+			/* ops set to 3.0 by default for default so update */
+			ses->server->ops = &smb21_operations;
+		}
+	} else if (rsp->DialectRevision != ses->server->vals->protocol_id) {
+		/* if requested single dialect ensure returned dialect matched */
+		cifs_dbg(VFS, "Illegal 0x%x dialect returned: not requested\n",
+			cpu_to_le16(rsp->DialectRevision));
+		return -EIO;
+	}
+
 	cifs_dbg(FYI, "mode 0x%x\n", rsp->SecurityMode);
 
-	/* BB we may eventually want to match the negotiated vs. requested
-	   dialect, even though we are only requesting one at a time */
 	if (rsp->DialectRevision == cpu_to_le16(SMB20_PROT_ID))
 		cifs_dbg(FYI, "negotiated smb2.0 dialect\n");
 	else if (rsp->DialectRevision == cpu_to_le16(SMB21_PROT_ID))
@@ -557,6 +598,8 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 		goto neg_exit;
 	}
 	server->dialect = le16_to_cpu(rsp->DialectRevision);
+
+	/* BB: add check that dialect was valid given dialect(s) we asked for */
 
 	/* SMB2 only has an extended negflavor */
 	server->negflavor = CIFS_NEGFLAVOR_EXTENDED;
@@ -606,6 +649,7 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 	struct validate_negotiate_info_req vneg_inbuf;
 	struct validate_negotiate_info_rsp *pneg_rsp;
 	u32 rsplen;
+	u32 inbuflen; /* max of 4 dialects */
 
 	cifs_dbg(FYI, "validate negotiate\n");
 
@@ -634,9 +678,30 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 	else
 		vneg_inbuf.SecurityMode = 0;
 
-	vneg_inbuf.DialectCount = cpu_to_le16(1);
-	vneg_inbuf.Dialects[0] =
-		cpu_to_le16(tcon->ses->server->vals->protocol_id);
+
+	if (strcmp(tcon->ses->server->vals->version_string,
+		SMB3ANY_VERSION_STRING) == 0) {
+		vneg_inbuf.Dialects[0] = cpu_to_le16(SMB30_PROT_ID);
+		vneg_inbuf.Dialects[1] = cpu_to_le16(SMB302_PROT_ID);
+		vneg_inbuf.DialectCount = cpu_to_le16(2);
+		/* structure is big enough for 3 dialects, sending only 2 */
+		inbuflen = sizeof(struct validate_negotiate_info_req) - 2;
+	} else if (strcmp(tcon->ses->server->vals->version_string,
+		SMBDEFAULT_VERSION_STRING) == 0) {
+		vneg_inbuf.Dialects[0] = cpu_to_le16(SMB21_PROT_ID);
+		vneg_inbuf.Dialects[1] = cpu_to_le16(SMB30_PROT_ID);
+		vneg_inbuf.Dialects[2] = cpu_to_le16(SMB302_PROT_ID);
+		vneg_inbuf.DialectCount = cpu_to_le16(3);
+		/* structure is big enough for 3 dialects */
+		inbuflen = sizeof(struct validate_negotiate_info_req);
+	} else {
+		/* otherwise specific dialect was requested */
+		vneg_inbuf.Dialects[0] =
+			cpu_to_le16(tcon->ses->server->vals->protocol_id);
+		vneg_inbuf.DialectCount = cpu_to_le16(1);
+		/* structure is big enough for 3 dialects, sending only 1 */
+		inbuflen = sizeof(struct validate_negotiate_info_req) - 4;
+	}
 
 	rc = SMB2_ioctl(xid, tcon, NO_FILE_ID, NO_FILE_ID,
 		FSCTL_VALIDATE_NEGOTIATE_INFO, true /* is_fsctl */,
