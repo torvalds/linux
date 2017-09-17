@@ -889,12 +889,13 @@ static ssize_t kxcjk1013_get_samp_freq_avail(struct device *dev,
 	return sprintf(buf, "%s\n", kxcjk1013_samp_freq_avail);
 }
 
-static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(kxcjk1013_get_samp_freq_avail);
+static IIO_DEVICE_ATTR(in_accel_sampling_frequency_available, S_IRUGO,
+		       kxcjk1013_get_samp_freq_avail, NULL, 0);
 
 static IIO_CONST_ATTR(in_accel_scale_available, "0.009582 0.019163 0.038326");
 
 static struct attribute *kxcjk1013_attributes[] = {
-	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
+	&iio_dev_attr_in_accel_sampling_frequency_available.dev_attr.attr,
 	&iio_const_attr_in_accel_scale_available.dev_attr.attr,
 	NULL,
 };
