@@ -854,7 +854,7 @@ void __call_srcu(struct srcu_struct *sp, struct rcu_head *rhp,
 /**
  * call_srcu() - Queue a callback for invocation after an SRCU grace period
  * @sp: srcu_struct in queue the callback
- * @head: structure to be used for queueing the SRCU callback.
+ * @rhp: structure to be used for queueing the SRCU callback.
  * @func: function to be invoked after the SRCU grace period
  *
  * The callback function will be invoked some time after a full SRCU
