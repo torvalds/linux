@@ -175,19 +175,20 @@ static int read_sections(struct elf *elf)
 			return -1;
 		}
 
-		sec->data = elf_getdata(s, NULL);
-		if (!sec->data) {
-			WARN_ELF("elf_getdata");
-			return -1;
+		if (sec->sh.sh_size != 0) {
+			sec->data = elf_getdata(s, NULL);
+			if (!sec->data) {
+				WARN_ELF("elf_getdata");
+				return -1;
+			}
+			if (sec->data->d_off != 0 ||
+			    sec->data->d_size != sec->sh.sh_size) {
+				WARN("unexpected data attributes for %s",
+				     sec->name);
+				return -1;
+			}
 		}
-
-		if (sec->data->d_off != 0 ||
-		    sec->data->d_size != sec->sh.sh_size) {
-			WARN("unexpected data attributes for %s", sec->name);
-			return -1;
-		}
-
-		sec->len = sec->data->d_size;
+		sec->len = sec->sh.sh_size;
 	}
 
 	/* sanity check, one more call to elf_nextscn() should return NULL */
@@ -508,6 +509,7 @@ struct section *elf_create_rela_section(struct elf *elf, struct section *base)
 	strcat(relaname, base->name);
 
 	sec = elf_create_section(elf, relaname, sizeof(GElf_Rela), 0);
+	free(relaname);
 	if (!sec)
 		return NULL;
 
@@ -561,6 +563,7 @@ int elf_write(struct elf *elf)
 	struct section *sec;
 	Elf_Scn *s;
 
+	/* Update section headers for changed sections: */
 	list_for_each_entry(sec, &elf->sections, list) {
 		if (sec->changed) {
 			s = elf_getscn(elf->elf, sec->idx);
@@ -568,13 +571,17 @@ int elf_write(struct elf *elf)
 				WARN_ELF("elf_getscn");
 				return -1;
 			}
-			if (!gelf_update_shdr (s, &sec->sh)) {
+			if (!gelf_update_shdr(s, &sec->sh)) {
 				WARN_ELF("gelf_update_shdr");
 				return -1;
 			}
 		}
 	}
 
+	/* Make sure the new section header entries get updated properly. */
+	elf_flagelf(elf->elf, ELF_C_SET, ELF_F_DIRTY);
+
+	/* Write all changes to the file. */
 	if (elf_update(elf->elf, ELF_C_WRITE) < 0) {
 		WARN_ELF("elf_update");
 		return -1;
