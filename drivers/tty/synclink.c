@@ -4098,8 +4098,7 @@ static int mgsl_claim_resources(struct mgsl_struct *info)
 		if (request_dma(info->dma_level,info->device_name) < 0){
 			printk( "%s(%d):Can't request DMA channel on device %s DMA=%d\n",
 				__FILE__,__LINE__,info->device_name, info->dma_level );
-			mgsl_release_resources( info );
-			return -ENODEV;
+			goto errout;
 		}
 		info->dma_requested = true;
 
