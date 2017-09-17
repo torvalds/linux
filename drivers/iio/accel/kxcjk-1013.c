@@ -67,13 +67,18 @@
 #define KXCJK1013_REG_CTRL1_BIT_GSEL1	BIT(4)
 #define KXCJK1013_REG_CTRL1_BIT_GSEL0	BIT(3)
 #define KXCJK1013_REG_CTRL1_BIT_WUFE	BIT(1)
-#define KXCJK1013_REG_INT_REG1_BIT_IEA	BIT(4)
-#define KXCJK1013_REG_INT_REG1_BIT_IEN	BIT(5)
+
+#define KXCJK1013_REG_INT_CTRL1_BIT_IEL	BIT(3)
+#define KXCJK1013_REG_INT_CTRL1_BIT_IEA	BIT(4)
+#define KXCJK1013_REG_INT_CTRL1_BIT_IEN	BIT(5)
 
 #define KXCJK1013_DATA_MASK_12_BIT	0x0FFF
 #define KXCJK1013_MAX_STARTUP_TIME_US	100000
 
 #define KXCJK1013_SLEEP_DELAY_MS	2000
+
+#define KXCJK1013_REG_INT_SRC1_BIT_WUFS	BIT(1)
+#define KXCJK1013_REG_INT_SRC1_BIT_DRDY	BIT(4)
 
 #define KXCJK1013_REG_INT_SRC2_BIT_ZP	BIT(0)
 #define KXCJK1013_REG_INT_SRC2_BIT_ZN	BIT(1)
@@ -336,9 +341,9 @@ static int kxcjk1013_chip_init(struct kxcjk1013_data *data)
 	}
 
 	if (data->active_high_intr)
-		ret |= KXCJK1013_REG_INT_REG1_BIT_IEA;
+		ret |= KXCJK1013_REG_INT_CTRL1_BIT_IEA;
 	else
-		ret &= ~KXCJK1013_REG_INT_REG1_BIT_IEA;
+		ret &= ~KXCJK1013_REG_INT_CTRL1_BIT_IEA;
 
 	ret = i2c_smbus_write_byte_data(data->client, KXCJK1013_REG_INT_CTRL1,
 					ret);
@@ -444,9 +449,9 @@ static int kxcjk1013_setup_any_motion_interrupt(struct kxcjk1013_data *data,
 	}
 
 	if (status)
-		ret |= KXCJK1013_REG_INT_REG1_BIT_IEN;
+		ret |= KXCJK1013_REG_INT_CTRL1_BIT_IEN;
 	else
-		ret &= ~KXCJK1013_REG_INT_REG1_BIT_IEN;
+		ret &= ~KXCJK1013_REG_INT_CTRL1_BIT_IEN;
 
 	ret = i2c_smbus_write_byte_data(data->client, KXCJK1013_REG_INT_CTRL1,
 					ret);
@@ -504,9 +509,9 @@ static int kxcjk1013_setup_new_data_interrupt(struct kxcjk1013_data *data,
 	}
 
 	if (status)
-		ret |= KXCJK1013_REG_INT_REG1_BIT_IEN;
+		ret |= KXCJK1013_REG_INT_CTRL1_BIT_IEN;
 	else
-		ret &= ~KXCJK1013_REG_INT_REG1_BIT_IEN;
+		ret &= ~KXCJK1013_REG_INT_CTRL1_BIT_IEN;
 
 	ret = i2c_smbus_write_byte_data(data->client, KXCJK1013_REG_INT_CTRL1,
 					ret);
@@ -1037,7 +1042,7 @@ static irqreturn_t kxcjk1013_event_handler(int irq, void *private)
 		goto ack_intr;
 	}
 
-	if (ret & 0x02) {
+	if (ret & KXCJK1013_REG_INT_SRC1_BIT_WUFS) {
 		ret = i2c_smbus_read_byte_data(data->client,
 					       KXCJK1013_REG_INT_SRC2);
 		if (ret < 0) {
