@@ -4,6 +4,7 @@
  *  Copyright 2004 IDT Inc. (rischelp@idt.com)
  *  Copyright 2006 Felix Fietkau <nbd@openwrt.org>
  *  Copyright 2008 Florian Fainelli <florian@openwrt.org>
+ *  Copyright 2017 Roman Yeryomin <roman@advem.lv>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -1150,5 +1151,6 @@ module_platform_driver(korina_driver);
 MODULE_AUTHOR("Philip Rischel <rischelp@idt.com>");
 MODULE_AUTHOR("Felix Fietkau <nbd@openwrt.org>");
 MODULE_AUTHOR("Florian Fainelli <florian@openwrt.org>");
+MODULE_AUTHOR("Roman Yeryomin <roman@advem.lv>");
 MODULE_DESCRIPTION("IDT RC32434 (Korina) Ethernet driver");
 MODULE_LICENSE("GPL");
