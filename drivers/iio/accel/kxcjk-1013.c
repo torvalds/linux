@@ -128,15 +128,27 @@ enum kxcjk1013_range {
 	KXCJK1013_RANGE_8G,
 };
 
-static const struct {
+struct kx_odr_map {
 	int val;
 	int val2;
 	int odr_bits;
-} samp_freq_table[] = { {0, 781000, 0x08}, {1, 563000, 0x09},
-			{3, 125000, 0x0A}, {6, 250000, 0x0B}, {12, 500000, 0},
-			{25, 0, 0x01}, {50, 0, 0x02}, {100, 0, 0x03},
-			{200, 0, 0x04}, {400, 0, 0x05}, {800, 0, 0x06},
-			{1600, 0, 0x07} };
+	int wuf_bits;
+};
+
+static const struct kx_odr_map samp_freq_table[] = {
+	{ 0, 781000, 0x08, 0x00 },
+	{ 1, 563000, 0x09, 0x01 },
+	{ 3, 125000, 0x0A, 0x02 },
+	{ 6, 250000, 0x0B, 0x03 },
+	{ 12, 500000, 0x00, 0x04 },
+	{ 25, 0, 0x01, 0x05 },
+	{ 50, 0, 0x02, 0x06 },
+	{ 100, 0, 0x03, 0x06 },
+	{ 200, 0, 0x04, 0x06 },
+	{ 400, 0, 0x05, 0x06 },
+	{ 800, 0, 0x06, 0x06 },
+	{ 1600, 0, 0x07, 0x06 },
+};
 
 /* Refer to section 4 of the specification */
 static const struct {
@@ -197,23 +209,6 @@ static const struct {
 } KXCJK1013_scale_table[] = { {9582, 0, 0},
 			      {19163, 1, 0},
 			      {38326, 0, 1} };
-
-static const struct {
-	int val;
-	int val2;
-	int odr_bits;
-} wake_odr_data_rate_table[] = { {0, 781000, 0x00},
-				 {1, 563000, 0x01},
-				 {3, 125000, 0x02},
-				 {6, 250000, 0x03},
-				 {12, 500000, 0x04},
-				 {25, 0, 0x05},
-				 {50, 0, 0x06},
-				 {100, 0, 0x06},
-				 {200, 0, 0x06},
-				 {400, 0, 0x06},
-				 {800, 0, 0x06},
-				 {1600, 0, 0x06} };
 
 static int kxcjk1013_set_mode(struct kxcjk1013_data *data,
 			      enum kxcjk1013_mode mode)
@@ -547,28 +542,30 @@ static int kxcjk1013_setup_new_data_interrupt(struct kxcjk1013_data *data,
 	return 0;
 }
 
-static int kxcjk1013_convert_freq_to_bit(int val, int val2)
+static const struct kx_odr_map *kxcjk1013_find_odr_value(
+	const struct kx_odr_map *map, size_t map_size, int val, int val2)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(samp_freq_table); ++i) {
-		if (samp_freq_table[i].val == val &&
-			samp_freq_table[i].val2 == val2) {
-			return samp_freq_table[i].odr_bits;
-		}
+	for (i = 0; i < map_size; ++i) {
+		if (map[i].val == val && map[i].val2 == val2)
+			return &map[i];
 	}
 
-	return -EINVAL;
+	return ERR_PTR(-EINVAL);
 }
 
-static int kxcjk1013_convert_wake_odr_to_bit(int val, int val2)
+static int kxcjk1013_convert_odr_value(const struct kx_odr_map *map,
+				       size_t map_size, int odr_bits,
+				       int *val, int *val2)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(wake_odr_data_rate_table); ++i) {
-		if (wake_odr_data_rate_table[i].val == val &&
-			wake_odr_data_rate_table[i].val2 == val2) {
-			return wake_odr_data_rate_table[i].odr_bits;
+	for (i = 0; i < map_size; ++i) {
+		if (map[i].odr_bits == odr_bits) {
+			*val = map[i].val;
+			*val2 = map[i].val2;
+			return IIO_VAL_INT_PLUS_MICRO;
 		}
 	}
 
@@ -578,16 +575,19 @@ static int kxcjk1013_convert_wake_odr_to_bit(int val, int val2)
 static int kxcjk1013_set_odr(struct kxcjk1013_data *data, int val, int val2)
 {
 	int ret;
-	int odr_bits;
 	enum kxcjk1013_mode store_mode;
+	const struct kx_odr_map *odr_setting;
 
 	ret = kxcjk1013_get_mode(data, &store_mode);
 	if (ret < 0)
 		return ret;
 
-	odr_bits = kxcjk1013_convert_freq_to_bit(val, val2);
-	if (odr_bits < 0)
-		return odr_bits;
+	odr_setting = kxcjk1013_find_odr_value(samp_freq_table,
+					       ARRAY_SIZE(samp_freq_table),
+					       val, val2);
+
+	if (IS_ERR(odr_setting))
+		return PTR_ERR(odr_setting);
 
 	/* To change ODR, the chip must be set to STANDBY as per spec */
 	ret = kxcjk1013_set_mode(data, STANDBY);
@@ -595,20 +595,16 @@ static int kxcjk1013_set_odr(struct kxcjk1013_data *data, int val, int val2)
 		return ret;
 
 	ret = i2c_smbus_write_byte_data(data->client, KXCJK1013_REG_DATA_CTRL,
-					odr_bits);
+					odr_setting->odr_bits);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error writing data_ctrl\n");
 		return ret;
 	}
 
-	data->odr_bits = odr_bits;
-
-	odr_bits = kxcjk1013_convert_wake_odr_to_bit(val, val2);
-	if (odr_bits < 0)
-		return odr_bits;
+	data->odr_bits = odr_setting->odr_bits;
 
 	ret = i2c_smbus_write_byte_data(data->client, KXCJK1013_REG_CTRL2,
-					odr_bits);
+					odr_setting->wuf_bits);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error writing reg_ctrl2\n");
 		return ret;
@@ -625,17 +621,9 @@ static int kxcjk1013_set_odr(struct kxcjk1013_data *data, int val, int val2)
 
 static int kxcjk1013_get_odr(struct kxcjk1013_data *data, int *val, int *val2)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(samp_freq_table); ++i) {
-		if (samp_freq_table[i].odr_bits == data->odr_bits) {
-			*val = samp_freq_table[i].val;
-			*val2 = samp_freq_table[i].val2;
-			return IIO_VAL_INT_PLUS_MICRO;
-		}
-	}
-
-	return -EINVAL;
+	return kxcjk1013_convert_odr_value(samp_freq_table,
+					   ARRAY_SIZE(samp_freq_table),
+					   data->odr_bits, val, val2);
 }
 
 static int kxcjk1013_get_acc_reg(struct kxcjk1013_data *data, int axis)
