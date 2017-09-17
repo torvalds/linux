@@ -2288,8 +2288,7 @@ static int spi_nor_parse_sfdp(struct spi_nor *nor,
 
 	/* Check the SFDP header version. */
 	if (le32_to_cpu(header.signature) != SFDP_SIGNATURE ||
-	    header.major != SFDP_JESD216_MAJOR ||
-	    header.minor < SFDP_JESD216_MINOR)
+	    header.major != SFDP_JESD216_MAJOR)
 		return -EINVAL;
 
 	/*
