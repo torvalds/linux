@@ -297,6 +297,10 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 				.mask = 0x03,
 			},
 		},
+		.sim = {
+			.addr = 0x20,
+			.value = BIT(0),
+		},
 		.multi_read_bit = true,
 		.bootime = 2,
 	},
@@ -342,6 +346,10 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 		.bdu = {
 			.addr = 0x20,
 			.mask = 0x04,
+		},
+		.sim = {
+			.addr = 0x20,
+			.value = BIT(0),
 		},
 		.multi_read_bit = true,
 		.bootime = 2,
@@ -405,6 +413,10 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 				.addr = ST_SENSORS_DEFAULT_STAT_ADDR,
 				.mask = 0x03,
 			},
+		},
+		.sim = {
+			.addr = 0x20,
+			.value = BIT(0),
 		},
 		.multi_read_bit = true,
 		.bootime = 2,
@@ -470,6 +482,10 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 				.addr = ST_SENSORS_DEFAULT_STAT_ADDR,
 				.mask = 0x03,
 			},
+		},
+		.sim = {
+			.addr = 0x10,
+			.value = BIT(0),
 		},
 		.multi_read_bit = false,
 		.bootime = 2,
