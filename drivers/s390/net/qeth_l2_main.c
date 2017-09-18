@@ -33,6 +33,7 @@ static void qeth_bridge_state_change(struct qeth_card *card,
 					struct qeth_ipa_cmd *cmd);
 static void qeth_bridge_host_event(struct qeth_card *card,
 					struct qeth_ipa_cmd *cmd);
+static void qeth_l2_vnicc_set_defaults(struct qeth_card *card);
 static void qeth_l2_vnicc_init(struct qeth_card *card);
 
 static int qeth_l2_verify_dev(struct net_device *dev)
@@ -920,6 +921,7 @@ static int qeth_l2_probe_device(struct ccwgroup_device *gdev)
 	hash_init(card->mac_htable);
 	card->options.layer2 = 1;
 	card->info.hwtrap = 0;
+	qeth_l2_vnicc_set_defaults(card);
 	return 0;
 }
 
@@ -2049,6 +2051,12 @@ int qeth_bridgeport_an_set(struct qeth_card *card, int enable)
 }
 EXPORT_SYMBOL_GPL(qeth_bridgeport_an_set);
 
+static bool qeth_bridgeport_is_in_use(struct qeth_card *card)
+{
+	return (card->options.sbp.role || card->options.sbp.reflect_promisc ||
+		card->options.sbp.hostnotification);
+}
+
 /* VNIC Characteristics support */
 
 /* handle VNICC IPA command return codes; convert to error codes */
@@ -2086,6 +2094,12 @@ static int qeth_l2_vnicc_makerc(struct qeth_card *card, int ipa_rc)
 /* generic VNICC request call back control */
 struct _qeth_l2_vnicc_request_cbctl {
 	u32 sub_cmd;
+	struct {
+		u32 vnic_char;
+	} param;
+	struct {
+		u32 *sup_cmds;
+	} result;
 };
 
 /* generic VNICC request call back */
@@ -2093,6 +2107,8 @@ static int qeth_l2_vnicc_request_cb(struct qeth_card *card,
 				    struct qeth_reply *reply,
 				    unsigned long data)
 {
+	struct _qeth_l2_vnicc_request_cbctl *cbctl =
+		(struct _qeth_l2_vnicc_request_cbctl *) reply->param;
 	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *) data;
 	struct qeth_ipacmd_vnicc *rep = &cmd->data.vnicc;
 
@@ -2102,6 +2118,9 @@ static int qeth_l2_vnicc_request_cb(struct qeth_card *card,
 	/* return results to caller */
 	card->options.vnicc.sup_chars = rep->hdr.sup;
 	card->options.vnicc.cur_chars = rep->hdr.cur;
+
+	if (cbctl->sub_cmd == IPA_VNICC_QUERY_CMDS)
+		*cbctl->result.sup_cmds = rep->query_cmds.sup_cmds;
 
 	return 0;
 }
@@ -2134,6 +2153,15 @@ static int qeth_l2_vnicc_request(struct qeth_card *card,
 	switch (cbctl->sub_cmd) {
 	case IPA_VNICC_QUERY_CHARS:
 		break;
+	case IPA_VNICC_QUERY_CMDS:
+		req->sub_hdr.data_length += sizeof(req->query_cmds);
+		req->query_cmds.vnic_char = cbctl->param.vnic_char;
+		break;
+	case IPA_VNICC_ENABLE:
+	case IPA_VNICC_DISABLE:
+		req->sub_hdr.data_length += sizeof(req->set_char);
+		req->set_char.vnic_char = cbctl->param.vnic_char;
+		break;
 	default:
 		qeth_release_buffer(iob->channel, iob);
 		return -EOPNOTSUPP;
@@ -2158,15 +2186,194 @@ static int qeth_l2_vnicc_query_chars(struct qeth_card *card)
 	return qeth_l2_vnicc_request(card, &cbctl);
 }
 
+/* VNICC query sub commands request */
+static int qeth_l2_vnicc_query_cmds(struct qeth_card *card, u32 vnic_char,
+				    u32 *sup_cmds)
+{
+	struct _qeth_l2_vnicc_request_cbctl cbctl;
+
+	/* prepare callback control */
+	cbctl.sub_cmd = IPA_VNICC_QUERY_CMDS;
+	cbctl.param.vnic_char = vnic_char;
+	cbctl.result.sup_cmds = sup_cmds;
+
+	QETH_CARD_TEXT(card, 2, "vniccqcm");
+	return qeth_l2_vnicc_request(card, &cbctl);
+}
+
+/* VNICC enable/disable characteristic request */
+static int qeth_l2_vnicc_set_char(struct qeth_card *card, u32 vnic_char,
+				      u32 cmd)
+{
+	struct _qeth_l2_vnicc_request_cbctl cbctl;
+
+	/* prepare callback control */
+	cbctl.sub_cmd = cmd;
+	cbctl.param.vnic_char = vnic_char;
+
+	QETH_CARD_TEXT(card, 2, "vniccedc");
+	return qeth_l2_vnicc_request(card, &cbctl);
+}
+
+/* set current VNICC flag state; called from sysfs store function */
+int qeth_l2_vnicc_set_state(struct qeth_card *card, u32 vnicc, bool state)
+{
+	int rc = 0;
+	u32 cmd;
+
+	QETH_CARD_TEXT(card, 2, "vniccsch");
+
+	/* do not change anything if BridgePort is enabled */
+	if (qeth_bridgeport_is_in_use(card))
+		return -EBUSY;
+
+	/* check if characteristic and enable/disable are supported */
+	if (!(card->options.vnicc.sup_chars & vnicc) ||
+	    !(card->options.vnicc.set_char_sup & vnicc))
+		return -EOPNOTSUPP;
+
+	/* set enable/disable command and store wanted characteristic */
+	if (state) {
+		cmd = IPA_VNICC_ENABLE;
+		card->options.vnicc.wanted_chars |= vnicc;
+	} else {
+		cmd = IPA_VNICC_DISABLE;
+		card->options.vnicc.wanted_chars &= ~vnicc;
+	}
+
+	/* do we need to do anything? */
+	if (card->options.vnicc.cur_chars == card->options.vnicc.wanted_chars)
+		return rc;
+
+	/* if card is not ready, simply stop here */
+	if (!qeth_card_hw_is_reachable(card)) {
+		if (state)
+			card->options.vnicc.cur_chars |= vnicc;
+		else
+			card->options.vnicc.cur_chars &= ~vnicc;
+		return rc;
+	}
+
+	rc = qeth_l2_vnicc_set_char(card, vnicc, cmd);
+	if (rc)
+		card->options.vnicc.wanted_chars =
+			card->options.vnicc.cur_chars;
+	else if (state && vnicc == QETH_VNICC_RX_BCAST)
+		card->options.vnicc.rx_bcast_enabled = true;
+
+	return rc;
+}
+
+/* get current VNICC flag state; called from sysfs show function */
+int qeth_l2_vnicc_get_state(struct qeth_card *card, u32 vnicc, bool *state)
+{
+	int rc = 0;
+
+	QETH_CARD_TEXT(card, 2, "vniccgch");
+
+	/* do not get anything if BridgePort is enabled */
+	if (qeth_bridgeport_is_in_use(card))
+		return -EBUSY;
+
+	/* check if characteristic is supported */
+	if (!(card->options.vnicc.sup_chars & vnicc))
+		return -EOPNOTSUPP;
+
+	/* if card is ready, query current VNICC state */
+	if (qeth_card_hw_is_reachable(card))
+		rc = qeth_l2_vnicc_query_chars(card);
+
+	*state = (card->options.vnicc.cur_chars & vnicc) ? true : false;
+	return rc;
+}
+
+/* check if VNICC is currently enabled */
+bool qeth_l2_vnicc_is_in_use(struct qeth_card *card)
+{
+	/* if everything is turned off, VNICC is not active */
+	if (!card->options.vnicc.cur_chars)
+		return false;
+	/* default values are only OK if rx_bcast was not enabled by user
+	 * or the card is offline.
+	 */
+	if (card->options.vnicc.cur_chars == QETH_VNICC_DEFAULT) {
+		if (!card->options.vnicc.rx_bcast_enabled ||
+		    !qeth_card_hw_is_reachable(card))
+			return false;
+	}
+	return true;
+}
+
+/* recover user characteristic setting */
+static bool qeth_l2_vnicc_recover_char(struct qeth_card *card, u32 vnicc,
+				       bool enable)
+{
+	u32 cmd = enable ? IPA_VNICC_ENABLE : IPA_VNICC_DISABLE;
+
+	if (card->options.vnicc.sup_chars & vnicc &&
+	    card->options.vnicc.set_char_sup & vnicc &&
+	    !qeth_l2_vnicc_set_char(card, vnicc, cmd))
+		return false;
+	card->options.vnicc.wanted_chars &= ~vnicc;
+	card->options.vnicc.wanted_chars |= QETH_VNICC_DEFAULT & vnicc;
+	return true;
+}
+
 /* (re-)initialize VNICC */
 static void qeth_l2_vnicc_init(struct qeth_card *card)
 {
+	unsigned int chars_len, i;
+	unsigned long chars_tmp;
+	u32 sup_cmds, vnicc;
+	bool enable, error;
+
 	QETH_CARD_TEXT(card, 2, "vniccini");
+	/* reset rx_bcast */
+	card->options.vnicc.rx_bcast_enabled = 0;
 	/* initial query and storage of VNIC characteristics */
 	if (qeth_l2_vnicc_query_chars(card)) {
+		if (card->options.vnicc.wanted_chars != QETH_VNICC_DEFAULT)
+			dev_err(&card->gdev->dev, "Configuring the VNIC characteristics failed\n");
+		/* fail quietly if user didn't change the default config */
 		card->options.vnicc.sup_chars = 0;
 		card->options.vnicc.cur_chars = 0;
+		card->options.vnicc.wanted_chars = QETH_VNICC_DEFAULT;
+		return;
 	}
+	/* get supported commands for each supported characteristic */
+	chars_tmp = card->options.vnicc.sup_chars;
+	chars_len = sizeof(card->options.vnicc.sup_chars) * BITS_PER_BYTE;
+	for_each_set_bit(i, &chars_tmp, chars_len) {
+		vnicc = BIT(i);
+		qeth_l2_vnicc_query_cmds(card, vnicc, &sup_cmds);
+		if (!(sup_cmds & IPA_VNICC_ENABLE) ||
+		    !(sup_cmds & IPA_VNICC_DISABLE))
+			card->options.vnicc.set_char_sup &= ~vnicc;
+	}
+	/* enforce assumed default values and recover settings, if changed  */
+	error = false;
+	chars_tmp = card->options.vnicc.wanted_chars ^ QETH_VNICC_DEFAULT;
+	chars_tmp |= QETH_VNICC_BRIDGE_INVISIBLE;
+	chars_len = sizeof(card->options.vnicc.wanted_chars) * BITS_PER_BYTE;
+	for_each_set_bit(i, &chars_tmp, chars_len) {
+		vnicc = BIT(i);
+		enable = card->options.vnicc.wanted_chars & vnicc;
+		error |= qeth_l2_vnicc_recover_char(card, vnicc, enable);
+	}
+	if (error)
+		dev_err(&card->gdev->dev, "Configuring the VNIC characteristics failed\n");
+}
+
+/* configure default values of VNIC characteristics */
+static void qeth_l2_vnicc_set_defaults(struct qeth_card *card)
+{
+	/* characteristics values */
+	card->options.vnicc.sup_chars = QETH_VNICC_ALL;
+	card->options.vnicc.cur_chars = QETH_VNICC_DEFAULT;
+	/* supported commands */
+	card->options.vnicc.set_char_sup = QETH_VNICC_ALL;
+	/* settings wanted by users */
+	card->options.vnicc.wanted_chars = QETH_VNICC_DEFAULT;
 }
 
 module_init(qeth_l2_init);

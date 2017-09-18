@@ -186,6 +186,12 @@ struct qeth_vnicc_info {
 	/* supported/currently configured VNICCs; updated in IPA exchanges */
 	u32 sup_chars;
 	u32 cur_chars;
+	/* supported commands: bitmasks which VNICCs support respective cmd */
+	u32 set_char_sup;
+	/* characteristics wanted/configured by user */
+	u32 wanted_chars;
+	/* has user explicitly enabled rx_bcast while online? */
+	bool rx_bcast_enabled;
 };
 
 static inline int qeth_is_ipa_supported(struct qeth_ipa_info *ipa,

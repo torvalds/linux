@@ -559,6 +559,22 @@ struct qeth_ipacmd_diagass {
 /* VNIC Characteristics IPA Command: *****************************************/
 /* IPA commands/sub commands for VNICC */
 #define IPA_VNICC_QUERY_CHARS		0x00000000L
+#define IPA_VNICC_QUERY_CMDS		0x00000001L
+#define IPA_VNICC_ENABLE		0x00000002L
+#define IPA_VNICC_DISABLE		0x00000004L
+
+/* VNICC flags */
+#define QETH_VNICC_FLOODING		0x80000000
+#define QETH_VNICC_MCAST_FLOODING	0x40000000
+#define QETH_VNICC_LEARNING		0x20000000
+#define QETH_VNICC_TAKEOVER_SETVMAC	0x10000000
+#define QETH_VNICC_TAKEOVER_LEARNING	0x08000000
+#define QETH_VNICC_BRIDGE_INVISIBLE	0x04000000
+#define QETH_VNICC_RX_BCAST		0x02000000
+
+/* VNICC default values */
+#define QETH_VNICC_ALL			0xff000000
+#define QETH_VNICC_DEFAULT		QETH_VNICC_RX_BCAST
 
 /* VNICC header */
 struct qeth_ipacmd_vnicc_hdr {
@@ -573,10 +589,25 @@ struct qeth_vnicc_sub_hdr {
 	u32 sub_command;
 };
 
+/* query supported commands for VNIC characteristic */
+struct qeth_vnicc_query_cmds {
+	u32 vnic_char;
+	u32 sup_cmds;
+};
+
+/* enable/disable VNIC characteristic */
+struct qeth_vnicc_set_char {
+	u32 vnic_char;
+};
+
 /* complete VNICC IPA command message */
 struct qeth_ipacmd_vnicc {
 	struct qeth_ipacmd_vnicc_hdr hdr;
 	struct qeth_vnicc_sub_hdr sub_hdr;
+	union {
+		struct qeth_vnicc_query_cmds query_cmds;
+		struct qeth_vnicc_set_char set_char;
+	};
 };
 
 /* SETBRIDGEPORT IPA Command:	 *********************************************/
