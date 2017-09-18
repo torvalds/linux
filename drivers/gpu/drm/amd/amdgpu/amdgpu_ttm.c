@@ -34,7 +34,6 @@
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_page_alloc.h>
-#include <drm/ttm/ttm_debug.h>
 #include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
 #include <linux/seq_file.h>
@@ -704,22 +703,6 @@ void amdgpu_ttm_tt_mark_user_pages(struct ttm_tt *ttm)
 	}
 }
 
-static void amdgpu_trace_dma_map(struct ttm_tt *ttm)
-{
-	struct amdgpu_device *adev = amdgpu_ttm_adev(ttm->bdev);
-	struct amdgpu_ttm_tt *gtt = (void *)ttm;
-
-	ttm_trace_dma_map(adev->dev, &gtt->ttm);
-}
-
-static void amdgpu_trace_dma_unmap(struct ttm_tt *ttm)
-{
-	struct amdgpu_device *adev = amdgpu_ttm_adev(ttm->bdev);
-	struct amdgpu_ttm_tt *gtt = (void *)ttm;
-
-	ttm_trace_dma_unmap(adev->dev, &gtt->ttm);
-}
-
 /* prepare the sg table with the user pages */
 static int amdgpu_ttm_tt_pin_userptr(struct ttm_tt *ttm)
 {
@@ -746,8 +729,6 @@ static int amdgpu_ttm_tt_pin_userptr(struct ttm_tt *ttm)
 	drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
 					 gtt->ttm.dma_address, ttm->num_pages);
 
-	amdgpu_trace_dma_map(ttm);
-
 	return 0;
 
 release_sg:
@@ -772,8 +753,6 @@ static void amdgpu_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
 	dma_unmap_sg(adev->dev, ttm->sg->sgl, ttm->sg->nents, direction);
 
 	amdgpu_ttm_tt_mark_user_pages(ttm);
-
-	amdgpu_trace_dma_unmap(ttm);
 
 	sg_free_table(ttm->sg);
 }
@@ -958,7 +937,6 @@ static int amdgpu_ttm_tt_populate(struct ttm_tt *ttm)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(ttm->bdev);
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
-	int r;
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
 
 	if (ttm->state != tt_unpopulated)
@@ -978,22 +956,16 @@ static int amdgpu_ttm_tt_populate(struct ttm_tt *ttm)
 		drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
 						 gtt->ttm.dma_address, ttm->num_pages);
 		ttm->state = tt_unbound;
-		r = 0;
-		goto trace_mappings;
+		return 0;
 	}
 
 #ifdef CONFIG_SWIOTLB
 	if (swiotlb_nr_tbl()) {
-		r = ttm_dma_populate(&gtt->ttm, adev->dev);
-		goto trace_mappings;
+		return ttm_dma_populate(&gtt->ttm, adev->dev);
 	}
 #endif
 
-	r = ttm_populate_and_map_pages(adev->dev, &gtt->ttm);
-trace_mappings:
-	if (likely(!r))
-		amdgpu_trace_dma_map(ttm);
-	return r;
+	return ttm_populate_and_map_pages(adev->dev, &gtt->ttm);
 }
 
 static void amdgpu_ttm_tt_unpopulate(struct ttm_tt *ttm)
@@ -1013,8 +985,6 @@ static void amdgpu_ttm_tt_unpopulate(struct ttm_tt *ttm)
 		return;
 
 	adev = amdgpu_ttm_adev(ttm->bdev);
-
-	amdgpu_trace_dma_unmap(ttm);
 
 #ifdef CONFIG_SWIOTLB
 	if (swiotlb_nr_tbl()) {
