@@ -557,15 +557,15 @@ struct dtv_frontend_properties {
 
 	enum fe_sec_voltage	voltage;
 	enum fe_sec_tone_mode	sectone;
-	enum fe_spectral_inversion	inversion;
-	enum fe_code_rate		fec_inner;
+	enum fe_spectral_inversion inversion;
+	enum fe_code_rate	fec_inner;
 	enum fe_transmit_mode	transmission_mode;
 	u32			bandwidth_hz;	/* 0 = AUTO */
 	enum fe_guard_interval	guard_interval;
-	enum fe_hierarchy		hierarchy;
+	enum fe_hierarchy	hierarchy;
 	u32			symbol_rate;
-	enum fe_code_rate		code_rate_HP;
-	enum fe_code_rate		code_rate_LP;
+	enum fe_code_rate	code_rate_HP;
+	enum fe_code_rate	code_rate_LP;
 
 	enum fe_pilot		pilot;
 	enum fe_rolloff		rolloff;
