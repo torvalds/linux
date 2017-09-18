@@ -655,7 +655,7 @@ struct mlx5e_tc_table {
 
 struct mlx5e_vlan_table {
 	struct mlx5e_flow_table		ft;
-	unsigned long active_cvlans[BITS_TO_LONGS(VLAN_N_VID)];
+	DECLARE_BITMAP(active_cvlans, VLAN_N_VID);
 	struct mlx5_flow_handle	*active_cvlans_rule[VLAN_N_VID];
 	struct mlx5_flow_handle	*untagged_rule;
 	struct mlx5_flow_handle	*any_cvlan_rule;
