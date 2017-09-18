@@ -265,7 +265,7 @@ static struct stm32f7_i2c_spec i2c_specs[] = {
 	},
 };
 
-struct stm32f7_i2c_setup stm32f7_setup = {
+static const struct stm32f7_i2c_setup stm32f7_setup = {
 	.rise_time = STM32F7_I2C_RISE_TIME_DEFAULT,
 	.fall_time = STM32F7_I2C_FALL_TIME_DEFAULT,
 	.dnf = STM32F7_I2C_DNF_DEFAULT,
