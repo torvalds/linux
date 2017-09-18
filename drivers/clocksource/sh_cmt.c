@@ -946,14 +946,6 @@ static const struct of_device_id sh_cmt_of_table[] __maybe_unused = {
 };
 MODULE_DEVICE_TABLE(of, sh_cmt_of_table);
 
-static int sh_cmt_parse_dt(struct sh_cmt_device *cmt)
-{
-	struct device_node *np = cmt->pdev->dev.of_node;
-
-	return of_property_read_u32(np, "renesas,channels-mask",
-				    &cmt->hw_channels);
-}
-
 static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 {
 	unsigned int mask;
@@ -968,15 +960,7 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 
 		id = of_match_node(sh_cmt_of_table, pdev->dev.of_node);
 		cmt->info = id->data;
-
-		/* prefer in-driver channel configuration over DT */
-		if (cmt->info->channels_mask) {
-			cmt->hw_channels = cmt->info->channels_mask;
-		} else {
-			ret = sh_cmt_parse_dt(cmt);
-			if (ret < 0)
-				return ret;
-		}
+		cmt->hw_channels = cmt->info->channels_mask;
 	} else if (pdev->dev.platform_data) {
 		struct sh_timer_config *cfg = pdev->dev.platform_data;
 		const struct platform_device_id *id = pdev->id_entry;
