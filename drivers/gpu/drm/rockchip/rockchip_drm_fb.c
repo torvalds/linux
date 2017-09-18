@@ -179,6 +179,8 @@ rockchip_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		min_size = (height - 1) * mode_cmd->pitches[i] +
 			mode_cmd->offsets[i] + roundup(width * bpp, 8) / 8;
 		if (obj->size < min_size) {
+			DRM_ERROR("Invalid Gem size on plane[%d]: %zd < %d\n",
+				  i, obj->size, min_size);
 			drm_gem_object_unreference_unlocked(obj);
 			ret = -EINVAL;
 			goto err_gem_object_unreference;
