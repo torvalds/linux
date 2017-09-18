@@ -1649,7 +1649,7 @@ static int tc358743_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	enable_stream(sd, enable);
 	if (!enable) {
-		/* Put all lanes in PL-11 state (STOPSTATE) */
+		/* Put all lanes in LP-11 state (STOPSTATE) */
 		tc358743_set_csi(sd);
 	}
 
