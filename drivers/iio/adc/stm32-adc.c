@@ -1656,7 +1656,7 @@ static int stm32_adc_chan_of_init(struct iio_dev *indio_dev)
 
 	num_channels = of_property_count_u32_elems(node, "st,adc-channels");
 	if (num_channels < 0 ||
-	    num_channels >= adc_info->max_channels) {
+	    num_channels > adc_info->max_channels) {
 		dev_err(&indio_dev->dev, "Bad st,adc-channels?\n");
 		return num_channels < 0 ? num_channels : -EINVAL;
 	}
