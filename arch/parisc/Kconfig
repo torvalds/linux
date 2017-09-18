@@ -61,9 +61,6 @@ config PARISC
 config CPU_BIG_ENDIAN
 	def_bool y
 
-config CPU_BIG_ENDIAN
-	def_bool y
-
 config MMU
 	def_bool y
 
