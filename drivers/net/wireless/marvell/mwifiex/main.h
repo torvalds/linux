@@ -680,7 +680,6 @@ struct mwifiex_private {
 	struct mwifiex_user_scan_chan hidden_chan[MWIFIEX_USER_SCAN_CHAN_MAX];
 	u8 assoc_resp_ht_param;
 	bool ht_param_present;
-	u8 random_mac[ETH_ALEN];
 };
 
 
