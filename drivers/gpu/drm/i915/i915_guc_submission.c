@@ -305,7 +305,7 @@ static void guc_proc_desc_init(struct intel_guc *guc,
 	desc->db_base_addr = 0;
 
 	desc->stage_id = client->stage_id;
-	desc->wq_size_bytes = client->wq_size;
+	desc->wq_size_bytes = GUC_WQ_SIZE;
 	desc->wq_status = WQ_STATUS_ACTIVE;
 	desc->priority = client->priority;
 }
@@ -390,8 +390,8 @@ static void guc_stage_desc_init(struct intel_guc *guc,
 	desc->db_trigger_cpu = (uintptr_t)__get_doorbell(client);
 	desc->db_trigger_uk = gfx_addr + client->doorbell_offset;
 	desc->process_desc = gfx_addr + client->proc_desc_offset;
-	desc->wq_addr = gfx_addr + client->wq_offset;
-	desc->wq_size = client->wq_size;
+	desc->wq_addr = gfx_addr + GUC_DB_SIZE;
+	desc->wq_size = GUC_WQ_SIZE;
 
 	desc->desc_private = (uintptr_t)client;
 }
@@ -416,14 +416,12 @@ static void guc_wq_item_append(struct i915_guc_client *client,
 	struct i915_gem_context *ctx = rq->ctx;
 	struct guc_process_desc *desc = __get_process_desc(client);
 	struct guc_wq_item *wqi;
-	u32 freespace, tail, wq_off;
+	u32 ring_tail, wq_off;
 
-	/* Free space is guaranteed */
-	freespace = CIRC_SPACE(client->wq_tail, desc->head, client->wq_size);
-	GEM_BUG_ON(freespace < wqi_size);
+	lockdep_assert_held(&client->wq_lock);
 
-	tail = intel_ring_set_tail(rq->ring, rq->tail) / sizeof(u64);
-	GEM_BUG_ON(tail > WQ_RING_TAIL_MAX);
+	ring_tail = intel_ring_set_tail(rq->ring, rq->tail) / sizeof(u64);
+	GEM_BUG_ON(ring_tail > WQ_RING_TAIL_MAX);
 
 	/* For now workqueue item is 4 DWs; workqueue buffer is 2 pages. So we
 	 * should not have the case where structure wqi is across page, neither
@@ -434,11 +432,11 @@ static void guc_wq_item_append(struct i915_guc_client *client,
 	 */
 	BUILD_BUG_ON(wqi_size != 16);
 
-	/* postincrement WQ tail for next time */
-	wq_off = client->wq_tail;
+	/* Free space is guaranteed. */
+	wq_off = READ_ONCE(desc->tail);
+	GEM_BUG_ON(CIRC_SPACE(wq_off, READ_ONCE(desc->head),
+			      GUC_WQ_SIZE) < wqi_size);
 	GEM_BUG_ON(wq_off & (wqi_size - 1));
-	client->wq_tail += wqi_size;
-	client->wq_tail &= client->wq_size - 1;
 
 	/* WQ starts from the page after doorbell / process_desc */
 	wqi = client->vaddr + wq_off + GUC_DB_SIZE;
@@ -451,8 +449,11 @@ static void guc_wq_item_append(struct i915_guc_client *client,
 
 	wqi->context_desc = lower_32_bits(intel_lr_context_descriptor(ctx, engine));
 
-	wqi->submit_element_info = tail << WQ_RING_TAIL_SHIFT;
+	wqi->submit_element_info = ring_tail << WQ_RING_TAIL_SHIFT;
 	wqi->fence_id = rq->global_seqno;
+
+	/* Postincrement WQ tail for next time. */
+	WRITE_ONCE(desc->tail, (wq_off + wqi_size) & (GUC_WQ_SIZE - 1));
 }
 
 static void guc_reset_wq(struct i915_guc_client *client)
@@ -461,18 +462,14 @@ static void guc_reset_wq(struct i915_guc_client *client)
 
 	desc->head = 0;
 	desc->tail = 0;
-
-	client->wq_tail = 0;
 }
 
 static void guc_ring_doorbell(struct i915_guc_client *client)
 {
-	struct guc_process_desc *desc = __get_process_desc(client);
 	struct guc_doorbell_info *db;
 	u32 cookie;
 
-	/* Update the tail so it is visible to GuC */
-	desc->tail = client->wq_tail;
+	lockdep_assert_held(&client->wq_lock);
 
 	/* pointer of current doorbell cacheline */
 	db = __get_doorbell(client);
@@ -812,8 +809,6 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 	client->engines = engines;
 	client->priority = priority;
 	client->doorbell_id = GUC_DOORBELL_INVALID;
-	client->wq_offset = GUC_DB_SIZE;
-	client->wq_size = GUC_WQ_SIZE;
 	spin_lock_init(&client->wq_lock);
 
 	ret = ida_simple_get(&guc->stage_ids, 0, GUC_MAX_STAGE_DESCRIPTORS,

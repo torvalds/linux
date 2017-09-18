@@ -68,10 +68,6 @@ struct i915_guc_client {
 	unsigned long doorbell_offset;
 
 	spinlock_t wq_lock;
-	uint32_t wq_offset;
-	uint32_t wq_size;
-	uint32_t wq_tail;
-
 	/* Per-engine counts of GuC submissions */
 	uint64_t submissions[I915_NUM_ENGINES];
 };

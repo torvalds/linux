@@ -2447,8 +2447,6 @@ static void i915_guc_client_info(struct seq_file *m,
 		client->priority, client->stage_id, client->proc_desc_offset);
 	seq_printf(m, "\tDoorbell id %d, offset: 0x%lx\n",
 		client->doorbell_id, client->doorbell_offset);
-	seq_printf(m, "\tWQ size %d, offset: 0x%x, tail %d\n",
-		client->wq_size, client->wq_offset, client->wq_tail);
 
 	for_each_engine(engine, dev_priv, id) {
 		u64 submissions = client->submissions[id];
