@@ -543,6 +543,11 @@ static ssize_t mtp_read(struct file *fp, char __user *buf,
 	int ret = 0;
 	size_t len = 0;
 
+	if (!cdev) {
+		pr_err("%s: cdev is NULL, pls check mtp_open\n", __func__);
+		return -EINVAL;
+	}
+
 	DBG(cdev, "mtp_read(%zu)\n", count);
 
 	/* we will block until we're online */
@@ -626,6 +631,11 @@ static ssize_t mtp_write(struct file *fp, const char __user *buf,
 	unsigned xfer;
 	int sendZLP = 0;
 	int ret;
+
+	if (!cdev) {
+		pr_err("%s: cdev is NULL, pls check mtp_open\n", __func__);
+		return -EINVAL;
+	}
 
 	DBG(cdev, "mtp_write(%zu)\n", count);
 
