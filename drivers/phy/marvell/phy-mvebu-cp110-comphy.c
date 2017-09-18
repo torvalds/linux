@@ -468,8 +468,8 @@ static int mvebu_comphy_power_on(struct phy *phy)
 {
 	struct mvebu_comphy_lane *lane = phy_get_drvdata(phy);
 	struct mvebu_comphy_priv *priv = lane->priv;
-	int ret;
-	u32 mux, val;
+	int ret, mux;
+	u32 val;
 
 	mux = mvebu_comphy_get_mux(lane->id, lane->port, lane->mode);
 	if (mux < 0)
