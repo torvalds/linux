@@ -23,7 +23,6 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/io.h>
-#include <linux/miscdevice.h>
 #include <linux/platform_device.h>
 #include <linux/firmware.h>
 #include <linux/pm_runtime.h>
