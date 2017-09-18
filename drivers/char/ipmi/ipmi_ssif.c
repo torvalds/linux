@@ -53,6 +53,7 @@
 #include <linux/acpi.h>
 #include <linux/ctype.h>
 #include <linux/time64.h>
+#include "ipmi_si_sm.h"
 #include "ipmi_dmi.h"
 
 #define PFX "ipmi_ssif: "
@@ -1482,7 +1483,7 @@ static int find_slave_address(struct i2c_client *client, int slave_addr)
 #ifdef CONFIG_IPMI_DMI_DECODE
 	if (!slave_addr)
 		slave_addr = ipmi_dmi_get_slave_addr(
-			IPMI_DMI_TYPE_SSIF,
+			SI_TYPE_INVALID,
 			i2c_adapter_id(client->adapter),
 			client->addr);
 #endif
@@ -2013,18 +2014,11 @@ static void spmi_find_bmc(void) { }
 #ifdef CONFIG_DMI
 static int dmi_ipmi_probe(struct platform_device *pdev)
 {
-	u8 type, slave_addr = 0;
+	u8 slave_addr = 0;
 	u16 i2c_addr;
 	int rv;
 
 	if (!ssif_trydmi)
-		return -ENODEV;
-
-	rv = device_property_read_u8(&pdev->dev, "ipmi-type", &type);
-	if (rv)
-		return -ENODEV;
-
-	if (type != IPMI_DMI_TYPE_SSIF)
 		return -ENODEV;
 
 	rv = device_property_read_u16(&pdev->dev, "i2c-addr", &i2c_addr);

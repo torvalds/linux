@@ -6,14 +6,13 @@
  */
 #include <linux/types.h>
 #include <linux/module.h>
-#include "ipmi_dmi.h"
-#include <linux/dmi.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/acpi.h>
 #include "ipmi_si.h"
+#include "ipmi_dmi.h"
 
 #define PFX "ipmi_platform: "
 
@@ -21,18 +20,28 @@ static bool si_tryplatform = true;
 #ifdef CONFIG_ACPI
 static bool          si_tryacpi = true;
 #endif
+#ifdef CONFIG_OF
+static bool          si_tryopenfirmware = true;
+#endif
 #ifdef CONFIG_DMI
 static bool          si_trydmi = true;
+#else
+static bool          si_trydmi = false;
 #endif
 
 module_param_named(tryplatform, si_tryplatform, bool, 0);
 MODULE_PARM_DESC(tryplatform, "Setting this to zero will disable the"
 		 " default scan of the interfaces identified via platform"
-		 " interfaces like openfirmware");
+		 " interfaces besides ACPI, OpenFirmware, and DMI");
 #ifdef CONFIG_ACPI
 module_param_named(tryacpi, si_tryacpi, bool, 0);
 MODULE_PARM_DESC(tryacpi, "Setting this to zero will disable the"
 		 " default scan of the interfaces identified via ACPI");
+#endif
+#ifdef CONFIG_OF
+module_param_named(tryopenfirmware, si_tryopenfirmware, bool, 0);
+MODULE_PARM_DESC(tryacpi, "Setting this to zero will disable the"
+		 " default scan of the interfaces identified via OpenFirmware");
 #endif
 #ifdef CONFIG_DMI
 module_param_named(trydmi, si_trydmi, bool, 0);
@@ -235,7 +244,6 @@ static void spmi_find_bmc(void)
 }
 #endif
 
-#if defined(CONFIG_DMI) || defined(CONFIG_ACPI)
 static struct resource *
 ipmi_get_info_from_resources(struct platform_device *pdev,
 			     struct si_sm_io *io)
@@ -271,48 +279,52 @@ ipmi_get_info_from_resources(struct platform_device *pdev,
 	return res;
 }
 
-#endif
-
-#ifdef CONFIG_DMI
-static int dmi_ipmi_probe(struct platform_device *pdev)
+static int platform_ipmi_probe(struct platform_device *pdev)
 {
 	struct si_sm_io io;
-	u8 type, slave_addr;
+	u8 type, slave_addr, addr_source;
 	int rv;
 
-	if (!si_trydmi)
-		return -ENODEV;
+	rv = device_property_read_u8(&pdev->dev, "addr-source", &addr_source);
+	if (rv)
+		addr_source = SI_PLATFORM;
+	if (addr_source >= SI_LAST)
+		return -EINVAL;
+
+	if (addr_source == SI_SMBIOS) {
+		if (!si_trydmi)
+			return -ENODEV;
+	} else {
+		if (!si_tryplatform)
+			return -ENODEV;
+	}
 
 	rv = device_property_read_u8(&pdev->dev, "ipmi-type", &type);
 	if (rv)
 		return -ENODEV;
 
 	memset(&io, 0, sizeof(io));
-	io.addr_source = SI_SMBIOS;
-	pr_info(PFX "probing via SMBIOS\n");
+	io.addr_source = addr_source;
+	dev_info(&pdev->dev, PFX "probing via %s\n",
+		 ipmi_addr_src_to_str(addr_source));
 
 	switch (type) {
-	case IPMI_DMI_TYPE_KCS:
-		io.si_type = SI_KCS;
-		break;
-	case IPMI_DMI_TYPE_SMIC:
-		io.si_type = SI_SMIC;
-		break;
-	case IPMI_DMI_TYPE_BT:
-		io.si_type = SI_BT;
+	case SI_KCS:
+	case SI_SMIC:
+	case SI_BT:
+		io.si_type = type;
 		break;
 	default:
+		dev_err(&pdev->dev, "ipmi-type property is invalid\n");
 		return -EINVAL;
 	}
 
-	if (!ipmi_get_info_from_resources(pdev, &io)) {
-		rv = -EINVAL;
-		goto err_free;
-	}
+	if (!ipmi_get_info_from_resources(pdev, &io))
+		return -EINVAL;
 
 	rv = device_property_read_u8(&pdev->dev, "slave-addr", &slave_addr);
 	if (rv) {
-		dev_warn(&pdev->dev, "device has no slave-addr property");
+		dev_warn(&pdev->dev, "device has no slave-addr property\n");
 		io.slave_addr = 0x20;
 	} else {
 		io.slave_addr = slave_addr;
@@ -333,16 +345,7 @@ static int dmi_ipmi_probe(struct platform_device *pdev)
 	ipmi_si_add_smi(&io);
 
 	return 0;
-
-err_free:
-	return rv;
 }
-#else
-static int dmi_ipmi_probe(struct platform_device *pdev)
-{
-	return -ENODEV;
-}
-#endif /* CONFIG_DMI */
 
 #ifdef CONFIG_OF
 static const struct of_device_id of_ipmi_match[] = {
@@ -365,6 +368,9 @@ static int of_ipmi_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	int ret;
 	int proplen;
+
+	if (!si_tryopenfirmware)
+		return -ENODEV;
 
 	dev_info(&pdev->dev, "probing via device tree\n");
 
@@ -436,25 +442,12 @@ static int find_slave_address(struct si_sm_io *io, int slave_addr)
 {
 #ifdef CONFIG_IPMI_DMI_DECODE
 	if (!slave_addr) {
-		int type = -1;
 		u32 flags = IORESOURCE_IO;
-
-		switch (io->si_type) {
-		case SI_KCS:
-			type = IPMI_DMI_TYPE_KCS;
-			break;
-		case SI_BT:
-			type = IPMI_DMI_TYPE_BT;
-			break;
-		case SI_SMIC:
-			type = IPMI_DMI_TYPE_SMIC;
-			break;
-		}
 
 		if (io->addr_type == IPMI_MEM_ADDR_SPACE)
 			flags = IORESOURCE_MEM;
 
-		slave_addr = ipmi_dmi_get_slave_addr(type, flags,
+		slave_addr = ipmi_dmi_get_slave_addr(io->si_type, flags,
 						     io->addr_data);
 	}
 #endif
@@ -563,7 +556,7 @@ static int ipmi_probe(struct platform_device *pdev)
 	if (acpi_ipmi_probe(pdev) == 0)
 		return 0;
 
-	return dmi_ipmi_probe(pdev);
+	return platform_ipmi_probe(pdev);
 }
 
 static int ipmi_remove(struct platform_device *pdev)
@@ -583,11 +576,9 @@ struct platform_driver ipmi_platform_driver = {
 
 void ipmi_si_platform_init(void)
 {
-	if (si_tryplatform) {
-		int rv = platform_driver_register(&ipmi_platform_driver);
-		if (rv)
-			pr_err(PFX "Unable to register driver: %d\n", rv);
-	}
+	int rv = platform_driver_register(&ipmi_platform_driver);
+	if (rv)
+		pr_err(PFX "Unable to register driver: %d\n", rv);
 
 #ifdef CONFIG_ACPI
 	if (si_tryacpi)

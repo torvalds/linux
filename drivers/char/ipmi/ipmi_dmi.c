@@ -8,10 +8,16 @@
 #include <linux/dmi.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
+#include "ipmi_si_sm.h"
 #include "ipmi_dmi.h"
 
+#define IPMI_DMI_TYPE_KCS	0x01
+#define IPMI_DMI_TYPE_SMIC	0x02
+#define IPMI_DMI_TYPE_BT	0x03
+#define IPMI_DMI_TYPE_SSIF	0x04
+
 struct ipmi_dmi_info {
-	int type;
+	enum si_type si_type;
 	u32 flags;
 	unsigned long addr;
 	u8 slave_addr;
@@ -21,6 +27,15 @@ struct ipmi_dmi_info {
 static struct ipmi_dmi_info *ipmi_dmi_infos;
 
 static int ipmi_dmi_nr __initdata;
+
+#define set_prop_entry(_p_, _name_, type, val)	\
+do {					\
+	struct property_entry *_p = &_p_;	\
+	_p->name = _name_;			\
+	_p->length = sizeof(type);		\
+	_p->is_string = false;			\
+	_p->value.type##_data = val;		\
+} while(0)
 
 static void __init dmi_add_platform_ipmi(unsigned long base_addr,
 					 u32 flags,
@@ -32,27 +47,14 @@ static void __init dmi_add_platform_ipmi(unsigned long base_addr,
 	struct platform_device *pdev;
 	struct resource r[4];
 	unsigned int num_r = 1, size;
-	struct property_entry p[4] = {
-		PROPERTY_ENTRY_U8("slave-addr", slave_addr),
-		PROPERTY_ENTRY_U8("ipmi-type", type),
-		PROPERTY_ENTRY_U16("i2c-addr", base_addr),
-		{ }
-	};
+	struct property_entry p[5];
+	unsigned int pidx = 0;
 	char *name, *override;
 	int rv;
+	enum si_type si_type;
 	struct ipmi_dmi_info *info;
 
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
-	if (!info) {
-		pr_warn("ipmi:dmi: Could not allocate dmi info\n");
-	} else {
-		info->type = type;
-		info->flags = flags;
-		info->addr = base_addr;
-		info->slave_addr = slave_addr;
-		info->next = ipmi_dmi_infos;
-		ipmi_dmi_infos = info;
-	}
+	memset(p, 0, sizeof(p));
 
 	name = "dmi-ipmi-si";
 	override = "ipmi_si";
@@ -62,17 +64,40 @@ static void __init dmi_add_platform_ipmi(unsigned long base_addr,
 		override = "ipmi_ssif";
 		offset = 1;
 		size = 1;
+		si_type = SI_TYPE_INVALID;
 		break;
 	case IPMI_DMI_TYPE_BT:
 		size = 3;
+		si_type = SI_BT;
 		break;
 	case IPMI_DMI_TYPE_KCS:
+		size = 2;
+		si_type = SI_KCS;
+		break;
 	case IPMI_DMI_TYPE_SMIC:
 		size = 2;
+		si_type = SI_SMIC;
 		break;
 	default:
 		pr_err("ipmi:dmi: Invalid IPMI type: %d", type);
 		return;
+	}
+
+	if (si_type != SI_TYPE_INVALID)
+		set_prop_entry(p[pidx++], "ipmi-type", u8, si_type);
+	set_prop_entry(p[pidx++], "slave-addr", u8, slave_addr);
+	set_prop_entry(p[pidx++], "addr-source", u8, SI_SMBIOS);
+
+	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	if (!info) {
+		pr_warn("ipmi:dmi: Could not allocate dmi info\n");
+	} else {
+		info->si_type = si_type;
+		info->flags = flags;
+		info->addr = base_addr;
+		info->slave_addr = slave_addr;
+		info->next = ipmi_dmi_infos;
+		ipmi_dmi_infos = info;
 	}
 
 	pdev = platform_device_alloc(name, ipmi_dmi_nr);
@@ -82,8 +107,10 @@ static void __init dmi_add_platform_ipmi(unsigned long base_addr,
 	}
 	pdev->driver_override = override;
 
-	if (type == IPMI_DMI_TYPE_SSIF)
+	if (type == IPMI_DMI_TYPE_SSIF) {
+		set_prop_entry(p[pidx++], "i2c-addr", u16, base_addr);
 		goto add_properties;
+	}
 
 	memset(r, 0, sizeof(r));
 
@@ -151,12 +178,13 @@ err:
  * This function allows an ACPI-specified IPMI device to look up the
  * slave address from the DMI table.
  */
-int ipmi_dmi_get_slave_addr(int type, u32 flags, unsigned long base_addr)
+int ipmi_dmi_get_slave_addr(enum si_type si_type, u32 flags,
+			    unsigned long base_addr)
 {
 	struct ipmi_dmi_info *info = ipmi_dmi_infos;
 
 	while (info) {
-		if (info->type == type &&
+		if (info->si_type == si_type &&
 		    info->flags == flags &&
 		    info->addr == base_addr)
 			return info->slave_addr;

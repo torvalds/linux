@@ -43,7 +43,7 @@
 struct si_sm_data;
 
 enum si_type {
-	SI_KCS, SI_SMIC, SI_BT
+	SI_TYPE_INVALID, SI_KCS, SI_SMIC, SI_BT
 };
 
 /*

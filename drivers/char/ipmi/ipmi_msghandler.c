@@ -594,7 +594,7 @@ static DEFINE_MUTEX(smi_watchers_mutex);
 
 static const char * const addr_src_to_str[] = {
 	"invalid", "hotmod", "hardcoded", "SPMI", "ACPI", "SMBIOS", "PCI",
-	"device-tree"
+	"device-tree", "platform"
 };
 
 const char *ipmi_addr_src_to_str(enum ipmi_addr_src src)
