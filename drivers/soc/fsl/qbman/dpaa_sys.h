@@ -51,12 +51,12 @@
 
 static inline void dpaa_flush(void *p)
 {
+	/*
+	 * Only PPC needs to flush the cache currently - on ARM the mapping
+	 * is non cacheable
+	 */
 #ifdef CONFIG_PPC
 	flush_dcache_range((unsigned long)p, (unsigned long)p+64);
-#elif defined(CONFIG_ARM)
-	__cpuc_flush_dcache_area(p, 64);
-#elif defined(CONFIG_ARM64)
-	__flush_dcache_area(p, 64);
 #endif
 }
 
@@ -101,5 +101,12 @@ static inline u8 dpaa_cyc_diff(u8 ringsize, u8 first, u8 last)
 /* Initialize the devices private memory region */
 int qbman_init_private_mem(struct device *dev, int idx, dma_addr_t *addr,
 				size_t *size);
+
+/* memremap() attributes for different platforms */
+#ifdef CONFIG_PPC
+#define QBMAN_MEMREMAP_ATTR	MEMREMAP_WB
+#else
+#define QBMAN_MEMREMAP_ATTR	MEMREMAP_WC
+#endif
 
 #endif	/* __DPAA_SYS_H */

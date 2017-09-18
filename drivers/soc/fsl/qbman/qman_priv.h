@@ -153,11 +153,9 @@ static inline void qman_cgrs_xor(struct qman_cgrs *dest,
 void qman_init_cgr_all(void);
 
 struct qm_portal_config {
-	/*
-	 * Corenet portal addresses;
-	 * [0]==cache-enabled, [1]==cache-inhibited.
-	 */
-	void __iomem *addr_virt[2];
+	/* Portal addresses */
+	void *addr_virt_ce;
+	void __iomem *addr_virt_ci;
 	struct device *dev;
 	struct iommu_domain *iommu_domain;
 	/* Allow these to be joined in lists */
