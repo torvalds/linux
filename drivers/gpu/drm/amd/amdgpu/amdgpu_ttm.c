@@ -43,6 +43,7 @@
 #include <linux/swap.h>
 #include <linux/pagemap.h>
 #include <linux/debugfs.h>
+#include <linux/iommu.h>
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 #include "bif/bif_4_1_d.h"
@@ -1809,7 +1810,104 @@ static const struct file_operations amdgpu_ttm_gtt_fops = {
 
 #endif
 
+static ssize_t amdgpu_iova_to_phys_read(struct file *f, char __user *buf,
+				   size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = file_inode(f)->i_private;
+	ssize_t result, n;
+	int r;
+	uint64_t phys;
+	void *ptr;
+	struct iommu_domain *dom;
 
+	dom = iommu_get_domain_for_dev(adev->dev);
+	if (!dom)
+		return -EFAULT;
+
+	result = 0;
+	while (size) {
+		// get physical address and map
+		phys = iommu_iova_to_phys(dom, *pos);
+
+		// copy upto one page
+		if (size > PAGE_SIZE)
+			n = PAGE_SIZE;
+		else
+			n = size;
+
+		// to end of the page
+		if (((*pos & (PAGE_SIZE - 1)) + n) >= PAGE_SIZE)
+			n = PAGE_SIZE - (*pos & (PAGE_SIZE - 1));
+
+		ptr = kmap(pfn_to_page(PFN_DOWN(phys)));
+		if (!ptr)
+			return -EFAULT;
+
+		r = copy_to_user(buf, ptr, n);
+		kunmap(pfn_to_page(PFN_DOWN(phys)));
+		if (r)
+			return -EFAULT;
+
+		*pos += n;
+		size -= n;
+		result += n;
+	}
+
+	return result;
+}
+
+static ssize_t amdgpu_iova_to_phys_write(struct file *f, const char __user *buf,
+				   size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = file_inode(f)->i_private;
+	ssize_t result, n;
+	int r;
+	uint64_t phys;
+	void *ptr;
+	struct iommu_domain *dom;
+
+	dom = iommu_get_domain_for_dev(adev->dev);
+	if (!dom)
+		return -EFAULT;
+
+	result = 0;
+	while (size) {
+		// get physical address and map
+		phys = iommu_iova_to_phys(dom, *pos);
+
+		// copy upto one page
+		if (size > PAGE_SIZE)
+			n = PAGE_SIZE;
+		else
+			n = size;
+
+		// to end of the page
+		if (((*pos & (PAGE_SIZE - 1)) + n) >= PAGE_SIZE)
+			n = PAGE_SIZE - (*pos & (PAGE_SIZE - 1));
+
+		ptr = kmap(pfn_to_page(PFN_DOWN(phys)));
+		if (!ptr)
+			return -EFAULT;
+
+		r = copy_from_user(ptr, buf, n);
+		kunmap(pfn_to_page(PFN_DOWN(phys)));
+		if (r)
+			return -EFAULT;
+
+		*pos += n;
+		size -= n;
+		result += n;
+	}
+
+	return result;
+}
+
+static const struct file_operations amdgpu_ttm_iova_fops = {
+	.owner = THIS_MODULE,
+	.read = amdgpu_iova_to_phys_read,
+	.write = amdgpu_iova_to_phys_write,
+	.llseek = default_llseek
+};
 
 static const struct {
 	char *name;
@@ -1820,6 +1918,7 @@ static const struct {
 #ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
 	{ "amdgpu_gtt", &amdgpu_ttm_gtt_fops, TTM_PL_TT },
 #endif
+	{ "amdgpu_iova", &amdgpu_ttm_iova_fops, TTM_PL_SYSTEM },
 };
 
 #endif
