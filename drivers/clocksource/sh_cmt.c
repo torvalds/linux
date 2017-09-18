@@ -66,7 +66,6 @@ struct sh_cmt_device;
 enum sh_cmt_model {
 	SH_CMT_16BIT,
 	SH_CMT_32BIT,
-	SH_CMT_32BIT_FAST,
 	SH_CMT_48BIT,
 	SH_CMT0_RCAR_GEN2,
 	SH_CMT1_RCAR_GEN2,
@@ -195,16 +194,6 @@ static const struct sh_cmt_info sh_cmt_info[] = {
 	},
 	[SH_CMT_32BIT] = {
 		.model = SH_CMT_32BIT,
-		.width = 32,
-		.overflow_bit = SH_CMT32_CMCSR_CMF,
-		.clear_bits = ~(SH_CMT32_CMCSR_CMF | SH_CMT32_CMCSR_OVF),
-		.read_control = sh_cmt_read16,
-		.write_control = sh_cmt_write16,
-		.read_count = sh_cmt_read32,
-		.write_count = sh_cmt_write32,
-	},
-	[SH_CMT_32BIT_FAST] = {
-		.model = SH_CMT_32BIT_FAST,
 		.width = 32,
 		.overflow_bit = SH_CMT32_CMCSR_CMF,
 		.clear_bits = ~(SH_CMT32_CMCSR_CMF | SH_CMT32_CMCSR_OVF),
@@ -890,13 +879,6 @@ static int sh_cmt_setup_channel(struct sh_cmt_channel *ch, unsigned int index,
 	case SH_CMT_48BIT:
 		ch->ioctrl = cmt->mapbase + 0x10 + ch->hwidx * 0x10;
 		break;
-	case SH_CMT_32BIT_FAST:
-		/*
-		 * The 32-bit "fast" timer has a single channel at hwidx 5 but
-		 * is located at offset 0x40 instead of 0x60 for some reason.
-		 */
-		ch->ioctrl = cmt->mapbase + 0x40;
-		break;
 	case SH_CMT0_RCAR_GEN2:
 	case SH_CMT1_RCAR_GEN2:
 		ch->iostart = cmt->mapbase + ch->hwidx * 0x100;
@@ -952,8 +934,6 @@ static const struct platform_device_id sh_cmt_id_table[] = {
 MODULE_DEVICE_TABLE(platform, sh_cmt_id_table);
 
 static const struct of_device_id sh_cmt_of_table[] __maybe_unused = {
-	{ .compatible = "renesas,cmt-32", .data = &sh_cmt_info[SH_CMT_32BIT] },
-	{ .compatible = "renesas,cmt-32-fast", .data = &sh_cmt_info[SH_CMT_32BIT_FAST] },
 	{ .compatible = "renesas,cmt-48", .data = &sh_cmt_info[SH_CMT_48BIT] },
 	{ .compatible = "renesas,cmt-48-gen2", .data = &sh_cmt_info[SH_CMT0_RCAR_GEN2] },
 	{ .compatible = "renesas,rcar-gen2-cmt0", .data = &sh_cmt_info[SH_CMT0_RCAR_GEN2] },
