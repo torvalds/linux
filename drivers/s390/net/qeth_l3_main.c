@@ -2771,8 +2771,8 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 		rc = qeth_do_send_packet(card, queue, new_skb, hdr, hd_len,
 					 hd_len, elements);
 	} else
-		rc = qeth_do_send_packet_fast(card, queue, new_skb, hdr,
-					      data_offset, hd_len);
+		rc = qeth_do_send_packet_fast(queue, new_skb, hdr, data_offset,
+					      hd_len);
 
 	if (!rc) {
 		card->stats.tx_packets++;
