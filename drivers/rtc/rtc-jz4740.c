@@ -82,7 +82,7 @@ static inline uint32_t jz4740_rtc_reg_read(struct jz4740_rtc *rtc, size_t reg)
 static int jz4740_rtc_wait_write_ready(struct jz4740_rtc *rtc)
 {
 	uint32_t ctrl;
-	int timeout = 1000;
+	int timeout = 10000;
 
 	do {
 		ctrl = jz4740_rtc_reg_read(rtc, JZ_REG_RTC_CTRL);
@@ -94,7 +94,7 @@ static int jz4740_rtc_wait_write_ready(struct jz4740_rtc *rtc)
 static inline int jz4780_rtc_enable_write(struct jz4740_rtc *rtc)
 {
 	uint32_t ctrl;
-	int ret, timeout = 1000;
+	int ret, timeout = 10000;
 
 	ret = jz4740_rtc_wait_write_ready(rtc);
 	if (ret != 0)
