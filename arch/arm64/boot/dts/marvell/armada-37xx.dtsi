@@ -183,7 +183,6 @@
 					<GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
-
 				};
 
 				xtalclk: xtal-clk {
