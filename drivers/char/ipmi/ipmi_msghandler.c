@@ -1392,8 +1392,8 @@ int ipmi_set_gets_events(ipmi_user_t user, bool val)
 			list_move_tail(&msg->link, &msgs);
 		intf->waiting_events_count = 0;
 		if (intf->event_msg_printed) {
-			printk(KERN_WARNING PFX "Event queue no longer"
-			       " full\n");
+			dev_warn(intf->si_dev,
+				 PFX "Event queue no longer full\n");
 			intf->event_msg_printed = 0;
 		}
 
@@ -2137,7 +2137,8 @@ static void bmc_device_id_handler(ipmi_smi_t intf, struct ipmi_recv_msg *msg)
 	if ((msg->addr.addr_type != IPMI_SYSTEM_INTERFACE_ADDR_TYPE)
 			|| (msg->msg.netfn != IPMI_NETFN_APP_RESPONSE)
 			|| (msg->msg.cmd != IPMI_GET_DEVICE_ID_CMD)) {
-		pr_warn(PFX "invalid device_id msg: addr_type=%d netfn=%x cmd=%x\n",
+		dev_warn(intf->si_dev,
+			 PFX "invalid device_id msg: addr_type=%d netfn=%x cmd=%x\n",
 			msg->addr.addr_type, msg->msg.netfn, msg->msg.cmd);
 		return;
 	}
@@ -2145,7 +2146,8 @@ static void bmc_device_id_handler(ipmi_smi_t intf, struct ipmi_recv_msg *msg)
 	rv = ipmi_demangle_device_id(msg->msg.netfn, msg->msg.cmd,
 			msg->msg.data, msg->msg.data_len, &intf->bmc->fetch_id);
 	if (rv) {
-		pr_warn(PFX "device id demangle failed: %d\n", rv);
+		dev_warn(intf->si_dev,
+			 PFX "device id demangle failed: %d\n", rv);
 		intf->bmc->dyn_id_set = 0;
 	} else {
 		/*
@@ -2978,12 +2980,12 @@ static int __ipmi_bmc_register(ipmi_smi_t intf,
 		list_add_tail(&intf->bmc_link, &bmc->intfs);
 		mutex_unlock(&bmc->dyn_mutex);
 
-		printk(KERN_INFO
-		       "ipmi: interfacing existing BMC (man_id: 0x%6.6x,"
-		       " prod_id: 0x%4.4x, dev_id: 0x%2.2x)\n",
-		       bmc->id.manufacturer_id,
-		       bmc->id.product_id,
-		       bmc->id.device_id);
+		dev_info(intf->si_dev,
+			 "ipmi: interfacing existing BMC (man_id: 0x%6.6x,"
+			 " prod_id: 0x%4.4x, dev_id: 0x%2.2x)\n",
+			 bmc->id.manufacturer_id,
+			 bmc->id.product_id,
+			 bmc->id.device_id);
 	} else {
 		bmc = kzalloc(sizeof(*bmc), GFP_KERNEL);
 		if (!bmc) {
@@ -3018,15 +3020,14 @@ static int __ipmi_bmc_register(ipmi_smi_t intf,
 
 		rv = platform_device_register(&bmc->pdev);
 		if (rv) {
-			printk(KERN_ERR
-			       "ipmi_msghandler:"
-			       " Unable to register bmc device: %d\n",
-			       rv);
+			dev_err(intf->si_dev,
+				PFX " Unable to register bmc device: %d\n",
+				rv);
 			goto out_list_del;
 		}
 
-		dev_info(intf->si_dev, "Found new BMC (man_id: 0x%6.6x, "
-			 "prod_id: 0x%4.4x, dev_id: 0x%2.2x)\n",
+		dev_info(intf->si_dev,
+			 "Found new BMC (man_id: 0x%6.6x, prod_id: 0x%4.4x, dev_id: 0x%2.2x)\n",
 			 bmc->id.manufacturer_id,
 			 bmc->id.product_id,
 			 bmc->id.device_id);
@@ -3038,9 +3039,8 @@ static int __ipmi_bmc_register(ipmi_smi_t intf,
 	 */
 	rv = sysfs_create_link(&intf->si_dev->kobj, &bmc->pdev.dev.kobj, "bmc");
 	if (rv) {
-		printk(KERN_ERR
-		       "ipmi_msghandler: Unable to create bmc symlink: %d\n",
-		       rv);
+		dev_err(intf->si_dev,
+			PFX "Unable to create bmc symlink: %d\n", rv);
 		goto out_put_bmc;
 	}
 
@@ -3049,9 +3049,8 @@ static int __ipmi_bmc_register(ipmi_smi_t intf,
 	intf->my_dev_name = kasprintf(GFP_KERNEL, "ipmi%d", intf_num);
 	if (!intf->my_dev_name) {
 		rv = -ENOMEM;
-		printk(KERN_ERR
-		       "ipmi_msghandler: allocate link from BMC: %d\n",
-		       rv);
+		dev_err(intf->si_dev,
+			PFX "Unable to allocate link from BMC: %d\n", rv);
 		goto out_unlink1;
 	}
 
@@ -3060,10 +3059,8 @@ static int __ipmi_bmc_register(ipmi_smi_t intf,
 	if (rv) {
 		kfree(intf->my_dev_name);
 		intf->my_dev_name = NULL;
-		printk(KERN_ERR
-		       "ipmi_msghandler:"
-		       " Unable to create symlink to bmc: %d\n",
-		       rv);
+		dev_err(intf->si_dev,
+			PFX "Unable to create symlink to bmc: %d\n", rv);
 		goto out_free_my_dev_name;
 	}
 
@@ -3146,11 +3143,9 @@ static void guid_handler(ipmi_smi_t intf, struct ipmi_recv_msg *msg)
 
 	if (msg->msg.data_len < 17) {
 		bmc->dyn_guid_set = 0;
-		printk(KERN_WARNING PFX
-		       "guid_handler: The GUID response from the BMC was too"
-		       " short, it was %d but should have been 17.  Assuming"
-		       " GUID is not available.\n",
-		       msg->msg.data_len);
+		dev_warn(intf->si_dev,
+			 PFX "The GUID response from the BMC was too short, it was %d but should have been 17.  Assuming GUID is not available.\n",
+			 msg->msg.data_len);
 		goto out;
 	}
 
@@ -3272,9 +3267,9 @@ channel_handler(ipmi_smi_t intf, struct ipmi_recv_msg *msg)
 
 		if (rv) {
 			/* Got an error somehow, just give up. */
-			printk(KERN_WARNING PFX
-			       "Error sending channel information for channel"
-			       " %d: %d\n", intf->curr_channel, rv);
+			dev_warn(intf->si_dev,
+				 PFX "Error sending channel information for channel %d: %d\n",
+				 intf->curr_channel, rv);
 
 			intf->channel_list = intf->wchannels + set;
 			intf->channels_ready = true;
@@ -4170,8 +4165,8 @@ static int handle_read_event_rsp(ipmi_smi_t          intf,
 		 * There's too many things in the queue, discard this
 		 * message.
 		 */
-		printk(KERN_WARNING PFX "Event queue full, discarding"
-		       " incoming events\n");
+		dev_warn(intf->si_dev,
+			 PFX "Event queue full, discarding incoming events\n");
 		intf->event_msg_printed = 1;
 	}
 
@@ -4189,11 +4184,8 @@ static int handle_bmc_rsp(ipmi_smi_t          intf,
 
 	recv_msg = (struct ipmi_recv_msg *) msg->user_data;
 	if (recv_msg == NULL) {
-		printk(KERN_WARNING
-		       "IPMI message received with no owner. This\n"
-		       "could be because of a malformed message, or\n"
-		       "because of a hardware error.  Contact your\n"
-		       "hardware vender for assistance\n");
+		dev_warn(intf->si_dev,
+			 "IPMI message received with no owner. This could be because of a malformed message, or because of a hardware error.  Contact your hardware vender for assistance\n");
 		return 0;
 	}
 
@@ -4247,9 +4239,9 @@ static int handle_one_recv_msg(ipmi_smi_t          intf,
 #endif
 	if (msg->rsp_size < 2) {
 		/* Message is too small to be correct. */
-		printk(KERN_WARNING PFX "BMC returned to small a message"
-		       " for netfn %x cmd %x, got %d bytes\n",
-		       (msg->data[0] >> 2) | 1, msg->data[1], msg->rsp_size);
+		dev_warn(intf->si_dev,
+			 PFX "BMC returned to small a message for netfn %x cmd %x, got %d bytes\n",
+			 (msg->data[0] >> 2) | 1, msg->data[1], msg->rsp_size);
 
 		/* Generate an error response for the message. */
 		msg->rsp[0] = msg->data[0] | (1 << 2);
@@ -4262,10 +4254,10 @@ static int handle_one_recv_msg(ipmi_smi_t          intf,
 		 * The NetFN and Command in the response is not even
 		 * marginally correct.
 		 */
-		printk(KERN_WARNING PFX "BMC returned incorrect response,"
-		       " expected netfn %x cmd %x, got netfn %x cmd %x\n",
-		       (msg->data[0] >> 2) | 1, msg->data[1],
-		       msg->rsp[0] >> 2, msg->rsp[1]);
+		dev_warn(intf->si_dev,
+			 PFX "BMC returned incorrect response, expected netfn %x cmd %x, got netfn %x cmd %x\n",
+			 (msg->data[0] >> 2) | 1, msg->data[1],
+			 msg->rsp[0] >> 2, msg->rsp[1]);
 
 		/* Generate an error response for the message. */
 		msg->rsp[0] = msg->data[0] | (1 << 2);
@@ -5164,17 +5156,16 @@ static int ipmi_init_msghandler(void)
 
 	rv = driver_register(&ipmidriver.driver);
 	if (rv) {
-		printk(KERN_ERR PFX "Could not register IPMI driver\n");
+		pr_err(PFX "Could not register IPMI driver\n");
 		return rv;
 	}
 
-	printk(KERN_INFO "ipmi message handler version "
-	       IPMI_DRIVER_VERSION "\n");
+	pr_info("ipmi message handler version " IPMI_DRIVER_VERSION "\n");
 
 #ifdef CONFIG_IPMI_PROC_INTERFACE
 	proc_ipmi_root = proc_mkdir("ipmi", NULL);
 	if (!proc_ipmi_root) {
-	    printk(KERN_ERR PFX "Unable to create IPMI proc dir");
+	    pr_err(PFX "Unable to create IPMI proc dir");
 	    driver_unregister(&ipmidriver.driver);
 	    return -ENOMEM;
 	}
@@ -5230,12 +5221,10 @@ static void __exit cleanup_ipmi(void)
 	/* Check for buffer leaks. */
 	count = atomic_read(&smi_msg_inuse_count);
 	if (count != 0)
-		printk(KERN_WARNING PFX "SMI message count %d at exit\n",
-		       count);
+		pr_warn(PFX "SMI message count %d at exit\n", count);
 	count = atomic_read(&recv_msg_inuse_count);
 	if (count != 0)
-		printk(KERN_WARNING PFX "recv message count %d at exit\n",
-		       count);
+		pr_warn(PFX "recv message count %d at exit\n", count);
 }
 module_exit(cleanup_ipmi);
 
