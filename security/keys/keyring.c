@@ -423,7 +423,7 @@ static void keyring_describe(const struct key *keyring, struct seq_file *m)
 }
 
 struct keyring_read_iterator_context {
-	size_t			qty;
+	size_t			buflen;
 	size_t			count;
 	key_serial_t __user	*buffer;
 };
@@ -435,9 +435,9 @@ static int keyring_read_iterator(const void *object, void *data)
 	int ret;
 
 	kenter("{%s,%d},,{%zu/%zu}",
-	       key->type->name, key->serial, ctx->count, ctx->qty);
+	       key->type->name, key->serial, ctx->count, ctx->buflen);
 
-	if (ctx->count >= ctx->qty)
+	if (ctx->count >= ctx->buflen)
 		return 1;
 
 	ret = put_user(key->serial, ctx->buffer);
@@ -472,16 +472,12 @@ static long keyring_read(const struct key *keyring,
 		return 0;
 
 	/* Calculate how much data we could return */
-	ctx.qty = nr_keys * sizeof(key_serial_t);
-
 	if (!buffer || !buflen)
-		return ctx.qty;
-
-	if (buflen > ctx.qty)
-		ctx.qty = buflen;
+		return nr_keys * sizeof(key_serial_t);
 
 	/* Copy the IDs of the subscribed keys into the buffer */
 	ctx.buffer = (key_serial_t __user *)buffer;
+	ctx.buflen = buflen;
 	ctx.count = 0;
 	ret = assoc_array_iterate(&keyring->keys, keyring_read_iterator, &ctx);
 	if (ret < 0) {
