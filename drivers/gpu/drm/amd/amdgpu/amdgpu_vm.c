@@ -1699,6 +1699,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 				      struct drm_mm_node *nodes,
 				      struct dma_fence **fence)
 {
+	unsigned min_linear_pages = 1 << adev->vm_manager.fragment_size;
 	uint64_t pfn, start = mapping->start;
 	int r;
 
@@ -1733,6 +1734,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 	}
 
 	do {
+		dma_addr_t *dma_addr = NULL;
 		uint64_t max_entries;
 		uint64_t addr, last;
 
@@ -1746,15 +1748,32 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 		}
 
 		if (pages_addr) {
+			uint64_t count;
+
 			max_entries = min(max_entries, 16ull * 1024ull);
-			addr = 0;
+			for (count = 1; count < max_entries; ++count) {
+				uint64_t idx = pfn + count;
+
+				if (pages_addr[idx] !=
+				    (pages_addr[idx - 1] + PAGE_SIZE))
+					break;
+			}
+
+			if (count < min_linear_pages) {
+				addr = pfn << PAGE_SHIFT;
+				dma_addr = pages_addr;
+			} else {
+				addr = pages_addr[pfn];
+				max_entries = count;
+			}
+
 		} else if (flags & AMDGPU_PTE_VALID) {
 			addr += adev->vm_manager.vram_base_offset;
+			addr += pfn << PAGE_SHIFT;
 		}
-		addr += pfn << PAGE_SHIFT;
 
 		last = min((uint64_t)mapping->last, start + max_entries - 1);
-		r = amdgpu_vm_bo_update_mapping(adev, exclusive, pages_addr, vm,
+		r = amdgpu_vm_bo_update_mapping(adev, exclusive, dma_addr, vm,
 						start, last, flags, addr,
 						fence);
 		if (r)
