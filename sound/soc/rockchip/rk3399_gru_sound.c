@@ -54,6 +54,7 @@ static const struct snd_soc_dapm_route rockchip_dapm_routes[] = {
 	{"MIC", NULL, "Headset Mic"},
 	{"DMIC1L", NULL, "Int Mic"},
 	{"DMIC1R", NULL, "Int Mic"},
+	{"DMic", NULL, "Int Mic"},
 
 	/* Output Lines */
 	{"Headphones", NULL, "HPL"},
