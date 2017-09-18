@@ -361,7 +361,7 @@ EXPORT_SYMBOL(dump_elf_task_fp);
  * all.  -- r~
  */
 
-unsigned long
+static unsigned long
 thread_saved_pc(struct task_struct *t)
 {
 	unsigned long base = (unsigned long)task_stack_page(t);
