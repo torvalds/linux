@@ -702,14 +702,15 @@ static void qxl_plane_cleanup_fb(struct drm_plane *plane,
 	struct drm_gem_object *obj;
 	struct qxl_bo *user_bo;
 
-	if (!plane->state->fb) {
-		/* we never executed prepare_fb, so there's nothing to
+	if (!old_state->fb) {
+		/*
+		 * we never executed prepare_fb, so there's nothing to
 		 * unpin.
 		 */
 		return;
 	}
 
-	obj = to_qxl_framebuffer(plane->state->fb)->obj;
+	obj = to_qxl_framebuffer(old_state->fb)->obj;
 	user_bo = gem_to_qxl_bo(obj);
 	qxl_bo_unpin(user_bo);
 }
