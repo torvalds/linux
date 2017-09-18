@@ -133,7 +133,7 @@ static void intel_mst_disable_dp(struct intel_encoder *encoder,
 		to_intel_connector(old_conn_state->connector);
 	int ret;
 
-	DRM_DEBUG_KMS("%d\n", intel_dp->active_mst_links);
+	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
 
 	drm_dp_mst_reset_vcpi_slots(&intel_dp->mst_mgr, connector->port);
 
@@ -155,8 +155,6 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 	struct intel_connector *connector =
 		to_intel_connector(old_conn_state->connector);
 
-	DRM_DEBUG_KMS("%d\n", intel_dp->active_mst_links);
-
 	/* this can fail */
 	drm_dp_check_act_status(&intel_dp->mst_mgr);
 	/* and this can also fail */
@@ -173,6 +171,7 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 	}
+	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
 }
 
 static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
@@ -195,7 +194,7 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 	connector->encoder = encoder;
 	intel_mst->connector = connector;
 
-	DRM_DEBUG_KMS("%d\n", intel_dp->active_mst_links);
+	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
 
 	if (intel_dp->active_mst_links == 0)
 		intel_dig_port->base.pre_enable(&intel_dig_port->base,
@@ -229,7 +228,7 @@ static void intel_mst_enable_dp(struct intel_encoder *encoder,
 	enum port port = intel_dig_port->port;
 	int ret;
 
-	DRM_DEBUG_KMS("%d\n", intel_dp->active_mst_links);
+	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
 
 	if (intel_wait_for_register(dev_priv,
 				    DP_TP_STATUS(port),
