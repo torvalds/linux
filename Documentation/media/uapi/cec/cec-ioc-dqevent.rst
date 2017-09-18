@@ -172,9 +172,9 @@ it is guaranteed that the state did change in between the two events.
     :stub-columns: 0
     :widths:       3 1 8
 
-    * .. _`CEC-EVENT-FL-INITIAL-VALUE`:
+    * .. _`CEC-EVENT-FL-INITIAL-STATE`:
 
-      - ``CEC_EVENT_FL_INITIAL_VALUE``
+      - ``CEC_EVENT_FL_INITIAL_STATE``
       - 1
       - Set for the initial events that are generated when the device is
 	opened. See the table above for which events do this. This allows
