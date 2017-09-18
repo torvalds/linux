@@ -590,6 +590,7 @@
 				clocks = <&gcc GSBI6_QUP_CLK>,
 					 <&gcc GSBI6_H_CLK>;
 				clock-names = "core", "iface";
+				status = "disabled";
 			};
 		};
 
