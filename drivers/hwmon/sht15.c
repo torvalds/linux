@@ -925,7 +925,6 @@ static int sht15_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct sht15_data *data;
-	u8 status = 0;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -1001,13 +1000,6 @@ static int sht15_probe(struct platform_device *pdev)
 	ret = sht15_soft_reset(data);
 	if (ret)
 		goto err_release_reg;
-
-	/* write status with platform data options */
-	if (status) {
-		ret = sht15_send_status(data, status);
-		if (ret)
-			goto err_release_reg;
-	}
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &sht15_attr_group);
 	if (ret) {
