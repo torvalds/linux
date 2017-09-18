@@ -182,6 +182,12 @@ struct qeth_sbp_info {
 	__u32 reflect_promisc_primary:1;
 };
 
+struct qeth_vnicc_info {
+	/* supported/currently configured VNICCs; updated in IPA exchanges */
+	u32 sup_chars;
+	u32 cur_chars;
+};
+
 static inline int qeth_is_ipa_supported(struct qeth_ipa_info *ipa,
 		enum qeth_ipa_funcs func)
 {
@@ -673,6 +679,7 @@ struct qeth_card_options {
 	struct qeth_routing_info route6;
 	struct qeth_ipa_info ipa6;
 	struct qeth_sbp_info sbp; /* SETBRIDGEPORT options */
+	struct qeth_vnicc_info vnicc; /* VNICC options */
 	int fake_broadcast;
 	int layer2;
 	int performance_stats;

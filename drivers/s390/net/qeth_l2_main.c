@@ -33,6 +33,7 @@ static void qeth_bridge_state_change(struct qeth_card *card,
 					struct qeth_ipa_cmd *cmd);
 static void qeth_bridge_host_event(struct qeth_card *card,
 					struct qeth_ipa_cmd *cmd);
+static void qeth_l2_vnicc_init(struct qeth_card *card);
 
 static int qeth_l2_verify_dev(struct net_device *dev)
 {
@@ -1045,9 +1046,14 @@ static int qeth_l2_start_ipassists(struct qeth_card *card)
 
 static void qeth_l2_trace_features(struct qeth_card *card)
 {
-	QETH_CARD_TEXT(card, 2, "l2featur");
+	/* Set BridgePort features */
+	QETH_CARD_TEXT(card, 2, "featuSBP");
 	QETH_CARD_HEX(card, 2, &card->options.sbp.supported_funcs,
 		      sizeof(card->options.sbp.supported_funcs));
+	/* VNIC Characteristics features */
+	QETH_CARD_TEXT(card, 2, "feaVNICC");
+	QETH_CARD_HEX(card, 2, &card->options.vnicc.sup_chars,
+		      sizeof(card->options.vnicc.sup_chars));
 }
 
 static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
@@ -1072,8 +1078,6 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	if (card->options.sbp.supported_funcs)
 		dev_info(&card->gdev->dev,
 		"The device represents a Bridge Capable Port\n");
-	qeth_trace_features(card);
-	qeth_l2_trace_features(card);
 
 	if (!card->dev && qeth_l2_setup_netdev(card)) {
 		rc = -ENODEV;
@@ -1089,6 +1093,12 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 			card->info.hwtrap = 0;
 	} else
 		card->info.hwtrap = 0;
+
+	/* for the rx_bcast characteristic, init VNICC after setmac */
+	qeth_l2_vnicc_init(card);
+
+	qeth_trace_features(card);
+	qeth_l2_trace_features(card);
 
 	qeth_l2_setup_bridgeport_attrs(card);
 
@@ -2038,6 +2048,126 @@ int qeth_bridgeport_an_set(struct qeth_card *card, int enable)
 	return qeth_anset_makerc(card, rc, response);
 }
 EXPORT_SYMBOL_GPL(qeth_bridgeport_an_set);
+
+/* VNIC Characteristics support */
+
+/* handle VNICC IPA command return codes; convert to error codes */
+static int qeth_l2_vnicc_makerc(struct qeth_card *card, int ipa_rc)
+{
+	int rc;
+
+	switch (ipa_rc) {
+	case IPA_RC_SUCCESS:
+		return ipa_rc;
+	case IPA_RC_L2_UNSUPPORTED_CMD:
+	case IPA_RC_NOTSUPP:
+		rc = -EOPNOTSUPP;
+		break;
+	case IPA_RC_VNICC_OOSEQ:
+		rc = -EALREADY;
+		break;
+	case IPA_RC_VNICC_VNICBP:
+		rc = -EBUSY;
+		break;
+	case IPA_RC_L2_ADDR_TABLE_FULL:
+		rc = -ENOSPC;
+		break;
+	case IPA_RC_L2_MAC_NOT_AUTH_BY_ADP:
+		rc = -EACCES;
+		break;
+	default:
+		rc = -EIO;
+	}
+
+	QETH_CARD_TEXT_(card, 2, "err%04x", ipa_rc);
+	return rc;
+}
+
+/* generic VNICC request call back control */
+struct _qeth_l2_vnicc_request_cbctl {
+	u32 sub_cmd;
+};
+
+/* generic VNICC request call back */
+static int qeth_l2_vnicc_request_cb(struct qeth_card *card,
+				    struct qeth_reply *reply,
+				    unsigned long data)
+{
+	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *) data;
+	struct qeth_ipacmd_vnicc *rep = &cmd->data.vnicc;
+
+	QETH_CARD_TEXT(card, 2, "vniccrcb");
+	if (cmd->hdr.return_code)
+		return 0;
+	/* return results to caller */
+	card->options.vnicc.sup_chars = rep->hdr.sup;
+	card->options.vnicc.cur_chars = rep->hdr.cur;
+
+	return 0;
+}
+
+/* generic VNICC request */
+static int qeth_l2_vnicc_request(struct qeth_card *card,
+				 struct _qeth_l2_vnicc_request_cbctl *cbctl)
+{
+	struct qeth_ipacmd_vnicc *req;
+	struct qeth_cmd_buffer *iob;
+	struct qeth_ipa_cmd *cmd;
+	int rc;
+
+	QETH_CARD_TEXT(card, 2, "vniccreq");
+
+	/* get new buffer for request */
+	iob = qeth_get_ipacmd_buffer(card, IPA_CMD_VNICC, 0);
+	if (!iob)
+		return -ENOMEM;
+
+	/* create header for request */
+	cmd = (struct qeth_ipa_cmd *)(iob->data + IPA_PDU_HEADER_SIZE);
+	req = &cmd->data.vnicc;
+
+	/* create sub command header for request */
+	req->sub_hdr.data_length = sizeof(req->sub_hdr);
+	req->sub_hdr.sub_command = cbctl->sub_cmd;
+
+	/* create sub command specific request fields */
+	switch (cbctl->sub_cmd) {
+	case IPA_VNICC_QUERY_CHARS:
+		break;
+	default:
+		qeth_release_buffer(iob->channel, iob);
+		return -EOPNOTSUPP;
+	}
+
+	/* send request */
+	rc = qeth_send_ipa_cmd(card, iob, qeth_l2_vnicc_request_cb,
+			       (void *) cbctl);
+
+	return qeth_l2_vnicc_makerc(card, rc);
+}
+
+/* VNICC query VNIC characteristics request */
+static int qeth_l2_vnicc_query_chars(struct qeth_card *card)
+{
+	struct _qeth_l2_vnicc_request_cbctl cbctl;
+
+	/* prepare callback control */
+	cbctl.sub_cmd = IPA_VNICC_QUERY_CHARS;
+
+	QETH_CARD_TEXT(card, 2, "vniccqch");
+	return qeth_l2_vnicc_request(card, &cbctl);
+}
+
+/* (re-)initialize VNICC */
+static void qeth_l2_vnicc_init(struct qeth_card *card)
+{
+	QETH_CARD_TEXT(card, 2, "vniccini");
+	/* initial query and storage of VNIC characteristics */
+	if (qeth_l2_vnicc_query_chars(card)) {
+		card->options.vnicc.sup_chars = 0;
+		card->options.vnicc.cur_chars = 0;
+	}
+}
 
 module_init(qeth_l2_init);
 module_exit(qeth_l2_exit);

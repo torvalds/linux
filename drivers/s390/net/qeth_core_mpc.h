@@ -90,6 +90,7 @@ enum qeth_ipa_cmds {
 	IPA_CMD_DELGMAC			= 0x24,
 	IPA_CMD_SETVLAN			= 0x25,
 	IPA_CMD_DELVLAN			= 0x26,
+	IPA_CMD_VNICC			= 0x2a,
 	IPA_CMD_SETBRIDGEPORT_OSA	= 0x2b,
 	IPA_CMD_SETCCID			= 0x41,
 	IPA_CMD_DELCCID			= 0x42,
@@ -165,6 +166,7 @@ enum qeth_ipa_return_codes {
 	IPA_RC_L2_INVALID_VLAN_ID	= 0x2015,
 	IPA_RC_L2_DUP_VLAN_ID		= 0x2016,
 	IPA_RC_L2_VLAN_ID_NOT_FOUND	= 0x2017,
+	IPA_RC_VNICC_VNICBP		= 0x20B0,
 	IPA_RC_SBP_OSA_NOT_CONFIGURED	= 0x2B0C,
 	IPA_RC_SBP_OSA_OS_MISMATCH	= 0x2B10,
 	IPA_RC_SBP_OSA_ANO_DEV_PRIMARY	= 0x2B14,
@@ -197,6 +199,9 @@ enum qeth_ipa_return_codes {
 	IPA_RC_ENOMEM			= 0xfffe,
 	IPA_RC_FFFF			= 0xffff
 };
+/* for VNIC Characteristics */
+#define IPA_RC_VNICC_OOSEQ 0x0005
+
 /* for SET_DIAGNOSTIC_ASSIST */
 #define IPA_RC_INVALID_SUBCMD		IPA_RC_IP_TABLE_FULL
 #define IPA_RC_HARDWARE_AUTH_ERROR	IPA_RC_UNKNOWN_ERROR
@@ -551,6 +556,29 @@ struct qeth_ipacmd_diagass {
 	__u8   cdata[64];
 } __attribute__ ((packed));
 
+/* VNIC Characteristics IPA Command: *****************************************/
+/* IPA commands/sub commands for VNICC */
+#define IPA_VNICC_QUERY_CHARS		0x00000000L
+
+/* VNICC header */
+struct qeth_ipacmd_vnicc_hdr {
+	u32 sup;
+	u32 cur;
+};
+
+/* VNICC sub command header */
+struct qeth_vnicc_sub_hdr {
+	u16 data_length;
+	u16 reserved;
+	u32 sub_command;
+};
+
+/* complete VNICC IPA command message */
+struct qeth_ipacmd_vnicc {
+	struct qeth_ipacmd_vnicc_hdr hdr;
+	struct qeth_vnicc_sub_hdr sub_hdr;
+};
+
 /* SETBRIDGEPORT IPA Command:	 *********************************************/
 enum qeth_ipa_sbp_cmd {
 	IPA_SBP_QUERY_COMMANDS_SUPPORTED	= 0x00000000L,
@@ -692,6 +720,7 @@ struct qeth_ipa_cmd {
 		struct qeth_ipacmd_diagass		diagass;
 		struct qeth_ipacmd_setbridgeport	sbp;
 		struct qeth_ipacmd_addr_change		addrchange;
+		struct qeth_ipacmd_vnicc		vnicc;
 	} data;
 } __attribute__ ((packed));
 
