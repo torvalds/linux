@@ -2541,7 +2541,8 @@ static uint32_t amdgpu_vm_get_block_size(uint64_t vm_size)
  * @adev: amdgpu_device pointer
  * @fragment_size_default: the default fragment size if it's set auto
  */
-void amdgpu_vm_set_fragment_size(struct amdgpu_device *adev, uint32_t fragment_size_default)
+void amdgpu_vm_set_fragment_size(struct amdgpu_device *adev,
+				 uint32_t fragment_size_default)
 {
 	if (amdgpu_vm_fragment_size == -1)
 		adev->vm_manager.fragment_size = fragment_size_default;
@@ -2555,7 +2556,8 @@ void amdgpu_vm_set_fragment_size(struct amdgpu_device *adev, uint32_t fragment_s
  * @adev: amdgpu_device pointer
  * @vm_size: the default vm size if it's set auto
  */
-void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint64_t vm_size, uint32_t fragment_size_default)
+void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint64_t vm_size,
+			   uint32_t fragment_size_default)
 {
 	/* adjust vm size firstly */
 	if (amdgpu_vm_size == -1)
