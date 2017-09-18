@@ -301,10 +301,10 @@ static const struct ddi_buf_trans skl_y_ddi_translations_hdmi[] = {
 };
 
 struct bxt_ddi_buf_trans {
-	u32 margin;	/* swing value */
-	u32 scale;	/* scale value */
-	u32 enable;	/* scale enable */
-	u32 deemphasis;
+	u8 margin;	/* swing value */
+	u8 scale;	/* scale value */
+	u8 enable;	/* scale enable */
+	u8 deemphasis;
 	bool default_index; /* true if the entry represents default value */
 };
 
