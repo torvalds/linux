@@ -902,8 +902,7 @@ int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 			return -ENOMEM;
 		}
 
-		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i],
-						false, false);
+		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i]);
 		if (unlikely(ret != 0)) {
 			ttm_dma_unpopulate(ttm_dma, dev);
 			return -ENOMEM;

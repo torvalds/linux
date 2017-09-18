@@ -882,8 +882,7 @@ int ttm_pool_populate(struct ttm_tt *ttm)
 			return -ENOMEM;
 		}
 
-		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i],
-						false, false);
+		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i]);
 		if (unlikely(ret != 0)) {
 			ttm_pool_unpopulate(ttm);
 			return -ENOMEM;

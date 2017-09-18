@@ -546,8 +546,7 @@ int ttm_mem_global_alloc(struct ttm_mem_global *glob, uint64_t memory,
 EXPORT_SYMBOL(ttm_mem_global_alloc);
 
 int ttm_mem_global_alloc_page(struct ttm_mem_global *glob,
-			      struct page *page,
-			      bool no_wait, bool interruptible)
+			      struct page *page)
 {
 
 	struct ttm_mem_zone *zone = NULL;
@@ -564,8 +563,7 @@ int ttm_mem_global_alloc_page(struct ttm_mem_global *glob,
 	if (glob->zone_dma32 && page_to_pfn(page) > 0x00100000UL)
 		zone = glob->zone_kernel;
 #endif
-	return ttm_mem_global_alloc_zone(glob, zone, PAGE_SIZE, no_wait,
-					 interruptible);
+	return ttm_mem_global_alloc_zone(glob, zone, PAGE_SIZE, false, false);
 }
 
 void ttm_mem_global_free_page(struct ttm_mem_global *glob, struct page *page)
