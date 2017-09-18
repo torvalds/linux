@@ -55,6 +55,15 @@ divided into two separate ITU-R BT.656 8-bit busses.  In such case bus-width
 and data-shift properties can be used to assign physical data lines to each
 endpoint node (logical bus).
 
+Documenting bindings for devices
+--------------------------------
+
+All required and optional bindings the device supports shall be explicitly
+documented in device DT binding documentation. This also includes port and
+endpoint nodes for the device, including unit-addresses and reg properties where
+relevant.
+
+Please also see Documentation/devicetree/bindings/graph.txt .
 
 Required properties
 -------------------
