@@ -173,6 +173,7 @@ struct drm_encoder_helper_funcs {
  * @mode_valid: is this mode valid on the given connector? (optional)
  * @best_encoder: return the preferred encoder for this connector
  * @atomic_best_encoder: atomic version of @best_encoder
+ * @atomic_flush: flush atomic update
  *
  * The helper operations are called by the mid-layer CRTC helper.
  */
@@ -184,6 +185,8 @@ struct drm_connector_helper_funcs {
 	struct drm_encoder *(*best_encoder)(struct drm_connector *connector);
 	struct drm_encoder *(*atomic_best_encoder)(struct drm_connector *connector,
 						   struct drm_connector_state *connector_state);
+	void (*atomic_flush)(struct drm_connector *connector,
+			     struct drm_connector_state *conn_state);
 };
 
 extern void drm_helper_disable_unused_functions(struct drm_device *dev);
