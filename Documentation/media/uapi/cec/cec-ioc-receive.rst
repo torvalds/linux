@@ -131,7 +131,7 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
       - ``tx_status``
       - The status bits of the transmitted message. See
 	:ref:`cec-tx-status` for the possible status values. It is 0 if
-	this messages was received, not transmitted.
+	this message was received, not transmitted.
     * - __u8
       - ``msg[16]``
       - The message payload. For :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` this is filled in by the
@@ -168,7 +168,7 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
       - ``tx_status``
       - The status bits of the transmitted message. See
 	:ref:`cec-tx-status` for the possible status values. It is 0 if
-	this messages was received, not transmitted.
+	this message was received, not transmitted.
     * - __u8
       - ``tx_arb_lost_cnt``
       - A counter of the number of transmit attempts that resulted in the
@@ -256,9 +256,9 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
       - ``CEC_TX_STATUS_ERROR``
       - 0x10
       - Some error occurred. This is used for any errors that do not fit
-	the previous two, either because the hardware could not tell which
-	error occurred, or because the hardware tested for other
-	conditions besides those two.
+	``CEC_TX_STATUS_ARB_LOST`` or ``CEC_TX_STATUS_LOW_DRIVE``, either because
+	the hardware could not tell which error occurred, or because the hardware
+	tested for other conditions besides those two.
     * .. _`CEC-TX-STATUS-MAX-RETRIES`:
 
       - ``CEC_TX_STATUS_MAX_RETRIES``
