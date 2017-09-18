@@ -1053,10 +1053,13 @@ static void notify_ring(struct intel_engine_cs *engine)
 		 */
 		if (i915_seqno_passed(intel_engine_get_seqno(engine),
 				      wait->seqno)) {
+			struct drm_i915_gem_request *waiter = wait->request;
+
 			wakeup = true;
 			if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
-				      &wait->request->fence.flags))
-				rq = i915_gem_request_get(wait->request);
+				      &waiter->fence.flags) &&
+			    intel_wait_check_request(wait, waiter))
+				rq = i915_gem_request_get(waiter);
 		}
 
 		if (wakeup)
