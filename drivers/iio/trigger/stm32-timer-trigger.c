@@ -174,6 +174,7 @@ static void stm32_timer_stop(struct stm32_timer_trigger *priv)
 		clk_disable(priv->clk);
 
 	/* Stop timer */
+	regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_ARPE, 0);
 	regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN, 0);
 	regmap_write(priv->regmap, TIM_PSC, 0);
 	regmap_write(priv->regmap, TIM_ARR, 0);
