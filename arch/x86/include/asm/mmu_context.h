@@ -12,6 +12,9 @@
 #include <asm/tlbflush.h>
 #include <asm/paravirt.h>
 #include <asm/mpx.h>
+
+extern atomic64_t last_mm_ctx_id;
+
 #ifndef CONFIG_PARAVIRT
 static inline void paravirt_activate_mm(struct mm_struct *prev,
 					struct mm_struct *next)
@@ -125,13 +128,18 @@ static inline void switch_ldt(struct mm_struct *prev, struct mm_struct *next)
 
 static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
-	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
-		this_cpu_write(cpu_tlbstate.state, TLBSTATE_LAZY);
+	int cpu = smp_processor_id();
+
+	if (cpumask_test_cpu(cpu, mm_cpumask(mm)))
+		cpumask_clear_cpu(cpu, mm_cpumask(mm));
 }
 
 static inline int init_new_context(struct task_struct *tsk,
 				   struct mm_struct *mm)
 {
+	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
+	atomic64_set(&mm->context.tlb_gen, 0);
+
 	#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
 	if (cpu_feature_enabled(X86_FEATURE_OSPKE)) {
 		/* pkey 0 is the default and always allocated */
@@ -289,6 +297,9 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
 static inline unsigned long __get_current_cr3_fast(void)
 {
 	unsigned long cr3 = __pa(this_cpu_read(cpu_tlbstate.loaded_mm)->pgd);
+
+	if (static_cpu_has(X86_FEATURE_PCID))
+		cr3 |= this_cpu_read(cpu_tlbstate.loaded_mm_asid);
 
 	/* For now, be very restrictive about when this can be called. */
 	VM_WARN_ON(in_nmi() || preemptible());

@@ -252,7 +252,7 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	NEW_AUX_ENT(AT_EUID, from_kuid_munged(cred->user_ns, cred->euid));
 	NEW_AUX_ENT(AT_GID, from_kgid_munged(cred->user_ns, cred->gid));
 	NEW_AUX_ENT(AT_EGID, from_kgid_munged(cred->user_ns, cred->egid));
- 	NEW_AUX_ENT(AT_SECURE, security_bprm_secureexec(bprm));
+	NEW_AUX_ENT(AT_SECURE, bprm->secureexec);
 	NEW_AUX_ENT(AT_RANDOM, (elf_addr_t)(unsigned long)u_rand_bytes);
 #ifdef ELF_HWCAP2
 	NEW_AUX_ENT(AT_HWCAP2, ELF_HWCAP2);
@@ -409,6 +409,7 @@ static struct elf_phdr *load_elf_phdrs(struct elfhdr *elf_ex,
 {
 	struct elf_phdr *elf_phdata = NULL;
 	int retval, size, err = -1;
+	loff_t pos = elf_ex->e_phoff;
 
 	/*
 	 * If the size of this structure has changed, then punt, since
@@ -432,8 +433,7 @@ static struct elf_phdr *load_elf_phdrs(struct elfhdr *elf_ex,
 		goto out;
 
 	/* Read in the program headers */
-	retval = kernel_read(elf_file, elf_ex->e_phoff,
-			     (char *)elf_phdata, size);
+	retval = kernel_read(elf_file, elf_phdata, size, &pos);
 	if (retval != size) {
 		err = (retval < 0) ? retval : -EIO;
 		goto out;
@@ -698,6 +698,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		struct elfhdr interp_elf_ex;
 	} *loc;
 	struct arch_elf_state arch_state = INIT_ARCH_ELF_STATE;
+	loff_t pos;
 
 	loc = kmalloc(sizeof(*loc), GFP_KERNEL);
 	if (!loc) {
@@ -750,9 +751,9 @@ static int load_elf_binary(struct linux_binprm *bprm)
 			if (!elf_interpreter)
 				goto out_free_ph;
 
-			retval = kernel_read(bprm->file, elf_ppnt->p_offset,
-					     elf_interpreter,
-					     elf_ppnt->p_filesz);
+			pos = elf_ppnt->p_offset;
+			retval = kernel_read(bprm->file, elf_interpreter,
+					     elf_ppnt->p_filesz, &pos);
 			if (retval != elf_ppnt->p_filesz) {
 				if (retval >= 0)
 					retval = -EIO;
@@ -776,9 +777,9 @@ static int load_elf_binary(struct linux_binprm *bprm)
 			would_dump(bprm, interpreter);
 
 			/* Get the exec headers */
-			retval = kernel_read(interpreter, 0,
-					     (void *)&loc->interp_elf_ex,
-					     sizeof(loc->interp_elf_ex));
+			pos = 0;
+			retval = kernel_read(interpreter, &loc->interp_elf_ex,
+					     sizeof(loc->interp_elf_ex), &pos);
 			if (retval != sizeof(loc->interp_elf_ex)) {
 				if (retval >= 0)
 					retval = -EIO;
@@ -1175,9 +1176,10 @@ static int load_elf_library(struct file *file)
 	unsigned long elf_bss, bss, len;
 	int retval, error, i, j;
 	struct elfhdr elf_ex;
+	loff_t pos = 0;
 
 	error = -ENOEXEC;
-	retval = kernel_read(file, 0, (char *)&elf_ex, sizeof(elf_ex));
+	retval = kernel_read(file, &elf_ex, sizeof(elf_ex), &pos);
 	if (retval != sizeof(elf_ex))
 		goto out;
 
@@ -1201,7 +1203,8 @@ static int load_elf_library(struct file *file)
 
 	eppnt = elf_phdata;
 	error = -ENOEXEC;
-	retval = kernel_read(file, elf_ex.e_phoff, (char *)eppnt, j);
+	pos =  elf_ex.e_phoff;
+	retval = kernel_read(file, eppnt, j, &pos);
 	if (retval != j)
 		goto out_free_ph;
 

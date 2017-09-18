@@ -242,7 +242,7 @@ static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector, int silent)
 
 	bio = bio_alloc(GFP_NOFS, 1);
 	bio->bi_iter.bi_sector = sector * (sb->s_blocksize >> 9);
-	bio->bi_bdev = sb->s_bdev;
+	bio_set_dev(bio, sb->s_bdev);
 	bio_add_page(bio, page, PAGE_SIZE, 0);
 
 	bio->bi_end_io = end_bio_io_page;
@@ -1037,7 +1037,7 @@ void gfs2_online_uevent(struct gfs2_sbd *sdp)
 	char ro[20];
 	char spectator[20];
 	char *envp[] = { ro, spectator, NULL };
-	sprintf(ro, "RDONLY=%d", (sb->s_flags & MS_RDONLY) ? 1 : 0);
+	sprintf(ro, "RDONLY=%d", sb_rdonly(sb));
 	sprintf(spectator, "SPECTATOR=%d", sdp->sd_args.ar_spectator ? 1 : 0);
 	kobject_uevent_env(&sdp->sd_kobj, KOBJ_ONLINE, envp);
 }
@@ -1113,7 +1113,7 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 		return error;
 	}
 
-	snprintf(sdp->sd_fsname, GFS2_FSNAME_LEN, "%s", sdp->sd_table_name);
+	snprintf(sdp->sd_fsname, sizeof(sdp->sd_fsname), "%s", sdp->sd_table_name);
 
 	error = gfs2_sys_fs_add(sdp);
 	/*
@@ -1159,10 +1159,10 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 	}
 
 	if (sdp->sd_args.ar_spectator)
-		snprintf(sdp->sd_fsname, GFS2_FSNAME_LEN, "%s.s",
+		snprintf(sdp->sd_fsname, sizeof(sdp->sd_fsname), "%s.s",
 			 sdp->sd_table_name);
 	else
-		snprintf(sdp->sd_fsname, GFS2_FSNAME_LEN, "%s.%u",
+		snprintf(sdp->sd_fsname, sizeof(sdp->sd_fsname), "%s.%u",
 			 sdp->sd_table_name, sdp->sd_lockstruct.ls_jid);
 
 	error = init_inodes(sdp, DO);
@@ -1179,7 +1179,7 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 		goto fail_per_node;
 	}
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		error = gfs2_make_fs_rw(sdp);
 		if (error) {
 			fs_err(sdp, "can't make FS RW: %d\n", error);
@@ -1388,7 +1388,6 @@ static void gfs2_kill_sb(struct super_block *sb)
 	sdp->sd_root_dir = NULL;
 	sdp->sd_master_dir = NULL;
 	shrink_dcache_sb(sb);
-	gfs2_delete_debugfs_file(sdp);
 	free_percpu(sdp->sd_lkstats);
 	kill_block_super(sb);
 }

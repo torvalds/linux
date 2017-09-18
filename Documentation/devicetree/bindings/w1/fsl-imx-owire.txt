@@ -15,5 +15,4 @@ owire: owire@63fa4000 {
 	compatible = "fsl,imx53-owire", "fsl,imx21-owire";
 	reg = <0x63fa4000 0x4000>;
 	clocks = <&clks 159>;
-	status = "disabled";
 };

@@ -64,6 +64,8 @@
 #include <linux/cgroup_rdma.h>
 #include <uapi/rdma/ib_user_verbs.h>
 
+#define IB_FW_VERSION_NAME_MAX	ETHTOOL_FWVERS_LEN
+
 extern struct workqueue_struct *ib_wq;
 extern struct workqueue_struct *ib_comp_wq;
 
@@ -168,7 +170,7 @@ enum ib_device_cap_flags {
 	IB_DEVICE_UD_AV_PORT_ENFORCE		= (1 << 6),
 	IB_DEVICE_CURR_QP_STATE_MOD		= (1 << 7),
 	IB_DEVICE_SHUTDOWN_PORT			= (1 << 8),
-	IB_DEVICE_INIT_TYPE			= (1 << 9),
+	/* Not in use, former INIT_TYPE		= (1 << 9),*/
 	IB_DEVICE_PORT_ACTIVE_EVENT		= (1 << 10),
 	IB_DEVICE_SYS_IMAGE_GUID		= (1 << 11),
 	IB_DEVICE_RC_RNR_NAK_GEN		= (1 << 12),
@@ -183,7 +185,7 @@ enum ib_device_cap_flags {
 	 * which will always contain a usable lkey.
 	 */
 	IB_DEVICE_LOCAL_DMA_LKEY		= (1 << 15),
-	IB_DEVICE_RESERVED /* old SEND_W_INV */	= (1 << 16),
+	/* Reserved, old SEND_W_INV		= (1 << 16),*/
 	IB_DEVICE_MEM_WINDOW			= (1 << 17),
 	/*
 	 * Devices should set IB_DEVICE_UD_IP_SUM if they support
@@ -218,7 +220,7 @@ enum ib_device_cap_flags {
 	 * of I/O operations with single completion queue managed
 	 * by hardware.
 	 */
-	IB_DEVICE_CROSS_CHANNEL		= (1 << 27),
+	IB_DEVICE_CROSS_CHANNEL			= (1 << 27),
 	IB_DEVICE_MANAGED_FLOW_STEERING		= (1 << 29),
 	IB_DEVICE_SIGNATURE_HANDOVER		= (1 << 30),
 	IB_DEVICE_ON_DEMAND_PAGING		= (1ULL << 31),
@@ -276,6 +278,24 @@ struct ib_rss_caps {
 	u32 supported_qpts;
 	u32 max_rwq_indirection_tables;
 	u32 max_rwq_indirection_table_size;
+};
+
+enum ib_tm_cap_flags {
+	/*  Support tag matching on RC transport */
+	IB_TM_CAP_RC		    = 1 << 0,
+};
+
+struct ib_xrq_caps {
+	/* Max size of RNDV header */
+	u32 max_rndv_hdr_size;
+	/* Max number of entries in tag matching list */
+	u32 max_num_tags;
+	/* From enum ib_tm_cap_flags */
+	u32 flags;
+	/* Max number of outstanding list operations */
+	u32 max_ops;
+	/* Max number of SGE in tag matching entry */
+	u32 max_sge;
 };
 
 enum ib_cq_creation_flags {
@@ -338,6 +358,7 @@ struct ib_device_attr {
 	struct ib_rss_caps	rss_caps;
 	u32			max_wq_type_rq;
 	u32			raw_packet_caps; /* Use ib_raw_packet_caps enum */
+	struct ib_xrq_caps	xrq_caps;
 };
 
 enum ib_mtu {
@@ -549,8 +570,8 @@ struct ib_port_attr {
 	u32			bad_pkey_cntr;
 	u32			qkey_viol_cntr;
 	u16			pkey_tbl_len;
-	u16			lid;
-	u16			sm_lid;
+	u32			sm_lid;
+	u32			lid;
 	u8			lmc;
 	u8			max_vl_num;
 	u8			sm_sl;
@@ -577,7 +598,8 @@ struct ib_device_modify {
 enum ib_port_modify_flags {
 	IB_PORT_SHUTDOWN		= 1,
 	IB_PORT_INIT_TYPE		= (1<<2),
-	IB_PORT_RESET_QKEY_CNTR		= (1<<3)
+	IB_PORT_RESET_QKEY_CNTR		= (1<<3),
+	IB_PORT_OPA_MASK_CHG		= (1<<4)
 };
 
 struct ib_port_modify {
@@ -663,6 +685,8 @@ union rdma_network_hdr {
 		struct iphdr	roce4grh;
 	};
 };
+
+#define IB_QPN_MASK		0xFFFFFF
 
 enum {
 	IB_MULTICAST_QPN = 0xffffff
@@ -859,6 +883,7 @@ struct roce_ah_attr {
 struct opa_ah_attr {
 	u32			dlid;
 	u8			src_path_bits;
+	bool			make_grd;
 };
 
 struct rdma_ah_attr {
@@ -948,7 +973,7 @@ struct ib_wc {
 	u32			src_qp;
 	int			wc_flags;
 	u16			pkey_index;
-	u16			slid;
+	u32			slid;
 	u8			sl;
 	u8			dlid_path_bits;
 	u8			port_num;	/* valid only for DR SMPs on switches */
@@ -966,8 +991,15 @@ enum ib_cq_notify_flags {
 
 enum ib_srq_type {
 	IB_SRQT_BASIC,
-	IB_SRQT_XRC
+	IB_SRQT_XRC,
+	IB_SRQT_TM,
 };
+
+static inline bool ib_srq_has_cq(enum ib_srq_type srq_type)
+{
+	return srq_type == IB_SRQT_XRC ||
+	       srq_type == IB_SRQT_TM;
+}
 
 enum ib_srq_attr_mask {
 	IB_SRQ_MAX_WR	= 1 << 0,
@@ -986,11 +1018,17 @@ struct ib_srq_init_attr {
 	struct ib_srq_attr	attr;
 	enum ib_srq_type	srq_type;
 
-	union {
-		struct {
-			struct ib_xrcd *xrcd;
-			struct ib_cq   *cq;
-		} xrc;
+	struct {
+		struct ib_cq   *cq;
+		union {
+			struct {
+				struct ib_xrcd *xrcd;
+			} xrc;
+
+			struct {
+				u32		max_num_tags;
+			} tag_matching;
+		};
 	} ext;
 };
 
@@ -1059,6 +1097,7 @@ enum ib_qp_create_flags {
 	/* FREE					= 1 << 7, */
 	IB_QP_CREATE_SCATTER_FCS		= 1 << 8,
 	IB_QP_CREATE_CVLAN_STRIPPING		= 1 << 9,
+	IB_QP_CREATE_SOURCE_QPN			= 1 << 10,
 	/* reserve bits 26-31 for low level drivers' internal use */
 	IB_QP_CREATE_RESERVED_START		= 1 << 26,
 	IB_QP_CREATE_RESERVED_END		= 1 << 31,
@@ -1086,6 +1125,7 @@ struct ib_qp_init_attr {
 	 */
 	u8			port_num;
 	struct ib_rwq_ind_table *rwq_ind_tbl;
+	u32			source_qpn;
 };
 
 struct ib_qp_open_attr {
@@ -1417,7 +1457,7 @@ struct ib_ucontext {
 
 	struct pid             *tgid;
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-	struct rb_root      umem_tree;
+	struct rb_root_cached   umem_tree;
 	/*
 	 * Protects .umem_rbroot and tree, as well as odp_mrs_count and
 	 * mmu notifiers registration.
@@ -1527,12 +1567,14 @@ struct ib_srq {
 	enum ib_srq_type	srq_type;
 	atomic_t		usecnt;
 
-	union {
-		struct {
-			struct ib_xrcd *xrcd;
-			struct ib_cq   *cq;
-			u32		srq_num;
-		} xrc;
+	struct {
+		struct ib_cq   *cq;
+		union {
+			struct {
+				struct ib_xrcd *xrcd;
+				u32		srq_num;
+			} xrc;
+		};
 	} ext;
 };
 
@@ -1546,6 +1588,10 @@ enum ib_raw_packet_caps {
 	IB_RAW_PACKET_CAP_SCATTER_FCS		= (1 << 1),
 	/* Checksum offloads are supported (for both send and receive). */
 	IB_RAW_PACKET_CAP_IP_CSUM		= (1 << 2),
+	/* When a packet is received for an RQ with no receive WQEs, the
+	 * packet processing is delayed.
+	 */
+	IB_RAW_PACKET_CAP_DELAY_DROP		= (1 << 3),
 };
 
 enum ib_wq_type {
@@ -1574,6 +1620,7 @@ struct ib_wq {
 enum ib_wq_flags {
 	IB_WQ_FLAGS_CVLAN_STRIPPING	= 1 << 0,
 	IB_WQ_FLAGS_SCATTER_FCS		= 1 << 1,
+	IB_WQ_FLAGS_DELAY_DROP		= 1 << 2,
 };
 
 struct ib_wq_init_attr {
@@ -2289,6 +2336,8 @@ struct ib_device {
 	struct rdmacg_device         cg_device;
 #endif
 
+	u32                          index;
+
 	/**
 	 * The following mandatory functions are used only at device
 	 * registration.  Keep functions such as these at the end of this
@@ -2296,7 +2345,11 @@ struct ib_device {
 	 * in fast paths.
 	 */
 	int (*get_port_immutable)(struct ib_device *, u8, struct ib_port_immutable *);
-	void (*get_dev_fw_str)(struct ib_device *, char *str, size_t str_len);
+	void (*get_dev_fw_str)(struct ib_device *, char *str);
+	const struct cpumask *(*get_vector_affinity)(struct ib_device *ibdev,
+						     int comp_vector);
+
+	struct uverbs_root_spec		*specs_root;
 };
 
 struct ib_client {
@@ -2332,7 +2385,7 @@ struct ib_client {
 struct ib_device *ib_alloc_device(size_t size);
 void ib_dealloc_device(struct ib_device *device);
 
-void ib_get_device_fw_str(struct ib_device *device, char *str, size_t str_len);
+void ib_get_device_fw_str(struct ib_device *device, char *str);
 
 int ib_register_device(struct ib_device *device,
 		       int (*port_callback)(struct ib_device *,
@@ -2396,8 +2449,8 @@ int ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
 		       enum ib_qp_type type, enum ib_qp_attr_mask mask,
 		       enum rdma_link_layer ll);
 
-int ib_register_event_handler  (struct ib_event_handler *event_handler);
-int ib_unregister_event_handler(struct ib_event_handler *event_handler);
+void ib_register_event_handler(struct ib_event_handler *event_handler);
+void ib_unregister_event_handler(struct ib_event_handler *event_handler);
 void ib_dispatch_event(struct ib_event *event);
 
 int ib_query_port(struct ib_device *device,
@@ -3556,6 +3609,7 @@ void ib_drain_qp(struct ib_qp *qp);
 
 int ib_resolve_eth_dmac(struct ib_device *device,
 			struct rdma_ah_attr *ah_attr);
+int ib_get_eth_speed(struct ib_device *dev, u8 port_num, u8 *speed, u8 *width);
 
 static inline u8 *rdma_ah_retrieve_dmac(struct rdma_ah_attr *attr)
 {
@@ -3607,6 +3661,20 @@ static inline u8 rdma_ah_get_path_bits(const struct rdma_ah_attr *attr)
 	else if (attr->type == RDMA_AH_ATTR_TYPE_OPA)
 		return attr->opa.src_path_bits;
 	return 0;
+}
+
+static inline void rdma_ah_set_make_grd(struct rdma_ah_attr *attr,
+					bool make_grd)
+{
+	if (attr->type == RDMA_AH_ATTR_TYPE_OPA)
+		attr->opa.make_grd = make_grd;
+}
+
+static inline bool rdma_ah_get_make_grd(const struct rdma_ah_attr *attr)
+{
+	if (attr->type == RDMA_AH_ATTR_TYPE_OPA)
+		return attr->opa.make_grd;
+	return false;
 }
 
 static inline void rdma_ah_set_port_num(struct rdma_ah_attr *attr, u8 port_num)
@@ -3707,4 +3775,52 @@ static inline enum rdma_ah_attr_type rdma_ah_find_type(struct ib_device *dev,
 	else
 		return RDMA_AH_ATTR_TYPE_IB;
 }
+
+/**
+ * ib_lid_cpu16 - Return lid in 16bit CPU encoding.
+ *     In the current implementation the only way to get
+ *     get the 32bit lid is from other sources for OPA.
+ *     For IB, lids will always be 16bits so cast the
+ *     value accordingly.
+ *
+ * @lid: A 32bit LID
+ */
+static inline u16 ib_lid_cpu16(u32 lid)
+{
+	WARN_ON_ONCE(lid & 0xFFFF0000);
+	return (u16)lid;
+}
+
+/**
+ * ib_lid_be16 - Return lid in 16bit BE encoding.
+ *
+ * @lid: A 32bit LID
+ */
+static inline __be16 ib_lid_be16(u32 lid)
+{
+	WARN_ON_ONCE(lid & 0xFFFF0000);
+	return cpu_to_be16((u16)lid);
+}
+
+/**
+ * ib_get_vector_affinity - Get the affinity mappings of a given completion
+ *   vector
+ * @device:         the rdma device
+ * @comp_vector:    index of completion vector
+ *
+ * Returns NULL on failure, otherwise a corresponding cpu map of the
+ * completion vector (returns all-cpus map if the device driver doesn't
+ * implement get_vector_affinity).
+ */
+static inline const struct cpumask *
+ib_get_vector_affinity(struct ib_device *device, int comp_vector)
+{
+	if (comp_vector < 0 || comp_vector >= device->num_comp_vectors ||
+	    !device->get_vector_affinity)
+		return NULL;
+
+	return device->get_vector_affinity(device, comp_vector);
+
+}
+
 #endif /* IB_VERBS_H */

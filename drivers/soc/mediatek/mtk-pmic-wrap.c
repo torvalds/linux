@@ -1067,7 +1067,7 @@ static const struct pmic_wrapper_type pwrap_mt2701 = {
 	.init_soc_specific = pwrap_mt2701_init_soc_specific,
 };
 
-static struct pmic_wrapper_type pwrap_mt8135 = {
+static const struct pmic_wrapper_type pwrap_mt8135 = {
 	.regs = mt8135_regs,
 	.type = PWRAP_MT8135,
 	.arb_en_all = 0x1ff,
@@ -1079,7 +1079,7 @@ static struct pmic_wrapper_type pwrap_mt8135 = {
 	.init_soc_specific = pwrap_mt8135_init_soc_specific,
 };
 
-static struct pmic_wrapper_type pwrap_mt8173 = {
+static const struct pmic_wrapper_type pwrap_mt8173 = {
 	.regs = mt8173_regs,
 	.type = PWRAP_MT8173,
 	.arb_en_all = 0x3f,
@@ -1091,7 +1091,7 @@ static struct pmic_wrapper_type pwrap_mt8173 = {
 	.init_soc_specific = pwrap_mt8173_init_soc_specific,
 };
 
-static struct of_device_id of_pwrap_match_tbl[] = {
+static const struct of_device_id of_pwrap_match_tbl[] = {
 	{
 		.compatible = "mediatek,mt2701-pwrap",
 		.data = &pwrap_mt2701,
@@ -1233,8 +1233,8 @@ static int pwrap_probe(struct platform_device *pdev)
 
 	ret = of_platform_populate(np, NULL, NULL, wrp->dev);
 	if (ret) {
-		dev_dbg(wrp->dev, "failed to create child devices at %s\n",
-				np->full_name);
+		dev_dbg(wrp->dev, "failed to create child devices at %pOF\n",
+				np);
 		goto err_out2;
 	}
 

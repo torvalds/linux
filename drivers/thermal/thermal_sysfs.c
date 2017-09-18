@@ -605,6 +605,24 @@ static int create_trip_attrs(struct thermal_zone_device *tz, int mask)
 	return 0;
 }
 
+/**
+ * destroy_trip_attrs() - destroy attributes for trip points
+ * @tz:		the thermal zone device
+ *
+ * helper function to free resources allocated by create_trip_attrs()
+ */
+static void destroy_trip_attrs(struct thermal_zone_device *tz)
+{
+	if (!tz)
+		return;
+
+	kfree(tz->trip_type_attrs);
+	kfree(tz->trip_temp_attrs);
+	if (tz->ops->get_trip_hyst)
+		kfree(tz->trip_hyst_attrs);
+	kfree(tz->trips_attribute_group.attrs);
+}
+
 int thermal_zone_create_device_groups(struct thermal_zone_device *tz,
 				      int mask)
 {
@@ -635,6 +653,17 @@ int thermal_zone_create_device_groups(struct thermal_zone_device *tz,
 	tz->device.groups = groups;
 
 	return 0;
+}
+
+void thermal_zone_destroy_device_groups(struct thermal_zone_device *tz)
+{
+	if (!tz)
+		return;
+
+	if (tz->trips)
+		destroy_trip_attrs(tz);
+
+	kfree(tz->device.groups);
 }
 
 /* sys I/F for cooling device */

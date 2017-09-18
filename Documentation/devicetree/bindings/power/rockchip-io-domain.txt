@@ -39,6 +39,8 @@ Required properties:
   - "rockchip,rk3368-pmu-io-voltage-domain" for rk3368 pmu-domains
   - "rockchip,rk3399-io-voltage-domain" for rk3399
   - "rockchip,rk3399-pmu-io-voltage-domain" for rk3399 pmu-domains
+  - "rockchip,rv1108-io-voltage-domain" for rv1108
+  - "rockchip,rv1108-pmu-io-voltage-domain" for rv1108 pmu-domains
 
 Deprecated properties:
 - rockchip,grf: phandle to the syscon managing the "general register files"

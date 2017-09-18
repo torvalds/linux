@@ -28,7 +28,7 @@ INTERVAL_TREE_DEFINE(struct vm_area_struct, shared.rb,
 /* Insert node immediately after prev in the interval tree */
 void vma_interval_tree_insert_after(struct vm_area_struct *node,
 				    struct vm_area_struct *prev,
-				    struct rb_root *root)
+				    struct rb_root_cached *root)
 {
 	struct rb_node **link;
 	struct vm_area_struct *parent;
@@ -55,7 +55,7 @@ void vma_interval_tree_insert_after(struct vm_area_struct *node,
 
 	node->shared.rb_subtree_last = last;
 	rb_link_node(&node->shared.rb, &parent->shared.rb, link);
-	rb_insert_augmented(&node->shared.rb, root,
+	rb_insert_augmented(&node->shared.rb, &root->rb_root,
 			    &vma_interval_tree_augment);
 }
 
@@ -74,7 +74,7 @@ INTERVAL_TREE_DEFINE(struct anon_vma_chain, rb, unsigned long, rb_subtree_last,
 		     static inline, __anon_vma_interval_tree)
 
 void anon_vma_interval_tree_insert(struct anon_vma_chain *node,
-				   struct rb_root *root)
+				   struct rb_root_cached *root)
 {
 #ifdef CONFIG_DEBUG_VM_RB
 	node->cached_vma_start = avc_start_pgoff(node);
@@ -84,13 +84,13 @@ void anon_vma_interval_tree_insert(struct anon_vma_chain *node,
 }
 
 void anon_vma_interval_tree_remove(struct anon_vma_chain *node,
-				   struct rb_root *root)
+				   struct rb_root_cached *root)
 {
 	__anon_vma_interval_tree_remove(node, root);
 }
 
 struct anon_vma_chain *
-anon_vma_interval_tree_iter_first(struct rb_root *root,
+anon_vma_interval_tree_iter_first(struct rb_root_cached *root,
 				  unsigned long first, unsigned long last)
 {
 	return __anon_vma_interval_tree_iter_first(root, first, last);

@@ -122,6 +122,24 @@ struct ath10k_ce_pipe {
 /* Copy Engine settable attributes */
 struct ce_attr;
 
+struct ath10k_bus_ops {
+	u32 (*read32)(struct ath10k *ar, u32 offset);
+	void (*write32)(struct ath10k *ar, u32 offset, u32 value);
+	int (*get_num_banks)(struct ath10k *ar);
+};
+
+static inline struct ath10k_ce *ath10k_ce_priv(struct ath10k *ar)
+{
+	return (struct ath10k_ce *)ar->ce_priv;
+}
+
+struct ath10k_ce {
+	/* protects CE info */
+	spinlock_t ce_lock;
+	const struct ath10k_bus_ops *bus_ops;
+	struct ath10k_ce_pipe ce_states[CE_COUNT_MAX];
+};
+
 /*==================Send====================*/
 
 /* ath10k_ce_send flags */
@@ -291,9 +309,13 @@ static inline u32 ath10k_ce_base_address(struct ath10k *ar, unsigned int ce_id)
 		CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_LSB)
 #define CE_WRAPPER_INTERRUPT_SUMMARY_ADDRESS			0x0000
 
-#define CE_INTERRUPT_SUMMARY(ar) \
-	CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_GET( \
-		ath10k_pci_read32((ar), CE_WRAPPER_BASE_ADDRESS + \
-		CE_WRAPPER_INTERRUPT_SUMMARY_ADDRESS))
+static inline u32 ath10k_ce_interrupt_summary(struct ath10k *ar)
+{
+	struct ath10k_ce *ce = ath10k_ce_priv(ar);
+
+	return CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_GET(
+		ce->bus_ops->read32((ar), CE_WRAPPER_BASE_ADDRESS +
+		CE_WRAPPER_INTERRUPT_SUMMARY_ADDRESS));
+}
 
 #endif /* _CE_H_ */

@@ -12,3 +12,7 @@ platform-$(CONFIG_MIPS_GENERIC)	+= generic/
 cflags-$(CONFIG_MIPS_GENERIC)	+= -I$(srctree)/arch/mips/include/asm/mach-generic
 load-$(CONFIG_MIPS_GENERIC)	+= 0xffffffff80100000
 all-$(CONFIG_MIPS_GENERIC)	:= vmlinux.gz.itb
+
+its-y					:= vmlinux.its.S
+its-$(CONFIG_FIT_IMAGE_FDT_BOSTON)	+= board-boston.its.S
+its-$(CONFIG_FIT_IMAGE_FDT_NI169445)	+= board-ni169445.its.S

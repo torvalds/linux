@@ -64,6 +64,20 @@ static const struct drm_crtc_funcs arc_pgu_crtc_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 };
 
+static enum drm_mode_status arc_pgu_crtc_mode_valid(struct drm_crtc *crtc,
+						    const struct drm_display_mode *mode)
+{
+	struct arcpgu_drm_private *arcpgu = crtc_to_arcpgu_priv(crtc);
+	long rate, clk_rate = mode->clock * 1000;
+	long diff = clk_rate / 200; /* +-0.5% allowed by HDMI spec */
+
+	rate = clk_round_rate(arcpgu->clk, clk_rate);
+	if ((max(rate, clk_rate) - min(rate, clk_rate) < diff) && (rate > 0))
+		return MODE_OK;
+
+	return MODE_NOCLOCK;
+}
+
 static void arc_pgu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct arcpgu_drm_private *arcpgu = crtc_to_arcpgu_priv(crtc);
@@ -106,7 +120,8 @@ static void arc_pgu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	clk_set_rate(arcpgu->clk, m->crtc_clock * 1000);
 }
 
-static void arc_pgu_crtc_enable(struct drm_crtc *crtc)
+static void arc_pgu_crtc_atomic_enable(struct drm_crtc *crtc,
+				       struct drm_crtc_state *old_state)
 {
 	struct arcpgu_drm_private *arcpgu = crtc_to_arcpgu_priv(crtc);
 
@@ -116,7 +131,8 @@ static void arc_pgu_crtc_enable(struct drm_crtc *crtc)
 		      ARCPGU_CTRL_ENABLE_MASK);
 }
 
-static void arc_pgu_crtc_disable(struct drm_crtc *crtc)
+static void arc_pgu_crtc_atomic_disable(struct drm_crtc *crtc,
+					struct drm_crtc_state *old_state)
 {
 	struct arcpgu_drm_private *arcpgu = crtc_to_arcpgu_priv(crtc);
 
@@ -127,20 +143,6 @@ static void arc_pgu_crtc_disable(struct drm_crtc *crtc)
 	arc_pgu_write(arcpgu, ARCPGU_REG_CTRL,
 			      arc_pgu_read(arcpgu, ARCPGU_REG_CTRL) &
 			      ~ARCPGU_CTRL_ENABLE_MASK);
-}
-
-static int arc_pgu_crtc_atomic_check(struct drm_crtc *crtc,
-				     struct drm_crtc_state *state)
-{
-	struct arcpgu_drm_private *arcpgu = crtc_to_arcpgu_priv(crtc);
-	struct drm_display_mode *mode = &state->adjusted_mode;
-	long rate, clk_rate = mode->clock * 1000;
-
-	rate = clk_round_rate(arcpgu->clk, clk_rate);
-	if (rate != clk_rate)
-		return -EINVAL;
-
-	return 0;
 }
 
 static void arc_pgu_crtc_atomic_begin(struct drm_crtc *crtc,
@@ -158,15 +160,13 @@ static void arc_pgu_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs arc_pgu_crtc_helper_funcs = {
+	.mode_valid	= arc_pgu_crtc_mode_valid,
 	.mode_set	= drm_helper_crtc_mode_set,
 	.mode_set_base	= drm_helper_crtc_mode_set_base,
 	.mode_set_nofb	= arc_pgu_crtc_mode_set_nofb,
-	.enable		= arc_pgu_crtc_enable,
-	.disable	= arc_pgu_crtc_disable,
-	.prepare	= arc_pgu_crtc_disable,
-	.commit		= arc_pgu_crtc_enable,
-	.atomic_check	= arc_pgu_crtc_atomic_check,
 	.atomic_begin	= arc_pgu_crtc_atomic_begin,
+	.atomic_enable	= arc_pgu_crtc_atomic_enable,
+	.atomic_disable	= arc_pgu_crtc_atomic_disable,
 };
 
 static void arc_pgu_plane_atomic_update(struct drm_plane *plane,
@@ -218,6 +218,7 @@ static struct drm_plane *arc_pgu_plane_init(struct drm_device *drm)
 
 	ret = drm_universal_plane_init(drm, plane, 0xff, &arc_pgu_plane_funcs,
 				       formats, ARRAY_SIZE(formats),
+				       NULL,
 				       DRM_PLANE_TYPE_PRIMARY, NULL);
 	if (ret)
 		return ERR_PTR(ret);

@@ -616,7 +616,7 @@ static netdev_tx_t dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
 		free_tx_fd(priv, &fd, NULL);
 	} else {
 		percpu_stats->tx_packets++;
-		percpu_stats->tx_bytes += skb->len;
+		percpu_stats->tx_bytes += dpaa2_fd_get_len(&fd);
 	}
 
 	return NETDEV_TX_OK;
@@ -656,7 +656,7 @@ static void dpaa2_eth_tx_conf(struct dpaa2_eth_priv *priv,
 		has_fas_errors = (fd_errors & DPAA2_FD_CTRL_FAERR) &&
 				 !!(dpaa2_fd_get_frc(fd) & DPAA2_FD_FRC_FASV);
 		if (net_ratelimit())
-			netdev_dbg(priv->net_dev, "TX frame FD error: %x08\n",
+			netdev_dbg(priv->net_dev, "TX frame FD error: 0x%08x\n",
 				   fd_errors);
 	}
 
@@ -670,7 +670,7 @@ static void dpaa2_eth_tx_conf(struct dpaa2_eth_priv *priv,
 	percpu_stats->tx_errors++;
 
 	if (has_fas_errors && net_ratelimit())
-		netdev_dbg(priv->net_dev, "TX frame FAS error: %x08\n",
+		netdev_dbg(priv->net_dev, "TX frame FAS error: 0x%08x\n",
 			   status & DPAA2_FAS_TX_ERR_MASK);
 }
 

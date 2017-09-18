@@ -1089,7 +1089,7 @@ bool nfs4_delegation_flush_on_close(const struct inode *inode)
 	delegation = rcu_dereference(nfsi->delegation);
 	if (delegation == NULL || !(delegation->type & FMODE_WRITE))
 		goto out;
-	if (nfsi->nrequests < delegation->pagemod_limit)
+	if (atomic_long_read(&nfsi->nrequests) < delegation->pagemod_limit)
 		ret = false;
 out:
 	rcu_read_unlock();

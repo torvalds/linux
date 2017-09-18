@@ -258,9 +258,13 @@ ifneq ($(SKIP_STACK_VALIDATION),1)
 
 __objtool_obj := $(objtree)/tools/objtool/objtool
 
-objtool_args = check
+objtool_args = $(if $(CONFIG_ORC_UNWINDER),orc generate,check)
+
 ifndef CONFIG_FRAME_POINTER
 objtool_args += --no-fp
+endif
+ifdef CONFIG_GCOV_KERNEL
+objtool_args += --no-unreachable
 endif
 
 # 'OBJECT_FILES_NON_STANDARD := y': skip objtool checking for a directory
@@ -275,6 +279,11 @@ objtool_obj = $(if $(patsubst y%,, \
 
 endif # SKIP_STACK_VALIDATION
 endif # CONFIG_STACK_VALIDATION
+
+# Rebuild all objects when objtool changes, or is enabled/disabled.
+objtool_dep = $(objtool_obj)					\
+	      $(wildcard include/config/orc/unwinder.h		\
+			 include/config/stack/validation.h)
 
 define rule_cc_o_c
 	$(call echo-cmd,checksrc) $(cmd_checksrc)			  \
@@ -298,13 +307,13 @@ cmd_undef_syms = echo
 endif
 
 # Built-in and composite module parts
-$(obj)/%.o: $(src)/%.c $(recordmcount_source) $(objtool_obj) FORCE
+$(obj)/%.o: $(src)/%.c $(recordmcount_source) $(objtool_dep) FORCE
 	$(call cmd,force_checksrc)
 	$(call if_changed_rule,cc_o_c)
 
 # Single-part modules are special since we need to mark them in $(MODVERDIR)
 
-$(single-used-m): $(obj)/%.o: $(src)/%.c $(recordmcount_source) $(objtool_obj) FORCE
+$(single-used-m): $(obj)/%.o: $(src)/%.c $(recordmcount_source) $(objtool_dep) FORCE
 	$(call cmd,force_checksrc)
 	$(call if_changed_rule,cc_o_c)
 	@{ echo $(@:.o=.ko); echo $@; \
@@ -399,7 +408,7 @@ cmd_modversions_S =								\
 endif
 endif
 
-$(obj)/%.o: $(src)/%.S $(objtool_obj) FORCE
+$(obj)/%.o: $(src)/%.S $(objtool_dep) FORCE
 	$(call if_changed_rule,as_o_S)
 
 targets += $(real-objs-y) $(real-objs-m) $(lib-y)

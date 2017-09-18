@@ -479,6 +479,50 @@ static bool xgbe_is_pfc_queue(struct xgbe_prv_data *pdata,
 	return false;
 }
 
+static void xgbe_set_vxlan_id(struct xgbe_prv_data *pdata)
+{
+	/* Program the VXLAN port */
+	XGMAC_IOWRITE_BITS(pdata, MAC_TIR, TNID, pdata->vxlan_port);
+
+	netif_dbg(pdata, drv, pdata->netdev, "VXLAN tunnel id set to %hx\n",
+		  pdata->vxlan_port);
+}
+
+static void xgbe_enable_vxlan(struct xgbe_prv_data *pdata)
+{
+	if (!pdata->hw_feat.vxn)
+		return;
+
+	/* Program the VXLAN port */
+	xgbe_set_vxlan_id(pdata);
+
+	/* Allow for IPv6/UDP zero-checksum VXLAN packets */
+	XGMAC_IOWRITE_BITS(pdata, MAC_PFR, VUCC, 1);
+
+	/* Enable VXLAN tunneling mode */
+	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, VNM, 0);
+	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, VNE, 1);
+
+	netif_dbg(pdata, drv, pdata->netdev, "VXLAN acceleration enabled\n");
+}
+
+static void xgbe_disable_vxlan(struct xgbe_prv_data *pdata)
+{
+	if (!pdata->hw_feat.vxn)
+		return;
+
+	/* Disable tunneling mode */
+	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, VNE, 0);
+
+	/* Clear IPv6/UDP zero-checksum VXLAN packets setting */
+	XGMAC_IOWRITE_BITS(pdata, MAC_PFR, VUCC, 0);
+
+	/* Clear the VXLAN port */
+	XGMAC_IOWRITE_BITS(pdata, MAC_TIR, TNID, 0);
+
+	netif_dbg(pdata, drv, pdata->netdev, "VXLAN acceleration disabled\n");
+}
+
 static int xgbe_disable_tx_flow_control(struct xgbe_prv_data *pdata)
 {
 	unsigned int max_q_count, q_count;
@@ -605,32 +649,38 @@ static void xgbe_config_flow_control(struct xgbe_prv_data *pdata)
 static void xgbe_enable_dma_interrupts(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_channel *channel;
-	unsigned int dma_ch_isr, dma_ch_ier;
-	unsigned int i;
+	unsigned int i, ver;
 
 	/* Set the interrupt mode if supported */
 	if (pdata->channel_irq_mode)
 		XGMAC_IOWRITE_BITS(pdata, DMA_MR, INTM,
 				   pdata->channel_irq_mode);
 
+	ver = XGMAC_GET_BITS(pdata->hw_feat.version, MAC_VR, SNPSVER);
+
 	for (i = 0; i < pdata->channel_count; i++) {
 		channel = pdata->channel[i];
 
 		/* Clear all the interrupts which are set */
-		dma_ch_isr = XGMAC_DMA_IOREAD(channel, DMA_CH_SR);
-		XGMAC_DMA_IOWRITE(channel, DMA_CH_SR, dma_ch_isr);
+		XGMAC_DMA_IOWRITE(channel, DMA_CH_SR,
+				  XGMAC_DMA_IOREAD(channel, DMA_CH_SR));
 
 		/* Clear all interrupt enable bits */
-		dma_ch_ier = 0;
+		channel->curr_ier = 0;
 
 		/* Enable following interrupts
 		 *   NIE  - Normal Interrupt Summary Enable
 		 *   AIE  - Abnormal Interrupt Summary Enable
 		 *   FBEE - Fatal Bus Error Enable
 		 */
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, NIE, 1);
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, AIE, 1);
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, FBEE, 1);
+		if (ver < 0x21) {
+			XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, NIE20, 1);
+			XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, AIE20, 1);
+		} else {
+			XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, NIE, 1);
+			XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, AIE, 1);
+		}
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, FBEE, 1);
 
 		if (channel->tx_ring) {
 			/* Enable the following Tx interrupts
@@ -639,7 +689,8 @@ static void xgbe_enable_dma_interrupts(struct xgbe_prv_data *pdata)
 			 *          mode)
 			 */
 			if (!pdata->per_channel_irq || pdata->channel_irq_mode)
-				XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TIE, 1);
+				XGMAC_SET_BITS(channel->curr_ier,
+					       DMA_CH_IER, TIE, 1);
 		}
 		if (channel->rx_ring) {
 			/* Enable following Rx interrupts
@@ -648,12 +699,13 @@ static void xgbe_enable_dma_interrupts(struct xgbe_prv_data *pdata)
 			 *          per channel interrupts in edge triggered
 			 *          mode)
 			 */
-			XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RBUE, 1);
+			XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, RBUE, 1);
 			if (!pdata->per_channel_irq || pdata->channel_irq_mode)
-				XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RIE, 1);
+				XGMAC_SET_BITS(channel->curr_ier,
+					       DMA_CH_IER, RIE, 1);
 		}
 
-		XGMAC_DMA_IOWRITE(channel, DMA_CH_IER, dma_ch_ier);
+		XGMAC_DMA_IOWRITE(channel, DMA_CH_IER, channel->curr_ier);
 	}
 }
 
@@ -1608,7 +1660,8 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	struct xgbe_ring_data *rdata;
 	struct xgbe_ring_desc *rdesc;
 	struct xgbe_packet_data *packet = &ring->packet_data;
-	unsigned int csum, tso, vlan;
+	unsigned int tx_packets, tx_bytes;
+	unsigned int csum, tso, vlan, vxlan;
 	unsigned int tso_context, vlan_context;
 	unsigned int tx_set_ic;
 	int start_index = ring->cur;
@@ -1617,12 +1670,17 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 
 	DBGPR("-->xgbe_dev_xmit\n");
 
+	tx_packets = packet->tx_packets;
+	tx_bytes = packet->tx_bytes;
+
 	csum = XGMAC_GET_BITS(packet->attributes, TX_PACKET_ATTRIBUTES,
 			      CSUM_ENABLE);
 	tso = XGMAC_GET_BITS(packet->attributes, TX_PACKET_ATTRIBUTES,
 			     TSO_ENABLE);
 	vlan = XGMAC_GET_BITS(packet->attributes, TX_PACKET_ATTRIBUTES,
 			      VLAN_CTAG);
+	vxlan = XGMAC_GET_BITS(packet->attributes, TX_PACKET_ATTRIBUTES,
+			       VXLAN);
 
 	if (tso && (packet->mss != ring->tx.cur_mss))
 		tso_context = 1;
@@ -1644,13 +1702,12 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	 *     - Addition of Tx frame count to the frame count since the
 	 *       last interrupt was set does not exceed the frame count setting
 	 */
-	ring->coalesce_count += packet->tx_packets;
+	ring->coalesce_count += tx_packets;
 	if (!pdata->tx_frames)
 		tx_set_ic = 0;
-	else if (packet->tx_packets > pdata->tx_frames)
+	else if (tx_packets > pdata->tx_frames)
 		tx_set_ic = 1;
-	else if ((ring->coalesce_count % pdata->tx_frames) <
-		 packet->tx_packets)
+	else if ((ring->coalesce_count % pdata->tx_frames) < tx_packets)
 		tx_set_ic = 1;
 	else
 		tx_set_ic = 0;
@@ -1740,7 +1797,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, TCPHDRLEN,
 				  packet->tcp_header_len / 4);
 
-		pdata->ext_stats.tx_tso_packets++;
+		pdata->ext_stats.tx_tso_packets += tx_packets;
 	} else {
 		/* Enable CRC and Pad Insertion */
 		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, CPC, 0);
@@ -1753,6 +1810,13 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 		/* Set the total length to be transmitted */
 		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, FL,
 				  packet->length);
+	}
+
+	if (vxlan) {
+		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, VNP,
+				  TX_NORMAL_DESC3_VXLAN_PACKET);
+
+		pdata->ext_stats.tx_vxlan_packets += packet->tx_packets;
 	}
 
 	for (i = cur_index - start_index + 1; i < packet->rdesc_count; i++) {
@@ -1788,8 +1852,11 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 		XGMAC_SET_BITS_LE(rdesc->desc2, TX_NORMAL_DESC2, IC, 1);
 
 	/* Save the Tx info to report back during cleanup */
-	rdata->tx.packets = packet->tx_packets;
-	rdata->tx.bytes = packet->tx_bytes;
+	rdata->tx.packets = tx_packets;
+	rdata->tx.bytes = tx_bytes;
+
+	pdata->ext_stats.txq_packets[channel->queue_index] += tx_packets;
+	pdata->ext_stats.txq_bytes[channel->queue_index] += tx_bytes;
 
 	/* In case the Tx DMA engine is running, make sure everything
 	 * is written to the descriptor(s) before setting the OWN bit
@@ -1913,9 +1980,28 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 	rdata->rx.len = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, PL);
 
 	/* Set checksum done indicator as appropriate */
-	if (netdev->features & NETIF_F_RXCSUM)
+	if (netdev->features & NETIF_F_RXCSUM) {
 		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
 			       CSUM_DONE, 1);
+		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+			       TNPCSUM_DONE, 1);
+	}
+
+	/* Set the tunneled packet indicator */
+	if (XGMAC_GET_BITS_LE(rdesc->desc2, RX_NORMAL_DESC2, TNP)) {
+		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+			       TNP, 1);
+		pdata->ext_stats.rx_vxlan_packets++;
+
+		l34t = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, L34T);
+		switch (l34t) {
+		case RX_DESC3_L34T_IPV4_UNKNOWN:
+		case RX_DESC3_L34T_IPV6_UNKNOWN:
+			XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+				       TNPCSUM_DONE, 0);
+			break;
+		}
+	}
 
 	/* Check for errors (only valid in last descriptor) */
 	err = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, ES);
@@ -1935,13 +2021,29 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 				  packet->vlan_ctag);
 		}
 	} else {
-		if ((etlt == 0x05) || (etlt == 0x06))
+		unsigned int tnp = XGMAC_GET_BITS(packet->attributes,
+						  RX_PACKET_ATTRIBUTES, TNP);
+
+		if ((etlt == 0x05) || (etlt == 0x06)) {
 			XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
 				       CSUM_DONE, 0);
-		else
+			XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+				       TNPCSUM_DONE, 0);
+			pdata->ext_stats.rx_csum_errors++;
+		} else if (tnp && ((etlt == 0x09) || (etlt == 0x0a))) {
+			XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+				       CSUM_DONE, 0);
+			XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+				       TNPCSUM_DONE, 0);
+			pdata->ext_stats.rx_vxlan_csum_errors++;
+		} else {
 			XGMAC_SET_BITS(packet->errors, RX_PACKET_ERRORS,
 				       FRAME, 1);
+		}
 	}
+
+	pdata->ext_stats.rxq_packets[channel->queue_index]++;
+	pdata->ext_stats.rxq_bytes[channel->queue_index] += rdata->rx.len;
 
 	DBGPR("<--xgbe_dev_read: %s - descriptor=%u (cur=%d)\n", channel->name,
 	      ring->cur & (ring->rdesc_count - 1), ring->cur);
@@ -1964,44 +2066,40 @@ static int xgbe_is_last_desc(struct xgbe_ring_desc *rdesc)
 static int xgbe_enable_int(struct xgbe_channel *channel,
 			   enum xgbe_int int_id)
 {
-	unsigned int dma_ch_ier;
-
-	dma_ch_ier = XGMAC_DMA_IOREAD(channel, DMA_CH_IER);
-
 	switch (int_id) {
 	case XGMAC_INT_DMA_CH_SR_TI:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TIE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, TIE, 1);
 		break;
 	case XGMAC_INT_DMA_CH_SR_TPS:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TXSE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, TXSE, 1);
 		break;
 	case XGMAC_INT_DMA_CH_SR_TBU:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TBUE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, TBUE, 1);
 		break;
 	case XGMAC_INT_DMA_CH_SR_RI:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RIE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, RIE, 1);
 		break;
 	case XGMAC_INT_DMA_CH_SR_RBU:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RBUE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, RBUE, 1);
 		break;
 	case XGMAC_INT_DMA_CH_SR_RPS:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RSE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, RSE, 1);
 		break;
 	case XGMAC_INT_DMA_CH_SR_TI_RI:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TIE, 1);
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RIE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, TIE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, RIE, 1);
 		break;
 	case XGMAC_INT_DMA_CH_SR_FBE:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, FBEE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, FBEE, 1);
 		break;
 	case XGMAC_INT_DMA_ALL:
-		dma_ch_ier |= channel->saved_ier;
+		channel->curr_ier |= channel->saved_ier;
 		break;
 	default:
 		return -1;
 	}
 
-	XGMAC_DMA_IOWRITE(channel, DMA_CH_IER, dma_ch_ier);
+	XGMAC_DMA_IOWRITE(channel, DMA_CH_IER, channel->curr_ier);
 
 	return 0;
 }
@@ -2009,45 +2107,41 @@ static int xgbe_enable_int(struct xgbe_channel *channel,
 static int xgbe_disable_int(struct xgbe_channel *channel,
 			    enum xgbe_int int_id)
 {
-	unsigned int dma_ch_ier;
-
-	dma_ch_ier = XGMAC_DMA_IOREAD(channel, DMA_CH_IER);
-
 	switch (int_id) {
 	case XGMAC_INT_DMA_CH_SR_TI:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TIE, 0);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, TIE, 0);
 		break;
 	case XGMAC_INT_DMA_CH_SR_TPS:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TXSE, 0);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, TXSE, 0);
 		break;
 	case XGMAC_INT_DMA_CH_SR_TBU:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TBUE, 0);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, TBUE, 0);
 		break;
 	case XGMAC_INT_DMA_CH_SR_RI:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RIE, 0);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, RIE, 0);
 		break;
 	case XGMAC_INT_DMA_CH_SR_RBU:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RBUE, 0);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, RBUE, 0);
 		break;
 	case XGMAC_INT_DMA_CH_SR_RPS:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RSE, 0);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, RSE, 0);
 		break;
 	case XGMAC_INT_DMA_CH_SR_TI_RI:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TIE, 0);
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RIE, 0);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, TIE, 0);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, RIE, 0);
 		break;
 	case XGMAC_INT_DMA_CH_SR_FBE:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, FBEE, 0);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, FBEE, 0);
 		break;
 	case XGMAC_INT_DMA_ALL:
-		channel->saved_ier = dma_ch_ier & XGBE_DMA_INTERRUPT_MASK;
-		dma_ch_ier &= ~XGBE_DMA_INTERRUPT_MASK;
+		channel->saved_ier = channel->curr_ier;
+		channel->curr_ier = 0;
 		break;
 	default:
 		return -1;
 	}
 
-	XGMAC_DMA_IOWRITE(channel, DMA_CH_IER, dma_ch_ier);
+	XGMAC_DMA_IOWRITE(channel, DMA_CH_IER, channel->curr_ier);
 
 	return 0;
 }
@@ -3533,6 +3627,11 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 	/* For ECC */
 	hw_if->disable_ecc_ded = xgbe_disable_ecc_ded;
 	hw_if->disable_ecc_sec = xgbe_disable_ecc_sec;
+
+	/* For VXLAN */
+	hw_if->enable_vxlan = xgbe_enable_vxlan;
+	hw_if->disable_vxlan = xgbe_disable_vxlan;
+	hw_if->set_vxlan_id = xgbe_set_vxlan_id;
 
 	DBGPR("<--xgbe_init_function_ptrs\n");
 }

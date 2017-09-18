@@ -141,6 +141,9 @@ static bool samples_same(const struct perf_sample *s1,
 		}
 	}
 
+	if (type & PERF_SAMPLE_PHYS_ADDR)
+		COMP(phys_addr);
+
 	return true;
 }
 
@@ -206,6 +209,7 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 			.mask	= sample_regs,
 			.regs	= regs,
 		},
+		.phys_addr	= 113,
 	};
 	struct sample_read_value values[] = {{1, 5}, {9, 3}, {2, 7}, {6, 4},};
 	struct perf_sample sample_out;
@@ -292,7 +296,7 @@ out_free:
  * checks sample format bits separately and together.  If the test passes %0 is
  * returned, otherwise %-1 is returned.
  */
-int test__sample_parsing(int subtest __maybe_unused)
+int test__sample_parsing(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	const u64 rf[] = {4, 5, 6, 7, 12, 13, 14, 15};
 	u64 sample_type;
@@ -305,7 +309,7 @@ int test__sample_parsing(int subtest __maybe_unused)
 	 * were added.  Please actually update the test rather than just change
 	 * the condition below.
 	 */
-	if (PERF_SAMPLE_MAX > PERF_SAMPLE_REGS_INTR << 1) {
+	if (PERF_SAMPLE_MAX > PERF_SAMPLE_PHYS_ADDR << 1) {
 		pr_debug("sample format has changed, some new PERF_SAMPLE_ bit was introduced - test needs updating\n");
 		return -1;
 	}

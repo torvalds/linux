@@ -69,7 +69,7 @@
 #include <net/mac80211.h>
 
 #include "mvm.h"
-#include "fw-api-scan.h"
+#include "fw/api/scan.h"
 #include "iwl-io.h"
 
 #define IWL_DENSE_EBS_SCAN_RATIO 5
@@ -743,7 +743,7 @@ static inline bool iwl_mvm_scan_use_ebs(struct iwl_mvm *mvm,
 	 *	4. it's not a p2p find operation.
 	 */
 	return ((capa->flags & IWL_UCODE_TLV_FLAGS_EBS_SUPPORT) &&
-		mvm->last_ebs_successful &&
+		mvm->last_ebs_successful && IWL_MVM_ENABLE_EBS &&
 		vif->type != NL80211_IFTYPE_P2P_DEVICE);
 }
 

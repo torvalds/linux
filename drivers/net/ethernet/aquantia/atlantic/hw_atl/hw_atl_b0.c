@@ -645,6 +645,12 @@ static int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self,
 				buff->is_udp_cso = buff->is_cso_err ? 0U : 1U;
 			else if (0x0U == (pkt_type & 0x1CU))
 				buff->is_tcp_cso = buff->is_cso_err ? 0U : 1U;
+
+			/* Checksum offload workaround for small packets */
+			if (rxd_wb->pkt_len <= 60) {
+				buff->is_ip_cso = 0U;
+				buff->is_cso_err = 0U;
+			}
 		}
 
 		is_err &= ~0x18U;

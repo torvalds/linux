@@ -1157,7 +1157,7 @@ fail:
 
 /* List of boards that we are trying to support */
 
-static struct pci_device_id ark_devices[] = {
+static const struct pci_device_id ark_devices[] = {
 	{PCI_DEVICE(0xEDD8, 0xA099)},
 	{0, 0, 0, 0, 0, 0, 0}
 };

@@ -51,6 +51,7 @@ struct vmw_cmdbuf_context {
 	struct list_head hw_submitted;
 	struct list_head preempted;
 	unsigned num_hw_submitted;
+	bool block_submission;
 };
 
 /**
@@ -60,6 +61,9 @@ struct vmw_cmdbuf_context {
  * kernel command submissions, @cur.
  * @space_mutex: Mutex to protect against starvation when we allocate
  * main pool buffer space.
+ * @error_mutex: Mutex to serialize the work queue error handling.
+ * Note this is not needed if the same workqueue handler
+ * can't race with itself...
  * @work: A struct work_struct implementeing command buffer error handling.
  * Immutable.
  * @dev_priv: Pointer to the device private struct. Immutable.
@@ -85,7 +89,6 @@ struct vmw_cmdbuf_context {
  * Internal protection.
  * @dheaders: Pool of DMA memory for device command buffer headers with trailing
  * space for inline data. Internal protection.
- * @tasklet: Tasklet struct for irq processing. Immutable.
  * @alloc_queue: Wait queue for processes waiting to allocate command buffer
  * space.
  * @idle_queue: Wait queue for processes waiting for command buffer idle.
@@ -102,6 +105,7 @@ struct vmw_cmdbuf_context {
 struct vmw_cmdbuf_man {
 	struct mutex cur_mutex;
 	struct mutex space_mutex;
+	struct mutex error_mutex;
 	struct work_struct work;
 	struct vmw_private *dev_priv;
 	struct vmw_cmdbuf_context ctx[SVGA_CB_CONTEXT_MAX];
@@ -117,7 +121,6 @@ struct vmw_cmdbuf_man {
 	spinlock_t lock;
 	struct dma_pool *headers;
 	struct dma_pool *dheaders;
-	struct tasklet_struct tasklet;
 	wait_queue_head_t alloc_queue;
 	wait_queue_head_t idle_queue;
 	bool irq_on;
@@ -181,12 +184,13 @@ struct vmw_cmdbuf_alloc_info {
 };
 
 /* Loop over each context in the command buffer manager. */
-#define for_each_cmdbuf_ctx(_man, _i, _ctx) \
+#define for_each_cmdbuf_ctx(_man, _i, _ctx)				\
 	for (_i = 0, _ctx = &(_man)->ctx[0]; (_i) < SVGA_CB_CONTEXT_MAX; \
 	     ++(_i), ++(_ctx))
 
-static int vmw_cmdbuf_startstop(struct vmw_cmdbuf_man *man, bool enable);
-
+static int vmw_cmdbuf_startstop(struct vmw_cmdbuf_man *man, u32 context,
+				bool enable);
+static int vmw_cmdbuf_preempt(struct vmw_cmdbuf_man *man, u32 context);
 
 /**
  * vmw_cmdbuf_cur_lock - Helper to lock the cur_mutex.
@@ -278,9 +282,9 @@ void vmw_cmdbuf_header_free(struct vmw_cmdbuf_header *header)
 		vmw_cmdbuf_header_inline_free(header);
 		return;
 	}
-	spin_lock_bh(&man->lock);
+	spin_lock(&man->lock);
 	__vmw_cmdbuf_header_free(header);
-	spin_unlock_bh(&man->lock);
+	spin_unlock(&man->lock);
 }
 
 
@@ -331,7 +335,8 @@ static void vmw_cmdbuf_ctx_submit(struct vmw_cmdbuf_man *man,
 				  struct vmw_cmdbuf_context *ctx)
 {
 	while (ctx->num_hw_submitted < man->max_hw_submitted &&
-	      !list_empty(&ctx->submitted)) {
+	       !list_empty(&ctx->submitted) &&
+	       !ctx->block_submission) {
 		struct vmw_cmdbuf_header *entry;
 		SVGACBStatus status;
 
@@ -386,12 +391,17 @@ static void vmw_cmdbuf_ctx_process(struct vmw_cmdbuf_man *man,
 			__vmw_cmdbuf_header_free(entry);
 			break;
 		case SVGA_CB_STATUS_COMMAND_ERROR:
-		case SVGA_CB_STATUS_CB_HEADER_ERROR:
+			entry->cb_header->status = SVGA_CB_STATUS_NONE;
 			list_add_tail(&entry->list, &man->error);
 			schedule_work(&man->work);
 			break;
 		case SVGA_CB_STATUS_PREEMPTED:
-			list_add(&entry->list, &ctx->preempted);
+			entry->cb_header->status = SVGA_CB_STATUS_NONE;
+			list_add_tail(&entry->list, &ctx->preempted);
+			break;
+		case SVGA_CB_STATUS_CB_HEADER_ERROR:
+			WARN_ONCE(true, "Command buffer header error.\n");
+			__vmw_cmdbuf_header_free(entry);
 			break;
 		default:
 			WARN_ONCE(true, "Undefined command buffer status.\n");
@@ -468,20 +478,17 @@ static void vmw_cmdbuf_ctx_add(struct vmw_cmdbuf_man *man,
 }
 
 /**
- * vmw_cmdbuf_man_tasklet - The main part of the command buffer interrupt
- * handler implemented as a tasklet.
+ * vmw_cmdbuf_irqthread - The main part of the command buffer interrupt
+ * handler implemented as a threaded irq task.
  *
- * @data: Tasklet closure. A pointer to the command buffer manager cast to
- * an unsigned long.
+ * @man: Pointer to the command buffer manager.
  *
- * The bottom half (tasklet) of the interrupt handler simply calls into the
+ * The bottom half of the interrupt handler simply calls into the
  * command buffer processor to free finished buffers and submit any
  * queued buffers to hardware.
  */
-static void vmw_cmdbuf_man_tasklet(unsigned long data)
+void vmw_cmdbuf_irqthread(struct vmw_cmdbuf_man *man)
 {
-	struct vmw_cmdbuf_man *man = (struct vmw_cmdbuf_man *) data;
-
 	spin_lock(&man->lock);
 	vmw_cmdbuf_man_process(man);
 	spin_unlock(&man->lock);
@@ -502,24 +509,112 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 		container_of(work, struct vmw_cmdbuf_man, work);
 	struct vmw_cmdbuf_header *entry, *next;
 	uint32_t dummy;
-	bool restart = false;
+	bool restart[SVGA_CB_CONTEXT_MAX];
+	bool send_fence = false;
+	struct list_head restart_head[SVGA_CB_CONTEXT_MAX];
+	int i;
+	struct vmw_cmdbuf_context *ctx;
 
-	spin_lock_bh(&man->lock);
-	list_for_each_entry_safe(entry, next, &man->error, list) {
-		restart = true;
-		DRM_ERROR("Command buffer error.\n");
-
-		list_del(&entry->list);
-		__vmw_cmdbuf_header_free(entry);
-		wake_up_all(&man->idle_queue);
+	for_each_cmdbuf_ctx(man, i, ctx) {
+		INIT_LIST_HEAD(&restart_head[i]);
+		restart[i] = false;
 	}
-	spin_unlock_bh(&man->lock);
 
-	if (restart && vmw_cmdbuf_startstop(man, true))
-		DRM_ERROR("Failed restarting command buffer context 0.\n");
+	mutex_lock(&man->error_mutex);
+	spin_lock(&man->lock);
+	list_for_each_entry_safe(entry, next, &man->error, list) {
+		SVGACBHeader *cb_hdr = entry->cb_header;
+		SVGA3dCmdHeader *header = (SVGA3dCmdHeader *)
+			(entry->cmd + cb_hdr->errorOffset);
+		u32 error_cmd_size, new_start_offset;
+		const char *cmd_name;
+
+		list_del_init(&entry->list);
+		restart[entry->cb_context] = true;
+
+		if (!vmw_cmd_describe(header, &error_cmd_size, &cmd_name)) {
+			DRM_ERROR("Unknown command causing device error.\n");
+			DRM_ERROR("Command buffer offset is %lu\n",
+				  (unsigned long) cb_hdr->errorOffset);
+			__vmw_cmdbuf_header_free(entry);
+			send_fence = true;
+			continue;
+		}
+
+		DRM_ERROR("Command \"%s\" causing device error.\n", cmd_name);
+		DRM_ERROR("Command buffer offset is %lu\n",
+			  (unsigned long) cb_hdr->errorOffset);
+		DRM_ERROR("Command size is %lu\n",
+			  (unsigned long) error_cmd_size);
+
+		new_start_offset = cb_hdr->errorOffset + error_cmd_size;
+
+		if (new_start_offset >= cb_hdr->length) {
+			__vmw_cmdbuf_header_free(entry);
+			send_fence = true;
+			continue;
+		}
+
+		if (man->using_mob)
+			cb_hdr->ptr.mob.mobOffset += new_start_offset;
+		else
+			cb_hdr->ptr.pa += (u64) new_start_offset;
+
+		entry->cmd += new_start_offset;
+		cb_hdr->length -= new_start_offset;
+		cb_hdr->errorOffset = 0;
+		cb_hdr->offset = 0;
+		list_add_tail(&entry->list, &restart_head[entry->cb_context]);
+		man->ctx[entry->cb_context].block_submission = true;
+	}
+	spin_unlock(&man->lock);
+
+	/* Preempt all contexts with errors */
+	for_each_cmdbuf_ctx(man, i, ctx) {
+		if (ctx->block_submission && vmw_cmdbuf_preempt(man, i))
+			DRM_ERROR("Failed preempting command buffer "
+				  "context %u.\n", i);
+	}
+
+	spin_lock(&man->lock);
+	for_each_cmdbuf_ctx(man, i, ctx) {
+		if (!ctx->block_submission)
+			continue;
+
+		/* Move preempted command buffers to the preempted queue. */
+		vmw_cmdbuf_ctx_process(man, ctx, &dummy);
+
+		/*
+		 * Add the preempted queue after the command buffer
+		 * that caused an error.
+		 */
+		list_splice_init(&ctx->preempted, restart_head[i].prev);
+
+		/*
+		 * Finally add all command buffers first in the submitted
+		 * queue, to rerun them.
+		 */
+		list_splice_init(&restart_head[i], &ctx->submitted);
+
+		ctx->block_submission = false;
+	}
+
+	vmw_cmdbuf_man_process(man);
+	spin_unlock(&man->lock);
+
+	for_each_cmdbuf_ctx(man, i, ctx) {
+		if (restart[i] && vmw_cmdbuf_startstop(man, i, true))
+			DRM_ERROR("Failed restarting command buffer "
+				  "context %u.\n", i);
+	}
 
 	/* Send a new fence in case one was removed */
-	vmw_fifo_send_fence(man->dev_priv, &dummy);
+	if (send_fence) {
+		vmw_fifo_send_fence(man->dev_priv, &dummy);
+		wake_up_all(&man->idle_queue);
+	}
+
+	mutex_unlock(&man->error_mutex);
 }
 
 /**
@@ -536,7 +631,7 @@ static bool vmw_cmdbuf_man_idle(struct vmw_cmdbuf_man *man,
 	bool idle = false;
 	int i;
 
-	spin_lock_bh(&man->lock);
+	spin_lock(&man->lock);
 	vmw_cmdbuf_man_process(man);
 	for_each_cmdbuf_ctx(man, i, ctx) {
 		if (!list_empty(&ctx->submitted) ||
@@ -548,7 +643,7 @@ static bool vmw_cmdbuf_man_idle(struct vmw_cmdbuf_man *man,
 	idle = list_empty(&man->error);
 
 out_unlock:
-	spin_unlock_bh(&man->lock);
+	spin_unlock(&man->lock);
 
 	return idle;
 }
@@ -571,7 +666,7 @@ static void __vmw_cmdbuf_cur_flush(struct vmw_cmdbuf_man *man)
 	if (!cur)
 		return;
 
-	spin_lock_bh(&man->lock);
+	spin_lock(&man->lock);
 	if (man->cur_pos == 0) {
 		__vmw_cmdbuf_header_free(cur);
 		goto out_unlock;
@@ -580,7 +675,7 @@ static void __vmw_cmdbuf_cur_flush(struct vmw_cmdbuf_man *man)
 	man->cur->cb_header->length = man->cur_pos;
 	vmw_cmdbuf_ctx_add(man, man->cur, SVGA_CB_CONTEXT_0);
 out_unlock:
-	spin_unlock_bh(&man->lock);
+	spin_unlock(&man->lock);
 	man->cur = NULL;
 	man->cur_pos = 0;
 }
@@ -673,14 +768,14 @@ static bool vmw_cmdbuf_try_alloc(struct vmw_cmdbuf_man *man,
 		return true;
  
 	memset(info->node, 0, sizeof(*info->node));
-	spin_lock_bh(&man->lock);
+	spin_lock(&man->lock);
 	ret = drm_mm_insert_node(&man->mm, info->node, info->page_size);
 	if (ret) {
 		vmw_cmdbuf_man_process(man);
 		ret = drm_mm_insert_node(&man->mm, info->node, info->page_size);
 	}
 
-	spin_unlock_bh(&man->lock);
+	spin_unlock(&man->lock);
 	info->done = !ret;
 
 	return info->done;
@@ -801,9 +896,9 @@ static int vmw_cmdbuf_space_pool(struct vmw_cmdbuf_man *man,
 	return 0;
 
 out_no_cb_header:
-	spin_lock_bh(&man->lock);
+	spin_lock(&man->lock);
 	drm_mm_remove_node(&header->node);
-	spin_unlock_bh(&man->lock);
+	spin_unlock(&man->lock);
 
 	return ret;
 }
@@ -1023,18 +1118,6 @@ void vmw_cmdbuf_commit(struct vmw_cmdbuf_man *man, size_t size,
 	vmw_cmdbuf_cur_unlock(man);
 }
 
-/**
- * vmw_cmdbuf_tasklet_schedule - Schedule the interrupt handler bottom half.
- *
- * @man: The command buffer manager.
- */
-void vmw_cmdbuf_tasklet_schedule(struct vmw_cmdbuf_man *man)
-{
-	if (!man)
-		return;
-
-	tasklet_schedule(&man->tasklet);
-}
 
 /**
  * vmw_cmdbuf_send_device_command - Send a command through the device context.
@@ -1059,9 +1142,9 @@ static int vmw_cmdbuf_send_device_command(struct vmw_cmdbuf_man *man,
 	memcpy(cmd, command, size);
 	header->cb_header->length = size;
 	header->cb_context = SVGA_CB_CONTEXT_DEVICE;
-	spin_lock_bh(&man->lock);
+	spin_lock(&man->lock);
 	status = vmw_cmdbuf_header_submit(header);
-	spin_unlock_bh(&man->lock);
+	spin_unlock(&man->lock);
 	vmw_cmdbuf_header_free(header);
 
 	if (status != SVGA_CB_STATUS_COMPLETED) {
@@ -1074,6 +1157,29 @@ static int vmw_cmdbuf_send_device_command(struct vmw_cmdbuf_man *man,
 }
 
 /**
+ * vmw_cmdbuf_preempt - Send a preempt command through the device
+ * context.
+ *
+ * @man: The command buffer manager.
+ *
+ * Synchronously sends a preempt command.
+ */
+static int vmw_cmdbuf_preempt(struct vmw_cmdbuf_man *man, u32 context)
+{
+	struct {
+		uint32 id;
+		SVGADCCmdPreempt body;
+	} __packed cmd;
+
+	cmd.id = SVGA_DC_CMD_PREEMPT;
+	cmd.body.context = SVGA_CB_CONTEXT_0 + context;
+	cmd.body.ignoreIDZero = 0;
+
+	return vmw_cmdbuf_send_device_command(man, &cmd, sizeof(cmd));
+}
+
+
+/**
  * vmw_cmdbuf_startstop - Send a start / stop command through the device
  * context.
  *
@@ -1082,7 +1188,7 @@ static int vmw_cmdbuf_send_device_command(struct vmw_cmdbuf_man *man,
  *
  * Synchronously sends a device start / stop context command.
  */
-static int vmw_cmdbuf_startstop(struct vmw_cmdbuf_man *man,
+static int vmw_cmdbuf_startstop(struct vmw_cmdbuf_man *man, u32 context,
 				bool enable)
 {
 	struct {
@@ -1092,7 +1198,7 @@ static int vmw_cmdbuf_startstop(struct vmw_cmdbuf_man *man,
 
 	cmd.id = SVGA_DC_CMD_START_STOP_CONTEXT;
 	cmd.body.enable = (enable) ? 1 : 0;
-	cmd.body.context = SVGA_CB_CONTEXT_0;
+	cmd.body.context = SVGA_CB_CONTEXT_0 + context;
 
 	return vmw_cmdbuf_send_device_command(man, &cmd, sizeof(cmd));
 }
@@ -1191,7 +1297,7 @@ struct vmw_cmdbuf_man *vmw_cmdbuf_man_create(struct vmw_private *dev_priv)
 {
 	struct vmw_cmdbuf_man *man;
 	struct vmw_cmdbuf_context *ctx;
-	int i;
+	unsigned int i;
 	int ret;
 
 	if (!(dev_priv->capabilities & SVGA_CAP_COMMAND_BUFFERS))
@@ -1226,8 +1332,7 @@ struct vmw_cmdbuf_man *vmw_cmdbuf_man_create(struct vmw_private *dev_priv)
 	spin_lock_init(&man->lock);
 	mutex_init(&man->cur_mutex);
 	mutex_init(&man->space_mutex);
-	tasklet_init(&man->tasklet, vmw_cmdbuf_man_tasklet,
-		     (unsigned long) man);
+	mutex_init(&man->error_mutex);
 	man->default_size = VMW_CMDBUF_INLINE_SIZE;
 	init_waitqueue_head(&man->alloc_queue);
 	init_waitqueue_head(&man->idle_queue);
@@ -1236,11 +1341,14 @@ struct vmw_cmdbuf_man *vmw_cmdbuf_man_create(struct vmw_private *dev_priv)
 	INIT_WORK(&man->work, &vmw_cmdbuf_work_func);
 	vmw_generic_waiter_add(dev_priv, SVGA_IRQFLAG_ERROR,
 			       &dev_priv->error_waiters);
-	ret = vmw_cmdbuf_startstop(man, true);
-	if (ret) {
-		DRM_ERROR("Failed starting command buffer context 0.\n");
-		vmw_cmdbuf_man_destroy(man);
-		return ERR_PTR(ret);
+	for_each_cmdbuf_ctx(man, i, ctx) {
+		ret = vmw_cmdbuf_startstop(man, i, true);
+		if (ret) {
+			DRM_ERROR("Failed starting command buffer "
+				  "context %u.\n", i);
+			vmw_cmdbuf_man_destroy(man);
+			return ERR_PTR(ret);
+		}
 	}
 
 	return man;
@@ -1290,18 +1398,24 @@ void vmw_cmdbuf_remove_pool(struct vmw_cmdbuf_man *man)
  */
 void vmw_cmdbuf_man_destroy(struct vmw_cmdbuf_man *man)
 {
+	struct vmw_cmdbuf_context *ctx;
+	unsigned int i;
+
 	WARN_ON_ONCE(man->has_pool);
 	(void) vmw_cmdbuf_idle(man, false, 10*HZ);
-	if (vmw_cmdbuf_startstop(man, false))
-		DRM_ERROR("Failed stopping command buffer context 0.\n");
+
+	for_each_cmdbuf_ctx(man, i, ctx)
+		if (vmw_cmdbuf_startstop(man, i, false))
+			DRM_ERROR("Failed stopping command buffer "
+				  "context %u.\n", i);
 
 	vmw_generic_waiter_remove(man->dev_priv, SVGA_IRQFLAG_ERROR,
 				  &man->dev_priv->error_waiters);
-	tasklet_kill(&man->tasklet);
 	(void) cancel_work_sync(&man->work);
 	dma_pool_destroy(man->dheaders);
 	dma_pool_destroy(man->headers);
 	mutex_destroy(&man->cur_mutex);
 	mutex_destroy(&man->space_mutex);
+	mutex_destroy(&man->error_mutex);
 	kfree(man);
 }

@@ -834,7 +834,7 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 	gpio->clk = of_clk_get(pdev->dev.of_node, 0);
 	if (IS_ERR(gpio->clk)) {
 		dev_warn(&pdev->dev,
-				"No HPLL clock phandle provided, debouncing disabled\n");
+				"Failed to get clock from devicetree, debouncing disabled\n");
 		gpio->clk = NULL;
 	}
 

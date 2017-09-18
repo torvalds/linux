@@ -21,10 +21,8 @@
 #include <linux/poll.h>
 #include <linux/usb/iowarrior.h>
 
-/* Version Information */
-#define DRIVER_VERSION "v0.4.0"
 #define DRIVER_AUTHOR "Christian Lucht <lucht@codemercs.com>"
-#define DRIVER_DESC "USB IO-Warrior driver (Linux 2.6.x)"
+#define DRIVER_DESC "USB IO-Warrior driver"
 
 #define USB_VENDOR_ID_CODEMERCS		1984
 /* low speed iowarrior */

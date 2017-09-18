@@ -54,7 +54,7 @@ static const u32 udlfb_info_flags = FBINFO_DEFAULT | FBINFO_READS_FAST |
  * which is compatible with all known USB 2.0 era graphics chips and firmware,
  * but allows DisplayLink to increment those for any future incompatible chips
  */
-static struct usb_device_id id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{.idVendor = 0x17e9,
 	 .bInterfaceClass = 0xff,
 	 .bInterfaceSubClass = 0x00,
@@ -1465,7 +1465,7 @@ static ssize_t metrics_reset_store(struct device *fbdev,
 	return count;
 }
 
-static struct bin_attribute edid_attr = {
+static const struct bin_attribute edid_attr = {
 	.attr.name = "edid",
 	.attr.mode = 0666,
 	.size = EDID_LENGTH,
@@ -1655,7 +1655,6 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 error:
 	if (dev) {
 
-		kref_put(&dev->kref, dlfb_free); /* ref for framebuffer */
 		kref_put(&dev->kref, dlfb_free); /* last ref from kref_init */
 
 		/* dev has been deallocated. Do not dereference */

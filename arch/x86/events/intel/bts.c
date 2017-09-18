@@ -268,7 +268,7 @@ static void bts_event_start(struct perf_event *event, int flags)
 	bts->ds_back.bts_absolute_maximum = cpuc->ds->bts_absolute_maximum;
 	bts->ds_back.bts_interrupt_threshold = cpuc->ds->bts_interrupt_threshold;
 
-	event->hw.itrace_started = 1;
+	perf_event_itrace_started(event);
 	event->hw.state = 0;
 
 	__bts_event_start(event);

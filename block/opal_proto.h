@@ -46,6 +46,7 @@ enum opal_response_token {
 #define GENERIC_HOST_SESSION_NUM 0x41
 
 #define TPER_SYNC_SUPPORTED 0x01
+#define MBR_ENABLED_MASK 0x10
 
 #define TINY_ATOM_DATA_MASK 0x3F
 #define TINY_ATOM_SIGNED 0x40

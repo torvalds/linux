@@ -17,4 +17,6 @@ tegra-drm-y := \
 	falcon.o \
 	vic.o
 
+tegra-drm-y += trace.o
+
 obj-$(CONFIG_DRM_TEGRA) += tegra-drm.o

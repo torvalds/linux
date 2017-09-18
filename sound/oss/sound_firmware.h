@@ -21,7 +21,7 @@ static inline int mod_firmware_load(const char *fn, char **fp)
 	loff_t size;
 	int err;
 
-	err = kernel_read_file_from_path((char *)fn, (void **)fp, &size,
+	err = kernel_read_file_from_path(fn, (void **)fp, &size,
 					 131072, READING_FIRMWARE);
 	if (err < 0)
 		return 0;

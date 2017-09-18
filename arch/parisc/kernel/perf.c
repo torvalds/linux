@@ -69,7 +69,7 @@ struct rdr_tbl_ent {
 
 static int perf_processor_interface __read_mostly = UNKNOWN_INTF;
 static int perf_enabled __read_mostly;
-static spinlock_t perf_lock;
+static DEFINE_SPINLOCK(perf_lock);
 struct parisc_device *cpu_device __read_mostly;
 
 /* RDRs to write for PCX-W */
@@ -532,8 +532,6 @@ static int __init perf_init(void)
 
 	/* Patch the images to match the system */
     	perf_patch_images();
-
-	spin_lock_init(&perf_lock);
 
 	/* TODO: this only lets us access the first cpu.. what to do for SMP? */
 	cpu_device = per_cpu(cpu_data, 0).dev;

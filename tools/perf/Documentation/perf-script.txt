@@ -117,7 +117,7 @@ OPTIONS
         Comma separated list of fields to print. Options are:
         comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff,
         srcline, period, iregs, brstack, brstacksym, flags, bpf-output, brstackinsn, brstackoff,
-        callindent, insn, insnlen, synth.
+        callindent, insn, insnlen, synth, phys_addr.
         Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
         e.g., -F sw:comm,tid,time,ip,sym  and -F trace:time,cpu,trace

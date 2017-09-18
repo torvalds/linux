@@ -266,7 +266,7 @@ MODULE_PARM_DESC(firmware_rom_wait_states,
 #define ELAN_VENDOR_ID		0x2201
 #define VUB300_VENDOR_ID	0x0424
 #define VUB300_PRODUCT_ID	0x012C
-static struct usb_device_id vub300_table[] = {
+static const struct usb_device_id vub300_table[] = {
 	{USB_DEVICE(ELAN_VENDOR_ID, VUB300_PRODUCT_ID)},
 	{USB_DEVICE(VUB300_VENDOR_ID, VUB300_PRODUCT_ID)},
 	{} /* Terminating entry */
@@ -2079,7 +2079,7 @@ static void vub300_init_card(struct mmc_host *mmc, struct mmc_card *card)
 	dev_info(&vub300->udev->dev, "NO host QUIRKS for this card\n");
 }
 
-static struct mmc_host_ops vub300_mmc_ops = {
+static const struct mmc_host_ops vub300_mmc_ops = {
 	.request = vub300_mmc_request,
 	.set_ios = vub300_mmc_set_ios,
 	.get_ro = vub300_mmc_get_ro,

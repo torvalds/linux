@@ -21,7 +21,7 @@
  * pools for workqueues which are not bound to any specific CPU - the
  * number of these backing pools is dynamic.
  *
- * Please read Documentation/workqueue.txt for details.
+ * Please read Documentation/core-api/workqueue.rst for details.
  */
 
 #include <linux/export.h>
@@ -2091,8 +2091,30 @@ __acquires(&pool->lock)
 
 	spin_unlock_irq(&pool->lock);
 
-	lock_map_acquire_read(&pwq->wq->lockdep_map);
+	lock_map_acquire(&pwq->wq->lockdep_map);
 	lock_map_acquire(&lockdep_map);
+	/*
+	 * Strictly speaking we should mark the invariant state without holding
+	 * any locks, that is, before these two lock_map_acquire()'s.
+	 *
+	 * However, that would result in:
+	 *
+	 *   A(W1)
+	 *   WFC(C)
+	 *		A(W1)
+	 *		C(C)
+	 *
+	 * Which would create W1->C->W1 dependencies, even though there is no
+	 * actual deadlock possible. There are two solutions, using a
+	 * read-recursive acquire on the work(queue) 'locks', but this will then
+	 * hit the lockdep limitation on recursive locks, or simply discard
+	 * these locks.
+	 *
+	 * AFAICT there is no possible deadlock scenario between the
+	 * flush_work() and complete() primitives (except for single-threaded
+	 * workqueues), so hiding them isn't a problem.
+	 */
+	lockdep_invariant_state(true);
 	trace_workqueue_execute_start(work);
 	worker->current_func(work);
 	/*
@@ -2247,7 +2269,7 @@ sleep:
 	 * event.
 	 */
 	worker_enter_idle(worker);
-	__set_current_state(TASK_INTERRUPTIBLE);
+	__set_current_state(TASK_IDLE);
 	spin_unlock_irq(&pool->lock);
 	schedule();
 	goto woke_up;
@@ -2289,7 +2311,7 @@ static int rescuer_thread(void *__rescuer)
 	 */
 	rescuer->task->flags |= PF_WQ_WORKER;
 repeat:
-	set_current_state(TASK_INTERRUPTIBLE);
+	set_current_state(TASK_IDLE);
 
 	/*
 	 * By the time the rescuer is requested to stop, the workqueue
@@ -2474,7 +2496,16 @@ static void insert_wq_barrier(struct pool_workqueue *pwq,
 	 */
 	INIT_WORK_ONSTACK(&barr->work, wq_barrier_func);
 	__set_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(&barr->work));
-	init_completion(&barr->done);
+
+	/*
+	 * Explicitly init the crosslock for wq_barrier::done, make its lock
+	 * key a subkey of the corresponding work. As a result we won't
+	 * build a dependency between wq_barrier::done and unrelated work.
+	 */
+	lockdep_init_map_crosslock((struct lockdep_map *)&barr->done.map,
+				   "(complete)wq_barr::done",
+				   target->lockdep_map.key, 1);
+	__init_completion(&barr->done);
 	barr->task = current;
 
 	/*
@@ -2815,16 +2846,18 @@ static bool start_flush_work(struct work_struct *work, struct wq_barrier *barr)
 	spin_unlock_irq(&pool->lock);
 
 	/*
-	 * If @max_active is 1 or rescuer is in use, flushing another work
-	 * item on the same workqueue may lead to deadlock.  Make sure the
-	 * flusher is not running on the same workqueue by verifying write
-	 * access.
+	 * Force a lock recursion deadlock when using flush_work() inside a
+	 * single-threaded or rescuer equipped workqueue.
+	 *
+	 * For single threaded workqueues the deadlock happens when the work
+	 * is after the work issuing the flush_work(). For rescuer equipped
+	 * workqueues the deadlock happens when the rescuer stalls, blocking
+	 * forward progress.
 	 */
-	if (pwq->wq->saved_max_active == 1 || pwq->wq->rescuer)
+	if (pwq->wq->saved_max_active == 1 || pwq->wq->rescuer) {
 		lock_map_acquire(&pwq->wq->lockdep_map);
-	else
-		lock_map_acquire_read(&pwq->wq->lockdep_map);
-	lock_map_release(&pwq->wq->lockdep_map);
+		lock_map_release(&pwq->wq->lockdep_map);
+	}
 
 	return true;
 already_gone:

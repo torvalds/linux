@@ -79,7 +79,7 @@ struct mbxfb_info {
 
 };
 
-static struct fb_var_screeninfo mbxfb_default = {
+static const struct fb_var_screeninfo mbxfb_default = {
 	.xres = 640,
 	.yres = 480,
 	.xres_virtual = 640,
@@ -102,7 +102,7 @@ static struct fb_var_screeninfo mbxfb_default = {
 	.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 };
 
-static struct fb_fix_screeninfo mbxfb_fix = {
+static const struct fb_fix_screeninfo mbxfb_fix = {
 	.id = "MBX",
 	.type = FB_TYPE_PACKED_PIXELS,
 	.visual = FB_VISUAL_TRUECOLOR,

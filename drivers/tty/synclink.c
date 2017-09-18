@@ -884,7 +884,7 @@ static int synclink_init_one (struct pci_dev *dev,
 				     const struct pci_device_id *ent);
 static void synclink_remove_one (struct pci_dev *dev);
 
-static struct pci_device_id synclink_pci_tbl[] = {
+static const struct pci_device_id synclink_pci_tbl[] = {
 	{ PCI_VENDOR_ID_MICROGATE, PCI_DEVICE_ID_MICROGATE_USC, PCI_ANY_ID, PCI_ANY_ID, },
 	{ PCI_VENDOR_ID_MICROGATE, 0x0210, PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0, }, /* terminate list */

@@ -6,6 +6,7 @@
  */
 
 struct task_struct;
+struct pid_namespace;
 
 extern void dump_cpu_task(int cpu);
 
@@ -34,7 +35,8 @@ extern void sched_show_task(struct task_struct *p);
 
 #ifdef CONFIG_SCHED_DEBUG
 struct seq_file;
-extern void proc_sched_show_task(struct task_struct *p, struct seq_file *m);
+extern void proc_sched_show_task(struct task_struct *p,
+				 struct pid_namespace *ns, struct seq_file *m);
 extern void proc_sched_set_task(struct task_struct *p);
 #endif
 

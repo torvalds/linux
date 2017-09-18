@@ -10825,6 +10825,17 @@ struct eth_phy_cfg {
 #define ETH_LOOPBACK_EXT		(3)
 #define ETH_LOOPBACK_MAC		(4)
 
+	u32 eee_cfg;
+#define EEE_CFG_EEE_ENABLED			BIT(0)
+#define EEE_CFG_TX_LPI				BIT(1)
+#define EEE_CFG_ADV_SPEED_1G			BIT(2)
+#define EEE_CFG_ADV_SPEED_10G			BIT(3)
+#define EEE_TX_TIMER_USEC_MASK			(0xfffffff0)
+#define EEE_TX_TIMER_USEC_OFFSET		4
+#define EEE_TX_TIMER_USEC_BALANCED_TIME		(0xa00)
+#define EEE_TX_TIMER_USEC_AGGRESSIVE_TIME	(0x100)
+#define EEE_TX_TIMER_USEC_LATENCY_TIME		(0x6000)
+
 	u32 feature_config_flags;
 #define ETH_EEE_MODE_ADV_LPI		(1 << 0)
 };
@@ -11242,6 +11253,25 @@ struct public_port {
 	u32 wol_pkt_len;
 	u32 wol_pkt_details;
 	struct dcb_dscp_map dcb_dscp_map;
+
+	u32 eee_status;
+#define EEE_ACTIVE_BIT			BIT(0)
+#define EEE_LD_ADV_STATUS_MASK		0x000000f0
+#define EEE_LD_ADV_STATUS_OFFSET	4
+#define EEE_1G_ADV			BIT(1)
+#define EEE_10G_ADV			BIT(2)
+#define EEE_LP_ADV_STATUS_MASK		0x00000f00
+#define EEE_LP_ADV_STATUS_OFFSET	8
+#define EEE_SUPPORTED_SPEED_MASK	0x0000f000
+#define EEE_SUPPORTED_SPEED_OFFSET	12
+#define EEE_1G_SUPPORTED		BIT(1)
+#define EEE_10G_SUPPORTED		BIT(2)
+
+	u32 eee_remote;
+#define EEE_REMOTE_TW_TX_MASK   0x0000ffff
+#define EEE_REMOTE_TW_TX_OFFSET 0
+#define EEE_REMOTE_TW_RX_MASK   0xffff0000
+#define EEE_REMOTE_TW_RX_OFFSET 16
 };
 
 struct public_func {
@@ -11570,6 +11600,9 @@ struct public_drv_mb {
 #define DRV_MSG_CODE_GET_PF_RDMA_PROTOCOL	0x002b0000
 #define DRV_MSG_CODE_OS_WOL			0x002e0000
 
+#define DRV_MSG_CODE_FEATURE_SUPPORT		0x00300000
+#define DRV_MSG_CODE_GET_MFW_FEATURE_SUPPORT	0x00310000
+
 #define DRV_MSG_SEQ_NUMBER_MASK			0x0000ffff
 
 	u32 drv_mb_param;
@@ -11653,6 +11686,10 @@ struct public_drv_mb {
 #define DRV_MB_PARAM_BIST_TEST_IMAGE_INDEX_SHIFT	8
 #define DRV_MB_PARAM_BIST_TEST_IMAGE_INDEX_MASK		0x0000FF00
 
+#define DRV_MB_PARAM_FEATURE_SUPPORT_PORT_MASK		0x0000FFFF
+#define DRV_MB_PARAM_FEATURE_SUPPORT_PORT_OFFSET	0
+#define DRV_MB_PARAM_FEATURE_SUPPORT_PORT_EEE		0x00000002
+
 	u32 fw_mb_header;
 #define FW_MSG_CODE_MASK			0xffff0000
 #define FW_MSG_CODE_UNSUPPORTED                 0x00000000
@@ -11695,6 +11732,9 @@ struct public_drv_mb {
 #define FW_MB_PARAM_GET_PF_RDMA_ROCE		0x1
 #define FW_MB_PARAM_GET_PF_RDMA_IWARP		0x2
 #define FW_MB_PARAM_GET_PF_RDMA_BOTH		0x3
+
+/* get MFW feature support response */
+#define FW_MB_PARAM_FEATURE_SUPPORT_EEE		0x00000002
 
 #define FW_MB_PARAM_LOAD_DONE_DID_EFUSE_ERROR	(1 << 0)
 
@@ -11891,7 +11931,16 @@ struct nvm_cfg1_port {
 #define NVM_CFG1_PORT_DRV_FLOW_CONTROL_TX			0x4
 	u32 phy_cfg;
 	u32 mgmt_traffic;
+
 	u32 ext_phy;
+	/* EEE power saving mode */
+#define NVM_CFG1_PORT_EEE_POWER_SAVING_MODE_MASK		0x00FF0000
+#define NVM_CFG1_PORT_EEE_POWER_SAVING_MODE_OFFSET		16
+#define NVM_CFG1_PORT_EEE_POWER_SAVING_MODE_DISABLED		0x0
+#define NVM_CFG1_PORT_EEE_POWER_SAVING_MODE_BALANCED		0x1
+#define NVM_CFG1_PORT_EEE_POWER_SAVING_MODE_AGGRESSIVE		0x2
+#define NVM_CFG1_PORT_EEE_POWER_SAVING_MODE_LOW_LATENCY		0x3
+
 	u32 mba_cfg1;
 	u32 mba_cfg2;
 	u32 vf_cfg;

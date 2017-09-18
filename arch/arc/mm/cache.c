@@ -652,7 +652,7 @@ static void __ic_line_inv_vaddr(phys_addr_t paddr, unsigned long vaddr,
 
 #endif /* CONFIG_ARC_HAS_ICACHE */
 
-noinline void slc_op(phys_addr_t paddr, unsigned long sz, const int op)
+noinline void slc_op_rgn(phys_addr_t paddr, unsigned long sz, const int op)
 {
 #ifdef CONFIG_ISA_ARCV2
 	/*
@@ -714,6 +714,58 @@ noinline void slc_op(phys_addr_t paddr, unsigned long sz, const int op)
 	spin_unlock_irqrestore(&lock, flags);
 #endif
 }
+
+noinline void slc_op_line(phys_addr_t paddr, unsigned long sz, const int op)
+{
+#ifdef CONFIG_ISA_ARCV2
+	/*
+	 * SLC is shared between all cores and concurrent aux operations from
+	 * multiple cores need to be serialized using a spinlock
+	 * A concurrent operation can be silently ignored and/or the old/new
+	 * operation can remain incomplete forever (lockup in SLC_CTRL_BUSY loop
+	 * below)
+	 */
+	static DEFINE_SPINLOCK(lock);
+
+	const unsigned long SLC_LINE_MASK = ~(l2_line_sz - 1);
+	unsigned int ctrl, cmd;
+	unsigned long flags;
+	int num_lines;
+
+	spin_lock_irqsave(&lock, flags);
+
+	ctrl = read_aux_reg(ARC_REG_SLC_CTRL);
+
+	/* Don't rely on default value of IM bit */
+	if (!(op & OP_FLUSH))		/* i.e. OP_INV */
+		ctrl &= ~SLC_CTRL_IM;	/* clear IM: Disable flush before Inv */
+	else
+		ctrl |= SLC_CTRL_IM;
+
+	write_aux_reg(ARC_REG_SLC_CTRL, ctrl);
+
+	cmd = op & OP_INV ? ARC_AUX_SLC_IVDL : ARC_AUX_SLC_FLDL;
+
+	sz += paddr & ~SLC_LINE_MASK;
+	paddr &= SLC_LINE_MASK;
+
+	num_lines = DIV_ROUND_UP(sz, l2_line_sz);
+
+	while (num_lines-- > 0) {
+		write_aux_reg(cmd, paddr);
+		paddr += l2_line_sz;
+	}
+
+	/* Make sure "busy" bit reports correct stataus, see STAR 9001165532 */
+	read_aux_reg(ARC_REG_SLC_CTRL);
+
+	while (read_aux_reg(ARC_REG_SLC_CTRL) & SLC_CTRL_BUSY);
+
+	spin_unlock_irqrestore(&lock, flags);
+#endif
+}
+
+#define slc_op(paddr, sz, op)	slc_op_rgn(paddr, sz, op)
 
 noinline static void slc_entire_op(const int op)
 {
@@ -1095,7 +1147,7 @@ SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, sz, uint32_t, flags)
  */
 noinline void __init arc_ioc_setup(void)
 {
-	unsigned int ap_sz;
+	unsigned int ioc_base, mem_sz;
 
 	/* Flush + invalidate + disable L1 dcache */
 	__dc_disable();
@@ -1104,18 +1156,29 @@ noinline void __init arc_ioc_setup(void)
 	if (read_aux_reg(ARC_REG_SLC_BCR))
 		slc_entire_op(OP_FLUSH_N_INV);
 
-	/* IOC Aperture start: TDB: handle non default CONFIG_LINUX_LINK_BASE */
-	write_aux_reg(ARC_REG_IO_COH_AP0_BASE, 0x80000);
-
 	/*
-	 * IOC Aperture size:
-	 *   decoded as 2 ^ (SIZE + 2) KB: so setting 0x11 implies 512M
+	 * currently IOC Aperture covers entire DDR
 	 * TBD: fix for PGU + 1GB of low mem
 	 * TBD: fix for PAE
 	 */
-	ap_sz = order_base_2(arc_get_mem_sz()/1024) - 2;
-	write_aux_reg(ARC_REG_IO_COH_AP0_SIZE, ap_sz);
+	mem_sz = arc_get_mem_sz();
 
+	if (!is_power_of_2(mem_sz) || mem_sz < 4096)
+		panic("IOC Aperture size must be power of 2 larger than 4KB");
+
+	/*
+	 * IOC Aperture size decoded as 2 ^ (SIZE + 2) KB,
+	 * so setting 0x11 implies 512MB, 0x12 implies 1GB...
+	 */
+	write_aux_reg(ARC_REG_IO_COH_AP0_SIZE, order_base_2(mem_sz >> 10) - 2);
+
+	/* for now assume kernel base is start of IOC aperture */
+	ioc_base = CONFIG_LINUX_RAM_BASE;
+
+	if (ioc_base % mem_sz != 0)
+		panic("IOC Aperture start must be aligned to the size of the aperture");
+
+	write_aux_reg(ARC_REG_IO_COH_AP0_BASE, ioc_base >> 12);
 	write_aux_reg(ARC_REG_IO_COH_PARTIAL, 1);
 	write_aux_reg(ARC_REG_IO_COH_ENABLE, 1);
 
@@ -1207,7 +1270,7 @@ void __ref arc_cache_init(void)
 	unsigned int __maybe_unused cpu = smp_processor_id();
 	char str[256];
 
-	printk(arc_cache_mumbojumbo(0, str, sizeof(str)));
+	pr_info("%s", arc_cache_mumbojumbo(0, str, sizeof(str)));
 
 	if (!cpu)
 		arc_cache_init_master();

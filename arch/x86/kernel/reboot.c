@@ -38,8 +38,6 @@
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
-static const struct desc_ptr no_idt = {};
-
 /*
  * This is set if we need to go through the 'emergency' path.
  * When machine_emergency_restart() is called, we may be on
@@ -152,7 +150,7 @@ static int __init set_kbd_reboot(const struct dmi_system_id *d)
 /*
  * This is a single dmi_table handling all reboot quirks.
  */
-static struct dmi_system_id __initdata reboot_dmi_table[] = {
+static const struct dmi_system_id reboot_dmi_table[] __initconst = {
 
 	/* Acer */
 	{	/* Handle reboot issue on Acer Aspire one */
@@ -638,7 +636,7 @@ static void native_machine_emergency_restart(void)
 			break;
 
 		case BOOT_TRIPLE:
-			load_idt(&no_idt);
+			idt_invalidate(NULL);
 			__asm__ __volatile__("int3");
 
 			/* We're probably dead after this, but... */

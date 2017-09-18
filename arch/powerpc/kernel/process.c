@@ -230,7 +230,8 @@ void enable_kernel_fp(void)
 }
 EXPORT_SYMBOL(enable_kernel_fp);
 
-static int restore_fp(struct task_struct *tsk) {
+static int restore_fp(struct task_struct *tsk)
+{
 	if (tsk->thread.load_fp || msr_tm_active(tsk->thread.regs->msr)) {
 		load_fp_state(&current->thread.fp_state);
 		current->thread.load_fp++;
@@ -330,11 +331,19 @@ static inline int restore_altivec(struct task_struct *tsk) { return 0; }
 #ifdef CONFIG_VSX
 static void __giveup_vsx(struct task_struct *tsk)
 {
-	if (tsk->thread.regs->msr & MSR_FP)
+	unsigned long msr = tsk->thread.regs->msr;
+
+	/*
+	 * We should never be ssetting MSR_VSX without also setting
+	 * MSR_FP and MSR_VEC
+	 */
+	WARN_ON((msr & MSR_VSX) && !((msr & MSR_FP) && (msr & MSR_VEC)));
+
+	/* __giveup_fpu will clear MSR_VSX */
+	if (msr & MSR_FP)
 		__giveup_fpu(tsk);
-	if (tsk->thread.regs->msr & MSR_VEC)
+	if (msr & MSR_VEC)
 		__giveup_altivec(tsk);
-	tsk->thread.regs->msr &= ~MSR_VSX;
 }
 
 static void giveup_vsx(struct task_struct *tsk)
@@ -344,14 +353,6 @@ static void giveup_vsx(struct task_struct *tsk)
 	msr_check_and_set(MSR_FP|MSR_VEC|MSR_VSX);
 	__giveup_vsx(tsk);
 	msr_check_and_clear(MSR_FP|MSR_VEC|MSR_VSX);
-}
-
-static void save_vsx(struct task_struct *tsk)
-{
-	if (tsk->thread.regs->msr & MSR_FP)
-		save_fpu(tsk);
-	if (tsk->thread.regs->msr & MSR_VEC)
-		save_altivec(tsk);
 }
 
 void enable_kernel_vsx(void)
@@ -374,10 +375,6 @@ void enable_kernel_vsx(void)
 		 */
 		if(!msr_tm_active(cpumsr) && msr_tm_active(current->thread.regs->msr))
 			return;
-		if (current->thread.regs->msr & MSR_FP)
-			__giveup_fpu(current);
-		if (current->thread.regs->msr & MSR_VEC)
-			__giveup_altivec(current);
 		__giveup_vsx(current);
 	}
 }
@@ -407,7 +404,6 @@ static int restore_vsx(struct task_struct *tsk)
 }
 #else
 static inline int restore_vsx(struct task_struct *tsk) { return 0; }
-static inline void save_vsx(struct task_struct *tsk) { }
 #endif /* CONFIG_VSX */
 
 #ifdef CONFIG_SPE
@@ -487,6 +483,8 @@ void giveup_all(struct task_struct *tsk)
 	msr_check_and_set(msr_all_available);
 	check_if_tm_restore_required(tsk);
 
+	WARN_ON((usermsr & MSR_VSX) && !((usermsr & MSR_FP) && (usermsr & MSR_VEC)));
+
 #ifdef CONFIG_PPC_FPU
 	if (usermsr & MSR_FP)
 		__giveup_fpu(tsk);
@@ -494,10 +492,6 @@ void giveup_all(struct task_struct *tsk)
 #ifdef CONFIG_ALTIVEC
 	if (usermsr & MSR_VEC)
 		__giveup_altivec(tsk);
-#endif
-#ifdef CONFIG_VSX
-	if (usermsr & MSR_VSX)
-		__giveup_vsx(tsk);
 #endif
 #ifdef CONFIG_SPE
 	if (usermsr & MSR_SPE)
@@ -553,19 +547,13 @@ void save_all(struct task_struct *tsk)
 
 	msr_check_and_set(msr_all_available);
 
-	/*
-	 * Saving the way the register space is in hardware, save_vsx boils
-	 * down to a save_fpu() and save_altivec()
-	 */
-	if (usermsr & MSR_VSX) {
-		save_vsx(tsk);
-	} else {
-		if (usermsr & MSR_FP)
-			save_fpu(tsk);
+	WARN_ON((usermsr & MSR_VSX) && !((usermsr & MSR_FP) && (usermsr & MSR_VEC)));
 
-		if (usermsr & MSR_VEC)
-			save_altivec(tsk);
-	}
+	if (usermsr & MSR_FP)
+		save_fpu(tsk);
+
+	if (usermsr & MSR_VEC)
+		save_altivec(tsk);
 
 	if (usermsr & MSR_SPE)
 		__giveup_spe(tsk);
@@ -1392,13 +1380,13 @@ void show_regs(struct pt_regs * regs)
 
 	show_regs_print_info(KERN_DEFAULT);
 
-	printk("NIP: "REG" LR: "REG" CTR: "REG"\n",
+	printk("NIP:  "REG" LR: "REG" CTR: "REG"\n",
 	       regs->nip, regs->link, regs->ctr);
 	printk("REGS: %p TRAP: %04lx   %s  (%s)\n",
 	       regs, regs->trap, print_tainted(), init_utsname()->release);
-	printk("MSR: "REG" ", regs->msr);
+	printk("MSR:  "REG" ", regs->msr);
 	print_msr_bits(regs->msr);
-	printk("  CR: %08lx  XER: %08lx\n", regs->ccr, regs->xer);
+	pr_cont("  CR: %08lx  XER: %08lx\n", regs->ccr, regs->xer);
 	trap = TRAP(regs);
 	if ((regs->trap != 0xc00) && cpu_has_feature(CPU_FTR_CFAR))
 		pr_cont("CFAR: "REG" ", regs->orig_gpr3);
@@ -1991,11 +1979,25 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 void notrace __ppc64_runlatch_on(void)
 {
 	struct thread_info *ti = current_thread_info();
-	unsigned long ctrl;
 
-	ctrl = mfspr(SPRN_CTRLF);
-	ctrl |= CTRL_RUNLATCH;
-	mtspr(SPRN_CTRLT, ctrl);
+	if (cpu_has_feature(CPU_FTR_ARCH_206)) {
+		/*
+		 * Least significant bit (RUN) is the only writable bit of
+		 * the CTRL register, so we can avoid mfspr. 2.06 is not the
+		 * earliest ISA where this is the case, but it's convenient.
+		 */
+		mtspr(SPRN_CTRLT, CTRL_RUNLATCH);
+	} else {
+		unsigned long ctrl;
+
+		/*
+		 * Some architectures (e.g., Cell) have writable fields other
+		 * than RUN, so do the read-modify-write.
+		 */
+		ctrl = mfspr(SPRN_CTRLF);
+		ctrl |= CTRL_RUNLATCH;
+		mtspr(SPRN_CTRLT, ctrl);
+	}
 
 	ti->local_flags |= _TLF_RUNLATCH;
 }
@@ -2004,13 +2006,18 @@ void notrace __ppc64_runlatch_on(void)
 void notrace __ppc64_runlatch_off(void)
 {
 	struct thread_info *ti = current_thread_info();
-	unsigned long ctrl;
 
 	ti->local_flags &= ~_TLF_RUNLATCH;
 
-	ctrl = mfspr(SPRN_CTRLF);
-	ctrl &= ~CTRL_RUNLATCH;
-	mtspr(SPRN_CTRLT, ctrl);
+	if (cpu_has_feature(CPU_FTR_ARCH_206)) {
+		mtspr(SPRN_CTRLT, 0);
+	} else {
+		unsigned long ctrl;
+
+		ctrl = mfspr(SPRN_CTRLF);
+		ctrl &= ~CTRL_RUNLATCH;
+		mtspr(SPRN_CTRLT, ctrl);
+	}
 }
 #endif /* CONFIG_PPC64 */
 

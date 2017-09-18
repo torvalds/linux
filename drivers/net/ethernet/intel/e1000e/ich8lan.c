@@ -2437,6 +2437,8 @@ static s32 e1000_hv_phy_workarounds_ich8lan(struct e1000_hw *hw)
 		if (hw->phy.revision < 2) {
 			e1000e_phy_sw_reset(hw);
 			ret_val = e1e_wphy(hw, MII_BMCR, 0x3140);
+			if (ret_val)
+				return ret_val;
 		}
 	}
 

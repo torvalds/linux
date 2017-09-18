@@ -63,7 +63,7 @@ int fmc_fill_id_info(struct fmc_device *fmc)
 		if (!fmc->eeprom)
 			return -ENOMEM;
 		allocated = 1;
-		ret = fmc->op->read_ee(fmc, 0, fmc->eeprom, fmc->eeprom_len);
+		ret = fmc_read_ee(fmc, 0, fmc->eeprom, fmc->eeprom_len);
 		if (ret < 0)
 			goto out;
 	}

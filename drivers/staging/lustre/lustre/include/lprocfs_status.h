@@ -43,9 +43,9 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "lustre_cfg.h"
-#include "lustre/lustre_idl.h"
+#include <linux/libcfs/libcfs.h>
+#include <uapi/linux/lustre/lustre_cfg.h>
+#include <uapi/linux/lustre/lustre_idl.h>
 
 struct lprocfs_vars {
 	const char		*name;
@@ -59,7 +59,7 @@ struct lprocfs_vars {
 
 struct lprocfs_static_vars {
 	struct lprocfs_vars *obd_vars;
-	struct attribute_group *sysfs_vars;
+	const struct attribute_group *sysfs_vars;
 };
 
 /* if we find more consumers this could be generalized */
@@ -468,7 +468,7 @@ struct dentry *ldebugfs_register(const char *name,
 void ldebugfs_remove(struct dentry **entryp);
 
 int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list,
-		      struct attribute_group *attrs);
+		      const struct attribute_group *attrs);
 int lprocfs_obd_cleanup(struct obd_device *obd);
 
 int ldebugfs_seq_create(struct dentry *parent,

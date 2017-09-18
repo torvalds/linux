@@ -10,6 +10,16 @@
 #include "util.h"
 #include "debug.h"
 
+#ifndef O_CLOEXEC
+#ifdef __sparc__
+#define O_CLOEXEC	0x400000
+#elif defined(__alpha__) || defined(__hppa__)
+#define O_CLOEXEC	010000000
+#else
+#define O_CLOEXEC	02000000
+#endif
+#endif
+
 static bool check_pipe(struct perf_data_file *file)
 {
 	struct stat st;
@@ -96,7 +106,8 @@ static int open_file_write(struct perf_data_file *file)
 	if (check_backup(file))
 		return -1;
 
-	fd = open(file->path, O_CREAT|O_RDWR|O_TRUNC, S_IRUSR|S_IWUSR);
+	fd = open(file->path, O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC,
+		  S_IRUSR|S_IWUSR);
 
 	if (fd < 0)
 		pr_err("failed to open %s : %s\n", file->path,

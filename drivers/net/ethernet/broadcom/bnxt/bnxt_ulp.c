@@ -84,6 +84,8 @@ static int bnxt_unregister_dev(struct bnxt_en_dev *edev, int ulp_id)
 
 		max_stat_ctxs = bnxt_get_max_func_stat_ctxs(bp);
 		bnxt_set_max_func_stat_ctxs(bp, max_stat_ctxs + 1);
+		if (ulp->msix_requested)
+			edev->en_ops->bnxt_free_msix(edev, ulp_id);
 	}
 	if (ulp->max_async_event_id)
 		bnxt_hwrm_func_rgtr_async_events(bp, NULL, 0);

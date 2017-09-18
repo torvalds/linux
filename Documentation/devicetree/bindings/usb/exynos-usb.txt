@@ -40,7 +40,6 @@ Example:
 		port@0 {
 		    reg = <0>;
 		    phys = <&usb2phy 1>;
-		    status = "disabled";
 		};
 	};
 
@@ -75,7 +74,6 @@ Example:
 		port@0 {
 		    reg = <0>;
 		    phys = <&usb2phy 1>;
-		    status = "disabled";
 		};
 
 	};

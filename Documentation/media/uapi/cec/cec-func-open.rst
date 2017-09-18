@@ -46,7 +46,7 @@ Arguments
 Description
 ===========
 
-To open a cec device applications call :c:func:`open()` with the
+To open a cec device applications call :c:func:`open() <cec-open>` with the
 desired device name. The function has no side effects; the device
 configuration remain unchanged.
 
@@ -58,7 +58,7 @@ EBADF.
 Return Value
 ============
 
-:c:func:`open()` returns the new file descriptor on success. On error,
+:c:func:`open() <cec-open>` returns the new file descriptor on success. On error,
 -1 is returned, and ``errno`` is set appropriately. Possible error codes
 include:
 

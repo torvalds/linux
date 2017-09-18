@@ -70,9 +70,8 @@
 #include "iwl-io.h"
 #include "iwl-prph.h"
 #include "iwl-csr.h"
-#include "fw-dbg.h"
 #include "mvm.h"
-#include "fw-api-rs.h"
+#include "fw/api/rs.h"
 
 /*
  * Will return 0 even if the cmd failed when RFKILL is asserted unless
@@ -464,8 +463,8 @@ static void iwl_mvm_dump_umac_error_log(struct iwl_mvm *mvm)
 		IWL_ERR(mvm,
 			"Not valid error log pointer 0x%08X for %s uCode\n",
 			base,
-			(mvm->cur_ucode == IWL_UCODE_INIT)
-					? "Init" : "RT");
+			(mvm->fwrt.cur_fw_img == IWL_UCODE_INIT)
+			? "Init" : "RT");
 		return;
 	}
 
@@ -500,7 +499,7 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u32 base)
 	struct iwl_error_event_table table;
 	u32 val;
 
-	if (mvm->cur_ucode == IWL_UCODE_INIT) {
+	if (mvm->fwrt.cur_fw_img == IWL_UCODE_INIT) {
 		if (!base)
 			base = mvm->fw->init_errlog_ptr;
 	} else {
@@ -512,8 +511,8 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u32 base)
 		IWL_ERR(mvm,
 			"Not valid error log pointer 0x%08X for %s uCode\n",
 			base,
-			(mvm->cur_ucode == IWL_UCODE_INIT)
-					? "Init" : "RT");
+			(mvm->fwrt.cur_fw_img == IWL_UCODE_INIT)
+			? "Init" : "RT");
 		return;
 	}
 
@@ -1190,14 +1189,15 @@ void iwl_mvm_connection_loss(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_MLME);
 	trig_mlme = (void *)trig->data;
-	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trig))
+	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
+					   ieee80211_vif_to_wdev(vif), trig))
 		goto out;
 
 	if (trig_mlme->stop_connection_loss &&
 	    --trig_mlme->stop_connection_loss)
 		goto out;
 
-	iwl_mvm_fw_dbg_collect_trig(mvm, trig, "%s", errmsg);
+	iwl_fw_dbg_collect_trig(&mvm->fwrt, trig, "%s", errmsg);
 
 out:
 	ieee80211_connection_loss(vif);

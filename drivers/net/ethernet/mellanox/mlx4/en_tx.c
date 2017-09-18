@@ -105,7 +105,8 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	       (unsigned long long) ring->sp_wqres.buf.direct.map);
 
 	err = mlx4_qp_reserve_range(mdev->dev, 1, 1, &ring->qpn,
-				    MLX4_RESERVE_ETH_BF_QP);
+				    MLX4_RESERVE_ETH_BF_QP,
+				    MLX4_RES_USAGE_DRIVER);
 	if (err) {
 		en_err(priv, "failed reserving qp for TX ring\n");
 		goto err_hwq_res;
@@ -643,7 +644,7 @@ static void build_inline_wqe(struct mlx4_en_tx_desc *tx_desc,
 			     void *fragptr)
 {
 	struct mlx4_wqe_inline_seg *inl = &tx_desc->inl;
-	int spc = MLX4_INLINE_ALIGN - CTRL_SIZE - sizeof *inl;
+	int spc = MLX4_INLINE_ALIGN - CTRL_SIZE - sizeof(*inl);
 	unsigned int hlen = skb_headlen(skb);
 
 	if (skb->len <= spc) {

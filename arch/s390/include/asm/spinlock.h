@@ -92,17 +92,11 @@ static inline void arch_spin_unlock(arch_spinlock_t *lp)
 {
 	typecheck(int, lp->lock);
 	asm volatile(
-		"st	%1,%0\n"
-		: "+Q" (lp->lock)
-		: "d" (0)
-		: "cc", "memory");
-}
-
-static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
-{
-	while (arch_spin_is_locked(lock))
-		arch_spin_relax(lock);
-	smp_acquire__after_ctrl_dep();
+#ifdef CONFIG_HAVE_MARCH_ZEC12_FEATURES
+		"	.long	0xb2fa0070\n"	/* NIAI 7 */
+#endif
+		"	st	%1,%0\n"
+		: "=Q" (lp->lock) : "d" (0) : "cc", "memory");
 }
 
 /*

@@ -205,7 +205,7 @@ static void dump_hpte_info(struct pg_state *st, unsigned long ea, u64 v, u64 r,
 	aps_index = calculate_pagesize(st, aps, "actual");
 	if (aps_index != 2)
 		seq_printf(st->seq, "LP enc: %lx", lp);
-	seq_puts(st->seq, "\n");
+	seq_putc(st->seq, '\n');
 }
 
 

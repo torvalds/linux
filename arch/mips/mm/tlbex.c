@@ -2634,11 +2634,6 @@ void build_tlb_refill_handler(void)
 #endif
 		break;
 
-	case CPU_R6000:
-	case CPU_R6000A:
-		panic("No R6000 TLB refill handler yet");
-		break;
-
 	case CPU_R8000:
 		panic("No R8000 TLB refill handler yet");
 		break;

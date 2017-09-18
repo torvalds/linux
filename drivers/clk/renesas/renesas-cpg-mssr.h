@@ -138,6 +138,7 @@ extern const struct cpg_mssr_info r8a7792_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a7794_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a7795_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a7796_cpg_mssr_info;
+extern const struct cpg_mssr_info r8a77995_cpg_mssr_info;
 
 
     /*

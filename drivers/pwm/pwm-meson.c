@@ -441,7 +441,7 @@ static int meson_pwm_init_channels(struct meson_pwm *meson,
 	for (i = 0; i < meson->chip.npwm; i++) {
 		struct meson_pwm_channel *channel = &channels[i];
 
-		snprintf(name, sizeof(name), "%s#mux%u", np->full_name, i);
+		snprintf(name, sizeof(name), "%pOF#mux%u", np, i);
 
 		init.name = name;
 		init.ops = &clk_mux_ops;

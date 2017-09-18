@@ -452,6 +452,13 @@
 				interrupt-names = "scm", "smn";
 			};
 
+			rngb: rngb@53fb0000 {
+				compatible = "fsl,imx25-rngb";
+				reg = <0x53fb0000 0x4000>;
+				clocks = <&clks 109>;
+				interrupts = <22>;
+			};
+
 			esdhc1: esdhc@53fb4000 {
 				compatible = "fsl,imx25-esdhc";
 				reg = <0x53fb4000 0x4000>;

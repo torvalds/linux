@@ -42,7 +42,6 @@ or "device".
 Example:
 
 st_dwc3: dwc3@8f94000 {
-	status		= "disabled";
 	compatible	= "st,stih407-dwc3";
 	reg		= <0x08f94000 0x1000>, <0x110 0x4>;
 	reg-names	= "reg-glue", "syscfg-reg";

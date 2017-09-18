@@ -84,7 +84,7 @@ static const struct of_device_id st_accel_of_match[] = {
 	},
 	{
 		.compatible = "st,h3lis331dl-accel",
-		.data = H3LIS331DL_DRIVER_NAME,
+		.data = H3LIS331DL_ACCEL_DEV_NAME,
 	},
 	{
 		.compatible = "st,lis3l02dq",
@@ -126,6 +126,9 @@ static const struct i2c_device_id st_accel_id_table[] = {
 	{ LIS2DH12_ACCEL_DEV_NAME, LIS2DH12 },
 	{ LIS3L02DQ_ACCEL_DEV_NAME, LIS3L02DQ },
 	{ LNG2DM_ACCEL_DEV_NAME, LNG2DM },
+	{ H3LIS331DL_ACCEL_DEV_NAME, H3LIS331DL },
+	{ LIS331DL_ACCEL_DEV_NAME, LIS331DL },
+	{ LIS3LV02DL_ACCEL_DEV_NAME, LIS3LV02DL },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, st_accel_id_table);
@@ -144,7 +147,8 @@ static int st_accel_i2c_probe(struct i2c_client *client,
 	adata = iio_priv(indio_dev);
 
 	if (client->dev.of_node) {
-		st_sensors_of_i2c_probe(client, st_accel_of_match);
+		st_sensors_of_name_probe(&client->dev, st_accel_of_match,
+					 client->name, sizeof(client->name));
 	} else if (ACPI_HANDLE(&client->dev)) {
 		ret = st_sensors_match_acpi_device(&client->dev);
 		if ((ret < 0) || (ret >= ST_ACCEL_MAX))

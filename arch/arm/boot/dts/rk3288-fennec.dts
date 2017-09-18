@@ -47,7 +47,7 @@
 	compatible = "rockchip,rk3288-fennec", "rockchip,rk3288";
 
 	memory@0 {
-		reg = <0x0 0x80000000>;
+		reg = <0x0 0x0 0x0 0x80000000>;
 		device_type = "memory";
 	};
 
@@ -77,7 +77,6 @@
 	cap-mmc-highspeed;
 	disable-wp;
 	non-removable;
-	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_pwr &emmc_bus8>;
 	status = "okay";
@@ -96,6 +95,11 @@
 	snps,reset-gpio = <&gpio4 RK_PB0 GPIO_ACTIVE_LOW>;
 	tx_delay = <0x30>;
 	rx_delay = <0x10>;
+	status = "okay";
+};
+
+&gpu {
+	mali-supply = <&vdd_gpu>;
 	status = "okay";
 };
 

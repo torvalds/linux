@@ -893,7 +893,7 @@ restart:
 	}
 	spin_unlock(&sdp->sd_jindex_spin);
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		error = gfs2_make_fs_ro(sdp);
 		if (error)
 			gfs2_io_error(sdp);
@@ -924,6 +924,7 @@ restart:
 	gfs2_jindex_free(sdp);
 	/*  Take apart glock structures and buffer lists  */
 	gfs2_gl_hash_clear(sdp);
+	gfs2_delete_debugfs_file(sdp);
 	/*  Unmount the locking protocol  */
 	gfs2_lm_unmount(sdp);
 
@@ -943,9 +944,9 @@ static int gfs2_sync_fs(struct super_block *sb, int wait)
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 
 	gfs2_quota_sync(sb, -1);
-	if (wait && sdp)
+	if (wait)
 		gfs2_log_flush(sdp, NULL, NORMAL_FLUSH);
-	return 0;
+	return sdp->sd_log_error;
 }
 
 void gfs2_freeze_func(struct work_struct *work)
@@ -1295,7 +1296,7 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
  * gfs2_drop_inode - Drop an inode (test for remote unlink)
  * @inode: The inode to drop
  *
- * If we've received a callback on an iopen lock then its because a
+ * If we've received a callback on an iopen lock then it's because a
  * remote node tried to deallocate the inode but failed due to this node
  * still having the inode open. Here we mark the link count zero
  * since we know that it must have reached zero if the GLF_DEMOTE flag
@@ -1317,6 +1318,23 @@ static int gfs2_drop_inode(struct inode *inode)
 		if (test_bit(GLF_DEMOTE, &gl->gl_flags))
 			clear_nlink(inode);
 	}
+
+	/*
+	 * When under memory pressure when an inode's link count has dropped to
+	 * zero, defer deleting the inode to the delete workqueue.  This avoids
+	 * calling into DLM under memory pressure, which can deadlock.
+	 */
+	if (!inode->i_nlink &&
+	    unlikely(current->flags & PF_MEMALLOC) &&
+	    gfs2_holder_initialized(&ip->i_iopen_gh)) {
+		struct gfs2_glock *gl = ip->i_iopen_gh.gh_gl;
+
+		gfs2_glock_hold(gl);
+		if (queue_work(gfs2_delete_workqueue, &gl->gl_delete) == 0)
+			gfs2_glock_queue_put(gl);
+		return false;
+	}
+
 	return generic_drop_inode(inode);
 }
 
@@ -1501,6 +1519,22 @@ out_qs:
 }
 
 /**
+ * gfs2_glock_put_eventually
+ * @gl:	The glock to put
+ *
+ * When under memory pressure, trigger a deferred glock put to make sure we
+ * won't call into DLM and deadlock.  Otherwise, put the glock directly.
+ */
+
+static void gfs2_glock_put_eventually(struct gfs2_glock *gl)
+{
+	if (current->flags & PF_MEMALLOC)
+		gfs2_glock_queue_put(gl);
+	else
+		gfs2_glock_put(gl);
+}
+
+/**
  * gfs2_evict_inode - Remove an inode from cache
  * @inode: The inode to evict
  *
@@ -1535,7 +1569,7 @@ static void gfs2_evict_inode(struct inode *inode)
 		return;
 	}
 
-	if (inode->i_nlink || (sb->s_flags & MS_RDONLY))
+	if (inode->i_nlink || sb_rdonly(sb))
 		goto out;
 
 	if (test_bit(GIF_ALLOC_FAILED, &ip->i_flags)) {
@@ -1544,9 +1578,14 @@ static void gfs2_evict_inode(struct inode *inode)
 		goto alloc_failed;
 	}
 
+	/* Deletes should never happen under memory pressure anymore.  */
+	if (WARN_ON_ONCE(current->flags & PF_MEMALLOC))
+		goto out;
+
 	/* Must not read inode block until block type has been verified */
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_SKIP, &gh);
 	if (unlikely(error)) {
+		glock_clear_object(ip->i_iopen_gh.gh_gl, ip);
 		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
 		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
 		goto out;
@@ -1561,6 +1600,12 @@ static void gfs2_evict_inode(struct inode *inode)
 		if (error)
 			goto out_truncate;
 	}
+
+	/*
+	 * The inode may have been recreated in the meantime.
+	 */
+	if (inode->i_nlink)
+		goto out_truncate;
 
 alloc_failed:
 	if (gfs2_holder_initialized(&ip->i_iopen_gh) &&
@@ -1595,6 +1640,11 @@ alloc_failed:
 			goto out_unlock;
 	}
 
+	/* We're about to clear the bitmap for the dinode, but as soon as we
+	   do, gfs2_create_inode can create another inode at the same block
+	   location and try to set gl_object again. We clear gl_object here so
+	   that subsequent inode creates don't see an old gl_object. */
+	glock_clear_object(ip->i_gl, ip);
 	error = gfs2_dinode_dealloc(ip);
 	goto out_unlock;
 
@@ -1623,14 +1673,17 @@ out_unlock:
 		gfs2_rs_deltree(&ip->i_res);
 
 	if (gfs2_holder_initialized(&ip->i_iopen_gh)) {
+		glock_clear_object(ip->i_iopen_gh.gh_gl, ip);
 		if (test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags)) {
 			ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
 			gfs2_glock_dq(&ip->i_iopen_gh);
 		}
 		gfs2_holder_uninit(&ip->i_iopen_gh);
 	}
-	if (gfs2_holder_initialized(&gh))
+	if (gfs2_holder_initialized(&gh)) {
+		glock_clear_object(ip->i_gl, ip);
 		gfs2_glock_dq_uninit(&gh);
+	}
 	if (error && error != GLR_TRYFAILED && error != -EROFS)
 		fs_warn(sdp, "gfs2_evict_inode: %d\n", error);
 out:
@@ -1640,15 +1693,19 @@ out:
 	gfs2_ordered_del_inode(ip);
 	clear_inode(inode);
 	gfs2_dir_hash_inval(ip);
-	glock_set_object(ip->i_gl, NULL);
+	glock_clear_object(ip->i_gl, ip);
 	wait_on_bit_io(&ip->i_flags, GIF_GLOP_PENDING, TASK_UNINTERRUPTIBLE);
 	gfs2_glock_add_to_lru(ip->i_gl);
-	gfs2_glock_put(ip->i_gl);
+	gfs2_glock_put_eventually(ip->i_gl);
 	ip->i_gl = NULL;
 	if (gfs2_holder_initialized(&ip->i_iopen_gh)) {
-		glock_set_object(ip->i_iopen_gh.gh_gl, NULL);
+		struct gfs2_glock *gl = ip->i_iopen_gh.gh_gl;
+
+		glock_clear_object(gl, ip);
 		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
+		gfs2_glock_hold(gl);
 		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
+		gfs2_glock_put_eventually(gl);
 	}
 }
 

@@ -647,7 +647,7 @@ static inline void abx500_gpio_dbg_show_one(struct seq_file *s,
 #define abx500_gpio_dbg_show	NULL
 #endif
 
-static struct gpio_chip abx500gpio_chip = {
+static const struct gpio_chip abx500gpio_chip = {
 	.label			= "abx500-gpio",
 	.owner			= THIS_MODULE,
 	.request		= gpiochip_generic_request,

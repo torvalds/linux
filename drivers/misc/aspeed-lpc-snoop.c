@@ -20,6 +20,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
@@ -50,6 +51,13 @@
 #define HICRB	0x80
 #define HICRB_ENSNP0D		BIT(14)
 #define HICRB_ENSNP1D		BIT(15)
+
+struct aspeed_lpc_snoop_model_data {
+	/* The ast2400 has bits 14 and 15 as reserved, whereas the ast2500
+	 * can use them.
+	 */
+	unsigned int has_hicrb_ensnp;
+};
 
 struct aspeed_lpc_snoop {
 	struct regmap		*regmap;
@@ -123,10 +131,13 @@ static int aspeed_lpc_snoop_config_irq(struct aspeed_lpc_snoop *lpc_snoop,
 }
 
 static int aspeed_lpc_enable_snoop(struct aspeed_lpc_snoop *lpc_snoop,
-				  int channel, u16 lpc_port)
+				   struct device *dev,
+				   int channel, u16 lpc_port)
 {
 	int rc = 0;
 	u32 hicr5_en, snpwadr_mask, snpwadr_shift, hicrb_en;
+	const struct aspeed_lpc_snoop_model_data *model_data =
+		of_device_get_match_data(dev);
 
 	/* Create FIFO datastructure */
 	rc = kfifo_alloc(&lpc_snoop->snoop_fifo[channel],
@@ -155,7 +166,9 @@ static int aspeed_lpc_enable_snoop(struct aspeed_lpc_snoop *lpc_snoop,
 	regmap_update_bits(lpc_snoop->regmap, HICR5, hicr5_en, hicr5_en);
 	regmap_update_bits(lpc_snoop->regmap, SNPWADR, snpwadr_mask,
 			   lpc_port << snpwadr_shift);
-	regmap_update_bits(lpc_snoop->regmap, HICRB, hicrb_en, hicrb_en);
+	if (model_data->has_hicrb_ensnp)
+		regmap_update_bits(lpc_snoop->regmap, HICRB,
+				hicrb_en, hicrb_en);
 
 	return rc;
 }
@@ -213,14 +226,14 @@ static int aspeed_lpc_snoop_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
-	rc = aspeed_lpc_enable_snoop(lpc_snoop, 0, port);
+	rc = aspeed_lpc_enable_snoop(lpc_snoop, dev, 0, port);
 	if (rc)
 		return rc;
 
 	/* Configuration of 2nd snoop channel port is optional */
 	if (of_property_read_u32_index(dev->of_node, "snoop-ports",
 				       1, &port) == 0) {
-		rc = aspeed_lpc_enable_snoop(lpc_snoop, 1, port);
+		rc = aspeed_lpc_enable_snoop(lpc_snoop, dev, 1, port);
 		if (rc)
 			aspeed_lpc_disable_snoop(lpc_snoop, 0);
 	}
@@ -239,8 +252,19 @@ static int aspeed_lpc_snoop_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct aspeed_lpc_snoop_model_data ast2400_model_data = {
+	.has_hicrb_ensnp = 0,
+};
+
+static const struct aspeed_lpc_snoop_model_data ast2500_model_data = {
+	.has_hicrb_ensnp = 1,
+};
+
 static const struct of_device_id aspeed_lpc_snoop_match[] = {
-	{ .compatible = "aspeed,ast2500-lpc-snoop" },
+	{ .compatible = "aspeed,ast2400-lpc-snoop",
+	  .data = &ast2400_model_data },
+	{ .compatible = "aspeed,ast2500-lpc-snoop",
+	  .data = &ast2500_model_data },
 	{ },
 };
 

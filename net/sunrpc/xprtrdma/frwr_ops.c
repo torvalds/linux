@@ -344,7 +344,7 @@ frwr_wc_localinv_wake(struct ib_cq *cq, struct ib_wc *wc)
 /* Post a REG_MR Work Request to register a memory region
  * for remote access via RDMA READ or RDMA WRITE.
  */
-static int
+static struct rpcrdma_mr_seg *
 frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	    int nsegs, bool writing, struct rpcrdma_mw **out)
 {
@@ -364,7 +364,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 			rpcrdma_defer_mr_recovery(mw);
 		mw = rpcrdma_get_mw(r_xprt);
 		if (!mw)
-			return -ENOBUFS;
+			return ERR_PTR(-ENOBUFS);
 	} while (mw->frmr.fr_state != FRMR_IS_INVALID);
 	frmr = &mw->frmr;
 	frmr->fr_state = FRMR_IS_VALID;
@@ -429,25 +429,25 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	mw->mw_offset = mr->iova;
 
 	*out = mw;
-	return mw->mw_nents;
+	return seg;
 
 out_dmamap_err:
 	pr_err("rpcrdma: failed to DMA map sg %p sg_nents %d\n",
 	       mw->mw_sg, i);
 	frmr->fr_state = FRMR_IS_INVALID;
 	rpcrdma_put_mw(r_xprt, mw);
-	return -EIO;
+	return ERR_PTR(-EIO);
 
 out_mapmr_err:
 	pr_err("rpcrdma: failed to map mr %p (%d/%d)\n",
 	       frmr->fr_mr, n, mw->mw_nents);
 	rpcrdma_defer_mr_recovery(mw);
-	return -EIO;
+	return ERR_PTR(-EIO);
 
 out_senderr:
 	pr_err("rpcrdma: FRMR registration ib_post_send returned %i\n", rc);
 	rpcrdma_defer_mr_recovery(mw);
-	return -ENOTCONN;
+	return ERR_PTR(-ENOTCONN);
 }
 
 /* Invalidate all memory regions that were registered for "req".

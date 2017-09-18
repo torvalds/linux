@@ -19,5 +19,4 @@ Example:
 		reg = <0x01c20e00 0xc>;
 		clocks = <&osc24M>;
 		#pwm-cells = <3>;
-		status = "disabled";
 	};

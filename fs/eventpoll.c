@@ -205,7 +205,7 @@ struct eventpoll {
 	struct list_head rdllist;
 
 	/* RB tree root used to store monitored fd structs */
-	struct rb_root rbr;
+	struct rb_root_cached rbr;
 
 	/*
 	 * This is a single linked list that chains all the "struct epitem" that
@@ -600,8 +600,13 @@ static void ep_remove_wait_queue(struct eppoll_entry *pwq)
 	wait_queue_head_t *whead;
 
 	rcu_read_lock();
-	/* If it is cleared by POLLFREE, it should be rcu-safe */
-	whead = rcu_dereference(pwq->whead);
+	/*
+	 * If it is cleared by POLLFREE, it should be rcu-safe.
+	 * If we read NULL we need a barrier paired with
+	 * smp_store_release() in ep_poll_callback(), otherwise
+	 * we rely on whead->lock.
+	 */
+	whead = smp_load_acquire(&pwq->whead);
 	if (whead)
 		remove_wait_queue(whead, &pwq->wait);
 	rcu_read_unlock();
@@ -791,7 +796,7 @@ static int ep_remove(struct eventpoll *ep, struct epitem *epi)
 	list_del_rcu(&epi->fllink);
 	spin_unlock(&file->f_lock);
 
-	rb_erase(&epi->rbn, &ep->rbr);
+	rb_erase_cached(&epi->rbn, &ep->rbr);
 
 	spin_lock_irqsave(&ep->lock, flags);
 	if (ep_is_linked(&epi->rdllink))
@@ -835,7 +840,7 @@ static void ep_free(struct eventpoll *ep)
 	/*
 	 * Walks through the whole tree by unregistering poll callbacks.
 	 */
-	for (rbp = rb_first(&ep->rbr); rbp; rbp = rb_next(rbp)) {
+	for (rbp = rb_first_cached(&ep->rbr); rbp; rbp = rb_next(rbp)) {
 		epi = rb_entry(rbp, struct epitem, rbn);
 
 		ep_unregister_pollwait(ep, epi);
@@ -851,7 +856,7 @@ static void ep_free(struct eventpoll *ep)
 	 * a lockdep warning.
 	 */
 	mutex_lock(&ep->mtx);
-	while ((rbp = rb_first(&ep->rbr)) != NULL) {
+	while ((rbp = rb_first_cached(&ep->rbr)) != NULL) {
 		epi = rb_entry(rbp, struct epitem, rbn);
 		ep_remove(ep, epi);
 		cond_resched();
@@ -958,7 +963,7 @@ static void ep_show_fdinfo(struct seq_file *m, struct file *f)
 	struct rb_node *rbp;
 
 	mutex_lock(&ep->mtx);
-	for (rbp = rb_first(&ep->rbr); rbp; rbp = rb_next(rbp)) {
+	for (rbp = rb_first_cached(&ep->rbr); rbp; rbp = rb_next(rbp)) {
 		struct epitem *epi = rb_entry(rbp, struct epitem, rbn);
 		struct inode *inode = file_inode(epi->ffd.file);
 
@@ -1035,7 +1040,7 @@ static int ep_alloc(struct eventpoll **pep)
 	init_waitqueue_head(&ep->wq);
 	init_waitqueue_head(&ep->poll_wait);
 	INIT_LIST_HEAD(&ep->rdllist);
-	ep->rbr = RB_ROOT;
+	ep->rbr = RB_ROOT_CACHED;
 	ep->ovflist = EP_UNACTIVE_PTR;
 	ep->user = user;
 
@@ -1061,7 +1066,7 @@ static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
 	struct epoll_filefd ffd;
 
 	ep_set_ffd(&ffd, file, fd);
-	for (rbp = ep->rbr.rb_node; rbp; ) {
+	for (rbp = ep->rbr.rb_root.rb_node; rbp; ) {
 		epi = rb_entry(rbp, struct epitem, rbn);
 		kcmp = ep_cmp_ffd(&ffd, &epi->ffd);
 		if (kcmp > 0)
@@ -1083,7 +1088,7 @@ static struct epitem *ep_find_tfd(struct eventpoll *ep, int tfd, unsigned long t
 	struct rb_node *rbp;
 	struct epitem *epi;
 
-	for (rbp = rb_first(&ep->rbr); rbp; rbp = rb_next(rbp)) {
+	for (rbp = rb_first_cached(&ep->rbr); rbp; rbp = rb_next(rbp)) {
 		epi = rb_entry(rbp, struct epitem, rbn);
 		if (epi->ffd.fd == tfd) {
 			if (toff == 0)
@@ -1133,17 +1138,6 @@ static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, v
 	struct epitem *epi = ep_item_from_wait(wait);
 	struct eventpoll *ep = epi->ep;
 	int ewake = 0;
-
-	if ((unsigned long)key & POLLFREE) {
-		ep_pwq_from_wait(wait)->whead = NULL;
-		/*
-		 * whead = NULL above can race with ep_remove_wait_queue()
-		 * which can do another remove_wait_queue() after us, so we
-		 * can't use __remove_wait_queue(). whead->lock is held by
-		 * the caller.
-		 */
-		list_del_init(&wait->entry);
-	}
 
 	spin_lock_irqsave(&ep->lock, flags);
 
@@ -1228,10 +1222,26 @@ out_unlock:
 	if (pwake)
 		ep_poll_safewake(&ep->poll_wait);
 
-	if (epi->event.events & EPOLLEXCLUSIVE)
-		return ewake;
+	if (!(epi->event.events & EPOLLEXCLUSIVE))
+		ewake = 1;
 
-	return 1;
+	if ((unsigned long)key & POLLFREE) {
+		/*
+		 * If we race with ep_remove_wait_queue() it can miss
+		 * ->whead = NULL and do another remove_wait_queue() after
+		 * us, so we can't use __remove_wait_queue().
+		 */
+		list_del_init(&wait->entry);
+		/*
+		 * ->whead != NULL protects us from the race with ep_free()
+		 * or ep_remove(), ep_remove_wait_queue() takes whead->lock
+		 * held by the caller. Once we nullify it, nothing protects
+		 * ep/epi or even wait.
+		 */
+		smp_store_release(&ep_pwq_from_wait(wait)->whead, NULL);
+	}
+
+	return ewake;
 }
 
 /*
@@ -1263,20 +1273,22 @@ static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
 static void ep_rbtree_insert(struct eventpoll *ep, struct epitem *epi)
 {
 	int kcmp;
-	struct rb_node **p = &ep->rbr.rb_node, *parent = NULL;
+	struct rb_node **p = &ep->rbr.rb_root.rb_node, *parent = NULL;
 	struct epitem *epic;
+	bool leftmost = true;
 
 	while (*p) {
 		parent = *p;
 		epic = rb_entry(parent, struct epitem, rbn);
 		kcmp = ep_cmp_ffd(&epi->ffd, &epic->ffd);
-		if (kcmp > 0)
+		if (kcmp > 0) {
 			p = &parent->rb_right;
-		else
+			leftmost = false;
+		} else
 			p = &parent->rb_left;
 	}
 	rb_link_node(&epi->rbn, parent, p);
-	rb_insert_color(&epi->rbn, &ep->rbr);
+	rb_insert_color_cached(&epi->rbn, &ep->rbr, leftmost);
 }
 
 
@@ -1520,7 +1532,7 @@ error_remove_epi:
 	list_del_rcu(&epi->fllink);
 	spin_unlock(&tfile->f_lock);
 
-	rb_erase(&epi->rbn, &ep->rbr);
+	rb_erase_cached(&epi->rbn, &ep->rbr);
 
 error_unregister:
 	ep_unregister_pollwait(ep, epi);
@@ -1868,7 +1880,7 @@ static int ep_loop_check_proc(void *priv, void *cookie, int call_nests)
 	mutex_lock_nested(&ep->mtx, call_nests + 1);
 	ep->visited = 1;
 	list_add(&ep->visited_list_link, &visited_list);
-	for (rbp = rb_first(&ep->rbr); rbp; rbp = rb_next(rbp)) {
+	for (rbp = rb_first_cached(&ep->rbr); rbp; rbp = rb_next(rbp)) {
 		epi = rb_entry(rbp, struct epitem, rbn);
 		if (unlikely(is_file_epoll(epi->ffd.file))) {
 			ep_tovisit = epi->ffd.file->private_data;

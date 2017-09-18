@@ -167,6 +167,8 @@ struct ceph_mon_request_header {
 struct ceph_mon_statfs {
 	struct ceph_mon_request_header monhdr;
 	struct ceph_fsid fsid;
+	__u8 contains_data_pool;
+	__le64 data_pool;
 } __attribute__ ((packed));
 
 struct ceph_statfs {
@@ -669,7 +671,9 @@ enum {
 extern const char *ceph_cap_op_name(int op);
 
 /* flags field in client cap messages (version >= 10) */
-#define CEPH_CLIENT_CAPS_SYNC	(0x1)
+#define CEPH_CLIENT_CAPS_SYNC			(1<<0)
+#define CEPH_CLIENT_CAPS_NO_CAPSNAP		(1<<1)
+#define CEPH_CLIENT_CAPS_PENDING_CAPSNAP	(1<<2);
 
 /*
  * caps message, used for capability callbacks, acks, requests, etc.

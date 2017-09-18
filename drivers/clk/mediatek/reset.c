@@ -72,7 +72,7 @@ void mtk_register_reset_controller(struct device_node *np,
 
 	regmap = syscon_node_to_regmap(np);
 	if (IS_ERR(regmap)) {
-		pr_err("Cannot find regmap for %s: %ld\n", np->full_name,
+		pr_err("Cannot find regmap for %pOF: %ld\n", np,
 				PTR_ERR(regmap));
 		return;
 	}

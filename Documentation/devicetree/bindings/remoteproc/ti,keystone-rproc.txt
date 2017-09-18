@@ -26,6 +26,7 @@ The following are the mandatory properties:
 			    "ti,k2hk-dsp" for DSPs on Keystone 2 66AK2H/K SoCs
 			    "ti,k2l-dsp" for DSPs on Keystone 2 66AK2L SoCs
 			    "ti,k2e-dsp" for DSPs on Keystone 2 66AK2E SoCs
+			    "ti,k2g-dsp" for DSPs on Keystone 2 66AK2G SoCs
 
 - reg:			Should contain an entry for each value in 'reg-names'.
 			Each entry should have the memory region's start address
@@ -37,20 +38,18 @@ The following are the mandatory properties:
 			should be defined in this order,
 			     "l2sram", "l1pram", "l1dram"
 
-- clocks: 		Should contain the device's input clock, and should be
-			defined as per the bindings in,
-			Documentation/devicetree/bindings/clock/keystone-gate.txt
-
 - ti,syscon-dev:	Should be a pair of the phandle to the Keystone Device
 			State Control node, and the register offset of the DSP
 			boot address register within that node's address space.
 
 - resets:		Should contain the phandle to the reset controller node
 			managing the resets for this device, and a reset
-			specifier. Please refer to the following reset bindings
-			for the reset argument specifier as per SoC,
+			specifier. Please refer to either of the following reset
+			bindings for the reset argument specifier as per SoC,
 			Documentation/devicetree/bindings/reset/ti-syscon-reset.txt
-			    for 66AK2HK/66AK2L/66AK2E SoCs
+			    for 66AK2HK/66AK2L/66AK2E SoCs or,
+			Documentation/devicetree/bindings/reset/ti,sci-reset.txt
+			    for 66AK2G SoCs
 
 - interrupt-parent:	Should contain a phandle to the Keystone 2 IRQ controller
 			IP node that is used by the ARM CorePac processor to
@@ -75,6 +74,22 @@ The following are the mandatory properties:
 			The gpio device to be used is as per the bindings in,
 			Documentation/devicetree/bindings/gpio/gpio-dsp-keystone.txt
 
+SoC-specific Required properties:
+---------------------------------
+The following are mandatory properties for Keystone 2 66AK2HK, 66AK2L and 66AK2E
+SoCs only:
+
+- clocks: 		Should contain the device's input clock, and should be
+			defined as per the bindings in,
+			Documentation/devicetree/bindings/clock/keystone-gate.txt
+
+The following are mandatory properties for Keystone 2 66AK2G SoCs only:
+
+- power-domains:	Should contain a phandle to a PM domain provider node
+			and an args specifier containing the DSP device id
+			value. This property is as per the binding,
+			Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
+
 Optional properties:
 --------------------
 
@@ -85,8 +100,10 @@ Optional properties:
 			Documentation/devicetree/bindings/reserved-memory/reserved-memory.txt
 
 
-Example:
---------
+Examples:
+---------
+
+1.
 	/* 66AK2H/K DSP aliases */
 	aliases {
 		rproc0 = &dsp0;
@@ -130,4 +147,42 @@ Example:
 			memory-region = <&dsp_common_memory>;
 		};
 
+	};
+
+2.
+	/* 66AK2G DSP alias */
+	aliases {
+		rproc0 = &dsp0;
+	};
+
+	/* 66AK2G DSP memory node */
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		dsp_common_memory: dsp-common-memory@81f800000 {
+			compatible = "shared-dma-pool";
+			reg = <0x00000008 0x1f800000 0x00000000 0x800000>;
+			reusable;
+		};
+	};
+
+	/* 66AK2G DSP node */
+	soc {
+		dsp0: dsp@10800000 {
+			compatible = "ti,k2g-dsp";
+			reg = <0x10800000 0x00100000>,
+			      <0x10e00000 0x00008000>,
+			      <0x10f00000 0x00008000>;
+			reg-names = "l2sram", "l1pram", "l1dram";
+			power-domains = <&k2g_pds 0x0046>;
+			ti,syscon-dev = <&devctrl 0x40>;
+			resets = <&k2g_reset 0x0046 0x1>;
+			interrupt-parent = <&kirq0>;
+			interrupts = <0 8>;
+			interrupt-names = "vring", "exception";
+			kick-gpios = <&dspgpio0 27 0>;
+			memory-region = <&dsp_common_memory>;
+		};
 	};

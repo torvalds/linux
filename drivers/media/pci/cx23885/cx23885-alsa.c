@@ -293,7 +293,7 @@ static int dsp_buffer_free(struct cx23885_audio_dev *chip)
  */
 #define DEFAULT_FIFO_SIZE	4096
 
-static struct snd_pcm_hardware snd_cx23885_digital_hw = {
+static const struct snd_pcm_hardware snd_cx23885_digital_hw = {
 	.info = SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER |

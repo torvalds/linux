@@ -21,6 +21,17 @@ config PHY_BERLIN_USB
 	help
 	  Enable this to support the USB PHY on Marvell Berlin SoCs.
 
+config PHY_MVEBU_CP110_COMPHY
+	tristate "Marvell CP110 comphy driver"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on OF
+	select GENERIC_PHY
+	help
+	  This driver allows to control the comphy, an hardware block providing
+	  shared serdes PHYs on Marvell Armada 7k/8k (in the CP110). Its serdes
+	  lanes can be used by various controllers (Ethernet, sata, usb,
+	  PCIe...).
+
 config PHY_MVEBU_SATA
 	def_bool y
 	depends on ARCH_DOVE || MACH_DOVE || MACH_KIRKWOOD

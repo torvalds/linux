@@ -804,7 +804,7 @@ struct tb_cfg_result tb_cfg_reset(struct tb_ctl *ctl, u64 route,
 	req->request_type = TB_CFG_PKG_RESET;
 	req->response = &reply;
 	req->response_size = sizeof(reply);
-	req->response_type = sizeof(TB_CFG_PKG_RESET);
+	req->response_type = TB_CFG_PKG_RESET;
 
 	res = tb_cfg_request_sync(ctl, req, timeout_msec);
 

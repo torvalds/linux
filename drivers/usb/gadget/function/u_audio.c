@@ -79,7 +79,7 @@ struct snd_uac_chip {
 	unsigned int p_framesize;
 };
 
-static struct snd_pcm_hardware uac_pcm_hardware = {
+static const struct snd_pcm_hardware uac_pcm_hardware = {
 	.info = SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER
 		 | SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID
 		 | SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME,
@@ -354,7 +354,7 @@ static int uac_pcm_null(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_pcm_ops uac_pcm_ops = {
+static const struct snd_pcm_ops uac_pcm_ops = {
 	.open = uac_pcm_open,
 	.close = uac_pcm_null,
 	.ioctl = snd_pcm_lib_ioctl,

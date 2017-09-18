@@ -161,7 +161,7 @@ static unsigned int clocktab[] = {
 	CLK_LOW
 };     
 
-static struct atmdev_ops he_ops =
+static const struct atmdev_ops he_ops =
 {
 	.open =		he_open,
 	.close =	he_close,	
@@ -2851,7 +2851,7 @@ MODULE_PARM_DESC(irq_coalesce, "use interrupt coalescing (default 1)");
 module_param(sdh, bool, 0);
 MODULE_PARM_DESC(sdh, "use SDH framing (default 0)");
 
-static struct pci_device_id he_pci_tbl[] = {
+static const struct pci_device_id he_pci_tbl[] = {
 	{ PCI_VDEVICE(FORE, PCI_DEVICE_ID_FORE_HE), 0 },
 	{ 0, }
 };

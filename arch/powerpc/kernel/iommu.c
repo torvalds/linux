@@ -127,8 +127,7 @@ static ssize_t fail_iommu_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(fail_iommu, S_IRUGO|S_IWUSR, fail_iommu_show,
-		   fail_iommu_store);
+static DEVICE_ATTR_RW(fail_iommu);
 
 static int fail_iommu_bus_notify(struct notifier_block *nb,
 				 unsigned long action, void *data)
@@ -190,7 +189,7 @@ static unsigned long iommu_range_alloc(struct device *dev,
 	unsigned int pool_nr;
 	struct iommu_pool *pool;
 
-	align_mask = 0xffffffffffffffffl >> (64 - align_order);
+	align_mask = (1ull << align_order) - 1;
 
 	/* This allocator was derived from x86_64's bit string search */
 
@@ -208,7 +207,7 @@ static unsigned long iommu_range_alloc(struct device *dev,
 	 * We don't need to disable preemption here because any CPU can
 	 * safely use any IOMMU pool.
 	 */
-	pool_nr = __this_cpu_read(iommu_pool_hash) & (tbl->nr_pools - 1);
+	pool_nr = raw_cpu_read(iommu_pool_hash) & (tbl->nr_pools - 1);
 
 	if (largealloc)
 		pool = &(tbl->large_pool);

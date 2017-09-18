@@ -49,12 +49,10 @@ static void __vunmap(const void *, int);
 static void free_work(struct work_struct *w)
 {
 	struct vfree_deferred *p = container_of(w, struct vfree_deferred, wq);
-	struct llist_node *llnode = llist_del_all(&p->list);
-	while (llnode) {
-		void *p = llnode;
-		llnode = llist_next(llnode);
-		__vunmap(p, 1);
-	}
+	struct llist_node *t, *llnode;
+
+	llist_for_each_safe(llnode, t, llist_del_all(&p->list))
+		__vunmap((void *)llnode, 1);
 }
 
 /*** Page table manipulation functions ***/
@@ -2482,7 +2480,7 @@ static unsigned long pvm_determine_end(struct vmap_area **pnext,
  * matching slot.  While scanning, if any of the areas overlaps with
  * existing vmap_area, the base address is pulled down to fit the
  * area.  Scanning is repeated till all the areas fit and then all
- * necessary data structres are inserted and the result is returned.
+ * necessary data structures are inserted and the result is returned.
  */
 struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
 				     const size_t *sizes, int nr_vms,
@@ -2510,15 +2508,11 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
 		if (start > offsets[last_area])
 			last_area = area;
 
-		for (area2 = 0; area2 < nr_vms; area2++) {
+		for (area2 = area + 1; area2 < nr_vms; area2++) {
 			unsigned long start2 = offsets[area2];
 			unsigned long end2 = start2 + sizes[area2];
 
-			if (area2 == area)
-				continue;
-
-			BUG_ON(start2 >= start && start2 < end);
-			BUG_ON(end2 <= end && end2 > start);
+			BUG_ON(start2 < end && start < end2);
 		}
 	}
 	last_end = offsets[last_area] + sizes[last_area];

@@ -92,13 +92,13 @@ END_FTR_SECTION(0, 1)
 	.balign 8
 	.globl  __secondary_hold_spinloop
 __secondary_hold_spinloop:
-	.llong	0x0
+	.8byte	0x0
 
 	/* Secondary processors write this value with their cpu # */
 	/* after they enter the spin loop immediately below.	  */
 	.globl	__secondary_hold_acknowledge
 __secondary_hold_acknowledge:
-	.llong	0x0
+	.8byte	0x0
 
 #ifdef CONFIG_RELOCATABLE
 	/* This flag is set to 1 by a loader if the kernel should run
@@ -650,7 +650,7 @@ __after_prom_start:
 	bctr
 
 .balign 8
-p_end: .llong _end - copy_to_here
+p_end: .8byte _end - copy_to_here
 
 4:
 	/*
@@ -892,7 +892,7 @@ _GLOBAL(relative_toc)
 	blr
 
 .balign 8
-p_toc:	.llong	__toc_start + 0x8000 - 0b
+p_toc:	.8byte	__toc_start + 0x8000 - 0b
 
 /*
  * This is where the main kernel code starts.

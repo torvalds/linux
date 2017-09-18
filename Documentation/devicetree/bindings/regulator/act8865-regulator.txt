@@ -52,7 +52,6 @@ Example:
 				compatible = "active-semi,act8865";
 				reg = <0x5b>;
 				active-semi,vsel-high;
-				status = "disabled";
 
 				regulators {
 					vcc_1v8_reg: DCDC_REG1 {

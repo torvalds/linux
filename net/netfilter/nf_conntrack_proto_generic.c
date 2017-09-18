@@ -17,20 +17,8 @@ static unsigned int nf_ct_generic_timeout __read_mostly = 600*HZ;
 static bool nf_generic_should_process(u8 proto)
 {
 	switch (proto) {
-#ifdef CONFIG_NF_CT_PROTO_SCTP_MODULE
-	case IPPROTO_SCTP:
-		return false;
-#endif
-#ifdef CONFIG_NF_CT_PROTO_DCCP_MODULE
-	case IPPROTO_DCCP:
-		return false;
-#endif
 #ifdef CONFIG_NF_CT_PROTO_GRE_MODULE
 	case IPPROTO_GRE:
-		return false;
-#endif
-#ifdef CONFIG_NF_CT_PROTO_UDPLITE_MODULE
-	case IPPROTO_UDPLITE:
 		return false;
 #endif
 	default:
@@ -62,12 +50,6 @@ static bool generic_invert_tuple(struct nf_conntrack_tuple *tuple,
 	return true;
 }
 
-/* Print out the per-protocol part of the tuple. */
-static void generic_print_tuple(struct seq_file *s,
-				const struct nf_conntrack_tuple *tuple)
-{
-}
-
 static unsigned int *generic_get_timeouts(struct net *net)
 {
 	return &(generic_pernet(net)->timeout);
@@ -79,7 +61,6 @@ static int generic_packet(struct nf_conn *ct,
 			  unsigned int dataoff,
 			  enum ip_conntrack_info ctinfo,
 			  u_int8_t pf,
-			  unsigned int hooknum,
 			  unsigned int *timeout)
 {
 	nf_ct_refresh_acct(ct, ctinfo, skb, *timeout);
@@ -187,10 +168,8 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_generic __read_mostly =
 {
 	.l3proto		= PF_UNSPEC,
 	.l4proto		= 255,
-	.name			= "unknown",
 	.pkt_to_tuple		= generic_pkt_to_tuple,
 	.invert_tuple		= generic_invert_tuple,
-	.print_tuple		= generic_print_tuple,
 	.packet			= generic_packet,
 	.get_timeouts		= generic_get_timeouts,
 	.new			= generic_new,

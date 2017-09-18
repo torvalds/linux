@@ -38,3 +38,7 @@
 	compatible = "brcm,bcm958742t", "brcm,stingray";
 	model = "Stingray SST100 (BCM958742T)";
 };
+
+&gphy0 {
+	enet-phy-lane-swap;
+};

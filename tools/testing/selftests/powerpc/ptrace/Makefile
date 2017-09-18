@@ -6,7 +6,7 @@ include ../../lib.mk
 
 all: $(TEST_PROGS)
 
-CFLAGS += -m64 -I../../../../../usr/include -I../tm -mhtm
+CFLAGS += -m64 -I../../../../../usr/include -I../tm -mhtm -fno-pie
 
 $(TEST_PROGS): ../harness.c ../utils.c ../lib/reg.S ptrace.h
 

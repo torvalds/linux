@@ -154,6 +154,7 @@ static void nvmet_execute_admin_connect(struct nvmet_req *req)
 				  le32_to_cpu(c->kato), &ctrl);
 	if (status)
 		goto out;
+	uuid_copy(&ctrl->hostid, &d->hostid);
 
 	status = nvmet_install_queue(ctrl, req);
 	if (status) {

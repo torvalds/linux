@@ -221,10 +221,7 @@
 #define SPRN_CSRR0	SPRN_SRR2 /* Critical Save and Restore Register 0 */
 #define SPRN_CSRR1	SPRN_SRR3 /* Critical Save and Restore Register 1 */
 #endif
-
-#ifdef CONFIG_PPC_ICSWX
 #define SPRN_HACOP	0x15F	/* Hypervisor Available Coprocessor Register */
-#endif
 
 /* Bit definitions for CCR1. */
 #define	CCR1_DPC	0x00000100 /* Disable L1 I-Cache/D-Cache parity checking */

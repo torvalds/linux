@@ -256,7 +256,8 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	struct dw_i2c_dev *dev;
 	u32 acpi_speed, ht = 0;
 	struct resource *mem;
-	int irq, ret;
+	int i, irq, ret;
+	const int supported_speeds[] = { 0, 100000, 400000, 1000000, 3400000 };
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -297,9 +298,16 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	}
 
 	acpi_speed = i2c_acpi_find_bus_speed(&pdev->dev);
-	/* Some broken DSTDs use 1MiHz instead of 1MHz */
-	if (acpi_speed == 1048576)
-		acpi_speed = 1000000;
+	/*
+	 * Some DSTDs use a non standard speed, round down to the lowest
+	 * standard speed.
+	 */
+	for (i = 1; i < ARRAY_SIZE(supported_speeds); i++) {
+		if (acpi_speed < supported_speeds[i])
+			break;
+	}
+	acpi_speed = supported_speeds[i - 1];
+
 	/*
 	 * Find bus speed from the "clock-frequency" device property, ACPI
 	 * or by using fast mode if neither is set.
@@ -431,8 +439,7 @@ static void dw_i2c_plat_complete(struct device *dev)
 #ifdef CONFIG_PM
 static int dw_i2c_plat_runtime_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct dw_i2c_dev *i_dev = platform_get_drvdata(pdev);
+	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 
 	i_dev->disable(i_dev);
 	i2c_dw_plat_prepare_clk(i_dev, false);
@@ -442,8 +449,7 @@ static int dw_i2c_plat_runtime_suspend(struct device *dev)
 
 static int dw_i2c_plat_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct dw_i2c_dev *i_dev = platform_get_drvdata(pdev);
+	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 
 	i2c_dw_plat_prepare_clk(i_dev, true);
 	i_dev->init(i_dev);

@@ -20,10 +20,15 @@ static inline void __tlb_flush_local(void)
  */
 static inline void __tlb_flush_idte(unsigned long asce)
 {
+	unsigned long opt;
+
+	opt = IDTE_PTOA;
+	if (MACHINE_HAS_TLB_GUEST)
+		opt |= IDTE_GUEST_ASCE;
 	/* Global TLB flush for the mm */
 	asm volatile(
 		"	.insn	rrf,0xb98e0000,0,%0,%1,0"
-		: : "a" (2048), "a" (asce) : "cc");
+		: : "a" (opt), "a" (asce) : "cc");
 }
 
 #ifdef CONFIG_SMP
@@ -43,23 +48,6 @@ static inline void __tlb_flush_global(void)
  * Flush TLB entries for a specific mm on all CPUs (in case gmap is used
  * this implicates multiple ASCEs!).
  */
-static inline void __tlb_flush_full(struct mm_struct *mm)
-{
-	preempt_disable();
-	atomic_inc(&mm->context.flush_count);
-	if (cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id()))) {
-		/* Local TLB flush */
-		__tlb_flush_local();
-	} else {
-		/* Global TLB flush */
-		__tlb_flush_global();
-		/* Reset TLB flush mask */
-		cpumask_copy(mm_cpumask(mm), &mm->context.cpu_attach_mask);
-	}
-	atomic_dec(&mm->context.flush_count);
-	preempt_enable();
-}
-
 static inline void __tlb_flush_mm(struct mm_struct *mm)
 {
 	unsigned long gmap_asce;
@@ -71,16 +59,18 @@ static inline void __tlb_flush_mm(struct mm_struct *mm)
 	 */
 	preempt_disable();
 	atomic_inc(&mm->context.flush_count);
+	/* Reset TLB flush mask */
+	cpumask_copy(mm_cpumask(mm), &mm->context.cpu_attach_mask);
+	barrier();
 	gmap_asce = READ_ONCE(mm->context.gmap_asce);
 	if (MACHINE_HAS_IDTE && gmap_asce != -1UL) {
 		if (gmap_asce)
 			__tlb_flush_idte(gmap_asce);
 		__tlb_flush_idte(mm->context.asce);
 	} else {
-		__tlb_flush_full(mm);
+		/* Global TLB flush */
+		__tlb_flush_global();
 	}
-	/* Reset TLB flush mask */
-	cpumask_copy(mm_cpumask(mm), &mm->context.cpu_attach_mask);
 	atomic_dec(&mm->context.flush_count);
 	preempt_enable();
 }
@@ -94,7 +84,6 @@ static inline void __tlb_flush_kernel(void)
 }
 #else
 #define __tlb_flush_global()	__tlb_flush_local()
-#define __tlb_flush_full(mm)	__tlb_flush_local()
 
 /*
  * Flush TLB entries for a specific ASCE on all CPUs.
@@ -112,10 +101,12 @@ static inline void __tlb_flush_kernel(void)
 
 static inline void __tlb_flush_mm_lazy(struct mm_struct * mm)
 {
+	spin_lock(&mm->context.lock);
 	if (mm->context.flush_mm) {
-		__tlb_flush_mm(mm);
 		mm->context.flush_mm = 0;
+		__tlb_flush_mm(mm);
 	}
+	spin_unlock(&mm->context.lock);
 }
 
 /*

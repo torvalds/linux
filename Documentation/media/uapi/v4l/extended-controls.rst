@@ -942,21 +942,21 @@ enum v4l2_mpeg_video_mpeg4_level -
     :header-rows:  0
     :stub-columns: 0
 
-    * - ``V4L2_MPEG_VIDEO_LEVEL_0``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_LEVEL_0``
       - Level 0
-    * - ``V4L2_MPEG_VIDEO_LEVEL_0B``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_LEVEL_0B``
       - Level 0b
-    * - ``V4L2_MPEG_VIDEO_LEVEL_1``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_LEVEL_1``
       - Level 1
-    * - ``V4L2_MPEG_VIDEO_LEVEL_2``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_LEVEL_2``
       - Level 2
-    * - ``V4L2_MPEG_VIDEO_LEVEL_3``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_LEVEL_3``
       - Level 3
-    * - ``V4L2_MPEG_VIDEO_LEVEL_3B``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_LEVEL_3B``
       - Level 3b
-    * - ``V4L2_MPEG_VIDEO_LEVEL_4``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_LEVEL_4``
       - Level 4
-    * - ``V4L2_MPEG_VIDEO_LEVEL_5``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_LEVEL_5``
       - Level 5
 
 
@@ -1028,15 +1028,15 @@ enum v4l2_mpeg_video_mpeg4_profile -
     :header-rows:  0
     :stub-columns: 0
 
-    * - ``V4L2_MPEG_VIDEO_PROFILE_SIMPLE``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_PROFILE_SIMPLE``
       - Simple profile
-    * - ``V4L2_MPEG_VIDEO_PROFILE_ADVANCED_SIMPLE``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_PROFILE_ADVANCED_SIMPLE``
       - Advanced Simple profile
-    * - ``V4L2_MPEG_VIDEO_PROFILE_CORE``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_PROFILE_CORE``
       - Core profile
-    * - ``V4L2_MPEG_VIDEO_PROFILE_SIMPLE_SCALABLE``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_PROFILE_SIMPLE_SCALABLE``
       - Simple Scalable profile
-    * - ``V4L2_MPEG_VIDEO_PROFILE_ADVANCED_CODING_EFFICIENCY``
+    * - ``V4L2_MPEG_VIDEO_MPEG4_PROFILE_ADVANCED_CODING_EFFICIENCY``
       -
 
 
@@ -1922,9 +1922,9 @@ enum v4l2_vp8_golden_frame_sel -
 
 .. raw:: latex
 
-    \begin{adjustbox}{width=\columnwidth}
+    \footnotesize
 
-.. tabularcolumns:: |p{11.0cm}|p{10.0cm}|
+.. tabularcolumns:: |p{9.0cm}|p{8.0cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -1940,7 +1940,7 @@ enum v4l2_vp8_golden_frame_sel -
 
 .. raw:: latex
 
-    \end{adjustbox}
+    \normalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_VPX_MIN_QP (integer)``

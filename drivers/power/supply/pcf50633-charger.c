@@ -254,7 +254,7 @@ static struct attribute *pcf50633_mbc_sysfs_entries[] = {
 	NULL,
 };
 
-static struct attribute_group mbc_attr_group = {
+static const struct attribute_group mbc_attr_group = {
 	.name	= NULL,			/* put in device directory */
 	.attrs	= pcf50633_mbc_sysfs_entries,
 };

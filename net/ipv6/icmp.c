@@ -399,6 +399,24 @@ relookup_failed:
 	return ERR_PTR(err);
 }
 
+static int icmp6_iif(const struct sk_buff *skb)
+{
+	int iif = skb->dev->ifindex;
+
+	/* for local traffic to local address, skb dev is the loopback
+	 * device. Check if there is a dst attached to the skb and if so
+	 * get the real device index.
+	 */
+	if (unlikely(iif == LOOPBACK_IFINDEX)) {
+		const struct rt6_info *rt6 = skb_rt6_info(skb);
+
+		if (rt6)
+			iif = rt6->rt6i_idev->dev->ifindex;
+	}
+
+	return iif;
+}
+
 /*
  *	Send an ICMP message in response to a packet in error
  */
@@ -459,9 +477,9 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 	 *	Source addr check
 	 */
 
-	if (__ipv6_addr_needs_scope_id(addr_type))
-		iif = skb->dev->ifindex;
-	else {
+	if (__ipv6_addr_needs_scope_id(addr_type)) {
+		iif = icmp6_iif(skb);
+	} else {
 		dst = skb_dst(skb);
 		iif = l3mdev_master_ifindex(dst ? dst->dev : skb->dev);
 	}
@@ -508,6 +526,7 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 	fl6.fl6_icmp_type = type;
 	fl6.fl6_icmp_code = code;
 	fl6.flowi6_uid = sock_net_uid(net, NULL);
+	fl6.mp_hash = rt6_multipath_hash(&fl6, skb);
 	security_skb_classify_flow(skb, flowi6_to_flowi(&fl6));
 
 	sk = icmpv6_xmit_lock(net);
@@ -682,7 +701,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	fl6.daddr = ipv6_hdr(skb)->saddr;
 	if (saddr)
 		fl6.saddr = *saddr;
-	fl6.flowi6_oif = skb->dev->ifindex;
+	fl6.flowi6_oif = icmp6_iif(skb);
 	fl6.fl6_icmp_type = ICMPV6_ECHO_REPLY;
 	fl6.flowi6_mark = mark;
 	fl6.flowi6_uid = sock_net_uid(net, NULL);

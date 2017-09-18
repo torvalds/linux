@@ -356,22 +356,10 @@ do {									\
 
 #ifdef CONFIG_TINY_RCU
 /* Tiny RCU doesn't expedite, as its purpose in life is instead to be tiny. */
-static inline bool rcu_gp_is_normal(void)  /* Internal RCU use. */
-{
-	return true;
-}
-static inline bool rcu_gp_is_expedited(void)  /* Internal RCU use. */
-{
-	return false;
-}
-
-static inline void rcu_expedite_gp(void)
-{
-}
-
-static inline void rcu_unexpedite_gp(void)
-{
-}
+static inline bool rcu_gp_is_normal(void) { return true; }
+static inline bool rcu_gp_is_expedited(void) { return false; }
+static inline void rcu_expedite_gp(void) { }
+static inline void rcu_unexpedite_gp(void) { }
 #else /* #ifdef CONFIG_TINY_RCU */
 bool rcu_gp_is_normal(void);     /* Internal RCU use. */
 bool rcu_gp_is_expedited(void);  /* Internal RCU use. */
@@ -419,12 +407,8 @@ static inline void rcutorture_get_gp_data(enum rcutorture_type test_type,
 	*gpnum = 0;
 	*completed = 0;
 }
-static inline void rcutorture_record_test_transition(void)
-{
-}
-static inline void rcutorture_record_progress(unsigned long vernum)
-{
-}
+static inline void rcutorture_record_test_transition(void) { }
+static inline void rcutorture_record_progress(unsigned long vernum) { }
 #ifdef CONFIG_RCU_TRACE
 void do_trace_rcu_torture_read(const char *rcutorturename,
 			       struct rcu_head *rhp,
@@ -460,92 +444,20 @@ void srcutorture_get_gp_data(enum rcutorture_type test_type,
 #endif
 
 #ifdef CONFIG_TINY_RCU
-
-/*
- * Return the number of grace periods started.
- */
-static inline unsigned long rcu_batches_started(void)
-{
-	return 0;
-}
-
-/*
- * Return the number of bottom-half grace periods started.
- */
-static inline unsigned long rcu_batches_started_bh(void)
-{
-	return 0;
-}
-
-/*
- * Return the number of sched grace periods started.
- */
-static inline unsigned long rcu_batches_started_sched(void)
-{
-	return 0;
-}
-
-/*
- * Return the number of grace periods completed.
- */
-static inline unsigned long rcu_batches_completed(void)
-{
-	return 0;
-}
-
-/*
- * Return the number of bottom-half grace periods completed.
- */
-static inline unsigned long rcu_batches_completed_bh(void)
-{
-	return 0;
-}
-
-/*
- * Return the number of sched grace periods completed.
- */
-static inline unsigned long rcu_batches_completed_sched(void)
-{
-	return 0;
-}
-
-/*
- * Return the number of expedited grace periods completed.
- */
-static inline unsigned long rcu_exp_batches_completed(void)
-{
-	return 0;
-}
-
-/*
- * Return the number of expedited sched grace periods completed.
- */
-static inline unsigned long rcu_exp_batches_completed_sched(void)
-{
-	return 0;
-}
-
-static inline unsigned long srcu_batches_completed(struct srcu_struct *sp)
-{
-	return 0;
-}
-
-static inline void rcu_force_quiescent_state(void)
-{
-}
-
-static inline void rcu_bh_force_quiescent_state(void)
-{
-}
-
-static inline void rcu_sched_force_quiescent_state(void)
-{
-}
-
-static inline void show_rcu_gp_kthreads(void)
-{
-}
-
+static inline unsigned long rcu_batches_started(void) { return 0; }
+static inline unsigned long rcu_batches_started_bh(void) { return 0; }
+static inline unsigned long rcu_batches_started_sched(void) { return 0; }
+static inline unsigned long rcu_batches_completed(void) { return 0; }
+static inline unsigned long rcu_batches_completed_bh(void) { return 0; }
+static inline unsigned long rcu_batches_completed_sched(void) { return 0; }
+static inline unsigned long rcu_exp_batches_completed(void) { return 0; }
+static inline unsigned long rcu_exp_batches_completed_sched(void) { return 0; }
+static inline unsigned long
+srcu_batches_completed(struct srcu_struct *sp) { return 0; }
+static inline void rcu_force_quiescent_state(void) { }
+static inline void rcu_bh_force_quiescent_state(void) { }
+static inline void rcu_sched_force_quiescent_state(void) { }
+static inline void show_rcu_gp_kthreads(void) { }
 #else /* #ifdef CONFIG_TINY_RCU */
 extern unsigned long rcutorture_testseq;
 extern unsigned long rcutorture_vernum;

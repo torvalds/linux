@@ -238,7 +238,7 @@ static int dev_rot_parse_report(struct platform_device *pdev,
 static int hid_dev_rot_probe(struct platform_device *pdev)
 {
 	int ret;
-	static char *name;
+	char *name;
 	struct iio_dev *indio_dev;
 	struct dev_rot_state *rot_state;
 	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;

@@ -181,7 +181,7 @@ static void kvmppc_fast_vcpu_kick_hv(struct kvm_vcpu *vcpu)
 	struct swait_queue_head *wqp;
 
 	wqp = kvm_arch_vcpu_wq(vcpu);
-	if (swait_active(wqp)) {
+	if (swq_has_sleeper(wqp)) {
 		swake_up(wqp);
 		++vcpu->stat.halt_wakeup;
 	}
@@ -485,7 +485,13 @@ static unsigned long do_h_register_vpa(struct kvm_vcpu *vcpu,
 
 	switch (subfunc) {
 	case H_VPA_REG_VPA:		/* register VPA */
-		if (len < sizeof(struct lppaca))
+		/*
+		 * The size of our lppaca is 1kB because of the way we align
+		 * it for the guest to avoid crossing a 4kB boundary. We only
+		 * use 640 bytes of the structure though, so we should accept
+		 * clients that set a size of 640.
+		 */
+		if (len < 640)
 			break;
 		vpap = &tvcpu->arch.vpa;
 		err = 0;
@@ -2111,6 +2117,15 @@ static int kvmppc_grab_hwthread(int cpu)
 	struct paca_struct *tpaca;
 	long timeout = 10000;
 
+	/*
+	 * ISA v3.0 idle routines do not set hwthread_state or test
+	 * hwthread_req, so they can not grab idle threads.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		WARN(1, "KVM: can not control sibling threads\n");
+		return -EBUSY;
+	}
+
 	tpaca = &paca[cpu];
 
 	/* Ensure the thread won't go into the kernel if it wakes */
@@ -2145,10 +2160,12 @@ static void kvmppc_release_hwthread(int cpu)
 	struct paca_struct *tpaca;
 
 	tpaca = &paca[cpu];
-	tpaca->kvm_hstate.hwthread_req = 0;
 	tpaca->kvm_hstate.kvm_vcpu = NULL;
 	tpaca->kvm_hstate.kvm_vcore = NULL;
 	tpaca->kvm_hstate.kvm_split_mode = NULL;
+	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+		tpaca->kvm_hstate.hwthread_req = 0;
+
 }
 
 static void radix_flush_cpu(struct kvm *kvm, int cpu, struct kvm_vcpu *vcpu)
@@ -3325,6 +3342,14 @@ static int kvm_vm_ioctl_get_smmu_info_hv(struct kvm *kvm,
 	if (radix_enabled())
 		return -EINVAL;
 
+	/*
+	 * POWER7, POWER8 and POWER9 all support 32 storage keys for data.
+	 * POWER7 doesn't support keys for instruction accesses,
+	 * POWER8 and POWER9 do.
+	 */
+	info->data_keys = 32;
+	info->instr_keys = cpu_has_feature(CPU_FTR_ARCH_207S) ? 32 : 0;
+
 	info->flags = KVM_PPC_PAGE_SIZES_REAL;
 	if (mmu_has_feature(MMU_FTR_1T_SEGMENT))
 		info->flags |= KVM_PPC_1T_SEGMENTS;
@@ -4187,11 +4212,13 @@ static int kvmhv_configure_mmu(struct kvm *kvm, struct kvm_ppc_mmuv3_cfg *cfg)
 	if ((cfg->process_table & PRTS_MASK) > 24)
 		return -EINVAL;
 
+	mutex_lock(&kvm->lock);
 	kvm->arch.process_table = cfg->process_table;
 	kvmppc_setup_partition_table(kvm);
 
 	lpcr = (cfg->flags & KVM_PPC_MMUV3_GTSE) ? LPCR_GTSE : 0;
 	kvmppc_update_lpcr(kvm, lpcr, LPCR_GTSE);
+	mutex_unlock(&kvm->lock);
 
 	return 0;
 }

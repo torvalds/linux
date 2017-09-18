@@ -246,6 +246,8 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  * @IWL_UCODE_TLV_API_STA_TYPE: This ucode supports station type assignement.
  * @IWL_UCODE_TLV_API_NAN2_VER2: This ucode supports NAN API version 2
  * @IWL_UCODE_TLV_API_NEW_RX_STATS: should new RX STATISTICS API be used
+ * @IWL_UCODE_TLV_API_ATS_COEX_EXTERNAL: the coex notification is enlared to
+ *	include information about ACL time sharing.
  *
  * @NUM_IWL_UCODE_TLV_API: number of bits used
  */
@@ -260,7 +262,9 @@ enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_STA_TYPE		= (__force iwl_ucode_tlv_api_t)30,
 	IWL_UCODE_TLV_API_NAN2_VER2		= (__force iwl_ucode_tlv_api_t)31,
 	/* API Set 1 */
+	IWL_UCODE_TLV_API_NEW_BEACON_TEMPLATE	= (__force iwl_ucode_tlv_api_t)34,
 	IWL_UCODE_TLV_API_NEW_RX_STATS		= (__force iwl_ucode_tlv_api_t)35,
+	IWL_UCODE_TLV_API_COEX_ATS_EXTERNAL	= (__force iwl_ucode_tlv_api_t)37,
 
 	NUM_IWL_UCODE_TLV_API
 #ifdef __CHECKER__
@@ -374,6 +378,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG	= (__force iwl_ucode_tlv_capa_t)80,
 	IWL_UCODE_TLV_CAPA_LQM_SUPPORT			= (__force iwl_ucode_tlv_capa_t)81,
 	IWL_UCODE_TLV_CAPA_TX_POWER_ACK			= (__force iwl_ucode_tlv_capa_t)84,
+	IWL_UCODE_TLV_CAPA_LED_CMD_SUPPORT		= (__force iwl_ucode_tlv_capa_t)86,
 	IWL_UCODE_TLV_CAPA_MLME_OFFLOAD			= (__force iwl_ucode_tlv_capa_t)96,
 
 	NUM_IWL_UCODE_TLV_CAPA

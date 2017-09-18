@@ -217,7 +217,7 @@ static void sigd_close(struct atm_vcc *vcc)
 	read_unlock(&vcc_sklist_lock);
 }
 
-static struct atmdev_ops sigd_dev_ops = {
+static const struct atmdev_ops sigd_dev_ops = {
 	.close = sigd_close,
 	.send =	sigd_send
 };

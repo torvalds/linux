@@ -52,7 +52,7 @@ struct go7007_snd {
 	int capturing;
 };
 
-static struct snd_pcm_hardware go7007_snd_capture_hw = {
+static const struct snd_pcm_hardware go7007_snd_capture_hw = {
 	.info			= (SNDRV_PCM_INFO_MMAP |
 					SNDRV_PCM_INFO_INTERLEAVED |
 					SNDRV_PCM_INFO_BLOCK_TRANSFER |

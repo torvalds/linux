@@ -556,9 +556,8 @@ int lpfc_nvmet_update_targetport(struct lpfc_hba *phba);
 void lpfc_nvmet_destroy_targetport(struct lpfc_hba *phba);
 void lpfc_nvmet_unsol_ls_event(struct lpfc_hba *phba,
 			struct lpfc_sli_ring *pring, struct lpfc_iocbq *piocb);
-void lpfc_nvmet_unsol_fcp_event(struct lpfc_hba *phba,
-			struct lpfc_sli_ring *pring,
-			struct rqb_dmabuf *nvmebuf, uint64_t isr_ts);
+void lpfc_nvmet_unsol_fcp_event(struct lpfc_hba *phba, uint32_t idx,
+				struct rqb_dmabuf *nvmebuf, uint64_t isr_ts);
 void lpfc_nvme_mod_param_dep(struct lpfc_hba *phba);
 void lpfc_nvme_abort_fcreq_cmpl(struct lpfc_hba *phba,
 				struct lpfc_iocbq *cmdiocb,

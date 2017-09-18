@@ -98,6 +98,8 @@
 #define PMIC_GPIO_FUNC_PAIRED		"paired"
 #define PMIC_GPIO_FUNC_FUNC1		"func1"
 #define PMIC_GPIO_FUNC_FUNC2		"func2"
+#define PMIC_GPIO_FUNC_FUNC3		"func3"
+#define PMIC_GPIO_FUNC_FUNC4		"func4"
 #define PMIC_GPIO_FUNC_DTEST1		"dtest1"
 #define PMIC_GPIO_FUNC_DTEST2		"dtest2"
 #define PMIC_GPIO_FUNC_DTEST3		"dtest3"

@@ -200,6 +200,7 @@ described below.
 			    "arm,realview-smp"
 			    "brcm,bcm11351-cpu-method"
 			    "brcm,bcm23550"
+			    "brcm,bcm2836-smp"
 			    "brcm,bcm-nsp-smp"
 			    "brcm,brahma-b15"
 			    "marvell,armada-375-smp"

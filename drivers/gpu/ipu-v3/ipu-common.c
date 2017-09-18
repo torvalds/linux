@@ -1217,8 +1217,8 @@ static int ipu_add_client_devices(struct ipu_soc *ipu, unsigned long ipu_base)
 		of_node = of_graph_get_port_by_id(dev->of_node, i);
 		if (!of_node) {
 			dev_info(dev,
-				 "no port@%d node in %s, not using %s%d\n",
-				 i, dev->of_node->full_name,
+				 "no port@%d node in %pOF, not using %s%d\n",
+				 i, dev->of_node,
 				 (i / 2) ? "DI" : "CSI", i % 2);
 			continue;
 		}

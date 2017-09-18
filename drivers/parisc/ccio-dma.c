@@ -1241,7 +1241,7 @@ ccio_get_iotlb_size(struct parisc_device *dev)
 #endif /* 0 */
 
 /* We *can't* support JAVA (T600). Venture there at your own risk. */
-static const struct parisc_device_id ccio_tbl[] = {
+static const struct parisc_device_id ccio_tbl[] __initconst = {
 	{ HPHW_IOA, HVERSION_REV_ANY_ID, U2_IOA_RUNWAY, 0xb }, /* U2 */
 	{ HPHW_IOA, HVERSION_REV_ANY_ID, UTURN_IOA_RUNWAY, 0xb }, /* UTurn */
 	{ 0, }
@@ -1249,7 +1249,7 @@ static const struct parisc_device_id ccio_tbl[] = {
 
 static int ccio_probe(struct parisc_device *dev);
 
-static struct parisc_driver ccio_driver = {
+static struct parisc_driver ccio_driver __refdata = {
 	.name =		"ccio",
 	.id_table =	ccio_tbl,
 	.probe =	ccio_probe,

@@ -14,6 +14,7 @@ static inline int pte_write(pte_t pte)
 {
 	return (pte_val(pte) & (_PAGE_RW | _PAGE_RO)) != _PAGE_RO;
 }
+static inline int pte_read(pte_t pte)		{ return 1; }
 static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
 static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; }

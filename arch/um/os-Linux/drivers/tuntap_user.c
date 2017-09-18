@@ -80,7 +80,7 @@ static int tuntap_open_tramp(char *gate, int *fd_out, int me, int remote,
 	pid = run_helper(tuntap_pre_exec, &data, argv);
 
 	if (pid < 0)
-		return -pid;
+		return pid;
 
 	close(remote);
 

@@ -4,6 +4,13 @@
 #include <asm/page.h>
 #include <asm-generic/hugetlb.h>
 
+#ifdef CONFIG_HUGETLB_PAGE
+struct pud_huge_patch_entry {
+	unsigned int addr;
+	unsigned int insn;
+};
+extern struct pud_huge_patch_entry __pud_huge_patch, __pud_huge_patch_end;
+#endif
 
 void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep, pte_t pte);

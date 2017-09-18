@@ -667,7 +667,7 @@ static int debug_remove(struct amba_device *adev)
 	return 0;
 }
 
-static struct amba_id debug_ids[] = {
+static const struct amba_id debug_ids[] = {
 	{       /* Debug for Cortex-A53 */
 		.id	= 0x000bbd03,
 		.mask	= 0x000fffff,

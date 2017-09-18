@@ -148,6 +148,13 @@ C. Boot options
 	Actually, the underlying fb driver is totally ignorant of console
 	rotation.
 
+5. fbcon=margin:<color>
+
+	This option specifies the color of the margins. The margins are the
+	leftover area at the right and the bottom of the screen that are not
+	used by text. By default, this area will be black. The 'color' value
+	is an integer number that depends on the framebuffer driver being used.
+
 C. Attaching, Detaching and Unloading
 
 Before going on how to attach, detach and unload the framebuffer console, an

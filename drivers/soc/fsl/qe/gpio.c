@@ -304,8 +304,8 @@ static int __init qe_add_gpiochips(void)
 			goto err;
 		continue;
 err:
-		pr_err("%s: registration failed with status %d\n",
-		       np->full_name, ret);
+		pr_err("%pOF: registration failed with status %d\n",
+		       np, ret);
 		kfree(qe_gc);
 		/* try others anyway */
 	}

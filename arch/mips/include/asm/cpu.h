@@ -286,11 +286,6 @@ enum cpu_type_enum {
 	CPU_R3081, CPU_R3081E,
 
 	/*
-	 * R6000 class processors
-	 */
-	CPU_R6000, CPU_R6000A,
-
-	/*
 	 * R4000 class processors
 	 */
 	CPU_R4000PC, CPU_R4000SC, CPU_R4000MC, CPU_R4200, CPU_R4300, CPU_R4310,

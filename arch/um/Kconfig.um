@@ -20,6 +20,7 @@ config LD_SCRIPT_DYN
 	bool
 	default y
 	depends on !LD_SCRIPT_STATIC
+        select MODULE_REL_CRCS if MODVERSIONS
 
 source "fs/Kconfig.binfmt"
 

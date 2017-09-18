@@ -226,7 +226,7 @@ static void usb_mouse_disconnect(struct usb_interface *intf)
 	}
 }
 
-static struct usb_device_id usb_mouse_id_table [] = {
+static const struct usb_device_id usb_mouse_id_table[] = {
 	{ USB_INTERFACE_INFO(USB_INTERFACE_CLASS_HID, USB_INTERFACE_SUBCLASS_BOOT,
 		USB_INTERFACE_PROTOCOL_MOUSE) },
 	{ }	/* Terminating entry */

@@ -464,8 +464,8 @@ static int mtk_ecc_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(dev, "failed to get irq\n");
-		return -EINVAL;
+		dev_err(dev, "failed to get irq: %d\n", irq);
+		return irq;
 	}
 
 	ret = dma_set_mask(dev, DMA_BIT_MASK(32));

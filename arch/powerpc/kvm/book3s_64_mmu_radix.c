@@ -17,6 +17,7 @@
 #include <asm/mmu.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
+#include <asm/pte-walk.h>
 
 /*
  * Supported radix tree geometry.
@@ -322,13 +323,13 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	gpa = vcpu->arch.fault_gpa & ~0xfffUL;
 	gpa &= ~0xF000000000000000ul;
 	gfn = gpa >> PAGE_SHIFT;
-	if (!(dsisr & DSISR_PGDIRFAULT))
+	if (!(dsisr & DSISR_PRTABLE_FAULT))
 		gpa |= ea & 0xfff;
 	memslot = gfn_to_memslot(kvm, gfn);
 
 	/* No memslot means it's an emulated MMIO region */
 	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID)) {
-		if (dsisr & (DSISR_PGDIRFAULT | DSISR_BADACCESS |
+		if (dsisr & (DSISR_PRTABLE_FAULT | DSISR_BADACCESS |
 			     DSISR_SET_RC)) {
 			/*
 			 * Bad address in guest page table tree, or other
@@ -359,8 +360,7 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		if (writing)
 			pgflags |= _PAGE_DIRTY;
 		local_irq_save(flags);
-		ptep = __find_linux_pte_or_hugepte(current->mm->pgd, hva,
-						   NULL, NULL);
+		ptep = find_current_mm_pte(current->mm->pgd, hva, NULL, NULL);
 		if (ptep) {
 			pte = READ_ONCE(*ptep);
 			if (pte_present(pte) &&
@@ -374,8 +374,12 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				spin_unlock(&kvm->mmu_lock);
 				return RESUME_GUEST;
 			}
-			ptep = __find_linux_pte_or_hugepte(kvm->arch.pgtable,
-							gpa, NULL, &shift);
+			/*
+			 * We are walking the secondary page table here. We can do this
+			 * without disabling irq.
+			 */
+			ptep = __find_linux_pte(kvm->arch.pgtable,
+						gpa, NULL, &shift);
 			if (ptep && pte_present(*ptep)) {
 				kvmppc_radix_update_pte(kvm, ptep, 0, pgflags,
 							gpa, shift);
@@ -427,8 +431,8 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			pgflags |= _PAGE_WRITE;
 		} else {
 			local_irq_save(flags);
-			ptep = __find_linux_pte_or_hugepte(current->mm->pgd,
-							hva, NULL, NULL);
+			ptep = find_current_mm_pte(current->mm->pgd,
+						   hva, NULL, NULL);
 			if (ptep && pte_write(*ptep) && pte_dirty(*ptep))
 				pgflags |= _PAGE_WRITE;
 			local_irq_restore(flags);
@@ -499,8 +503,7 @@ int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	unsigned int shift;
 	unsigned long old;
 
-	ptep = __find_linux_pte_or_hugepte(kvm->arch.pgtable, gpa,
-					   NULL, &shift);
+	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
 	if (ptep && pte_present(*ptep)) {
 		old = kvmppc_radix_update_pte(kvm, ptep, _PAGE_PRESENT, 0,
 					      gpa, shift);
@@ -525,8 +528,7 @@ int kvm_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	unsigned int shift;
 	int ref = 0;
 
-	ptep = __find_linux_pte_or_hugepte(kvm->arch.pgtable, gpa,
-					   NULL, &shift);
+	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
 	if (ptep && pte_present(*ptep) && pte_young(*ptep)) {
 		kvmppc_radix_update_pte(kvm, ptep, _PAGE_ACCESSED, 0,
 					gpa, shift);
@@ -545,8 +547,7 @@ int kvm_test_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	unsigned int shift;
 	int ref = 0;
 
-	ptep = __find_linux_pte_or_hugepte(kvm->arch.pgtable, gpa,
-					   NULL, &shift);
+	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
 	if (ptep && pte_present(*ptep) && pte_young(*ptep))
 		ref = 1;
 	return ref;
@@ -562,8 +563,7 @@ static int kvm_radix_test_clear_dirty(struct kvm *kvm,
 	unsigned int shift;
 	int ret = 0;
 
-	ptep = __find_linux_pte_or_hugepte(kvm->arch.pgtable, gpa,
-					   NULL, &shift);
+	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
 	if (ptep && pte_present(*ptep) && pte_dirty(*ptep)) {
 		ret = 1;
 		if (shift)

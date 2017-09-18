@@ -43,6 +43,13 @@
 #define LOAD_MSR_KERNEL(r, x)	li r,(x)
 #endif
 
+/*
+ * Align to 4k in order to ensure that all functions modyfing srr0/srr1
+ * fit into one page in order to not encounter a TLB miss between the
+ * modification of srr0/srr1 and the associated rfi.
+ */
+	.align	12
+
 #ifdef CONFIG_BOOKE
 	.globl	mcheck_transfer_to_handler
 mcheck_transfer_to_handler:
@@ -586,6 +593,10 @@ ppc_swapcontext:
 handle_page_fault:
 	stw	r4,_DAR(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
+#ifdef CONFIG_6xx
+	andis.  r0,r5,DSISR_DABRMATCH@h
+	bne-    handle_dabr_fault
+#endif
 	bl	do_page_fault
 	cmpwi	r3,0
 	beq+	ret_from_except
@@ -598,6 +609,17 @@ handle_page_fault:
 	lwz	r4,_DAR(r1)
 	bl	bad_page_fault
 	b	ret_from_except_full
+
+#ifdef CONFIG_6xx
+	/* We have a data breakpoint exception - handle it */
+handle_dabr_fault:
+	SAVE_NVGPRS(r1)
+	lwz	r0,_TRAP(r1)
+	clrrwi	r0,r0,1
+	stw	r0,_TRAP(r1)
+	bl      do_break
+	b	ret_from_except_full
+#endif
 
 /*
  * This routine switches between two different tasks.  The process

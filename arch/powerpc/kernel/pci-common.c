@@ -373,9 +373,8 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 		if (virq)
 			irq_set_irq_type(virq, IRQ_TYPE_LEVEL_LOW);
 	} else {
-		pr_debug(" Got one, spec %d cells (0x%08x 0x%08x...) on %s\n",
-			 oirq.args_count, oirq.args[0], oirq.args[1],
-			 of_node_full_name(oirq.np));
+		pr_debug(" Got one, spec %d cells (0x%08x 0x%08x...) on %pOF\n",
+			 oirq.args_count, oirq.args[0], oirq.args[1], oirq.np);
 
 		virq = irq_create_of_mapping(&oirq);
 	}
@@ -741,8 +740,8 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 	struct of_pci_range range;
 	struct of_pci_range_parser parser;
 
-	printk(KERN_INFO "PCI host bridge %s %s ranges:\n",
-	       dev->full_name, primary ? "(primary)" : "");
+	printk(KERN_INFO "PCI host bridge %pOF %s ranges:\n",
+	       dev, primary ? "(primary)" : "");
 
 	/* Check for ranges property */
 	if (of_pci_range_parser_init(&parser, dev))
@@ -1556,8 +1555,8 @@ static void pcibios_setup_phb_resources(struct pci_controller *hose,
 
 	if (!res->flags) {
 		pr_debug("PCI: I/O resource not set for host"
-			 " bridge %s (domain %d)\n",
-			 hose->dn->full_name, hose->global_number);
+			 " bridge %pOF (domain %d)\n",
+			 hose->dn, hose->global_number);
 	} else {
 		offset = pcibios_io_space_offset(hose);
 
@@ -1668,7 +1667,7 @@ void pcibios_scan_phb(struct pci_controller *hose)
 	struct device_node *node = hose->dn;
 	int mode;
 
-	pr_debug("PCI: Scanning PHB %s\n", of_node_full_name(node));
+	pr_debug("PCI: Scanning PHB %pOF\n", node);
 
 	/* Get some IO space for the new PHB */
 	pcibios_setup_phb_io_space(hose);

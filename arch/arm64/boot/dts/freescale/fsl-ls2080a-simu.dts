@@ -52,11 +52,6 @@
 	model = "Freescale Layerscape 2080a software Simulator model";
 	compatible = "fsl,ls2080a-simu", "fsl,ls2080a";
 
-	aliases {
-		serial0 = &serial0;
-		serial1 = &serial1;
-	};
-
 	ethernet@2210000 {
 		compatible = "smsc,lan91c111";
 		reg = <0x0 0x2210000 0x0 0x100>;

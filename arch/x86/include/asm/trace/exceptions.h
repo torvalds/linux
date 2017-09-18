@@ -5,9 +5,10 @@
 #define _TRACE_PAGE_FAULT_H
 
 #include <linux/tracepoint.h>
+#include <asm/trace/common.h>
 
-extern int trace_irq_vector_regfunc(void);
-extern void trace_irq_vector_unregfunc(void);
+extern int trace_pagefault_reg(void);
+extern void trace_pagefault_unreg(void);
 
 DECLARE_EVENT_CLASS(x86_exceptions,
 
@@ -37,8 +38,7 @@ DEFINE_EVENT_FN(x86_exceptions, name,				\
 	TP_PROTO(unsigned long address,	struct pt_regs *regs,	\
 		 unsigned long error_code),			\
 	TP_ARGS(address, regs, error_code),			\
-	trace_irq_vector_regfunc,				\
-	trace_irq_vector_unregfunc);
+	trace_pagefault_reg, trace_pagefault_unreg);
 
 DEFINE_PAGE_FAULT_EVENT(page_fault_user);
 DEFINE_PAGE_FAULT_EVENT(page_fault_kernel);

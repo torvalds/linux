@@ -178,6 +178,7 @@ enum {
 	NLA_S16,
 	NLA_S32,
 	NLA_S64,
+	NLA_BITFIELD32,
 	__NLA_TYPE_MAX,
 };
 
@@ -206,6 +207,7 @@ enum {
  *    NLA_MSECS            Leaving the length field zero will verify the
  *                         given type fits, using it verifies minimum length
  *                         just like "All other"
+ *    NLA_BITFIELD32      A 32-bit bitmap/bitselector attribute
  *    All other            Minimum length of attribute payload
  *
  * Example:
@@ -213,11 +215,13 @@ enum {
  * 	[ATTR_FOO] = { .type = NLA_U16 },
  *	[ATTR_BAR] = { .type = NLA_STRING, .len = BARSIZ },
  *	[ATTR_BAZ] = { .len = sizeof(struct mystruct) },
+ *	[ATTR_GOO] = { .type = NLA_BITFIELD32, .validation_data = &myvalidflags },
  * };
  */
 struct nla_policy {
 	u16		type;
 	u16		len;
+	void            *validation_data;
 };
 
 /**
@@ -247,6 +251,7 @@ int nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
 int nla_policy_len(const struct nla_policy *, int);
 struct nlattr *nla_find(const struct nlattr *head, int len, int attrtype);
 size_t nla_strlcpy(char *dst, const struct nlattr *nla, size_t dstsize);
+char *nla_strdup(const struct nlattr *nla, gfp_t flags);
 int nla_memcpy(void *dest, const struct nlattr *src, int count);
 int nla_memcmp(const struct nlattr *nla, const void *data, size_t size);
 int nla_strcmp(const struct nlattr *nla, const char *str);
@@ -1197,6 +1202,18 @@ static inline __be32 nla_get_in_addr(const struct nlattr *nla)
 static inline struct in6_addr nla_get_in6_addr(const struct nlattr *nla)
 {
 	struct in6_addr tmp;
+
+	nla_memcpy(&tmp, nla, sizeof(tmp));
+	return tmp;
+}
+
+/**
+ * nla_get_bitfield32 - return payload of 32 bitfield attribute
+ * @nla: nla_bitfield32 attribute
+ */
+static inline struct nla_bitfield32 nla_get_bitfield32(const struct nlattr *nla)
+{
+	struct nla_bitfield32 tmp;
 
 	nla_memcpy(&tmp, nla, sizeof(tmp));
 	return tmp;

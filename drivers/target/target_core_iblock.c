@@ -338,7 +338,7 @@ iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num, int op,
 		return NULL;
 	}
 
-	bio->bi_bdev = ib_dev->ibd_bd;
+	bio_set_dev(bio, ib_dev->ibd_bd);
 	bio->bi_private = cmd;
 	bio->bi_end_io = &iblock_bio_done;
 	bio->bi_iter.bi_sector = lba;
@@ -395,7 +395,7 @@ iblock_execute_sync_cache(struct se_cmd *cmd)
 
 	bio = bio_alloc(GFP_KERNEL, 0);
 	bio->bi_end_io = iblock_end_io_flush;
-	bio->bi_bdev = ib_dev->ibd_bd;
+	bio_set_dev(bio, ib_dev->ibd_bd);
 	bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
 	if (!immed)
 		bio->bi_private = cmd;

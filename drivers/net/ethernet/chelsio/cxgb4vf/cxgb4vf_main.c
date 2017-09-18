@@ -182,7 +182,7 @@ void t4vf_os_link_changed(struct adapter *adapter, int pidx, int link_ok)
 			break;
 		}
 
-		switch (pi->link_cfg.fc) {
+		switch ((int)pi->link_cfg.fc) {
 		case PAUSE_RX:
 			fc = "RX";
 			break;
@@ -191,7 +191,7 @@ void t4vf_os_link_changed(struct adapter *adapter, int pidx, int link_ok)
 			fc = "TX";
 			break;
 
-		case PAUSE_RX|PAUSE_TX:
+		case PAUSE_RX | PAUSE_TX:
 			fc = "RX/TX";
 			break;
 
@@ -1213,7 +1213,11 @@ static int from_fw_port_mod_type(enum fw_port_type port_type,
 	} else if (port_type == FW_PORT_TYPE_SFP ||
 		   port_type == FW_PORT_TYPE_QSFP_10G ||
 		   port_type == FW_PORT_TYPE_QSA ||
-		   port_type == FW_PORT_TYPE_QSFP) {
+		   port_type == FW_PORT_TYPE_QSFP ||
+		   port_type == FW_PORT_TYPE_CR4_QSFP ||
+		   port_type == FW_PORT_TYPE_CR_QSFP ||
+		   port_type == FW_PORT_TYPE_CR2_QSFP ||
+		   port_type == FW_PORT_TYPE_SFP28) {
 		if (mod_type == FW_PORT_MOD_TYPE_LR ||
 		    mod_type == FW_PORT_MOD_TYPE_SR ||
 		    mod_type == FW_PORT_MOD_TYPE_ER ||
@@ -1224,6 +1228,9 @@ static int from_fw_port_mod_type(enum fw_port_type port_type,
 			return PORT_DA;
 		else
 			return PORT_OTHER;
+	} else if (port_type == FW_PORT_TYPE_KR4_100G ||
+		   port_type == FW_PORT_TYPE_KR_SFP28) {
+		return PORT_NONE;
 	}
 
 	return PORT_OTHER;
@@ -1242,12 +1249,13 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 			   unsigned int fw_caps,
 			   unsigned long *link_mode_mask)
 {
-	#define SET_LMM(__lmm_name) __set_bit(ETHTOOL_LINK_MODE_ ## __lmm_name\
-			 ## _BIT, link_mode_mask)
+	#define SET_LMM(__lmm_name) \
+		__set_bit(ETHTOOL_LINK_MODE_ ## __lmm_name ## _BIT, \
+			  link_mode_mask)
 
 	#define FW_CAPS_TO_LMM(__fw_name, __lmm_name) \
 		do { \
-			if (fw_caps & FW_PORT_CAP_ ## __fw_name) \
+			if (fw_caps & FW_PORT_CAP32_ ## __fw_name) \
 				SET_LMM(__lmm_name); \
 		} while (0)
 
@@ -1310,6 +1318,16 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 		SET_LMM(25000baseCR_Full);
 		break;
 
+	case FW_PORT_TYPE_KR_SFP28:
+		SET_LMM(Backplane);
+		SET_LMM(25000baseKR_Full);
+		break;
+
+	case FW_PORT_TYPE_CR2_QSFP:
+		SET_LMM(FIBRE);
+		SET_LMM(50000baseSR2_Full);
+		break;
+
 	case FW_PORT_TYPE_KR4_100G:
 	case FW_PORT_TYPE_CR4_QSFP:
 		SET_LMM(FIBRE);
@@ -1329,11 +1347,17 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 }
 
 static int cxgb4vf_get_link_ksettings(struct net_device *dev,
-				      struct ethtool_link_ksettings
-							*link_ksettings)
+				  struct ethtool_link_ksettings *link_ksettings)
 {
-	const struct port_info *pi = netdev_priv(dev);
+	struct port_info *pi = netdev_priv(dev);
 	struct ethtool_link_settings *base = &link_ksettings->base;
+
+	/* For the nonce, the Firmware doesn't send up Port State changes
+	 * when the Virtual Interface attached to the Port is down.  So
+	 * if it's down, let's grab any changes.
+	 */
+	if (!netif_running(dev))
+		(void)t4vf_update_port_info(pi);
 
 	ethtool_link_ksettings_zero_link_mode(link_ksettings, supported);
 	ethtool_link_ksettings_zero_link_mode(link_ksettings, advertising);
@@ -1351,11 +1375,11 @@ static int cxgb4vf_get_link_ksettings(struct net_device *dev,
 		base->mdio_support = 0;
 	}
 
-	fw_caps_to_lmm(pi->port_type, pi->link_cfg.supported,
+	fw_caps_to_lmm(pi->port_type, pi->link_cfg.pcaps,
 		       link_ksettings->link_modes.supported);
-	fw_caps_to_lmm(pi->port_type, pi->link_cfg.advertising,
+	fw_caps_to_lmm(pi->port_type, pi->link_cfg.acaps,
 		       link_ksettings->link_modes.advertising);
-	fw_caps_to_lmm(pi->port_type, pi->link_cfg.lp_advertising,
+	fw_caps_to_lmm(pi->port_type, pi->link_cfg.lpacaps,
 		       link_ksettings->link_modes.lp_advertising);
 
 	if (netif_carrier_ok(dev)) {
@@ -1367,7 +1391,7 @@ static int cxgb4vf_get_link_ksettings(struct net_device *dev,
 	}
 
 	base->autoneg = pi->link_cfg.autoneg;
-	if (pi->link_cfg.supported & FW_PORT_CAP_ANEG)
+	if (pi->link_cfg.pcaps & FW_PORT_CAP32_ANEG)
 		ethtool_link_ksettings_add_link_mode(link_ksettings,
 						     supported, Autoneg);
 	if (pi->link_cfg.autoneg)

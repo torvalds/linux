@@ -228,6 +228,8 @@ static int snd_hwdep_dsp_load(struct snd_hwdep *hw,
 	memset(&info, 0, sizeof(info));
 	if (copy_from_user(&info, _info, sizeof(info)))
 		return -EFAULT;
+	if (info.index >= 32)
+		return -EINVAL;
 	/* check whether the dsp was already loaded */
 	if (hw->dsp_loaded & (1 << info.index))
 		return -EBUSY;

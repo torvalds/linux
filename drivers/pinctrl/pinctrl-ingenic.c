@@ -460,7 +460,7 @@ static inline bool ingenic_get_pin_config(struct ingenic_pinctrl *jzpc,
 	return val & BIT(idx);
 }
 
-static struct pinctrl_ops ingenic_pctlops = {
+static const struct pinctrl_ops ingenic_pctlops = {
 	.get_groups_count = pinctrl_generic_get_group_count,
 	.get_group_name = pinctrl_generic_get_group_name,
 	.get_group_pins = pinctrl_generic_get_group_pins,
@@ -543,7 +543,7 @@ static int ingenic_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinmux_ops ingenic_pmxops = {
+static const struct pinmux_ops ingenic_pmxops = {
 	.get_functions_count = pinmux_generic_get_function_count,
 	.get_function_name = pinmux_generic_get_function_name,
 	.get_function_groups = pinmux_generic_get_function_groups,
@@ -696,7 +696,7 @@ static int ingenic_pinconf_group_set(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinconf_ops ingenic_confops = {
+static const struct pinconf_ops ingenic_confops = {
 	.is_generic = true,
 	.pin_config_get = ingenic_pinconf_get,
 	.pin_config_set = ingenic_pinconf_set,

@@ -1722,7 +1722,7 @@
 
 				lanes {
 					usb2-0 {
-						nvidia,function = "xusb";
+						nvidia,function = "snps";
 						status = "okay";
 					};
 
@@ -1827,6 +1827,16 @@
 		i2s@70301100 {
 			status = "okay";
 		};
+	};
+
+	usb@7d000000 {
+		compatible = "nvidia,tegra124-udc";
+		status = "okay";
+		dr_mode = "peripheral";
+	};
+
+	usb-phy@7d000000 {
+		status = "okay";
 	};
 
 	/* mini-PCIe USB */

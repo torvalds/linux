@@ -497,7 +497,7 @@ static void mlxsw_sib_fini(struct mlxsw_core *mlxsw_core)
 	mlxsw_sib_ports_remove(mlxsw_sib);
 }
 
-static struct mlxsw_config_profile mlxsw_sib_config_profile = {
+static const struct mlxsw_config_profile mlxsw_sib_config_profile = {
 	.used_max_system_port		= 1,
 	.max_system_port		= 48000,
 	.used_max_ib_mc			= 1,

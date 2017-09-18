@@ -47,7 +47,7 @@
 #include <linux/genalloc.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>

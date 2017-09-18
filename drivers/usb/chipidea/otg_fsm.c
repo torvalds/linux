@@ -193,7 +193,7 @@ static struct attribute *inputs_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group inputs_attr_group = {
+static const struct attribute_group inputs_attr_group = {
 	.name = "inputs",
 	.attrs = inputs_attrs,
 };

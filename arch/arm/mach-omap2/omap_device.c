@@ -672,7 +672,6 @@ static int _od_suspend_noirq(struct device *dev)
 
 	if (!ret && !pm_runtime_status_suspended(dev)) {
 		if (pm_generic_runtime_suspend(dev) == 0) {
-			pm_runtime_set_suspended(dev);
 			omap_device_idle(pdev);
 			od->flags |= OMAP_DEVICE_SUSPENDED;
 		}
@@ -689,15 +688,6 @@ static int _od_resume_noirq(struct device *dev)
 	if (od->flags & OMAP_DEVICE_SUSPENDED) {
 		od->flags &= ~OMAP_DEVICE_SUSPENDED;
 		omap_device_enable(pdev);
-		/*
-		 * XXX: we run before core runtime pm has resumed itself. At
-		 * this point in time, we just restore the runtime pm state and
-		 * considering symmetric operations in resume, we donot expect
-		 * to fail. If we failed, something changed in core runtime_pm
-		 * framework OR some device driver messed things up, hence, WARN
-		 */
-		WARN(pm_runtime_set_active(dev),
-		     "Could not set %s runtime state active\n", dev_name(dev));
 		pm_generic_runtime_resume(dev);
 	}
 

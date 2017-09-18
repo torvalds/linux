@@ -643,7 +643,7 @@ static void pm8xxx_mpp_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 #define pm8xxx_mpp_dbg_show NULL
 #endif
 
-static struct gpio_chip pm8xxx_mpp_template = {
+static const struct gpio_chip pm8xxx_mpp_template = {
 	.direction_input = pm8xxx_mpp_direction_input,
 	.direction_output = pm8xxx_mpp_direction_output,
 	.get = pm8xxx_mpp_get,

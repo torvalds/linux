@@ -1332,6 +1332,7 @@ static void i801_add_tco(struct i801_priv *priv)
 	u32 tco_base, tco_ctl;
 	u32 base_addr, ctrl_val;
 	u64 base64_addr;
+	u8 hidden;
 
 	if (!(priv->features & FEATURE_TCO))
 		return;
@@ -1376,8 +1377,10 @@ static void i801_add_tco(struct i801_priv *priv)
 
 	devfn = PCI_DEVFN(PCI_SLOT(pci_dev->devfn), 1);
 
-	/* Unhide the P2SB device */
-	pci_bus_write_config_byte(pci_dev->bus, devfn, 0xe1, 0x0);
+	/* Unhide the P2SB device, if it is hidden */
+	pci_bus_read_config_byte(pci_dev->bus, devfn, 0xe1, &hidden);
+	if (hidden)
+		pci_bus_write_config_byte(pci_dev->bus, devfn, 0xe1, 0x0);
 
 	pci_bus_read_config_dword(pci_dev->bus, devfn, SBREG_BAR, &base_addr);
 	base64_addr = base_addr & 0xfffffff0;
@@ -1385,8 +1388,9 @@ static void i801_add_tco(struct i801_priv *priv)
 	pci_bus_read_config_dword(pci_dev->bus, devfn, SBREG_BAR + 0x4, &base_addr);
 	base64_addr |= (u64)base_addr << 32;
 
-	/* Hide the P2SB device */
-	pci_bus_write_config_byte(pci_dev->bus, devfn, 0xe1, 0x1);
+	/* Hide the P2SB device, if it was hidden before */
+	if (hidden)
+		pci_bus_write_config_byte(pci_dev->bus, devfn, 0xe1, hidden);
 	spin_unlock(&p2sb_spinlock);
 
 	res = &tco_res[ICH_RES_MEM_OFF];

@@ -63,7 +63,7 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 	xfrm_address_t *daddr;
 
 	if (!x->type_offload)
-		return 0;
+		return -EINVAL;
 
 	/* We don't yet support UDP encapsulation, TFC padding and ESN. */
 	if (x->encap || x->tfcpad || (x->props.flags & XFRM_STATE_ESN))
@@ -79,7 +79,8 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 			daddr = &x->props.saddr;
 		}
 
-		dst = __xfrm_dst_lookup(net, 0, 0, saddr, daddr, x->props.family);
+		dst = __xfrm_dst_lookup(net, 0, 0, saddr, daddr,
+					x->props.family, x->props.output_mark);
 		if (IS_ERR(dst))
 			return 0;
 
@@ -153,6 +154,7 @@ static int xfrm_dev_register(struct net_device *dev)
 
 static int xfrm_dev_unregister(struct net_device *dev)
 {
+	xfrm_policy_cache_flush();
 	return NOTIFY_DONE;
 }
 
@@ -175,8 +177,7 @@ static int xfrm_dev_down(struct net_device *dev)
 	if (dev->features & NETIF_F_HW_ESP)
 		xfrm_dev_state_flush(dev_net(dev), dev, true);
 
-	xfrm_garbage_collect(dev_net(dev));
-
+	xfrm_policy_cache_flush();
 	return NOTIFY_DONE;
 }
 

@@ -186,7 +186,7 @@ static void maxiradio_remove(struct pci_dev *pdev)
 	kfree(dev);
 }
 
-static struct pci_device_id maxiradio_pci_tbl[] = {
+static const struct pci_device_id maxiradio_pci_tbl[] = {
 	{ PCI_VENDOR_ID_GUILLEMOT, PCI_DEVICE_ID_GUILLEMOT_MAXIRADIO,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0 }

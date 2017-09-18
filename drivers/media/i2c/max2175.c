@@ -1319,7 +1319,7 @@ static int max2175_probe(struct i2c_client *client,
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
 		dev_err(&client->dev, "cannot get clock %d\n", ret);
-		return -ENODEV;
+		return ret;
 	}
 
 	regmap = devm_regmap_init_i2c(client, &max2175_regmap_config);

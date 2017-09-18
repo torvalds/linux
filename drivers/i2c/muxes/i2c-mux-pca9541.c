@@ -16,15 +16,14 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/module.h>
-#include <linux/jiffies.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
-
-#include <linux/i2c/pca954x.h>
+#include <linux/jiffies.h>
+#include <linux/module.h>
+#include <linux/platform_data/pca954x.h>
+#include <linux/slab.h>
 
 /*
  * The PCA9541 is a bus master selector. It supports two I2C masters connected

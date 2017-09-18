@@ -177,8 +177,6 @@ static int disable_apic_timer __initdata;
 int local_apic_timer_c2_ok;
 EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
 
-int first_system_vector = FIRST_SYSTEM_VECTOR;
-
 /*
  * Debug level, exported for io_apic.c
  */
@@ -599,9 +597,13 @@ static const struct x86_cpu_id deadline_match[] = {
 
 static void apic_check_deadline_errata(void)
 {
-	const struct x86_cpu_id *m = x86_match_cpu(deadline_match);
+	const struct x86_cpu_id *m;
 	u32 rev;
 
+	if (!boot_cpu_has(X86_FEATURE_TSC_DEADLINE_TIMER))
+		return;
+
+	m = x86_match_cpu(deadline_match);
 	if (!m)
 		return;
 
@@ -990,8 +992,7 @@ void setup_secondary_APIC_clock(void)
  */
 static void local_apic_timer_interrupt(void)
 {
-	int cpu = smp_processor_id();
-	struct clock_event_device *evt = &per_cpu(lapic_events, cpu);
+	struct clock_event_device *evt = this_cpu_ptr(&lapic_events);
 
 	/*
 	 * Normally we should not be here till LAPIC has been initialized but
@@ -1005,7 +1006,8 @@ static void local_apic_timer_interrupt(void)
 	 * spurious.
 	 */
 	if (!evt->event_handler) {
-		pr_warning("Spurious LAPIC timer interrupt on cpu %d\n", cpu);
+		pr_warning("Spurious LAPIC timer interrupt on cpu %d\n",
+			   smp_processor_id());
 		/* Switch it off */
 		lapic_timer_shutdown(evt);
 		return;
@@ -1028,25 +1030,6 @@ static void local_apic_timer_interrupt(void)
  *   interrupt as well. Thus we cannot inline the local irq ... ]
  */
 __visible void __irq_entry smp_apic_timer_interrupt(struct pt_regs *regs)
-{
-	struct pt_regs *old_regs = set_irq_regs(regs);
-
-	/*
-	 * NOTE! We'd better ACK the irq immediately,
-	 * because timer handling can be slow.
-	 *
-	 * update_process_times() expects us to have done irq_enter().
-	 * Besides, if we don't timer interrupts ignore the global
-	 * interrupt lock, which is the WrongThing (tm) to do.
-	 */
-	entering_ack_irq();
-	local_apic_timer_interrupt();
-	exiting_irq();
-
-	set_irq_regs(old_regs);
-}
-
-__visible void __irq_entry smp_trace_apic_timer_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
@@ -1920,9 +1903,13 @@ void __init register_lapic_address(unsigned long address)
 /*
  * This interrupt should _never_ happen with our APIC/SMP architecture
  */
-static void __smp_spurious_interrupt(u8 vector)
+__visible void __irq_entry smp_spurious_interrupt(struct pt_regs *regs)
 {
+	u8 vector = ~regs->orig_ax;
 	u32 v;
+
+	entering_irq();
+	trace_spurious_apic_entry(vector);
 
 	/*
 	 * Check if this really is a spurious interrupt and ACK it
@@ -1938,22 +1925,7 @@ static void __smp_spurious_interrupt(u8 vector)
 	/* see sw-dev-man vol 3, chapter 7.4.13.5 */
 	pr_info("spurious APIC interrupt through vector %02x on CPU#%d, "
 		"should never happen.\n", vector, smp_processor_id());
-}
 
-__visible void __irq_entry smp_spurious_interrupt(struct pt_regs *regs)
-{
-	entering_irq();
-	__smp_spurious_interrupt(~regs->orig_ax);
-	exiting_irq();
-}
-
-__visible void __irq_entry smp_trace_spurious_interrupt(struct pt_regs *regs)
-{
-	u8 vector = ~regs->orig_ax;
-
-	entering_irq();
-	trace_spurious_apic_entry(vector);
-	__smp_spurious_interrupt(vector);
 	trace_spurious_apic_exit(vector);
 	exiting_irq();
 }
@@ -1961,10 +1933,8 @@ __visible void __irq_entry smp_trace_spurious_interrupt(struct pt_regs *regs)
 /*
  * This interrupt should never happen with our APIC/SMP architecture
  */
-static void __smp_error_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_error_interrupt(struct pt_regs *regs)
 {
-	u32 v;
-	u32 i = 0;
 	static const char * const error_interrupt_reason[] = {
 		"Send CS error",		/* APIC Error Bit 0 */
 		"Receive CS error",		/* APIC Error Bit 1 */
@@ -1975,6 +1945,10 @@ static void __smp_error_interrupt(struct pt_regs *regs)
 		"Received illegal vector",	/* APIC Error Bit 6 */
 		"Illegal register address",	/* APIC Error Bit 7 */
 	};
+	u32 v, i = 0;
+
+	entering_irq();
+	trace_error_apic_entry(ERROR_APIC_VECTOR);
 
 	/* First tickle the hardware, only then report what went on. -- REW */
 	if (lapic_get_maxlvt() > 3)	/* Due to the Pentium erratum 3AP. */
@@ -1996,20 +1970,6 @@ static void __smp_error_interrupt(struct pt_regs *regs)
 
 	apic_printk(APIC_DEBUG, KERN_CONT "\n");
 
-}
-
-__visible void __irq_entry smp_error_interrupt(struct pt_regs *regs)
-{
-	entering_irq();
-	__smp_error_interrupt(regs);
-	exiting_irq();
-}
-
-__visible void __irq_entry smp_trace_error_interrupt(struct pt_regs *regs)
-{
-	entering_irq();
-	trace_error_apic_entry(ERROR_APIC_VECTOR);
-	__smp_error_interrupt(regs);
 	trace_error_apic_exit(ERROR_APIC_VECTOR);
 	exiting_irq();
 }
@@ -2137,7 +2097,7 @@ static int allocate_logical_cpuid(int apicid)
 
 	/* Allocate a new cpuid. */
 	if (nr_logical_cpuids >= nr_cpu_ids) {
-		WARN_ONCE(1, "APIC: NR_CPUS/possible_cpus limit of %i reached. "
+		WARN_ONCE(1, "APIC: NR_CPUS/possible_cpus limit of %u reached. "
 			     "Processor %d/0x%x and the rest are ignored.\n",
 			     nr_cpu_ids, nr_logical_cpuids, apicid);
 		return -EINVAL;
@@ -2170,7 +2130,7 @@ int generic_processor_info(int apicid, int version)
 	 * Since fixing handling of boot_cpu_physical_apicid requires
 	 * another discussion and tests on each platform, we leave it
 	 * for now and here we use read_apic_id() directly in this
-	 * function, __generic_processor_info().
+	 * function, generic_processor_info().
 	 */
 	if (disabled_cpu_apicid != BAD_APICID &&
 	    disabled_cpu_apicid != read_apic_id() &&

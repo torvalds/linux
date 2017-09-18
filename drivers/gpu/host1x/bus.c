@@ -41,13 +41,15 @@ struct host1x_subdev {
 /**
  * host1x_subdev_add() - add a new subdevice with an associated device node
  * @device: host1x device to add the subdevice to
- * @driver: host1x driver
  * @np: device node
  */
 static int host1x_subdev_add(struct host1x_device *device,
+			     struct host1x_driver *driver,
 			     struct device_node *np)
 {
 	struct host1x_subdev *subdev;
+	struct device_node *child;
+	int err;
 
 	subdev = kzalloc(sizeof(*subdev), GFP_KERNEL);
 	if (!subdev)
@@ -59,6 +61,19 @@ static int host1x_subdev_add(struct host1x_device *device,
 	mutex_lock(&device->subdevs_lock);
 	list_add_tail(&subdev->list, &device->subdevs);
 	mutex_unlock(&device->subdevs_lock);
+
+	/* recursively add children */
+	for_each_child_of_node(np, child) {
+		if (of_match_node(driver->subdevs, child) &&
+		    of_device_is_available(child)) {
+			err = host1x_subdev_add(device, driver, child);
+			if (err < 0) {
+				/* XXX cleanup? */
+				of_node_put(child);
+				return err;
+			}
+		}
+	}
 
 	return 0;
 }
@@ -88,7 +103,7 @@ static int host1x_device_parse_dt(struct host1x_device *device,
 	for_each_child_of_node(device->dev.parent->of_node, np) {
 		if (of_match_node(driver->subdevs, np) &&
 		    of_device_is_available(np)) {
-			err = host1x_subdev_add(device, np);
+			err = host1x_subdev_add(device, driver, np);
 			if (err < 0) {
 				of_node_put(np);
 				return err;

@@ -9,6 +9,7 @@
 			- "qcom,pcie-apq8084" for apq8084
 			- "qcom,pcie-msm8996" for msm8996 or apq8096
 			- "qcom,pcie-ipq4019" for ipq4019
+			- "qcom,pcie-ipq8074" for ipq8074
 
 - reg:
 	Usage: required
@@ -20,7 +21,7 @@
 	Value type: <stringlist>
 	Definition: Must include the following entries
 			- "parf"   Qualcomm specific registers
-			- "dbi"	   Designware PCIe registers
+			- "dbi"	   DesignWare PCIe registers
 			- "elbi"   External local bus interface registers
 			- "config" PCIe configuration space
 
@@ -105,6 +106,16 @@
 			- "bus_master"	Master AXI clock
 			- "bus_slave"	Slave AXI clock
 
+- clock-names:
+	Usage: required for ipq8074
+	Value type: <stringlist>
+	Definition: Should contain the following entries
+			- "iface"	PCIe to SysNOC BIU clock
+			- "axi_m"	AXI Master clock
+			- "axi_s"	AXI Slave clock
+			- "ahb"		AHB clock
+			- "aux"		Auxiliary clock
+
 - resets:
 	Usage: required
 	Value type: <prop-encoded-array>
@@ -144,6 +155,18 @@
 			- "ahb"			AHB reset
 			- "phy_ahb"		PHY AHB reset
 
+- reset-names:
+	Usage: required for ipq8074
+	Value type: <stringlist>
+	Definition: Should contain the following entries
+			- "pipe"		PIPE reset
+			- "sleep"		Sleep reset
+			- "sticky"		Core Sticky reset
+			- "axi_m"		AXI Master reset
+			- "axi_s"		AXI Slave reset
+			- "ahb"			AHB Reset
+			- "axi_m_sticky"	AXI Master Sticky reset
+
 - power-domains:
 	Usage: required for apq8084 and msm8996/apq8096
 	Value type: <prop-encoded-array>
@@ -180,7 +203,7 @@
 - <name>-gpios:
 	Usage: optional
 	Value type: <prop-encoded-array>
-	Definition: List of phandle and gpio specifier pairs. Should contain
+	Definition: List of phandle and GPIO specifier pairs. Should contain
 			- "perst-gpios"	PCIe endpoint reset signal line
 			- "wake-gpios"	PCIe endpoint wake signal line
 

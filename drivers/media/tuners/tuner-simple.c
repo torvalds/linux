@@ -846,7 +846,7 @@ static u32 simple_dvb_configure(struct dvb_frontend *fe, u8 *buf,
 	/* This function returns the tuned frequency on success, 0 on error */
 	struct tuner_simple_priv *priv = fe->tuner_priv;
 	struct tunertype *tun = priv->tun;
-	static struct tuner_params *t_params;
+	struct tuner_params *t_params;
 	u8 config, cb;
 	u32 div;
 	int ret;

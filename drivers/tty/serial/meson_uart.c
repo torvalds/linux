@@ -424,7 +424,7 @@ static void meson_uart_config_port(struct uart_port *port, int flags)
 	}
 }
 
-static struct uart_ops meson_uart_ops = {
+static const struct uart_ops meson_uart_ops = {
 	.set_mctrl      = meson_uart_set_mctrl,
 	.get_mctrl      = meson_uart_get_mctrl,
 	.tx_empty	= meson_uart_tx_empty,

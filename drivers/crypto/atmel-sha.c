@@ -2883,7 +2883,7 @@ sha_dd_err:
 
 static int atmel_sha_remove(struct platform_device *pdev)
 {
-	static struct atmel_sha_dev *sha_dd;
+	struct atmel_sha_dev *sha_dd;
 
 	sha_dd = platform_get_drvdata(pdev);
 	if (!sha_dd)

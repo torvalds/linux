@@ -6,7 +6,7 @@
 #endif
 
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 
 struct bcm47xxnflash {
 	struct bcma_drv_cc *cc;

@@ -466,8 +466,7 @@ static int timer_group_get_irq(struct device_node *np,
 
 	p = of_get_property(np, "fsl,available-ranges", &len);
 	if (p && len % (2 * sizeof(u32)) != 0) {
-		pr_err("%s: malformed available-ranges property.\n",
-				np->full_name);
+		pr_err("%pOF: malformed available-ranges property.\n", np);
 		return -EINVAL;
 	}
 
@@ -484,8 +483,7 @@ static int timer_group_get_irq(struct device_node *np,
 		for (j = 0; j < count; j++) {
 			irq = irq_of_parse_and_map(np, irq_index);
 			if (!irq) {
-				pr_err("%s: irq parse and map failed.\n",
-						np->full_name);
+				pr_err("%pOF: irq parse and map failed.\n", np);
 				return -EINVAL;
 			}
 
@@ -508,8 +506,7 @@ static void timer_group_init(struct device_node *np)
 
 	priv = kzalloc(sizeof(struct timer_group_priv), GFP_KERNEL);
 	if (!priv) {
-		pr_err("%s: cannot allocate memory for group.\n",
-				np->full_name);
+		pr_err("%pOF: cannot allocate memory for group.\n", np);
 		return;
 	}
 
@@ -518,29 +515,27 @@ static void timer_group_init(struct device_node *np)
 
 	priv->regs = of_iomap(np, i++);
 	if (!priv->regs) {
-		pr_err("%s: cannot ioremap timer register address.\n",
-				np->full_name);
+		pr_err("%pOF: cannot ioremap timer register address.\n", np);
 		goto out;
 	}
 
 	if (priv->flags & FSL_GLOBAL_TIMER) {
 		priv->group_tcr = of_iomap(np, i++);
 		if (!priv->group_tcr) {
-			pr_err("%s: cannot ioremap tcr address.\n",
-					np->full_name);
+			pr_err("%pOF: cannot ioremap tcr address.\n", np);
 			goto out;
 		}
 	}
 
 	ret = timer_group_get_freq(np, priv);
 	if (ret < 0) {
-		pr_err("%s: cannot get timer frequency.\n", np->full_name);
+		pr_err("%pOF: cannot get timer frequency.\n", np);
 		goto out;
 	}
 
 	ret = timer_group_get_irq(np, priv);
 	if (ret < 0) {
-		pr_err("%s: cannot get timer irqs.\n", np->full_name);
+		pr_err("%pOF: cannot get timer irqs.\n", np);
 		goto out;
 	}
 

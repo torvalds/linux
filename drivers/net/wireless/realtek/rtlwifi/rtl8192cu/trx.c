@@ -436,13 +436,6 @@ void  rtl8192cu_rx_hdl(struct ieee80211_hw *hw, struct sk_buff * skb)
 	_rtl_rx_process(hw, skb);
 }
 
-void rtl8192c_rx_segregate_hdl(
-	struct ieee80211_hw *hw,
-	struct sk_buff *skb,
-	struct sk_buff_head *skb_list)
-{
-}
-
 /*----------------------------------------------------------------------
  *
  *	Tx handler
@@ -674,9 +667,4 @@ void rtl92cu_tx_fill_cmddesc(struct ieee80211_hw *hw,
 	}
 	RT_PRINT_DATA(rtlpriv, COMP_CMD, DBG_LOUD, "H2C Tx Cmd Content",
 		      pdesc, RTL_TX_DESC_SIZE);
-}
-
-bool rtl92cu_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb)
-{
-	return true;
 }

@@ -457,7 +457,7 @@ static int m5mols_get_version(struct v4l2_subdev *sd)
 
 	v4l2_info(sd, "Manufacturer\t[%s]\n",
 			is_manufacturer(info, REG_SAMSUNG_ELECTRO) ?
-			"Samsung Electro-Machanics" :
+			"Samsung Electro-Mechanics" :
 			is_manufacturer(info, REG_SAMSUNG_OPTICS) ?
 			"Samsung Fiber-Optics" :
 			is_manufacturer(info, REG_SAMSUNG_TECHWIN) ?

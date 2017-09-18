@@ -383,7 +383,7 @@ EXPORT_SYMBOL(bt878_device_control);
 		.driver_data = (unsigned long) name \
 	}
 
-static struct pci_device_id bt878_pci_tbl[] = {
+static const struct pci_device_id bt878_pci_tbl[] = {
 	BROOKTREE_878_DEVICE(0x0071, 0x0101, "Nebula Electronics DigiTV"),
 	BROOKTREE_878_DEVICE(0x1461, 0x0761, "AverMedia AverTV DVB-T 761"),
 	BROOKTREE_878_DEVICE(0x11bd, 0x001c, "Pinnacle PCTV Sat"),

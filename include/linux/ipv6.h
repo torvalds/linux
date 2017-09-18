@@ -159,6 +159,16 @@ static inline bool inet6_is_jumbogram(const struct sk_buff *skb)
 }
 
 /* can not be used in TCP layer after tcp_v6_fill_cb */
+static inline int inet6_sdif(const struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
+	if (skb && ipv6_l3mdev_skb(IP6CB(skb)->flags))
+		return IP6CB(skb)->iif;
+#endif
+	return 0;
+}
+
+/* can not be used in TCP layer after tcp_v6_fill_cb */
 static inline bool inet6_exact_dif_match(struct net *net, struct sk_buff *skb)
 {
 #if defined(CONFIG_NET_L3_MASTER_DEV)

@@ -77,7 +77,9 @@ int mxl111sf_ctrl_msg(struct mxl111sf_state *state,
 		dvb_usbv2_generic_rw(d, state->sndbuf, 1+wlen, state->rcvbuf,
 				     rlen);
 
-	memcpy(rbuf, state->rcvbuf, rlen);
+	if (rbuf)
+		memcpy(rbuf, state->rcvbuf, rlen);
+
 	mutex_unlock(&state->msg_lock);
 
 	mxl_fail(ret);

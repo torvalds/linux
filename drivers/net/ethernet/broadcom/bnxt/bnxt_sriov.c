@@ -18,6 +18,7 @@
 #include "bnxt.h"
 #include "bnxt_ulp.h"
 #include "bnxt_sriov.h"
+#include "bnxt_vfr.h"
 #include "bnxt_ethtool.h"
 
 #ifdef CONFIG_BNXT_SRIOV
@@ -587,6 +588,10 @@ void bnxt_sriov_disable(struct bnxt *bp)
 	if (!num_vfs)
 		return;
 
+	/* synchronize VF and VF-rep create and destroy */
+	mutex_lock(&bp->sriov_lock);
+	bnxt_vf_reps_destroy(bp);
+
 	if (pci_vfs_assigned(bp->pdev)) {
 		bnxt_hwrm_fwd_async_event_cmpl(
 			bp, NULL, ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD);
@@ -597,6 +602,7 @@ void bnxt_sriov_disable(struct bnxt *bp)
 		/* Free the HW resources reserved for various VF's */
 		bnxt_hwrm_func_vf_resource_free(bp, num_vfs);
 	}
+	mutex_unlock(&bp->sriov_lock);
 
 	bnxt_free_vf_resources(bp);
 
@@ -794,8 +800,10 @@ static int bnxt_vf_set_link(struct bnxt *bp, struct bnxt_vf_info *vf)
 					PORT_PHY_QCFG_RESP_LINK_LINK;
 				phy_qcfg_resp.link_speed = cpu_to_le16(
 					PORT_PHY_QCFG_RESP_LINK_SPEED_10GB);
-				phy_qcfg_resp.duplex =
-					PORT_PHY_QCFG_RESP_DUPLEX_FULL;
+				phy_qcfg_resp.duplex_cfg =
+					PORT_PHY_QCFG_RESP_DUPLEX_CFG_FULL;
+				phy_qcfg_resp.duplex_state =
+					PORT_PHY_QCFG_RESP_DUPLEX_STATE_FULL;
 				phy_qcfg_resp.pause =
 					(PORT_PHY_QCFG_RESP_PAUSE_TX |
 					 PORT_PHY_QCFG_RESP_PAUSE_RX);
@@ -804,7 +812,8 @@ static int bnxt_vf_set_link(struct bnxt *bp, struct bnxt_vf_info *vf)
 			/* force link down */
 			phy_qcfg_resp.link = PORT_PHY_QCFG_RESP_LINK_NO_LINK;
 			phy_qcfg_resp.link_speed = 0;
-			phy_qcfg_resp.duplex = PORT_PHY_QCFG_RESP_DUPLEX_HALF;
+			phy_qcfg_resp.duplex_state =
+				PORT_PHY_QCFG_RESP_DUPLEX_STATE_HALF;
 			phy_qcfg_resp.pause = 0;
 		}
 		rc = bnxt_hwrm_fwd_resp(bp, vf, &phy_qcfg_resp,

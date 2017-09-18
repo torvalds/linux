@@ -232,8 +232,15 @@ static void __init tegra_super_clk_init(void __iomem *clk_base,
 	if (!dt_clk)
 		return;
 
-	clk = tegra_clk_register_pllxc("pll_x", "pll_ref", clk_base,
-			pmc_base, CLK_IGNORE_UNUSED, params, NULL);
+#if defined(CONFIG_ARCH_TEGRA_210_SOC)
+	if (gen_info->gen == gen5)
+		clk = tegra_clk_register_pllc_tegra210("pll_x", "pll_ref",
+			clk_base, pmc_base, CLK_IGNORE_UNUSED, params, NULL);
+	else
+#endif
+		clk = tegra_clk_register_pllxc("pll_x", "pll_ref", clk_base,
+				pmc_base, CLK_IGNORE_UNUSED, params, NULL);
+
 	*dt_clk = clk;
 
 	/* PLLX_OUT0 */

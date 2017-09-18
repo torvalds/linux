@@ -139,7 +139,6 @@ struct pci_dn *pci_get_pdn(struct pci_dev *pdev)
 
 #ifdef CONFIG_PCI_IOV
 static struct pci_dn *add_one_dev_pci_data(struct pci_dn *parent,
-					   struct pci_dev *pdev,
 					   int vf_index,
 					   int busno, int devfn)
 {
@@ -150,10 +149,8 @@ static struct pci_dn *add_one_dev_pci_data(struct pci_dn *parent,
 		return NULL;
 
 	pdn = kzalloc(sizeof(*pdn), GFP_KERNEL);
-	if (!pdn) {
-		dev_warn(&pdev->dev, "%s: Out of memory!\n", __func__);
+	if (!pdn)
 		return NULL;
-	}
 
 	pdn->phb = parent->phb;
 	pdn->parent = parent;
@@ -166,13 +163,6 @@ static struct pci_dn *add_one_dev_pci_data(struct pci_dn *parent,
 	INIT_LIST_HEAD(&pdn->child_list);
 	INIT_LIST_HEAD(&pdn->list);
 	list_add_tail(&pdn->list, &parent->child_list);
-
-	/*
-	 * If we already have PCI device instance, lets
-	 * bind them.
-	 */
-	if (pdev)
-		pdev->dev.archdata.pci_data = pdn;
 
 	return pdn;
 }
@@ -201,7 +191,7 @@ struct pci_dn *add_dev_pci_data(struct pci_dev *pdev)
 	for (i = 0; i < pci_sriov_get_totalvfs(pdev); i++) {
 		struct eeh_dev *edev __maybe_unused;
 
-		pdn = add_one_dev_pci_data(parent, NULL, i,
+		pdn = add_one_dev_pci_data(parent, i,
 					   pci_iov_virtfn_bus(pdev, i),
 					   pci_iov_virtfn_devfn(pdev, i));
 		if (!pdn) {
@@ -303,7 +293,6 @@ struct pci_dn *pci_add_device_node_info(struct pci_controller *hose,
 	if (pdn == NULL)
 		return NULL;
 	dn->data = pdn;
-	pdn->node = dn;
 	pdn->phb = hose;
 #ifdef CONFIG_PPC_POWERNV
 	pdn->pe_number = IODA_INVALID_PE;
@@ -352,6 +341,7 @@ EXPORT_SYMBOL_GPL(pci_add_device_node_info);
 void pci_remove_device_node_info(struct device_node *dn)
 {
 	struct pci_dn *pdn = dn ? PCI_DN(dn) : NULL;
+	struct device_node *parent;
 #ifdef CONFIG_EEH
 	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 
@@ -364,8 +354,10 @@ void pci_remove_device_node_info(struct device_node *dn)
 
 	WARN_ON(!list_empty(&pdn->child_list));
 	list_del(&pdn->list);
-	if (pdn->parent)
-		of_node_put(pdn->parent->node);
+
+	parent = of_get_parent(dn);
+	if (parent)
+		of_node_put(parent);
 
 	dn->data = NULL;
 	kfree(pdn);

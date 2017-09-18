@@ -2757,7 +2757,7 @@ static void fore200e_pca_remove_one(struct pci_dev *pci_dev)
 }
 
 
-static struct pci_device_id fore200e_pca_tbl[] = {
+static const struct pci_device_id fore200e_pca_tbl[] = {
     { PCI_VENDOR_ID_FORE, PCI_DEVICE_ID_FORE_PCA200E, PCI_ANY_ID, PCI_ANY_ID,
       0, 0, (unsigned long) &fore200e_bus[0] },
     { 0, }

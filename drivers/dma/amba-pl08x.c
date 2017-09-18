@@ -3033,7 +3033,7 @@ static struct vendor_data vendor_ftdmac020 = {
 	.max_transfer_size = PL080_CONTROL_TRANSFER_SIZE_MASK,
 };
 
-static struct amba_id pl08x_ids[] = {
+static const struct amba_id pl08x_ids[] = {
 	/* Samsung PL080S variant */
 	{
 		.id	= 0x0a141080,

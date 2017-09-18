@@ -56,27 +56,20 @@ static int autofs4_write(struct autofs_sb_info *sbi,
 			 struct file *file, const void *addr, int bytes)
 {
 	unsigned long sigpipe, flags;
-	mm_segment_t fs;
 	const char *data = (const char *)addr;
 	ssize_t wr = 0;
 
 	sigpipe = sigismember(&current->pending.signal, SIGPIPE);
 
-	/* Save pointer to user space and point back to kernel space */
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-
 	mutex_lock(&sbi->pipe_mutex);
 	while (bytes) {
-		wr = __vfs_write(file, data, bytes, &file->f_pos);
+		wr = __kernel_write(file, data, bytes, &file->f_pos);
 		if (wr <= 0)
 			break;
 		data += wr;
 		bytes -= wr;
 	}
 	mutex_unlock(&sbi->pipe_mutex);
-
-	set_fs(fs);
 
 	/* Keep the currently executing process from receiving a
 	 * SIGPIPE unless it was already supposed to get one

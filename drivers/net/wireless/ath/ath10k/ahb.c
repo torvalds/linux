@@ -197,35 +197,40 @@ static int ath10k_ahb_rst_ctrl_init(struct ath10k *ar)
 
 	dev = &ar_ahb->pdev->dev;
 
-	ar_ahb->core_cold_rst = devm_reset_control_get(dev, "wifi_core_cold");
+	ar_ahb->core_cold_rst = devm_reset_control_get_exclusive(dev,
+								 "wifi_core_cold");
 	if (IS_ERR(ar_ahb->core_cold_rst)) {
 		ath10k_err(ar, "failed to get core cold rst ctrl: %ld\n",
 			   PTR_ERR(ar_ahb->core_cold_rst));
 		return PTR_ERR(ar_ahb->core_cold_rst);
 	}
 
-	ar_ahb->radio_cold_rst = devm_reset_control_get(dev, "wifi_radio_cold");
+	ar_ahb->radio_cold_rst = devm_reset_control_get_exclusive(dev,
+								  "wifi_radio_cold");
 	if (IS_ERR(ar_ahb->radio_cold_rst)) {
 		ath10k_err(ar, "failed to get radio cold rst ctrl: %ld\n",
 			   PTR_ERR(ar_ahb->radio_cold_rst));
 		return PTR_ERR(ar_ahb->radio_cold_rst);
 	}
 
-	ar_ahb->radio_warm_rst = devm_reset_control_get(dev, "wifi_radio_warm");
+	ar_ahb->radio_warm_rst = devm_reset_control_get_exclusive(dev,
+								  "wifi_radio_warm");
 	if (IS_ERR(ar_ahb->radio_warm_rst)) {
 		ath10k_err(ar, "failed to get radio warm rst ctrl: %ld\n",
 			   PTR_ERR(ar_ahb->radio_warm_rst));
 		return PTR_ERR(ar_ahb->radio_warm_rst);
 	}
 
-	ar_ahb->radio_srif_rst = devm_reset_control_get(dev, "wifi_radio_srif");
+	ar_ahb->radio_srif_rst = devm_reset_control_get_exclusive(dev,
+								  "wifi_radio_srif");
 	if (IS_ERR(ar_ahb->radio_srif_rst)) {
 		ath10k_err(ar, "failed to get radio srif rst ctrl: %ld\n",
 			   PTR_ERR(ar_ahb->radio_srif_rst));
 		return PTR_ERR(ar_ahb->radio_srif_rst);
 	}
 
-	ar_ahb->cpu_init_rst = devm_reset_control_get(dev, "wifi_cpu_init");
+	ar_ahb->cpu_init_rst = devm_reset_control_get_exclusive(dev,
+								"wifi_cpu_init");
 	if (IS_ERR(ar_ahb->cpu_init_rst)) {
 		ath10k_err(ar, "failed to get cpu init rst ctrl: %ld\n",
 			   PTR_ERR(ar_ahb->cpu_init_rst));
@@ -787,8 +792,9 @@ static int ath10k_ahb_probe(struct platform_device *pdev)
 	ar_pci->mem = ar_ahb->mem;
 	ar_pci->mem_len = ar_ahb->mem_len;
 	ar_pci->ar = ar;
-	ar_pci->bus_ops = &ath10k_ahb_bus_ops;
+	ar_pci->ce.bus_ops = &ath10k_ahb_bus_ops;
 	ar_pci->targ_cpu_to_ce_addr = ath10k_ahb_qca4019_targ_cpu_to_ce_addr;
+	ar->ce_priv = &ar_pci->ce;
 
 	ret = ath10k_pci_setup_resource(ar);
 	if (ret) {

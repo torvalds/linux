@@ -69,6 +69,7 @@
 #include <linux/crash_dump.h>
 #include <linux/tboot.h>
 #include <linux/jiffies.h>
+#include <linux/mem_encrypt.h>
 
 #include <linux/usb/xhci-dbgp.h>
 #include <video/edid.h>
@@ -115,6 +116,7 @@
 #include <asm/microcode.h>
 #include <asm/mmu_context.h>
 #include <asm/kaslr.h>
+#include <asm/unwind.h>
 
 /*
  * max_low_pfn_mapped: highest direct mapped pfn under 4GB
@@ -373,6 +375,14 @@ static void __init reserve_initrd(void)
 	if (!boot_params.hdr.type_of_loader ||
 	    !ramdisk_image || !ramdisk_size)
 		return;		/* No initrd provided by bootloader */
+
+	/*
+	 * If SME is active, this memory will be marked encrypted by the
+	 * kernel when it is accessed (including relocation). However, the
+	 * ramdisk image was loaded decrypted by the bootloader, so make
+	 * sure that it is encrypted before accessing it.
+	 */
+	sme_early_encrypt(ramdisk_image, ramdisk_end - ramdisk_image);
 
 	initrd_start = 0;
 
@@ -890,7 +900,7 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	olpc_ofw_detect();
 
-	early_trap_init();
+	idt_setup_early_traps();
 	early_cpu_init();
 	early_ioremap_init();
 
@@ -1161,15 +1171,18 @@ void __init setup_arch(char **cmdline_p)
 
 	init_mem_mapping();
 
-	early_trap_pf_init();
+	idt_setup_early_pf();
 
 	/*
 	 * Update mmu_cr4_features (and, indirectly, trampoline_cr4_features)
 	 * with the current CR4 value.  This may not be necessary, but
 	 * auditing all the early-boot CR4 manipulation would be needed to
 	 * rule it out.
+	 *
+	 * Mask off features that don't work outside long mode (just
+	 * PCIDE for now).
 	 */
-	mmu_cr4_features = __read_cr4();
+	mmu_cr4_features = __read_cr4() & ~X86_CR4_PCIDE;
 
 	memblock_set_current_limit(get_max_mapped());
 
@@ -1205,6 +1218,8 @@ void __init setup_arch(char **cmdline_p)
 	vsmp_init();
 
 	io_delay_init();
+
+	early_platform_quirks();
 
 	/*
 	 * Parse the ACPI tables for possible boot-time SMP configuration.
@@ -1310,6 +1325,8 @@ void __init setup_arch(char **cmdline_p)
 	if (efi_enabled(EFI_BOOT))
 		efi_apply_memmap_quirks();
 #endif
+
+	unwind_init();
 }
 
 #ifdef CONFIG_X86_32

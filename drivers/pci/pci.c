@@ -892,7 +892,9 @@ EXPORT_SYMBOL_GPL(__pci_complete_power_transition);
  * -EINVAL if the requested state is invalid.
  * -EIO if device does not support PCI PM or its PM capabilities register has a
  * wrong version, or device doesn't support the requested state.
+ * 0 if the transition is to D1 or D2 but D1 and D2 are not supported.
  * 0 if device already is in the requested state.
+ * 0 if the transition is to D3 but D3 is not supported.
  * 0 if device's power state has been successfully changed.
  */
 int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
@@ -1911,6 +1913,13 @@ EXPORT_SYMBOL(pci_pme_active);
 int pci_enable_wake(struct pci_dev *dev, pci_power_t state, bool enable)
 {
 	int ret = 0;
+
+	/*
+	 * Bridges can only signal wakeup on behalf of subordinate devices,
+	 * but that is set up elsewhere, so skip them.
+	 */
+	if (pci_has_subordinate(dev))
+		return 0;
 
 	/* Don't do the same thing twice in a row for one device. */
 	if (!!enable == !!dev->wakeup_prepared)
@@ -3811,27 +3820,49 @@ int pci_wait_for_pending_transaction(struct pci_dev *dev)
 }
 EXPORT_SYMBOL(pci_wait_for_pending_transaction);
 
-/*
- * We should only need to wait 100ms after FLR, but some devices take longer.
- * Wait for up to 1000ms for config space to return something other than -1.
- * Intel IGD requires this when an LCD panel is attached.  We read the 2nd
- * dword because VFs don't implement the 1st dword.
- */
 static void pci_flr_wait(struct pci_dev *dev)
 {
-	int i = 0;
+	int delay = 1, timeout = 60000;
 	u32 id;
 
-	do {
-		msleep(100);
-		pci_read_config_dword(dev, PCI_COMMAND, &id);
-	} while (i++ < 10 && id == ~0);
+	/*
+	 * Per PCIe r3.1, sec 6.6.2, a device must complete an FLR within
+	 * 100ms, but may silently discard requests while the FLR is in
+	 * progress.  Wait 100ms before trying to access the device.
+	 */
+	msleep(100);
 
-	if (id == ~0)
-		dev_warn(&dev->dev, "Failed to return from FLR\n");
-	else if (i > 1)
-		dev_info(&dev->dev, "Required additional %dms to return from FLR\n",
-			 (i - 1) * 100);
+	/*
+	 * After 100ms, the device should not silently discard config
+	 * requests, but it may still indicate that it needs more time by
+	 * responding to them with CRS completions.  The Root Port will
+	 * generally synthesize ~0 data to complete the read (except when
+	 * CRS SV is enabled and the read was for the Vendor ID; in that
+	 * case it synthesizes 0x0001 data).
+	 *
+	 * Wait for the device to return a non-CRS completion.  Read the
+	 * Command register instead of Vendor ID so we don't have to
+	 * contend with the CRS SV value.
+	 */
+	pci_read_config_dword(dev, PCI_COMMAND, &id);
+	while (id == ~0) {
+		if (delay > timeout) {
+			dev_warn(&dev->dev, "not ready %dms after FLR; giving up\n",
+				 100 + delay - 1);
+			return;
+		}
+
+		if (delay > 1000)
+			dev_info(&dev->dev, "not ready %dms after FLR; waiting\n",
+				 100 + delay - 1);
+
+		msleep(delay);
+		delay *= 2;
+		pci_read_config_dword(dev, PCI_COMMAND, &id);
+	}
+
+	if (delay > 1000)
+		dev_info(&dev->dev, "ready %dms after FLR\n", 100 + delay - 1);
 }
 
 /**
@@ -5398,8 +5429,8 @@ static int of_pci_bus_find_domain_nr(struct device *parent)
 		use_dt_domains = 0;
 		domain = pci_get_new_domain_nr();
 	} else {
-		dev_err(parent, "Node %s has inconsistent \"linux,pci-domain\" property in DT\n",
-			parent->of_node->full_name);
+		dev_err(parent, "Node %pOF has inconsistent \"linux,pci-domain\" property in DT\n",
+			parent->of_node);
 		domain = -1;
 	}
 

@@ -464,7 +464,7 @@ retry:
 		goto out_bmap_cancel;
 
 	/* Finish up. */
-	error = xfs_defer_finish(&tp, &dfops, NULL);
+	error = xfs_defer_finish(&tp, &dfops);
 	if (error)
 		goto out_bmap_cancel;
 
@@ -602,7 +602,8 @@ xfs_reflink_cancel_cow_blocks(
 					-(long)del.br_blockcount);
 
 			/* Roll the transaction */
-			error = xfs_defer_finish(tpp, &dfops, ip);
+			xfs_defer_ijoin(&dfops, ip);
+			error = xfs_defer_finish(tpp, &dfops);
 			if (error) {
 				xfs_defer_cancel(&dfops);
 				break;
@@ -791,7 +792,8 @@ xfs_reflink_end_cow(
 		/* Remove the mapping from the CoW fork. */
 		xfs_bmap_del_extent_cow(ip, &idx, &got, &del);
 
-		error = xfs_defer_finish(&tp, &dfops, ip);
+		xfs_defer_ijoin(&dfops, ip);
+		error = xfs_defer_finish(&tp, &dfops);
 		if (error)
 			goto out_defer;
 next_extent:
@@ -1152,7 +1154,8 @@ xfs_reflink_remap_extent(
 
 next_extent:
 		/* Process all the deferred stuff. */
-		error = xfs_defer_finish(&tp, &dfops, ip);
+		xfs_defer_ijoin(&dfops, ip);
+		error = xfs_defer_finish(&tp, &dfops);
 		if (error)
 			goto out_defer;
 	}

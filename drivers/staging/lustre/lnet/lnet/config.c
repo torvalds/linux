@@ -33,7 +33,7 @@
 #define DEBUG_SUBSYSTEM S_LNET
 #include <linux/nsproxy.h>
 #include <net/net_namespace.h>
-#include "../../include/linux/lnet/lib-lnet.h"
+#include <linux/lnet/lib-lnet.h>
 
 struct lnet_text_buf {	    /* tmp struct for parsing routes */
 	struct list_head ltb_list;	/* stash on lists */

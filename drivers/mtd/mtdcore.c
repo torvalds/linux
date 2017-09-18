@@ -40,6 +40,7 @@
 #include <linux/slab.h>
 #include <linux/reboot.h>
 #include <linux/leds.h>
+#include <linux/debugfs.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -339,7 +340,7 @@ static struct attribute *mtd_attrs[] = {
 };
 ATTRIBUTE_GROUPS(mtd);
 
-static struct device_type mtd_devtype = {
+static const struct device_type mtd_devtype = {
 	.name		= "mtd",
 	.groups		= mtd_groups,
 	.release	= mtd_release,
@@ -477,6 +478,8 @@ int mtd_pairing_groups(struct mtd_info *mtd)
 }
 EXPORT_SYMBOL_GPL(mtd_pairing_groups);
 
+static struct dentry *dfs_dir_mtd;
+
 /**
  *	add_mtd_device - register an MTD device
  *	@mtd: pointer to new MTD device info structure
@@ -552,6 +555,14 @@ int add_mtd_device(struct mtd_info *mtd)
 	if (error)
 		goto fail_added;
 
+	if (!IS_ERR_OR_NULL(dfs_dir_mtd)) {
+		mtd->dbg.dfs_dir = debugfs_create_dir(dev_name(&mtd->dev), dfs_dir_mtd);
+		if (IS_ERR_OR_NULL(mtd->dbg.dfs_dir)) {
+			pr_debug("mtd device %s won't show data in debugfs\n",
+				 dev_name(&mtd->dev));
+		}
+	}
+
 	device_create(&mtd_class, mtd->dev.parent, MTD_DEVT(i) + 1, NULL,
 		      "mtd%dro", i);
 
@@ -593,6 +604,8 @@ int del_mtd_device(struct mtd_info *mtd)
 	struct mtd_notifier *not;
 
 	mutex_lock(&mtd_table_mutex);
+
+	debugfs_remove_recursive(mtd->dbg.dfs_dir);
 
 	if (idr_find(&mtd_idr, mtd->index) != mtd) {
 		ret = -ENODEV;
@@ -1811,6 +1824,8 @@ static int __init init_mtd(void)
 	if (ret)
 		goto out_procfs;
 
+	dfs_dir_mtd = debugfs_create_dir("mtd", NULL);
+
 	return 0;
 
 out_procfs:
@@ -1826,6 +1841,7 @@ err_reg:
 
 static void __exit cleanup_mtd(void)
 {
+	debugfs_remove_recursive(dfs_dir_mtd);
 	cleanup_mtdchar();
 	if (proc_mtd)
 		remove_proc_entry("mtd", NULL);

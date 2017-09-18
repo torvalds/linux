@@ -173,6 +173,16 @@ static u8 halbtc_get_wifi_central_chnl(struct btc_coexist *btcoexist)
 
 u8 rtl_get_hwpg_single_ant_path(struct rtl_priv *rtlpriv)
 {
+	struct rtl_mod_params *mod_params = rtlpriv->cfg->mod_params;
+
+	/* override ant_num / ant_path */
+	if (mod_params->ant_sel) {
+		rtlpriv->btcoexist.btc_info.ant_num =
+			(mod_params->ant_sel == 1 ? ANT_X2 : ANT_X1);
+
+		rtlpriv->btcoexist.btc_info.single_ant_path =
+			(mod_params->ant_sel == 1 ? 0 : 1);
+	}
 	return rtlpriv->btcoexist.btc_info.single_ant_path;
 }
 
@@ -183,12 +193,17 @@ u8 rtl_get_hwpg_bt_type(struct rtl_priv *rtlpriv)
 
 u8 rtl_get_hwpg_ant_num(struct rtl_priv *rtlpriv)
 {
+	struct rtl_mod_params *mod_params = rtlpriv->cfg->mod_params;
 	u8 num;
 
 	if (rtlpriv->btcoexist.btc_info.ant_num == ANT_X2)
 		num = 2;
 	else
 		num = 1;
+
+	/* override ant_num / ant_path */
+	if (mod_params->ant_sel)
+		num = (mod_params->ant_sel == 1 ? ANT_X2 : ANT_X1) + 1;
 
 	return num;
 }
@@ -327,7 +342,22 @@ static void halbtc_aggregation_check(struct btc_coexist *btcoexist)
 
 static u32 halbtc_get_bt_patch_version(struct btc_coexist *btcoexist)
 {
-	return 0;
+	struct rtl_priv *rtlpriv = btcoexist->adapter;
+	u8 cmd_buffer[4] = {0};
+	u8 oper_ver = 0;
+	u8 req_num = 0x0E;
+
+	if (btcoexist->bt_info.bt_real_fw_ver)
+		goto label_done;
+
+	cmd_buffer[0] |= (oper_ver & 0x0f);	/* Set OperVer */
+	cmd_buffer[0] |= ((req_num << 4) & 0xf0);	/* Set ReqNum */
+	cmd_buffer[1] = 0; /* BT_OP_GET_BT_VERSION = 0 */
+	rtlpriv->cfg->ops->fill_h2c_cmd(rtlpriv->mac80211.hw, 0x67, 4,
+					&cmd_buffer[0]);
+
+label_done:
+	return btcoexist->bt_info.bt_real_fw_ver;
 }
 
 u32 halbtc_get_wifi_link_status(struct btc_coexist *btcoexist)
@@ -861,7 +891,7 @@ bool exhalbtc_bind_bt_coex_withadapter(void *adapter)
 {
 	struct btc_coexist *btcoexist = &gl_bt_coexist;
 	struct rtl_priv *rtlpriv = adapter;
-	u8 ant_num = 2, chip_type, single_ant_path = 0;
+	u8 ant_num = 2, chip_type;
 
 	if (btcoexist->binded)
 		return false;
@@ -895,12 +925,6 @@ bool exhalbtc_bind_bt_coex_withadapter(void *adapter)
 	exhalbtc_set_chip_type(chip_type);
 	ant_num = rtl_get_hwpg_ant_num(rtlpriv);
 	exhalbtc_set_ant_num(rtlpriv, BT_COEX_ANT_TYPE_PG, ant_num);
-
-	/* set default antenna position to main  port */
-	btcoexist->board_info.btdm_ant_pos = BTC_ANTENNA_AT_MAIN_PORT;
-
-	single_ant_path = rtl_get_hwpg_single_ant_path(rtlpriv);
-	exhalbtc_set_single_ant_path(single_ant_path);
 
 	if (rtl_get_hwpg_package_type(rtlpriv) == 0)
 		btcoexist->board_info.tfbga_package = false;

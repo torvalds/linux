@@ -14,6 +14,7 @@
 #include <linux/rcupdate.h>
 #include <linux/bug.h>
 #include <linux/jiffies.h>
+#include <linux/refcount.h>
 #include <net/neighbour.h>
 #include <asm/processor.h>
 
@@ -107,7 +108,7 @@ struct dst_entry {
 
 struct dst_metrics {
 	u32		metrics[RTAX_MAX];
-	atomic_t	refcnt;
+	refcount_t	refcnt;
 };
 extern const struct dst_metrics dst_default_metrics;
 

@@ -433,7 +433,7 @@ static const struct v4l2_subdev_core_ops fimc_is_core_ops = {
 	.s_power = fimc_isp_subdev_s_power,
 };
 
-static struct v4l2_subdev_ops fimc_is_subdev_ops = {
+static const struct v4l2_subdev_ops fimc_is_subdev_ops = {
 	.core = &fimc_is_core_ops,
 	.video = &fimc_is_subdev_video_ops,
 	.pad = &fimc_is_subdev_pad_ops,

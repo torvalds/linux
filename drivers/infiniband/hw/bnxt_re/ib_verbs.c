@@ -223,50 +223,6 @@ int bnxt_re_modify_device(struct ib_device *ibdev,
 	return 0;
 }
 
-static void __to_ib_speed_width(struct net_device *netdev, u8 *speed, u8 *width)
-{
-	struct ethtool_link_ksettings lksettings;
-	u32 espeed;
-
-	if (netdev->ethtool_ops && netdev->ethtool_ops->get_link_ksettings) {
-		memset(&lksettings, 0, sizeof(lksettings));
-		rtnl_lock();
-		netdev->ethtool_ops->get_link_ksettings(netdev, &lksettings);
-		rtnl_unlock();
-		espeed = lksettings.base.speed;
-	} else {
-		espeed = SPEED_UNKNOWN;
-	}
-	switch (espeed) {
-	case SPEED_1000:
-		*speed = IB_SPEED_SDR;
-		*width = IB_WIDTH_1X;
-		break;
-	case SPEED_10000:
-		*speed = IB_SPEED_QDR;
-		*width = IB_WIDTH_1X;
-		break;
-	case SPEED_20000:
-		*speed = IB_SPEED_DDR;
-		*width = IB_WIDTH_4X;
-		break;
-	case SPEED_25000:
-		*speed = IB_SPEED_EDR;
-		*width = IB_WIDTH_1X;
-		break;
-	case SPEED_40000:
-		*speed = IB_SPEED_QDR;
-		*width = IB_WIDTH_4X;
-		break;
-	case SPEED_50000:
-		break;
-	default:
-		*speed = IB_SPEED_SDR;
-		*width = IB_WIDTH_1X;
-		break;
-	}
-}
-
 /* Port */
 int bnxt_re_query_port(struct ib_device *ibdev, u8 port_num,
 		       struct ib_port_attr *port_attr)
@@ -308,25 +264,9 @@ int bnxt_re_query_port(struct ib_device *ibdev, u8 port_num,
 	 * IB stack to avoid race in the NETDEV_UNREG path
 	 */
 	if (test_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags))
-		__to_ib_speed_width(rdev->netdev, &port_attr->active_speed,
-				    &port_attr->active_width);
-	return 0;
-}
-
-int bnxt_re_modify_port(struct ib_device *ibdev, u8 port_num,
-			int port_modify_mask,
-			struct ib_port_modify *port_modify)
-{
-	switch (port_modify_mask) {
-	case IB_PORT_SHUTDOWN:
-		break;
-	case IB_PORT_INIT_TYPE:
-		break;
-	case IB_PORT_RESET_QKEY_CNTR:
-		break;
-	default:
-		break;
-	}
+		if (ib_get_eth_speed(ibdev, port_num, &port_attr->active_speed,
+				     &port_attr->active_width))
+			return -EINVAL;
 	return 0;
 }
 
@@ -846,6 +786,7 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp)
 	struct bnxt_re_dev *rdev = qp->rdev;
 	int rc;
 
+	bnxt_qplib_del_flush_qp(&qp->qplib_qp);
 	rc = bnxt_qplib_destroy_qp(&rdev->qplib_res, &qp->qplib_qp);
 	if (rc) {
 		dev_err(rdev_to_dev(rdev), "Failed to destroy HW QP");
@@ -860,6 +801,7 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp)
 			return rc;
 		}
 
+		bnxt_qplib_del_flush_qp(&qp->qplib_qp);
 		rc = bnxt_qplib_destroy_qp(&rdev->qplib_res,
 					   &rdev->qp1_sqp->qplib_qp);
 		if (rc) {
@@ -969,7 +911,6 @@ static struct bnxt_re_ah *bnxt_re_create_shadow_qp_ah
 	if (!ah)
 		return NULL;
 
-	memset(ah, 0, sizeof(*ah));
 	ah->rdev = rdev;
 	ah->qplib_ah.pd = &pd->qplib_pd;
 
@@ -1016,7 +957,6 @@ static struct bnxt_re_qp *bnxt_re_create_shadow_qp
 	if (!qp)
 		return NULL;
 
-	memset(qp, 0, sizeof(*qp));
 	qp->rdev = rdev;
 
 	/* Initialize the shadow QP structure from the QP1 values */
@@ -1404,6 +1344,21 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 		}
 		qp->qplib_qp.modify_flags |= CMDQ_MODIFY_QP_MODIFY_MASK_STATE;
 		qp->qplib_qp.state = __from_ib_qp_state(qp_attr->qp_state);
+
+		if (!qp->sumem &&
+		    qp->qplib_qp.state == CMDQ_MODIFY_QP_NEW_STATE_ERR) {
+			dev_dbg(rdev_to_dev(rdev),
+				"Move QP = %p to flush list\n",
+				qp);
+			bnxt_qplib_add_flush_qp(&qp->qplib_qp);
+		}
+		if (!qp->sumem &&
+		    qp->qplib_qp.state == CMDQ_MODIFY_QP_NEW_STATE_RESET) {
+			dev_dbg(rdev_to_dev(rdev),
+				"Move QP = %p out of flush list\n",
+				qp);
+			bnxt_qplib_del_flush_qp(&qp->qplib_qp);
+		}
 	}
 	if (qp_attr_mask & IB_QP_EN_SQD_ASYNC_NOTIFY) {
 		qp->qplib_qp.modify_flags |=
@@ -2333,6 +2288,7 @@ int bnxt_re_destroy_cq(struct ib_cq *ib_cq)
 	struct bnxt_re_cq *cq = container_of(ib_cq, struct bnxt_re_cq, ib_cq);
 	struct bnxt_re_dev *rdev = cq->rdev;
 	int rc;
+	struct bnxt_qplib_nq *nq = cq->qplib_cq.nq;
 
 	rc = bnxt_qplib_destroy_cq(&rdev->qplib_res, &cq->qplib_cq);
 	if (rc) {
@@ -2347,7 +2303,7 @@ int bnxt_re_destroy_cq(struct ib_cq *ib_cq)
 		kfree(cq);
 	}
 	atomic_dec(&rdev->cq_count);
-	rdev->nq.budget--;
+	nq->budget--;
 	return 0;
 }
 
@@ -2361,6 +2317,8 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 	struct bnxt_re_cq *cq = NULL;
 	int rc, entries;
 	int cqe = attr->cqe;
+	struct bnxt_qplib_nq *nq = NULL;
+	unsigned int nq_alloc_cnt;
 
 	/* Validate CQ fields */
 	if (cqe < 1 || cqe > dev_attr->max_cq_wqes) {
@@ -2412,8 +2370,15 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 		cq->qplib_cq.sghead = NULL;
 		cq->qplib_cq.nmap = 0;
 	}
+	/*
+	 * Allocating the NQ in a round robin fashion. nq_alloc_cnt is a
+	 * used for getting the NQ index.
+	 */
+	nq_alloc_cnt = atomic_inc_return(&rdev->nq_alloc_cnt);
+	nq = &rdev->nq[nq_alloc_cnt % (rdev->num_msix - 1)];
 	cq->qplib_cq.max_wqe = entries;
-	cq->qplib_cq.cnq_hw_ring_id = rdev->nq.ring_id;
+	cq->qplib_cq.cnq_hw_ring_id = nq->ring_id;
+	cq->qplib_cq.nq	= nq;
 
 	rc = bnxt_qplib_create_cq(&rdev->qplib_res, &cq->qplib_cq);
 	if (rc) {
@@ -2423,7 +2388,7 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 
 	cq->ib_cq.cqe = entries;
 	cq->cq_period = cq->qplib_cq.period;
-	rdev->nq.budget++;
+	nq->budget++;
 
 	atomic_inc(&rdev->cq_count);
 
@@ -2921,6 +2886,10 @@ int bnxt_re_poll_cq(struct ib_cq *ib_cq, int num_entries, struct ib_wc *wc)
 					sq->send_phantom = false;
 			}
 		}
+		if (ncqe < budget)
+			ncqe += bnxt_qplib_process_flush_list(&cq->qplib_cq,
+							      cqe + ncqe,
+							      budget - ncqe);
 
 		if (!ncqe)
 			break;
@@ -3410,7 +3379,7 @@ int bnxt_re_dealloc_ucontext(struct ib_ucontext *ib_uctx)
 					    &rdev->qplib_res.dpi_tbl,
 					    &uctx->dpi);
 		if (rc)
-			dev_err(rdev_to_dev(rdev), "Deallocte HW DPI failed!");
+			dev_err(rdev_to_dev(rdev), "Deallocate HW DPI failed!");
 			/* Don't fail, continue*/
 		uctx->dpi.dbr = NULL;
 	}

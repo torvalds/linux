@@ -84,7 +84,12 @@ static inline void desc_set_label(struct gpio_desc *d, const char *label)
 }
 
 /**
- * Convert a GPIO number to its descriptor
+ * gpio_to_desc - Convert a GPIO number to its descriptor
+ * @gpio: global GPIO number
+ *
+ * Returns:
+ * The GPIO descriptor associated with the given GPIO, or %NULL if no GPIO
+ * with the given number exists in the system.
  */
 struct gpio_desc *gpio_to_desc(unsigned gpio)
 {
@@ -111,7 +116,14 @@ struct gpio_desc *gpio_to_desc(unsigned gpio)
 EXPORT_SYMBOL_GPL(gpio_to_desc);
 
 /**
- * Get the GPIO descriptor corresponding to the given hw number for this chip.
+ * gpiochip_get_desc - get the GPIO descriptor corresponding to the given
+ *                     hardware number for this chip
+ * @chip: GPIO chip
+ * @hwnum: hardware number of the GPIO for this chip
+ *
+ * Returns:
+ * A pointer to the GPIO descriptor or %ERR_PTR(-EINVAL) if no GPIO exists
+ * in the given chip for the specified hardware number.
  */
 struct gpio_desc *gpiochip_get_desc(struct gpio_chip *chip,
 				    u16 hwnum)
@@ -125,9 +137,14 @@ struct gpio_desc *gpiochip_get_desc(struct gpio_chip *chip,
 }
 
 /**
- * Convert a GPIO descriptor to the integer namespace.
+ * desc_to_gpio - convert a GPIO descriptor to the integer namespace
+ * @desc: GPIO descriptor
+ *
  * This should disappear in the future but is needed since we still
- * use GPIO numbers for error messages and sysfs nodes
+ * use GPIO numbers for error messages and sysfs nodes.
+ *
+ * Returns:
+ * The global GPIO number for the GPIO specified by its descriptor.
  */
 int desc_to_gpio(const struct gpio_desc *desc)
 {
@@ -254,7 +271,7 @@ static int gpiodev_add_to_list(struct gpio_device *gdev)
 	return -EBUSY;
 }
 
-/**
+/*
  * Convert a GPIO name to its descriptor
  */
 static struct gpio_desc *gpio_name_to_desc(const char * const name)
@@ -878,7 +895,7 @@ out_free_le:
 	return ret;
 }
 
-/**
+/*
  * gpio_ioctl() - ioctl handler for the GPIO chardev
  */
 static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
@@ -1077,11 +1094,9 @@ static void gpiochip_setup_devs(void)
 /**
  * gpiochip_add_data() - register a gpio_chip
  * @chip: the chip to register, with chip->base initialized
- * Context: potentially before irqs will work
+ * @data: driver-private data associated with this chip
  *
- * Returns a negative errno if the chip can't be registered, such as
- * because the chip->base is invalid or already associated with a
- * different chip.  Otherwise it returns zero as a success code.
+ * Context: potentially before irqs will work
  *
  * When gpiochip_add_data() is called very early during boot, so that GPIOs
  * can be freely used, the chip->parent device must be registered before
@@ -1093,6 +1108,11 @@ static void gpiochip_setup_devs(void)
  *
  * If chip->base is negative, this requests dynamic assignment of
  * a range of valid GPIOs.
+ *
+ * Returns:
+ * A negative errno if the chip can't be registered, such as because the
+ * chip->base is invalid or already associated with a different chip.
+ * Otherwise it returns zero as a success code.
  */
 int gpiochip_add_data(struct gpio_chip *chip, void *data)
 {
@@ -1287,6 +1307,10 @@ EXPORT_SYMBOL_GPL(gpiochip_add_data);
 
 /**
  * gpiochip_get_data() - get per-subdriver data for the chip
+ * @chip: GPIO chip
+ *
+ * Returns:
+ * The per-subdriver data for the chip.
  */
 void *gpiochip_get_data(struct gpio_chip *chip)
 {
@@ -1370,13 +1394,16 @@ static int devm_gpio_chip_match(struct device *dev, void *res, void *data)
  * devm_gpiochip_add_data() - Resource manager piochip_add_data()
  * @dev: the device pointer on which irq_chip belongs to.
  * @chip: the chip to register, with chip->base initialized
+ * @data: driver-private data associated with this chip
+ *
  * Context: potentially before irqs will work
  *
- * Returns a negative errno if the chip can't be registered, such as
- * because the chip->base is invalid or already associated with a
- * different chip.  Otherwise it returns zero as a success code.
- *
  * The gpio chip automatically be released when the device is unbound.
+ *
+ * Returns:
+ * A negative errno if the chip can't be registered, such as because the
+ * chip->base is invalid or already associated with a different chip.
+ * Otherwise it returns zero as a success code.
  */
 int devm_gpiochip_add_data(struct device *dev, struct gpio_chip *chip,
 			   void *data)
@@ -1422,7 +1449,7 @@ EXPORT_SYMBOL_GPL(devm_gpiochip_remove);
 /**
  * gpiochip_find() - iterator for locating a specific gpio_chip
  * @data: data to pass to match function
- * @callback: Callback function to check gpio_chip
+ * @match: Callback function to check gpio_chip
  *
  * Similar to bus_find_device.  It returns a reference to a gpio_chip as
  * determined by a user supplied @match callback.  The callback should return
@@ -1604,6 +1631,9 @@ static int gpiochip_irq_map(struct irq_domain *d, unsigned int irq,
 {
 	struct gpio_chip *chip = d->host_data;
 
+	if (!gpiochip_irqchip_irq_valid(chip, hwirq))
+		return -ENXIO;
+
 	irq_set_chip_data(irq, chip);
 	/*
 	 * This lock class tells lockdep that GPIO irqs are in a different
@@ -1670,7 +1700,9 @@ static void gpiochip_irq_relres(struct irq_data *d)
 
 static int gpiochip_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	return irq_find_mapping(chip->irqdomain, offset);
+	if (!gpiochip_irqchip_irq_valid(chip, offset))
+		return -ENXIO;
+	return irq_create_mapping(chip->irqdomain, offset);
 }
 
 /**
@@ -1746,9 +1778,6 @@ int gpiochip_irqchip_add_key(struct gpio_chip *gpiochip,
 			     struct lock_class_key *lock_key)
 {
 	struct device_node *of_node;
-	bool irq_base_set = false;
-	unsigned int offset;
-	unsigned irq_base = 0;
 
 	if (!gpiochip || !irqchip)
 		return -EINVAL;
@@ -1774,7 +1803,7 @@ int gpiochip_irqchip_add_key(struct gpio_chip *gpiochip,
 	 * conflicting triggers. Tell the user, and reset to NONE.
 	 */
 	if (WARN(of_node && type != IRQ_TYPE_NONE,
-		 "%s: Ignoring %d default trigger\n", of_node->full_name, type))
+		 "%pOF: Ignoring %d default trigger\n", of_node, type))
 		type = IRQ_TYPE_NONE;
 	if (has_acpi_companion(gpiochip->parent) && type != IRQ_TYPE_NONE) {
 		acpi_handle_warn(ACPI_HANDLE(gpiochip->parent),
@@ -1803,25 +1832,6 @@ int gpiochip_irqchip_add_key(struct gpio_chip *gpiochip,
 	    !irqchip->irq_release_resources) {
 		irqchip->irq_request_resources = gpiochip_irq_reqres;
 		irqchip->irq_release_resources = gpiochip_irq_relres;
-	}
-
-	/*
-	 * Prepare the mapping since the irqchip shall be orthogonal to
-	 * any gpiochip calls. If the first_irq was zero, this is
-	 * necessary to allocate descriptors for all IRQs.
-	 */
-	for (offset = 0; offset < gpiochip->ngpio; offset++) {
-		if (!gpiochip_irqchip_irq_valid(gpiochip, offset))
-			continue;
-		irq_base = irq_create_mapping(gpiochip->irqdomain, offset);
-		if (!irq_base_set) {
-			/*
-			 * Store the base into the gpiochip to be used when
-			 * unmapping the irqs.
-			 */
-			gpiochip->irq_base = irq_base;
-			irq_base_set = true;
-		}
 	}
 
 	acpi_gpiochip_request_interrupts(gpiochip);
@@ -1930,11 +1940,14 @@ EXPORT_SYMBOL_GPL(gpiochip_add_pingroup_range);
 /**
  * gpiochip_add_pin_range() - add a range for GPIO <-> pin mapping
  * @chip: the gpiochip to add the range for
- * @pinctrl_name: the dev_name() of the pin controller to map to
+ * @pinctl_name: the dev_name() of the pin controller to map to
  * @gpio_offset: the start offset in the current gpio_chip number space
  * @pin_offset: the start offset in the pin controller number space
  * @npins: the number of pins from the offset of each pin space (GPIO and
  *	pin controller) to accumulate in this range
+ *
+ * Returns:
+ * 0 on success, or a negative error-code on failure.
  */
 int gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
 			   unsigned int gpio_offset, unsigned int pin_offset,
@@ -2179,7 +2192,8 @@ EXPORT_SYMBOL_GPL(gpiochip_is_requested);
 
 /**
  * gpiochip_request_own_desc - Allow GPIO chip to request its own descriptor
- * @desc: GPIO descriptor to request
+ * @chip: GPIO chip
+ * @hwnum: hardware number of the GPIO for which to request the descriptor
  * @label: label for the GPIO
  *
  * Function allows GPIO chip drivers to request and use their own GPIO
@@ -2187,6 +2201,10 @@ EXPORT_SYMBOL_GPL(gpiochip_is_requested);
  * function will not increase reference count of the GPIO chip module. This
  * allows the GPIO chip module to be unloaded as needed (we assume that the
  * GPIO chip driver handles freeing the GPIOs it has requested).
+ *
+ * Returns:
+ * A pointer to the GPIO descriptor, or an ERR_PTR()-encoded negative error
+ * code on failure.
  */
 struct gpio_desc *gpiochip_request_own_desc(struct gpio_chip *chip, u16 hwnum,
 					    const char *label)
@@ -2368,12 +2386,13 @@ int gpiod_direction_output(struct gpio_desc *desc, int value)
 EXPORT_SYMBOL_GPL(gpiod_direction_output);
 
 /**
- * gpiod_set_debounce - sets @debounce time for a @gpio
- * @gpio: the gpio to set debounce time
- * @debounce: debounce time is microseconds
+ * gpiod_set_debounce - sets @debounce time for a GPIO
+ * @desc: descriptor of the GPIO for which to set debounce time
+ * @debounce: debounce time in microseconds
  *
- * returns -ENOTSUPP if the controller does not support setting
- * debounce.
+ * Returns:
+ * 0 on success, %-ENOTSUPP if the controller doesn't support setting the
+ * debounce time.
  */
 int gpiod_set_debounce(struct gpio_desc *desc, unsigned debounce)
 {
@@ -2981,6 +3000,23 @@ void gpiod_set_raw_array_value_cansleep(unsigned int array_size,
 EXPORT_SYMBOL_GPL(gpiod_set_raw_array_value_cansleep);
 
 /**
+ * gpiod_add_lookup_tables() - register GPIO device consumers
+ * @tables: list of tables of consumers to register
+ * @n: number of tables in the list
+ */
+void gpiod_add_lookup_tables(struct gpiod_lookup_table **tables, size_t n)
+{
+	unsigned int i;
+
+	mutex_lock(&gpio_lookup_lock);
+
+	for (i = 0; i < n; i++)
+		list_add_tail(&tables[i]->list, &gpio_lookup_list);
+
+	mutex_unlock(&gpio_lookup_lock);
+}
+
+/**
  * gpiod_set_array_value_cansleep() - assign values to an array of GPIOs
  * @array_size: number of elements in the descriptor / value arrays
  * @desc_array: array of GPIO descriptors whose values will be assigned
@@ -3322,6 +3358,7 @@ EXPORT_SYMBOL_GPL(gpiod_get_index);
  * @propname:	name of the firmware property representing the GPIO
  * @index:	index of the GPIO to obtain in the consumer
  * @dflags:	GPIO initialization flags
+ * @label:	label to attach to the requested GPIO
  *
  * This function can be used for drivers that get their configuration
  * from firmware.
@@ -3330,6 +3367,7 @@ EXPORT_SYMBOL_GPL(gpiod_get_index);
  * underlying firmware interface and then makes sure that the GPIO
  * descriptor is requested before it is returned to the caller.
  *
+ * Returns:
  * On successful request the GPIO pin is configured in accordance with
  * provided @dflags.
  *

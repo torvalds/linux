@@ -72,8 +72,19 @@
 #define COMPAT_PT_TEXT_ADDR		0x10000
 #define COMPAT_PT_DATA_ADDR		0x10004
 #define COMPAT_PT_TEXT_END_ADDR		0x10008
+
+/*
+ * If pt_regs.syscallno == NO_SYSCALL, then the thread is not executing
+ * a syscall -- i.e., its most recent entry into the kernel from
+ * userspace was not via SVC, or otherwise a tracer cancelled the syscall.
+ *
+ * This must have the value -1, for ABI compatibility with ptrace etc.
+ */
+#define NO_SYSCALL (-1)
+
 #ifndef __ASSEMBLY__
 #include <linux/bug.h>
+#include <linux/types.h>
 
 /* sizeof(struct user) for AArch32 */
 #define COMPAT_USER_SZ	296
@@ -116,10 +127,28 @@ struct pt_regs {
 		};
 	};
 	u64 orig_x0;
-	u64 syscallno;
+#ifdef __AARCH64EB__
+	u32 unused2;
+	s32 syscallno;
+#else
+	s32 syscallno;
+	u32 unused2;
+#endif
+
 	u64 orig_addr_limit;
 	u64 unused;	// maintain 16 byte alignment
+	u64 stackframe[2];
 };
+
+static inline bool in_syscall(struct pt_regs const *regs)
+{
+	return regs->syscallno != NO_SYSCALL;
+}
+
+static inline void forget_syscall(struct pt_regs *regs)
+{
+	regs->syscallno = NO_SYSCALL;
+}
 
 #define MAX_REG_OFFSET offsetof(struct pt_regs, pstate)
 

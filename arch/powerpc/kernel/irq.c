@@ -24,7 +24,7 @@
  * mask register (of which only 16 are defined), hence the weird shifting
  * and complement of the cached_irq_mask.  I want to be able to stuff
  * this right into the SIU SMASK register.
- * Many of the prep/chrp functions are conditional compiled on CONFIG_8xx
+ * Many of the prep/chrp functions are conditional compiled on CONFIG_PPC_8xx
  * to reduce code space and undefined function references.
  */
 
@@ -143,9 +143,10 @@ notrace unsigned int __check_irq_replay(void)
 	 */
 	unsigned char happened = local_paca->irq_happened;
 
-	/* Clear bit 0 which we wouldn't clear otherwise */
-	local_paca->irq_happened &= ~PACA_IRQ_HARD_DIS;
 	if (happened & PACA_IRQ_HARD_DIS) {
+		/* Clear bit 0 which we wouldn't clear otherwise */
+		local_paca->irq_happened &= ~PACA_IRQ_HARD_DIS;
+
 		/*
 		 * We may have missed a decrementer interrupt if hard disabled.
 		 * Check the decrementer register in case we had a rollover
@@ -173,41 +174,39 @@ notrace unsigned int __check_irq_replay(void)
 	 * This is a higher priority interrupt than the others, so
 	 * replay it first.
 	 */
-	local_paca->irq_happened &= ~PACA_IRQ_HMI;
-	if (happened & PACA_IRQ_HMI)
+	if (happened & PACA_IRQ_HMI) {
+		local_paca->irq_happened &= ~PACA_IRQ_HMI;
 		return 0xe60;
+	}
 
-	/*
-	 * We may have missed a decrementer interrupt. We check the
-	 * decrementer itself rather than the paca irq_happened field
-	 * in case we also had a rollover while hard disabled
-	 */
-	local_paca->irq_happened &= ~PACA_IRQ_DEC;
-	if (happened & PACA_IRQ_DEC)
+	if (happened & PACA_IRQ_DEC) {
+		local_paca->irq_happened &= ~PACA_IRQ_DEC;
 		return 0x900;
+	}
 
-	/* Finally check if an external interrupt happened */
-	local_paca->irq_happened &= ~PACA_IRQ_EE;
-	if (happened & PACA_IRQ_EE)
+	if (happened & PACA_IRQ_EE) {
+		local_paca->irq_happened &= ~PACA_IRQ_EE;
 		return 0x500;
+	}
 
 #ifdef CONFIG_PPC_BOOK3E
-	/* Finally check if an EPR external interrupt happened
-	 * this bit is typically set if we need to handle another
-	 * "edge" interrupt from within the MPIC "EPR" handler
+	/*
+	 * Check if an EPR external interrupt happened this bit is typically
+	 * set if we need to handle another "edge" interrupt from within the
+	 * MPIC "EPR" handler.
 	 */
-	local_paca->irq_happened &= ~PACA_IRQ_EE_EDGE;
-	if (happened & PACA_IRQ_EE_EDGE)
+	if (happened & PACA_IRQ_EE_EDGE) {
+		local_paca->irq_happened &= ~PACA_IRQ_EE_EDGE;
 		return 0x500;
+	}
 
-	local_paca->irq_happened &= ~PACA_IRQ_DBELL;
-	if (happened & PACA_IRQ_DBELL)
-		return 0x280;
-#else
-	local_paca->irq_happened &= ~PACA_IRQ_DBELL;
 	if (happened & PACA_IRQ_DBELL) {
-		if (cpu_has_feature(CPU_FTR_HVMODE))
-			return 0xe80;
+		local_paca->irq_happened &= ~PACA_IRQ_DBELL;
+		return 0x280;
+	}
+#else
+	if (happened & PACA_IRQ_DBELL) {
+		local_paca->irq_happened &= ~PACA_IRQ_DBELL;
 		return 0xa00;
 	}
 #endif /* CONFIG_PPC_BOOK3E */
@@ -483,6 +482,18 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 		seq_printf(p, "  Hypervisor Maintenance Interrupts\n");
 	}
 
+	seq_printf(p, "%*s: ", prec, "NMI");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(irq_stat, j).sreset_irqs);
+	seq_printf(p, "  System Reset interrupts\n");
+
+#ifdef CONFIG_PPC_WATCHDOG
+	seq_printf(p, "%*s: ", prec, "WDG");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(irq_stat, j).soft_nmi_irqs);
+	seq_printf(p, "  Watchdog soft-NMI interrupts\n");
+#endif
+
 #ifdef CONFIG_PPC_DOORBELL
 	if (cpu_has_feature(CPU_FTR_DBELL)) {
 		seq_printf(p, "%*s: ", prec, "DBL");
@@ -507,6 +518,10 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 	sum += per_cpu(irq_stat, cpu).spurious_irqs;
 	sum += per_cpu(irq_stat, cpu).timer_irqs_others;
 	sum += per_cpu(irq_stat, cpu).hmi_exceptions;
+	sum += per_cpu(irq_stat, cpu).sreset_irqs;
+#ifdef CONFIG_PPC_WATCHDOG
+	sum += per_cpu(irq_stat, cpu).soft_nmi_irqs;
+#endif
 #ifdef CONFIG_PPC_DOORBELL
 	sum += per_cpu(irq_stat, cpu).doorbell_irqs;
 #endif

@@ -60,13 +60,91 @@
 #include <linux/seq_file.h>
 #include <linux/kobject.h>
 
-#include "../../../include/linux/libcfs/libcfs.h"
-#include "../../../include/linux/lnet/lnetctl.h"
-#include "../../include/obd_support.h"
-#include "../../include/obd_class.h"
-#include "../../include/lprocfs_status.h"
-#include "../../include/lustre/lustre_ioctl.h"
-#include "../../include/lustre_ver.h"
+#include <linux/libcfs/libcfs.h>
+#include <uapi/linux/lnet/lnetctl.h>
+#include <obd_support.h>
+#include <obd_class.h>
+#include <lprocfs_status.h>
+#include <uapi/linux/lustre/lustre_ioctl.h>
+#include <uapi/linux/lustre/lustre_ver.h>
+
+#define OBD_MAX_IOCTL_BUFFER	8192
+
+static int obd_ioctl_is_invalid(struct obd_ioctl_data *data)
+{
+	if (data->ioc_len > BIT(30)) {
+		CERROR("OBD ioctl: ioc_len larger than 1<<30\n");
+		return 1;
+	}
+
+	if (data->ioc_inllen1 > BIT(30)) {
+		CERROR("OBD ioctl: ioc_inllen1 larger than 1<<30\n");
+		return 1;
+	}
+
+	if (data->ioc_inllen2 > BIT(30)) {
+		CERROR("OBD ioctl: ioc_inllen2 larger than 1<<30\n");
+		return 1;
+	}
+
+	if (data->ioc_inllen3 > BIT(30)) {
+		CERROR("OBD ioctl: ioc_inllen3 larger than 1<<30\n");
+		return 1;
+	}
+
+	if (data->ioc_inllen4 > BIT(30)) {
+		CERROR("OBD ioctl: ioc_inllen4 larger than 1<<30\n");
+		return 1;
+	}
+
+	if (data->ioc_inlbuf1 && data->ioc_inllen1 == 0) {
+		CERROR("OBD ioctl: inlbuf1 pointer but 0 length\n");
+		return 1;
+	}
+
+	if (data->ioc_inlbuf2 && data->ioc_inllen2 == 0) {
+		CERROR("OBD ioctl: inlbuf2 pointer but 0 length\n");
+		return 1;
+	}
+
+	if (data->ioc_inlbuf3 && data->ioc_inllen3 == 0) {
+		CERROR("OBD ioctl: inlbuf3 pointer but 0 length\n");
+		return 1;
+	}
+
+	if (data->ioc_inlbuf4 && data->ioc_inllen4 == 0) {
+		CERROR("OBD ioctl: inlbuf4 pointer but 0 length\n");
+		return 1;
+	}
+
+	if (data->ioc_pbuf1 && data->ioc_plen1 == 0) {
+		CERROR("OBD ioctl: pbuf1 pointer but 0 length\n");
+		return 1;
+	}
+
+	if (data->ioc_pbuf2 && data->ioc_plen2 == 0) {
+		CERROR("OBD ioctl: pbuf2 pointer but 0 length\n");
+		return 1;
+	}
+
+	if (!data->ioc_pbuf1 && data->ioc_plen1 != 0) {
+		CERROR("OBD ioctl: plen1 set but NULL pointer\n");
+		return 1;
+	}
+
+	if (!data->ioc_pbuf2 && data->ioc_plen2 != 0) {
+		CERROR("OBD ioctl: plen2 set but NULL pointer\n");
+		return 1;
+	}
+
+	if (obd_ioctl_packlen(data) > data->ioc_len) {
+		CERROR("OBD ioctl: packlen exceeds ioc_len (%d > %d)\n",
+		obd_ioctl_packlen(data), data->ioc_len);
+		return 1;
+	}
+
+	return 0;
+}
 
 /* buffer MUST be at least the size of obd_ioctl_hdr */
 int obd_ioctl_getdata(char **buf, int *len, void __user *arg)
@@ -150,14 +228,6 @@ free_buf:
 	return err;
 }
 EXPORT_SYMBOL(obd_ioctl_getdata);
-
-int obd_ioctl_popdata(void __user *arg, void *data, int len)
-{
-	int err;
-
-	err = copy_to_user(arg, data, len) ? -EFAULT : 0;
-	return err;
-}
 
 /*  opening /dev/obd */
 static int obd_class_open(struct inode *inode, struct file *file)
@@ -405,7 +475,7 @@ static const struct file_operations obd_device_list_fops = {
 struct kobject *lustre_kobj;
 EXPORT_SYMBOL_GPL(lustre_kobj);
 
-static struct attribute_group lustre_attr_group = {
+static const struct attribute_group lustre_attr_group = {
 	.attrs = lustre_attrs,
 };
 

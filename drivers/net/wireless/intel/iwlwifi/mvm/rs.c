@@ -622,7 +622,9 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_mvm *mvm,
 
 	IWL_DEBUG_HT(mvm, "Starting Tx agg: STA: %pM tid: %d\n",
 		     sta->addr, tid);
-	ret = ieee80211_start_tx_ba_session(sta, tid, 5000);
+
+	/* start BA session until the peer sends del BA */
+	ret = ieee80211_start_tx_ba_session(sta, tid, 0);
 	if (ret == -EAGAIN) {
 		/*
 		 * driver and mac80211 is out of sync
@@ -636,15 +638,31 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_mvm *mvm,
 	return ret;
 }
 
-static void rs_tl_turn_on_agg(struct iwl_mvm *mvm, u8 tid,
-			      struct iwl_lq_sta *lq_data,
+static void rs_tl_turn_on_agg(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
+			      u8 tid, struct iwl_lq_sta *lq_sta,
 			      struct ieee80211_sta *sta)
 {
-	if (tid < IWL_MAX_TID_COUNT)
-		rs_tl_turn_on_agg_for_tid(mvm, lq_data, tid, sta);
-	else
+	struct iwl_mvm_tid_data *tid_data;
+
+	/*
+	 * In AP mode, tid can be equal to IWL_MAX_TID_COUNT
+	 * when the frame is not QoS
+	 */
+	if (WARN_ON_ONCE(tid > IWL_MAX_TID_COUNT)) {
 		IWL_ERR(mvm, "tid exceeds max TID count: %d/%d\n",
 			tid, IWL_MAX_TID_COUNT);
+		return;
+	} else if (tid == IWL_MAX_TID_COUNT) {
+		return;
+	}
+
+	tid_data = &mvmsta->tid_data[tid];
+	if ((tid_data->state == IWL_AGG_OFF) &&
+	    (lq_sta->tx_agg_tid_en & BIT(tid)) &&
+	    (tid_data->tx_count_last >= IWL_MVM_RS_AGG_START_THRESHOLD)) {
+		IWL_DEBUG_RATE(mvm, "try to aggregate tid %d\n", tid);
+		rs_tl_turn_on_agg_for_tid(mvm, lq_sta, tid, sta);
+	}
 }
 
 static inline int get_num_of_ant_from_rate(u32 rate_n_flags)
@@ -753,8 +771,38 @@ static int rs_collect_tpc_data(struct iwl_mvm *mvm,
 				    window);
 }
 
+static void rs_update_tid_tpt_stats(struct iwl_mvm *mvm,
+				    struct iwl_mvm_sta *mvmsta,
+				    u8 tid, int successes)
+{
+	struct iwl_mvm_tid_data *tid_data;
+
+	if (tid >= IWL_MAX_TID_COUNT)
+		return;
+
+	tid_data = &mvmsta->tid_data[tid];
+
+	/*
+	 * Measure if there're enough successful transmits per second.
+	 * These statistics are used only to decide if we can start a
+	 * BA session, so it should be updated only when A-MPDU is
+	 * off.
+	 */
+	if (tid_data->state != IWL_AGG_OFF)
+		return;
+
+	if (time_is_before_jiffies(tid_data->tpt_meas_start + HZ) ||
+	    (tid_data->tx_count >= IWL_MVM_RS_AGG_START_THRESHOLD)) {
+		tid_data->tx_count_last = tid_data->tx_count;
+		tid_data->tx_count = 0;
+		tid_data->tpt_meas_start = jiffies;
+	} else {
+		tid_data->tx_count += successes;
+	}
+}
+
 static int rs_collect_tlc_data(struct iwl_mvm *mvm,
-			       struct iwl_lq_sta *lq_sta,
+			       struct iwl_mvm_sta *mvmsta, u8 tid,
 			       struct iwl_scale_tbl_info *tbl,
 			       int scale_index, int attempts, int successes)
 {
@@ -764,11 +812,13 @@ static int rs_collect_tlc_data(struct iwl_mvm *mvm,
 		return -EINVAL;
 
 	if (tbl->column != RS_COLUMN_INVALID) {
-		struct lq_sta_pers *pers = &lq_sta->pers;
+		struct lq_sta_pers *pers = &mvmsta->lq_sta.pers;
 
 		pers->tx_stats[tbl->column][scale_index].total += attempts;
 		pers->tx_stats[tbl->column][scale_index].success += successes;
 	}
+
+	rs_update_tid_tpt_stats(mvm, mvmsta, tid, successes);
 
 	/* Select window for current tx bit rate */
 	window = &(tbl->win[scale_index]);
@@ -1211,12 +1261,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	if (time_after(jiffies,
 		       (unsigned long)(lq_sta->last_tx +
 				       (IWL_MVM_RS_IDLE_TIMEOUT * HZ)))) {
-		int t;
-
 		IWL_DEBUG_RATE(mvm, "Tx idle for too long. reinit rs\n");
-		for (t = 0; t < IWL_MAX_TID_COUNT; t++)
-			ieee80211_stop_tx_ba_session(sta, t);
-
 		iwl_mvm_rs_rate_init(mvm, sta, info->band, false);
 		return;
 	}
@@ -1312,7 +1357,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		if (info->status.ampdu_ack_len == 0)
 			info->status.ampdu_len = 1;
 
-		rs_collect_tlc_data(mvm, lq_sta, curr_tbl, tx_resp_rate.index,
+		rs_collect_tlc_data(mvm, mvmsta, tid, curr_tbl, tx_resp_rate.index,
 				    info->status.ampdu_len,
 				    info->status.ampdu_ack_len);
 
@@ -1351,7 +1396,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 					    tx_resp_rate.index, 1,
 					    i < retries ? 0 : legacy_success,
 					    reduced_txp);
-			rs_collect_tlc_data(mvm, lq_sta, tmp_tbl,
+			rs_collect_tlc_data(mvm, mvmsta, tid, tmp_tbl,
 					    tx_resp_rate.index, 1,
 					    i < retries ? 0 : legacy_success);
 		}
@@ -1673,14 +1718,14 @@ static void rs_set_amsdu_len(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			     struct iwl_scale_tbl_info *tbl,
 			     enum rs_action scale_action)
 {
-	struct iwl_mvm_sta *sta_priv = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 	if ((!is_vht(&tbl->rate) && !is_ht(&tbl->rate)) ||
 	    tbl->rate.index < IWL_RATE_MCS_5_INDEX ||
 	    scale_action == RS_ACTION_DOWNSCALE)
-		sta_priv->tlc_amsdu = false;
+		mvmsta->tlc_amsdu = false;
 	else
-		sta_priv->tlc_amsdu = true;
+		mvmsta->tlc_amsdu = true;
 }
 
 /*
@@ -2228,11 +2273,10 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	u16 high_low;
 	s32 sr;
 	u8 prev_agg = lq_sta->is_agg;
-	struct iwl_mvm_sta *sta_priv = iwl_mvm_sta_from_mac80211(sta);
-	struct iwl_mvm_tid_data *tid_data;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct rs_rate *rate;
 
-	lq_sta->is_agg = !!sta_priv->agg_tids;
+	lq_sta->is_agg = !!mvmsta->agg_tids;
 
 	/*
 	 * Select rate-scale / modulation-mode table to work with in
@@ -2480,44 +2524,12 @@ lq_update:
 		}
 	}
 
-	if (done_search && lq_sta->rs_state == RS_STATE_SEARCH_CYCLE_ENDED) {
-		/* If the "active" (non-search) mode was legacy,
-		 * and we've tried switching antennas,
-		 * but we haven't been able to try HT modes (not available),
-		 * stay with best antenna legacy modulation for a while
-		 * before next round of mode comparisons. */
-		tbl1 = &(lq_sta->lq_info[lq_sta->active_tbl]);
-		if (is_legacy(&tbl1->rate)) {
-			IWL_DEBUG_RATE(mvm, "LQ: STAY in legacy table\n");
+	if (!ndp)
+		rs_tl_turn_on_agg(mvm, mvmsta, tid, lq_sta, sta);
 
-			if (tid != IWL_MAX_TID_COUNT) {
-				tid_data = &sta_priv->tid_data[tid];
-				if (tid_data->state != IWL_AGG_OFF) {
-					IWL_DEBUG_RATE(mvm,
-						       "Stop aggregation on tid %d\n",
-						       tid);
-					ieee80211_stop_tx_ba_session(sta, tid);
-				}
-			}
-			rs_set_stay_in_table(mvm, 1, lq_sta);
-		} else {
-		/* If we're in an HT mode, and all 3 mode switch actions
-		 * have been tried and compared, stay in this best modulation
-		 * mode for a while before next round of mode comparisons. */
-			if ((lq_sta->last_tpt > IWL_AGG_TPT_THREHOLD) &&
-			    (lq_sta->tx_agg_tid_en & (1 << tid)) &&
-			    (tid != IWL_MAX_TID_COUNT)) {
-				tid_data = &sta_priv->tid_data[tid];
-				if (tid_data->state == IWL_AGG_OFF && !ndp) {
-					IWL_DEBUG_RATE(mvm,
-						       "try to aggregate tid %d\n",
-						       tid);
-					rs_tl_turn_on_agg(mvm, tid,
-							  lq_sta, sta);
-				}
-			}
-			rs_set_stay_in_table(mvm, 0, lq_sta);
-		}
+	if (done_search && lq_sta->rs_state == RS_STATE_SEARCH_CYCLE_ENDED) {
+		tbl1 = &(lq_sta->lq_info[lq_sta->active_tbl]);
+		rs_set_stay_in_table(mvm, is_legacy(&tbl1->rate), lq_sta);
 	}
 }
 
@@ -2900,10 +2912,10 @@ static void rs_get_rate(void *mvm_r, struct ieee80211_sta *sta, void *mvm_sta,
 static void *rs_alloc_sta(void *mvm_rate, struct ieee80211_sta *sta,
 			  gfp_t gfp)
 {
-	struct iwl_mvm_sta *sta_priv = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_op_mode *op_mode = (struct iwl_op_mode *)mvm_rate;
 	struct iwl_mvm *mvm  = IWL_OP_MODE_GET_MVM(op_mode);
-	struct iwl_lq_sta *lq_sta = &sta_priv->lq_sta;
+	struct iwl_lq_sta *lq_sta = &mvmsta->lq_sta;
 
 	IWL_DEBUG_RATE(mvm, "create station rate scale window\n");
 
@@ -2917,7 +2929,7 @@ static void *rs_alloc_sta(void *mvm_rate, struct ieee80211_sta *sta,
 	memset(lq_sta->pers.chain_signal, 0, sizeof(lq_sta->pers.chain_signal));
 	lq_sta->pers.last_rssi = S8_MIN;
 
-	return &sta_priv->lq_sta;
+	return &mvmsta->lq_sta;
 }
 
 static int rs_vht_highest_rx_mcs_index(struct ieee80211_sta_vht_cap *vht_cap,
@@ -3109,8 +3121,8 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	struct ieee80211_hw *hw = mvm->hw;
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
-	struct iwl_mvm_sta *sta_priv = iwl_mvm_sta_from_mac80211(sta);
-	struct iwl_lq_sta *lq_sta = &sta_priv->lq_sta;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_lq_sta *lq_sta = &mvmsta->lq_sta;
 	struct ieee80211_supported_band *sband;
 	unsigned long supp; /* must be unsigned long for for_each_set_bit */
 
@@ -3119,8 +3131,8 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	sband = hw->wiphy->bands[band];
 
-	lq_sta->lq.sta_id = sta_priv->sta_id;
-	sta_priv->tlc_amsdu = false;
+	lq_sta->lq.sta_id = mvmsta->sta_id;
+	mvmsta->tlc_amsdu = false;
 
 	for (j = 0; j < LQ_SIZE; j++)
 		rs_rate_scale_clear_tbl_windows(mvm, &lq_sta->lq_info[j]);
@@ -3130,7 +3142,7 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	IWL_DEBUG_RATE(mvm,
 		       "LQ: *** rate scale station global init for station %d ***\n",
-		       sta_priv->sta_id);
+		       mvmsta->sta_id);
 	/* TODO: what is a good starting rate for STA? About middle? Maybe not
 	 * the lowest or the highest rate.. Could consider using RSSI from
 	 * previous packets? Need to have IEEE 802.1X auth succeed immediately

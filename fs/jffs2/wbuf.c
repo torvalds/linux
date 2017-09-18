@@ -17,7 +17,7 @@
 #include <linux/slab.h>
 #include <linux/mtd/mtd.h>
 #include <linux/crc32.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/jiffies.h>
 #include <linux/sched.h>
 #include <linux/writeback.h>
@@ -1162,7 +1162,7 @@ static void delayed_wbuf_sync(struct work_struct *work)
 	struct jffs2_sb_info *c = work_to_sb(work);
 	struct super_block *sb = OFNI_BS_2SFFJ(c);
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		jffs2_dbg(1, "%s()\n", __func__);
 		jffs2_flush_wbuf_gc(c, 0);
 	}
@@ -1173,7 +1173,7 @@ void jffs2_dirty_trigger(struct jffs2_sb_info *c)
 	struct super_block *sb = OFNI_BS_2SFFJ(c);
 	unsigned long delay;
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return;
 
 	delay = msecs_to_jiffies(dirty_writeback_interval * 10);

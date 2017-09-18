@@ -61,7 +61,7 @@ static ssize_t sector_size_show(struct device *dev,
 {
 	struct nd_btt *nd_btt = to_nd_btt(dev);
 
-	return nd_sector_size_show(nd_btt->lbasize, btt_lbasize_supported, buf);
+	return nd_size_select_show(nd_btt->lbasize, btt_lbasize_supported, buf);
 }
 
 static ssize_t sector_size_store(struct device *dev,
@@ -72,7 +72,7 @@ static ssize_t sector_size_store(struct device *dev,
 
 	device_lock(dev);
 	nvdimm_bus_lock(dev);
-	rc = nd_sector_size_store(dev, buf, &nd_btt->lbasize,
+	rc = nd_size_select_store(dev, buf, &nd_btt->lbasize,
 			btt_lbasize_supported);
 	dev_dbg(dev, "%s: result: %zd wrote: %s%s", __func__,
 			rc, buf, buf[len - 1] == '\n' ? "" : "\n");

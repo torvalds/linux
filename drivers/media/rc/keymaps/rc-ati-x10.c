@@ -114,10 +114,10 @@ static struct rc_map_table ati_x10[] = {
 
 static struct rc_map_list ati_x10_map = {
 	.map = {
-		.scan    = ati_x10,
-		.size    = ARRAY_SIZE(ati_x10),
-		.rc_type = RC_TYPE_OTHER,
-		.name    = RC_MAP_ATI_X10,
+		.scan     = ati_x10,
+		.size     = ARRAY_SIZE(ati_x10),
+		.rc_proto = RC_PROTO_OTHER,
+		.name     = RC_MAP_ATI_X10,
 	}
 };
 

@@ -115,7 +115,7 @@ static inline void dnrmg_receive_user_skb(struct sk_buff *skb)
 	RCV_SKB_FAIL(-EINVAL);
 }
 
-static struct nf_hook_ops dnrmg_ops __read_mostly = {
+static const struct nf_hook_ops dnrmg_ops = {
 	.hook		= dnrmg_hook,
 	.pf		= NFPROTO_DECNET,
 	.hooknum	= NF_DN_ROUTE,

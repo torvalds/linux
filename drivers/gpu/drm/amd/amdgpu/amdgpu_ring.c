@@ -170,6 +170,16 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		     unsigned irq_type)
 {
 	int r;
+	int sched_hw_submission = amdgpu_sched_hw_submission;
+
+	/* Set the hw submission limit higher for KIQ because
+	 * it's used for a number of gfx/compute tasks by both
+	 * KFD and KGD which may have outstanding fences and
+	 * it doesn't really use the gpu scheduler anyway;
+	 * KIQ tasks get submitted directly to the ring.
+	 */
+	if (ring->funcs->type == AMDGPU_RING_TYPE_KIQ)
+		sched_hw_submission = max(sched_hw_submission, 256);
 
 	if (ring->adev == NULL) {
 		if (adev->num_rings >= AMDGPU_MAX_RINGS)
@@ -178,38 +188,21 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		ring->adev = adev;
 		ring->idx = adev->num_rings++;
 		adev->rings[ring->idx] = ring;
-		r = amdgpu_fence_driver_init_ring(ring,
-			amdgpu_sched_hw_submission);
+		r = amdgpu_fence_driver_init_ring(ring, sched_hw_submission);
 		if (r)
 			return r;
 	}
 
-	if (ring->funcs->support_64bit_ptrs) {
-		r = amdgpu_wb_get_64bit(adev, &ring->rptr_offs);
-		if (r) {
-			dev_err(adev->dev, "(%d) ring rptr_offs wb alloc failed\n", r);
-			return r;
-		}
+	r = amdgpu_wb_get(adev, &ring->rptr_offs);
+	if (r) {
+		dev_err(adev->dev, "(%d) ring rptr_offs wb alloc failed\n", r);
+		return r;
+	}
 
-		r = amdgpu_wb_get_64bit(adev, &ring->wptr_offs);
-		if (r) {
-			dev_err(adev->dev, "(%d) ring wptr_offs wb alloc failed\n", r);
-			return r;
-		}
-
-	} else {
-		r = amdgpu_wb_get(adev, &ring->rptr_offs);
-		if (r) {
-			dev_err(adev->dev, "(%d) ring rptr_offs wb alloc failed\n", r);
-			return r;
-		}
-
-		r = amdgpu_wb_get(adev, &ring->wptr_offs);
-		if (r) {
-			dev_err(adev->dev, "(%d) ring wptr_offs wb alloc failed\n", r);
-			return r;
-		}
-
+	r = amdgpu_wb_get(adev, &ring->wptr_offs);
+	if (r) {
+		dev_err(adev->dev, "(%d) ring wptr_offs wb alloc failed\n", r);
+		return r;
 	}
 
 	r = amdgpu_wb_get(adev, &ring->fence_offs);
@@ -234,8 +227,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		return r;
 	}
 
-	ring->ring_size = roundup_pow_of_two(max_dw * 4 *
-					     amdgpu_sched_hw_submission);
+	ring->ring_size = roundup_pow_of_two(max_dw * 4 * sched_hw_submission);
 
 	ring->buf_mask = (ring->ring_size / 4) - 1;
 	ring->ptr_mask = ring->funcs->support_64bit_ptrs ?
@@ -277,18 +269,15 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 {
 	ring->ready = false;
 
-	if (ring->funcs->support_64bit_ptrs) {
-		amdgpu_wb_free_64bit(ring->adev, ring->cond_exe_offs);
-		amdgpu_wb_free_64bit(ring->adev, ring->fence_offs);
-		amdgpu_wb_free_64bit(ring->adev, ring->rptr_offs);
-		amdgpu_wb_free_64bit(ring->adev, ring->wptr_offs);
-	} else {
-		amdgpu_wb_free(ring->adev, ring->cond_exe_offs);
-		amdgpu_wb_free(ring->adev, ring->fence_offs);
-		amdgpu_wb_free(ring->adev, ring->rptr_offs);
-		amdgpu_wb_free(ring->adev, ring->wptr_offs);
-	}
+	/* Not to finish a ring which is not initialized */
+	if (!(ring->adev) || !(ring->adev->rings[ring->idx]))
+		return;
 
+	amdgpu_wb_free(ring->adev, ring->rptr_offs);
+	amdgpu_wb_free(ring->adev, ring->wptr_offs);
+
+	amdgpu_wb_free(ring->adev, ring->cond_exe_offs);
+	amdgpu_wb_free(ring->adev, ring->fence_offs);
 
 	amdgpu_bo_free_kernel(&ring->ring_obj,
 			      &ring->gpu_addr,

@@ -84,7 +84,8 @@ static inline u8 port_states_to_phys_state(struct opa_port_states *ps)
 /*
  * OPA port physical states
  * IB Volume 1, Table 146 PortInfo/IB Volume 2 Section 5.4.2(1) PortPhysState
- * values.
+ * values are the same in OmniPath Architecture. OPA leverages some of the same
+ * concepts as InfiniBand, but has a few other states as well.
  *
  * When writing, only values 0-3 are valid, other values are ignored.
  * When reading, 0 is reserved.
@@ -92,6 +93,8 @@ static inline u8 port_states_to_phys_state(struct opa_port_states *ps)
  * Returned by the ibphys_portstate() routine.
  */
 enum opa_port_phys_state {
+	/* Values 0-7 have the same meaning in OPA as in InfiniBand. */
+
 	IB_PORTPHYSSTATE_NOP = 0,
 	/* 1 is reserved */
 	IB_PORTPHYSSTATE_POLLING = 2,
@@ -101,9 +104,23 @@ enum opa_port_phys_state {
 	IB_PORTPHYSSTATE_LINK_ERROR_RECOVERY = 6,
 	IB_PORTPHYSSTATE_PHY_TEST = 7,
 	/* 8 is reserved */
+
+	/*
+	 * Offline: Port is quiet (transmitters disabled) due to lack of
+	 * physical media, unsupported media, or transition between link up
+	 * and next link up attempt
+	 */
 	OPA_PORTPHYSSTATE_OFFLINE = 9,
-	OPA_PORTPHYSSTATE_GANGED = 10,
+
+	/* 10 is reserved */
+
+	/*
+	 * Phy_Test: Specific test patterns are transmitted, and receiver BER
+	 * can be monitored. This facilitates signal integrity testing for the
+	 * physical layer of the port.
+	 */
 	OPA_PORTPHYSSTATE_TEST = 11,
+
 	OPA_PORTPHYSSTATE_MAX = 11,
 	/* values 12-15 are reserved/ignored */
 };

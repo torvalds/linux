@@ -267,6 +267,12 @@ static void goodix_process_events(struct goodix_ts_data *ts)
 	if (touch_num < 0)
 		return;
 
+	/*
+	 * Bit 4 of the first byte reports the status of the capacitive
+	 * Windows/Home button.
+	 */
+	input_report_key(ts->input_dev, KEY_LEFTMETA, point_data[0] & BIT(4));
+
 	for (i = 0; i < touch_num; i++)
 		goodix_ts_report_touch(ts,
 				&point_data[1 + GOODIX_CONTACT_SIZE * i]);
@@ -611,6 +617,9 @@ static int goodix_request_input_dev(struct goodix_ts_data *ts)
 	ts->input_dev->id.vendor = 0x0416;
 	ts->input_dev->id.product = ts->id;
 	ts->input_dev->id.version = ts->version;
+
+	/* Capacitive Windows/Home button on some devices */
+	input_set_capability(ts->input_dev, EV_KEY, KEY_LEFTMETA);
 
 	error = input_register_device(ts->input_dev);
 	if (error) {

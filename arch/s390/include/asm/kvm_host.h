@@ -226,7 +226,9 @@ struct kvm_s390_sie_block {
 #define ECB3_RI  0x01
 	__u8    ecb3;			/* 0x0063 */
 	__u32	scaol;			/* 0x0064 */
-	__u8	reserved68[4];		/* 0x0068 */
+	__u8	reserved68;		/* 0x0068 */
+	__u8    epdx;			/* 0x0069 */
+	__u8    reserved6a[2];		/* 0x006a */
 	__u32	todpr;			/* 0x006c */
 	__u8	reserved70[16];		/* 0x0070 */
 	__u64	mso;			/* 0x0080 */
@@ -265,6 +267,7 @@ struct kvm_s390_sie_block {
 	__u64	cbrlo;			/* 0x01b8 */
 	__u8	reserved1c0[8];		/* 0x01c0 */
 #define ECD_HOSTREGMGMT	0x20000000
+#define ECD_MEF		0x08000000
 	__u32	ecd;			/* 0x01c8 */
 	__u8	reserved1cc[18];	/* 0x01cc */
 	__u64	pp;			/* 0x01de */
@@ -739,6 +742,7 @@ struct kvm_arch{
 	struct kvm_s390_cpu_model model;
 	struct kvm_s390_crypto crypto;
 	struct kvm_s390_vsie vsie;
+	u8 epdx;
 	u64 epoch;
 	struct kvm_s390_migration_state *migration_state;
 	/* subset of available cpu features enabled by user space */

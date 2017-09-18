@@ -235,14 +235,14 @@ chrp_find_bridges(void)
 		++index;
 		/* The GG2 bridge on the LongTrail doesn't have an address */
 		if (of_address_to_resource(dev, 0, &r) && !is_longtrail) {
-			printk(KERN_WARNING "Can't use %s: no address\n",
-			       dev->full_name);
+			printk(KERN_WARNING "Can't use %pOF: no address\n",
+			       dev);
 			continue;
 		}
 		bus_range = of_get_property(dev, "bus-range", &len);
 		if (bus_range == NULL || len < 2 * sizeof(int)) {
-			printk(KERN_WARNING "Can't get bus-range for %s\n",
-				dev->full_name);
+			printk(KERN_WARNING "Can't get bus-range for %pOF\n",
+				dev);
 			continue;
 		}
 		if (bus_range[1] == bus_range[0])
@@ -250,15 +250,15 @@ chrp_find_bridges(void)
 		else
 			printk(KERN_INFO "PCI buses %d..%d",
 			       bus_range[0], bus_range[1]);
-		printk(" controlled by %s", dev->full_name);
+		printk(" controlled by %pOF", dev);
 		if (!is_longtrail)
 			printk(" at %llx", (unsigned long long)r.start);
 		printk("\n");
 
 		hose = pcibios_alloc_controller(dev);
 		if (!hose) {
-			printk("Can't allocate PCI controller structure for %s\n",
-				dev->full_name);
+			printk("Can't allocate PCI controller structure for %pOF\n",
+				dev);
 			continue;
 		}
 		hose->first_busno = hose->self_busno = bus_range[0];
@@ -297,8 +297,8 @@ chrp_find_bridges(void)
 				}
 			}
 		} else {
-			printk("No methods for %s (model %s), using RTAS\n",
-			       dev->full_name, model);
+			printk("No methods for %pOF (model %s), using RTAS\n",
+			       dev, model);
 			hose->ops = &rtas_pci_ops;
 		}
 

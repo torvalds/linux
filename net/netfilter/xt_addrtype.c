@@ -47,8 +47,6 @@ static u32 match_lookup_rt6(struct net *net, const struct net_device *dev,
 	if (dev)
 		flow.flowi6_oif = dev->ifindex;
 
-	rcu_read_lock();
-
 	afinfo = nf_get_afinfo(NFPROTO_IPV6);
 	if (afinfo != NULL) {
 		const struct nf_ipv6_ops *v6ops;
@@ -63,7 +61,6 @@ static u32 match_lookup_rt6(struct net *net, const struct net_device *dev,
 	} else {
 		route_err = 1;
 	}
-	rcu_read_unlock();
 
 	if (route_err)
 		return XT_ADDRTYPE_UNREACHABLE;

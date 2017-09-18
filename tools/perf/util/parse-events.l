@@ -53,6 +53,21 @@ static int str(yyscan_t scanner, int token)
 	return token;
 }
 
+static bool isbpf(yyscan_t scanner)
+{
+	char *text = parse_events_get_text(scanner);
+	int len = strlen(text);
+
+	if (len < 2)
+		return false;
+	if ((text[len - 1] == 'c' || text[len - 1] == 'o') &&
+	    text[len - 2] == '.')
+		return true;
+	if (len > 4 && !strcmp(text + len - 4, ".obj"))
+		return true;
+	return false;
+}
+
 /*
  * This function is called when the parser gets two kind of input:
  *
@@ -136,8 +151,8 @@ do {							\
 group		[^,{}/]*[{][^}]*[}][^,{}/]*
 event_pmu	[^,{}/]+[/][^/]*[/][^,{}/]*
 event		[^,{}/]+
-bpf_object	[^,{}]+\.(o|bpf)
-bpf_source	[^,{}]+\.c
+bpf_object	[^,{}]+\.(o|bpf)[a-zA-Z0-9._]*
+bpf_source	[^,{}]+\.c[a-zA-Z0-9._]*
 
 num_dec		[0-9]+
 num_hex		0x[a-fA-F0-9]+
@@ -307,8 +322,8 @@ r{num_raw_hex}		{ return raw(yyscanner); }
 {num_hex}		{ return value(yyscanner, 16); }
 
 {modifier_event}	{ return str(yyscanner, PE_MODIFIER_EVENT); }
-{bpf_object}		{ return str(yyscanner, PE_BPF_OBJECT); }
-{bpf_source}		{ return str(yyscanner, PE_BPF_SOURCE); }
+{bpf_object}		{ if (!isbpf(yyscanner)) REJECT; return str(yyscanner, PE_BPF_OBJECT); }
+{bpf_source}		{ if (!isbpf(yyscanner)) REJECT; return str(yyscanner, PE_BPF_SOURCE); }
 {name}			{ return pmu_str_check(yyscanner); }
 "/"			{ BEGIN(config); return '/'; }
 -			{ return '-'; }

@@ -35,7 +35,7 @@
  * algorithm recommended by Marsaglia
  */
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
 /*
  * From: George Marsaglia <geo@stat.fsu.edu>

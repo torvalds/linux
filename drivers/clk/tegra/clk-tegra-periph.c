@@ -216,7 +216,8 @@
 			     _clk_num, _clk_id)			\
 	TEGRA_INIT_DATA_TABLE(_name, NULL, NULL, _parents, _offset,\
 			30, MASK(2), 0, 0, 16, 0, TEGRA_DIVIDER_ROUND_UP,\
-			_clk_num, 0, _clk_id, _parents##_idx, 0, NULL)
+			_clk_num, TEGRA_PERIPH_ON_APB, _clk_id, \
+			_parents##_idx, 0, NULL)
 
 #define XUSB(_name, _parents, _offset, \
 			     _clk_num, _gate_flags, _clk_id)	 \

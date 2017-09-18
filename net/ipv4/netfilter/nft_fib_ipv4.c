@@ -32,9 +32,10 @@ void nft_fib4_eval_type(const struct nft_expr *expr, struct nft_regs *regs,
 			const struct nft_pktinfo *pkt)
 {
 	const struct nft_fib *priv = nft_expr_priv(expr);
+	int noff = skb_network_offset(pkt->skb);
 	u32 *dst = &regs->data[priv->dreg];
 	const struct net_device *dev = NULL;
-	const struct iphdr *iph;
+	struct iphdr *iph, _iph;
 	__be32 addr;
 
 	if (priv->flags & NFTA_FIB_F_IIF)
@@ -42,7 +43,12 @@ void nft_fib4_eval_type(const struct nft_expr *expr, struct nft_regs *regs,
 	else if (priv->flags & NFTA_FIB_F_OIF)
 		dev = nft_out(pkt);
 
-	iph = ip_hdr(pkt->skb);
+	iph = skb_header_pointer(pkt->skb, noff, sizeof(_iph), &_iph);
+	if (!iph) {
+		regs->verdict.code = NFT_BREAK;
+		return;
+	}
+
 	if (priv->flags & NFTA_FIB_F_DADDR)
 		addr = iph->daddr;
 	else
@@ -61,8 +67,9 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 		   const struct nft_pktinfo *pkt)
 {
 	const struct nft_fib *priv = nft_expr_priv(expr);
+	int noff = skb_network_offset(pkt->skb);
 	u32 *dest = &regs->data[priv->dreg];
-	const struct iphdr *iph;
+	struct iphdr *iph, _iph;
 	struct fib_result res;
 	struct flowi4 fl4 = {
 		.flowi4_scope = RT_SCOPE_UNIVERSE,
@@ -95,7 +102,12 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 		return;
 	}
 
-	iph = ip_hdr(pkt->skb);
+	iph = skb_header_pointer(pkt->skb, noff, sizeof(_iph), &_iph);
+	if (!iph) {
+		regs->verdict.code = NFT_BREAK;
+		return;
+	}
+
 	if (ipv4_is_zeronet(iph->saddr)) {
 		if (ipv4_is_lbcast(iph->daddr) ||
 		    ipv4_is_local_multicast(iph->daddr)) {

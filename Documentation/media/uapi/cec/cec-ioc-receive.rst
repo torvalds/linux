@@ -195,6 +195,8 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
 	valid if the :ref:`CEC_TX_STATUS_ERROR <CEC-TX-STATUS-ERROR>` status bit is set.
 
 
+.. tabularcolumns:: |p{6.2cm}|p{1.0cm}|p{10.3cm}|
+
 .. _cec-msg-flags:
 
 .. flat-table:: Flags for struct cec_msg

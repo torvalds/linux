@@ -134,3 +134,17 @@ xfs_trans_log_inode(
 	flags |= ip->i_itemp->ili_last_fields;
 	ip->i_itemp->ili_fields |= flags;
 }
+
+int
+xfs_trans_roll_inode(
+	struct xfs_trans	**tpp,
+	struct xfs_inode	*ip)
+{
+	int			error;
+
+	xfs_trans_log_inode(*tpp, ip, XFS_ILOG_CORE);
+	error = xfs_trans_roll(tpp);
+	if (!error)
+		xfs_trans_ijoin(*tpp, ip, 0);
+	return error;
+}

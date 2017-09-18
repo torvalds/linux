@@ -82,8 +82,8 @@ struct iscsi_cls_session *beiscsi_session_create(struct iscsi_endpoint *ep,
 		return NULL;
 	sess = cls_session->dd_data;
 	beiscsi_sess = sess->dd_data;
-	beiscsi_sess->bhs_pool =  pci_pool_create("beiscsi_bhs_pool",
-						   phba->pcidev,
+	beiscsi_sess->bhs_pool =  dma_pool_create("beiscsi_bhs_pool",
+						   &phba->pcidev->dev,
 						   sizeof(struct be_cmd_bhs),
 						   64, 0);
 	if (!beiscsi_sess->bhs_pool)
@@ -108,7 +108,7 @@ void beiscsi_session_destroy(struct iscsi_cls_session *cls_session)
 	struct beiscsi_session *beiscsi_sess = sess->dd_data;
 
 	printk(KERN_INFO "In beiscsi_session_destroy\n");
-	pci_pool_destroy(beiscsi_sess->bhs_pool);
+	dma_pool_destroy(beiscsi_sess->bhs_pool);
 	iscsi_session_teardown(cls_session);
 }
 

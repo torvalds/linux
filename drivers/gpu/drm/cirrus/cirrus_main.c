@@ -18,7 +18,7 @@ static void cirrus_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct cirrus_framebuffer *cirrus_fb = to_cirrus_framebuffer(fb);
 
-	drm_gem_object_unreference_unlocked(cirrus_fb->obj);
+	drm_gem_object_put_unlocked(cirrus_fb->obj);
 	drm_framebuffer_cleanup(fb);
 	kfree(fb);
 }
@@ -67,13 +67,13 @@ cirrus_user_framebuffer_create(struct drm_device *dev,
 
 	cirrus_fb = kzalloc(sizeof(*cirrus_fb), GFP_KERNEL);
 	if (!cirrus_fb) {
-		drm_gem_object_unreference_unlocked(obj);
+		drm_gem_object_put_unlocked(obj);
 		return ERR_PTR(-ENOMEM);
 	}
 
 	ret = cirrus_framebuffer_init(dev, cirrus_fb, mode_cmd, obj);
 	if (ret) {
-		drm_gem_object_unreference_unlocked(obj);
+		drm_gem_object_put_unlocked(obj);
 		kfree(cirrus_fb);
 		return ERR_PTR(ret);
 	}
@@ -261,7 +261,7 @@ int cirrus_dumb_create(struct drm_file *file,
 		return ret;
 
 	ret = drm_gem_handle_create(file, gobj, &handle);
-	drm_gem_object_unreference_unlocked(gobj);
+	drm_gem_object_put_unlocked(gobj);
 	if (ret)
 		return ret;
 
@@ -310,7 +310,7 @@ cirrus_dumb_mmap_offset(struct drm_file *file,
 	bo = gem_to_cirrus_bo(obj);
 	*offset = cirrus_bo_mmap_offset(bo);
 
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 	return 0;
 }
