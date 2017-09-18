@@ -206,6 +206,7 @@
 #include "i915_oa_kblgt2.h"
 #include "i915_oa_kblgt3.h"
 #include "i915_oa_glk.h"
+#include "i915_oa_cflgt2.h"
 
 /* HW requires this to be a power of two, between 128k and 16M, though driver
  * is currently generally designed assuming the largest 16M size is used such
@@ -2926,6 +2927,9 @@ void i915_perf_register(struct drm_i915_private *dev_priv)
 			i915_perf_load_test_config_kblgt3(dev_priv);
 	} else if (IS_GEMINILAKE(dev_priv)) {
 		i915_perf_load_test_config_glk(dev_priv);
+	} else if (IS_COFFEELAKE(dev_priv)) {
+		if (IS_CFL_GT2(dev_priv))
+			i915_perf_load_test_config_cflgt2(dev_priv);
 	}
 
 	if (dev_priv->perf.oa.test_config.id == 0)
@@ -3452,6 +3456,7 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 				break;
 			case INTEL_SKYLAKE:
 			case INTEL_KABYLAKE:
+			case INTEL_COFFEELAKE:
 				dev_priv->perf.oa.timestamp_frequency = 12000000;
 				break;
 			default:
