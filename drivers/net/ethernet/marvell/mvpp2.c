@@ -6452,7 +6452,6 @@ static int mvpp2_tx(struct sk_buff *skb, struct net_device *dev)
 		if (mvpp2_tx_frag_process(port, skb, aggr_txq, txq)) {
 			tx_desc_unmap_put(port, txq, tx_desc);
 			frags = 0;
-			goto out;
 		}
 	}
 
