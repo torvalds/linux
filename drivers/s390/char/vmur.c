@@ -892,10 +892,9 @@ static int ur_set_online(struct ccw_device *cdev)
 	}
 
 	urd->char_device->ops = &ur_fops;
-	urd->char_device->dev = MKDEV(major, minor);
 	urd->char_device->owner = ur_fops.owner;
 
-	rc = cdev_add(urd->char_device, urd->char_device->dev, 1);
+	rc = cdev_add(urd->char_device, MKDEV(major, minor), 1);
 	if (rc)
 		goto fail_free_cdev;
 	if (urd->cdev->id.cu_type == READER_PUNCH_DEVTYPE) {
