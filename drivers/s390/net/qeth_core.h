@@ -188,6 +188,9 @@ struct qeth_vnicc_info {
 	u32 cur_chars;
 	/* supported commands: bitmasks which VNICCs support respective cmd */
 	u32 set_char_sup;
+	u32 getset_timeout_sup;
+	/* timeout value for the learning characteristic */
+	u32 learning_timeout;
 	/* characteristics wanted/configured by user */
 	u32 wanted_chars;
 	/* has user explicitly enabled rx_bcast while online? */

@@ -562,6 +562,8 @@ struct qeth_ipacmd_diagass {
 #define IPA_VNICC_QUERY_CMDS		0x00000001L
 #define IPA_VNICC_ENABLE		0x00000002L
 #define IPA_VNICC_DISABLE		0x00000004L
+#define IPA_VNICC_SET_TIMEOUT		0x00000008L
+#define IPA_VNICC_GET_TIMEOUT		0x00000010L
 
 /* VNICC flags */
 #define QETH_VNICC_FLOODING		0x80000000
@@ -575,6 +577,8 @@ struct qeth_ipacmd_diagass {
 /* VNICC default values */
 #define QETH_VNICC_ALL			0xff000000
 #define QETH_VNICC_DEFAULT		QETH_VNICC_RX_BCAST
+/* default VNICC timeout in seconds */
+#define QETH_VNICC_DEFAULT_TIMEOUT	600
 
 /* VNICC header */
 struct qeth_ipacmd_vnicc_hdr {
@@ -600,6 +604,12 @@ struct qeth_vnicc_set_char {
 	u32 vnic_char;
 };
 
+/* get/set timeout for VNIC characteristic */
+struct qeth_vnicc_getset_timeout {
+	u32 vnic_char;
+	u32 timeout;
+};
+
 /* complete VNICC IPA command message */
 struct qeth_ipacmd_vnicc {
 	struct qeth_ipacmd_vnicc_hdr hdr;
@@ -607,6 +617,7 @@ struct qeth_ipacmd_vnicc {
 	union {
 		struct qeth_vnicc_query_cmds query_cmds;
 		struct qeth_vnicc_set_char set_char;
+		struct qeth_vnicc_getset_timeout getset_timeout;
 	};
 };
 

@@ -309,6 +309,47 @@ static u32 qeth_l2_vnicc_sysfs_attr_to_char(const char *attr_name)
 	return 0;
 }
 
+/* get current timeout setting */
+static ssize_t qeth_vnicc_timeout_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	struct qeth_card *card = dev_get_drvdata(dev);
+	u32 timeout;
+	int rc;
+
+	if (!card)
+		return -EINVAL;
+
+	rc = qeth_l2_vnicc_get_timeout(card, &timeout);
+	if (rc == -EBUSY)
+		return sprintf(buf, "n/a (BridgePort)\n");
+	if (rc == -EOPNOTSUPP)
+		return sprintf(buf, "n/a\n");
+	return rc ? rc : sprintf(buf, "%d\n", timeout);
+}
+
+/* change timeout setting */
+static ssize_t qeth_vnicc_timeout_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct qeth_card *card = dev_get_drvdata(dev);
+	u32 timeout;
+	int rc;
+
+	if (!card)
+		return -EINVAL;
+
+	rc = kstrtou32(buf, 10, &timeout);
+	if (rc)
+		return rc;
+
+	mutex_lock(&card->conf_mutex);
+	rc = qeth_l2_vnicc_set_timeout(card, timeout);
+	mutex_unlock(&card->conf_mutex);
+	return rc ? rc : count;
+}
+
 /* get current setting of characteristic */
 static ssize_t qeth_vnicc_char_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -359,6 +400,8 @@ static DEVICE_ATTR(flooding, 0644, qeth_vnicc_char_show, qeth_vnicc_char_store);
 static DEVICE_ATTR(mcast_flooding, 0644, qeth_vnicc_char_show,
 		   qeth_vnicc_char_store);
 static DEVICE_ATTR(learning, 0644, qeth_vnicc_char_show, qeth_vnicc_char_store);
+static DEVICE_ATTR(learning_timeout, 0644, qeth_vnicc_timeout_show,
+		   qeth_vnicc_timeout_store);
 static DEVICE_ATTR(takeover_setvmac, 0644, qeth_vnicc_char_show,
 		   qeth_vnicc_char_store);
 static DEVICE_ATTR(takeover_learning, 0644, qeth_vnicc_char_show,
@@ -371,6 +414,7 @@ static struct attribute *qeth_l2_vnicc_attrs[] = {
 	&dev_attr_flooding.attr,
 	&dev_attr_mcast_flooding.attr,
 	&dev_attr_learning.attr,
+	&dev_attr_learning_timeout.attr,
 	&dev_attr_takeover_setvmac.attr,
 	&dev_attr_takeover_learning.attr,
 	&dev_attr_bridge_invisible.attr,

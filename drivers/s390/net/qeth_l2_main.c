@@ -35,6 +35,8 @@ static void qeth_bridge_host_event(struct qeth_card *card,
 					struct qeth_ipa_cmd *cmd);
 static void qeth_l2_vnicc_set_defaults(struct qeth_card *card);
 static void qeth_l2_vnicc_init(struct qeth_card *card);
+static bool qeth_l2_vnicc_recover_timeout(struct qeth_card *card, u32 vnicc,
+					  u32 *timeout);
 
 static int qeth_l2_verify_dev(struct net_device *dev)
 {
@@ -2096,9 +2098,13 @@ struct _qeth_l2_vnicc_request_cbctl {
 	u32 sub_cmd;
 	struct {
 		u32 vnic_char;
+		u32 timeout;
 	} param;
 	struct {
-		u32 *sup_cmds;
+		union{
+			u32 *sup_cmds;
+			u32 *timeout;
+		};
 	} result;
 };
 
@@ -2121,6 +2127,9 @@ static int qeth_l2_vnicc_request_cb(struct qeth_card *card,
 
 	if (cbctl->sub_cmd == IPA_VNICC_QUERY_CMDS)
 		*cbctl->result.sup_cmds = rep->query_cmds.sup_cmds;
+
+	if (cbctl->sub_cmd == IPA_VNICC_GET_TIMEOUT)
+		*cbctl->result.timeout = rep->getset_timeout.timeout;
 
 	return 0;
 }
@@ -2161,6 +2170,13 @@ static int qeth_l2_vnicc_request(struct qeth_card *card,
 	case IPA_VNICC_DISABLE:
 		req->sub_hdr.data_length += sizeof(req->set_char);
 		req->set_char.vnic_char = cbctl->param.vnic_char;
+		break;
+	case IPA_VNICC_SET_TIMEOUT:
+		req->getset_timeout.timeout = cbctl->param.timeout;
+		/* fallthrough */
+	case IPA_VNICC_GET_TIMEOUT:
+		req->sub_hdr.data_length += sizeof(req->getset_timeout);
+		req->getset_timeout.vnic_char = cbctl->param.vnic_char;
 		break;
 	default:
 		qeth_release_buffer(iob->channel, iob);
@@ -2215,6 +2231,24 @@ static int qeth_l2_vnicc_set_char(struct qeth_card *card, u32 vnic_char,
 	return qeth_l2_vnicc_request(card, &cbctl);
 }
 
+/* VNICC get/set timeout for characteristic request */
+static int qeth_l2_vnicc_getset_timeout(struct qeth_card *card, u32 vnicc,
+					u32 cmd, u32 *timeout)
+{
+	struct _qeth_l2_vnicc_request_cbctl cbctl;
+
+	/* prepare callback control */
+	cbctl.sub_cmd = cmd;
+	cbctl.param.vnic_char = vnicc;
+	if (cmd == IPA_VNICC_SET_TIMEOUT)
+		cbctl.param.timeout = *timeout;
+	if (cmd == IPA_VNICC_GET_TIMEOUT)
+		cbctl.result.timeout = timeout;
+
+	QETH_CARD_TEXT(card, 2, "vniccgst");
+	return qeth_l2_vnicc_request(card, &cbctl);
+}
+
 /* set current VNICC flag state; called from sysfs store function */
 int qeth_l2_vnicc_set_state(struct qeth_card *card, u32 vnicc, bool state)
 {
@@ -2258,8 +2292,14 @@ int qeth_l2_vnicc_set_state(struct qeth_card *card, u32 vnicc, bool state)
 	if (rc)
 		card->options.vnicc.wanted_chars =
 			card->options.vnicc.cur_chars;
-	else if (state && vnicc == QETH_VNICC_RX_BCAST)
-		card->options.vnicc.rx_bcast_enabled = true;
+	else {
+		/* successful online VNICC change; handle special cases */
+		if (state && vnicc == QETH_VNICC_RX_BCAST)
+			card->options.vnicc.rx_bcast_enabled = true;
+		if (!state && vnicc == QETH_VNICC_LEARNING)
+			qeth_l2_vnicc_recover_timeout(card, vnicc,
+					&card->options.vnicc.learning_timeout);
+	}
 
 	return rc;
 }
@@ -2287,6 +2327,70 @@ int qeth_l2_vnicc_get_state(struct qeth_card *card, u32 vnicc, bool *state)
 	return rc;
 }
 
+/* set VNICC timeout; called from sysfs store function. Currently, only learning
+ * supports timeout
+ */
+int qeth_l2_vnicc_set_timeout(struct qeth_card *card, u32 timeout)
+{
+	int rc = 0;
+
+	QETH_CARD_TEXT(card, 2, "vniccsto");
+
+	/* do not change anything if BridgePort is enabled */
+	if (qeth_bridgeport_is_in_use(card))
+		return -EBUSY;
+
+	/* check if characteristic and set_timeout are supported */
+	if (!(card->options.vnicc.sup_chars & QETH_VNICC_LEARNING) ||
+	    !(card->options.vnicc.getset_timeout_sup & QETH_VNICC_LEARNING))
+		return -EOPNOTSUPP;
+
+	/* do we need to do anything? */
+	if (card->options.vnicc.learning_timeout == timeout)
+		return rc;
+
+	/* if card is not ready, simply store the value internally and return */
+	if (!qeth_card_hw_is_reachable(card)) {
+		card->options.vnicc.learning_timeout = timeout;
+		return rc;
+	}
+
+	/* send timeout value to card; if successful, store value internally */
+	rc = qeth_l2_vnicc_getset_timeout(card, QETH_VNICC_LEARNING,
+					  IPA_VNICC_SET_TIMEOUT, &timeout);
+	if (!rc)
+		card->options.vnicc.learning_timeout = timeout;
+
+	return rc;
+}
+
+/* get current VNICC timeout; called from sysfs show function. Currently, only
+ * learning supports timeout
+ */
+int qeth_l2_vnicc_get_timeout(struct qeth_card *card, u32 *timeout)
+{
+	int rc = 0;
+
+	QETH_CARD_TEXT(card, 2, "vniccgto");
+
+	/* do not get anything if BridgePort is enabled */
+	if (qeth_bridgeport_is_in_use(card))
+		return -EBUSY;
+
+	/* check if characteristic and get_timeout are supported */
+	if (!(card->options.vnicc.sup_chars & QETH_VNICC_LEARNING) ||
+	    !(card->options.vnicc.getset_timeout_sup & QETH_VNICC_LEARNING))
+		return -EOPNOTSUPP;
+	/* if card is ready, get timeout. Otherwise, just return stored value */
+	*timeout = card->options.vnicc.learning_timeout;
+	if (qeth_card_hw_is_reachable(card))
+		rc = qeth_l2_vnicc_getset_timeout(card, QETH_VNICC_LEARNING,
+						  IPA_VNICC_GET_TIMEOUT,
+						  timeout);
+
+	return rc;
+}
+
 /* check if VNICC is currently enabled */
 bool qeth_l2_vnicc_is_in_use(struct qeth_card *card)
 {
@@ -2301,6 +2405,19 @@ bool qeth_l2_vnicc_is_in_use(struct qeth_card *card)
 		    !qeth_card_hw_is_reachable(card))
 			return false;
 	}
+	return true;
+}
+
+/* recover user timeout setting */
+static bool qeth_l2_vnicc_recover_timeout(struct qeth_card *card, u32 vnicc,
+					  u32 *timeout)
+{
+	if (card->options.vnicc.sup_chars & vnicc &&
+	    card->options.vnicc.getset_timeout_sup & vnicc &&
+	    !qeth_l2_vnicc_getset_timeout(card, vnicc, IPA_VNICC_SET_TIMEOUT,
+					  timeout))
+		return false;
+	*timeout = QETH_VNICC_DEFAULT_TIMEOUT;
 	return true;
 }
 
@@ -2322,6 +2439,7 @@ static bool qeth_l2_vnicc_recover_char(struct qeth_card *card, u32 vnicc,
 /* (re-)initialize VNICC */
 static void qeth_l2_vnicc_init(struct qeth_card *card)
 {
+	u32 *timeout = &card->options.vnicc.learning_timeout;
 	unsigned int chars_len, i;
 	unsigned long chars_tmp;
 	u32 sup_cmds, vnicc;
@@ -2332,7 +2450,8 @@ static void qeth_l2_vnicc_init(struct qeth_card *card)
 	card->options.vnicc.rx_bcast_enabled = 0;
 	/* initial query and storage of VNIC characteristics */
 	if (qeth_l2_vnicc_query_chars(card)) {
-		if (card->options.vnicc.wanted_chars != QETH_VNICC_DEFAULT)
+		if (card->options.vnicc.wanted_chars != QETH_VNICC_DEFAULT ||
+		    *timeout != QETH_VNICC_DEFAULT_TIMEOUT)
 			dev_err(&card->gdev->dev, "Configuring the VNIC characteristics failed\n");
 		/* fail quietly if user didn't change the default config */
 		card->options.vnicc.sup_chars = 0;
@@ -2346,12 +2465,16 @@ static void qeth_l2_vnicc_init(struct qeth_card *card)
 	for_each_set_bit(i, &chars_tmp, chars_len) {
 		vnicc = BIT(i);
 		qeth_l2_vnicc_query_cmds(card, vnicc, &sup_cmds);
+		if (!(sup_cmds & IPA_VNICC_SET_TIMEOUT) ||
+		    !(sup_cmds & IPA_VNICC_GET_TIMEOUT))
+			card->options.vnicc.getset_timeout_sup &= ~vnicc;
 		if (!(sup_cmds & IPA_VNICC_ENABLE) ||
 		    !(sup_cmds & IPA_VNICC_DISABLE))
 			card->options.vnicc.set_char_sup &= ~vnicc;
 	}
 	/* enforce assumed default values and recover settings, if changed  */
-	error = false;
+	error = qeth_l2_vnicc_recover_timeout(card, QETH_VNICC_LEARNING,
+					      timeout);
 	chars_tmp = card->options.vnicc.wanted_chars ^ QETH_VNICC_DEFAULT;
 	chars_tmp |= QETH_VNICC_BRIDGE_INVISIBLE;
 	chars_len = sizeof(card->options.vnicc.wanted_chars) * BITS_PER_BYTE;
@@ -2370,8 +2493,10 @@ static void qeth_l2_vnicc_set_defaults(struct qeth_card *card)
 	/* characteristics values */
 	card->options.vnicc.sup_chars = QETH_VNICC_ALL;
 	card->options.vnicc.cur_chars = QETH_VNICC_DEFAULT;
+	card->options.vnicc.learning_timeout = QETH_VNICC_DEFAULT_TIMEOUT;
 	/* supported commands */
 	card->options.vnicc.set_char_sup = QETH_VNICC_ALL;
+	card->options.vnicc.getset_timeout_sup = QETH_VNICC_LEARNING;
 	/* settings wanted by users */
 	card->options.vnicc.wanted_chars = QETH_VNICC_DEFAULT;
 }
