@@ -26,13 +26,12 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/usb/pd.h>
+#include <linux/usb/pd_bdo.h>
+#include <linux/usb/pd_vdo.h>
+#include <linux/usb/tcpm.h>
 #include <linux/usb/typec.h>
 #include <linux/workqueue.h>
-
-#include "pd.h"
-#include "pd_vdo.h"
-#include "pd_bdo.h"
-#include "tcpm.h"
 
 #define FOREACH_STATE(S)			\
 	S(INVALID_STATE),			\
@@ -908,27 +907,6 @@ static void svdm_consume_identity(struct tcpm_port *port, const __le32 *payload,
 
 	memset(&port->mode_data, 0, sizeof(port->mode_data));
 
-#if 0 /* Not really a match */
-	switch (PD_IDH_PTYPE(vdo)) {
-	case IDH_PTYPE_UNDEF:
-		port->partner.type = TYPEC_PARTNER_NONE; /* no longer exists */
-		break;
-	case IDH_PTYPE_HUB:
-		break;
-	case IDH_PTYPE_PERIPH:
-		break;
-	case IDH_PTYPE_PCABLE:
-		break;
-	case IDH_PTYPE_ACABLE:
-		break;
-	case IDH_PTYPE_AMA:
-		port->partner.type = TYPEC_PARTNER_ALTMODE;
-		break;
-	default:
-		break;
-	}
-#endif
-
 	port->partner_ident.id_header = vdo;
 	port->partner_ident.cert_stat = le32_to_cpu(payload[VDO_INDEX_CSTAT]);
 	port->partner_ident.product = product;
@@ -1103,11 +1081,7 @@ static int tcpm_pd_svdm(struct tcpm_port *port, const __le32 *payload, int cnt,
 				response[0] = VDO(svid, 1, CMD_DISCOVER_MODES);
 				rlen = 1;
 			} else {
-#if 0
-				response[0] = pd_dfp_enter_mode(port, 0, 0);
-				if (response[0])
-					rlen = 1;
-#endif
+				/* enter alternate mode if/when implemented */
 			}
 			break;
 		case CMD_ENTER_MODE:
@@ -1145,10 +1119,6 @@ static void tcpm_handle_vdm_request(struct tcpm_port *port,
 
 	if (PD_VDO_SVDM(p0))
 		rlen = tcpm_pd_svdm(port, payload, cnt, response);
-#if 0
-	else
-		rlen = tcpm_pd_custom_vdm(port, cnt, payload, response);
-#endif
 
 	if (rlen > 0) {
 		tcpm_queue_vdm(port, response[0], &response[1], rlen - 1);
@@ -2442,7 +2412,6 @@ static void run_state_machine(struct tcpm_port *port)
 			tcpm_set_state(port, SNK_STARTUP, 0);
 		break;
 	case SNK_STARTUP:
-		/* XXX: callback into infrastructure */
 		opmode =  tcpm_get_pwr_opmode(port->polarity ?
 					      port->cc2 : port->cc1);
 		typec_set_pwr_opmode(port->typec_port, opmode);
@@ -3589,11 +3558,6 @@ struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc)
 
 	port->partner_desc.identity = &port->partner_ident;
 	port->port_type = tcpc->config->type;
-	/*
-	 * TODO:
-	 *  - alt_modes, set_alt_mode
-	 *  - {debug,audio}_accessory
-	 */
 
 	port->typec_port = typec_register_port(port->dev, &port->typec_caps);
 	if (!port->typec_port) {
