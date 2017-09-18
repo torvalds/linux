@@ -42,6 +42,7 @@
 #include "i915_drv.h"
 
 #define DP_LINK_CHECK_TIMEOUT	(10 * 1000)
+#define DP_DPRX_ESI_LEN 14
 
 /* Compliance test status bits  */
 #define INTEL_DP_RESOLUTION_SHIFT_MASK	0
@@ -4013,15 +4014,9 @@ intel_dp_get_sink_irq(struct intel_dp *intel_dp, u8 *sink_irq_vector)
 static bool
 intel_dp_get_sink_irq_esi(struct intel_dp *intel_dp, u8 *sink_irq_vector)
 {
-	int ret;
-
-	ret = drm_dp_dpcd_read(&intel_dp->aux,
-					     DP_SINK_COUNT_ESI,
-					     sink_irq_vector, 14);
-	if (ret != 14)
-		return false;
-
-	return true;
+	return drm_dp_dpcd_read(&intel_dp->aux, DP_SINK_COUNT_ESI,
+				sink_irq_vector, DP_DPRX_ESI_LEN) ==
+		DP_DPRX_ESI_LEN;
 }
 
 static uint8_t intel_dp_autotest_link_training(struct intel_dp *intel_dp)
@@ -4221,7 +4216,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 	bool bret;
 
 	if (intel_dp->is_mst) {
-		u8 esi[16] = { 0 };
+		u8 esi[DP_DPRX_ESI_LEN] = { 0 };
 		int ret = 0;
 		int retry;
 		bool handled;
