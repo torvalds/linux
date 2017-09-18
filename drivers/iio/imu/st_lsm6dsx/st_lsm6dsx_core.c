@@ -322,7 +322,6 @@ static int st_lsm6dsx_check_odr(struct st_lsm6dsx_sensor *sensor, u16 odr,
 		return -EINVAL;
 
 	*val = st_lsm6dsx_odr_table[sensor->id].odr_avl[i].val;
-	sensor->odr = odr;
 
 	return 0;
 }
@@ -449,6 +448,8 @@ static int st_lsm6dsx_write_raw(struct iio_dev *iio_dev,
 		u8 data;
 
 		err = st_lsm6dsx_check_odr(sensor, val, &data);
+		if (!err)
+			sensor->odr = val;
 		break;
 	}
 	default:
