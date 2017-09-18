@@ -1533,7 +1533,7 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	mutex_init(&data->lock);
 	INIT_LIST_HEAD(&data->video_info_list);
 
-	data->vdd_center = devm_regulator_get(dev, "center");
+	data->vdd_center = devm_regulator_get_optional(dev, "center");
 	if (IS_ERR(data->vdd_center)) {
 		dev_err(dev, "Cannot get the regulator \"center\"\n");
 		return PTR_ERR(data->vdd_center);
