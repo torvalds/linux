@@ -74,6 +74,8 @@ enum sh_cmt_model {
 struct sh_cmt_info {
 	enum sh_cmt_model model;
 
+	unsigned int channels_mask;
+
 	unsigned long width; /* 16 or 32 bit version of hardware block */
 	unsigned long overflow_bit;
 	unsigned long clear_bits;
@@ -212,6 +214,7 @@ static const struct sh_cmt_info sh_cmt_info[] = {
 	},
 	[SH_CMT_48BIT] = {
 		.model = SH_CMT_48BIT,
+		.channels_mask = 0x3f,
 		.width = 32,
 		.overflow_bit = SH_CMT32_CMCSR_CMF,
 		.clear_bits = ~(SH_CMT32_CMCSR_CMF | SH_CMT32_CMCSR_OVF),
@@ -966,9 +969,14 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 		id = of_match_node(sh_cmt_of_table, pdev->dev.of_node);
 		cmt->info = id->data;
 
-		ret = sh_cmt_parse_dt(cmt);
-		if (ret < 0)
-			return ret;
+		/* prefer in-driver channel configuration over DT */
+		if (cmt->info->channels_mask) {
+			cmt->hw_channels = cmt->info->channels_mask;
+		} else {
+			ret = sh_cmt_parse_dt(cmt);
+			if (ret < 0)
+				return ret;
+		}
 	} else if (pdev->dev.platform_data) {
 		struct sh_timer_config *cfg = pdev->dev.platform_data;
 		const struct platform_device_id *id = pdev->id_entry;
