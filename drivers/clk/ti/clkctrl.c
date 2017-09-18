@@ -351,8 +351,8 @@ _ti_clkctrl_setup_div(struct omap_clkctrl_provider *provider,
 	if (ti_clk_parse_divider_data((int *)div_data->dividers,
 				      div_data->max_div, 0, 0,
 				      &div->width, &div->table)) {
-		pr_err("%s: Data parsing for %s:%04x:%d failed\n", __func__,
-		       node->name, offset, data->bit);
+		pr_err("%s: Data parsing for %pOF:%04x:%d failed\n", __func__,
+		       node, offset, data->bit);
 		kfree(div);
 		return;
 	}
@@ -428,7 +428,7 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 	}
 
 	if (!data->addr) {
-		pr_err("%s not found from clkctrl data.\n", node->name);
+		pr_err("%pOF not found from clkctrl data.\n", node);
 		return;
 	}
 
