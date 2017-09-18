@@ -440,9 +440,6 @@ static int ir_setkeytable(struct rc_dev *dev,
 	if (rc)
 		return rc;
 
-	IR_dprintk(1, "Allocated space for %u keycode entries (%u bytes)\n",
-		   rc_map->size, rc_map->alloc);
-
 	for (i = 0; i < from->size; i++) {
 		index = ir_establish_scancode(dev, rc_map,
 					      from->scan[i].scancode, false);
