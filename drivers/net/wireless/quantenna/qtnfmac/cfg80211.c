@@ -115,6 +115,8 @@ int qtnf_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 
 	vif = qtnf_netdev_get_priv(wdev->netdev);
 
+	qtnf_scan_done(vif->mac, true);
+
 	if (qtnf_cmd_send_del_intf(vif))
 		pr_err("VIF%u.%u: failed to delete VIF\n", vif->mac->macid,
 		       vif->vifid);
@@ -334,6 +336,8 @@ static int qtnf_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 	int ret;
+
+	qtnf_scan_done(vif->mac, true);
 
 	ret = qtnf_cmd_send_stop_ap(vif);
 	if (ret) {
@@ -569,8 +573,6 @@ qtnf_del_station(struct wiphy *wiphy, struct net_device *dev,
 	    !is_broadcast_ether_addr(params->mac) &&
 	    !qtnf_sta_list_lookup(&vif->sta_list, params->mac))
 		return 0;
-
-	qtnf_scan_done(vif->mac, true);
 
 	ret = qtnf_cmd_send_del_sta(vif, params);
 	if (ret)
@@ -1134,8 +1136,9 @@ void qtnf_virtual_intf_cleanup(struct net_device *ndev)
 		}
 
 		vif->sta_state = QTNF_STA_DISCONNECTED;
-		qtnf_scan_done(mac, true);
 	}
+
+	qtnf_scan_done(mac, true);
 }
 
 void qtnf_cfg80211_vif_reset(struct qtnf_vif *vif)
