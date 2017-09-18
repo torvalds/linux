@@ -25,6 +25,7 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
@@ -956,10 +957,7 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 	raw_spin_lock_init(&cmt->lock);
 
 	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
-		const struct of_device_id *id;
-
-		id = of_match_node(sh_cmt_of_table, pdev->dev.of_node);
-		cmt->info = id->data;
+		cmt->info = of_device_get_match_data(&pdev->dev);
 		cmt->hw_channels = cmt->info->channels_mask;
 	} else if (pdev->dev.platform_data) {
 		struct sh_timer_config *cfg = pdev->dev.platform_data;
