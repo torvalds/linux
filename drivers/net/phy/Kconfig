@@ -160,15 +160,6 @@ config MDIO_XGENE
 
 endif
 
-menuconfig PHYLIB
-	tristate "PHY Device support and infrastructure"
-	depends on NETDEVICES
-	select MDIO_DEVICE
-	help
-	  Ethernet controllers are usually attached to PHY
-	  devices.  This option provides infrastructure for
-	  managing PHY devices.
-
 config PHYLINK
 	tristate
 	depends on NETDEVICES
@@ -178,6 +169,15 @@ config PHYLINK
 	  PHYlink models the link between the PHY and MAC, allowing fixed
 	  configuration links, PHYs, and Serdes links with MAC level
 	  autonegotiation modes.
+
+menuconfig PHYLIB
+	tristate "PHY Device support and infrastructure"
+	depends on NETDEVICES
+	select MDIO_DEVICE
+	help
+	  Ethernet controllers are usually attached to PHY
+	  devices.  This option provides infrastructure for
+	  managing PHY devices.
 
 if PHYLIB
 
