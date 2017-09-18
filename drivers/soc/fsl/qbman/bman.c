@@ -35,6 +35,27 @@
 
 /* Portal register assists */
 
+#if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+/* Cache-inhibited register offsets */
+#define BM_REG_RCR_PI_CINH	0x3000
+#define BM_REG_RCR_CI_CINH	0x3100
+#define BM_REG_RCR_ITR		0x3200
+#define BM_REG_CFG		0x3300
+#define BM_REG_SCN(n)		(0x3400 + ((n) << 6))
+#define BM_REG_ISR		0x3e00
+#define BM_REG_IER		0x3e40
+#define BM_REG_ISDR		0x3e80
+#define BM_REG_IIR		0x3ec0
+
+/* Cache-enabled register offsets */
+#define BM_CL_CR		0x0000
+#define BM_CL_RR0		0x0100
+#define BM_CL_RR1		0x0140
+#define BM_CL_RCR		0x1000
+#define BM_CL_RCR_PI_CENA	0x3000
+#define BM_CL_RCR_CI_CENA	0x3100
+
+#else
 /* Cache-inhibited register offsets */
 #define BM_REG_RCR_PI_CINH	0x0000
 #define BM_REG_RCR_CI_CINH	0x0004
@@ -53,6 +74,7 @@
 #define BM_CL_RCR		0x1000
 #define BM_CL_RCR_PI_CENA	0x3000
 #define BM_CL_RCR_CI_CENA	0x3100
+#endif
 
 /*
  * Portal modes.
