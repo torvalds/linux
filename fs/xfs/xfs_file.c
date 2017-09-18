@@ -377,8 +377,6 @@ restart:
 	 */
 	spin_lock(&ip->i_flags_lock);
 	if (iocb->ki_pos > i_size_read(inode)) {
-		bool	zero = false;
-
 		spin_unlock(&ip->i_flags_lock);
 		if (!drained_dio) {
 			if (*iolock == XFS_IOLOCK_SHARED) {
@@ -399,7 +397,7 @@ restart:
 			drained_dio = true;
 			goto restart;
 		}
-		error = xfs_zero_eof(ip, iocb->ki_pos, i_size_read(inode), &zero);
+		error = xfs_zero_eof(ip, iocb->ki_pos, i_size_read(inode), NULL);
 		if (error)
 			return error;
 	} else
