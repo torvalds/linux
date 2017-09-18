@@ -2965,7 +2965,7 @@ static unsigned int bdw_private_pat_match(u8 src, u8 dst)
 	};
 
 	/* Cache attribute has to be matched. */
-	if (GEN8_PPAT_GET_CA(src) == GEN8_PPAT_GET_CA(dst))
+	if (GEN8_PPAT_GET_CA(src) != GEN8_PPAT_GET_CA(dst))
 		return 0;
 
 	score |= CA_MATCH;
