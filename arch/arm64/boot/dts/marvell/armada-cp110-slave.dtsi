@@ -143,7 +143,7 @@
 
 			cps_syscon0: system-controller@440000 {
 				compatible = "syscon", "simple-mfd";
-				reg = <0x440000 0x1000>;
+				reg = <0x440000 0x2000>;
 
 				cps_clk: clock {
 					compatible = "marvell,cp110-clock";
