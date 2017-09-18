@@ -698,7 +698,7 @@ static void msgdma_tasklet(unsigned long data)
 		 * bits. So we need to just drop these values.
 		 */
 		size = ioread32(mdev->resp + MSGDMA_RESP_BYTES_TRANSFERRED);
-		status = ioread32(mdev->resp - MSGDMA_RESP_STATUS);
+		status = ioread32(mdev->resp + MSGDMA_RESP_STATUS);
 
 		msgdma_complete_descriptor(mdev);
 		msgdma_chan_desc_cleanup(mdev);
