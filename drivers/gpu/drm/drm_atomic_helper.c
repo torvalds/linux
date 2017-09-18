@@ -2336,6 +2336,8 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct drm_plane *plane;
 	struct drm_plane_state *old_plane_state, *new_plane_state;
+	struct drm_connector *connector;
+	struct drm_connector_state *old_connector_state, *new_connector_state;
 	int i;
 	bool active_only = flags & DRM_PLANE_COMMIT_ACTIVE_ONLY;
 	bool no_disable = flags & DRM_PLANE_COMMIT_NO_DISABLE_AFTER_MODESET;
@@ -2410,6 +2412,28 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 			continue;
 
 		funcs->atomic_flush(crtc, old_crtc_state);
+	}
+
+	for_each_oldnew_connector_in_state(old_state, connector,
+					   old_connector_state,
+					   new_connector_state, i) {
+		const struct drm_connector_helper_funcs *funcs;
+
+		if (!connector->state->crtc)
+			continue;
+
+		if (!connector->state->crtc->state->active)
+			continue;
+
+		funcs = connector->helper_private;
+
+		if (!funcs || !funcs->atomic_flush)
+			continue;
+
+		DRM_DEBUG_ATOMIC("flushing [CONNECTOR:%d:%s]\n",
+				 connector->base.id, connector->name);
+
+		funcs->atomic_flush(connector, old_connector_state);
 	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_planes);
