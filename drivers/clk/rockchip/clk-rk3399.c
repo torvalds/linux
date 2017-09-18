@@ -1402,12 +1402,12 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	GATE(PCLK_SGRF, "pclk_sgrf", "pclk_alive", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(31), 10, GFLAGS),
 
 	GATE(SCLK_MIPIDPHY_REF, "clk_mipidphy_ref", "xin24m", 0, RK3399_CLKGATE_CON(11), 14, GFLAGS),
-	GATE(SCLK_DPHY_PLL, "clk_dphy_pll", "clk_mipidphy_ref", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(21), 0, GFLAGS),
+	GATE(SCLK_DPHY_PLL, "clk_dphy_pll", "clk_mipidphy_ref", 0, RK3399_CLKGATE_CON(21), 0, GFLAGS),
 
 	GATE(SCLK_MIPIDPHY_CFG, "clk_mipidphy_cfg", "xin24m", 0, RK3399_CLKGATE_CON(11), 15, GFLAGS),
-	GATE(SCLK_DPHY_TX0_CFG, "clk_dphy_tx0_cfg", "clk_mipidphy_cfg", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(21), 1, GFLAGS),
-	GATE(SCLK_DPHY_TX1RX1_CFG, "clk_dphy_tx1rx1_cfg", "clk_mipidphy_cfg", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(21), 2, GFLAGS),
-	GATE(SCLK_DPHY_RX0_CFG, "clk_dphy_rx0_cfg", "clk_mipidphy_cfg", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(21), 3, GFLAGS),
+	GATE(SCLK_DPHY_TX0_CFG, "clk_dphy_tx0_cfg", "clk_mipidphy_cfg", 0, RK3399_CLKGATE_CON(21), 1, GFLAGS),
+	GATE(SCLK_DPHY_TX1RX1_CFG, "clk_dphy_tx1rx1_cfg", "clk_mipidphy_cfg", 0, RK3399_CLKGATE_CON(21), 2, GFLAGS),
+	GATE(SCLK_DPHY_RX0_CFG, "clk_dphy_rx0_cfg", "clk_mipidphy_cfg", 0, RK3399_CLKGATE_CON(21), 3, GFLAGS),
 
 	/* testout */
 	MUX(0, "clk_test_pre", mux_pll_src_cpll_gpll_p, CLK_SET_RATE_PARENT,
