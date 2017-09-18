@@ -279,7 +279,7 @@ static void intel_mid_pci_irq_disable(struct pci_dev *dev)
 	}
 }
 
-static struct pci_ops intel_mid_pci_ops = {
+static const struct pci_ops intel_mid_pci_ops __initconst = {
 	.read = pci_read,
 	.write = pci_write,
 };
