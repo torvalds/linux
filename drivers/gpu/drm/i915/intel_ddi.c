@@ -1939,7 +1939,7 @@ static void cnl_ddi_vswing_program(struct drm_i915_private *dev_priv,
 	val |= RCOMP_SCALAR(0x98);
 	I915_WRITE(CNL_PORT_TX_DW2_GRP(port), val);
 
-        /* Program PORT_TX_DW4 */
+	/* Program PORT_TX_DW4 */
 	/* We cannot write to GRP. It would overrite individual loadgen */
 	for (ln = 0; ln < 4; ln++) {
 		val = I915_READ(CNL_PORT_TX_DW4_LN(port, ln));
@@ -1951,7 +1951,7 @@ static void cnl_ddi_vswing_program(struct drm_i915_private *dev_priv,
 		I915_WRITE(CNL_PORT_TX_DW4_LN(port, ln), val);
 	}
 
-        /* Program PORT_TX_DW5 */
+	/* Program PORT_TX_DW5 */
 	/* All DW5 values are fixed for every table entry */
 	val = I915_READ(CNL_PORT_TX_DW5_LN0(port));
 	val &= ~RTERM_SELECT_MASK;
@@ -1959,7 +1959,7 @@ static void cnl_ddi_vswing_program(struct drm_i915_private *dev_priv,
 	val |= TAP3_DISABLE;
 	I915_WRITE(CNL_PORT_TX_DW5_GRP(port), val);
 
-        /* Program PORT_TX_DW7 */
+	/* Program PORT_TX_DW7 */
 	val = I915_READ(CNL_PORT_TX_DW7_LN0(port));
 	val &= ~N_SCALAR_MASK;
 	val |= N_SCALAR(ddi_translations[level].dw7_n_scalar);
