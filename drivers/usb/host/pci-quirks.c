@@ -447,7 +447,7 @@ static int usb_asmedia_wait_write(struct pci_dev *pdev)
 		if ((value & ASMT_CONTROL_WRITE_BIT) == 0)
 			return 0;
 
-		usleep_range(40, 60);
+		udelay(50);
 	}
 
 	dev_warn(&pdev->dev, "%s: check_write_ready timeout", __func__);
