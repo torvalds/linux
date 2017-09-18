@@ -31,6 +31,10 @@ struct tlpm_node {
 	uint8_t key[];
 };
 
+static struct tlpm_node *tlpm_match(struct tlpm_node *list,
+				    const uint8_t *key,
+				    size_t n_bits);
+
 static struct tlpm_node *tlpm_add(struct tlpm_node *list,
 				  const uint8_t *key,
 				  size_t n_bits)
@@ -38,9 +42,17 @@ static struct tlpm_node *tlpm_add(struct tlpm_node *list,
 	struct tlpm_node *node;
 	size_t n;
 
+	n = (n_bits + 7) / 8;
+
+	/* 'overwrite' an equivalent entry if one already exists */
+	node = tlpm_match(list, key, n_bits);
+	if (node && node->n_bits == n_bits) {
+		memcpy(node->key, key, n);
+		return list;
+	}
+
 	/* add new entry with @key/@n_bits to @list and return new head */
 
-	n = (n_bits + 7) / 8;
 	node = malloc(sizeof(*node) + n);
 	assert(node);
 
