@@ -221,6 +221,7 @@ struct omap_clkctrl_reg_data {
 	const struct omap_clkctrl_bit_data *bit_data;
 	u16 flags;
 	const char *parent;
+	const char *clkdm_name;
 };
 
 struct omap_clkctrl_data {
