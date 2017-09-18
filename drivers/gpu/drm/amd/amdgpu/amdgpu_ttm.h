@@ -24,6 +24,7 @@
 #ifndef __AMDGPU_TTM_H__
 #define __AMDGPU_TTM_H__
 
+#include "amdgpu.h"
 #include "gpu_scheduler.h"
 
 #define AMDGPU_PL_GDS		(TTM_PL_PRIV + 0)
@@ -45,8 +46,7 @@ struct amdgpu_mman {
 	bool				initialized;
 
 #if defined(CONFIG_DEBUG_FS)
-	struct dentry			*vram;
-	struct dentry			*gtt;
+	struct dentry			*debugfs_entries[8];
 #endif
 
 	/* buffer handling */

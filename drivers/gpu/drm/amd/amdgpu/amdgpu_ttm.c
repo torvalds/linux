@@ -1809,6 +1809,19 @@ static const struct file_operations amdgpu_ttm_gtt_fops = {
 
 #endif
 
+
+
+static const struct {
+	char *name;
+	const struct file_operations *fops;
+	int domain;
+} ttm_debugfs_entries[] = {
+	{ "amdgpu_vram", &amdgpu_ttm_vram_fops, TTM_PL_VRAM },
+#ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
+	{ "amdgpu_gtt", &amdgpu_ttm_gtt_fops, TTM_PL_TT },
+#endif
+};
+
 #endif
 
 static int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
@@ -1819,22 +1832,21 @@ static int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 	struct drm_minor *minor = adev->ddev->primary;
 	struct dentry *ent, *root = minor->debugfs_root;
 
-	ent = debugfs_create_file("amdgpu_vram", S_IFREG | S_IRUGO, root,
-				  adev, &amdgpu_ttm_vram_fops);
-	if (IS_ERR(ent))
-		return PTR_ERR(ent);
-	i_size_write(ent->d_inode, adev->mc.mc_vram_size);
-	adev->mman.vram = ent;
+	for (count = 0; count < ARRAY_SIZE(ttm_debugfs_entries); count++) {
+		ent = debugfs_create_file(
+				ttm_debugfs_entries[count].name,
+				S_IFREG | S_IRUGO, root,
+				adev,
+				ttm_debugfs_entries[count].fops);
+		if (IS_ERR(ent))
+			return PTR_ERR(ent);
+		if (ttm_debugfs_entries[count].domain == TTM_PL_VRAM)
+			i_size_write(ent->d_inode, adev->mc.mc_vram_size);
+		else if (ttm_debugfs_entries[count].domain == TTM_PL_TT)
+			i_size_write(ent->d_inode, adev->mc.gart_size);
+		adev->mman.debugfs_entries[count] = ent;
+	}
 
-#ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
-	ent = debugfs_create_file("amdgpu_gtt", S_IFREG | S_IRUGO, root,
-				  adev, &amdgpu_ttm_gtt_fops);
-	if (IS_ERR(ent))
-		return PTR_ERR(ent);
-	i_size_write(ent->d_inode, adev->mc.gart_size);
-	adev->mman.gtt = ent;
-
-#endif
 	count = ARRAY_SIZE(amdgpu_ttm_debugfs_list);
 
 #ifdef CONFIG_SWIOTLB
@@ -1844,7 +1856,6 @@ static int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 
 	return amdgpu_debugfs_add_files(adev, amdgpu_ttm_debugfs_list, count);
 #else
-
 	return 0;
 #endif
 }
@@ -1852,14 +1863,9 @@ static int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 static void amdgpu_ttm_debugfs_fini(struct amdgpu_device *adev)
 {
 #if defined(CONFIG_DEBUG_FS)
+	unsigned i;
 
-	debugfs_remove(adev->mman.vram);
-	adev->mman.vram = NULL;
-
-#ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
-	debugfs_remove(adev->mman.gtt);
-	adev->mman.gtt = NULL;
-#endif
-
+	for (i = 0; i < ARRAY_SIZE(ttm_debugfs_entries); i++)
+		debugfs_remove(adev->mman.debugfs_entries[i]);
 #endif
 }
