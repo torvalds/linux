@@ -4102,10 +4102,12 @@ static int check_cr_write(struct x86_emulate_ctxt *ctxt)
 		ctxt->ops->get_msr(ctxt, MSR_EFER, &efer);
 		if (efer & EFER_LMA) {
 			u64 maxphyaddr;
-			u32 eax = 0x80000008;
+			u32 eax, ebx, ecx, edx;
 
-			if (ctxt->ops->get_cpuid(ctxt, &eax, NULL, NULL,
-						 NULL, false))
+			eax = 0x80000008;
+			ecx = 0;
+			if (ctxt->ops->get_cpuid(ctxt, &eax, &ebx, &ecx,
+						 &edx, false))
 				maxphyaddr = eax & 0xff;
 			else
 				maxphyaddr = 36;
