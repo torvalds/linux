@@ -494,6 +494,7 @@ static void intel_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n", connector->base.id, connector->name);
 	drm_connector_unregister(connector);
 
 	if (dev_priv->fbdev)
@@ -505,7 +506,6 @@ static void intel_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	drm_modeset_unlock(&connector->dev->mode_config.connection_mutex);
 
 	drm_connector_unreference(connector);
-	DRM_DEBUG_KMS("\n");
 }
 
 static void intel_dp_mst_hotplug(struct drm_dp_mst_topology_mgr *mgr)
