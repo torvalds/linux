@@ -158,6 +158,7 @@
 		#gpio-cells = <2>;
 		#clock-cells = <1>;
 		clock-output-names = "xin32k", "rk816-clkout2";
+
 		vcc1-supply = <&vcc_sys>;
 		vcc2-supply = <&vcc_sys>;
 		vcc3-supply = <&vcc_sys>;
@@ -183,24 +184,25 @@
 				regulator-name= "vdd_arm";
 				regulator-min-microvolt = <750000>;
 				regulator-max-microvolt = <1500000>;
+				regulator-ramp-delay = <6001>;
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-state-mem {
-						regulator-state-disabled;
-						regulator-state-uv = <900000>;
-					};
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <900000>;
 				};
+			};
 
 			vdd_log: DCDC_REG2 {
 				regulator-name= "vdd_logic";
 				regulator-min-microvolt = <750000>;
 				regulator-max-microvolt = <1500000>;
+				regulator-ramp-delay = <6001>;
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-state-mem {
-					regulator-state-enabled;
-					regulator-mode = <0x2>;
-					regulator-state-uv = <1000000>;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1000000>;
 				};
 			};
 
@@ -217,9 +219,8 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-state-mem {
-					regulator-state-enabled;
-					regulator-mode = <0x2>;
-					regulator-state-uv = <3000000>;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <3000000>;
 				};
 			};
 
@@ -230,8 +231,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-state-mem {
-					regulator-state-disabled;
-					regulator-state-uv = <2800000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -242,8 +242,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-state-mem {
-					regulator-state-disabled;
-					regulator-state-uv = <1800000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -254,9 +253,8 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-state-mem {
-					regulator-state-enabled;
-					regulator-mode = <0x2>;
-					regulator-state-uv = <1100000>;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1100000>;
 				};
 			};
 
@@ -267,8 +265,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-state-mem {
-					regulator-state-disabled;
-					regulator-state-uv = <3300000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -279,8 +276,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-state-mem {
-					regulator-state-disabled;
-					regulator-state-uv = <3000000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -289,9 +285,8 @@
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-state-mem {
-					regulator-state-enabled;
-					regulator-mode = <0x2>;
-					regulator-state-uv = <3300000>;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <3300000>;
 				};
 			};
 		};
