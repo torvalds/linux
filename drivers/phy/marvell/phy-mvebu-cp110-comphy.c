@@ -111,6 +111,8 @@
 #define     MVEBU_COMPHY_CONF6_40B		BIT(18)
 #define MVEBU_COMPHY_SELECTOR			0x1140
 #define     MVEBU_COMPHY_SELECTOR_PHY(n)	((n) * 0x4)
+#define MVEBU_COMPHY_PIPE_SELECTOR		0x1144
+#define     MVEBU_COMPHY_PIPE_SELECTOR_PIPE(n)	((n) * 0x4)
 
 #define MVEBU_COMPHY_LANES	6
 #define MVEBU_COMPHY_PORTS	3
@@ -475,6 +477,10 @@ static int mvebu_comphy_power_on(struct phy *phy)
 	if (mux < 0)
 		return -ENOTSUPP;
 
+	regmap_read(priv->regmap, MVEBU_COMPHY_PIPE_SELECTOR, &val);
+	val &= ~(0xf << MVEBU_COMPHY_PIPE_SELECTOR_PIPE(lane->id));
+	regmap_write(priv->regmap, MVEBU_COMPHY_PIPE_SELECTOR, val);
+
 	regmap_read(priv->regmap, MVEBU_COMPHY_SELECTOR, &val);
 	val &= ~(0xf << MVEBU_COMPHY_SELECTOR_PHY(lane->id));
 	val |= mux << MVEBU_COMPHY_SELECTOR_PHY(lane->id);
@@ -525,6 +531,10 @@ static int mvebu_comphy_power_off(struct phy *phy)
 	regmap_read(priv->regmap, MVEBU_COMPHY_SELECTOR, &val);
 	val &= ~(0xf << MVEBU_COMPHY_SELECTOR_PHY(lane->id));
 	regmap_write(priv->regmap, MVEBU_COMPHY_SELECTOR, val);
+
+	regmap_read(priv->regmap, MVEBU_COMPHY_PIPE_SELECTOR, &val);
+	val &= ~(0xf << MVEBU_COMPHY_PIPE_SELECTOR_PIPE(lane->id));
+	regmap_write(priv->regmap, MVEBU_COMPHY_PIPE_SELECTOR, val);
 
 	return 0;
 }
