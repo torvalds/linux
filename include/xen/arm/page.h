@@ -84,16 +84,6 @@ static inline xmaddr_t arbitrary_virt_to_machine(void *vaddr)
 	BUG();
 }
 
-/* TODO: this shouldn't be here but it is because the frontend drivers
- * are using it (its rolled in headers) even though we won't hit the code path.
- * So for right now just punt with this.
- */
-static inline pte_t *lookup_address(unsigned long address, unsigned int *level)
-{
-	BUG();
-	return NULL;
-}
-
 extern int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 				   struct gnttab_map_grant_ref *kmap_ops,
 				   struct page **pages, unsigned int count);
