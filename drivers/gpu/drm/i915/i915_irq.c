@@ -1038,6 +1038,8 @@ static void notify_ring(struct intel_engine_cs *engine)
 	spin_lock(&engine->breadcrumbs.irq_lock);
 	wait = engine->breadcrumbs.irq_wait;
 	if (wait) {
+		bool wakeup = engine->irq_seqno_barrier;
+
 		/* We use a callback from the dma-fence to submit
 		 * requests after waiting on our own requests. To
 		 * ensure minimum delay in queuing the next request to
@@ -1050,12 +1052,15 @@ static void notify_ring(struct intel_engine_cs *engine)
 		 * and many waiters.
 		 */
 		if (i915_seqno_passed(intel_engine_get_seqno(engine),
-				      wait->seqno) &&
-		    !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
-			      &wait->request->fence.flags))
-			rq = i915_gem_request_get(wait->request);
+				      wait->seqno)) {
+			wakeup = true;
+			if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
+				      &wait->request->fence.flags))
+				rq = i915_gem_request_get(wait->request);
+		}
 
-		wake_up_process(wait->tsk);
+		if (wakeup)
+			wake_up_process(wait->tsk);
 	} else {
 		__intel_engine_disarm_breadcrumbs(engine);
 	}
