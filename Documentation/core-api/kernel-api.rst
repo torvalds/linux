@@ -59,6 +59,9 @@ Bitmap Operations
 .. kernel-doc:: lib/bitmap.c
    :internal:
 
+.. kernel-doc:: include/linux/bitmap.h
+   :internal:
+
 Command-line Parsing
 --------------------
 

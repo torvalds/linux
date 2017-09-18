@@ -360,8 +360,9 @@ static inline int bitmap_parse(const char *buf, unsigned int buflen,
 	return __bitmap_parse(buf, buflen, 0, maskp, nmaskbits);
 }
 
-/*
+/**
  * BITMAP_FROM_U64() - Represent u64 value in the format suitable for bitmap.
+ * @n: u64 value
  *
  * Linux bitmaps are internally arrays of unsigned longs, i.e. 32-bit
  * integers in 32-bit environment, and 64-bit integers in 64-bit one.
@@ -392,14 +393,14 @@ static inline int bitmap_parse(const char *buf, unsigned int buflen,
 				((unsigned long) ((u64)(n) >> 32))
 #endif
 
-/*
+/**
  * bitmap_from_u64 - Check and swap words within u64.
  *  @mask: source bitmap
  *  @dst:  destination bitmap
  *
- * In 32-bit Big Endian kernel, when using (u32 *)(&val)[*]
+ * In 32-bit Big Endian kernel, when using ``(u32 *)(&val)[*]``
  * to read u64 mask, we will get the wrong word.
- * That is "(u32 *)(&val)[0]" gets the upper 32 bits,
+ * That is ``(u32 *)(&val)[0]`` gets the upper 32 bits,
  * but we expect the lower 32-bits of u64.
  */
 static inline void bitmap_from_u64(unsigned long *dst, u64 mask)
