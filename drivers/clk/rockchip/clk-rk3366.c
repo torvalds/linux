@@ -632,8 +632,8 @@ static struct rockchip_clk_branch rk3366_clk_branches[] __initdata = {
 	GATE(PCLK_GPIO5, "pclk_gpio5", "pclk_pd_alive", 0, RK3368_CLKGATE_CON(22), 5, GFLAGS),
 	GATE(PCLK_GRF, "pclk_grf", "pclk_pd_alive", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(22), 8, GFLAGS),
 	GATE(0, "pclk_alive_niu", "pclk_pd_alive", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(22), 9, GFLAGS),
-	GATE(PCLK_DPHYTX, "pclk_dphytx", "pclk_pd_alive", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(22), 10, GFLAGS),
-	GATE(PCLK_DPHYRX, "pclk_dphyrx", "pclk_pd_alive", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(22), 11, GFLAGS),
+	GATE(PCLK_DPHYTX, "pclk_dphytx", "pclk_pd_alive", 0, RK3368_CLKGATE_CON(22), 10, GFLAGS),
+	GATE(PCLK_DPHYRX, "pclk_dphyrx", "pclk_pd_alive", 0, RK3368_CLKGATE_CON(22), 11, GFLAGS),
 	GATE(PCLK_TIMER0, "pclk_timer0", "pclk_pd_alive", 0, RK3368_CLKGATE_CON(22), 12, GFLAGS),
 
 	/* pclk_cpu gates */
