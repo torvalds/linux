@@ -24,10 +24,6 @@ struct test arch_tests[] = {
 	},
 #endif
 	{
-		.desc = "Intel cqm nmi context read",
-		.func = test__intel_cqm_count_nmi_context,
-	},
-	{
 		.func = NULL,
 	},
 
