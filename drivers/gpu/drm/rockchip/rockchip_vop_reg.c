@@ -655,6 +655,19 @@ static const struct vop_ctrl rk3328_ctrl_data = {
 
 	.dsp_background = VOP_REG(RK3328_DSP_BG, 0xffffffff, 0),
 
+	.bcsh_brightness = VOP_REG(RK3328_BCSH_BCS, 0xff, 0),
+	.bcsh_contrast = VOP_REG(RK3328_BCSH_BCS, 0x1ff, 8),
+	.bcsh_sat_con = VOP_REG(RK3328_BCSH_BCS, 0x3ff, 20),
+	.bcsh_out_mode = VOP_REG(RK3328_BCSH_BCS, 0x3, 30),
+	.bcsh_sin_hue = VOP_REG(RK3328_BCSH_H, 0x1ff, 0),
+	.bcsh_cos_hue = VOP_REG(RK3328_BCSH_H, 0x1ff, 16),
+	.bcsh_r2y_csc_mode = VOP_REG(RK3328_BCSH_CTRL, 0x3, 6),
+	.bcsh_r2y_en = VOP_REG(RK3368_BCSH_CTRL, 0x1, 4),
+	.bcsh_y2r_csc_mode = VOP_REG(RK3368_BCSH_CTRL, 0x3, 2),
+	.bcsh_y2r_en = VOP_REG(RK3368_BCSH_CTRL, 0x1, 0),
+	.bcsh_color_bar = VOP_REG(RK3328_BCSH_COLOR_BAR, 0xffffff, 8),
+	.bcsh_en = VOP_REG(RK3328_BCSH_COLOR_BAR, 0x1, 0),
+
 	.cfg_done = VOP_REG(RK3328_REG_CFG_DONE, 0x1, 0),
 };
 
