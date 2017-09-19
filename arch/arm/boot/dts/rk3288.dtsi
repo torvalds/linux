@@ -1306,6 +1306,8 @@
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_MIPI_DSI0>;
 		clock-names = "ref", "pclk";
+		resets = <&cru SRST_MIPIDSI0>;
+		reset-names = "apb";
 		power-domains = <&power RK3288_PD_VIO>;
 		rockchip,grf = <&grf>;
 		#address-cells = <1>;
@@ -1338,6 +1340,8 @@
 		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_MIPI_DSI1>;
 		clock-names = "ref", "pclk";
+		resets = <&cru SRST_MIPIDSI1>;
+		reset-names = "apb";
 		power-domains = <&power RK3288_PD_VIO>;
 		rockchip,grf = <&grf>;
 		#address-cells = <1>;
