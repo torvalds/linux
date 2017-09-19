@@ -84,7 +84,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 				GTT_PAGE_SHIFT));
 		if (context_gpa == INTEL_GVT_INVALID_ADDR) {
 			gvt_vgpu_err("Invalid guest context descriptor\n");
-			return -EINVAL;
+			return -EFAULT;
 		}
 
 		page = i915_gem_object_get_page(ctx_obj, LRC_HEADER_PAGES + i);

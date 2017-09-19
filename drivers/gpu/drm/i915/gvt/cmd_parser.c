@@ -825,7 +825,7 @@ static int force_nonpriv_reg_handler(struct parser_exec_state *s,
 	if (!intel_gvt_in_force_nonpriv_whitelist(gvt, data)) {
 		gvt_err("Unexpected forcenonpriv 0x%x LRI write, value=0x%x\n",
 			offset, data);
-		return -EINVAL;
+		return -EPERM;
 	}
 	return 0;
 }
@@ -839,7 +839,7 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 	if (offset + 4 > gvt->device_info.mmio_size) {
 		gvt_vgpu_err("%s access to (%x) outside of MMIO range\n",
 				cmd, offset);
-		return -EINVAL;
+		return -EFAULT;
 	}
 
 	if (!intel_gvt_mmio_is_cmd_access(gvt, offset)) {
@@ -854,8 +854,8 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 	}
 
 	if (is_force_nonpriv_mmio(offset) &&
-	    force_nonpriv_reg_handler(s, offset, index))
-		return -EINVAL;
+		force_nonpriv_reg_handler(s, offset, index))
+		return -EPERM;
 
 	if (offset == i915_mmio_reg_offset(DERRMR) ||
 		offset == i915_mmio_reg_offset(FORCEWAKE_MT)) {
@@ -894,11 +894,14 @@ static int cmd_handler_lri(struct parser_exec_state *s)
 					i915_mmio_reg_offset(DERRMR))
 				ret |= 0;
 			else
-				ret |= (cmd_reg_inhibit(s, i)) ? -EINVAL : 0;
+				ret |= (cmd_reg_inhibit(s, i)) ?
+					-EBADRQC : 0;
 		}
 		if (ret)
 			break;
 		ret |= cmd_reg_handler(s, cmd_reg(s, i), i, "lri");
+		if (ret)
+			break;
 	}
 	return ret;
 }
@@ -912,11 +915,15 @@ static int cmd_handler_lrr(struct parser_exec_state *s)
 		if (IS_BROADWELL(s->vgpu->gvt->dev_priv))
 			ret |= ((cmd_reg_inhibit(s, i) ||
 					(cmd_reg_inhibit(s, i + 1)))) ?
-				-EINVAL : 0;
+				-EBADRQC : 0;
 		if (ret)
 			break;
 		ret |= cmd_reg_handler(s, cmd_reg(s, i), i, "lrr-src");
+		if (ret)
+			break;
 		ret |= cmd_reg_handler(s, cmd_reg(s, i + 1), i, "lrr-dst");
+		if (ret)
+			break;
 	}
 	return ret;
 }
@@ -934,15 +941,19 @@ static int cmd_handler_lrm(struct parser_exec_state *s)
 
 	for (i = 1; i < cmd_len;) {
 		if (IS_BROADWELL(gvt->dev_priv))
-			ret |= (cmd_reg_inhibit(s, i)) ? -EINVAL : 0;
+			ret |= (cmd_reg_inhibit(s, i)) ? -EBADRQC : 0;
 		if (ret)
 			break;
 		ret |= cmd_reg_handler(s, cmd_reg(s, i), i, "lrm");
+		if (ret)
+			break;
 		if (cmd_val(s, 0) & (1 << 22)) {
 			gma = cmd_gma(s, i + 1);
 			if (gmadr_bytes == 8)
 				gma |= (cmd_gma_hi(s, i + 2)) << 32;
 			ret |= cmd_address_audit(s, gma, sizeof(u32), false);
+			if (ret)
+				break;
 		}
 		i += gmadr_dw_number(s) + 1;
 	}
@@ -958,11 +969,15 @@ static int cmd_handler_srm(struct parser_exec_state *s)
 
 	for (i = 1; i < cmd_len;) {
 		ret |= cmd_reg_handler(s, cmd_reg(s, i), i, "srm");
+		if (ret)
+			break;
 		if (cmd_val(s, 0) & (1 << 22)) {
 			gma = cmd_gma(s, i + 1);
 			if (gmadr_bytes == 8)
 				gma |= (cmd_gma_hi(s, i + 2)) << 32;
 			ret |= cmd_address_audit(s, gma, sizeof(u32), false);
+			if (ret)
+				break;
 		}
 		i += gmadr_dw_number(s) + 1;
 	}
@@ -1116,7 +1131,7 @@ static int gen8_decode_mi_display_flip(struct parser_exec_state *s,
 
 	v = (dword0 & GENMASK(21, 19)) >> 19;
 	if (WARN_ON(v >= ARRAY_SIZE(gen8_plane_code)))
-		return -EINVAL;
+		return -EBADRQC;
 
 	info->pipe = gen8_plane_code[v].pipe;
 	info->plane = gen8_plane_code[v].plane;
@@ -1136,7 +1151,7 @@ static int gen8_decode_mi_display_flip(struct parser_exec_state *s,
 		info->surf_reg = SPRSURF(info->pipe);
 	} else {
 		WARN_ON(1);
-		return -EINVAL;
+		return -EBADRQC;
 	}
 	return 0;
 }
@@ -1185,7 +1200,7 @@ static int skl_decode_mi_display_flip(struct parser_exec_state *s,
 
 	default:
 		gvt_vgpu_err("unknown plane code %d\n", plane);
-		return -EINVAL;
+		return -EBADRQC;
 	}
 
 	info->stride_val = (dword1 & GENMASK(15, 6)) >> 6;
@@ -1348,10 +1363,13 @@ static unsigned long get_gma_bb_from_cmd(struct parser_exec_state *s, int index)
 {
 	unsigned long addr;
 	unsigned long gma_high, gma_low;
-	int gmadr_bytes = s->vgpu->gvt->device_info.gmadr_bytes_in_cmd;
+	struct intel_vgpu *vgpu = s->vgpu;
+	int gmadr_bytes = vgpu->gvt->device_info.gmadr_bytes_in_cmd;
 
-	if (WARN_ON(gmadr_bytes != 4 && gmadr_bytes != 8))
+	if (WARN_ON(gmadr_bytes != 4 && gmadr_bytes != 8)) {
+		gvt_vgpu_err("invalid gma bytes %d\n", gmadr_bytes);
 		return INTEL_GVT_INVALID_ADDR;
+	}
 
 	gma_low = cmd_val(s, index) & BATCH_BUFFER_ADDR_MASK;
 	if (gmadr_bytes == 4) {
@@ -1374,16 +1392,16 @@ static inline int cmd_address_audit(struct parser_exec_state *s,
 	if (op_size > max_surface_size) {
 		gvt_vgpu_err("command address audit fail name %s\n",
 			s->info->name);
-		return -EINVAL;
+		return -EFAULT;
 	}
 
 	if (index_mode)	{
 		if (guest_gma >= GTT_PAGE_SIZE / sizeof(u64)) {
-			ret = -EINVAL;
+			ret = -EFAULT;
 			goto err;
 		}
 	} else if (!intel_gvt_ggtt_validate_range(vgpu, guest_gma, op_size)) {
-		ret = -EINVAL;
+		ret = -EFAULT;
 		goto err;
 	}
 
@@ -1439,7 +1457,7 @@ static inline int unexpected_cmd(struct parser_exec_state *s)
 
 	gvt_vgpu_err("Unexpected %s in command buffer!\n", s->info->name);
 
-	return -EINVAL;
+	return -EBADRQC;
 }
 
 static int cmd_handler_mi_semaphore_wait(struct parser_exec_state *s)
@@ -1588,22 +1606,26 @@ static int find_bb_size(struct parser_exec_state *s)
 
 	/* get the start gm address of the batch buffer */
 	gma = get_gma_bb_from_cmd(s, 1);
+	if (gma == INTEL_GVT_INVALID_ADDR)
+		return -EFAULT;
+
 	cmd = cmd_val(s, 0);
 
 	info = get_cmd_info(s->vgpu->gvt, cmd, s->ring_id);
 	if (info == NULL) {
 		gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x\n",
 				cmd, get_opcode(cmd, s->ring_id));
-		return -EINVAL;
+		return -EBADRQC;
 	}
 	do {
-		copy_gma_to_hva(s->vgpu, s->vgpu->gtt.ggtt_mm,
-				gma, gma + 4, &cmd);
+		if (copy_gma_to_hva(s->vgpu, s->vgpu->gtt.ggtt_mm,
+				gma, gma + 4, &cmd) < 0)
+			return -EFAULT;
 		info = get_cmd_info(s->vgpu->gvt, cmd, s->ring_id);
 		if (info == NULL) {
 			gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x\n",
 				cmd, get_opcode(cmd, s->ring_id));
-			return -EINVAL;
+			return -EBADRQC;
 		}
 
 		if (info->opcode == OP_MI_BATCH_BUFFER_END) {
@@ -1634,11 +1656,13 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 
 	/* get the start gm address of the batch buffer */
 	gma = get_gma_bb_from_cmd(s, 1);
+	if (gma == INTEL_GVT_INVALID_ADDR)
+		return -EFAULT;
 
 	/* get the size of the batch buffer */
 	bb_size = find_bb_size(s);
 	if (bb_size < 0)
-		return -EINVAL;
+		return bb_size;
 
 	/* allocate shadow batch buffer */
 	entry_obj = kmalloc(sizeof(*entry_obj), GFP_KERNEL);
@@ -1710,13 +1734,13 @@ static int cmd_handler_mi_batch_buffer_start(struct parser_exec_state *s)
 
 	if (s->buf_type == BATCH_BUFFER_2ND_LEVEL) {
 		gvt_vgpu_err("Found MI_BATCH_BUFFER_START in 2nd level BB\n");
-		return -EINVAL;
+		return -EFAULT;
 	}
 
 	second_level = BATCH_BUFFER_2ND_LEVEL_BIT(cmd_val(s, 0)) == 1;
 	if (second_level && (s->buf_type != BATCH_BUFFER_INSTRUCTION)) {
 		gvt_vgpu_err("Jumping to 2nd level BB from RB is not allowed\n");
-		return -EINVAL;
+		return -EFAULT;
 	}
 
 	s->saved_buf_addr_type = s->buf_addr_type;
@@ -2430,7 +2454,7 @@ static int cmd_parser_exec(struct parser_exec_state *s)
 	if (info == NULL) {
 		gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x\n",
 				cmd, get_opcode(cmd, s->ring_id));
-		return -EINVAL;
+		return -EBADRQC;
 	}
 
 	s->info = info;
@@ -2465,6 +2489,10 @@ static inline bool gma_out_of_range(unsigned long gma,
 		return (gma > gma_tail) && (gma < gma_head);
 }
 
+/* Keep the consistent return type, e.g EBADRQC for unknown
+ * cmd, EFAULT for invalid address, EPERM for nonpriv. later
+ * works as the input of VM healthy status.
+ */
 static int command_scan(struct parser_exec_state *s,
 		unsigned long rb_head, unsigned long rb_tail,
 		unsigned long rb_start, unsigned long rb_len)
@@ -2487,7 +2515,7 @@ static int command_scan(struct parser_exec_state *s,
 					s->ip_gma, rb_start,
 					gma_bottom);
 				parser_exec_state_dump(s);
-				return -EINVAL;
+				return -EFAULT;
 			}
 			if (gma_out_of_range(s->ip_gma, gma_head, gma_tail)) {
 				gvt_vgpu_err("ip_gma %lx out of range."
