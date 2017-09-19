@@ -11,6 +11,8 @@ Required properties:
 - interrupts: Represent the controller's interrupt to the CPU(s).
 - clocks, clock-names: Phandles to the controller's APB clock(pclk) as
   described in [1].
+- resets : phandle to the reset of MIPI DSI APB Clock.
+- reset-names : should be "apb".
 - rockchip,grf: this soc should set GRF regs to mux vopl/vopb.
 - #address-cells: Should be <1>.
 - #size-cells: Should be <0>.
@@ -25,8 +27,6 @@ Optional properties
 - phys: phandle to Non-SNPS PHY node
 - phy-names: the string "mipi_dphy" when is found in a node, along with "phys"
   attribute, provides phandle to MIPI PHY node
-- resets : phandle to the reset of MIPI DSI APB Clock.
-- reset-names : should be "apb".
 - rockchip,dual-channel: for dual-channel panel, if not, don't configure
 - rockchip,lane-rate: manually configure lane-rate, not necessary.
 
