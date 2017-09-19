@@ -523,6 +523,10 @@ static int b53_enable_port(struct dsa_switch *ds, int port,
 
 	b53_imp_vlan_setup(ds, cpu_port);
 
+	/* If EEE was enabled, restore it */
+	if (dev->ports[port].eee.eee_enabled)
+		b53_eee_enable_set(ds, port, true);
+
 	return 0;
 }
 
@@ -879,6 +883,7 @@ static void b53_adjust_link(struct dsa_switch *ds, int port,
 			    struct phy_device *phydev)
 {
 	struct b53_device *dev = ds->priv;
+	struct ethtool_eee *p = &dev->ports[port].eee;
 	u8 rgmii_ctrl = 0, reg = 0, off;
 
 	if (!phy_is_pseudo_fixed_link(phydev))
@@ -1000,6 +1005,9 @@ static void b53_adjust_link(struct dsa_switch *ds, int port,
 			b53_write8(dev, B53_CTRL_PAGE, po_reg, gmii_po);
 		}
 	}
+
+	/* Re-negotiate EEE if it was enabled already */
+	p->eee_enabled = b53_eee_init(ds, port, phydev);
 }
 
 int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
@@ -1605,6 +1613,8 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.adjust_link		= b53_adjust_link,
 	.port_enable		= b53_enable_port,
 	.port_disable		= b53_disable_port,
+	.get_mac_eee		= b53_get_mac_eee,
+	.set_mac_eee		= b53_set_mac_eee,
 	.port_bridge_join	= b53_br_join,
 	.port_bridge_leave	= b53_br_leave,
 	.port_stp_state_set	= b53_br_set_stp_state,
