@@ -76,6 +76,26 @@ struct rockchip_dclk_pll {
 	unsigned int use_count;
 };
 
+struct rockchip_sdr2hdr_state {
+	int sdr2hdr_func;
+
+	bool bt1886eotf_pre_conv_en;
+	bool rgb2rgb_pre_conv_en;
+	bool rgb2rgb_pre_conv_mode;
+	bool st2084oetf_pre_conv_en;
+
+	bool bt1886eotf_post_conv_en;
+	bool rgb2rgb_post_conv_en;
+	bool rgb2rgb_post_conv_mode;
+	bool st2084oetf_post_conv_en;
+};
+
+struct rockchip_hdr_state {
+	bool pre_overlay;
+	bool hdr2sdr_en;
+	struct rockchip_sdr2hdr_state sdr2hdr_state;
+};
+
 struct rockchip_crtc_state {
 	struct drm_crtc_state base;
 	struct drm_property_blob *cabc_lut;
@@ -100,6 +120,9 @@ struct rockchip_crtc_state {
 	int output_mode;
 	int output_flags;
 	int bus_format;
+	bool yuv_overlay;
+	int eotf;
+	struct rockchip_hdr_state hdr;
 };
 
 #define to_rockchip_crtc_state(s) \
@@ -142,6 +165,7 @@ struct rockchip_drm_private {
 	struct drm_property *cabc_stage_down_property;
 	struct drm_property *cabc_global_dn_property;
 	struct drm_property *cabc_calc_pixel_num_property;
+	struct drm_property *eotf_prop;
 	void *backlight;
 	struct drm_fb_helper *fbdev_helper;
 	struct drm_gem_object *fbdev_bo;

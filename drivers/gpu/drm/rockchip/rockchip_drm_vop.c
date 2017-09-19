@@ -158,6 +158,7 @@ struct vop_plane_state {
 	const uint32_t *y2r_table;
 	const uint32_t *r2r_table;
 	const uint32_t *r2y_table;
+	int eotf;
 	bool enable;
 };
 
@@ -173,6 +174,7 @@ struct vop_win {
 	const struct vop_csc *csc;
 	const uint32_t *data_formats;
 	uint32_t nformats;
+	u64 feature;
 	struct vop *vop;
 
 	struct drm_property *rotation_prop;
@@ -318,6 +320,76 @@ static inline uint32_t vop_get_intr_type(struct vop *vop,
 	}
 
 	return ret;
+}
+
+static void vop_load_hdr2sdr_table(struct vop *vop)
+{
+	int i;
+	const struct vop_hdr_table *table = vop->data->hdr_table;
+	uint32_t hdr2sdr_eetf_oetf_yn[33];
+
+	for (i = 0; i < 33; i++)
+		hdr2sdr_eetf_oetf_yn[i] = table->hdr2sdr_eetf_yn[i] +
+				(table->hdr2sdr_bt1886oetf_yn[i] << 16);
+
+	vop_writel(vop, table->hdr2sdr_eetf_oetf_y0_offset,
+		   hdr2sdr_eetf_oetf_yn[0]);
+	for (i = 1; i < 33; i++)
+		vop_writel(vop,
+			   table->hdr2sdr_eetf_oetf_y1_offset + (i - 1) * 4,
+			   hdr2sdr_eetf_oetf_yn[i]);
+
+	vop_writel(vop, table->hdr2sdr_sat_y0_offset,
+		   table->hdr2sdr_sat_yn[0]);
+	for (i = 1; i < 9; i++)
+		vop_writel(vop, table->hdr2sdr_sat_y1_offset + (i - 1) * 4,
+			   table->hdr2sdr_sat_yn[i]);
+
+	VOP_CTRL_SET(vop, hdr2sdr_src_min, table->hdr2sdr_src_range_min);
+	VOP_CTRL_SET(vop, hdr2sdr_src_max, table->hdr2sdr_src_range_max);
+	VOP_CTRL_SET(vop, hdr2sdr_normfaceetf, table->hdr2sdr_normfaceetf);
+	VOP_CTRL_SET(vop, hdr2sdr_dst_min, table->hdr2sdr_dst_range_min);
+	VOP_CTRL_SET(vop, hdr2sdr_dst_max, table->hdr2sdr_dst_range_max);
+	VOP_CTRL_SET(vop, hdr2sdr_normfacgamma, table->hdr2sdr_normfacgamma);
+}
+
+static void vop_load_sdr2hdr_table(struct vop *vop, uint32_t cmd)
+{
+	int i;
+	const struct vop_hdr_table *table = vop->data->hdr_table;
+	uint32_t sdr2hdr_eotf_oetf_yn[65];
+	uint32_t sdr2hdr_oetf_dx_dxpow[64];
+
+	for (i = 0; i < 65; i++) {
+		if (cmd == SDR2HDR_FOR_BT2020)
+			sdr2hdr_eotf_oetf_yn[i] =
+				table->sdr2hdr_bt1886eotf_yn_for_bt2020[i] +
+				(table->sdr2hdr_st2084oetf_yn_for_bt2020[i] << 18);
+		else if (cmd == SDR2HDR_FOR_HDR)
+			sdr2hdr_eotf_oetf_yn[i] =
+				table->sdr2hdr_bt1886eotf_yn_for_hdr[i] +
+				(table->sdr2hdr_st2084oetf_yn_for_hdr[i] << 18);
+		else if (cmd == SDR2HDR_FOR_HLG_HDR)
+			sdr2hdr_eotf_oetf_yn[i] =
+				table->sdr2hdr_bt1886eotf_yn_for_hlg_hdr[i] +
+				(table->sdr2hdr_st2084oetf_yn_for_hlg_hdr[i] << 18);
+	}
+	vop_writel(vop, table->sdr2hdr_eotf_oetf_y0_offset,
+		   sdr2hdr_eotf_oetf_yn[0]);
+	for (i = 1; i < 65; i++)
+		vop_writel(vop, table->sdr2hdr_eotf_oetf_y1_offset +
+			   (i - 1) * 4, sdr2hdr_eotf_oetf_yn[i]);
+
+	for (i = 0; i < 64; i++) {
+		sdr2hdr_oetf_dx_dxpow[i] = table->sdr2hdr_st2084oetf_dxn[i] +
+				(table->sdr2hdr_st2084oetf_dxn_pow2[i] << 16);
+		vop_writel(vop, table->sdr2hdr_oetf_dx_dxpow1_offset + i * 4,
+			   sdr2hdr_oetf_dx_dxpow[i]);
+	}
+
+	for (i = 0; i < 63; i++)
+		vop_writel(vop, table->sdr2hdr_oetf_xn1_offset + i * 4,
+			   table->sdr2hdr_st2084oetf_xn[i]);
 }
 
 static void vop_load_csc_table(struct vop *vop, u32 offset, const u32 *table)
@@ -620,6 +692,83 @@ static void scl_vop_cal_scl_fac(struct vop *vop, struct vop_win *win,
 		VOP_SCL_SET_EXT(vop, win, cbcr_vsd_mode, SCALE_DOWN_BIL);
 		VOP_SCL_SET_EXT(vop, win, cbcr_vsu_mode, vsu_mode);
 	}
+}
+
+/*
+ * rk3328 HDR/CSC path
+ *
+ * HDR/SDR --> win0  --> HDR2SDR ----\
+ *		  \		      MUX --\
+ *                 \ --> SDR2HDR/CSC--/      \
+ *                                            \
+ * SDR --> win1 -->pre_overlay ->SDR2HDR/CSC --> post_ovrlay-->post CSC-->output
+ * SDR --> win2 -/
+ *
+ */
+
+static int vop_hdr_atomic_check(struct drm_crtc *crtc,
+				struct drm_crtc_state *crtc_state)
+{
+	struct drm_atomic_state *state = crtc_state->state;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	struct drm_plane_state *pstate;
+	struct drm_plane *plane;
+	struct vop *vop = to_vop(crtc);
+	int pre_sdr2hdr_state = 0, post_sdr2hdr_state = 0;
+	int pre_sdr2hdr_mode = 0, post_sdr2hdr_mode = 0, sdr2hdr_func = 0;
+	bool pre_overlay = 0;
+	int hdr2sdr_en = 0, plane_id = 0;
+
+	if (!vop->data->hdr_table)
+		return 0;
+	/* hdr cover */
+	s->yuv_overlay = is_yuv_output(s->bus_format);
+	drm_atomic_crtc_state_for_each_plane(plane, crtc_state) {
+		struct vop_plane_state *vop_plane_state;
+		struct vop_win *win = to_vop_win(plane);
+
+		pstate = drm_atomic_get_plane_state(state, plane);
+		if (IS_ERR(pstate))
+			return PTR_ERR(pstate);
+		vop_plane_state = to_vop_plane_state(pstate);
+		if (!pstate->fb)
+			continue;
+
+		if (vop_plane_state->eotf > s->eotf)
+			if (win->feature & WIN_FEATURE_HDR2SDR)
+				hdr2sdr_en = 1;
+		if (vop_plane_state->eotf < s->eotf) {
+			if (win->feature & WIN_FEATURE_PRE_OVERLAY)
+				pre_sdr2hdr_state |= BIT(plane_id);
+			else
+				post_sdr2hdr_state |= BIT(plane_id);
+		}
+		plane_id++;
+	}
+
+	if (pre_sdr2hdr_state || post_sdr2hdr_state || hdr2sdr_en) {
+		pre_overlay = 1;
+		pre_sdr2hdr_mode = BT709_TO_BT2020;
+		post_sdr2hdr_mode = BT709_TO_BT2020;
+		sdr2hdr_func = SDR2HDR_FOR_HDR;
+	}
+	s->hdr.pre_overlay = pre_overlay;
+	s->hdr.hdr2sdr_en = hdr2sdr_en;
+	if (s->hdr.pre_overlay)
+		s->yuv_overlay = 0;
+
+	s->hdr.sdr2hdr_state.bt1886eotf_pre_conv_en = !!pre_sdr2hdr_state;
+	s->hdr.sdr2hdr_state.rgb2rgb_pre_conv_en = !!pre_sdr2hdr_state;
+	s->hdr.sdr2hdr_state.rgb2rgb_pre_conv_mode = pre_sdr2hdr_mode;
+	s->hdr.sdr2hdr_state.st2084oetf_pre_conv_en = !!pre_sdr2hdr_state;
+
+	s->hdr.sdr2hdr_state.bt1886eotf_post_conv_en = !!post_sdr2hdr_state;
+	s->hdr.sdr2hdr_state.rgb2rgb_post_conv_en = !!post_sdr2hdr_state;
+	s->hdr.sdr2hdr_state.rgb2rgb_post_conv_mode = post_sdr2hdr_mode;
+	s->hdr.sdr2hdr_state.st2084oetf_post_conv_en = !!post_sdr2hdr_state;
+	s->hdr.sdr2hdr_state.sdr2hdr_func = sdr2hdr_func;
+
+	return 0;
 }
 
 /*
@@ -1443,6 +1592,10 @@ static int vop_atomic_plane_set_property(struct drm_plane *plane,
 		return 0;
 	}
 
+	if (property == private->eotf_prop) {
+		plane_state->eotf = val;
+		return 0;
+	}
 	DRM_ERROR("failed to set vop plane property\n");
 	return -EINVAL;
 }
@@ -1454,6 +1607,7 @@ static int vop_atomic_plane_get_property(struct drm_plane *plane,
 {
 	struct vop_win *win = to_vop_win(plane);
 	struct vop_plane_state *plane_state = to_vop_plane_state(state);
+	struct rockchip_drm_private *private = plane->dev->dev_private;
 
 	if (property == win->vop->plane_zpos_prop) {
 		*val = plane_state->zpos;
@@ -1462,6 +1616,11 @@ static int vop_atomic_plane_get_property(struct drm_plane *plane,
 
 	if (property == win->rotation_prop) {
 		*val = state->rotation;
+		return 0;
+	}
+
+	if (property == private->eotf_prop) {
+		*val = plane_state->eotf;
 		return 0;
 	}
 
@@ -2055,14 +2214,15 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 		     s->output_mode == ROCKCHIP_OUT_MODE_YUV420 ? 1 : 0);
 	VOP_CTRL_SET(vop, hdmi_dclk_out_en,
 		     s->output_mode == ROCKCHIP_OUT_MODE_YUV420 ? 1 : 0);
+	s->yuv_overlay = is_yuv_output(s->bus_format);
 	if (VOP_CTRL_SUPPORT(vop, overlay_mode)) {
-		VOP_CTRL_SET(vop, overlay_mode, is_yuv_output(s->bus_format));
-		VOP_CTRL_SET(vop, bcsh_r2y_en, !is_yuv_output(s->bus_format));
-		VOP_CTRL_SET(vop, bcsh_y2r_en, !is_yuv_output(s->bus_format));
+		VOP_CTRL_SET(vop, overlay_mode, s->yuv_overlay);
+		VOP_CTRL_SET(vop, bcsh_r2y_en, !s->yuv_overlay);
+		VOP_CTRL_SET(vop, bcsh_y2r_en, !s->yuv_overlay);
 	} else {
-		VOP_CTRL_SET(vop, bcsh_r2y_en, is_yuv_output(s->bus_format));
+		VOP_CTRL_SET(vop, bcsh_r2y_en, s->yuv_overlay);
 	}
-	VOP_CTRL_SET(vop, dsp_out_yuv, is_yuv_output(s->bus_format));
+	VOP_CTRL_SET(vop, dsp_out_yuv, s->yuv_overlay);
 
 	/*
 	 * Background color is 10bit depth if vop version >= 3.5
@@ -2270,6 +2430,9 @@ static int vop_crtc_atomic_check(struct drm_crtc *crtc,
 	if (ret)
 		return ret;
 
+	ret = vop_hdr_atomic_check(crtc, crtc_state);
+	if (ret)
+		return ret;
 	ret = vop_csc_atomic_check(crtc, crtc_state);
 	if (ret)
 		return ret;
@@ -2421,6 +2584,55 @@ static void vop_update_cabc_lut(struct drm_crtc *crtc,
 		vop_write_cabc_lut(vop, (i << 2), lut[i]);
 #undef CTRL_GET
 	VOP_CTRL_SET(vop, cabc_lut_en, 1);
+}
+
+static void vop_update_hdr(struct drm_crtc *crtc,
+			   struct drm_crtc_state *old_crtc_state)
+{
+	struct rockchip_crtc_state *s =
+			to_rockchip_crtc_state(crtc->state);
+	struct vop *vop = to_vop(crtc);
+	struct rockchip_sdr2hdr_state *sdr2hdr_state = &s->hdr.sdr2hdr_state;
+
+	if (!vop->data->hdr_table)
+		return;
+
+	if (s->hdr.hdr2sdr_en)
+		vop_load_hdr2sdr_table(vop);
+	VOP_CTRL_SET(vop, hdr2sdr_en, s->hdr.hdr2sdr_en);
+
+	VOP_CTRL_SET(vop, bt1886eotf_pre_conv_en,
+		     sdr2hdr_state->bt1886eotf_pre_conv_en);
+	VOP_CTRL_SET(vop, bt1886eotf_post_conv_en,
+		     sdr2hdr_state->bt1886eotf_post_conv_en);
+
+	if (sdr2hdr_state->bt1886eotf_pre_conv_en) {
+		VOP_CTRL_SET(vop, rgb2rgb_pre_conv_en,
+			     sdr2hdr_state->rgb2rgb_pre_conv_en);
+		VOP_CTRL_SET(vop, rgb2rgb_pre_conv_mode,
+			     sdr2hdr_state->rgb2rgb_pre_conv_mode);
+		VOP_CTRL_SET(vop, st2084oetf_pre_conv_en,
+			     sdr2hdr_state->st2084oetf_pre_conv_en);
+	}
+
+	if (sdr2hdr_state->bt1886eotf_post_conv_en) {
+		VOP_CTRL_SET(vop, rgb2rgb_post_conv_en,
+			     sdr2hdr_state->rgb2rgb_post_conv_en);
+		VOP_CTRL_SET(vop, rgb2rgb_post_conv_mode,
+			     sdr2hdr_state->rgb2rgb_post_conv_mode);
+		VOP_CTRL_SET(vop, st2084oetf_post_conv_en,
+			     sdr2hdr_state->st2084oetf_post_conv_en);
+	}
+
+	if (sdr2hdr_state->bt1886eotf_pre_conv_en ||
+	    sdr2hdr_state->bt1886eotf_post_conv_en)
+		vop_load_sdr2hdr_table(vop, sdr2hdr_state->sdr2hdr_func);
+
+	/* TODO: maybe need move to irq func */
+	VOP_CTRL_SET(vop, level2_overlay_en, s->hdr.pre_overlay);
+	VOP_CTRL_SET(vop, alpha_hard_calc, s->hdr.pre_overlay);
+
+	VOP_CTRL_SET(vop, overlay_mode, s->yuv_overlay);
 }
 
 static void vop_update_cabc(struct drm_crtc *crtc,
@@ -2622,6 +2834,7 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 
 	vop_update_cabc(crtc, old_crtc_state);
+	vop_update_hdr(crtc, old_crtc_state);
 
 	vop_cfg_done(vop);
 
@@ -3049,9 +3262,14 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 	if (VOP_WIN_SUPPORT(vop, win, src_alpha_ctl) ||
 	    VOP_WIN_SUPPORT(vop, win, alpha_en))
 		feature |= BIT(ROCKCHIP_DRM_PLANE_FEATURE_ALPHA);
+	if (win->feature & WIN_FEATURE_HDR2SDR)
+		feature |= BIT(ROCKCHIP_DRM_PLANE_FEATURE_HDR2SDR);
+	if (win->feature & WIN_FEATURE_SDR2HDR)
+		feature |= BIT(ROCKCHIP_DRM_PLANE_FEATURE_SDR2HDR);
 
 	drm_object_attach_property(&win->base.base, vop->plane_feature_prop,
 				   feature);
+	drm_object_attach_property(&win->base.base, private->eotf_prop, 0);
 
 	return 0;
 }
@@ -3295,6 +3513,8 @@ static int vop_win_init(struct vop *vop)
 	static const struct drm_prop_enum_list props[] = {
 		{ ROCKCHIP_DRM_PLANE_FEATURE_SCALE, "scale" },
 		{ ROCKCHIP_DRM_PLANE_FEATURE_ALPHA, "alpha" },
+		{ ROCKCHIP_DRM_PLANE_FEATURE_HDR2SDR, "hdr2sdr" },
+		{ ROCKCHIP_DRM_PLANE_FEATURE_SDR2HDR, "sdr2hdr" },
 	};
 	static const struct drm_prop_enum_list crtc_props[] = {
 		{ ROCKCHIP_DRM_CRTC_FEATURE_AFBDC, "afbdc" },
@@ -3313,6 +3533,7 @@ static int vop_win_init(struct vop *vop)
 		vop_win->type = win_data->type;
 		vop_win->data_formats = win_data->phy->data_formats;
 		vop_win->nformats = win_data->phy->nformats;
+		vop_win->feature = win_data->feature;
 		vop_win->vop = vop;
 		vop_win->win_id = i;
 		vop_win->area_id = 0;
@@ -3349,7 +3570,9 @@ static int vop_win_init(struct vop *vop)
 				DRM_MODE_PROP_IMMUTABLE, "FEATURE",
 				props, ARRAY_SIZE(props),
 				BIT(ROCKCHIP_DRM_PLANE_FEATURE_SCALE) |
-				BIT(ROCKCHIP_DRM_PLANE_FEATURE_ALPHA));
+				BIT(ROCKCHIP_DRM_PLANE_FEATURE_ALPHA) |
+				BIT(ROCKCHIP_DRM_PLANE_FEATURE_HDR2SDR) |
+				BIT(ROCKCHIP_DRM_PLANE_FEATURE_SDR2HDR));
 	if (!vop->plane_feature_prop) {
 		DRM_ERROR("failed to create feature property\n");
 		return -EINVAL;

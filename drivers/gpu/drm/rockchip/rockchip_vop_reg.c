@@ -601,6 +601,245 @@ static const struct vop_data rk322x_vop = {
 	.win_size = ARRAY_SIZE(rk322x_vop_win_data),
 };
 
+static const u32 sdr2hdr_bt1886eotf_yn_for_hlg_hdr[65] = {
+	0,
+	1,	7,	17,	35,
+	60,	92,	134,	184,
+	244,	315,	396,	487,
+	591,	706,	833,	915,
+	1129,	1392,	1717,	2118,
+	2352,	2612,	2900,	3221,
+	3577,	3972,	4411,	4899,
+	5441,	6042,	6710,	7452,
+	7853,	8276,	8721,	9191,
+	9685,	10207,	10756,	11335,
+	11945,	12588,	13266,	13980,
+	14732,	15525,	16361,	17241,
+	17699,	18169,	18652,	19147,
+	19656,	20178,	20714,	21264,
+	21829,	22408,	23004,	23615,
+	24242,	24886,	25547,	26214,
+};
+
+static const u32 sdr2hdr_bt1886eotf_yn_for_bt2020[65] = {
+	0,
+	1820,   3640,   5498,   7674,
+	10256,  13253,  16678,  20539,
+	24847,  29609,  34833,  40527,
+	46699,  53354,  60499,  68141,
+	76285,  84937,  94103,  103787,
+	108825, 113995, 119296, 124731,
+	130299, 136001, 141837, 147808,
+	153915, 160158, 166538, 173055,
+	176365, 179709, 183089, 186502,
+	189951, 193434, 196952, 200505,
+	204093, 207715, 211373, 215066,
+	218795, 222558, 226357, 230191,
+	232121, 234060, 236008, 237965,
+	239931, 241906, 243889, 245882,
+	247883, 249894, 251913, 253941,
+	255978, 258024, 260079, 262143,
+};
+
+static u32 sdr2hdr_bt1886eotf_yn_for_hdr[65] = {
+	/* dst_range 425int */
+	0,
+	5,     21,    49,     91,
+	150,   225,   320,   434,
+	569,   726,   905,   1108,
+	1336,  1588,  1866,  2171,
+	2502,  2862,  3250,  3667,
+	3887,  4114,  4349,  4591,
+	4841,  5099,  5364,  5638,
+	5920,  6209,  6507,  6812,
+	6968,  7126,  7287,  7449,
+	7613,  7779,  7948,  8118,
+	8291,  8466,  8643,  8822,
+	9003,  9187,  9372,  9560,
+	9655,  9750,  9846,  9942,
+	10039, 10136, 10234, 10333,
+	10432, 10531, 10631, 10732,
+	10833, 10935, 11038, 11141,
+};
+
+static const u32 sdr2hdr_st2084oetf_yn_for_hlg_hdr[65] = {
+	0,
+	668,	910,	1217,	1600,
+	2068,	2384,	2627,	3282,
+	3710,	4033,	4879,	5416,
+	5815,	6135,	6401,	6631,
+	6833,	7176,	7462,	7707,
+	7921,	8113,	8285,	8442,
+	8586,	8843,	9068,	9268,
+	9447,	9760,	10027,	10259,
+	10465,	10650,	10817,	10971,
+	11243,	11480,	11689,	11877,
+	12047,	12202,	12345,	12477,
+	12601,	12716,	12926,	13115,
+	13285,	13441,	13583,	13716,
+	13839,	13953,	14163,	14350,
+	14519,	14673,	14945,	15180,
+	15570,	15887,	16153,	16383,
+};
+
+static const u32 sdr2hdr_st2084oetf_yn_for_bt2020[65] = {
+	0,
+	0,     0,     1,     2,
+	4,     6,     9,     18,
+	27,    36,    72,    108,
+	144,   180,   216,   252,
+	288,   360,   432,   504,
+	576,   648,   720,   792,
+	864,   1008,  1152,  1296,
+	1444,  1706,  1945,  2166,
+	2372,  2566,  2750,  2924,
+	3251,  3553,  3834,  4099,
+	4350,  4588,  4816,  5035,
+	5245,  5447,  5832,  6194,
+	6536,  6862,  7173,  7471,
+	7758,  8035,  8560,  9055,
+	9523,  9968,  10800, 11569,
+	12963, 14210, 15347, 16383,
+};
+
+static u32 sdr2hdr_st2084oetf_yn_for_hdr[65] = {
+	0,
+	281,   418,   610,   871,
+	1217,  1464,  1662,  2218,
+	2599,  2896,  3699,  4228,
+	4628,  4953,  5227,  5466,
+	5676,  6038,  6341,  6602,
+	6833,  7039,  7226,  7396,
+	7554,  7835,  8082,  8302,
+	8501,  8848,  9145,  9405,
+	9635,  9842,  10031, 10204,
+	10512, 10779, 11017, 11230,
+	11423, 11599, 11762, 11913,
+	12054, 12185, 12426, 12641,
+	12835, 13013, 13177, 13328,
+	13469, 13600, 13840, 14055,
+	14248, 14425, 14737, 15006,
+	15453, 15816, 16121, 16383,
+};
+
+static const u32 sdr2hdr_st2084oetf_dxn_pow2[64] = {
+	0,  0,  1,  2,
+	3,  3,  3,  5,
+	5,  5,  7,  7,
+	7,  7,  7,  7,
+	7,  8,  8,  8,
+	8,  8,  8,  8,
+	8,  9,  9,  9,
+	9,  10, 10, 10,
+	10, 10, 10, 10,
+	11, 11, 11, 11,
+	11, 11, 11, 11,
+	11, 11, 12, 12,
+	12, 12, 12, 12,
+	12, 12, 13, 13,
+	13, 13, 14, 14,
+	15, 15, 15, 15,
+};
+
+static const u32 sdr2hdr_st2084oetf_dxn[64] = {
+	1,     1,     2,     4,
+	8,     8,     8,     32,
+	32,    32,    128,   128,
+	128,   128,   128,   128,
+	128,   256,   256,   256,
+	256,   256,   256,   256,
+	256,   512,   512,   512,
+	512,   1024,  1024,  1024,
+	1024,  1024,  1024,  1024,
+	2048,  2048,  2048,  2048,
+	2048,  2048,  2048,  2048,
+	2048,  2048,  4096,  4096,
+	4096,  4096,  4096,  4096,
+	4096,  4096,  8192,  8192,
+	8192,  8192,  16384, 16384,
+	32768, 32768, 32768, 32768,
+};
+
+static const u32 sdr2hdr_st2084oetf_xn[63] = {
+	1,      2,      4,      8,
+	16,     24,     32,     64,
+	96,     128,    256,    384,
+	512,    640,    768,    896,
+	1024,   1280,   1536,   1792,
+	2048,   2304,   2560,   2816,
+	3072,   3584,   4096,   4608,
+	5120,   6144,   7168,   8192,
+	9216,   10240,  11264,  12288,
+	14336,  16384,  18432,  20480,
+	22528,  24576,  26624,  28672,
+	30720,  32768,  36864,  40960,
+	45056,  49152,  53248,  57344,
+	61440,  65536,  73728,  81920,
+	90112,  98304,  114688, 131072,
+	163840, 196608, 229376,
+};
+
+static u32 hdr2sdr_eetf_yn[33] = {
+	1716,
+	1880,	2067,	2277,	2508,
+	2758,	3026,	3310,	3609,
+	3921,	4246,	4581,	4925,
+	5279,	5640,	6007,	6380,
+	6758,	7140,	7526,	7914,
+	8304,	8694,	9074,	9438,
+	9779,	10093,	10373,	10615,
+	10812,	10960,	11053,	11084,
+};
+
+static u32 hdr2sdr_bt1886oetf_yn[33] = {
+	0,
+	0,	0,	0,	0,
+	0,	0,	0,	314,
+	746,	1323,	2093,	2657,
+	3120,	3519,	3874,	4196,
+	4492,	5024,	5498,	5928,
+	6323,	7034,	7666,	8239,
+	8766,	9716,	10560,	11325,
+	12029,	13296,	14422,	16383,
+};
+
+static const u32 hdr2sdr_sat_yn[9] = {
+	0,
+	1792, 3584, 3472, 2778,
+	2083, 1389, 694,  0,
+};
+
+static const struct vop_hdr_table rk3328_hdr_table = {
+	.hdr2sdr_eetf_oetf_y0_offset = RK3328_HDR2SDR_EETF_OETF_Y0,
+	.hdr2sdr_eetf_oetf_y1_offset = RK3328_HDR2SDR_EETF_OETF_Y1,
+	.hdr2sdr_eetf_yn	= hdr2sdr_eetf_yn,
+	.hdr2sdr_bt1886oetf_yn	= hdr2sdr_bt1886oetf_yn,
+	.hdr2sdr_sat_y0_offset = RK3328_HDR2DR_SAT_Y0,
+	.hdr2sdr_sat_y1_offset = RK3328_HDR2DR_SAT_Y1,
+	.hdr2sdr_sat_yn = hdr2sdr_sat_yn,
+
+	.hdr2sdr_src_range_min = 494,
+	.hdr2sdr_src_range_max = 12642,
+	.hdr2sdr_normfaceetf = 1327,
+	.hdr2sdr_dst_range_min = 4,
+	.hdr2sdr_dst_range_max = 3276,
+	.hdr2sdr_normfacgamma = 5120,
+
+	.sdr2hdr_eotf_oetf_y0_offset = RK3328_SDR2HDR_EOTF_OETF_Y0,
+	.sdr2hdr_eotf_oetf_y1_offset = RK3328_SDR2HDR_EOTF_OETF_Y1,
+	.sdr2hdr_bt1886eotf_yn_for_hlg_hdr = sdr2hdr_bt1886eotf_yn_for_hlg_hdr,
+	.sdr2hdr_bt1886eotf_yn_for_bt2020 = sdr2hdr_bt1886eotf_yn_for_bt2020,
+	.sdr2hdr_bt1886eotf_yn_for_hdr = sdr2hdr_bt1886eotf_yn_for_hdr,
+	.sdr2hdr_st2084oetf_yn_for_hlg_hdr = sdr2hdr_st2084oetf_yn_for_hlg_hdr,
+	.sdr2hdr_st2084oetf_yn_for_bt2020 = sdr2hdr_st2084oetf_yn_for_bt2020,
+	.sdr2hdr_st2084oetf_yn_for_hdr = sdr2hdr_st2084oetf_yn_for_hdr,
+	.sdr2hdr_oetf_dx_dxpow1_offset = RK3328_SDR2HDR_OETF_DX_DXPOW1,
+	.sdr2hdr_oetf_xn1_offset = RK3328_SDR2HDR_OETF_XN1,
+	.sdr2hdr_st2084oetf_dxn_pow2 = sdr2hdr_st2084oetf_dxn_pow2,
+	.sdr2hdr_st2084oetf_dxn = sdr2hdr_st2084oetf_dxn,
+	.sdr2hdr_st2084oetf_xn = sdr2hdr_st2084oetf_xn,
+};
+
 static const struct vop_ctrl rk3328_ctrl_data = {
 	.standby = VOP_REG(RK3328_SYS_CTRL, 0x1, 22),
 	.axi_outstanding_max_num = VOP_REG(RK3328_SYS_CTRL1, 0x1f, 13),
@@ -655,6 +894,27 @@ static const struct vop_ctrl rk3328_ctrl_data = {
 
 	.dsp_background = VOP_REG(RK3328_DSP_BG, 0xffffffff, 0),
 
+	.alpha_hard_calc = VOP_REG(RK3328_SYS_CTRL1, 0x1, 27),
+	.level2_overlay_en = VOP_REG(RK3328_SYS_CTRL1, 0x1, 28),
+
+	.hdr2sdr_en = VOP_REG(RK3328_HDR2DR_CTRL, 0x1, 0),
+	.hdr2sdr_src_min = VOP_REG(RK3328_HDR2DR_SRC_RANGE, 0x3fff, 0),
+	.hdr2sdr_src_max = VOP_REG(RK3328_HDR2DR_SRC_RANGE, 0x3fff, 16),
+	.hdr2sdr_normfaceetf = VOP_REG(RK3328_HDR2DR_NORMFACEETF, 0x7ff, 0),
+	.hdr2sdr_dst_min = VOP_REG(RK3328_HDR2DR_DST_RANGE, 0x3fff, 0),
+	.hdr2sdr_dst_max = VOP_REG(RK3328_HDR2DR_DST_RANGE, 0x3fff, 16),
+	.hdr2sdr_normfacgamma = VOP_REG(RK3328_HDR2DR_NORMFACGAMMA, 0xffff, 0),
+
+	.bt1886eotf_pre_conv_en = VOP_REG(RK3328_SDR2HDR_CTRL, 0x1, 0),
+	.rgb2rgb_pre_conv_en = VOP_REG(RK3328_SDR2HDR_CTRL, 0x1, 1),
+	.rgb2rgb_pre_conv_mode = VOP_REG(RK3328_SDR2HDR_CTRL, 0x1, 2),
+	.st2084oetf_pre_conv_en = VOP_REG(RK3328_SDR2HDR_CTRL, 0x1, 3),
+	.bt1886eotf_post_conv_en = VOP_REG(RK3328_SDR2HDR_CTRL, 0x1, 4),
+	.rgb2rgb_post_conv_en = VOP_REG(RK3328_SDR2HDR_CTRL, 0x1, 5),
+	.rgb2rgb_post_conv_mode = VOP_REG(RK3328_SDR2HDR_CTRL, 0x1, 6),
+	.st2084oetf_post_conv_en = VOP_REG(RK3328_SDR2HDR_CTRL, 0x1, 7),
+	.win_csc_mode_sel = VOP_REG(RK3328_SDR2HDR_CTRL, 0x1, 31),
+
 	.bcsh_brightness = VOP_REG(RK3328_BCSH_BCS, 0xff, 0),
 	.bcsh_contrast = VOP_REG(RK3328_BCSH_BCS, 0x1ff, 8),
 	.bcsh_sat_con = VOP_REG(RK3328_BCSH_BCS, 0x3ff, 20),
@@ -681,18 +941,40 @@ static const struct vop_intr rk3328_vop_intr = {
 	.clear = VOP_REG_MASK(RK3328_INTR_CLEAR0, 0xffff, 0),
 };
 
+static const struct vop_csc rk3328_win0_csc = {
+	.r2y_en = VOP_REG(RK3328_SDR2HDR_CTRL, 0x1, 8),
+	.r2r_en = VOP_REG(RK3328_SDR2HDR_CTRL, 0x1, 5),
+	.y2r_en = VOP_REG(RK3328_SDR2HDR_CTRL, 0x1, 9),
+};
+
+static const struct vop_csc rk3328_win1_csc = {
+	.r2y_en = VOP_REG(RK3328_SDR2HDR_CTRL, 0x1, 10),
+	.r2r_en = VOP_REG(RK3328_SDR2HDR_CTRL, 0x1, 1),
+	.y2r_en = VOP_REG(RK3328_SDR2HDR_CTRL, 0x1, 11),
+};
+
+static const struct vop_csc rk3328_win2_csc = {
+	.r2y_en = VOP_REG(RK3328_SDR2HDR_CTRL, 0x1, 12),
+	.r2r_en = VOP_REG(RK3328_SDR2HDR_CTRL, 0x1, 1),
+	.y2r_en = VOP_REG(RK3328_SDR2HDR_CTRL, 0x1, 13),
+};
+
 static const struct vop_win_data rk3328_vop_win_data[] = {
-	{ .base = 0xd0, .phy = &rk3288_win01_data,
-	  .type = DRM_PLANE_TYPE_PRIMARY },
-	{ .base = 0x1d0, .phy = &rk3288_win01_data,
-	  .type = DRM_PLANE_TYPE_OVERLAY },
-	{ .base = 0x2d0, .phy = &rk3288_win01_data,
-	  .type = DRM_PLANE_TYPE_CURSOR },
+	{ .base = 0xd0, .phy = &rk3288_win01_data,  .csc = &rk3328_win0_csc,
+	  .type = DRM_PLANE_TYPE_PRIMARY,
+	  .feature = WIN_FEATURE_HDR2SDR | WIN_FEATURE_SDR2HDR },
+	{ .base = 0x1d0, .phy = &rk3288_win01_data, .csc = &rk3328_win1_csc,
+	  .type = DRM_PLANE_TYPE_OVERLAY,
+	  .feature = WIN_FEATURE_SDR2HDR | WIN_FEATURE_PRE_OVERLAY },
+	{ .base = 0x2d0, .phy = &rk3288_win01_data, .csc = &rk3328_win2_csc,
+	  .type = DRM_PLANE_TYPE_CURSOR,
+	  .feature = WIN_FEATURE_SDR2HDR | WIN_FEATURE_PRE_OVERLAY },
 };
 
 static const struct vop_data rk3328_vop = {
 	.version = VOP_VERSION(3, 8),
 	.feature = VOP_FEATURE_OUTPUT_10BIT,
+	.hdr_table = &rk3328_hdr_table,
 	.max_input = {4096, 8192},
 	.max_output = {4096, 2160},
 	.intr = &rk3328_vop_intr,

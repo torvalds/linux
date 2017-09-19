@@ -1095,6 +1095,11 @@ static int rockchip_drm_create_properties(struct drm_device *dev)
 	if (!prop)
 		return -ENOMEM;
 	private->cabc_calc_pixel_num_property = prop;
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
+					 "EOTF", 0, 5);
+	if (!prop)
+		return -ENOMEM;
+	private->eotf_prop = prop;
 
 	return drm_mode_create_tv_properties(dev, 0, NULL);
 }

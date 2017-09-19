@@ -202,6 +202,27 @@ struct vop_ctrl {
 	struct vop_reg bcsh_out_mode;
 	struct vop_reg bcsh_en;
 
+	/* HDR */
+	struct vop_reg level2_overlay_en;
+	struct vop_reg alpha_hard_calc;
+	struct vop_reg hdr2sdr_en;
+	struct vop_reg hdr2sdr_src_min;
+	struct vop_reg hdr2sdr_src_max;
+	struct vop_reg hdr2sdr_normfaceetf;
+	struct vop_reg hdr2sdr_dst_min;
+	struct vop_reg hdr2sdr_dst_max;
+	struct vop_reg hdr2sdr_normfacgamma;
+
+	struct vop_reg bt1886eotf_pre_conv_en;
+	struct vop_reg rgb2rgb_pre_conv_en;
+	struct vop_reg rgb2rgb_pre_conv_mode;
+	struct vop_reg st2084oetf_pre_conv_en;
+	struct vop_reg bt1886eotf_post_conv_en;
+	struct vop_reg rgb2rgb_post_conv_en;
+	struct vop_reg rgb2rgb_post_conv_mode;
+	struct vop_reg st2084oetf_post_conv_en;
+	struct vop_reg win_csc_mode_sel;
+
 	struct vop_reg cfg_done;
 };
 
@@ -269,6 +290,37 @@ struct vop_csc_table {
 	const uint32_t *r2r_bt2020_to_bt709;
 };
 
+struct vop_hdr_table {
+	const uint32_t hdr2sdr_eetf_oetf_y0_offset;
+	const uint32_t hdr2sdr_eetf_oetf_y1_offset;
+	const uint32_t *hdr2sdr_eetf_yn;
+	const uint32_t *hdr2sdr_bt1886oetf_yn;
+	const uint32_t hdr2sdr_sat_y0_offset;
+	const uint32_t hdr2sdr_sat_y1_offset;
+	const uint32_t *hdr2sdr_sat_yn;
+
+	const uint32_t hdr2sdr_src_range_min;
+	const uint32_t hdr2sdr_src_range_max;
+	const uint32_t hdr2sdr_normfaceetf;
+	const uint32_t hdr2sdr_dst_range_min;
+	const uint32_t hdr2sdr_dst_range_max;
+	const uint32_t hdr2sdr_normfacgamma;
+
+	const uint32_t sdr2hdr_eotf_oetf_y0_offset;
+	const uint32_t sdr2hdr_eotf_oetf_y1_offset;
+	const uint32_t *sdr2hdr_bt1886eotf_yn_for_hlg_hdr;
+	const uint32_t *sdr2hdr_bt1886eotf_yn_for_bt2020;
+	const uint32_t *sdr2hdr_bt1886eotf_yn_for_hdr;
+	const uint32_t *sdr2hdr_st2084oetf_yn_for_hlg_hdr;
+	const uint32_t *sdr2hdr_st2084oetf_yn_for_bt2020;
+	const uint32_t *sdr2hdr_st2084oetf_yn_for_hdr;
+	const uint32_t sdr2hdr_oetf_dx_dxpow1_offset;
+	const uint32_t *sdr2hdr_st2084oetf_dxn_pow2;
+	const uint32_t *sdr2hdr_st2084oetf_dxn;
+	const uint32_t sdr2hdr_oetf_xn1_offset;
+	const uint32_t *sdr2hdr_st2084oetf_xn;
+};
+
 enum {
 	VOP_CSC_Y2R_BT601,
 	VOP_CSC_Y2R_BT709,
@@ -283,6 +335,17 @@ enum {
 enum _vop_overlay_mode {
 	VOP_RGB_DOMAIN,
 	VOP_YUV_DOMAIN
+};
+
+enum _vop_sdr2hdr_func {
+	SDR2HDR_FOR_BT2020,
+	SDR2HDR_FOR_HDR,
+	SDR2HDR_FOR_HLG_HDR,
+};
+
+enum _vop_rgb2rgb_conv_mode {
+	BT709_TO_BT2020,
+	BT2020_TO_BT709,
 };
 
 struct vop_win_phy {
@@ -321,10 +384,15 @@ struct vop_win_data {
 	const struct vop_win_phy **area;
 	const struct vop_csc *csc;
 	unsigned int area_size;
+	u64 feature;
 };
 
 #define VOP_FEATURE_OUTPUT_10BIT	BIT(0)
 #define VOP_FEATURE_AFBDC		BIT(1)
+
+#define WIN_FEATURE_HDR2SDR		BIT(0)
+#define WIN_FEATURE_SDR2HDR		BIT(1)
+#define WIN_FEATURE_PRE_OVERLAY		BIT(2)
 
 struct vop_rect {
 	int width;
@@ -338,6 +406,7 @@ struct vop_data {
 	const struct vop_intr *intr;
 	const struct vop_win_data *win;
 	const struct vop_csc_table *csc_table;
+	const struct vop_hdr_table *hdr_table;
 	unsigned int win_size;
 	uint32_t version;
 	struct vop_rect max_input;
