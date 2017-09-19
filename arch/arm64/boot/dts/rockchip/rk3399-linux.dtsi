@@ -158,6 +158,9 @@
 
 		isp_dvp_d0d7: isp-dvp-d0d7 {
 			rockchip,pins =
+				<4 27 RK_FUNC_GPIO &pcfg_pull_none>,
+				/* cif_clkout */
+				<2 11 RK_FUNC_3 &pcfg_pull_none>,
 				/* cif_data0 */
 				<2 0 RK_FUNC_3 &pcfg_pull_none>,
 				/* cif_data1 */

@@ -161,6 +161,15 @@
 	status = "okay";
 };
 
+&cif_isp1 {
+	rockchip,camera-modules-attached = <&camera2>;
+	status = "okay";
+};
+
+&isp1_mmu {
+	status = "okay";
+};
+
 &saradc {
 	vref-supply = <&vccadc_ref>;
 };
@@ -287,6 +296,31 @@
 
 		rockchip,camera-module-mclk-name = "clk_cif_out";
 		rockchip,camera-module-mipi-dphy-index = <0>;
+	};
+
+};
+
+&i2c4 {
+	status = "okay";
+
+	camera2: camera-module@2 {
+		status = "okay";
+		compatible = "adi,adv7181-v4l2-i2c-subdev";
+		reg = < 0x21 >;
+		device_type = "v4l2-i2c-subdev";
+
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "clk_cif_out";
+
+		pinctrl-names = "rockchip,camera_default",
+			"rockchip,camera_sleep";
+		pinctrl-0 = <&isp_dvp_d0d7>;
+		pinctrl-1 = <&cam0_sleep_pins>;
+
+		rockchip,camera-module-defrect0 = <720 480 0 13 720 480>;
+		rockchip,camera-module-defrect1 = <720 576 0 0 720 576>;
+		rockchip,camera-module-mclk-name = "clk_cif_out";
+		rockchip,camera-module-mipi-dphy-index = <1>;
 	};
 };
 
