@@ -1044,10 +1044,15 @@ EXPORT_SYMBOL_GPL(device_get_named_child_node);
 /**
  * fwnode_handle_get - Obtain a reference to a device node
  * @fwnode: Pointer to the device node to obtain the reference to.
+ *
+ * Returns the fwnode handle.
  */
-void fwnode_handle_get(struct fwnode_handle *fwnode)
+struct fwnode_handle *fwnode_handle_get(struct fwnode_handle *fwnode)
 {
-	fwnode_call_void_op(fwnode, get);
+	if (!fwnode_has_op(fwnode, get))
+		return fwnode;
+
+	return fwnode_call_ptr_op(fwnode, get);
 }
 EXPORT_SYMBOL_GPL(fwnode_handle_get);
 

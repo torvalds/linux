@@ -100,7 +100,7 @@ struct fwnode_handle *fwnode_get_named_child_node(
 struct fwnode_handle *device_get_named_child_node(struct device *dev,
 						  const char *childname);
 
-void fwnode_handle_get(struct fwnode_handle *fwnode);
+struct fwnode_handle *fwnode_handle_get(struct fwnode_handle *fwnode);
 void fwnode_handle_put(struct fwnode_handle *fwnode);
 
 unsigned int device_get_child_node_count(struct device *dev);
