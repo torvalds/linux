@@ -293,6 +293,10 @@ struct fwnode_handle *
 fwnode_graph_get_remote_node(const struct fwnode_handle *fwnode, u32 port,
 			     u32 endpoint);
 
+#define fwnode_graph_for_each_endpoint(fwnode, child)			\
+	for (child = NULL;						\
+	     (child = fwnode_graph_get_next_endpoint(fwnode, child)); )
+
 int fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 				struct fwnode_endpoint *endpoint);
 
