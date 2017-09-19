@@ -3673,6 +3673,7 @@ static int hclge_init_vlan_config(struct hclge_dev *hdev)
 {
 #define HCLGE_VLAN_TYPE_VF_TABLE   0
 #define HCLGE_VLAN_TYPE_PORT_TABLE 1
+	struct hnae3_handle *handle;
 	int ret;
 
 	ret = hclge_set_vlan_filter_ctrl(hdev, HCLGE_VLAN_TYPE_VF_TABLE,
@@ -3682,8 +3683,11 @@ static int hclge_init_vlan_config(struct hclge_dev *hdev)
 
 	ret = hclge_set_vlan_filter_ctrl(hdev, HCLGE_VLAN_TYPE_PORT_TABLE,
 					 true);
+	if (ret)
+		return ret;
 
-	return ret;
+	handle = &hdev->vport[0].nic;
+	return hclge_set_port_vlan_filter(handle, htons(ETH_P_8021Q), 0, false);
 }
 
 static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu)
