@@ -73,7 +73,6 @@ struct dvb_demux_filter {
 	enum dvb_dmx_filter_type type;
 
 	u16 hw_handle;
-	struct timer_list timer;
 };
 
 #define DMX_FEED_ENTRY(pos) list_entry(pos, struct dvb_demux_feed, list_head)
