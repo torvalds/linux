@@ -22,6 +22,7 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/phy/phy.h>
+#include <linux/pm_runtime.h>
 
 #define UPDATE(x, h, l)	(((x) << (l)) & GENMASK((h), (l)))
 
@@ -469,6 +470,7 @@ static int inno_mipi_dphy_power_on(struct phy *phy)
 {
 	struct inno_mipi_dphy *inno = phy_get_drvdata(phy);
 
+	pm_runtime_get_sync(inno->dev);
 	inno_mipi_dphy_pll_enable(inno);
 	inno_mipi_dphy_lane_enable(inno);
 	inno_mipi_dphy_reset(inno);
@@ -484,6 +486,7 @@ static int inno_mipi_dphy_power_off(struct phy *phy)
 
 	inno_mipi_dphy_lane_disable(inno);
 	inno_mipi_dphy_pll_disable(inno);
+	pm_runtime_put(inno->dev);
 
 	return 0;
 }
@@ -665,6 +668,8 @@ static int inno_mipi_dphy_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	pm_runtime_enable(dev);
+
 	return 0;
 }
 
@@ -672,6 +677,7 @@ static int inno_mipi_dphy_remove(struct platform_device *pdev)
 {
 	struct inno_mipi_dphy *inno = platform_get_drvdata(pdev);
 
+	pm_runtime_disable(inno->dev);
 	of_clk_del_provider(inno->dev->of_node);
 	clk_disable_unprepare(inno->ref_clk);
 
