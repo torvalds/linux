@@ -71,6 +71,8 @@
 #define	I40IW_HW_IRD_SETTING_32	32
 #define	I40IW_HW_IRD_SETTING_64	64
 
+#define I40IW_VLAN_PRIO_SHIFT   13
+
 enum ietf_mpa_flags {
 	IETF_MPA_FLAGS_MARKERS = 0x80,	/* receive Markers */
 	IETF_MPA_FLAGS_CRC = 0x40,	/* receive Markers */

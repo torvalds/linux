@@ -3255,7 +3255,8 @@ static void i40iw_init_tcp_ctx(struct i40iw_cm_node *cm_node,
 	tcp_info->snd_mss = cpu_to_le32(((u32)cm_node->tcp_cntxt.mss));
 	if (cm_node->vlan_id < VLAN_TAG_PRESENT) {
 		tcp_info->insert_vlan_tag = true;
-		tcp_info->vlan_tag = cpu_to_le16(cm_node->vlan_id);
+		tcp_info->vlan_tag = cpu_to_le16(((u16)cm_node->user_pri << I40IW_VLAN_PRIO_SHIFT) |
+						  cm_node->vlan_id);
 	}
 	if (cm_node->ipv4) {
 		tcp_info->src_port = cpu_to_le16(cm_node->loc_port);
