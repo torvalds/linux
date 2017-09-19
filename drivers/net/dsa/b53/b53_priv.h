@@ -199,119 +199,30 @@ static inline void b53_switch_remove(struct b53_device *dev)
 	dsa_unregister_switch(dev->ds);
 }
 
-static inline int b53_read8(struct b53_device *dev, u8 page, u8 reg, u8 *val)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->read8(dev, page, reg, val);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
+#define b53_build_op(type_op_size, val_type)				\
+static inline int b53_##type_op_size(struct b53_device *dev, u8 page,	\
+				     u8 reg, val_type val)		\
+{									\
+	int ret;							\
+									\
+	mutex_lock(&dev->reg_mutex);					\
+	ret = dev->ops->type_op_size(dev, page, reg, val);		\
+	mutex_unlock(&dev->reg_mutex);					\
+									\
+	return ret;							\
 }
 
-static inline int b53_read16(struct b53_device *dev, u8 page, u8 reg, u16 *val)
-{
-	int ret;
+b53_build_op(read8, u8 *);
+b53_build_op(read16, u16 *);
+b53_build_op(read32, u32 *);
+b53_build_op(read48, u64 *);
+b53_build_op(read64, u64 *);
 
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->read16(dev, page, reg, val);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int b53_read32(struct b53_device *dev, u8 page, u8 reg, u32 *val)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->read32(dev, page, reg, val);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int b53_read48(struct b53_device *dev, u8 page, u8 reg, u64 *val)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->read48(dev, page, reg, val);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int b53_read64(struct b53_device *dev, u8 page, u8 reg, u64 *val)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->read64(dev, page, reg, val);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int b53_write8(struct b53_device *dev, u8 page, u8 reg, u8 value)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->write8(dev, page, reg, value);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int b53_write16(struct b53_device *dev, u8 page, u8 reg,
-			      u16 value)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->write16(dev, page, reg, value);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int b53_write32(struct b53_device *dev, u8 page, u8 reg,
-			      u32 value)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->write32(dev, page, reg, value);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int b53_write48(struct b53_device *dev, u8 page, u8 reg,
-			      u64 value)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->write48(dev, page, reg, value);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
-
-static inline int b53_write64(struct b53_device *dev, u8 page, u8 reg,
-			       u64 value)
-{
-	int ret;
-
-	mutex_lock(&dev->reg_mutex);
-	ret = dev->ops->write64(dev, page, reg, value);
-	mutex_unlock(&dev->reg_mutex);
-
-	return ret;
-}
+b53_build_op(write8, u8);
+b53_build_op(write16, u16);
+b53_build_op(write32, u32);
+b53_build_op(write48, u64);
+b53_build_op(write64, u64);
 
 struct b53_arl_entry {
 	u8 port;
