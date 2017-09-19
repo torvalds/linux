@@ -10032,6 +10032,7 @@ L:	openrisc@lists.librecores.org
 W:	http://openrisc.io
 S:	Maintained
 F:	arch/openrisc/
+F:	drivers/irqchip/irq-or1k-*
 
 OPENVSWITCH
 M:	Pravin Shelar <pshelar@nicira.com>
