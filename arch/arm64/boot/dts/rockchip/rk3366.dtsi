@@ -1055,6 +1055,7 @@
 		#clock-cells = <0>;
 		resets = <&cru SRST_MIPIDPHYTX>;
 		reset-names = "apb";
+		power-domains = <&power RK3366_PD_VIO>;
 		#phy-cells = <0>;
 		status = "disabled";
 	};
