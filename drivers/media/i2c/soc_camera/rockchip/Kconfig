@@ -39,3 +39,10 @@ config VIDEO_TC358749XBG
 	default n
 	---help---
 	  This is tc358749xbg hdmi video driver adapt to rockchip cif isp platform.
+
+config VIDEO_ADV7181
+	tristate "adv7181 driver adapt to rockchip cif isp platform"
+	depends on VIDEO_V4L2 && VIDEO_RK_CIF_ISP10 && I2C
+	default n
+	---help---
+	  This is adv7181 cvbs video driver adapt to rockchip cif isp platform.
