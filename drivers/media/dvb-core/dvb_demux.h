@@ -64,7 +64,7 @@ struct dvb_demux_filter {
 	struct dmx_section_filter filter;
 	u8 maskandmode[DMX_MAX_FILTER_SIZE];
 	u8 maskandnotmode[DMX_MAX_FILTER_SIZE];
-	int doneq;
+	bool doneq;
 
 	struct dvb_demux_filter *next;
 	struct dvb_demux_feed *feed;

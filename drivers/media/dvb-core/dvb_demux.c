@@ -898,14 +898,14 @@ static void prepare_secfilters(struct dvb_demux_feed *dvbdmxfeed)
 		return;
 	do {
 		sf = &f->filter;
-		doneq = 0;
+		doneq = false;
 		for (i = 0; i < DVB_DEMUX_MASK_MAX; i++) {
 			mode = sf->filter_mode[i];
 			mask = sf->filter_mask[i];
 			f->maskandmode[i] = mask & mode;
 			doneq |= f->maskandnotmode[i] = mask & ~mode;
 		}
-		f->doneq = doneq ? 1 : 0;
+		f->doneq = doneq ? true : false;
 	} while ((f = f->next));
 }
 
