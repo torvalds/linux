@@ -9,6 +9,7 @@
 #include <asm/boot.h>
 #include <asm/asm.h>
 #include <asm/page_types.h>
+#include <asm/unwind_hints.h>
 
 #include <xen/interface/elfnote.h>
 #include <xen/interface/features.h>
@@ -19,6 +20,7 @@
 #ifdef CONFIG_XEN_PV
 	__INIT
 ENTRY(startup_xen)
+	UNWIND_HINT_EMPTY
 	cld
 
 	/* Clear .bss */
@@ -40,7 +42,10 @@ END(startup_xen)
 .pushsection .text
 	.balign PAGE_SIZE
 ENTRY(hypercall_page)
-	.skip PAGE_SIZE
+	.rept (PAGE_SIZE / 32)
+		UNWIND_HINT_EMPTY
+		.skip 32
+	.endr
 
 #define HYPERCALL(n) \
 	.equ xen_hypercall_##n, hypercall_page + __HYPERVISOR_##n * 32; \
