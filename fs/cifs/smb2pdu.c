@@ -570,10 +570,11 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 			/* ops set to 3.0 by default for default so update */
 			ses->server->ops = &smb21_operations;
 		}
-	} else if (rsp->DialectRevision != ses->server->vals->protocol_id) {
+	} else if (le16_to_cpu(rsp->DialectRevision) !=
+				ses->server->vals->protocol_id) {
 		/* if requested single dialect ensure returned dialect matched */
 		cifs_dbg(VFS, "Illegal 0x%x dialect returned: not requested\n",
-			cpu_to_le16(rsp->DialectRevision));
+			le16_to_cpu(rsp->DialectRevision));
 		return -EIO;
 	}
 
