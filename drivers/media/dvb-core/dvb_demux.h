@@ -60,6 +60,21 @@ enum dvb_dmx_state {
 
 #define SPEED_PKTS_INTERVAL 50000
 
+/**
+ * struct dvb_demux_filter - Describes a DVB demux section filter.
+ *
+ * @filter:		Section filter as defined by &struct dmx_section_filter.
+ * @maskandmode:	logical ``and`` bit mask.
+ * @maskandnotmode:	logical ``and not`` bit mask.
+ * @doneq:		flag that indicates when a filter is ready.
+ * @next:		pointer to the next section filter.
+ * @feed:		&struct dvb_demux_feed pointer.
+ * @index:		index of the used demux filter.
+ * @state:		state of the filter as described by &enum dvb_dmx_state.
+ * @type:		type of the filter as described
+ *			by &enum dvb_dmx_filter_type.
+ */
+
 struct dvb_demux_filter {
 	struct dmx_section_filter filter;
 	u8 maskandmode[DMX_MAX_FILTER_SIZE];
@@ -72,9 +87,40 @@ struct dvb_demux_filter {
 	enum dvb_dmx_state state;
 	enum dvb_dmx_filter_type type;
 
+	/* private: used only by av7110 */
 	u16 hw_handle;
 };
 
+/**
+ * struct dvb_demux_feed - describes a DVB field
+ *
+ * @feed:	a digital TV feed. It can either be a TS or a section feed:
+ *		  - if the feed is TS, it contains &struct dvb_ts_feed;
+ *		  - if the feed is section, it contains
+ *		    &struct dmx_section_feed.
+ * @cb:		digital TV callbacks. depending on the feed type, it can be:
+ *		  - if the feed is TS, it contains a dmx_ts_cb() callback;
+ *		  - if the feed is section, it contains a dmx_section_cb()
+ *		    callback.
+ *
+ * @demux:	pointer to &struct dvb_demux.
+ * @priv:	private data for the filter handling routine.
+ * @type:	type of the filter, as defined by &enum dvb_dmx_filter_type.
+ * @state:	state of the filter as defined by &enum dvb_dmx_state.
+ * @pid:	PID to be filtered.
+ * @timeout:	feed timeout.
+ * @filter:	pointer to &struct dvb_demux_filter.
+ * @ts_type:	type of TS, as defined by &enum ts_filter_type.
+ * @pes_type:	type of PES, as defined by &enum dmx_ts_pes.
+ * @cc:		MPEG-TS packet continuity counter
+ * @pusi_seen:	if true, indicates that a discontinuity was detected.
+ *		it is used to prevent feeding of garbage from previous section.
+ * @peslen:	length of the PES (Packet Elementary Stream).
+ * @list_head:	head for the list of digital TV demux feeds.
+ * @index:	a unique index for each feed. Can be used as hardware
+ *		pid filter index.
+ *
+ */
 struct dvb_demux_feed {
 	union {
 		struct dmx_ts_feed ts;
@@ -99,12 +145,12 @@ struct dvb_demux_feed {
 	enum dmx_ts_pes pes_type;
 
 	int cc;
-	bool pusi_seen;		/* prevents feeding of garbage from previous section */
+	bool pusi_seen;
 
 	u16 peslen;
 
 	struct list_head list_head;
-	unsigned int index;	/* a unique index for each feed (can be used as hardware pid filter index) */
+	unsigned int index;
 };
 
 struct dvb_demux {
