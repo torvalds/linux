@@ -502,8 +502,7 @@ void b53_imp_vlan_setup(struct dsa_switch *ds, int cpu_port)
 }
 EXPORT_SYMBOL(b53_imp_vlan_setup);
 
-static int b53_enable_port(struct dsa_switch *ds, int port,
-			   struct phy_device *phy)
+int b53_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 {
 	struct b53_device *dev = ds->priv;
 	unsigned int cpu_port = dev->cpu_port;
@@ -530,9 +529,9 @@ static int b53_enable_port(struct dsa_switch *ds, int port,
 
 	return 0;
 }
+EXPORT_SYMBOL(b53_enable_port);
 
-static void b53_disable_port(struct dsa_switch *ds, int port,
-			     struct phy_device *phy)
+void b53_disable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 {
 	struct b53_device *dev = ds->priv;
 	u8 reg;
@@ -542,6 +541,7 @@ static void b53_disable_port(struct dsa_switch *ds, int port,
 	reg |= PORT_CTRL_RX_DISABLE | PORT_CTRL_TX_DISABLE;
 	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), reg);
 }
+EXPORT_SYMBOL(b53_disable_port);
 
 void b53_brcm_hdr_setup(struct dsa_switch *ds, int port)
 {

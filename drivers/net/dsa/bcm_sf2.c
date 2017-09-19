@@ -163,7 +163,6 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 			      struct phy_device *phy)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	s8 cpu_port = ds->dst->cpu_dp->index;
 	unsigned int i;
 	u32 reg;
 
@@ -183,9 +182,6 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	for (i = 0; i < SF2_NUM_EGRESS_QUEUES; i++)
 		reg |= i << (PRT_TO_QID_SHIFT * i);
 	core_writel(priv, reg, CORE_PORT_TC2_QOS_MAP_PORT(port));
-
-	/* Clear the Rx and Tx disable bits and set to no spanning tree */
-	core_writel(priv, 0, CORE_G_PCTL_PORT(port));
 
 	/* Re-enable the GPHY and re-apply workarounds */
 	if (priv->int_phy_mask & 1 << port && priv->hw_params.num_gphy == 1) {
@@ -209,23 +205,7 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	if (port == priv->moca_port)
 		bcm_sf2_port_intr_enable(priv, port);
 
-	/* Set this port, and only this one to be in the default VLAN,
-	 * if member of a bridge, restore its membership prior to
-	 * bringing down this port.
-	 */
-	reg = core_readl(priv, CORE_PORT_VLAN_CTL_PORT(port));
-	reg &= ~PORT_VLAN_CTRL_MASK;
-	reg |= (1 << port);
-	reg |= priv->dev->ports[port].vlan_ctl_mask;
-	core_writel(priv, reg, CORE_PORT_VLAN_CTL_PORT(port));
-
-	b53_imp_vlan_setup(ds, cpu_port);
-
-	/* If EEE was enabled, restore it */
-	if (priv->dev->ports[port].eee.eee_enabled)
-		b53_eee_enable_set(ds, port, true);
-
-	return 0;
+	return b53_enable_port(ds, port, phy);
 }
 
 static void bcm_sf2_port_disable(struct dsa_switch *ds, int port,
@@ -248,9 +228,7 @@ static void bcm_sf2_port_disable(struct dsa_switch *ds, int port,
 	else
 		off = CORE_G_PCTL_PORT(port);
 
-	reg = core_readl(priv, off);
-	reg |= RX_DIS | TX_DIS;
-	core_writel(priv, reg, off);
+	b53_disable_port(ds, port, phy);
 
 	/* Power down the port memory */
 	reg = core_readl(priv, CORE_MEM_PSM_VDD_CTRL);
