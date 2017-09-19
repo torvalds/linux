@@ -1320,8 +1320,7 @@ static int udc_bind_to_driver(struct usb_udc *udc, struct usb_gadget_driver *dri
 	udc->dev.driver = &driver->driver;
 	udc->gadget->dev.driver = &driver->driver;
 
-	if (driver->max_speed < udc->gadget->max_speed)
-		usb_gadget_udc_set_speed(udc, driver->max_speed);
+	usb_gadget_udc_set_speed(udc, driver->max_speed);
 
 	ret = driver->bind(udc->gadget, driver);
 	if (ret)
