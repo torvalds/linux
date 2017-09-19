@@ -367,6 +367,7 @@ static inline void dvb_dmx_swfilter_packet_type(struct dvb_demux_feed *feed,
 			else
 				feed->cb.ts(buf, 188, NULL, 0, &feed->feed.ts);
 		}
+		/* Used only on full-featured devices */
 		if (feed->ts_type & TS_DECODER)
 			if (feed->demux->write_to_decoder)
 				feed->demux->write_to_decoder(feed, buf, 188);
