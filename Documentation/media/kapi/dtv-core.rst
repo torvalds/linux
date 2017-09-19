@@ -29,7 +29,19 @@ I2C bus.
 Digital TV Common functions
 ---------------------------
 
+Math functions
+~~~~~~~~~~~~~~
+
+Provide some commonly-used math functions, usually required in order to
+estimate signal strength and signal to noise measurements in dB.
+
 .. kernel-doc:: drivers/media/dvb-core/dvb_math.h
+
+
+DVB devices
+~~~~~~~~~~~
+
+Those functions are responsible for handling the DVB device nodes.
 
 .. kernel-doc:: drivers/media/dvb-core/dvbdev.h
 
