@@ -1136,7 +1136,8 @@ static int wcn36xx_init_ieee80211(struct wcn36xx *wcn)
 		BIT(NL80211_IFTYPE_MESH_POINT);
 
 	wcn->hw->wiphy->bands[NL80211_BAND_2GHZ] = &wcn_band_2ghz;
-	wcn->hw->wiphy->bands[NL80211_BAND_5GHZ] = &wcn_band_5ghz;
+	if (wcn->rf_id != RF_IRIS_WCN3620)
+		wcn->hw->wiphy->bands[NL80211_BAND_5GHZ] = &wcn_band_5ghz;
 
 	wcn->hw->wiphy->max_scan_ssids = WCN36XX_MAX_SCAN_SSIDS;
 	wcn->hw->wiphy->max_scan_ie_len = WCN36XX_MAX_SCAN_IE_LEN;
@@ -1169,6 +1170,7 @@ static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,
 					  struct platform_device *pdev)
 {
 	struct device_node *mmio_node;
+	struct device_node *iris_node;
 	struct resource *res;
 	int index;
 	int ret;
@@ -1229,6 +1231,14 @@ static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,
 		wcn36xx_err("failed to map dxe memory\n");
 		ret = -ENOMEM;
 		goto unmap_ccu;
+	}
+
+	/* External RF module */
+	iris_node = of_find_node_by_name(mmio_node, "iris");
+	if (iris_node) {
+		if (of_device_is_compatible(iris_node, "qcom,wcn3620"))
+			wcn->rf_id = RF_IRIS_WCN3620;
+		of_node_put(iris_node);
 	}
 
 	of_node_put(mmio_node);
