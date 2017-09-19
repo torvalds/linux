@@ -34,7 +34,7 @@ ENTRY(startup_xen)
 	mov $init_thread_union+THREAD_SIZE, %_ASM_SP
 
 	jmp xen_start_kernel
-
+END(startup_xen)
 	__FINIT
 #endif
 
@@ -48,7 +48,7 @@ ENTRY(hypercall_page)
 	.type xen_hypercall_##n, @function; .size xen_hypercall_##n, 32
 #include <asm/xen-hypercalls.h>
 #undef HYPERCALL
-
+END(hypercall_page)
 .popsection
 
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz "linux")
