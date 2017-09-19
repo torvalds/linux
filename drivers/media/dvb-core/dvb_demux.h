@@ -95,7 +95,7 @@ struct dvb_demux_feed {
 	ktime_t timeout;
 	struct dvb_demux_filter *filter;
 
-	int ts_type;
+	enum ts_filter_type ts_type;
 	enum dmx_ts_pes pes_type;
 
 	int cc;
