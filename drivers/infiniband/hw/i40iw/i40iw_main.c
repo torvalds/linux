@@ -99,8 +99,6 @@ static struct notifier_block i40iw_net_notifier = {
 	.notifier_call = i40iw_net_event
 };
 
-static atomic_t i40iw_notifiers_registered;
-
 /**
  * i40iw_find_i40e_handler - find a handler given a client info
  * @ldev: pointer to a client info
@@ -1376,11 +1374,20 @@ error:
  */
 static void i40iw_register_notifiers(void)
 {
-	if (atomic_inc_return(&i40iw_notifiers_registered) == 1) {
-		register_inetaddr_notifier(&i40iw_inetaddr_notifier);
-		register_inet6addr_notifier(&i40iw_inetaddr6_notifier);
-		register_netevent_notifier(&i40iw_net_notifier);
-	}
+	register_inetaddr_notifier(&i40iw_inetaddr_notifier);
+	register_inet6addr_notifier(&i40iw_inetaddr6_notifier);
+	register_netevent_notifier(&i40iw_net_notifier);
+}
+
+/**
+ * i40iw_unregister_notifiers - unregister tcp ip notifiers
+ */
+
+static void i40iw_unregister_notifiers(void)
+{
+	unregister_netevent_notifier(&i40iw_net_notifier);
+	unregister_inetaddr_notifier(&i40iw_inetaddr_notifier);
+	unregister_inet6addr_notifier(&i40iw_inetaddr6_notifier);
 }
 
 /**
@@ -1467,12 +1474,6 @@ static void i40iw_deinit_device(struct i40iw_device *iwdev)
 		if (!iwdev->reset)
 			i40iw_del_macip_entry(iwdev, (u8)iwdev->mac_ip_table_idx);
 		/* fallthrough */
-	case INET_NOTIFIER:
-		if (!atomic_dec_return(&i40iw_notifiers_registered)) {
-			unregister_netevent_notifier(&i40iw_net_notifier);
-			unregister_inetaddr_notifier(&i40iw_inetaddr_notifier);
-			unregister_inet6addr_notifier(&i40iw_inetaddr6_notifier);
-		}
 		/* fallthrough */
 	case PBLE_CHUNK_MEM:
 		i40iw_destroy_pble_pool(dev, iwdev->pble_rsrc);
@@ -1672,8 +1673,6 @@ static int i40iw_open(struct i40e_info *ldev, struct i40e_client *client)
 			break;
 		iwdev->init_state = PBLE_CHUNK_MEM;
 		iwdev->virtchnl_wq = alloc_ordered_workqueue("iwvch", WQ_MEM_RECLAIM);
-		i40iw_register_notifiers();
-		iwdev->init_state = INET_NOTIFIER;
 		status = i40iw_add_mac_ip(iwdev);
 		if (status)
 			break;
@@ -2023,6 +2022,8 @@ static int __init i40iw_init_module(void)
 	i40iw_client.type = I40E_CLIENT_IWARP;
 	spin_lock_init(&i40iw_handler_lock);
 	ret = i40e_register_client(&i40iw_client);
+	i40iw_register_notifiers();
+
 	return ret;
 }
 
@@ -2034,6 +2035,7 @@ static int __init i40iw_init_module(void)
  */
 static void __exit i40iw_exit_module(void)
 {
+	i40iw_unregister_notifiers();
 	i40e_unregister_client(&i40iw_client);
 }
 
