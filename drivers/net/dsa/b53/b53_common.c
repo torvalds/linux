@@ -538,19 +538,18 @@ static void b53_disable_port(struct dsa_switch *ds, int port,
 	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), reg);
 }
 
-static void b53_enable_cpu_port(struct b53_device *dev)
+static void b53_enable_cpu_port(struct b53_device *dev, int port)
 {
-	unsigned int cpu_port = dev->cpu_port;
 	u8 port_ctrl;
 
 	/* BCM5325 CPU port is at 8 */
-	if ((is5325(dev) || is5365(dev)) && cpu_port == B53_CPU_PORT_25)
-		cpu_port = B53_CPU_PORT;
+	if ((is5325(dev) || is5365(dev)) && port == B53_CPU_PORT_25)
+		port = B53_CPU_PORT;
 
 	port_ctrl = PORT_CTRL_RX_BCST_EN |
 		    PORT_CTRL_RX_MCST_EN |
 		    PORT_CTRL_RX_UCST_EN;
-	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(cpu_port), port_ctrl);
+	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), port_ctrl);
 }
 
 static void b53_enable_mib(struct b53_device *dev)
@@ -820,7 +819,7 @@ static int b53_setup(struct dsa_switch *ds)
 		if (BIT(port) & ds->enabled_port_mask)
 			b53_enable_port(ds, port, NULL);
 		else if (dsa_is_cpu_port(ds, port))
-			b53_enable_cpu_port(dev);
+			b53_enable_cpu_port(dev, port);
 		else
 			b53_disable_port(ds, port, NULL);
 	}
