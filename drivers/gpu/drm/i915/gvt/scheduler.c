@@ -634,6 +634,13 @@ complete:
 					FORCEWAKE_ALL);
 
 		intel_runtime_pm_put(gvt->dev_priv);
+		if (ret && (vgpu_is_vm_unhealthy(ret))) {
+			mutex_lock(&gvt->lock);
+			intel_vgpu_clean_execlist(vgpu);
+			mutex_unlock(&gvt->lock);
+			enter_failsafe_mode(vgpu, GVT_FAILSAFE_GUEST_ERR);
+		}
+
 	}
 	return 0;
 }

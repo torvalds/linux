@@ -193,6 +193,10 @@ struct intel_vgpu {
 #endif
 };
 
+/* validating GM healthy status*/
+#define vgpu_is_vm_unhealthy(ret_val) \
+	(((ret_val) == -EBADRQC) || ((ret_val) == -EFAULT))
+
 struct intel_gvt_gm {
 	unsigned long vgpu_allocated_low_gm_size;
 	unsigned long vgpu_allocated_high_gm_size;
@@ -497,6 +501,7 @@ int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci);
 void populate_pvinfo_page(struct intel_vgpu *vgpu);
 
 int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload);
+void enter_failsafe_mode(struct intel_vgpu *vgpu, int reason);
 
 struct intel_gvt_ops {
 	int (*emulate_cfg_read)(struct intel_vgpu *, unsigned int, void *,
@@ -519,6 +524,7 @@ struct intel_gvt_ops {
 enum {
 	GVT_FAILSAFE_UNSUPPORTED_GUEST,
 	GVT_FAILSAFE_INSUFFICIENT_RESOURCE,
+	GVT_FAILSAFE_GUEST_ERR,
 };
 
 static inline void mmio_hw_access_pre(struct drm_i915_private *dev_priv)
