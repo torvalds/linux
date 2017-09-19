@@ -1066,6 +1066,7 @@ static int hclge_configure(struct hclge_dev *hdev)
 	for (i = 0; i < ETH_ALEN; i++)
 		hdev->hw.mac.mac_addr[i] = cfg.mac_addr[i];
 	hdev->hw.mac.media_type = cfg.media_type;
+	hdev->hw.mac.phy_addr = cfg.phy_addr;
 	hdev->num_desc = cfg.tqp_desc_num;
 	hdev->tm_info.num_pg = 1;
 	hdev->tm_info.num_tc = cfg.tc_num;
