@@ -699,7 +699,8 @@ static int ovl_lower_dir(const char *name, struct path *path,
 	 * The inodes index feature needs to encode and decode file
 	 * handles, so it requires that all layers support them.
 	 */
-	if (ofs->config.index && !ovl_can_decode_fh(path->dentry->d_sb)) {
+	if (ofs->config.index && ofs->config.upperdir &&
+	    !ovl_can_decode_fh(path->dentry->d_sb)) {
 		ofs->config.index = false;
 		pr_warn("overlayfs: fs on '%s' does not support file handles, falling back to index=off.\n", name);
 	}
@@ -1268,11 +1269,16 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		if (err)
 			goto out_free_oe;
 
-		if (!ofs->indexdir)
+		/* Force r/o mount with no index dir */
+		if (!ofs->indexdir) {
+			dput(ofs->workdir);
+			ofs->workdir = NULL;
 			sb->s_flags |= SB_RDONLY;
+		}
+
 	}
 
-	/* Show index=off/on in /proc/mounts for any of the reasons above */
+	/* Show index=off in /proc/mounts for forced r/o mount */
 	if (!ofs->indexdir)
 		ofs->config.index = false;
 
