@@ -7,8 +7,8 @@ Digital TV Demux
 The Kernel Digital TV Demux kABI defines a driver-internal interface for
 registering low-level, hardware specific driver to a hardware independent
 demux layer. It is only of interest for Digital TV device driver writers.
-The header file for this kABI is named demux.h and located in
-drivers/media/dvb-core.
+The header file for this kABI is named ``demux.h`` and located in
+``drivers/media/dvb-core``.
 
 The demux kABI should be implemented for each demux in the system. It is
 used to select the TS source of a demux and to manage the demux resources.
@@ -27,7 +27,7 @@ tuning, are devined via the Digital TV Frontend kABI.
 The functions that implement the abstract interface demux should be defined
 static or module private and registered to the Demux core for external
 access. It is not necessary to implement every function in the struct
-&dmx_demux. For example, a demux interface might support Section filtering,
+:c:type:`dmx_demux`. For example, a demux interface might support Section filtering,
 but not PES filtering. The kABI client is expected to check the value of any
 function pointer before calling the function: the value of ``NULL`` means
 that the function is not available.
@@ -42,8 +42,6 @@ kernel thread being put to sleep if swapping is needed. For example, the
 Linux Kernel calls the functions of a network device interface from a
 bottom half context. Thus, if a demux kABI function is called from network
 device code, the function must not sleep.
-
-
 
 Demux Callback API
 ~~~~~~~~~~~~~~~~~~
@@ -67,5 +65,8 @@ function call directly from a hardware interrupt.
 
 This mechanism is implemented by :c:func:`dmx_ts_cb()` and :c:func:`dmx_section_cb()`
 callbacks.
+
+Digital TV Demux functions and types
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/media/dvb-core/demux.h
