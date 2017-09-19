@@ -2142,15 +2142,14 @@ MLXSW_REG_DEFINE(pefa, MLXSW_REG_PEFA_ID, MLXSW_REG_PEFA_LEN);
  */
 MLXSW_ITEM32(reg, pefa, index, 0x00, 0, 24);
 
-#define MLXSW_REG_PXXX_FLEX_ACTION_SET_LEN 0xA8
+#define MLXSW_REG_FLEX_ACTION_SET_LEN 0xA8
 
 /* reg_pefa_flex_action_set
  * Action-set to perform when rule is matched.
  * Must be zero padded if action set is shorter.
  * Access: RW
  */
-MLXSW_ITEM_BUF(reg, pefa, flex_action_set, 0x08,
-	       MLXSW_REG_PXXX_FLEX_ACTION_SET_LEN);
+MLXSW_ITEM_BUF(reg, pefa, flex_action_set, 0x08, MLXSW_REG_FLEX_ACTION_SET_LEN);
 
 static inline void mlxsw_reg_pefa_pack(char *payload, u32 index,
 				       const char *flex_action_set)
@@ -2243,7 +2242,7 @@ MLXSW_ITEM_BUF(reg, ptce2, mask, 0x80,
  * Access: RW
  */
 MLXSW_ITEM_BUF(reg, ptce2, flex_action_set, 0xE0,
-	       MLXSW_REG_PXXX_FLEX_ACTION_SET_LEN);
+	       MLXSW_REG_FLEX_ACTION_SET_LEN);
 
 static inline void mlxsw_reg_ptce2_pack(char *payload, bool valid,
 					enum mlxsw_reg_ptce2_op op,
