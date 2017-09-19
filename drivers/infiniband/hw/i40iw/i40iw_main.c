@@ -1400,6 +1400,11 @@ static enum i40iw_status_code i40iw_save_msix_info(struct i40iw_device *iwdev,
 	u32 i;
 	u32 size;
 
+	if (!ldev->msix_count) {
+		i40iw_pr_err("No MSI-X vectors\n");
+		return I40IW_ERR_CONFIG;
+	}
+
 	iwdev->msix_count = ldev->msix_count;
 
 	size = sizeof(struct i40iw_msix_vector) * iwdev->msix_count;
@@ -1550,7 +1555,7 @@ static enum i40iw_status_code i40iw_setup_init_state(struct i40iw_handler *hdl,
 
 	status = i40iw_save_msix_info(iwdev, ldev);
 	if (status)
-		goto exit;
+		return status;
 	iwdev->hw.dev_context = (void *)ldev->pcidev;
 	iwdev->hw.hw_addr = ldev->hw_addr;
 	status = i40iw_allocate_dma_mem(&iwdev->hw,
