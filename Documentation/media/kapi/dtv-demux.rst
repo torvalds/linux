@@ -66,7 +66,17 @@ function call directly from a hardware interrupt.
 This mechanism is implemented by :c:func:`dmx_ts_cb()` and :c:func:`dmx_section_cb()`
 callbacks.
 
-Digital TV Demux functions and types
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Digital TV Demux device registration functions and data structures
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/media/dvb-core/dmxdev.h
+
+High-level Digital TV demux interface
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/media/dvb-core/dvb_demux.h
+
+Driver-internal low-level hardware specific driver demux interface
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/media/dvb-core/demux.h
