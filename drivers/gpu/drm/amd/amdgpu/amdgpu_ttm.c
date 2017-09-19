@@ -1784,98 +1784,34 @@ static ssize_t amdgpu_iova_to_phys_read(struct file *f, char __user *buf,
 				   size_t size, loff_t *pos)
 {
 	struct amdgpu_device *adev = file_inode(f)->i_private;
-	ssize_t result, n;
 	int r;
 	uint64_t phys;
-	void *ptr;
 	struct iommu_domain *dom;
 
-	dom = iommu_get_domain_for_dev(adev->dev);
-	if (!dom)
-		return -EFAULT;
+	// always return 8 bytes
+	if (size != 8)
+		return -EINVAL;
 
-	result = 0;
-	while (size) {
-		// get physical address and map
-		phys = iommu_iova_to_phys(dom, *pos);
-
-		// copy upto one page
-		if (size > PAGE_SIZE)
-			n = PAGE_SIZE;
-		else
-			n = size;
-
-		// to end of the page
-		if (((*pos & (PAGE_SIZE - 1)) + n) >= PAGE_SIZE)
-			n = PAGE_SIZE - (*pos & (PAGE_SIZE - 1));
-
-		ptr = kmap(pfn_to_page(PFN_DOWN(phys)));
-		if (!ptr)
-			return -EFAULT;
-
-		r = copy_to_user(buf, ptr, n);
-		kunmap(pfn_to_page(PFN_DOWN(phys)));
-		if (r)
-			return -EFAULT;
-
-		*pos += n;
-		size -= n;
-		result += n;
-	}
-
-	return result;
-}
-
-static ssize_t amdgpu_iova_to_phys_write(struct file *f, const char __user *buf,
-				   size_t size, loff_t *pos)
-{
-	struct amdgpu_device *adev = file_inode(f)->i_private;
-	ssize_t result, n;
-	int r;
-	uint64_t phys;
-	void *ptr;
-	struct iommu_domain *dom;
+	// only accept page addresses
+	if (*pos & 0xFFF)
+		return -EINVAL;
 
 	dom = iommu_get_domain_for_dev(adev->dev);
-	if (!dom)
+	if (dom)
+		phys = iommu_iova_to_phys(dom, *pos);
+	else
+		phys = *pos;
+
+	r = copy_to_user(buf, &phys, 8);
+	if (r)
 		return -EFAULT;
 
-	result = 0;
-	while (size) {
-		// get physical address and map
-		phys = iommu_iova_to_phys(dom, *pos);
-
-		// copy upto one page
-		if (size > PAGE_SIZE)
-			n = PAGE_SIZE;
-		else
-			n = size;
-
-		// to end of the page
-		if (((*pos & (PAGE_SIZE - 1)) + n) >= PAGE_SIZE)
-			n = PAGE_SIZE - (*pos & (PAGE_SIZE - 1));
-
-		ptr = kmap(pfn_to_page(PFN_DOWN(phys)));
-		if (!ptr)
-			return -EFAULT;
-
-		r = copy_from_user(ptr, buf, n);
-		kunmap(pfn_to_page(PFN_DOWN(phys)));
-		if (r)
-			return -EFAULT;
-
-		*pos += n;
-		size -= n;
-		result += n;
-	}
-
-	return result;
+	return 8;
 }
 
 static const struct file_operations amdgpu_ttm_iova_fops = {
 	.owner = THIS_MODULE,
 	.read = amdgpu_iova_to_phys_read,
-	.write = amdgpu_iova_to_phys_write,
 	.llseek = default_llseek
 };
 
