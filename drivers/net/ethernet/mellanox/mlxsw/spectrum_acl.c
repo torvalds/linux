@@ -396,7 +396,8 @@ int mlxsw_sp_acl_rulei_act_drop(struct mlxsw_sp_acl_rule_info *rulei)
 
 int mlxsw_sp_acl_rulei_act_trap(struct mlxsw_sp_acl_rule_info *rulei)
 {
-	return mlxsw_afa_block_append_trap(rulei->act_block);
+	return mlxsw_afa_block_append_trap(rulei->act_block,
+					   MLXSW_TRAP_ID_ACL0);
 }
 
 int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,

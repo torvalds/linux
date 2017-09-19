@@ -712,7 +712,7 @@ int mlxsw_afa_block_append_drop(struct mlxsw_afa_block *block)
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_drop);
 
-int mlxsw_afa_block_append_trap(struct mlxsw_afa_block *block)
+int mlxsw_afa_block_append_trap(struct mlxsw_afa_block *block, u16 trap_id)
 {
 	char *act = mlxsw_afa_block_append_action(block,
 						  MLXSW_AFA_TRAPDISC_CODE,
@@ -722,7 +722,7 @@ int mlxsw_afa_block_append_trap(struct mlxsw_afa_block *block)
 		return -ENOBUFS;
 	mlxsw_afa_trapdisc_pack(act, MLXSW_AFA_TRAPDISC_TRAP_ACTION_TRAP,
 				MLXSW_AFA_TRAPDISC_FORWARD_ACTION_DISCARD,
-				MLXSW_TRAP_ID_ACL0);
+				trap_id);
 	return 0;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_trap);
