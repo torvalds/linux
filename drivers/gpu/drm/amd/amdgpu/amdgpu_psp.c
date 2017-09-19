@@ -92,6 +92,12 @@ static int psp_sw_init(void *handle)
 
 static int psp_sw_fini(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	release_firmware(adev->psp.sos_fw);
+	adev->psp.sos_fw = NULL;
+	release_firmware(adev->psp.asd_fw);
+	adev->psp.asd_fw = NULL;
 	return 0;
 }
 

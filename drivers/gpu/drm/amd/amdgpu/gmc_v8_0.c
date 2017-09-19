@@ -1147,6 +1147,8 @@ static int gmc_v8_0_sw_fini(void *handle)
 	gmc_v8_0_gart_fini(adev);
 	amdgpu_gem_force_release(adev);
 	amdgpu_bo_fini(adev);
+	release_firmware(adev->mc.fw);
+	adev->mc.fw = NULL;
 
 	return 0;
 }
