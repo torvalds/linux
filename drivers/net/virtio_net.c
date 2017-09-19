@@ -656,6 +656,9 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		xdp.data_end = xdp.data + (len - vi->hdr_len);
 		act = bpf_prog_run_xdp(xdp_prog, &xdp);
 
+		if (act != XDP_PASS)
+			ewma_pkt_len_add(&rq->mrg_avg_pkt_len, len);
+
 		switch (act) {
 		case XDP_PASS:
 			/* recalculate offset to account for any header
@@ -671,14 +674,12 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 				put_page(page);
 				head_skb = page_to_skb(vi, rq, xdp_page,
 						       offset, len, PAGE_SIZE);
-				ewma_pkt_len_add(&rq->mrg_avg_pkt_len, len);
 				return head_skb;
 			}
 			break;
 		case XDP_TX:
 			if (unlikely(!virtnet_xdp_xmit(vi, &xdp)))
 				trace_xdp_exception(vi->dev, xdp_prog, act);
-			ewma_pkt_len_add(&rq->mrg_avg_pkt_len, len);
 			if (unlikely(xdp_page != page))
 				goto err_xdp;
 			rcu_read_unlock();
@@ -690,7 +691,6 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		case XDP_DROP:
 			if (unlikely(xdp_page != page))
 				__free_pages(xdp_page, 0);
-			ewma_pkt_len_add(&rq->mrg_avg_pkt_len, len);
 			goto err_xdp;
 		}
 	}
