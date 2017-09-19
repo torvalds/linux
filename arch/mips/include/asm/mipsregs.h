@@ -1377,29 +1377,32 @@ do {									\
 
 #define __write_64bit_c0_split(source, sel, val)			\
 do {									\
+	unsigned long long __tmp;					\
 	unsigned long __flags;						\
 									\
 	local_irq_save(__flags);					\
 	if (sel == 0)							\
 		__asm__ __volatile__(					\
 			".set\tmips64\n\t"				\
-			"dsll\t%L0, %L0, 32\n\t"			\
+			"dsll\t%L0, %L1, 32\n\t"			\
 			"dsrl\t%L0, %L0, 32\n\t"			\
-			"dsll\t%M0, %M0, 32\n\t"			\
+			"dsll\t%M0, %M1, 32\n\t"			\
 			"or\t%L0, %L0, %M0\n\t"				\
 			"dmtc0\t%L0, " #source "\n\t"			\
 			".set\tmips0"					\
-			: : "r" (val));					\
+			: "=&r,r" (__tmp)				\
+			: "r,0" (val));					\
 	else								\
 		__asm__ __volatile__(					\
 			".set\tmips64\n\t"				\
-			"dsll\t%L0, %L0, 32\n\t"			\
+			"dsll\t%L0, %L1, 32\n\t"			\
 			"dsrl\t%L0, %L0, 32\n\t"			\
-			"dsll\t%M0, %M0, 32\n\t"			\
+			"dsll\t%M0, %M1, 32\n\t"			\
 			"or\t%L0, %L0, %M0\n\t"				\
 			"dmtc0\t%L0, " #source ", " #sel "\n\t"		\
 			".set\tmips0"					\
-			: : "r" (val));					\
+			: "=&r,r" (__tmp)				\
+			: "r,0" (val));					\
 	local_irq_restore(__flags);					\
 } while (0)
 
