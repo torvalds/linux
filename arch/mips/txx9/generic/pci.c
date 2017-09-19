@@ -386,9 +386,10 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 	return 0;
 }
 
-int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+static int (*txx9_pci_map_irq)(const struct pci_dev *dev, u8 slot, u8 pin);
+int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
-	return txx9_board_vec->pci_map_irq(dev, slot, pin);
+	return txx9_pci_map_irq(dev, slot, pin);
 }
 
 char * (*txx9_board_pcibios_setup)(char *str) __initdata;
@@ -424,5 +425,8 @@ char *__init txx9_pcibios_setup(char *str)
 			txx9_pci_err_action = TXX9_PCI_ERR_IGNORE;
 		return NULL;
 	}
+
+	txx9_pci_map_irq = txx9_board_vec->pci_map_irq;
+
 	return str;
 }

@@ -48,7 +48,7 @@ void __init tx4939_report_pci1clk(void)
 		((pciclk + 50000) / 100000) % 10);
 }
 
-int __init tx4939_pcic1_map_irq(const struct pci_dev *dev, u8 slot)
+int tx4939_pcic1_map_irq(const struct pci_dev *dev, u8 slot)
 {
 	if (get_tx4927_pcicptr(dev->bus->sysdata) == tx4939_pcic1ptr) {
 		switch (slot) {
@@ -68,7 +68,7 @@ int __init tx4939_pcic1_map_irq(const struct pci_dev *dev, u8 slot)
 	return -1;
 }
 
-int __init tx4939_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+int tx4939_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq = tx4939_pcic1_map_irq(dev, slot);
 
