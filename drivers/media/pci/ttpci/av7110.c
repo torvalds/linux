@@ -1224,7 +1224,7 @@ static int budget_start_feed(struct dvb_demux_feed *feed)
 	dprintk(2, "av7110: %p\n", budget);
 
 	spin_lock(&budget->feedlock1);
-	feed->pusi_seen = 0; /* have a clean section start */
+	feed->pusi_seen = false; /* have a clean section start */
 	status = start_ts_capture(budget);
 	spin_unlock(&budget->feedlock1);
 	return status;

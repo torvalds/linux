@@ -101,7 +101,7 @@ struct dvb_demux_feed {
 	enum dmx_ts_pes pes_type;
 
 	int cc;
-	int pusi_seen;		/* prevents feeding of garbage from previous section */
+	bool pusi_seen;		/* prevents feeding of garbage from previous section */
 
 	u16 peslen;
 

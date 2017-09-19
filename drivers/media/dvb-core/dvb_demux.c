@@ -223,10 +223,10 @@ static void dvb_dmx_swfilter_section_new(struct dvb_demux_feed *feed)
  *  when the second packet arrives.
  *
  * Fix:
- * when demux is started, let feed->pusi_seen = 0 to
+ * when demux is started, let feed->pusi_seen = false to
  * prevent initial feeding of garbage from the end of
  * previous section. When you for the first time see PUSI=1
- * then set feed->pusi_seen = 1
+ * then set feed->pusi_seen = true
  */
 static int dvb_dmx_swfilter_section_copy_dump(struct dvb_demux_feed *feed,
 					      const u8 *buf, u8 len)
@@ -318,10 +318,10 @@ static int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed,
 		 */
 #endif
 		/*
-		 * Discontinuity detected. Reset pusi_seen = 0 to
+		 * Discontinuity detected. Reset pusi_seen to
 		 * stop feeding of suspicious data until next PUSI=1 arrives
 		 */
-		feed->pusi_seen = 0;
+		feed->pusi_seen = false;
 		dvb_dmx_swfilter_section_new(feed);
 	}
 
@@ -335,8 +335,8 @@ static int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed,
 
 			dvb_dmx_swfilter_section_copy_dump(feed, before,
 							   before_len);
-			/* before start of new section, set pusi_seen = 1 */
-			feed->pusi_seen = 1;
+			/* before start of new section, set pusi_seen */
+			feed->pusi_seen = true;
 			dvb_dmx_swfilter_section_new(feed);
 			dvb_dmx_swfilter_section_copy_dump(feed, after,
 							   after_len);
