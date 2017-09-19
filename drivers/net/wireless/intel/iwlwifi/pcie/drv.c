@@ -73,6 +73,8 @@
 #include <linux/pci-aspm.h>
 #include <linux/acpi.h>
 
+#include "fw/acpi.h"
+
 #include "iwl-trans.h"
 #include "iwl-drv.h"
 #include "internal.h"
@@ -641,37 +643,16 @@ static u64 splc_get_pwr_limit(struct iwl_trans *trans, union acpi_object *splc)
 
 static void set_dflt_pwr_limit(struct iwl_trans *trans, struct pci_dev *pdev)
 {
-	acpi_handle pxsx_handle;
-	acpi_handle handle;
-	struct acpi_buffer splc = {ACPI_ALLOCATE_BUFFER, NULL};
-	acpi_status status;
+	union acpi_object *data;
 
-	pxsx_handle = ACPI_HANDLE(&pdev->dev);
-	if (!pxsx_handle) {
-		IWL_DEBUG_INFO(trans,
-			       "Could not retrieve root port ACPI handle\n");
+	data = iwl_acpi_get_object(trans->dev, ACPI_SPLC_METHOD);
+	if (IS_ERR(data))
 		return;
-	}
 
-	/* Get the method's handle */
-	status = acpi_get_handle(pxsx_handle, (acpi_string)ACPI_SPLC_METHOD,
-				 &handle);
-	if (ACPI_FAILURE(status)) {
-		IWL_DEBUG_INFO(trans, "SPLC method not found\n");
-		return;
-	}
-
-	/* Call SPLC with no arguments */
-	status = acpi_evaluate_object(handle, NULL, NULL, &splc);
-	if (ACPI_FAILURE(status)) {
-		IWL_ERR(trans, "SPLC invocation failed (0x%x)\n", status);
-		return;
-	}
-
-	trans->dflt_pwr_limit = splc_get_pwr_limit(trans, splc.pointer);
+	trans->dflt_pwr_limit = splc_get_pwr_limit(trans, data);
 	IWL_DEBUG_INFO(trans, "Default power limit set to %lld\n",
 		       trans->dflt_pwr_limit);
-	kfree(splc.pointer);
+	kfree(data);
 }
 
 #else /* CONFIG_ACPI */

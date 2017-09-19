@@ -68,13 +68,14 @@
 #include <linux/export.h>
 #include <linux/etherdevice.h>
 #include <linux/pci.h>
-#include <linux/acpi.h>
+
 #include "iwl-drv.h"
 #include "iwl-modparams.h"
 #include "iwl-nvm-parse.h"
 #include "iwl-prph.h"
 #include "iwl-io.h"
 #include "iwl-csr.h"
+#include "fw/acpi.h"
 
 /* NVM offsets (in words) definitions */
 enum wkp_nvm_offsets {
@@ -990,37 +991,15 @@ static u32 iwl_wrdd_get_mcc(struct device *dev, union acpi_object *wrdd)
 
 int iwl_get_bios_mcc(struct device *dev, char *mcc)
 {
-	acpi_handle root_handle;
-	acpi_handle handle;
-	struct acpi_buffer wrdd = {ACPI_ALLOCATE_BUFFER, NULL};
-	acpi_status status;
+	union acpi_object *data;
 	u32 mcc_val;
 
-	root_handle = ACPI_HANDLE(dev);
-	if (!root_handle) {
-		IWL_DEBUG_EEPROM(dev,
-				 "Could not retrieve root port ACPI handle\n");
-		return -ENOENT;
-	}
+	data = iwl_acpi_get_object(dev, WRDD_METHOD);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
-	/* Get the method's handle */
-	status = acpi_get_handle(root_handle, (acpi_string)WRDD_METHOD,
-				 &handle);
-	if (ACPI_FAILURE(status)) {
-		IWL_DEBUG_EEPROM(dev, "WRD method not found\n");
-		return -ENOENT;
-	}
-
-	/* Call WRDD with no arguments */
-	status = acpi_evaluate_object(handle, NULL, NULL, &wrdd);
-	if (ACPI_FAILURE(status)) {
-		IWL_DEBUG_EEPROM(dev, "WRDC invocation failed (0x%x)\n",
-				 status);
-		return -ENOENT;
-	}
-
-	mcc_val = iwl_wrdd_get_mcc(dev, wrdd.pointer);
-	kfree(wrdd.pointer);
+	mcc_val = iwl_wrdd_get_mcc(dev, data);
+	kfree(data);
 	if (!mcc_val)
 		return -ENOENT;
 

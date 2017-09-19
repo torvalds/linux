@@ -66,7 +66,6 @@
  *****************************************************************************/
 #include <net/mac80211.h>
 #include <linux/netdevice.h>
-#include <linux/acpi.h>
 
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
@@ -76,6 +75,7 @@
 #include "iwl-io.h" /* for iwl_mvm_rx_card_state_notif */
 #include "iwl-prph.h"
 #include "iwl-eeprom-parse.h"
+#include "fw/acpi.h"
 
 #include "mvm.h"
 #include "fw/dbg.h"
@@ -660,37 +660,15 @@ static union acpi_object *iwl_mvm_sar_find_wifi_pkg(struct iwl_mvm *mvm,
 
 static int iwl_mvm_sar_get_wrds_table(struct iwl_mvm *mvm)
 {
-	union acpi_object *wifi_pkg, *table;
-	acpi_handle root_handle;
-	acpi_handle handle;
-	struct acpi_buffer wrds = {ACPI_ALLOCATE_BUFFER, NULL};
-	acpi_status status;
+	union acpi_object *wifi_pkg, *table, *data;
 	bool enabled;
 	int ret;
 
-	root_handle = ACPI_HANDLE(mvm->dev);
-	if (!root_handle) {
-		IWL_DEBUG_RADIO(mvm,
-				"Could not retrieve root port ACPI handle\n");
-		return -ENOENT;
-	}
+	data = iwl_acpi_get_object(mvm->dev, ACPI_WRDS_METHOD);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
-	/* Get the method's handle */
-	status = acpi_get_handle(root_handle, (acpi_string)ACPI_WRDS_METHOD,
-				 &handle);
-	if (ACPI_FAILURE(status)) {
-		IWL_DEBUG_RADIO(mvm, "WRDS method not found\n");
-		return -ENOENT;
-	}
-
-	/* Call WRDS with no arguments */
-	status = acpi_evaluate_object(handle, NULL, NULL, &wrds);
-	if (ACPI_FAILURE(status)) {
-		IWL_DEBUG_RADIO(mvm, "WRDS invocation failed (0x%x)\n", status);
-		return -ENOENT;
-	}
-
-	wifi_pkg = iwl_mvm_sar_find_wifi_pkg(mvm, wrds.pointer,
+	wifi_pkg = iwl_mvm_sar_find_wifi_pkg(mvm, data,
 					     ACPI_WRDS_WIFI_DATA_SIZE);
 	if (IS_ERR(wifi_pkg)) {
 		ret = PTR_ERR(wifi_pkg);
@@ -712,45 +690,22 @@ static int iwl_mvm_sar_get_wrds_table(struct iwl_mvm *mvm)
 	 */
 	ret = iwl_mvm_sar_set_profile(mvm, table, &mvm->sar_profiles[0],
 				      enabled);
-
 out_free:
-	kfree(wrds.pointer);
+	kfree(data);
 	return ret;
 }
 
 static int iwl_mvm_sar_get_ewrd_table(struct iwl_mvm *mvm)
 {
-	union acpi_object *wifi_pkg;
-	acpi_handle root_handle;
-	acpi_handle handle;
-	struct acpi_buffer ewrd = {ACPI_ALLOCATE_BUFFER, NULL};
-	acpi_status status;
+	union acpi_object *wifi_pkg, *data;
 	bool enabled;
 	int i, n_profiles, ret;
 
-	root_handle = ACPI_HANDLE(mvm->dev);
-	if (!root_handle) {
-		IWL_DEBUG_RADIO(mvm,
-				"Could not retrieve root port ACPI handle\n");
-		return -ENOENT;
-	}
+	data = iwl_acpi_get_object(mvm->dev, ACPI_EWRD_METHOD);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
-	/* Get the method's handle */
-	status = acpi_get_handle(root_handle, (acpi_string)ACPI_EWRD_METHOD,
-				 &handle);
-	if (ACPI_FAILURE(status)) {
-		IWL_DEBUG_RADIO(mvm, "EWRD method not found\n");
-		return -ENOENT;
-	}
-
-	/* Call EWRD with no arguments */
-	status = acpi_evaluate_object(handle, NULL, NULL, &ewrd);
-	if (ACPI_FAILURE(status)) {
-		IWL_DEBUG_RADIO(mvm, "EWRD invocation failed (0x%x)\n", status);
-		return -ENOENT;
-	}
-
-	wifi_pkg = iwl_mvm_sar_find_wifi_pkg(mvm, ewrd.pointer,
+	wifi_pkg = iwl_mvm_sar_find_wifi_pkg(mvm, data,
 					     ACPI_EWRD_WIFI_DATA_SIZE);
 	if (IS_ERR(wifi_pkg)) {
 		ret = PTR_ERR(wifi_pkg);
@@ -792,43 +747,21 @@ static int iwl_mvm_sar_get_ewrd_table(struct iwl_mvm *mvm)
 	}
 
 out_free:
-	kfree(ewrd.pointer);
+	kfree(data);
 	return ret;
 }
 
 static int iwl_mvm_sar_get_wgds_table(struct iwl_mvm *mvm)
 {
-	union acpi_object *wifi_pkg;
-	acpi_handle root_handle;
-	acpi_handle handle;
-	struct acpi_buffer wgds = {ACPI_ALLOCATE_BUFFER, NULL};
-	acpi_status status;
+	union acpi_object *wifi_pkg, *data;
 	int i, j, ret;
 	int idx = 1;
 
-	root_handle = ACPI_HANDLE(mvm->dev);
-	if (!root_handle) {
-		IWL_DEBUG_RADIO(mvm,
-				"Could not retrieve root port ACPI handle\n");
-		return -ENOENT;
-	}
+	data = iwl_acpi_get_object(mvm->dev, ACPI_WGDS_METHOD);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
-	/* Get the method's handle */
-	status = acpi_get_handle(root_handle, (acpi_string)ACPI_WGDS_METHOD,
-				 &handle);
-	if (ACPI_FAILURE(status)) {
-		IWL_DEBUG_RADIO(mvm, "WGDS method not found\n");
-		return -ENOENT;
-	}
-
-	/* Call WGDS with no arguments */
-	status = acpi_evaluate_object(handle, NULL, NULL, &wgds);
-	if (ACPI_FAILURE(status)) {
-		IWL_DEBUG_RADIO(mvm, "WGDS invocation failed (0x%x)\n", status);
-		return -ENOENT;
-	}
-
-	wifi_pkg = iwl_mvm_sar_find_wifi_pkg(mvm, wgds.pointer,
+	wifi_pkg = iwl_mvm_sar_find_wifi_pkg(mvm, data,
 					     ACPI_WGDS_WIFI_DATA_SIZE);
 	if (IS_ERR(wifi_pkg)) {
 		ret = PTR_ERR(wifi_pkg);
@@ -851,7 +784,7 @@ static int iwl_mvm_sar_get_wgds_table(struct iwl_mvm *mvm)
 	}
 	ret = 0;
 out_free:
-	kfree(wgds.pointer);
+	kfree(data);
 	return ret;
 }
 
