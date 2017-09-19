@@ -3218,7 +3218,15 @@ static void ibx_hpd_irq_setup(struct drm_i915_private *dev_priv)
 
 static void spt_hpd_detection_setup(struct drm_i915_private *dev_priv)
 {
-	u32 hotplug;
+	u32 val, hotplug;
+
+	/* Display WA #1179 WaHardHangonHotPlug: cnp */
+	if (HAS_PCH_CNP(dev_priv)) {
+		val = I915_READ(SOUTH_CHICKEN1);
+		val &= ~CHASSIS_CLK_REQ_DURATION_MASK;
+		val |= CHASSIS_CLK_REQ_DURATION(0xf);
+		I915_WRITE(SOUTH_CHICKEN1, val);
+	}
 
 	/* Enable digital hotplug on the PCH */
 	hotplug = I915_READ(PCH_PORT_HOTPLUG);
