@@ -27,8 +27,8 @@
 #include "power_state.h"
 
 
-#define TEMP_RANGE_MIN (90 * 1000)
-#define TEMP_RANGE_MAX (120 * 1000)
+#define TEMP_RANGE_MIN (0)
+#define TEMP_RANGE_MAX (80 * 1000)
 
 #define PHM_FUNC_CHECK(hw) \
 	do {							\
