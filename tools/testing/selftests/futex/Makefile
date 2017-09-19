@@ -7,7 +7,7 @@ TEST_PROGS := run.sh
 include ../lib.mk
 
 all:
-	for DIR in $(SUBDIRS); do		\
+	@for DIR in $(SUBDIRS); do		\
 		BUILD_TARGET=$(OUTPUT)/$$DIR;	\
 		mkdir $$BUILD_TARGET  -p;	\
 		make OUTPUT=$$BUILD_TARGET -C $$DIR $@;\
@@ -17,7 +17,7 @@ all:
 	done
 
 override define RUN_TESTS
-	cd $(OUTPUT); ./run.sh
+	@cd $(OUTPUT); ./run.sh
 endef
 
 override define INSTALL_RULE
@@ -36,7 +36,7 @@ override define EMIT_TESTS
 endef
 
 override define CLEAN
-	for DIR in $(SUBDIRS); do		\
+	@for DIR in $(SUBDIRS); do		\
 		BUILD_TARGET=$(OUTPUT)/$$DIR;	\
 		mkdir $$BUILD_TARGET  -p;	\
 		make OUTPUT=$$BUILD_TARGET -C $$DIR $@;\
