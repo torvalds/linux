@@ -52,7 +52,6 @@
 struct mlxsw_sp_acl {
 	struct mlxsw_sp *mlxsw_sp;
 	struct mlxsw_afk *afk;
-	struct mlxsw_afa *afa;
 	struct mlxsw_sp_fid *dummy_fid;
 	const struct mlxsw_sp_acl_ops *ops;
 	struct rhashtable ruleset_ht;
@@ -333,7 +332,7 @@ mlxsw_sp_acl_rulei_create(struct mlxsw_sp_acl *acl)
 	rulei = kzalloc(sizeof(*rulei), GFP_KERNEL);
 	if (!rulei)
 		return NULL;
-	rulei->act_block = mlxsw_afa_block_create(acl->afa);
+	rulei->act_block = mlxsw_afa_block_create(acl->mlxsw_sp->afa);
 	if (IS_ERR(rulei->act_block)) {
 		err = PTR_ERR(rulei->act_block);
 		goto err_afa_block_create;
@@ -653,85 +652,6 @@ int mlxsw_sp_acl_rule_get_stats(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
-#define MLXSW_SP_KDVL_ACT_EXT_SIZE 1
-
-static int mlxsw_sp_act_kvdl_set_add(void *priv, u32 *p_kvdl_index,
-				     char *enc_actions, bool is_first)
-{
-	struct mlxsw_sp *mlxsw_sp = priv;
-	char pefa_pl[MLXSW_REG_PEFA_LEN];
-	u32 kvdl_index;
-	int err;
-
-	/* The first action set of a TCAM entry is stored directly in TCAM,
-	 * not KVD linear area.
-	 */
-	if (is_first)
-		return 0;
-
-	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KDVL_ACT_EXT_SIZE,
-				  &kvdl_index);
-	if (err)
-		return err;
-	mlxsw_reg_pefa_pack(pefa_pl, kvdl_index, enc_actions);
-	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pefa), pefa_pl);
-	if (err)
-		goto err_pefa_write;
-	*p_kvdl_index = kvdl_index;
-	return 0;
-
-err_pefa_write:
-	mlxsw_sp_kvdl_free(mlxsw_sp, kvdl_index);
-	return err;
-}
-
-static void mlxsw_sp_act_kvdl_set_del(void *priv, u32 kvdl_index,
-				      bool is_first)
-{
-	struct mlxsw_sp *mlxsw_sp = priv;
-
-	if (is_first)
-		return;
-	mlxsw_sp_kvdl_free(mlxsw_sp, kvdl_index);
-}
-
-static int mlxsw_sp_act_kvdl_fwd_entry_add(void *priv, u32 *p_kvdl_index,
-					   u8 local_port)
-{
-	struct mlxsw_sp *mlxsw_sp = priv;
-	char ppbs_pl[MLXSW_REG_PPBS_LEN];
-	u32 kvdl_index;
-	int err;
-
-	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, 1, &kvdl_index);
-	if (err)
-		return err;
-	mlxsw_reg_ppbs_pack(ppbs_pl, kvdl_index, local_port);
-	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ppbs), ppbs_pl);
-	if (err)
-		goto err_ppbs_write;
-	*p_kvdl_index = kvdl_index;
-	return 0;
-
-err_ppbs_write:
-	mlxsw_sp_kvdl_free(mlxsw_sp, kvdl_index);
-	return err;
-}
-
-static void mlxsw_sp_act_kvdl_fwd_entry_del(void *priv, u32 kvdl_index)
-{
-	struct mlxsw_sp *mlxsw_sp = priv;
-
-	mlxsw_sp_kvdl_free(mlxsw_sp, kvdl_index);
-}
-
-static const struct mlxsw_afa_ops mlxsw_sp_act_afa_ops = {
-	.kvdl_set_add		= mlxsw_sp_act_kvdl_set_add,
-	.kvdl_set_del		= mlxsw_sp_act_kvdl_set_del,
-	.kvdl_fwd_entry_add	= mlxsw_sp_act_kvdl_fwd_entry_add,
-	.kvdl_fwd_entry_del	= mlxsw_sp_act_kvdl_fwd_entry_del,
-};
-
 int mlxsw_sp_acl_init(struct mlxsw_sp *mlxsw_sp)
 {
 	const struct mlxsw_sp_acl_ops *acl_ops = &mlxsw_sp_acl_tcam_ops;
@@ -751,14 +671,6 @@ int mlxsw_sp_acl_init(struct mlxsw_sp *mlxsw_sp)
 	if (!acl->afk) {
 		err = -ENOMEM;
 		goto err_afk_create;
-	}
-
-	acl->afa = mlxsw_afa_create(MLXSW_CORE_RES_GET(mlxsw_sp->core,
-						       ACL_ACTIONS_PER_SET),
-				    &mlxsw_sp_act_afa_ops, mlxsw_sp);
-	if (IS_ERR(acl->afa)) {
-		err = PTR_ERR(acl->afa);
-		goto err_afa_create;
 	}
 
 	err = rhashtable_init(&acl->ruleset_ht,
@@ -792,8 +704,6 @@ err_acl_ops_init:
 err_fid_get:
 	rhashtable_destroy(&acl->ruleset_ht);
 err_rhashtable_init:
-	mlxsw_afa_destroy(acl->afa);
-err_afa_create:
 	mlxsw_afk_destroy(acl->afk);
 err_afk_create:
 	kfree(acl);
@@ -810,7 +720,6 @@ void mlxsw_sp_acl_fini(struct mlxsw_sp *mlxsw_sp)
 	WARN_ON(!list_empty(&acl->rules));
 	mlxsw_sp_fid_put(acl->dummy_fid);
 	rhashtable_destroy(&acl->ruleset_ht);
-	mlxsw_afa_destroy(acl->afa);
 	mlxsw_afk_destroy(acl->afk);
 	kfree(acl);
 }
