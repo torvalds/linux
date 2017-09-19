@@ -317,18 +317,12 @@ static int kobject_uevent_net_broadcast(struct kobject *kobj,
 		skb = alloc_skb(len + env->buflen, GFP_KERNEL);
 		if (skb) {
 			char *scratch;
-			int i;
 
 			/* add header */
 			scratch = skb_put(skb, len);
 			sprintf(scratch, "%s@%s", action_string, devpath);
 
-			/* copy keys to our continuous event payload buffer */
-			for (i = 0; i < env->envp_idx; i++) {
-				len = strlen(env->envp[i]) + 1;
-				scratch = skb_put(skb, len);
-				strcpy(scratch, env->envp[i]);
-			}
+			skb_put_data(skb, env->buf, env->buflen);
 
 			NETLINK_CB(skb).dst_group = 1;
 			retval = netlink_broadcast_filtered(uevent_sock, skb,
