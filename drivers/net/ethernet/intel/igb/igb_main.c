@@ -3373,10 +3373,10 @@ static void igb_probe_vfs(struct igb_adapter *adapter)
 #endif /* CONFIG_PCI_IOV */
 }
 
-static void igb_init_queue_configuration(struct igb_adapter *adapter)
+unsigned int igb_get_max_rss_queues(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	u32 max_rss_queues;
+	unsigned int max_rss_queues;
 
 	/* Determine the maximum number of RSS queues supported. */
 	switch (hw->mac.type) {
@@ -3407,6 +3407,14 @@ static void igb_init_queue_configuration(struct igb_adapter *adapter)
 		break;
 	}
 
+	return max_rss_queues;
+}
+
+static void igb_init_queue_configuration(struct igb_adapter *adapter)
+{
+	u32 max_rss_queues;
+
+	max_rss_queues = igb_get_max_rss_queues(adapter);
 	adapter->rss_queues = min_t(u32, max_rss_queues, num_online_cpus());
 
 	igb_set_flag_queue_pairs(adapter, max_rss_queues);
