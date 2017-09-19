@@ -1,0 +1,158 @@
+# $Id: Makefile.include.header $
+## @file
+# VirtualBox Guest Additions kernel module Makefile, common parts.
+#
+# (For 2.6.x, the main file must be called 'Makefile'!)
+#
+
+#
+# Copyright (C) 2006-2017 Oracle Corporation
+#
+# This file is part of VirtualBox Open Source Edition (OSE), as
+# available from http://www.virtualbox.org. This file is free software;
+# you can redistribute it and/or modify it under the terms of the GNU
+# General Public License (GPL) as published by the Free Software
+# Foundation, in version 2 as it comes in the "COPYING" file of the
+# VirtualBox OSE distribution. VirtualBox OSE is distributed in the
+# hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.
+#
+
+# Testing:
+# * Building with KERN_DIR set uses the value specified and
+#   the default value for the unspecified one if any.
+
+#
+# These file should be included by the Makefiles for any kernel modules we
+# build as part of the Guest Additions.  The intended way of doing this is as
+# follows:
+#
+# # Linux kbuild sets this to our source directory if we are called from
+# # there
+# obj ?= $(CURDIR)
+# include $(obj)/Makefile.include.header
+# MOD_NAME = <name of the module to be built, without extension>
+# MOD_OBJS = <list of object files which should be included>
+# MOD_DEFS = <any additional defines which this module needs>
+# MOD_INCL = <any additional include paths which this module needs>
+# MOD_CFLAGS = <any additional CFLAGS which this module needs>
+# include $(obj)/Makefile.include.footer
+#
+# The kmk kBuild define KBUILD_TARGET_ARCH is available.
+#
+
+
+#
+# First, figure out which architecture we're targeting and the build type.
+# (We have to support basic cross building (ARCH=i386|x86_64).)
+# While at it, warn about BUILD_* vars found to help with user problems.
+#
+ifeq ($(filter-out x86_64 amd64 AMD64,$(shell dpkg-architecture -qDEB_HOST_GNU_CPU)),)
+ BUILD_TARGET_ARCH_DEF := amd64
+else
+ BUILD_TARGET_ARCH_DEF := x86
+endif
+ifneq ($(filter-out amd64 x86,$(BUILD_TARGET_ARCH)),)
+ $(warning Ignoring unknown BUILD_TARGET_ARCH value '$(BUILD_TARGET_ARCH)'.)
+ BUILD_TARGET_ARCH :=
+endif
+ifeq ($(BUILD_TARGET_ARCH),)
+ ifeq ($(ARCH),x86_64)
+  BUILD_TARGET_ARCH := amd64
+ else
+  ifeq ($(ARCH),i386)
+   BUILD_TARGET_ARCH := x86
+  else
+   BUILD_TARGET_ARCH := $(BUILD_TARGET_ARCH_DEF)
+  endif
+ endif
+else
+ ifneq ($(BUILD_TARGET_ARCH),$(BUILD_TARGET_ARCH_DEF))
+  $(warning Using BUILD_TARGET_ARCH='$(BUILD_TARGET_ARCH)' from the $(origin BUILD_TARGET_ARCH).)
+ endif
+endif
+
+ifneq ($(filter-out release profile debug strict,$(BUILD_TYPE)),)
+ $(warning Ignoring unknown BUILD_TYPE value '$(BUILD_TYPE)'.)
+ BUILD_TYPE :=
+endif
+ifeq ($(BUILD_TYPE),)
+ BUILD_TYPE := release
+else
+ ifneq ($(BUILD_TYPE),release)
+  $(warning Using BUILD_TYPE='$(BUILD_TYPE)' from the $(origin BUILD_TYPE).)
+ endif
+endif
+ifeq ($(USERNAME),)
+ USERNAME := noname
+endif
+
+ifeq ($(KERNELRELEASE),)
+
+ #
+ # building from this directory
+ #
+
+ # kernel base directory
+ ifdef KERN_DIR
+  ifndef KERN_VER
+   ifeq ($(filter %/build,$(KERN_DIR)),)
+    $(error The variable KERN_DIR must be a kernel build folder and end with /build without a trailing slash, or KERN_VER must be set)
+   endif
+  endif
+ endif
+
+ ifndef KERN_VER
+  ifdef KERN_DIR
+   KERN_VER = $(notdir $(patsubst %/build,%,$(KERN_DIR)))
+   ifeq ($(shell expr $(KERN_VER) : '[0-9]*\.[0-9]*.[0-9]*'),0)
+    $(error The kernel build folder path must end in <version>/build, or the variable KERN_VER must be set)
+   endif
+  endif
+ KERN_VER ?= $(shell uname -r)
+ endif
+
+ # guess kernel major version (24 or later)
+ ifeq ($(shell if grep '"2\.4\.' /lib/modules/$(KERN_VER)/build/include/linux/version.h > /dev/null 2>&1; then echo yes; fi),yes)
+  KERN_VERSION := 24
+ else
+  KERN_VERSION := 26
+ endif
+
+else # neq($(KERNELRELEASE),)
+
+ #
+ # building from kbuild (make -C <kernel_directory> M=`pwd`)
+ #
+
+ # guess kernel version (24 or 26)
+ ifeq ($(shell if echo "$(VERSION).$(PATCHLEVEL)." | grep '2\.4\.' > /dev/null; then echo yes; fi),yes)
+  KERN_VERSION := 24
+ else
+  KERN_VERSION := 26
+ endif
+
+ KERN_VER := $(KERNELRELEASE)
+
+endif # neq($(KERNELRELEASE),)
+
+# Kernel build folder
+KERN_DIR := $(srctree)
+ifneq ($(shell if test -d $(KERN_DIR); then echo yes; fi),yes)
+ $(error Error: unable to find the headers of the Linux kernel to build against. \
+          Specify KERN_VER=<version> (currently $(KERN_VER)) and run Make again)
+endif
+# Kernel include folder
+KERN_INCL := $(KERN_DIR)/include
+# module install folder
+INSTALL_MOD_DIR ?= misc
+MODULE_DIR := $(INSTALL_MOD_PATH)/lib/modules/$(KERN_VER)/$(INSTALL_MOD_DIR)
+
+# debug - show guesses.
+ifdef DEBUG
+$(warning dbg: INSTALL_MOD_PATH = $(INSTALL_MOD_PATH))
+$(warning dbg: INSTALL_MOD_DIR  = $(INSTALL_MOD_DIR))
+$(warning dbg: KERN_DIR         = $(KERN_DIR))
+$(warning dbg: KERN_INCL        = $(KERN_INCL))
+$(warning dbg: KERN_VERSION     = $(KERN_VERSION))
+$(warning dbg: MODULE_DIR       = $(MODULE_DIR))
+endif

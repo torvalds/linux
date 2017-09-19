@@ -1,0 +1,112 @@
+# $Id: Makefile.include.footer $
+## @file
+# VirtualBox Guest Additions kernel module Makefile, common parts.
+#
+# See Makefile.include.header for details of how to use this.
+#
+
+#
+# Copyright (C) 2006-2017 Oracle Corporation
+#
+# This file is part of VirtualBox Open Source Edition (OSE), as
+# available from http://www.virtualbox.org. This file is free software;
+# you can redistribute it and/or modify it under the terms of the GNU
+# General Public License (GPL) as published by the Free Software
+# Foundation, in version 2 as it comes in the "COPYING" file of the
+# VirtualBox OSE distribution. VirtualBox OSE is distributed in the
+# hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.
+#
+
+# override is required by the Debian guys
+override MODULE = $(MOD_NAME)
+OBJS   = $(MOD_OBJS)
+
+KBUILD_VERBOSE ?= 1
+LINUX_VERBOSE = $(if $(KBUILD_VERBOSE),1,)
+
+#
+# Compiler options
+#
+ifndef INCL
+ INCL    := $(addprefix -I,$(KERN_INCL) $(EXTRA_INCL))
+ ifndef KBUILD_EXTMOD
+  KBUILD_EXTMOD := $(shell pwd)
+ endif
+ INCL    += $(MOD_INCL)
+ export INCL
+endif
+KFLAGS   := -D__KERNEL__ -DMODULE $(MOD_DEFS)
+ifeq ($(BUILD_TYPE),debug)
+ KFLAGS  += -DDEBUG -DDEBUG_$(subst $(subst _, ,_),_,$(USERNAME)) -DDEBUG_USERNAME=$(subst $(subst _, ,_),_,$(USERNAME))
+endif
+
+ifeq ($(KERN_VERSION), 24)
+#
+# 2.4
+#
+
+# Note: while 2.4 kernels could also do "proper" builds from kbuild, the make
+# script needed to support it was somewhat different from 2.6.  Since this
+# script works and 2.4 is not a moving target we will not try do do things the
+# "proper" way.
+
+ifeq ($(BUILD_TARGET_ARCH),amd64)
+ KFLAGS  += -mcmodel=kernel
+endif
+
+CFLAGS := -O2 -DVBOX_LINUX_2_4 $(MOD_CFLAGS) $(INCL) $(KFLAGS) $(MOD_EXTRA) $(KDEBUG)
+MODULE_EXT := o
+
+# 2.4 Module linking
+$(MODULE).o: $(OBJS)
+	$(LD) -o $@ -r $(OBJS)
+
+.PHONY: $(MODULE)
+all: $(MODULE)
+$(MODULE): $(MODULE).o
+
+install: $(MODULE)
+	@mkdir -p $(MODULE_DIR); \
+	install -m 0644 -o root -g root $(MODULE).$(MODULE_EXT) $(MODULE_DIR); \
+	PATH="$(PATH):/bin:/sbin" depmod -a;
+
+clean:
+	for f in $(sort $(dir $(OBJS))); do rm -f $$f/*.o $$f/.*.cmd $$f/.*.flags; done
+	rm -rf .$(MOD_NAME)* .tmp_ver* $(MOD_NAME).* Modules.symvers modules.order
+
+else  # ! $(KERN_VERSION), 24
+#
+# 2.6 and later
+#
+
+MODULE_EXT := ko
+
+$(MODULE)-y  := $(OBJS)
+
+# build defs
+EXTRA_CFLAGS += $(MOD_CFLAGS) $(INCL) $(KFLAGS) $(MOD_EXTRA) $(KDEBUG)
+
+.PHONY: $(MODULE)
+all: $(MODULE)
+
+obj-m += $(MODULE).o
+
+JOBS := $(shell (getconf _NPROCESSORS_ONLN || grep -Ec '^processor|^CPU[0-9]' /proc/cpuinfo) 2>/dev/null)
+ifeq ($(JOBS),0)
+  JOBS := 1
+endif
+
+# OL/UEK: disable module signing for external modules -- we don't have any private key
+$(MODULE):
+	$(MAKE) V=$(LINUX_VERBOSE) CONFIG_MODULE_SIG= -C $(KERN_DIR) SUBDIRS=$(CURDIR) SRCROOT=$(CURDIR) $(if $(JOBS),-j$(JOBS),) modules
+
+install: $(MODULE)
+	$(MAKE) V=$(LINUX_VERBOSE) CONFIG_MODULE_SIG= -C $(KERN_DIR) SUBDIRS=$(CURDIR) SRCROOT=$(CURDIR) INSTALL_MOD_PATH=$(INSTALL_MOD_PATH) INSTALL_MOD_DIR=$(INSTALL_MOD_DIR) modules_install
+
+modules_install: install
+
+clean:
+	$(MAKE) V=$(LINUX_VERBOSE) CONFIG_MODULE_SIG= -C $(KERN_DIR) SUBDIRS=$(CURDIR) SRCROOT=$(CURDIR) clean
+
+.PHONY: $(MODULE) install modules_install clean
+endif
