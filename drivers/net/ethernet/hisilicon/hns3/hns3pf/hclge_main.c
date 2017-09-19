@@ -1063,8 +1063,7 @@ static int hclge_configure(struct hclge_dev *hdev)
 	hdev->base_tqp_pid = 0;
 	hdev->rss_size_max = 1;
 	hdev->rx_buf_len = cfg.rx_buf_len;
-	for (i = 0; i < ETH_ALEN; i++)
-		hdev->hw.mac.mac_addr[i] = cfg.mac_addr[i];
+	ether_addr_copy(hdev->hw.mac.mac_addr, cfg.mac_addr);
 	hdev->hw.mac.media_type = cfg.media_type;
 	hdev->hw.mac.phy_addr = cfg.phy_addr;
 	hdev->num_desc = cfg.tqp_desc_num;
