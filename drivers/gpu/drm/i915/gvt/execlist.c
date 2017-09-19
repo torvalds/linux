@@ -360,7 +360,6 @@ static int emulate_execlist_schedule_in(struct intel_vgpu_execlist *execlist,
 
 static void free_workload(struct intel_vgpu_workload *workload)
 {
-	intel_vgpu_unpin_mm(workload->shadow_mm);
 	intel_gvt_mm_unreference(workload->shadow_mm);
 	kmem_cache_free(workload->vgpu->submission.workloads, workload);
 }
@@ -540,7 +539,7 @@ static int complete_execlist_workload(struct intel_vgpu_workload *workload)
 	struct intel_vgpu_workload *next_workload;
 	struct list_head *next = workload_q_head(vgpu, ring_id)->next;
 	bool lite_restore = false;
-	int ret;
+	int ret = 0;
 
 	gvt_dbg_el("complete workload %p status %d\n", workload,
 			workload->status);
@@ -581,17 +580,12 @@ static int complete_execlist_workload(struct intel_vgpu_workload *workload)
 
 	if (lite_restore) {
 		gvt_dbg_el("next context == current - no schedule-out\n");
-		free_workload(workload);
-		return 0;
+		goto out;
 	}
 
 	ret = emulate_execlist_ctx_schedule_out(execlist, &workload->ctx_desc);
-	if (ret)
-		goto err;
 out:
-	free_workload(workload);
-	return 0;
-err:
+	intel_vgpu_unpin_mm(workload->shadow_mm);
 	free_workload(workload);
 	return ret;
 }
@@ -762,13 +756,22 @@ static int submit_context(struct intel_vgpu *vgpu, int ring_id,
 	if (list_empty(workload_q_head(vgpu, ring_id))) {
 		intel_runtime_pm_get(dev_priv);
 		mutex_lock(&dev_priv->drm.struct_mutex);
-		intel_gvt_scan_and_shadow_workload(workload);
+		ret = intel_gvt_scan_and_shadow_workload(workload);
 		mutex_unlock(&dev_priv->drm.struct_mutex);
 		intel_runtime_pm_put(dev_priv);
 	}
 
-	queue_workload(workload);
-	return 0;
+	if (ret == 0)
+		queue_workload(workload);
+	else {
+		free_workload(workload);
+		if (vgpu_is_vm_unhealthy(ret)) {
+			intel_vgpu_clean_execlist(vgpu);
+			enter_failsafe_mode(vgpu, GVT_FAILSAFE_GUEST_ERR);
+		}
+	}
+	return ret;
+
 }
 
 int intel_vgpu_submit_execlist(struct intel_vgpu *vgpu, int ring_id)
