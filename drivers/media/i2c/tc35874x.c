@@ -564,6 +564,8 @@ static inline void enable_stream(struct v4l2_subdev *sd, bool enable)
 		/* Mute video so that all data lanes go to LSP11 state.
 		 * No data is output to CSI Tx block. */
 		i2c_wr8(sd, VI_MUTE, MASK_AUTO_MUTE | MASK_VI_MUTE);
+		/* Set to non-continuous mode to enable clock lane LP11 state. */
+		i2c_wr32(sd, TXOPTIONCNTRL, 0);
 	}
 
 	mutex_lock(&state->confctl_mutex);
