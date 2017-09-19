@@ -154,13 +154,10 @@ STACK_FRAME_NON_STANDARD(optprobe_template_func);
 static void
 optimized_callback(struct optimized_kprobe *op, struct pt_regs *regs)
 {
-	unsigned long flags;
-
 	/* This is possible if op is under delayed unoptimizing */
 	if (kprobe_disabled(&op->kp))
 		return;
 
-	local_irq_save(flags);
 	preempt_disable();
 	if (kprobe_running()) {
 		kprobes_inc_nmissed_count(&op->kp);
@@ -182,7 +179,6 @@ optimized_callback(struct optimized_kprobe *op, struct pt_regs *regs)
 		__this_cpu_write(current_kprobe, NULL);
 	}
 	preempt_enable_no_resched();
-	local_irq_restore(flags);
 }
 NOKPROBE_SYMBOL(optimized_callback);
 
