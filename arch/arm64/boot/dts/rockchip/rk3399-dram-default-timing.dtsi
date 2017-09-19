@@ -50,6 +50,7 @@
 		sr_mc_gate_idle = <0>;
 		srpd_lite_idle	= <0>;
 		standby_idle = <0>;
+		auto_lp_dis_freq = <666>;
 		ddr3_dll_dis_freq = <300>;
 		phy_dll_dis_freq = <260>;
 
