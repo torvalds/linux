@@ -372,6 +372,55 @@ void ippn10_cnv_setup (
 	}
 }
 
+void dcn10_set_cursor_attributes(
+		struct transform *xfm_base,
+		const struct dc_cursor_attributes *attr)
+{
+	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	enum dc_cursor_color_format color_format = attr->color_format;
+
+	REG_UPDATE_2(CURSOR0_CONTROL,
+			CUR0_MODE, color_format,
+			CUR0_EXPANSION_MODE, 0);
+
+	if (color_format == CURSOR_MODE_MONO) {
+		/* todo: clarify what to program these to */
+		REG_UPDATE(CURSOR0_COLOR0,
+				CUR0_COLOR0, 0x00000000);
+		REG_UPDATE(CURSOR0_COLOR1,
+				CUR0_COLOR1, 0xFFFFFFFF);
+	}
+
+	/* TODO: Fixed vs float */
+
+	REG_UPDATE_3(FORMAT_CONTROL,
+				CNVC_BYPASS, 0,
+				FORMAT_CONTROL__ALPHA_EN, 1,
+				FORMAT_EXPANSION_MODE, 0);
+}
+
+
+void dcn10_set_cursor_position(
+		struct transform *xfm_base,
+		const struct dc_cursor_position *pos,
+		const struct dc_cursor_mi_param *param,
+		uint32_t width)
+{
+	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	int src_x_offset = pos->x - pos->x_hotspot - param->viewport_x_start;
+	uint32_t cur_en = pos->enable ? 1 : 0;
+
+	if (src_x_offset >= (int)param->viewport_width)
+		cur_en = 0;  /* not visible beyond right edge*/
+
+	if (src_x_offset + (int)width < 0)
+		cur_en = 0;  /* not visible beyond left edge*/
+
+	REG_UPDATE(CURSOR0_CONTROL,
+			CUR0_ENABLE, cur_en);
+
+}
+
 static const struct transform_funcs dcn10_dpp_funcs = {
 		.transform_reset = dpp_reset,
 		.transform_set_scaler = dcn10_dpp_dscl_set_scaler_manual_scale,
@@ -391,6 +440,8 @@ static const struct transform_funcs dcn10_dpp_funcs = {
 		.ipp_program_degamma_pwl	= ippn10_set_degamma_pwl,
 		.ipp_setup			= ippn10_cnv_setup,
 		.ipp_full_bypass		= ippn10_full_bypass,
+		.set_cursor_attributes = dcn10_set_cursor_attributes,
+		.set_cursor_position = dcn10_set_cursor_position,
 };
 
 

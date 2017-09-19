@@ -72,6 +72,7 @@ struct mem_input {
 	int opp_id;
 	int mpcc_id;
 	struct stutter_modes stutter_mode;
+	struct dc_cursor_attributes curs_attr;
 };
 
 struct vm_system_aperture_param {
@@ -162,6 +163,15 @@ struct mem_input_funcs {
 
 	void (*set_blank)(struct mem_input *mi, bool blank);
 	void (*set_hubp_blank_en)(struct mem_input *mi, bool blank);
+
+	void (*set_cursor_attributes)(
+			struct mem_input *mem_input,
+			const struct dc_cursor_attributes *attr);
+
+	void (*set_cursor_position)(
+			struct mem_input *mem_input,
+			const struct dc_cursor_position *pos,
+			const struct dc_cursor_mi_param *param);
 
 };
 

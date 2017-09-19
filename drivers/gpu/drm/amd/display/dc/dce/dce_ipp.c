@@ -37,6 +37,7 @@
 #define CTX \
 	ipp_dce->base.ctx
 
+
 static void dce_ipp_cursor_set_position(
 	struct input_pixel_processor *ipp,
 	const struct dc_cursor_position *position,
@@ -132,6 +133,7 @@ static void dce_ipp_cursor_set_attributes(
 	/* Unlock Cursor registers. */
 	REG_UPDATE(CUR_UPDATE, CURSOR_UPDATE_LOCK, false);
 }
+
 
 static void dce_ipp_program_prescale(
 	struct input_pixel_processor *ipp,

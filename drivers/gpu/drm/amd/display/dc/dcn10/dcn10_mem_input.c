@@ -766,6 +766,167 @@ void dcn10_mem_input_read_state(struct dcn10_mem_input *mi,
 			QoS_LEVEL_HIGH_WM, &s->qos_level_high_wm);
 }
 
+enum cursor_pitch {
+	CURSOR_PITCH_64_PIXELS = 0,
+	CURSOR_PITCH_128_PIXELS,
+	CURSOR_PITCH_256_PIXELS
+};
+
+enum cursor_lines_per_chunk {
+	CURSOR_LINE_PER_CHUNK_2 = 1,
+	CURSOR_LINE_PER_CHUNK_4,
+	CURSOR_LINE_PER_CHUNK_8,
+	CURSOR_LINE_PER_CHUNK_16
+};
+
+static bool ippn10_cursor_program_control(
+		struct dcn10_mem_input *mi,
+		bool pixel_data_invert,
+		enum dc_cursor_color_format color_format)
+{
+	if (REG(CURSOR_SETTINS))
+		REG_SET_2(CURSOR_SETTINS, 0,
+				/* no shift of the cursor HDL schedule */
+				CURSOR0_DST_Y_OFFSET, 0,
+				 /* used to shift the cursor chunk request deadline */
+				CURSOR0_CHUNK_HDL_ADJUST, 3);
+	else
+		REG_SET_2(CURSOR_SETTINGS, 0,
+				/* no shift of the cursor HDL schedule */
+				CURSOR0_DST_Y_OFFSET, 0,
+				 /* used to shift the cursor chunk request deadline */
+				CURSOR0_CHUNK_HDL_ADJUST, 3);
+
+	return true;
+}
+
+static enum cursor_pitch ippn10_get_cursor_pitch(
+		unsigned int pitch)
+{
+	enum cursor_pitch hw_pitch;
+
+	switch (pitch) {
+	case 64:
+		hw_pitch = CURSOR_PITCH_64_PIXELS;
+		break;
+	case 128:
+		hw_pitch = CURSOR_PITCH_128_PIXELS;
+		break;
+	case 256:
+		hw_pitch = CURSOR_PITCH_256_PIXELS;
+		break;
+	default:
+		DC_ERR("Invalid cursor pitch of %d. "
+				"Only 64/128/256 is supported on DCN.\n", pitch);
+		hw_pitch = CURSOR_PITCH_64_PIXELS;
+		break;
+	}
+	return hw_pitch;
+}
+
+static enum cursor_lines_per_chunk ippn10_get_lines_per_chunk(
+		unsigned int cur_width,
+		enum dc_cursor_color_format format)
+{
+	enum cursor_lines_per_chunk line_per_chunk;
+
+	if (format == CURSOR_MODE_MONO)
+		/* impl B. expansion in CUR Buffer reader */
+		line_per_chunk = CURSOR_LINE_PER_CHUNK_16;
+	else if (cur_width <= 32)
+		line_per_chunk = CURSOR_LINE_PER_CHUNK_16;
+	else if (cur_width <= 64)
+		line_per_chunk = CURSOR_LINE_PER_CHUNK_8;
+	else if (cur_width <= 128)
+		line_per_chunk = CURSOR_LINE_PER_CHUNK_4;
+	else
+		line_per_chunk = CURSOR_LINE_PER_CHUNK_2;
+
+	return line_per_chunk;
+}
+
+static void ippn10_cursor_set_attributes(
+		struct mem_input *mem_input,
+		const struct dc_cursor_attributes *attr)
+{
+	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
+	enum cursor_pitch hw_pitch = ippn10_get_cursor_pitch(attr->pitch);
+	enum cursor_lines_per_chunk lpc = ippn10_get_lines_per_chunk(
+			attr->width, attr->color_format);
+
+	mem_input->curs_attr = *attr;
+
+	REG_UPDATE(CURSOR_SURFACE_ADDRESS_HIGH,
+			CURSOR_SURFACE_ADDRESS_HIGH, attr->address.high_part);
+	REG_UPDATE(CURSOR_SURFACE_ADDRESS,
+			CURSOR_SURFACE_ADDRESS, attr->address.low_part);
+
+	REG_UPDATE_2(CURSOR_SIZE,
+			CURSOR_WIDTH, attr->width,
+			CURSOR_HEIGHT, attr->height);
+	REG_UPDATE_3(CURSOR_CONTROL,
+			CURSOR_MODE, attr->color_format,
+			CURSOR_PITCH, hw_pitch,
+			CURSOR_LINES_PER_CHUNK, lpc);
+	ippn10_cursor_program_control(mi,
+			attr->attribute_flags.bits.INVERT_PIXEL_DATA,
+			attr->color_format);
+}
+
+static void ippn10_cursor_set_position(
+		struct mem_input *mem_input,
+		const struct dc_cursor_position *pos,
+		const struct dc_cursor_mi_param *param)
+{
+	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
+	int src_x_offset = pos->x - pos->x_hotspot - param->viewport_x_start;
+	uint32_t cur_en = pos->enable ? 1 : 0;
+	uint32_t dst_x_offset = (src_x_offset >= 0) ? src_x_offset : 0;
+
+	/*
+	 * Guard aganst cursor_set_position() from being called with invalid
+	 * attributes
+	 *
+	 * TODO: Look at combining cursor_set_position() and
+	 * cursor_set_attributes() into cursor_update()
+	 */
+	if (mem_input->curs_attr.address.quad_part == 0)
+		return;
+
+	dst_x_offset *= param->ref_clk_khz;
+	dst_x_offset /= param->pixel_clk_khz;
+
+	ASSERT(param->h_scale_ratio.value);
+
+	if (param->h_scale_ratio.value)
+		dst_x_offset = dal_fixed31_32_floor(dal_fixed31_32_div(
+				dal_fixed31_32_from_int(dst_x_offset),
+				param->h_scale_ratio));
+
+	if (src_x_offset >= (int)param->viewport_width)
+		cur_en = 0;  /* not visible beyond right edge*/
+
+	if (src_x_offset + (int)mem_input->curs_attr.width < 0)
+		cur_en = 0;  /* not visible beyond left edge*/
+
+	if (cur_en && REG_READ(CURSOR_SURFACE_ADDRESS) == 0)
+		ippn10_cursor_set_attributes(mem_input, &mem_input->curs_attr);
+	REG_UPDATE(CURSOR_CONTROL,
+			CURSOR_ENABLE, cur_en);
+
+	REG_SET_2(CURSOR_POSITION, 0,
+			CURSOR_X_POSITION, pos->x,
+			CURSOR_Y_POSITION, pos->y);
+
+	REG_SET_2(CURSOR_HOT_SPOT, 0,
+			CURSOR_HOT_SPOT_X, pos->x_hotspot,
+			CURSOR_HOT_SPOT_Y, pos->y_hotspot);
+
+	REG_SET(CURSOR_DST_OFFSET, 0,
+			CURSOR_DST_X_OFFSET, dst_x_offset);
+	/* TODO Handle surface pixel formats other than 4:4:4 */
+}
+
 static struct mem_input_funcs dcn10_mem_input_funcs = {
 	.mem_input_program_display_marks = min10_program_display_marks,
 	.mem_input_program_surface_flip_and_addr =
@@ -780,6 +941,8 @@ static struct mem_input_funcs dcn10_mem_input_funcs = {
 	.dcc_control = min10_dcc_control,
 	.mem_program_viewport = min_set_viewport,
 	.set_hubp_blank_en = min10_set_hubp_blank_en,
+	.set_cursor_attributes	= ippn10_cursor_set_attributes,
+	.set_cursor_position	= ippn10_cursor_set_position,
 };
 
 /*****************************************/
