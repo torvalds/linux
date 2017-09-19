@@ -1176,6 +1176,8 @@ SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
 	while (sess_data->func)
 		sess_data->func(sess_data);
 
+	if ((ses->session_flags & SMB2_SESSION_FLAG_IS_GUEST) && (ses->sign))
+		cifs_dbg(VFS, "signing requested but authenticated as guest\n");
 	rc = sess_data->result;
 out:
 	kfree(sess_data);
