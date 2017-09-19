@@ -40,27 +40,6 @@ static enum dsa_tag_protocol bcm_sf2_sw_get_tag_protocol(struct dsa_switch *ds)
 	return DSA_TAG_PROTO_BRCM;
 }
 
-static void bcm_sf2_imp_vlan_setup(struct dsa_switch *ds, int cpu_port)
-{
-	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	unsigned int i;
-	u32 reg;
-
-	/* Enable the IMP Port to be in the same VLAN as the other ports
-	 * on a per-port basis such that we only have Port i and IMP in
-	 * the same VLAN.
-	 */
-	for (i = 0; i < priv->hw_params.num_ports; i++) {
-		if (!((1 << i) & ds->enabled_port_mask))
-			continue;
-
-		reg = core_readl(priv, CORE_PORT_VLAN_CTL_PORT(i));
-		reg |= (1 << cpu_port);
-		core_writel(priv, reg, CORE_PORT_VLAN_CTL_PORT(i));
-	}
-}
-
-
 static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
@@ -240,7 +219,7 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	reg |= priv->dev->ports[port].vlan_ctl_mask;
 	core_writel(priv, reg, CORE_PORT_VLAN_CTL_PORT(port));
 
-	bcm_sf2_imp_vlan_setup(ds, cpu_port);
+	b53_imp_vlan_setup(ds, cpu_port);
 
 	/* If EEE was enabled, restore it */
 	if (priv->dev->ports[port].eee.eee_enabled)

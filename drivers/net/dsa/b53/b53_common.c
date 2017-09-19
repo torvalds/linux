@@ -484,7 +484,7 @@ static int b53_fast_age_vlan(struct b53_device *dev, u16 vid)
 	return b53_flush_arl(dev, FAST_AGE_VLAN);
 }
 
-static void b53_imp_vlan_setup(struct dsa_switch *ds, int cpu_port)
+void b53_imp_vlan_setup(struct dsa_switch *ds, int cpu_port)
 {
 	struct b53_device *dev = ds->priv;
 	unsigned int i;
@@ -500,6 +500,7 @@ static void b53_imp_vlan_setup(struct dsa_switch *ds, int cpu_port)
 		b53_write16(dev, B53_PVLAN_PAGE, B53_PVLAN_PORT_MASK(i), pvlan);
 	}
 }
+EXPORT_SYMBOL(b53_imp_vlan_setup);
 
 static int b53_enable_port(struct dsa_switch *ds, int port,
 			   struct phy_device *phy)
