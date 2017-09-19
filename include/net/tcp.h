@@ -797,12 +797,6 @@ struct tcp_skb_cb {
 			u16	tcp_gso_segs;
 			u16	tcp_gso_size;
 		};
-
-		/* Used to stash the receive timestamp while this skb is in the
-		 * out of order queue, as skb->tstamp is overwritten by the
-		 * rbnode.
-		 */
-		ktime_t		swtstamp;
 	};
 	__u8		tcp_flags;	/* TCP header flags. (tcp[13])	*/
 

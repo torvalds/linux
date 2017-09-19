@@ -4266,11 +4266,6 @@ static void tcp_sack_remove(struct tcp_sock *tp)
 	tp->rx_opt.num_sacks = num_sacks;
 }
 
-enum tcp_queue {
-	OOO_QUEUE,
-	RCV_QUEUE,
-};
-
 /**
  * tcp_try_coalesce - try to merge skb to prior one
  * @sk: socket
@@ -4286,7 +4281,6 @@ enum tcp_queue {
  * Returns true if caller should free @from instead of queueing it
  */
 static bool tcp_try_coalesce(struct sock *sk,
-			     enum tcp_queue dest,
 			     struct sk_buff *to,
 			     struct sk_buff *from,
 			     bool *fragstolen)
@@ -4311,10 +4305,7 @@ static bool tcp_try_coalesce(struct sock *sk,
 
 	if (TCP_SKB_CB(from)->has_rxtstamp) {
 		TCP_SKB_CB(to)->has_rxtstamp = true;
-		if (dest == OOO_QUEUE)
-			TCP_SKB_CB(to)->swtstamp = TCP_SKB_CB(from)->swtstamp;
-		else
-			to->tstamp = from->tstamp;
+		to->tstamp = from->tstamp;
 	}
 
 	return true;
@@ -4351,9 +4342,6 @@ static void tcp_ofo_queue(struct sock *sk)
 		}
 		p = rb_next(p);
 		rb_erase(&skb->rbnode, &tp->out_of_order_queue);
-		/* Replace tstamp which was stomped by rbnode */
-		if (TCP_SKB_CB(skb)->has_rxtstamp)
-			skb->tstamp = TCP_SKB_CB(skb)->swtstamp;
 
 		if (unlikely(!after(TCP_SKB_CB(skb)->end_seq, tp->rcv_nxt))) {
 			SOCK_DEBUG(sk, "ofo packet was already received\n");
@@ -4365,8 +4353,7 @@ static void tcp_ofo_queue(struct sock *sk)
 			   TCP_SKB_CB(skb)->end_seq);
 
 		tail = skb_peek_tail(&sk->sk_receive_queue);
-		eaten = tail && tcp_try_coalesce(sk, RCV_QUEUE,
-						 tail, skb, &fragstolen);
+		eaten = tail && tcp_try_coalesce(sk, tail, skb, &fragstolen);
 		tcp_rcv_nxt_update(tp, TCP_SKB_CB(skb)->end_seq);
 		fin = TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN;
 		if (!eaten)
@@ -4420,10 +4407,6 @@ static void tcp_data_queue_ofo(struct sock *sk, struct sk_buff *skb)
 		return;
 	}
 
-	/* Stash tstamp to avoid being stomped on by rbnode */
-	if (TCP_SKB_CB(skb)->has_rxtstamp)
-		TCP_SKB_CB(skb)->swtstamp = skb->tstamp;
-
 	/* Disable header prediction. */
 	tp->pred_flags = 0;
 	inet_csk_schedule_ack(sk);
@@ -4451,7 +4434,7 @@ static void tcp_data_queue_ofo(struct sock *sk, struct sk_buff *skb)
 	/* In the typical case, we are adding an skb to the end of the list.
 	 * Use of ooo_last_skb avoids the O(Log(N)) rbtree lookup.
 	 */
-	if (tcp_try_coalesce(sk, OOO_QUEUE, tp->ooo_last_skb,
+	if (tcp_try_coalesce(sk, tp->ooo_last_skb,
 			     skb, &fragstolen)) {
 coalesce_done:
 		tcp_grow_window(sk, skb);
@@ -4502,7 +4485,7 @@ coalesce_done:
 				__kfree_skb(skb1);
 				goto merge_right;
 			}
-		} else if (tcp_try_coalesce(sk, OOO_QUEUE, skb1,
+		} else if (tcp_try_coalesce(sk, skb1,
 					    skb, &fragstolen)) {
 			goto coalesce_done;
 		}
@@ -4554,7 +4537,7 @@ static int __must_check tcp_queue_rcv(struct sock *sk, struct sk_buff *skb, int 
 
 	__skb_pull(skb, hdrlen);
 	eaten = (tail &&
-		 tcp_try_coalesce(sk, RCV_QUEUE, tail,
+		 tcp_try_coalesce(sk, tail,
 				  skb, fragstolen)) ? 1 : 0;
 	tcp_rcv_nxt_update(tcp_sk(sk), TCP_SKB_CB(skb)->end_seq);
 	if (!eaten) {
