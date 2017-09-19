@@ -4680,6 +4680,65 @@ static inline void mlxsw_reg_ricnt_pack(char *payload, u32 index,
 					     MLXSW_REG_RICNT_COUNTER_SET_TYPE_BASIC);
 }
 
+/* RRCR - Router Rules Copy Register Layout
+ * ----------------------------------------
+ * This register is used for moving and copying route entry rules.
+ */
+#define MLXSW_REG_RRCR_ID 0x800F
+#define MLXSW_REG_RRCR_LEN 0x24
+
+MLXSW_REG_DEFINE(rrcr, MLXSW_REG_RRCR_ID, MLXSW_REG_RRCR_LEN);
+
+enum mlxsw_reg_rrcr_op {
+	/* Move rules */
+	MLXSW_REG_RRCR_OP_MOVE,
+	/* Copy rules */
+	MLXSW_REG_RRCR_OP_COPY,
+};
+
+/* reg_rrcr_op
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, rrcr, op, 0x00, 28, 4);
+
+/* reg_rrcr_offset
+ * Offset within the region from which to copy/move.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, rrcr, offset, 0x00, 0, 16);
+
+/* reg_rrcr_size
+ * The number of rules to copy/move.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, rrcr, size, 0x04, 0, 16);
+
+/* reg_rrcr_table_id
+ * Identifier of the table on which to perform the operation. Encoding is the
+ * same as in RTAR.key_type
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, rrcr, table_id, 0x10, 0, 4);
+
+/* reg_rrcr_dest_offset
+ * Offset within the region to which to copy/move
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, rrcr, dest_offset, 0x20, 0, 16);
+
+static inline void mlxsw_reg_rrcr_pack(char *payload, enum mlxsw_reg_rrcr_op op,
+				       u16 offset, u16 size,
+				       enum mlxsw_reg_rtar_key_type table_id,
+				       u16 dest_offset)
+{
+	MLXSW_REG_ZERO(rrcr, payload);
+	mlxsw_reg_rrcr_op_set(payload, op);
+	mlxsw_reg_rrcr_offset_set(payload, offset);
+	mlxsw_reg_rrcr_size_set(payload, size);
+	mlxsw_reg_rrcr_table_id_set(payload, table_id);
+	mlxsw_reg_rrcr_dest_offset_set(payload, dest_offset);
+}
+
 /* RALTA - Router Algorithmic LPM Tree Allocation Register
  * -------------------------------------------------------
  * RALTA is used to allocate the LPM trees of the SHSPM method.
@@ -7133,6 +7192,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(ratr),
 	MLXSW_REG(rtdp),
 	MLXSW_REG(ricnt),
+	MLXSW_REG(rrcr),
 	MLXSW_REG(ralta),
 	MLXSW_REG(ralst),
 	MLXSW_REG(raltb),
