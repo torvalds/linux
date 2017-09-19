@@ -50,6 +50,7 @@ L3_START_KERNEL = pud_index(__START_KERNEL_map)
 	.code64
 	.globl startup_64
 startup_64:
+	UNWIND_HINT_EMPTY
 	/*
 	 * At this point the CPU runs in 64bit mode CS.L = 1 CS.D = 0,
 	 * and someone has loaded an identity mapped page table
@@ -89,6 +90,7 @@ startup_64:
 	addq	$(early_top_pgt - __START_KERNEL_map), %rax
 	jmp 1f
 ENTRY(secondary_startup_64)
+	UNWIND_HINT_EMPTY
 	/*
 	 * At this point the CPU runs in 64bit mode CS.L = 1 CS.D = 0,
 	 * and someone has loaded a mapped page table.
@@ -133,6 +135,7 @@ ENTRY(secondary_startup_64)
 	movq	$1f, %rax
 	jmp	*%rax
 1:
+	UNWIND_HINT_EMPTY
 
 	/* Check if nx is implemented */
 	movl	$0x80000001, %eax
@@ -247,6 +250,7 @@ END(secondary_startup_64)
  */
 ENTRY(start_cpu0)
 	movq	initial_stack(%rip), %rsp
+	UNWIND_HINT_EMPTY
 	jmp	.Ljump_to_C_code
 ENDPROC(start_cpu0)
 #endif
@@ -271,13 +275,18 @@ ENTRY(early_idt_handler_array)
 	i = 0
 	.rept NUM_EXCEPTION_VECTORS
 	.ifeq (EXCEPTION_ERRCODE_MASK >> i) & 1
-	pushq $0		# Dummy error code, to make stack frame uniform
+		UNWIND_HINT_IRET_REGS
+		pushq $0	# Dummy error code, to make stack frame uniform
+	.else
+		UNWIND_HINT_IRET_REGS offset=8
 	.endif
 	pushq $i		# 72(%rsp) Vector number
 	jmp early_idt_handler_common
+	UNWIND_HINT_IRET_REGS
 	i = i + 1
 	.fill early_idt_handler_array + i*EARLY_IDT_HANDLER_SIZE - ., 1, 0xcc
 	.endr
+	UNWIND_HINT_IRET_REGS offset=16
 END(early_idt_handler_array)
 
 early_idt_handler_common:
@@ -306,6 +315,7 @@ early_idt_handler_common:
 	pushq %r13				/* pt_regs->r13 */
 	pushq %r14				/* pt_regs->r14 */
 	pushq %r15				/* pt_regs->r15 */
+	UNWIND_HINT_REGS
 
 	cmpq $14,%rsi		/* Page fault? */
 	jnz 10f
@@ -428,7 +438,7 @@ ENTRY(phys_base)
 EXPORT_SYMBOL(phys_base)
 
 #include "../../x86/xen/xen-head.S"
-	
+
 	__PAGE_ALIGNED_BSS
 NEXT_PAGE(empty_zero_page)
 	.skip PAGE_SIZE
