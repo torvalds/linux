@@ -34,6 +34,10 @@ static noinline u32 kprobe_target(u32 value)
 
 static int kp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
+	if (preemptible()) {
+		handler_errors++;
+		pr_err("pre-handler is preemptible\n");
+	}
 	preh_val = (rand1 / div_factor);
 	return 0;
 }
@@ -41,6 +45,10 @@ static int kp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 static void kp_post_handler(struct kprobe *p, struct pt_regs *regs,
 		unsigned long flags)
 {
+	if (preemptible()) {
+		handler_errors++;
+		pr_err("post-handler is preemptible\n");
+	}
 	if (preh_val != (rand1 / div_factor)) {
 		handler_errors++;
 		pr_err("incorrect value in post_handler\n");
@@ -156,6 +164,10 @@ static int test_kprobes(void)
 
 static u32 j_kprobe_target(u32 value)
 {
+	if (preemptible()) {
+		handler_errors++;
+		pr_err("jprobe-handler is preemptible\n");
+	}
 	if (value != rand1) {
 		handler_errors++;
 		pr_err("incorrect value in jprobe handler\n");
@@ -232,6 +244,10 @@ static u32 krph_val;
 
 static int entry_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
+	if (preemptible()) {
+		handler_errors++;
+		pr_err("kretprobe entry handler is preemptible\n");
+	}
 	krph_val = (rand1 / div_factor);
 	return 0;
 }
@@ -240,6 +256,10 @@ static int return_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	unsigned long ret = regs_return_value(regs);
 
+	if (preemptible()) {
+		handler_errors++;
+		pr_err("kretprobe return handler is preemptible\n");
+	}
 	if (ret != (rand1 / div_factor)) {
 		handler_errors++;
 		pr_err("incorrect value in kretprobe handler\n");
