@@ -107,19 +107,6 @@ static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 	core_writel(priv, reg, offset);
 }
 
-static void bcm_sf2_eee_enable_set(struct dsa_switch *ds, int port, bool enable)
-{
-	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	u32 reg;
-
-	reg = core_readl(priv, CORE_EEE_EN_CTRL);
-	if (enable)
-		reg |= 1 << port;
-	else
-		reg &= ~(1 << port);
-	core_writel(priv, reg, CORE_EEE_EN_CTRL);
-}
-
 static void bcm_sf2_gphy_enable_set(struct dsa_switch *ds, bool enable)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
@@ -256,8 +243,8 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	bcm_sf2_imp_vlan_setup(ds, cpu_port);
 
 	/* If EEE was enabled, restore it */
-	if (priv->port_sts[port].eee.eee_enabled)
-		bcm_sf2_eee_enable_set(ds, port, true);
+	if (priv->dev->ports[port].eee.eee_enabled)
+		b53_eee_enable_set(ds, port, true);
 
 	return 0;
 }
@@ -292,47 +279,6 @@ static void bcm_sf2_port_disable(struct dsa_switch *ds, int port,
 	core_writel(priv, reg, CORE_MEM_PSM_VDD_CTRL);
 }
 
-/* Returns 0 if EEE was not enabled, or 1 otherwise
- */
-static int bcm_sf2_eee_init(struct dsa_switch *ds, int port,
-			    struct phy_device *phy)
-{
-	int ret;
-
-	ret = phy_init_eee(phy, 0);
-	if (ret)
-		return 0;
-
-	bcm_sf2_eee_enable_set(ds, port, true);
-
-	return 1;
-}
-
-static int bcm_sf2_sw_get_mac_eee(struct dsa_switch *ds, int port,
-				  struct ethtool_eee *e)
-{
-	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	struct ethtool_eee *p = &priv->port_sts[port].eee;
-	u32 reg;
-
-	reg = core_readl(priv, CORE_EEE_LPI_INDICATE);
-	e->eee_enabled = p->eee_enabled;
-	e->eee_active = !!(reg & (1 << port));
-
-	return 0;
-}
-
-static int bcm_sf2_sw_set_mac_eee(struct dsa_switch *ds, int port,
-				  struct ethtool_eee *e)
-{
-	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	struct ethtool_eee *p = &priv->port_sts[port].eee;
-
-	p->eee_enabled = e->eee_enabled;
-	bcm_sf2_eee_enable_set(ds, port, e->eee_enabled);
-
-	return 0;
-}
 
 static int bcm_sf2_sw_indir_rw(struct bcm_sf2_priv *priv, int op, int addr,
 			       int regnum, u16 val)
@@ -567,7 +513,7 @@ static void bcm_sf2_sw_adjust_link(struct dsa_switch *ds, int port,
 				   struct phy_device *phydev)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	struct ethtool_eee *p = &priv->port_sts[port].eee;
+	struct ethtool_eee *p = &priv->dev->ports[port].eee;
 	u32 id_mode_dis = 0, port_mode;
 	const char *str = NULL;
 	u32 reg, offset;
@@ -649,7 +595,7 @@ force_link:
 	core_writel(priv, reg, offset);
 
 	if (!phydev->is_pseudo_fixed_link)
-		p->eee_enabled = bcm_sf2_eee_init(ds, port, phydev);
+		p->eee_enabled = b53_eee_init(ds, port, phydev);
 }
 
 static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,
@@ -978,8 +924,8 @@ static const struct dsa_switch_ops bcm_sf2_ops = {
 	.set_wol		= bcm_sf2_sw_set_wol,
 	.port_enable		= bcm_sf2_port_setup,
 	.port_disable		= bcm_sf2_port_disable,
-	.get_mac_eee		= bcm_sf2_sw_get_mac_eee,
-	.set_mac_eee		= bcm_sf2_sw_set_mac_eee,
+	.get_mac_eee		= b53_get_mac_eee,
+	.set_mac_eee		= b53_set_mac_eee,
 	.port_bridge_join	= b53_br_join,
 	.port_bridge_leave	= b53_br_leave,
 	.port_stp_state_set	= b53_br_set_stp_state,

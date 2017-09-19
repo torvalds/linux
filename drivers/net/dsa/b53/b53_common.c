@@ -1531,6 +1531,69 @@ void b53_mirror_del(struct dsa_switch *ds, int port,
 }
 EXPORT_SYMBOL(b53_mirror_del);
 
+void b53_eee_enable_set(struct dsa_switch *ds, int port, bool enable)
+{
+	struct b53_device *dev = ds->priv;
+	u16 reg;
+
+	b53_read16(dev, B53_EEE_PAGE, B53_EEE_EN_CTRL, &reg);
+	if (enable)
+		reg |= BIT(port);
+	else
+		reg &= ~BIT(port);
+	b53_write16(dev, B53_EEE_PAGE, B53_EEE_EN_CTRL, reg);
+}
+EXPORT_SYMBOL(b53_eee_enable_set);
+
+
+/* Returns 0 if EEE was not enabled, or 1 otherwise
+ */
+int b53_eee_init(struct dsa_switch *ds, int port, struct phy_device *phy)
+{
+	int ret;
+
+	ret = phy_init_eee(phy, 0);
+	if (ret)
+		return 0;
+
+	b53_eee_enable_set(ds, port, true);
+
+	return 1;
+}
+EXPORT_SYMBOL(b53_eee_init);
+
+int b53_get_mac_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e)
+{
+	struct b53_device *dev = ds->priv;
+	struct ethtool_eee *p = &dev->ports[port].eee;
+	u16 reg;
+
+	if (is5325(dev) || is5365(dev))
+		return -EOPNOTSUPP;
+
+	b53_read16(dev, B53_EEE_PAGE, B53_EEE_LPI_INDICATE, &reg);
+	e->eee_enabled = p->eee_enabled;
+	e->eee_active = !!(reg & BIT(port));
+
+	return 0;
+}
+EXPORT_SYMBOL(b53_get_mac_eee);
+
+int b53_set_mac_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e)
+{
+	struct b53_device *dev = ds->priv;
+	struct ethtool_eee *p = &dev->ports[port].eee;
+
+	if (is5325(dev) || is5365(dev))
+		return -EOPNOTSUPP;
+
+	p->eee_enabled = e->eee_enabled;
+	b53_eee_enable_set(ds, port, e->eee_enabled);
+
+	return 0;
+}
+EXPORT_SYMBOL(b53_set_mac_eee);
+
 static const struct dsa_switch_ops b53_switch_ops = {
 	.get_tag_protocol	= b53_get_tag_protocol,
 	.setup			= b53_setup,

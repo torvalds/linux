@@ -244,9 +244,6 @@ enum bcm_sf2_reg_offs {
 
 #define CORE_JOIN_ALL_VLAN_EN		0xd140
 
-#define CORE_EEE_EN_CTRL		0x24800
-#define CORE_EEE_LPI_INDICATE		0x24810
-
 #define CORE_CFP_ACC			0x28000
 #define  OP_STR_DONE			(1 << 0)
 #define  OP_SEL_SHIFT			1
