@@ -37,11 +37,22 @@ enum dvb_dmx_filter_type {
 	DMX_TYPE_SEC,
 };
 
-#define DMX_STATE_FREE      0
-#define DMX_STATE_ALLOCATED 1
-#define DMX_STATE_SET       2
-#define DMX_STATE_READY     3
-#define DMX_STATE_GO        4
+/**
+ * enum dvb_dmx_state - state machine for a demux filter.
+ *
+ * @DMX_STATE_FREE:		indicates that the filter is freed.
+ * @DMX_STATE_ALLOCATED:	indicates that the filter was allocated
+ *				to be used.
+ * @DMX_STATE_READY:		indicates that the filter is ready
+ *				to be used.
+ * @DMX_STATE_GO:		indicates that the filter is running.
+ */
+enum dvb_dmx_state {
+	DMX_STATE_FREE,
+	DMX_STATE_ALLOCATED,
+	DMX_STATE_READY,
+	DMX_STATE_GO,
+};
 
 #define DVB_DEMUX_MASK_MAX 18
 
@@ -58,7 +69,7 @@ struct dvb_demux_filter {
 	struct dvb_demux_filter *next;
 	struct dvb_demux_feed *feed;
 	int index;
-	int state;
+	enum dvb_dmx_state state;
 	enum dvb_dmx_filter_type type;
 
 	u16 hw_handle;
@@ -81,7 +92,7 @@ struct dvb_demux_feed {
 	struct dvb_demux *demux;
 	void *priv;
 	enum dvb_dmx_filter_type type;
-	int state;
+	enum dvb_dmx_state state;
 	u16 pid;
 
 	ktime_t timeout;
