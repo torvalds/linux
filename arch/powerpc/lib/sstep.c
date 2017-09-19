@@ -1651,8 +1651,9 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			goto arith_done;
 
 		case 235:	/* mullw */
-			op->val = (unsigned int) regs->gpr[ra] *
-				(unsigned int) regs->gpr[rb];
+			op->val = (long)(int) regs->gpr[ra] *
+				(int) regs->gpr[rb];
+
 			goto arith_done;
 
 		case 266:	/* add */
