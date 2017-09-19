@@ -75,6 +75,8 @@ ifneq ($(do_tools),true)
 	do_tools_common=
 endif
 
+do_zfs=false
+
 # Either tools package needs the common source preparation
 do_any_tools=$(sort $(filter-out false,$(do_linux_tools) $(do_cloud_tools)))
 
