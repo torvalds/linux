@@ -406,7 +406,7 @@ alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
 	unsigned long iova_pfn;
 	struct iova *new_iova;
 
-	iova_pfn = iova_rcache_get(iovad, size, limit_pfn);
+	iova_pfn = iova_rcache_get(iovad, size, limit_pfn + 1);
 	if (iova_pfn)
 		return iova_pfn;
 
@@ -823,7 +823,7 @@ static unsigned long iova_magazine_pop(struct iova_magazine *mag,
 {
 	BUG_ON(iova_magazine_empty(mag));
 
-	if (mag->pfns[mag->size - 1] >= limit_pfn)
+	if (mag->pfns[mag->size - 1] > limit_pfn)
 		return 0;
 
 	return mag->pfns[--mag->size];
@@ -977,7 +977,7 @@ static unsigned long iova_rcache_get(struct iova_domain *iovad,
 	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE)
 		return 0;
 
-	return __iova_rcache_get(&iovad->rcaches[log_size], limit_pfn);
+	return __iova_rcache_get(&iovad->rcaches[log_size], limit_pfn - size);
 }
 
 /*
