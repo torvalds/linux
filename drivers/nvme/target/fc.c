@@ -783,6 +783,9 @@ nvmet_fc_find_target_queue(struct nvmet_fc_tgtport *tgtport,
 	u16 qid = nvmet_fc_getqueueid(connection_id);
 	unsigned long flags;
 
+	if (qid > NVMET_NR_QUEUES)
+		return NULL;
+
 	spin_lock_irqsave(&tgtport->lock, flags);
 	list_for_each_entry(assoc, &tgtport->assoc_list, a_list) {
 		if (association_id == assoc->association_id) {
