@@ -271,10 +271,6 @@ bad_address:
 
 	__INIT
 ENTRY(early_idt_handler_array)
-	# 104(%rsp) %rflags
-	#  96(%rsp) %cs
-	#  88(%rsp) %rip
-	#  80(%rsp) error code
 	i = 0
 	.rept NUM_EXCEPTION_VECTORS
 	.ifeq (EXCEPTION_ERRCODE_MASK >> i) & 1
