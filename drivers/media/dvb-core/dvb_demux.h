@@ -26,9 +26,16 @@
 
 #include "demux.h"
 
-#define DMX_TYPE_TS  0
-#define DMX_TYPE_SEC 1
-#define DMX_TYPE_PES 2
+/**
+ * enum dvb_dmx_filter_type - type of demux feed.
+ *
+ * @DMX_TYPE_TS:	feed is in TS mode.
+ * @DMX_TYPE_SEC:	feed is in Section mode.
+ */
+enum dvb_dmx_filter_type {
+	DMX_TYPE_TS,
+	DMX_TYPE_SEC,
+};
 
 #define DMX_STATE_FREE      0
 #define DMX_STATE_ALLOCATED 1
@@ -52,7 +59,7 @@ struct dvb_demux_filter {
 	struct dvb_demux_feed *feed;
 	int index;
 	int state;
-	int type;
+	enum dvb_dmx_filter_type type;
 
 	u16 hw_handle;
 	struct timer_list timer;
@@ -73,7 +80,7 @@ struct dvb_demux_feed {
 
 	struct dvb_demux *demux;
 	void *priv;
-	int type;
+	enum dvb_dmx_filter_type type;
 	int state;
 	u16 pid;
 
