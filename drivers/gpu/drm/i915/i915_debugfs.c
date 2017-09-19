@@ -66,7 +66,7 @@ static int i915_capabilities(struct seq_file *m, void *data)
 #undef PRINT_FLAG
 
 	kernel_param_lock(THIS_MODULE);
-#define PRINT_PARAM(T, x) seq_print_param(m, #x, #T, &i915.x);
+#define PRINT_PARAM(T, x) seq_print_param(m, #x, #T, &i915_modparams.x);
 	I915_PARAMS_FOR_EACH(PRINT_PARAM);
 #undef PRINT_PARAM
 	kernel_param_unlock(THIS_MODULE);
@@ -1266,7 +1266,7 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	if (waitqueue_active(&dev_priv->gpu_error.reset_queue))
 		seq_puts(m, "struct_mutex blocked for reset\n");
 
-	if (!i915.enable_hangcheck) {
+	if (!i915_modparams.enable_hangcheck) {
 		seq_puts(m, "Hangcheck disabled\n");
 		return 0;
 	}
@@ -1701,7 +1701,7 @@ static int i915_ips_status(struct seq_file *m, void *unused)
 	intel_runtime_pm_get(dev_priv);
 
 	seq_printf(m, "Enabled by kernel parameter: %s\n",
-		   yesno(i915.enable_ips));
+		   yesno(i915_modparams.enable_ips));
 
 	if (INTEL_GEN(dev_priv) >= 8) {
 		seq_puts(m, "Currently: unknown\n");
@@ -2016,7 +2016,7 @@ static int i915_dump_lrc(struct seq_file *m, void *unused)
 	enum intel_engine_id id;
 	int ret;
 
-	if (!i915.enable_execlists) {
+	if (!i915_modparams.enable_execlists) {
 		seq_printf(m, "Logical Ring Contexts are disabled\n");
 		return 0;
 	}
@@ -2592,7 +2592,7 @@ static int i915_guc_log_control_get(void *data, u64 *val)
 	if (!dev_priv->guc.log.vma)
 		return -EINVAL;
 
-	*val = i915.guc_log_level;
+	*val = i915_modparams.guc_log_level;
 
 	return 0;
 }
@@ -3310,7 +3310,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 		seq_printf(m, "\tBBADDR: 0x%08x_%08x\n",
 			   upper_32_bits(addr), lower_32_bits(addr));
 
-		if (i915.enable_execlists) {
+		if (i915_modparams.enable_execlists) {
 			const u32 *hws = &engine->status_page.page_addr[I915_HWS_CSB_BUF0_INDEX];
 			u32 ptr, read, write;
 			unsigned int idx;
@@ -3406,7 +3406,7 @@ static int i915_semaphore_status(struct seq_file *m, void *unused)
 	enum intel_engine_id id;
 	int j, ret;
 
-	if (!i915.semaphores) {
+	if (!i915_modparams.semaphores) {
 		seq_puts(m, "Semaphores are disabled\n");
 		return 0;
 	}

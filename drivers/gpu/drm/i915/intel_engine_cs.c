@@ -153,7 +153,7 @@ __intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
 		case 9:
 			return GEN9_LR_CONTEXT_RENDER_SIZE;
 		case 8:
-			return i915.enable_execlists ?
+			return i915_modparams.enable_execlists ?
 			       GEN8_LR_CONTEXT_RENDER_SIZE :
 			       GEN8_CXT_TOTAL_SIZE;
 		case 7:
@@ -301,7 +301,7 @@ int intel_engines_init(struct drm_i915_private *dev_priv)
 			&intel_engine_classes[engine->class];
 		int (*init)(struct intel_engine_cs *engine);
 
-		if (i915.enable_execlists)
+		if (i915_modparams.enable_execlists)
 			init = class_info->init_execlists;
 		else
 			init = class_info->init_legacy;

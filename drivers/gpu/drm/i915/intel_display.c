@@ -3701,7 +3701,7 @@ void intel_prepare_reset(struct drm_i915_private *dev_priv)
 
 
 	/* reset doesn't touch the display */
-	if (!i915.force_reset_modeset_test &&
+	if (!i915_modparams.force_reset_modeset_test &&
 	    !gpu_reset_clobbers_display(dev_priv))
 		return;
 
@@ -3757,7 +3757,7 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 	int ret;
 
 	/* reset doesn't touch the display */
-	if (!i915.force_reset_modeset_test &&
+	if (!i915_modparams.force_reset_modeset_test &&
 	    !gpu_reset_clobbers_display(dev_priv))
 		return;
 
@@ -6313,7 +6313,7 @@ static void hsw_compute_ips_config(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	pipe_config->ips_enabled = i915.enable_ips &&
+	pipe_config->ips_enabled = i915_modparams.enable_ips &&
 		hsw_crtc_supports_ips(crtc) &&
 		pipe_config_supports_ips(dev_priv, pipe_config);
 }
@@ -6494,8 +6494,8 @@ intel_link_compute_m_n(int bits_per_pixel, int nlanes,
 
 static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
 {
-	if (i915.panel_use_ssc >= 0)
-		return i915.panel_use_ssc != 0;
+	if (i915_modparams.panel_use_ssc >= 0)
+		return i915_modparams.panel_use_ssc != 0;
 	return dev_priv->vbt.lvds_use_ssc
 		&& !(dev_priv->quirks & QUIRK_LVDS_SSC_DISABLE);
 }
@@ -12084,7 +12084,7 @@ static int intel_atomic_check(struct drm_device *dev,
 			return ret;
 		}
 
-		if (i915.fastboot &&
+		if (i915_modparams.fastboot &&
 		    intel_pipe_config_compare(dev_priv,
 					to_intel_crtc_state(old_crtc_state),
 					pipe_config, true)) {

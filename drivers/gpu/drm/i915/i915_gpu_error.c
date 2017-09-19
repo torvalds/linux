@@ -1554,7 +1554,7 @@ static void i915_gem_capture_guc_log_buffer(struct drm_i915_private *dev_priv,
 					    struct i915_gpu_state *error)
 {
 	/* Capturing log buf contents won't be useful if logging was disabled */
-	if (!dev_priv->guc.log.vma || (i915.guc_log_level < 0))
+	if (!dev_priv->guc.log.vma || (i915_modparams.guc_log_level < 0))
 		return;
 
 	error->guc_log = i915_error_object_create(dev_priv,
@@ -1696,7 +1696,7 @@ static int capture(void *data)
 		ktime_to_timeval(ktime_sub(ktime_get(),
 					   error->i915->gt.last_init_time));
 
-	error->params = i915;
+	error->params = i915_modparams;
 #define DUP(T, x) dup_param(#T, &error->params.x);
 	I915_PARAMS_FOR_EACH(DUP);
 #undef DUP
@@ -1751,7 +1751,7 @@ void i915_capture_error_state(struct drm_i915_private *dev_priv,
 	struct i915_gpu_state *error;
 	unsigned long flags;
 
-	if (!i915.error_capture)
+	if (!i915_modparams.error_capture)
 		return;
 
 	if (READ_ONCE(dev_priv->gpu_error.first_error))

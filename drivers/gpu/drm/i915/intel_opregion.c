@@ -921,7 +921,7 @@ static int intel_load_vbt_firmware(struct drm_i915_private *dev_priv)
 {
 	struct intel_opregion *opregion = &dev_priv->opregion;
 	const struct firmware *fw = NULL;
-	const char *name = i915.vbt_firmware;
+	const char *name = i915_modparams.vbt_firmware;
 	int ret;
 
 	if (!name || !*name)

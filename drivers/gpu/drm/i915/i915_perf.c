@@ -1214,7 +1214,7 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
 
-	if (i915.enable_execlists)
+	if (i915_modparams.enable_execlists)
 		dev_priv->perf.oa.specific_ctx_id = stream->ctx->hw_id;
 	else {
 		struct intel_engine_cs *engine = dev_priv->engine[RCS];
@@ -1260,7 +1260,7 @@ static void oa_put_render_ctx_id(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
 
-	if (i915.enable_execlists) {
+	if (i915_modparams.enable_execlists) {
 		dev_priv->perf.oa.specific_ctx_id = INVALID_CTX_ID;
 	} else {
 		struct intel_engine_cs *engine = dev_priv->engine[RCS];
@@ -3408,7 +3408,7 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		dev_priv->perf.oa.timestamp_frequency = 12500000;
 
 		dev_priv->perf.oa.oa_formats = hsw_oa_formats;
-	} else if (i915.enable_execlists) {
+	} else if (i915_modparams.enable_execlists) {
 		/* Note: that although we could theoretically also support the
 		 * legacy ringbuffer mode on BDW (and earlier iterations of
 		 * this driver, before upstreaming did this) it didn't seem

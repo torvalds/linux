@@ -436,7 +436,8 @@ void intel_uncore_resume_early(struct drm_i915_private *dev_priv)
 
 void intel_uncore_sanitize(struct drm_i915_private *dev_priv)
 {
-	i915.enable_rc6 = sanitize_rc6_option(dev_priv, i915.enable_rc6);
+	i915_modparams.enable_rc6 =
+		sanitize_rc6_option(dev_priv, i915_modparams.enable_rc6);
 
 	/* BIOS often leaves RC6 enabled, but disable it for hw init */
 	intel_sanitize_gt_powersave(dev_priv);
@@ -507,10 +508,10 @@ void intel_uncore_forcewake_user_get(struct drm_i915_private *dev_priv)
 		dev_priv->uncore.user_forcewake.saved_mmio_check =
 			dev_priv->uncore.unclaimed_mmio_check;
 		dev_priv->uncore.user_forcewake.saved_mmio_debug =
-			i915.mmio_debug;
+			i915_modparams.mmio_debug;
 
 		dev_priv->uncore.unclaimed_mmio_check = 0;
-		i915.mmio_debug = 0;
+		i915_modparams.mmio_debug = 0;
 	}
 	spin_unlock_irq(&dev_priv->uncore.lock);
 }
@@ -532,7 +533,7 @@ void intel_uncore_forcewake_user_put(struct drm_i915_private *dev_priv)
 
 		dev_priv->uncore.unclaimed_mmio_check =
 			dev_priv->uncore.user_forcewake.saved_mmio_check;
-		i915.mmio_debug =
+		i915_modparams.mmio_debug =
 			dev_priv->uncore.user_forcewake.saved_mmio_debug;
 
 		intel_uncore_forcewake_put__locked(dev_priv, FORCEWAKE_ALL);
@@ -841,7 +842,8 @@ __unclaimed_reg_debug(struct drm_i915_private *dev_priv,
 		 "Unclaimed %s register 0x%x\n",
 		 read ? "read from" : "write to",
 		 i915_mmio_reg_offset(reg)))
-		i915.mmio_debug--; /* Only report the first N failures */
+		/* Only report the first N failures */
+		i915_modparams.mmio_debug--;
 }
 
 static inline void
@@ -850,7 +852,7 @@ unclaimed_reg_debug(struct drm_i915_private *dev_priv,
 		    const bool read,
 		    const bool before)
 {
-	if (likely(!i915.mmio_debug))
+	if (likely(!i915_modparams.mmio_debug))
 		return;
 
 	__unclaimed_reg_debug(dev_priv, reg, read, before);
@@ -1703,7 +1705,7 @@ typedef int (*reset_func)(struct drm_i915_private *, unsigned engine_mask);
 
 static reset_func intel_get_gpu_reset(struct drm_i915_private *dev_priv)
 {
-	if (!i915.reset)
+	if (!i915_modparams.reset)
 		return NULL;
 
 	if (INTEL_INFO(dev_priv)->gen >= 8)
@@ -1777,7 +1779,7 @@ bool intel_has_reset_engine(struct drm_i915_private *dev_priv)
 {
 	return (dev_priv->info.has_reset_engine &&
 		!dev_priv->guc.execbuf_client &&
-		i915.reset >= 2);
+		i915_modparams.reset >= 2);
 }
 
 int intel_guc_reset(struct drm_i915_private *dev_priv)
@@ -1802,7 +1804,7 @@ bool intel_uncore_unclaimed_mmio(struct drm_i915_private *dev_priv)
 bool
 intel_uncore_arm_unclaimed_mmio_detection(struct drm_i915_private *dev_priv)
 {
-	if (unlikely(i915.mmio_debug ||
+	if (unlikely(i915_modparams.mmio_debug ||
 		     dev_priv->uncore.unclaimed_mmio_check <= 0))
 		return false;
 
@@ -1810,7 +1812,7 @@ intel_uncore_arm_unclaimed_mmio_detection(struct drm_i915_private *dev_priv)
 		DRM_DEBUG("Unclaimed register detected, "
 			  "enabling oneshot unclaimed register reporting. "
 			  "Please use i915.mmio_debug=N for more information.\n");
-		i915.mmio_debug++;
+		i915_modparams.mmio_debug++;
 		dev_priv->uncore.unclaimed_mmio_check--;
 		return true;
 	}

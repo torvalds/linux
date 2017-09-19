@@ -7825,7 +7825,7 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 	 * RPM depends on RC6 to save restore the GT HW context, so make RC6 a
 	 * requirement.
 	 */
-	if (!i915.enable_rc6) {
+	if (!i915_modparams.enable_rc6) {
 		DRM_INFO("RC6 disabled, disabling runtime PM support\n");
 		intel_runtime_pm_get(dev_priv);
 	}
@@ -7882,7 +7882,7 @@ void intel_cleanup_gt_powersave(struct drm_i915_private *dev_priv)
 	if (IS_VALLEYVIEW(dev_priv))
 		valleyview_cleanup_gt_powersave(dev_priv);
 
-	if (!i915.enable_rc6)
+	if (!i915_modparams.enable_rc6)
 		intel_runtime_pm_put(dev_priv);
 }
 
@@ -8004,7 +8004,7 @@ static void __intel_autoenable_gt_powersave(struct work_struct *work)
 	if (IS_ERR(req))
 		goto unlock;
 
-	if (!i915.enable_execlists && i915_switch_context(req) == 0)
+	if (!i915_modparams.enable_execlists && i915_switch_context(req) == 0)
 		rcs->init_context(req);
 
 	/* Mark the device busy, calling intel_enable_gt_powersave() */

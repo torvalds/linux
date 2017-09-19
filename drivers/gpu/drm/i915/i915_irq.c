@@ -1357,7 +1357,7 @@ gen8_cs_irq_handler(struct intel_engine_cs *engine, u32 iir, int test_shift)
 
 	if (iir & (GT_RENDER_USER_INTERRUPT << test_shift)) {
 		notify_ring(engine);
-		tasklet |= i915.enable_guc_submission;
+		tasklet |= i915_modparams.enable_guc_submission;
 	}
 
 	if (tasklet)

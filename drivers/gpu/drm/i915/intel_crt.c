@@ -712,7 +712,7 @@ intel_crt_detect(struct drm_connector *connector,
 	 * broken monitor (without edid) to work behind a broken kvm (that fails
 	 * to have the right resistors for HP detection) needs to fix this up.
 	 * For now just bail out. */
-	if (I915_HAS_HOTPLUG(dev_priv) && !i915.load_detect_test) {
+	if (I915_HAS_HOTPLUG(dev_priv) && !i915_modparams.load_detect_test) {
 		status = connector_status_disconnected;
 		goto out;
 	}
@@ -730,7 +730,7 @@ intel_crt_detect(struct drm_connector *connector,
 		else if (INTEL_GEN(dev_priv) < 4)
 			status = intel_crt_load_detect(crt,
 				to_intel_crtc(connector->state->crtc)->pipe);
-		else if (i915.load_detect_test)
+		else if (i915_modparams.load_detect_test)
 			status = connector_status_disconnected;
 		else
 			status = connector_status_unknown;

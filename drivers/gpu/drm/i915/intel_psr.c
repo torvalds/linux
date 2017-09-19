@@ -396,7 +396,7 @@ static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
 		return false;
 	}
 
-	if (!i915.enable_psr) {
+	if (!i915_modparams.enable_psr) {
 		DRM_DEBUG_KMS("PSR disable by flag\n");
 		return false;
 	}
@@ -943,8 +943,8 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 		HSW_EDP_PSR_BASE : BDW_EDP_PSR_BASE;
 
 	/* Per platform default: all disabled. */
-	if (i915.enable_psr == -1)
-		i915.enable_psr = 0;
+	if (i915_modparams.enable_psr == -1)
+		i915_modparams.enable_psr = 0;
 
 	/* Set link_standby x link_off defaults */
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
@@ -958,11 +958,11 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 		dev_priv->psr.link_standby = dev_priv->vbt.psr.full_link;
 
 	/* Override link_standby x link_off defaults */
-	if (i915.enable_psr == 2 && !dev_priv->psr.link_standby) {
+	if (i915_modparams.enable_psr == 2 && !dev_priv->psr.link_standby) {
 		DRM_DEBUG_KMS("PSR: Forcing link standby\n");
 		dev_priv->psr.link_standby = true;
 	}
-	if (i915.enable_psr == 3 && dev_priv->psr.link_standby) {
+	if (i915_modparams.enable_psr == 3 && dev_priv->psr.link_standby) {
 		DRM_DEBUG_KMS("PSR: Forcing main link off\n");
 		dev_priv->psr.link_standby = false;
 	}

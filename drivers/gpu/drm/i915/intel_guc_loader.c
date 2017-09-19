@@ -131,14 +131,14 @@ static void guc_params_init(struct drm_i915_private *dev_priv)
 
 	params[GUC_CTL_LOG_PARAMS] = guc->log.flags;
 
-	if (i915.guc_log_level >= 0) {
+	if (i915_modparams.guc_log_level >= 0) {
 		params[GUC_CTL_DEBUG] =
-			i915.guc_log_level << GUC_LOG_VERBOSITY_SHIFT;
+			i915_modparams.guc_log_level << GUC_LOG_VERBOSITY_SHIFT;
 	} else
 		params[GUC_CTL_DEBUG] = GUC_LOG_DISABLED;
 
 	/* If GuC submission is enabled, set up additional parameters here */
-	if (i915.enable_guc_submission) {
+	if (i915_modparams.enable_guc_submission) {
 		u32 ads = guc_ggtt_offset(guc->ads_vma) >> PAGE_SHIFT;
 		u32 pgs = guc_ggtt_offset(dev_priv->guc.stage_desc_pool);
 		u32 ctx_in_16 = GUC_MAX_STAGE_DESCRIPTORS / 16;
@@ -368,7 +368,8 @@ int intel_guc_init_hw(struct intel_guc *guc)
 	guc->fw.load_status = INTEL_UC_FIRMWARE_SUCCESS;
 
 	DRM_INFO("GuC %s (firmware %s [version %u.%u])\n",
-		 i915.enable_guc_submission ? "submission enabled" : "loaded",
+		 i915_modparams.enable_guc_submission ? "submission enabled" :
+							"loaded",
 		 guc->fw.path,
 		 guc->fw.major_ver_found, guc->fw.minor_ver_found);
 
@@ -390,8 +391,8 @@ int intel_guc_select_fw(struct intel_guc *guc)
 	guc->fw.load_status = INTEL_UC_FIRMWARE_NONE;
 	guc->fw.type = INTEL_UC_FW_TYPE_GUC;
 
-	if (i915.guc_firmware_path) {
-		guc->fw.path = i915.guc_firmware_path;
+	if (i915_modparams.guc_firmware_path) {
+		guc->fw.path = i915_modparams.guc_firmware_path;
 		guc->fw.major_ver_wanted = 0;
 		guc->fw.minor_ver_wanted = 0;
 	} else if (IS_SKYLAKE(dev_priv)) {

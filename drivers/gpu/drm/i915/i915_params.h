@@ -76,7 +76,7 @@ struct i915_params {
 };
 #undef MEMBER
 
-extern struct i915_params i915 __read_mostly;
+extern struct i915_params i915_modparams __read_mostly;
 
 #endif
 

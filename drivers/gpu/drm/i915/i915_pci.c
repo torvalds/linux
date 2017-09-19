@@ -631,7 +631,7 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		(struct intel_device_info *) ent->driver_data;
 	int err;
 
-	if (IS_ALPHA_SUPPORT(intel_info) && !i915.alpha_support) {
+	if (IS_ALPHA_SUPPORT(intel_info) && !i915_modparams.alpha_support) {
 		DRM_INFO("The driver support for your hardware in this kernel version is alpha quality\n"
 			 "See CONFIG_DRM_I915_ALPHA_SUPPORT or i915.alpha_support module parameter\n"
 			 "to enable support in this kernel version, or check for kernel updates.\n");
@@ -689,10 +689,10 @@ static int __init i915_init(void)
 	 * vga_text_mode_force boot option.
 	 */
 
-	if (i915.modeset == 0)
+	if (i915_modparams.modeset == 0)
 		use_kms = false;
 
-	if (vgacon_text_force() && i915.modeset == -1)
+	if (vgacon_text_force() && i915_modparams.modeset == -1)
 		use_kms = false;
 
 	if (!use_kms) {

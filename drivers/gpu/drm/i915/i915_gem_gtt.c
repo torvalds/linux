@@ -180,7 +180,7 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 		return 0;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 8 && i915.enable_execlists) {
+	if (INTEL_GEN(dev_priv) >= 8 && i915_modparams.enable_execlists) {
 		if (has_full_48bit_ppgtt)
 			return 3;
 
@@ -1972,7 +1972,7 @@ int i915_ppgtt_init_hw(struct drm_i915_private *dev_priv)
 	/* In the case of execlists, PPGTT is enabled by the context descriptor
 	 * and the PDPs are contained within the context itself.  We don't
 	 * need to do anything here. */
-	if (i915.enable_execlists)
+	if (i915_modparams.enable_execlists)
 		return 0;
 
 	if (!USES_PPGTT(dev_priv))
@@ -3292,7 +3292,7 @@ int i915_ggtt_probe_hw(struct drm_i915_private *dev_priv)
 	 * currently don't have any bits spare to pass in this upper
 	 * restriction!
 	 */
-	if (HAS_GUC(dev_priv) && i915.enable_guc_loading) {
+	if (HAS_GUC(dev_priv) && i915_modparams.enable_guc_loading) {
 		ggtt->base.total = min_t(u64, ggtt->base.total, GUC_GGTT_TOP);
 		ggtt->mappable_end = min(ggtt->mappable_end, ggtt->base.total);
 	}

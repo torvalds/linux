@@ -1902,7 +1902,7 @@ void intel_init_ipc(struct drm_i915_private *dev_priv);
 void intel_enable_ipc(struct drm_i915_private *dev_priv);
 static inline int intel_enable_rc6(void)
 {
-	return i915.enable_rc6;
+	return i915_modparams.enable_rc6;
 }
 
 /* intel_sdvo.c */

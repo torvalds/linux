@@ -1882,7 +1882,7 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 	struct drm_i915_gem_object *obj;
 	int ret, i;
 
-	if (!i915.semaphores)
+	if (!i915_modparams.semaphores)
 		return;
 
 	if (INTEL_GEN(dev_priv) >= 8 && !dev_priv->semaphore) {
@@ -1982,7 +1982,7 @@ err_obj:
 	i915_gem_object_put(obj);
 err:
 	DRM_DEBUG_DRIVER("Failed to allocate space for semaphores, disabling\n");
-	i915.semaphores = 0;
+	i915_modparams.semaphores = 0;
 }
 
 static void intel_ring_init_irq(struct drm_i915_private *dev_priv,
@@ -2039,7 +2039,7 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 
 	engine->emit_breadcrumb = i9xx_emit_breadcrumb;
 	engine->emit_breadcrumb_sz = i9xx_emit_breadcrumb_sz;
-	if (i915.semaphores) {
+	if (i915_modparams.semaphores) {
 		int num_rings;
 
 		engine->emit_breadcrumb = gen6_sema_emit_breadcrumb;
@@ -2083,7 +2083,7 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 		engine->emit_breadcrumb = gen8_render_emit_breadcrumb;
 		engine->emit_breadcrumb_sz = gen8_render_emit_breadcrumb_sz;
 		engine->emit_flush = gen8_render_ring_flush;
-		if (i915.semaphores) {
+		if (i915_modparams.semaphores) {
 			int num_rings;
 
 			engine->semaphore.signal = gen8_rcs_signal;

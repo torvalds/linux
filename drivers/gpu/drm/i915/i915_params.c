@@ -26,13 +26,13 @@
 #include "i915_drv.h"
 
 #define i915_param_named(name, T, perm, desc) \
-	module_param_named(name, i915.name, T, perm); \
+	module_param_named(name, i915_modparams.name, T, perm); \
 	MODULE_PARM_DESC(name, desc)
 #define i915_param_named_unsafe(name, T, perm, desc) \
-	module_param_named_unsafe(name, i915.name, T, perm); \
+	module_param_named_unsafe(name, i915_modparams.name, T, perm); \
 	MODULE_PARM_DESC(name, desc)
 
-struct i915_params i915 __read_mostly = {
+struct i915_params i915_modparams __read_mostly = {
 	.modeset = -1,
 	.panel_ignore_lid = 1,
 	.semaphores = -1,
