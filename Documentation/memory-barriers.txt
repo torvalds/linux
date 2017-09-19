@@ -947,7 +947,7 @@ Or even:
 	===============	      ===============================
 	r1 = READ_ONCE(y);
 	<general barrier>
-	WRITE_ONCE(y, 1);     if (r2 = READ_ONCE(x)) {
+	WRITE_ONCE(x, 1);     if (r2 = READ_ONCE(x)) {
 			         <implicit control dependency>
 			         WRITE_ONCE(y, 1);
 			      }
