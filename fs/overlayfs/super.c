@@ -968,7 +968,8 @@ static int ovl_make_workdir(struct ovl_fs *ofs, struct path *workpath)
 	err = ovl_do_setxattr(ofs->workdir, OVL_XATTR_OPAQUE, "0", 1, 0);
 	if (err) {
 		ofs->noxattr = true;
-		pr_warn("overlayfs: upper fs does not support xattr.\n");
+		ofs->config.index = false;
+		pr_warn("overlayfs: upper fs does not support xattr, falling back to index=off.\n");
 		err = 0;
 	} else {
 		vfs_removexattr(ofs->workdir, OVL_XATTR_OPAQUE);
