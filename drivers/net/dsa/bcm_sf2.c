@@ -60,45 +60,6 @@ static void bcm_sf2_imp_vlan_setup(struct dsa_switch *ds, int cpu_port)
 	}
 }
 
-static void bcm_sf2_brcm_hdr_setup(struct bcm_sf2_priv *priv, int port)
-{
-	u32 reg, val;
-
-	/* Resolve which bit controls the Broadcom tag */
-	switch (port) {
-	case 8:
-		val = BRCM_HDR_EN_P8;
-		break;
-	case 7:
-		val = BRCM_HDR_EN_P7;
-		break;
-	case 5:
-		val = BRCM_HDR_EN_P5;
-		break;
-	default:
-		val = 0;
-		break;
-	}
-
-	/* Enable Broadcom tags for IMP port */
-	reg = core_readl(priv, CORE_BRCM_HDR_CTRL);
-	reg |= val;
-	core_writel(priv, reg, CORE_BRCM_HDR_CTRL);
-
-	/* Enable reception Broadcom tag for CPU TX (switch RX) to
-	 * allow us to tag outgoing frames
-	 */
-	reg = core_readl(priv, CORE_BRCM_HDR_RX_DIS);
-	reg &= ~(1 << port);
-	core_writel(priv, reg, CORE_BRCM_HDR_RX_DIS);
-
-	/* Enable transmission of Broadcom tags from the switch (CPU RX) to
-	 * allow delivering frames to the per-port net_devices
-	 */
-	reg = core_readl(priv, CORE_BRCM_HDR_TX_DIS);
-	reg &= ~(1 << port);
-	core_writel(priv, reg, CORE_BRCM_HDR_TX_DIS);
-}
 
 static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 {
@@ -138,7 +99,7 @@ static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 		reg |= i << (PRT_TO_QID_SHIFT * i);
 	core_writel(priv, reg, CORE_PORT_TC2_QOS_MAP_PORT(port));
 
-	bcm_sf2_brcm_hdr_setup(priv, port);
+	b53_brcm_hdr_setup(ds, port);
 
 	/* Force link status for IMP port */
 	reg = core_readl(priv, offset);
@@ -247,7 +208,7 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 
 	/* Enable Broadcom tags for that port if requested */
 	if (priv->brcm_tag_mask & BIT(port))
-		bcm_sf2_brcm_hdr_setup(priv, port);
+		b53_brcm_hdr_setup(ds, port);
 
 	/* Configure Traffic Class to QoS mapping, allow each priority to map
 	 * to a different queue number

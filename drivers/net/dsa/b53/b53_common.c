@@ -538,6 +538,53 @@ static void b53_disable_port(struct dsa_switch *ds, int port,
 	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), reg);
 }
 
+void b53_brcm_hdr_setup(struct dsa_switch *ds, int port)
+{
+	struct b53_device *dev = ds->priv;
+	u8 hdr_ctl, val;
+	u16 reg;
+
+	/* Resolve which bit controls the Broadcom tag */
+	switch (port) {
+	case 8:
+		val = BRCM_HDR_P8_EN;
+		break;
+	case 7:
+		val = BRCM_HDR_P7_EN;
+		break;
+	case 5:
+		val = BRCM_HDR_P5_EN;
+		break;
+	default:
+		val = 0;
+		break;
+	}
+
+	/* Enable Broadcom tags for IMP port */
+	b53_read8(dev, B53_MGMT_PAGE, B53_BRCM_HDR, &hdr_ctl);
+	hdr_ctl |= val;
+	b53_write8(dev, B53_MGMT_PAGE, B53_BRCM_HDR, hdr_ctl);
+
+	/* Registers below are only accessible on newer devices */
+	if (!is58xx(dev))
+		return;
+
+	/* Enable reception Broadcom tag for CPU TX (switch RX) to
+	 * allow us to tag outgoing frames
+	 */
+	b53_read16(dev, B53_MGMT_PAGE, B53_BRCM_HDR_RX_DIS, &reg);
+	reg &= ~BIT(port);
+	b53_write16(dev, B53_MGMT_PAGE, B53_BRCM_HDR_RX_DIS, reg);
+
+	/* Enable transmission of Broadcom tags from the switch (CPU RX) to
+	 * allow delivering frames to the per-port net_devices
+	 */
+	b53_read16(dev, B53_MGMT_PAGE, B53_BRCM_HDR_TX_DIS, &reg);
+	reg &= ~BIT(port);
+	b53_write16(dev, B53_MGMT_PAGE, B53_BRCM_HDR_TX_DIS, reg);
+}
+EXPORT_SYMBOL(b53_brcm_hdr_setup);
+
 static void b53_enable_cpu_port(struct b53_device *dev, int port)
 {
 	u8 port_ctrl;

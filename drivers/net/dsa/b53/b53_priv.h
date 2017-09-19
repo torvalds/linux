@@ -309,5 +309,6 @@ int b53_mirror_add(struct dsa_switch *ds, int port,
 		   struct dsa_mall_mirror_tc_entry *mirror, bool ingress);
 void b53_mirror_del(struct dsa_switch *ds, int port,
 		    struct dsa_mall_mirror_tc_entry *mirror);
+void b53_brcm_hdr_setup(struct dsa_switch *ds, int port);
 
 #endif

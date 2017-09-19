@@ -210,6 +210,7 @@
 #define B53_BRCM_HDR			0x03
 #define   BRCM_HDR_P8_EN		BIT(0) /* Enable tagging on port 8 */
 #define   BRCM_HDR_P5_EN		BIT(1) /* Enable tagging on port 5 */
+#define   BRCM_HDR_P7_EN		BIT(2) /* Enable tagging on port 7 */
 
 /* Mirror capture control register (16 bit) */
 #define B53_MIR_CAP_CTL			0x10
@@ -248,6 +249,12 @@
 
 /* Revision ID register (8 bit) */
 #define B53_REV_ID			0x40
+
+/* Broadcom header RX control (16 bit) */
+#define B53_BRCM_HDR_RX_DIS		0x60
+
+/* Broadcom header TX control (16 bit)	*/
+#define B53_BRCM_HDR_TX_DIS		0x62
 
 /*************************************************************************
  * ARL Access Page Registers
