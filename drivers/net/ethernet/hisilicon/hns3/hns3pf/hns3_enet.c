@@ -2705,10 +2705,11 @@ static void hns3_init_mac_addr(struct net_device *netdev)
 		eth_hw_addr_random(netdev);
 		dev_warn(priv->dev, "using random MAC address %pM\n",
 			 netdev->dev_addr);
-		/* Also copy this new MAC address into hdev */
-		if (h->ae_algo->ops->set_mac_addr)
-			h->ae_algo->ops->set_mac_addr(h, netdev->dev_addr);
 	}
+
+	if (h->ae_algo->ops->set_mac_addr)
+		h->ae_algo->ops->set_mac_addr(h, netdev->dev_addr);
+
 }
 
 static void hns3_nic_set_priv_ops(struct net_device *netdev)

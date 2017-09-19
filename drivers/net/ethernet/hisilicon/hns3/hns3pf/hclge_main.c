@@ -1063,9 +1063,9 @@ static int hclge_configure(struct hclge_dev *hdev)
 	hdev->base_tqp_pid = 0;
 	hdev->rss_size_max = 1;
 	hdev->rx_buf_len = cfg.rx_buf_len;
-	for (i = 0; i < ETH_ALEN; i++)
-		hdev->hw.mac.mac_addr[i] = cfg.mac_addr[i];
+	ether_addr_copy(hdev->hw.mac.mac_addr, cfg.mac_addr);
 	hdev->hw.mac.media_type = cfg.media_type;
+	hdev->hw.mac.phy_addr = cfg.phy_addr;
 	hdev->num_desc = cfg.tqp_desc_num;
 	hdev->tm_info.num_pg = 1;
 	hdev->tm_info.num_tc = cfg.tc_num;
@@ -2679,7 +2679,11 @@ int hclge_map_vport_ring_to_vector(struct hclge_vport *vport, int vector_id,
 			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
 		hnae_set_field(req->tqp_type_and_id[i], HCLGE_TQP_ID_M,
 			       HCLGE_TQP_ID_S,	node->tqp_index);
+		hnae_set_field(req->tqp_type_and_id[i], HCLGE_INT_GL_IDX_M,
+			       HCLGE_INT_GL_IDX_S,
+			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
 		req->tqp_type_and_id[i] = cpu_to_le16(req->tqp_type_and_id[i]);
+		req->vfid = vport->vport_id;
 
 		if (++i >= HCLGE_VECTOR_ELEMENTS_PER_CMD) {
 			req->int_cause_num = HCLGE_VECTOR_ELEMENTS_PER_CMD;
@@ -2763,8 +2767,12 @@ static int hclge_unmap_ring_from_vector(
 			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
 		hnae_set_field(req->tqp_type_and_id[i], HCLGE_TQP_ID_M,
 			       HCLGE_TQP_ID_S,	node->tqp_index);
+		hnae_set_field(req->tqp_type_and_id[i], HCLGE_INT_GL_IDX_M,
+			       HCLGE_INT_GL_IDX_S,
+			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
 
 		req->tqp_type_and_id[i] = cpu_to_le16(req->tqp_type_and_id[i]);
+		req->vfid = vport->vport_id;
 
 		if (++i >= HCLGE_VECTOR_ELEMENTS_PER_CMD) {
 			req->int_cause_num = HCLGE_VECTOR_ELEMENTS_PER_CMD;
@@ -2778,7 +2786,7 @@ static int hclge_unmap_ring_from_vector(
 			}
 			i = 0;
 			hclge_cmd_setup_basic_desc(&desc,
-						   HCLGE_OPC_ADD_RING_TO_VECTOR,
+						   HCLGE_OPC_DEL_RING_TO_VECTOR,
 						   false);
 			req->int_vector_id = vector_id;
 		}
@@ -3665,6 +3673,7 @@ static int hclge_init_vlan_config(struct hclge_dev *hdev)
 {
 #define HCLGE_VLAN_TYPE_VF_TABLE   0
 #define HCLGE_VLAN_TYPE_PORT_TABLE 1
+	struct hnae3_handle *handle;
 	int ret;
 
 	ret = hclge_set_vlan_filter_ctrl(hdev, HCLGE_VLAN_TYPE_VF_TABLE,
@@ -3674,8 +3683,11 @@ static int hclge_init_vlan_config(struct hclge_dev *hdev)
 
 	ret = hclge_set_vlan_filter_ctrl(hdev, HCLGE_VLAN_TYPE_PORT_TABLE,
 					 true);
+	if (ret)
+		return ret;
 
-	return ret;
+	handle = &hdev->vport[0].nic;
+	return hclge_set_port_vlan_filter(handle, htons(ETH_P_8021Q), 0, false);
 }
 
 static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu)
