@@ -1354,33 +1354,39 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 	return ret;
 }
 
-static void gen3_stop_rings(struct drm_i915_private *dev_priv)
+static void gen3_stop_engine(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+	const u32 base = engine->mmio_base;
+	const i915_reg_t mode = RING_MI_MODE(base);
+
+	I915_WRITE_FW(mode, _MASKED_BIT_ENABLE(STOP_RING));
+	if (intel_wait_for_register_fw(dev_priv,
+				       mode,
+				       MODE_IDLE,
+				       MODE_IDLE,
+				       500))
+		DRM_DEBUG_DRIVER("%s: timed out on STOP_RING\n",
+				 engine->name);
+
+	I915_WRITE_FW(RING_CTL(base), 0);
+	I915_WRITE_FW(RING_HEAD(base), 0);
+	I915_WRITE_FW(RING_TAIL(base), 0);
+
+	/* Check acts as a post */
+	if (I915_READ_FW(RING_HEAD(base)) != 0)
+		DRM_DEBUG_DRIVER("%s: ring head not parked\n",
+				 engine->name);
+}
+
+static void i915_stop_engines(struct drm_i915_private *dev_priv,
+			      unsigned engine_mask)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	for_each_engine(engine, dev_priv, id) {
-		const u32 base = engine->mmio_base;
-		const i915_reg_t mode = RING_MI_MODE(base);
-
-		I915_WRITE_FW(mode, _MASKED_BIT_ENABLE(STOP_RING));
-		if (intel_wait_for_register_fw(dev_priv,
-					       mode,
-					       MODE_IDLE,
-					       MODE_IDLE,
-					       500))
-			DRM_DEBUG_DRIVER("%s: timed out on STOP_RING\n",
-					 engine->name);
-
-		I915_WRITE_FW(RING_CTL(base), 0);
-		I915_WRITE_FW(RING_HEAD(base), 0);
-		I915_WRITE_FW(RING_TAIL(base), 0);
-
-		/* Check acts as a post */
-		if (I915_READ_FW(RING_HEAD(base)) != 0)
-			DRM_DEBUG_DRIVER("%s: ring head not parked\n",
-					 engine->name);
-	}
+	for_each_engine_masked(engine, dev_priv, engine_mask, id)
+		gen3_stop_engine(engine);
 }
 
 static bool i915_reset_complete(struct pci_dev *pdev)
@@ -1415,9 +1421,6 @@ static int g33_do_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 
-	/* Stop engines before we reset; see g4x_do_reset() below for why. */
-	gen3_stop_rings(dev_priv);
-
 	pci_write_config_byte(pdev, I915_GDRST, GRDOM_RESET_ENABLE);
 	return wait_for(g4x_reset_complete(pdev), 500);
 }
@@ -1431,12 +1434,6 @@ static int g4x_do_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 	I915_WRITE(VDECCLK_GATE_D,
 		   I915_READ(VDECCLK_GATE_D) | VCP_UNIT_CLOCK_GATE_DISABLE);
 	POSTING_READ(VDECCLK_GATE_D);
-
-	/* We stop engines, otherwise we might get failed reset and a
-	 * dead gpu (on elk).
-	 * WaMediaResetMainRingCleanup:ctg,elk (presumably)
-	 */
-	gen3_stop_rings(dev_priv);
 
 	pci_write_config_byte(pdev, I915_GDRST,
 			      GRDOM_MEDIA | GRDOM_RESET_ENABLE);
@@ -1742,6 +1739,20 @@ int intel_gpu_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 	 */
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 	for (retry = 0; retry < 3; retry++) {
+
+		/* We stop engines, otherwise we might get failed reset and a
+		 * dead gpu (on elk). Also as modern gpu as kbl can suffer
+		 * from system hang if batchbuffer is progressing when
+		 * the reset is issued, regardless of READY_TO_RESET ack.
+		 * Thus assume it is best to stop engines on all gens
+		 * where we have a gpu reset.
+		 *
+		 * WaMediaResetMainRingCleanup:ctg,elk (presumably)
+		 *
+		 * FIXME: Wa for more modern gens needs to be validated
+		 */
+		i915_stop_engines(dev_priv, engine_mask);
+
 		ret = reset(dev_priv, engine_mask);
 		if (ret != -ETIMEDOUT)
 			break;
