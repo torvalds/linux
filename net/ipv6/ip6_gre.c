@@ -1155,19 +1155,21 @@ err_alloc_dev:
 	return err;
 }
 
-static void __net_exit ip6gre_exit_net(struct net *net)
+static void __net_exit ip6gre_exit_batch_net(struct list_head *net_list)
 {
+	struct net *net;
 	LIST_HEAD(list);
 
 	rtnl_lock();
-	ip6gre_destroy_tunnels(net, &list);
+	list_for_each_entry(net, net_list, exit_list)
+		ip6gre_destroy_tunnels(net, &list);
 	unregister_netdevice_many(&list);
 	rtnl_unlock();
 }
 
 static struct pernet_operations ip6gre_net_ops = {
 	.init = ip6gre_init_net,
-	.exit = ip6gre_exit_net,
+	.exit_batch = ip6gre_exit_batch_net,
 	.id   = &ip6gre_net_id,
 	.size = sizeof(struct ip6gre_net),
 };
