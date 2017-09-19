@@ -206,10 +206,6 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 		netdev_err(master, "[%d] : can't configure CPU and DSA ports\n",
 			   index);
 
-	ret = dsa_cpu_port_ethtool_setup(ds->dst->cpu_dp);
-	if (ret)
-		return ret;
-
 	return 0;
 }
 
@@ -606,7 +602,7 @@ static int dsa_setup_dst(struct dsa_switch_tree *dst, struct net_device *dev,
 	wmb();
 	dev->dsa_ptr = dst;
 
-	return 0;
+	return dsa_master_ethtool_setup(dst->cpu_dp->netdev);
 }
 
 static int dsa_probe(struct platform_device *pdev)
@@ -671,6 +667,8 @@ static void dsa_remove_dst(struct dsa_switch_tree *dst)
 {
 	int i;
 
+	dsa_master_ethtool_restore(dst->cpu_dp->netdev);
+
 	dst->cpu_dp->netdev->dsa_ptr = NULL;
 
 	/* If we used a tagging format that doesn't have an ethertype
@@ -685,8 +683,6 @@ static void dsa_remove_dst(struct dsa_switch_tree *dst)
 		if (ds)
 			dsa_switch_destroy(ds);
 	}
-
-	dsa_cpu_port_ethtool_restore(dst->cpu_dp);
 
 	dev_put(dst->cpu_dp->netdev);
 }
