@@ -261,7 +261,7 @@ void dvb_unregister_device(struct dvb_device *dvbdev);
  * dvb_create_media_graph - Creates media graph for the Digital TV part of the
  * 				device.
  *
- * @adap:			pointer to struct dvb_adapter
+ * @adap:			pointer to &struct dvb_adapter
  * @create_rf_connector:	if true, it creates the RF connector too
  *
  * This function checks all DVB-related functions at the media controller
@@ -274,12 +274,23 @@ void dvb_unregister_device(struct dvb_device *dvbdev);
 __must_check int dvb_create_media_graph(struct dvb_adapter *adap,
 					bool create_rf_connector);
 
+/**
+ * dvb_register_media_controller - registers a media controller at DVB adapter
+ *
+ * @adap:			pointer to &struct dvb_adapter
+ * @mdev:			pointer to &struct media_device
+ */
 static inline void dvb_register_media_controller(struct dvb_adapter *adap,
 						 struct media_device *mdev)
 {
 	adap->mdev = mdev;
 }
 
+/**
+ * dvb_get_media_controller - gets the associated media controller
+ *
+ * @adap:			pointer to &struct dvb_adapter
+ */
 static inline struct media_device
 *dvb_get_media_controller(struct dvb_adapter *adap)
 {
@@ -296,20 +307,71 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 #define dvb_get_media_controller(a) NULL
 #endif
 
-int dvb_generic_open (struct inode *inode, struct file *file);
-int dvb_generic_release (struct inode *inode, struct file *file);
-long dvb_generic_ioctl (struct file *file,
-			      unsigned int cmd, unsigned long arg);
+/**
+ * dvb_generic_open - Digital TV open function, used by DVB devices
+ *
+ * @inode: pointer to &struct inode.
+ * @file: pointer to &struct file.
+ *
+ * Checks if a DVB devnode is still valid, and if the permissions are
+ * OK and increment negative use count.
+ */
+int dvb_generic_open(struct inode *inode, struct file *file);
 
-/* we don't mess with video_usercopy() any more,
-we simply define out own dvb_usercopy(), which will hopefully become
-generic_usercopy()  someday... */
+/**
+ * dvb_generic_close - Digital TV close function, used by DVB devices
+ *
+ * @inode: pointer to &struct inode.
+ * @file: pointer to &struct file.
+ *
+ * Checks if a DVB devnode is still valid, and if the permissions are
+ * OK and decrement negative use count.
+ */
+int dvb_generic_release(struct inode *inode, struct file *file);
 
+/**
+ * dvb_generic_ioctl - Digital TV close function, used by DVB devices
+ *
+ * @file: pointer to &struct file.
+ * @cmd: Ioctl name.
+ * @arg: Ioctl argument.
+ *
+ * Checks if a DVB devnode and struct dvbdev.kernel_ioctl is still valid.
+ * If so, calls dvb_usercopy().
+ */
+long dvb_generic_ioctl(struct file *file,
+		       unsigned int cmd, unsigned long arg);
+
+/**
+ * dvb_usercopy - copies data from/to userspace memory when an ioctl is
+ *      issued.
+ *
+ * @file: Pointer to struct &file.
+ * @cmd: Ioctl name.
+ * @arg: Ioctl argument.
+ * @func: function that will actually handle the ioctl
+ *
+ * Ancillary function that uses ioctl direction and size to copy from
+ * userspace. Then, it calls @func, and, if needed, data is copied back
+ * to userspace.
+ */
 int dvb_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 		 int (*func)(struct file *file, unsigned int cmd, void *arg));
 
 /** generic DVB attach function. */
 #ifdef CONFIG_MEDIA_ATTACH
+
+/**
+ * dvb_attach - attaches a DVB frontend into the DVB core.
+ *
+ * @FUNCTION:	function on a frontend module to be called.
+ * @ARGS...:	@FUNCTION arguments.
+ *
+ * This ancillary function loads a frontend module in runtime and runs
+ * the @FUNCTION function there, with @ARGS.
+ * As it increments symbol usage cont, at unregister, dvb_detach()
+ * should be called.
+ */
 #define dvb_attach(FUNCTION, ARGS...) ({ \
 	void *__r = NULL; \
 	typeof(&FUNCTION) __a = symbol_request(FUNCTION); \
@@ -322,6 +384,14 @@ int dvb_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 	} \
 	__r; \
 })
+
+/**
+ * dvb_detach - detaches a DVB frontend loaded via dvb_attach()
+ *
+ * @FUNC:	attach function
+ *
+ * Decrements usage count for a function previously called via dvb_attach().
+ */
 
 #define dvb_detach(FUNC)	symbol_put_addr(FUNC)
 
