@@ -154,7 +154,6 @@ STACK_FRAME_NON_STANDARD(optprobe_template_func);
 static void
 optimized_callback(struct optimized_kprobe *op, struct pt_regs *regs)
 {
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 	unsigned long flags;
 
 	/* This is possible if op is under delayed unoptimizing */
@@ -165,6 +164,7 @@ optimized_callback(struct optimized_kprobe *op, struct pt_regs *regs)
 	if (kprobe_running()) {
 		kprobes_inc_nmissed_count(&op->kp);
 	} else {
+		struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 		/* Save skipped registers */
 #ifdef CONFIG_X86_64
 		regs->cs = __KERNEL_CS;
