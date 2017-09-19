@@ -50,24 +50,24 @@
 		sr_mc_gate_idle = <0>;
 		srpd_lite_idle	= <0>;
 		standby_idle = <0>;
-		dram_dll_dis_freq = <300>;
-		phy_dll_dis_freq = <125>;
+		ddr3_dll_dis_freq = <300>;
+		phy_dll_dis_freq = <260>;
 
-		ddr3_odt_dis_freq = <333>;
+		ddr3_odt_dis_freq = <666>;
 		ddr3_drv = <DDR3_DS_40ohm>;
 		ddr3_odt = <DDR3_ODT_120ohm>;
 		phy_ddr3_ca_drv = <PHY_DRV_ODT_40>;
 		phy_ddr3_dq_drv = <PHY_DRV_ODT_40>;
 		phy_ddr3_odt = <PHY_DRV_ODT_240>;
 
-		lpddr3_odt_dis_freq = <333>;
+		lpddr3_odt_dis_freq = <666>;
 		lpddr3_drv = <LP3_DS_34ohm>;
 		lpddr3_odt = <LP3_ODT_240ohm>;
-		phy_lpddr3_ca_drv = <PHY_DRV_ODT_40>;
-		phy_lpddr3_dq_drv = <PHY_DRV_ODT_40>;
+		phy_lpddr3_ca_drv = <PHY_DRV_ODT_34_3>;
+		phy_lpddr3_dq_drv = <PHY_DRV_ODT_34_3>;
 		phy_lpddr3_odt = <PHY_DRV_ODT_240>;
 
-		lpddr4_odt_dis_freq = <333>;
+		lpddr4_odt_dis_freq = <933>;
 		lpddr4_drv = <LP4_PDDS_60ohm>;
 		lpddr4_dq_odt = <LP4_DQ_ODT_40ohm>;
 		lpddr4_ca_odt = <LP4_CA_ODT_40ohm>;

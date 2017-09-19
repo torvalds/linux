@@ -228,7 +228,7 @@ struct rk3399_dram_timing {
 	unsigned int sr_mc_gate_idle;
 	unsigned int srpd_lite_idle;
 	unsigned int standby_idle;
-	unsigned int dram_dll_dis_freq;
+	unsigned int ddr3_dll_dis_freq;
 	unsigned int phy_dll_dis_freq;
 	unsigned int ddr3_odt_dis_freq;
 	unsigned int ddr3_drv;
@@ -986,8 +986,8 @@ static struct rk3399_dram_timing *of_get_rk3399_timings(struct device *dev,
 					    &timing->srpd_lite_idle);
 		ret |= of_property_read_u32(np_tim, "standby_idle",
 					    &timing->standby_idle);
-		ret |= of_property_read_u32(np_tim, "dram_dll_dis_freq",
-					    &timing->dram_dll_dis_freq);
+		ret |= of_property_read_u32(np_tim, "ddr3_dll_dis_freq",
+					    &timing->ddr3_dll_dis_freq);
 		ret |= of_property_read_u32(np_tim, "phy_dll_dis_freq",
 					    &timing->phy_dll_dis_freq);
 		ret |= of_property_read_u32(np_tim, "ddr3_odt_dis_freq",
