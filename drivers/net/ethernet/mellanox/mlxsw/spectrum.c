@@ -69,6 +69,7 @@
 #include "txheader.h"
 #include "spectrum_cnt.h"
 #include "spectrum_dpipe.h"
+#include "spectrum_acl_flex_actions.h"
 #include "../mlxfw/mlxfw.h"
 
 #define MLXSW_FWREV_MAJOR 13
@@ -3420,6 +3421,10 @@ static const struct mlxsw_listener mlxsw_sp_listener[] = {
 		  false, SP_IP2ME, DISCARD),
 	/* ACL trap */
 	MLXSW_SP_RXL_NO_MARK(ACL0, TRAP_TO_CPU, IP2ME, false),
+	/* Multicast Router Traps */
+	MLXSW_SP_RXL_MARK(IPV4_PIM, TRAP_TO_CPU, PIM, false),
+	MLXSW_SP_RXL_MARK(RPF, TRAP_TO_CPU, RPF, false),
+	MLXSW_SP_RXL_MARK(ACL1, TRAP_TO_CPU, MULTICAST, false),
 };
 
 static int mlxsw_sp_cpu_policers_set(struct mlxsw_core *mlxsw_core)
@@ -3445,6 +3450,8 @@ static int mlxsw_sp_cpu_policers_set(struct mlxsw_core *mlxsw_core)
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_LACP:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_LLDP:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_OSPF:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_PIM:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_RPF:
 			rate = 128;
 			burst_size = 7;
 			break;
@@ -3460,6 +3467,7 @@ static int mlxsw_sp_cpu_policers_set(struct mlxsw_core *mlxsw_core)
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_ROUTER_EXP:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_REMOTE_ROUTE:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_IPV6_ND:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_MULTICAST:
 			rate = 1024;
 			burst_size = 7;
 			break;
@@ -3505,6 +3513,7 @@ static int mlxsw_sp_trap_groups_set(struct mlxsw_core *mlxsw_core)
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_LACP:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_LLDP:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_OSPF:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_PIM:
 			priority = 5;
 			tc = 5;
 			break;
@@ -3521,12 +3530,14 @@ static int mlxsw_sp_trap_groups_set(struct mlxsw_core *mlxsw_core)
 			break;
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_ARP:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_IPV6_ND:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_RPF:
 			priority = 2;
 			tc = 2;
 			break;
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_HOST_MISS:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_ROUTER_EXP:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_REMOTE_ROUTE:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_MULTICAST:
 			priority = 1;
 			tc = 1;
 			break;
@@ -3693,6 +3704,18 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_switchdev_init;
 	}
 
+	err = mlxsw_sp_counter_pool_init(mlxsw_sp);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to init counter pool\n");
+		goto err_counter_pool_init;
+	}
+
+	err = mlxsw_sp_afa_init(mlxsw_sp);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize ACL actions\n");
+		goto err_afa_init;
+	}
+
 	err = mlxsw_sp_router_init(mlxsw_sp);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize router\n");
@@ -3709,12 +3732,6 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize ACL\n");
 		goto err_acl_init;
-	}
-
-	err = mlxsw_sp_counter_pool_init(mlxsw_sp);
-	if (err) {
-		dev_err(mlxsw_sp->bus_info->dev, "Failed to init counter pool\n");
-		goto err_counter_pool_init;
 	}
 
 	err = mlxsw_sp_dpipe_init(mlxsw_sp);
@@ -3734,14 +3751,16 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 err_ports_create:
 	mlxsw_sp_dpipe_fini(mlxsw_sp);
 err_dpipe_init:
-	mlxsw_sp_counter_pool_fini(mlxsw_sp);
-err_counter_pool_init:
 	mlxsw_sp_acl_fini(mlxsw_sp);
 err_acl_init:
 	mlxsw_sp_span_fini(mlxsw_sp);
 err_span_init:
 	mlxsw_sp_router_fini(mlxsw_sp);
 err_router_init:
+	mlxsw_sp_afa_fini(mlxsw_sp);
+err_afa_init:
+	mlxsw_sp_counter_pool_fini(mlxsw_sp);
+err_counter_pool_init:
 	mlxsw_sp_switchdev_fini(mlxsw_sp);
 err_switchdev_init:
 	mlxsw_sp_lag_fini(mlxsw_sp);
@@ -3760,10 +3779,11 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 
 	mlxsw_sp_ports_remove(mlxsw_sp);
 	mlxsw_sp_dpipe_fini(mlxsw_sp);
-	mlxsw_sp_counter_pool_fini(mlxsw_sp);
 	mlxsw_sp_acl_fini(mlxsw_sp);
 	mlxsw_sp_span_fini(mlxsw_sp);
 	mlxsw_sp_router_fini(mlxsw_sp);
+	mlxsw_sp_afa_fini(mlxsw_sp);
+	mlxsw_sp_counter_pool_fini(mlxsw_sp);
 	mlxsw_sp_switchdev_fini(mlxsw_sp);
 	mlxsw_sp_lag_fini(mlxsw_sp);
 	mlxsw_sp_buffers_fini(mlxsw_sp);
