@@ -583,21 +583,12 @@ EXPORT_SYMBOL_GPL(queue_iova);
  */
 void put_iova_domain(struct iova_domain *iovad)
 {
-	struct rb_node *node;
-	unsigned long flags;
+	struct iova *iova, *tmp;
 
 	free_iova_flush_queue(iovad);
 	free_iova_rcaches(iovad);
-	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
-	node = rb_first(&iovad->rbroot);
-	while (node) {
-		struct iova *iova = rb_entry(node, struct iova, node);
-
-		rb_erase(node, &iovad->rbroot);
+	rbtree_postorder_for_each_entry_safe(iova, tmp, &iovad->rbroot, node)
 		free_iova_mem(iova);
-		node = rb_first(&iovad->rbroot);
-	}
-	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
 }
 EXPORT_SYMBOL_GPL(put_iova_domain);
 
@@ -990,46 +981,25 @@ static unsigned long iova_rcache_get(struct iova_domain *iovad,
 }
 
 /*
- * Free a cpu's rcache.
- */
-static void free_cpu_iova_rcache(unsigned int cpu, struct iova_domain *iovad,
-				 struct iova_rcache *rcache)
-{
-	struct iova_cpu_rcache *cpu_rcache = per_cpu_ptr(rcache->cpu_rcaches, cpu);
-	unsigned long flags;
-
-	spin_lock_irqsave(&cpu_rcache->lock, flags);
-
-	iova_magazine_free_pfns(cpu_rcache->loaded, iovad);
-	iova_magazine_free(cpu_rcache->loaded);
-
-	iova_magazine_free_pfns(cpu_rcache->prev, iovad);
-	iova_magazine_free(cpu_rcache->prev);
-
-	spin_unlock_irqrestore(&cpu_rcache->lock, flags);
-}
-
-/*
  * free rcache data structures.
  */
 static void free_iova_rcaches(struct iova_domain *iovad)
 {
 	struct iova_rcache *rcache;
-	unsigned long flags;
+	struct iova_cpu_rcache *cpu_rcache;
 	unsigned int cpu;
 	int i, j;
 
 	for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; ++i) {
 		rcache = &iovad->rcaches[i];
-		for_each_possible_cpu(cpu)
-			free_cpu_iova_rcache(cpu, iovad, rcache);
-		spin_lock_irqsave(&rcache->lock, flags);
-		free_percpu(rcache->cpu_rcaches);
-		for (j = 0; j < rcache->depot_size; ++j) {
-			iova_magazine_free_pfns(rcache->depot[j], iovad);
-			iova_magazine_free(rcache->depot[j]);
+		for_each_possible_cpu(cpu) {
+			cpu_rcache = per_cpu_ptr(rcache->cpu_rcaches, cpu);
+			iova_magazine_free(cpu_rcache->loaded);
+			iova_magazine_free(cpu_rcache->prev);
 		}
-		spin_unlock_irqrestore(&rcache->lock, flags);
+		free_percpu(rcache->cpu_rcaches);
+		for (j = 0; j < rcache->depot_size; ++j)
+			iova_magazine_free(rcache->depot[j]);
 	}
 }
 
