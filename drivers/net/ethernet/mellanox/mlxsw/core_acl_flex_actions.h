@@ -68,5 +68,8 @@ int mlxsw_afa_block_append_vlan_modify(struct mlxsw_afa_block *block,
 int mlxsw_afa_block_append_counter(struct mlxsw_afa_block *block,
 				   u32 counter_index);
 int mlxsw_afa_block_append_fid_set(struct mlxsw_afa_block *block, u16 fid);
+int mlxsw_afa_block_append_mcrouter(struct mlxsw_afa_block *block,
+				    u16 expected_irif, u16 min_mtu,
+				    bool rmid_valid, u32 kvdl_index);
 
 #endif
