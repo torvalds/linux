@@ -602,7 +602,7 @@ static int dsa_setup_dst(struct dsa_switch_tree *dst, struct net_device *dev,
 	wmb();
 	dev->dsa_ptr = dst;
 
-	return dsa_cpu_port_ethtool_setup(dst->cpu_dp);
+	return dsa_master_ethtool_setup(dst->cpu_dp->netdev);
 }
 
 static int dsa_probe(struct platform_device *pdev)
@@ -667,7 +667,7 @@ static void dsa_remove_dst(struct dsa_switch_tree *dst)
 {
 	int i;
 
-	dsa_cpu_port_ethtool_restore(dst->cpu_dp);
+	dsa_master_ethtool_restore(dst->cpu_dp->netdev);
 
 	dst->cpu_dp->netdev->dsa_ptr = NULL;
 

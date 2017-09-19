@@ -440,7 +440,7 @@ static int dsa_dst_apply(struct dsa_switch_tree *dst)
 	wmb();
 	dst->cpu_dp->netdev->dsa_ptr = dst;
 
-	err = dsa_cpu_port_ethtool_setup(dst->cpu_dp);
+	err = dsa_master_ethtool_setup(dst->cpu_dp->netdev);
 	if (err)
 		return err;
 
@@ -457,7 +457,7 @@ static void dsa_dst_unapply(struct dsa_switch_tree *dst)
 	if (!dst->applied)
 		return;
 
-	dsa_cpu_port_ethtool_restore(dst->cpu_dp);
+	dsa_master_ethtool_restore(dst->cpu_dp->netdev);
 
 	dst->cpu_dp->netdev->dsa_ptr = NULL;
 

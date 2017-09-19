@@ -97,8 +97,6 @@ struct dsa_slave_priv {
 int dsa_cpu_dsa_setup(struct dsa_port *port);
 void dsa_cpu_dsa_destroy(struct dsa_port *dport);
 const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol);
-int dsa_cpu_port_ethtool_setup(struct dsa_port *cpu_dp);
-void dsa_cpu_port_ethtool_restore(struct dsa_port *cpu_dp);
 bool dsa_schedule_work(struct work_struct *work);
 
 /* legacy.c */
@@ -111,6 +109,10 @@ int dsa_legacy_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 int dsa_legacy_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 		       struct net_device *dev,
 		       const unsigned char *addr, u16 vid);
+
+/* master.c */
+int dsa_master_ethtool_setup(struct net_device *dev);
+void dsa_master_ethtool_restore(struct net_device *dev);
 
 /* port.c */
 int dsa_port_set_state(struct dsa_port *dp, u8 state,
@@ -139,7 +141,6 @@ int dsa_port_vlan_del(struct dsa_port *dp,
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;
 void dsa_slave_mii_bus_init(struct dsa_switch *ds);
-void dsa_cpu_port_ethtool_init(struct ethtool_ops *ops);
 int dsa_slave_create(struct dsa_port *port, const char *name);
 void dsa_slave_destroy(struct net_device *slave_dev);
 int dsa_slave_suspend(struct net_device *slave_dev);

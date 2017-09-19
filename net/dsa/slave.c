@@ -567,82 +567,6 @@ static void dsa_slave_get_strings(struct net_device *dev,
 	}
 }
 
-static void dsa_cpu_port_get_ethtool_stats(struct net_device *dev,
-					   struct ethtool_stats *stats,
-					   uint64_t *data)
-{
-	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_port *cpu_dp = dsa_get_cpu_port(dst);
-	struct dsa_switch *ds = cpu_dp->ds;
-	const struct ethtool_ops *ops = cpu_dp->orig_ethtool_ops;
-	s8 cpu_port = cpu_dp->index;
-	int count = 0;
-
-	if (ops && ops->get_sset_count && ops->get_ethtool_stats) {
-		count = ops->get_sset_count(dev, ETH_SS_STATS);
-		ops->get_ethtool_stats(dev, stats, data);
-	}
-
-	if (ds->ops->get_ethtool_stats)
-		ds->ops->get_ethtool_stats(ds, cpu_port, data + count);
-}
-
-static int dsa_cpu_port_get_sset_count(struct net_device *dev, int sset)
-{
-	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_port *cpu_dp = dsa_get_cpu_port(dst);
-	struct dsa_switch *ds = cpu_dp->ds;
-	const struct ethtool_ops *ops = cpu_dp->orig_ethtool_ops;
-	int count = 0;
-
-	if (ops && ops->get_sset_count)
-		count += ops->get_sset_count(dev, sset);
-
-	if (sset == ETH_SS_STATS && ds->ops->get_sset_count)
-		count += ds->ops->get_sset_count(ds);
-
-	return count;
-}
-
-static void dsa_cpu_port_get_strings(struct net_device *dev,
-				     uint32_t stringset, uint8_t *data)
-{
-	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_port *cpu_dp = dsa_get_cpu_port(dst);
-	struct dsa_switch *ds = cpu_dp->ds;
-	const struct ethtool_ops *ops = cpu_dp->orig_ethtool_ops;
-	s8 cpu_port = cpu_dp->index;
-	int len = ETH_GSTRING_LEN;
-	int mcount = 0, count;
-	unsigned int i;
-	uint8_t pfx[4];
-	uint8_t *ndata;
-
-	snprintf(pfx, sizeof(pfx), "p%.2d", cpu_port);
-	/* We do not want to be NULL-terminated, since this is a prefix */
-	pfx[sizeof(pfx) - 1] = '_';
-
-	if (ops && ops->get_sset_count && ops->get_strings) {
-		mcount = ops->get_sset_count(dev, ETH_SS_STATS);
-		ops->get_strings(dev, stringset, data);
-	}
-
-	if (stringset == ETH_SS_STATS && ds->ops->get_strings) {
-		ndata = data + mcount * len;
-		/* This function copies ETH_GSTRINGS_LEN bytes, we will mangle
-		 * the output after to prepend our CPU port prefix we
-		 * constructed earlier
-		 */
-		ds->ops->get_strings(ds, cpu_port, ndata);
-		count = ds->ops->get_sset_count(ds);
-		for (i = 0; i < count; i++) {
-			memmove(ndata + (i * len + sizeof(pfx)),
-				ndata + i * len, len - sizeof(pfx));
-			memcpy(ndata + i * len, pfx, sizeof(pfx));
-		}
-	}
-}
-
 static void dsa_slave_get_ethtool_stats(struct net_device *dev,
 					struct ethtool_stats *stats,
 					uint64_t *data)
@@ -977,13 +901,6 @@ static void dsa_slave_get_stats64(struct net_device *dev,
 		stats->rx_packets += rx_packets;
 		stats->rx_bytes += rx_bytes;
 	}
-}
-
-void dsa_cpu_port_ethtool_init(struct ethtool_ops *ops)
-{
-	ops->get_sset_count = dsa_cpu_port_get_sset_count;
-	ops->get_ethtool_stats = dsa_cpu_port_get_ethtool_stats;
-	ops->get_strings = dsa_cpu_port_get_strings;
 }
 
 static int dsa_slave_get_rxnfc(struct net_device *dev,
