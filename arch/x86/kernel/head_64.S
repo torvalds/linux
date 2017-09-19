@@ -266,9 +266,6 @@ ENDPROC(start_cpu0)
 	.quad  init_thread_union + THREAD_SIZE - SIZEOF_PTREGS
 	__FINITDATA
 
-bad_address:
-	jmp bad_address
-
 	__INIT
 ENTRY(early_idt_handler_array)
 	i = 0
