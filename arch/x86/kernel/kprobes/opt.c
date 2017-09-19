@@ -161,6 +161,7 @@ optimized_callback(struct optimized_kprobe *op, struct pt_regs *regs)
 		return;
 
 	local_irq_save(flags);
+	preempt_disable();
 	if (kprobe_running()) {
 		kprobes_inc_nmissed_count(&op->kp);
 	} else {
@@ -180,6 +181,7 @@ optimized_callback(struct optimized_kprobe *op, struct pt_regs *regs)
 		opt_pre_handler(&op->kp, regs);
 		__this_cpu_write(current_kprobe, NULL);
 	}
+	preempt_enable_no_resched();
 	local_irq_restore(flags);
 }
 NOKPROBE_SYMBOL(optimized_callback);
