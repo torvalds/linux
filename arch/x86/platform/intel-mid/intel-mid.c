@@ -183,6 +183,7 @@ void __init x86_intel_mid_early_setup(void)
 
 	x86_init.timers.timer_init = intel_mid_time_init;
 	x86_init.timers.setup_percpu_clockev = x86_init_noop;
+	x86_init.timers.wallclock_init = intel_mid_rtc_init;
 
 	x86_init.irqs.pre_vector_init = x86_init_noop;
 
@@ -191,7 +192,6 @@ void __init x86_intel_mid_early_setup(void)
 	x86_cpuinit.setup_percpu_clockev = apbt_setup_secondary_clock;
 
 	x86_platform.calibrate_tsc = intel_mid_calibrate_tsc;
-	x86_init.timers.wallclock_init = intel_mid_rtc_init;
 	x86_platform.get_nmi_reason = intel_mid_get_nmi_reason;
 
 	x86_init.pci.init = intel_mid_pci_init;

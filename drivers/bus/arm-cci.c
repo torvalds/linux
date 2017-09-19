@@ -2124,8 +2124,8 @@ int notrace __cci_control_port_by_device(struct device_node *dn, bool enable)
 		return -ENODEV;
 
 	port = __cci_ace_get_port(dn, ACE_LITE_PORT);
-	if (WARN_ONCE(port < 0, "node %s ACE lite port look-up failure\n",
-				dn->full_name))
+	if (WARN_ONCE(port < 0, "node %pOF ACE lite port look-up failure\n",
+				dn))
 		return -ENODEV;
 	cci_port_control(port, enable);
 	return 0;
@@ -2200,14 +2200,14 @@ static int cci_probe_ports(struct device_node *np)
 
 		if (of_property_read_string(cp, "interface-type",
 					&match_str)) {
-			WARN(1, "node %s missing interface-type property\n",
-				  cp->full_name);
+			WARN(1, "node %pOF missing interface-type property\n",
+				  cp);
 			continue;
 		}
 		is_ace = strcmp(match_str, "ace") == 0;
 		if (!is_ace && strcmp(match_str, "ace-lite")) {
-			WARN(1, "node %s containing invalid interface-type property, skipping it\n",
-					cp->full_name);
+			WARN(1, "node %pOF containing invalid interface-type property, skipping it\n",
+					cp);
 			continue;
 		}
 

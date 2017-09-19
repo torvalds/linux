@@ -16,8 +16,11 @@
 #define __DRIVERS_PINCTRL_IMX_H
 
 #include <linux/pinctrl/pinconf-generic.h>
+#include <linux/pinctrl/pinmux.h>
 
 struct platform_device;
+
+extern struct pinmux_ops imx_pmx_ops;
 
 /**
  * struct imx_pin - describes a single i.MX pin
@@ -76,6 +79,23 @@ struct imx_pinctrl_soc_info {
 	unsigned int num_decodes;
 	void (*fixup)(unsigned long *configs, unsigned int num_configs,
 		      u32 *raw_config);
+
+	int (*gpio_set_direction)(struct pinctrl_dev *pctldev,
+				  struct pinctrl_gpio_range *range,
+				  unsigned offset,
+				  bool input);
+};
+
+/**
+ * @dev: a pointer back to containing device
+ * @base: the offset to the controller in virtual memory
+ */
+struct imx_pinctrl {
+	struct device *dev;
+	struct pinctrl_dev *pctl;
+	void __iomem *base;
+	void __iomem *input_sel_base;
+	struct imx_pinctrl_soc_info *info;
 };
 
 #define IMX_CFG_PARAMS_DECODE(p, m, o) \

@@ -504,7 +504,7 @@ static int cs42l51_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_device_cs42l51 = {
+static const struct snd_soc_codec_driver soc_codec_device_cs42l51 = {
 	.probe = cs42l51_codec_probe,
 
 	.component_driver = {

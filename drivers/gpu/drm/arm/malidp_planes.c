@@ -128,7 +128,6 @@ static void malidp_plane_atomic_print_state(struct drm_printer *p,
 static const struct drm_plane_funcs malidp_de_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
-	.set_property = drm_atomic_helper_plane_set_property,
 	.destroy = malidp_de_plane_destroy,
 	.reset = malidp_plane_reset,
 	.atomic_duplicate_state = malidp_duplicate_plane_state,
@@ -398,7 +397,7 @@ int malidp_de_planes_init(struct drm_device *drm)
 					DRM_PLANE_TYPE_OVERLAY;
 		ret = drm_universal_plane_init(drm, &plane->base, crtcs,
 					       &malidp_de_plane_funcs, formats,
-					       n, plane_type, NULL);
+					       n, NULL, plane_type, NULL);
 		if (ret < 0)
 			goto cleanup;
 

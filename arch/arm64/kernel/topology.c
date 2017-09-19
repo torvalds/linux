@@ -45,7 +45,7 @@ static int __init get_cpu_for_node(struct device_node *node)
 		}
 	}
 
-	pr_crit("Unable to find CPU node for %s\n", cpu_node->full_name);
+	pr_crit("Unable to find CPU node for %pOF\n", cpu_node);
 
 	of_node_put(cpu_node);
 	return -1;
@@ -71,8 +71,8 @@ static int __init parse_core(struct device_node *core, int cluster_id,
 				cpu_topology[cpu].core_id = core_id;
 				cpu_topology[cpu].thread_id = i;
 			} else {
-				pr_err("%s: Can't get CPU for thread\n",
-				       t->full_name);
+				pr_err("%pOF: Can't get CPU for thread\n",
+				       t);
 				of_node_put(t);
 				return -EINVAL;
 			}
@@ -84,15 +84,15 @@ static int __init parse_core(struct device_node *core, int cluster_id,
 	cpu = get_cpu_for_node(core);
 	if (cpu >= 0) {
 		if (!leaf) {
-			pr_err("%s: Core has both threads and CPU\n",
-			       core->full_name);
+			pr_err("%pOF: Core has both threads and CPU\n",
+			       core);
 			return -EINVAL;
 		}
 
 		cpu_topology[cpu].cluster_id = cluster_id;
 		cpu_topology[cpu].core_id = core_id;
 	} else if (leaf) {
-		pr_err("%s: Can't get CPU for leaf core\n", core->full_name);
+		pr_err("%pOF: Can't get CPU for leaf core\n", core);
 		return -EINVAL;
 	}
 
@@ -137,8 +137,8 @@ static int __init parse_cluster(struct device_node *cluster, int depth)
 			has_cores = true;
 
 			if (depth == 0) {
-				pr_err("%s: cpu-map children should be clusters\n",
-				       c->full_name);
+				pr_err("%pOF: cpu-map children should be clusters\n",
+				       c);
 				of_node_put(c);
 				return -EINVAL;
 			}
@@ -146,8 +146,8 @@ static int __init parse_cluster(struct device_node *cluster, int depth)
 			if (leaf) {
 				ret = parse_core(c, cluster_id, core_id++);
 			} else {
-				pr_err("%s: Non-leaf cluster with core %s\n",
-				       cluster->full_name, name);
+				pr_err("%pOF: Non-leaf cluster with core %s\n",
+				       cluster, name);
 				ret = -EINVAL;
 			}
 
@@ -159,7 +159,7 @@ static int __init parse_cluster(struct device_node *cluster, int depth)
 	} while (c);
 
 	if (leaf && !has_cores)
-		pr_warn("%s: empty cluster\n", cluster->full_name);
+		pr_warn("%pOF: empty cluster\n", cluster);
 
 	if (leaf)
 		cluster_id++;

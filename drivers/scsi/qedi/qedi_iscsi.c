@@ -534,7 +534,7 @@ static int qedi_iscsi_offload_conn(struct qedi_endpoint *qedi_ep)
 	SET_FIELD(conn_info->tcp_flags, TCP_OFFLOAD_PARAMS_DA_CNT_EN, 1);
 	SET_FIELD(conn_info->tcp_flags, TCP_OFFLOAD_PARAMS_KA_EN, 1);
 
-	conn_info->default_cq = (qedi_ep->fw_cid % 8);
+	conn_info->default_cq = (qedi_ep->fw_cid % qedi->num_queues);
 
 	conn_info->ka_max_probe_cnt = DEF_KA_MAX_PROBE_COUNT;
 	conn_info->dup_ack_theshold = 3;
@@ -824,7 +824,7 @@ qedi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 	u32 iscsi_cid = QEDI_CID_RESERVED;
 	u16 len = 0;
 	char *buf = NULL;
-	int ret;
+	int ret, tmp;
 
 	if (!shost) {
 		ret = -ENXIO;
@@ -940,10 +940,10 @@ qedi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 
 ep_rel_conn:
 	qedi->ep_tbl[iscsi_cid] = NULL;
-	ret = qedi_ops->release_conn(qedi->cdev, qedi_ep->handle);
-	if (ret)
+	tmp = qedi_ops->release_conn(qedi->cdev, qedi_ep->handle);
+	if (tmp)
 		QEDI_WARN(&qedi->dbg_ctx, "release_conn returned %d\n",
-			  ret);
+			  tmp);
 ep_free_sq:
 	qedi_free_sq(qedi, qedi_ep);
 ep_conn_exit:

@@ -132,7 +132,7 @@ config SIMPLE_PM_BUS
 
 config SUNXI_RSB
 	tristate "Allwinner sunXi Reduced Serial Bus Driver"
-	  default MACH_SUN8I || MACH_SUN9I
+	  default MACH_SUN8I || MACH_SUN9I || ARM64
 	  depends on ARCH_SUNXI
 	  select REGMAP
 	  help

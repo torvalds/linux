@@ -24,8 +24,14 @@
 #include <linux/bpf.h>
 #include <stddef.h>
 
+int bpf_create_map_node(enum bpf_map_type map_type, int key_size,
+			int value_size, int max_entries, __u32 map_flags,
+			int node);
 int bpf_create_map(enum bpf_map_type map_type, int key_size, int value_size,
 		   int max_entries, __u32 map_flags);
+int bpf_create_map_in_map_node(enum bpf_map_type map_type, int key_size,
+			       int inner_map_fd, int max_entries,
+			       __u32 map_flags, int node);
 int bpf_create_map_in_map(enum bpf_map_type map_type, int key_size,
 			  int inner_map_fd, int max_entries, __u32 map_flags);
 
@@ -38,7 +44,7 @@ int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 int bpf_verify_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 		       size_t insns_cnt, int strict_alignment,
 		       const char *license, __u32 kern_version,
-		       char *log_buf, size_t log_buf_sz);
+		       char *log_buf, size_t log_buf_sz, int log_level);
 
 int bpf_map_update_elem(int fd, const void *key, const void *value,
 			__u64 flags);

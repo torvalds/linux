@@ -46,10 +46,10 @@ static struct rc_map_table ati_tv_wonder_hd_600[] = {
 
 static struct rc_map_list ati_tv_wonder_hd_600_map = {
 	.map = {
-		.scan    = ati_tv_wonder_hd_600,
-		.size    = ARRAY_SIZE(ati_tv_wonder_hd_600),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_ATI_TV_WONDER_HD_600,
+		.scan     = ati_tv_wonder_hd_600,
+		.size     = ARRAY_SIZE(ati_tv_wonder_hd_600),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_ATI_TV_WONDER_HD_600,
 	}
 };
 

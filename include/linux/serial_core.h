@@ -20,7 +20,7 @@
 #ifndef LINUX_SERIAL_CORE_H
 #define LINUX_SERIAL_CORE_H
 
-
+#include <linux/bitops.h>
 #include <linux/compiler.h>
 #include <linux/interrupt.h>
 #include <linux/circ_buf.h>
@@ -144,7 +144,7 @@ struct uart_port {
 	unsigned char		x_char;			/* xon/xoff char */
 	unsigned char		regshift;		/* reg offset shift */
 	unsigned char		iotype;			/* io access style */
-	unsigned char		unused1;
+	unsigned char		quirks;			/* internal quirks */
 
 #define UPIO_PORT		(SERIAL_IO_PORT)	/* 8b I/O port access */
 #define UPIO_HUB6		(SERIAL_IO_HUB6)	/* Hub6 ISA card */
@@ -154,6 +154,9 @@ struct uart_port {
 #define UPIO_TSI		(SERIAL_IO_TSI)		/* Tsi108/109 type IO */
 #define UPIO_MEM32BE		(SERIAL_IO_MEM32BE)	/* 32b big endian */
 #define UPIO_MEM16		(SERIAL_IO_MEM16)	/* 16b little endian */
+
+	/* quirks must be updated while holding port mutex */
+#define UPQ_NO_TXEN_TEST	BIT(0)
 
 	unsigned int		read_status_mask;	/* driver specific */
 	unsigned int		ignore_status_mask;	/* driver specific */
@@ -175,7 +178,6 @@ struct uart_port {
 	 * [for bit definitions in the UPF_CHANGE_MASK]
 	 *
 	 * Bits [0..UPF_LAST_USER] are userspace defined/visible/changeable
-	 * except bit 15 (UPF_NO_TXEN_TEST) which is masked off.
 	 * The remaining bits are serial-core specific and not modifiable by
 	 * userspace.
 	 */
@@ -192,7 +194,6 @@ struct uart_port {
 #define UPF_SPD_SHI		((__force upf_t) ASYNC_SPD_SHI        /* 12 */ )
 #define UPF_LOW_LATENCY		((__force upf_t) ASYNC_LOW_LATENCY    /* 13 */ )
 #define UPF_BUGGY_UART		((__force upf_t) ASYNC_BUGGY_UART     /* 14 */ )
-#define UPF_NO_TXEN_TEST	((__force upf_t) (1 << 15))
 #define UPF_MAGIC_MULTIPLIER	((__force upf_t) ASYNC_MAGIC_MULTIPLIER /* 16 */ )
 
 #define UPF_NO_THRE_TEST	((__force upf_t) (1 << 19))
@@ -246,7 +247,6 @@ struct uart_port {
 	struct device		*dev;			/* parent device */
 	unsigned char		hub6;			/* this should be in the 8250 driver */
 	unsigned char		suspended;
-	unsigned char		irq_wake;
 	unsigned char		unused[2];
 	const char		*name;			/* port name */
 	struct attribute_group	*attr_group;		/* port specific attributes */

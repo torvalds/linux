@@ -975,13 +975,15 @@ void crypto_inc(u8 *a, unsigned int size)
 }
 EXPORT_SYMBOL_GPL(crypto_inc);
 
-void __crypto_xor(u8 *dst, const u8 *src, unsigned int len)
+void __crypto_xor(u8 *dst, const u8 *src1, const u8 *src2, unsigned int len)
 {
 	int relalign = 0;
 
 	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)) {
 		int size = sizeof(unsigned long);
-		int d = ((unsigned long)dst ^ (unsigned long)src) & (size - 1);
+		int d = (((unsigned long)dst ^ (unsigned long)src1) |
+			 ((unsigned long)dst ^ (unsigned long)src2)) &
+			(size - 1);
 
 		relalign = d ? 1 << __ffs(d) : size;
 
@@ -992,34 +994,37 @@ void __crypto_xor(u8 *dst, const u8 *src, unsigned int len)
 		 * process the remainder of the input using optimal strides.
 		 */
 		while (((unsigned long)dst & (relalign - 1)) && len > 0) {
-			*dst++ ^= *src++;
+			*dst++ = *src1++ ^ *src2++;
 			len--;
 		}
 	}
 
 	while (IS_ENABLED(CONFIG_64BIT) && len >= 8 && !(relalign & 7)) {
-		*(u64 *)dst ^= *(u64 *)src;
+		*(u64 *)dst = *(u64 *)src1 ^  *(u64 *)src2;
 		dst += 8;
-		src += 8;
+		src1 += 8;
+		src2 += 8;
 		len -= 8;
 	}
 
 	while (len >= 4 && !(relalign & 3)) {
-		*(u32 *)dst ^= *(u32 *)src;
+		*(u32 *)dst = *(u32 *)src1 ^ *(u32 *)src2;
 		dst += 4;
-		src += 4;
+		src1 += 4;
+		src2 += 4;
 		len -= 4;
 	}
 
 	while (len >= 2 && !(relalign & 1)) {
-		*(u16 *)dst ^= *(u16 *)src;
+		*(u16 *)dst = *(u16 *)src1 ^ *(u16 *)src2;
 		dst += 2;
-		src += 2;
+		src1 += 2;
+		src2 += 2;
 		len -= 2;
 	}
 
 	while (len--)
-		*dst++ ^= *src++;
+		*dst++ = *src1++ ^ *src2++;
 }
 EXPORT_SYMBOL_GPL(__crypto_xor);
 

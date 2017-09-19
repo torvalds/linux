@@ -21,6 +21,17 @@
 #include <linux/skbuff.h>
 #include <net/mac80211.h>
 
+struct rsi_sta {
+	struct ieee80211_sta *sta;
+	s16 sta_id;
+	u16 seq_start[IEEE80211_NUM_TIDS];
+	bool start_tx_aggr[IEEE80211_NUM_TIDS];
+};
+
+struct rsi_hw;
+
+#include "rsi_ps.h"
+
 #define ERR_ZONE                        BIT(0)  /* For Error Msgs             */
 #define INFO_ZONE                       BIT(1)  /* For General Status Msgs    */
 #define INIT_ZONE                       BIT(2)  /* For Driver Init Seq Msgs   */
@@ -37,10 +48,13 @@ enum RSI_FSM_STATES {
 	FSM_COMMON_DEV_PARAMS_SENT,
 	FSM_BOOT_PARAMS_SENT,
 	FSM_EEPROM_READ_MAC_ADDR,
+	FSM_EEPROM_READ_RF_TYPE,
 	FSM_RESET_MAC_SENT,
 	FSM_RADIO_CAPS_SENT,
 	FSM_BB_RF_PROG_SENT,
-	FSM_MAC_INIT_DONE
+	FSM_MAC_INIT_DONE,
+
+	NUM_FSM_STATES
 };
 
 extern u32 rsi_zone_enabled;
@@ -51,17 +65,23 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 #define IEEE80211_ADDR_LEN              6
 #define FRAME_DESC_SZ                   16
 #define MIN_802_11_HDR_LEN              24
+#define RSI_DEF_KEEPALIVE               90
 
 #define DATA_QUEUE_WATER_MARK           400
 #define MIN_DATA_QUEUE_WATER_MARK       300
 #define MULTICAST_WATER_MARK            200
 #define MAC_80211_HDR_FRAME_CONTROL     0
 #define WME_NUM_AC                      4
-#define NUM_SOFT_QUEUES                 5
-#define MAX_HW_QUEUES                   8
+#define NUM_SOFT_QUEUES                 6
+#define MAX_HW_QUEUES                   12
 #define INVALID_QUEUE                   0xff
 #define MAX_CONTINUOUS_VO_PKTS          8
 #define MAX_CONTINUOUS_VI_PKTS          4
+
+/* Hardware queue info */
+#define BROADCAST_HW_Q			9
+#define MGMT_HW_Q			10
+#define BEACON_HW_Q			11
 
 /* Queue information */
 #define RSI_COEX_Q			0x0
@@ -70,6 +90,7 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 #define IEEE80211_MGMT_FRAME            0x00
 #define IEEE80211_CTL_FRAME             0x04
 
+#define RSI_MAX_ASSOC_STAS		32
 #define IEEE80211_QOS_TID               0x0f
 #define IEEE80211_NONQOS_TID            16
 
@@ -102,6 +123,7 @@ struct skb_info {
 	u16 channel;
 	s8 tid;
 	s8 sta_id;
+	u8 internal_hdr_size;
 };
 
 enum edca_queue {
@@ -109,7 +131,8 @@ enum edca_queue {
 	BE_Q,
 	VI_Q,
 	VO_Q,
-	MGMT_SOFT_Q
+	MGMT_SOFT_Q,
+	MGMT_BEACON_Q
 };
 
 struct security_info {
@@ -126,8 +149,8 @@ struct wmm_qinfo {
 };
 
 struct transmit_q_stats {
-	u32 total_tx_pkt_send[NUM_EDCA_QUEUES + 1];
-	u32 total_tx_pkt_freed[NUM_EDCA_QUEUES + 1];
+	u32 total_tx_pkt_send[NUM_EDCA_QUEUES + 2];
+	u32 total_tx_pkt_freed[NUM_EDCA_QUEUES + 2];
 };
 
 struct vif_priv {
@@ -155,7 +178,18 @@ struct cqm_info {
 	u32 rssi_hyst;
 };
 
-struct rsi_hw;
+struct xtended_desc {
+	u8 confirm_frame_type;
+	u8 retry_cnt;
+	u16 reserved;
+};
+
+enum rsi_dfs_regions {
+	RSI_REGION_FCC = 0,
+	RSI_REGION_ETSI,
+	RSI_REGION_TELEC,
+	RSI_REGION_WORLD
+};
 
 struct rsi_common {
 	struct rsi_hw *priv;
@@ -166,15 +200,18 @@ struct rsi_common {
 	struct version_info fw_ver;
 
 	struct rsi_thread tx_thread;
-	struct sk_buff_head tx_queue[NUM_EDCA_QUEUES + 1];
+	struct sk_buff_head tx_queue[NUM_EDCA_QUEUES + 2];
 	/* Mutex declaration */
 	struct mutex mutex;
-	/* Mutex used between tx/rx threads */
-	struct mutex tx_rxlock;
+	/* Mutex used for tx thread */
+	struct mutex tx_lock;
+	/* Mutex used for rx thread */
+	struct mutex rx_lock;
 	u8 endpoint;
 
 	/* Channel/band related */
 	u8 band;
+	u8 num_supp_bands;
 	u8 channel_width;
 
 	u16 rts_threshold;
@@ -216,16 +253,41 @@ struct rsi_common {
 	u16 oper_mode;
 	u8 lp_ps_handshake_mode;
 	u8 ulp_ps_handshake_mode;
+	u8 uapsd_bitmap;
 	u8 rf_power_val;
 	u8 wlan_rf_power_mode;
 	u8 obm_ant_sel_val;
 	int tx_power;
 	u8 ant_in_use;
+
+	u16 beacon_interval;
+	u8 dtim_cnt;
+
+	/* AP mode parameters */
+	u8 beacon_enabled;
+	u16 beacon_cnt;
+	struct rsi_sta stations[RSI_MAX_ASSOC_STAS + 1];
+	int num_stations;
+	int max_stations;
+	struct ieee80211_key_conf *key;
 };
 
 enum host_intf {
 	RSI_HOST_INTF_SDIO = 0,
 	RSI_HOST_INTF_USB
+};
+
+struct eepromrw_info {
+	u32 offset;
+	u32 length;
+	u8  write;
+	u16 eeprom_erase;
+	u8 data[480];
+};
+
+struct eeprom_read {
+	u16 length;
+	u16 off_set;
 };
 
 struct rsi_hw {
@@ -241,6 +303,9 @@ struct rsi_hw {
 
 	enum host_intf rsi_host_intf;
 	u16 block_size;
+	enum ps_state ps_state;
+	struct rsi_ps_info ps_info;
+	spinlock_t ps_lock; /*To protect power save config*/
 	u32 usb_buffer_status_reg;
 #ifdef CONFIG_RSI_DEBUGFS
 	struct rsi_debugfs *dfsentry;
@@ -250,7 +315,10 @@ struct rsi_hw {
 	struct timer_list bl_cmd_timer;
 	bool blcmd_timer_expired;
 	u32 flash_capacity;
+	struct eepromrw_info eeprom;
+	u32 interrupt_status;
 	u8 dfs_region;
+	char country[2];
 	void *rsi_dev;
 	struct rsi_host_intf_ops *host_intf_ops;
 	int (*check_hw_queue_status)(struct rsi_hw *adapter, u8 q_num);

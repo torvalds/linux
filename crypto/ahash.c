@@ -588,6 +588,35 @@ int crypto_unregister_ahash(struct ahash_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_ahash);
 
+int crypto_register_ahashes(struct ahash_alg *algs, int count)
+{
+	int i, ret;
+
+	for (i = 0; i < count; i++) {
+		ret = crypto_register_ahash(&algs[i]);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	for (--i; i >= 0; --i)
+		crypto_unregister_ahash(&algs[i]);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(crypto_register_ahashes);
+
+void crypto_unregister_ahashes(struct ahash_alg *algs, int count)
+{
+	int i;
+
+	for (i = count - 1; i >= 0; --i)
+		crypto_unregister_ahash(&algs[i]);
+}
+EXPORT_SYMBOL_GPL(crypto_unregister_ahashes);
+
 int ahash_register_instance(struct crypto_template *tmpl,
 			    struct ahash_instance *inst)
 {

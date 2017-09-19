@@ -212,19 +212,18 @@ void dump_mem(void *dumpme, int len_bytes)
 	}
 }
 
-#define __SI_FAULT      (3 << 16)
-#define SEGV_BNDERR     (__SI_FAULT|3)  /* failed address bound checks */
-#define SEGV_PKUERR     (__SI_FAULT|4)
+#define SEGV_BNDERR     3  /* failed address bound checks */
+#define SEGV_PKUERR     4
 
 static char *si_code_str(int si_code)
 {
-	if (si_code & SEGV_MAPERR)
+	if (si_code == SEGV_MAPERR)
 		return "SEGV_MAPERR";
-	if (si_code & SEGV_ACCERR)
+	if (si_code == SEGV_ACCERR)
 		return "SEGV_ACCERR";
-	if (si_code & SEGV_BNDERR)
+	if (si_code == SEGV_BNDERR)
 		return "SEGV_BNDERR";
-	if (si_code & SEGV_PKUERR)
+	if (si_code == SEGV_PKUERR)
 		return "SEGV_PKUERR";
 	return "UNKNOWN";
 }

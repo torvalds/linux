@@ -280,18 +280,11 @@ static int nsio_rw_bytes(struct nd_namespace_common *ndns,
 	}
 
 	if (unlikely(is_bad_pmem(&nsio->bb, sector, sz_align))) {
-		/*
-		 * FIXME: nsio_rw_bytes() may be called from atomic
-		 * context in the btt case and the ACPI DSM path for
-		 * clearing the error takes sleeping locks and allocates
-		 * memory. An explicit error clearing path, and support
-		 * for tracking badblocks in BTT metadata is needed to
-		 * work around this collision.
-		 */
 		if (IS_ALIGNED(offset, 512) && IS_ALIGNED(size, 512)
 				&& !(flags & NVDIMM_IO_ATOMIC)) {
 			long cleared;
 
+			might_sleep();
 			cleared = nvdimm_clear_poison(&ndns->dev,
 					nsio->res.start + offset, size);
 			if (cleared < size)

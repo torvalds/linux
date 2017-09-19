@@ -2,9 +2,7 @@
 # FPGA framework configuration
 #
 
-menu "FPGA Configuration Support"
-
-config FPGA
+menuconfig FPGA
 	tristate "FPGA Configuration Framework"
 	help
 	  Say Y here if you want support for configuring FPGAs from the
@@ -25,6 +23,20 @@ config FPGA_MGR_ICE40_SPI
 	depends on OF && SPI
 	help
 	  FPGA manager driver support for Lattice iCE40 FPGAs over SPI.
+
+config FPGA_MGR_ALTERA_CVP
+	tristate "Altera Arria-V/Cyclone-V/Stratix-V CvP FPGA Manager"
+	depends on PCI
+	help
+	  FPGA manager driver support for Arria-V, Cyclone-V, Stratix-V
+	  and Arria 10 Altera FPGAs using the CvP interface over PCIe.
+
+config FPGA_MGR_ALTERA_PS_SPI
+	tristate "Altera FPGA Passive Serial over SPI"
+	depends on SPI
+	help
+	  FPGA manager driver support for Altera Arria/Cyclone/Stratix
+	  using the passive serial interface over SPI.
 
 config FPGA_MGR_SOCFPGA
 	tristate "Altera SOCFPGA FPGA Manager"
@@ -106,5 +118,3 @@ config XILINX_PR_DECOUPLER
 	  being reprogrammed during partial reconfig.
 
 endif # FPGA
-
-endmenu

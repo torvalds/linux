@@ -42,7 +42,7 @@ static pgprot_t __get_dma_pgprot(unsigned long attrs, pgprot_t prot,
 	return prot;
 }
 
-static struct gen_pool *atomic_pool;
+static struct gen_pool *atomic_pool __ro_after_init;
 
 #define DEFAULT_DMA_COHERENT_POOL_SIZE  SZ_256K
 static size_t atomic_pool_size __initdata = DEFAULT_DMA_COHERENT_POOL_SIZE;
@@ -329,7 +329,7 @@ static int __swiotlb_mmap(struct device *dev,
 	vma->vm_page_prot = __get_dma_pgprot(attrs, vma->vm_page_prot,
 					     is_device_dma_coherent(dev));
 
-	if (dma_mmap_from_coherent(dev, vma, cpu_addr, size, &ret))
+	if (dma_mmap_from_dev_coherent(dev, vma, cpu_addr, size, &ret))
 		return ret;
 
 	return __swiotlb_mmap_pfn(vma, pfn, size);
@@ -425,7 +425,7 @@ static int __init atomic_pool_init(void)
 
 		gen_pool_set_algo(atomic_pool,
 				  gen_pool_first_fit_order_align,
-				  (void *)PAGE_SHIFT);
+				  NULL);
 
 		pr_info("DMA: preallocated %zu KiB pool for atomic allocations\n",
 			atomic_pool_size / 1024);
@@ -706,7 +706,7 @@ static int __iommu_mmap_attrs(struct device *dev, struct vm_area_struct *vma,
 	vma->vm_page_prot = __get_dma_pgprot(attrs, vma->vm_page_prot,
 					     is_device_dma_coherent(dev));
 
-	if (dma_mmap_from_coherent(dev, vma, cpu_addr, size, &ret))
+	if (dma_mmap_from_dev_coherent(dev, vma, cpu_addr, size, &ret))
 		return ret;
 
 	if (attrs & DMA_ATTR_FORCE_CONTIGUOUS) {

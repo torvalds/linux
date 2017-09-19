@@ -351,7 +351,7 @@ static void shpc_remove(struct pci_dev *dev)
 	kfree(ctrl);
 }
 
-static struct pci_device_id shpcd_pci_tbl[] = {
+static const struct pci_device_id shpcd_pci_tbl[] = {
 	{PCI_DEVICE_CLASS(((PCI_CLASS_BRIDGE_PCI << 8) | 0x00), ~0)},
 	{ /* end: all zeroes */ }
 };

@@ -1627,20 +1627,17 @@ void clean_bdev_aliases(struct block_device *bdev, sector_t block, sector_t len)
 	struct pagevec pvec;
 	pgoff_t index = block >> (PAGE_SHIFT - bd_inode->i_blkbits);
 	pgoff_t end;
-	int i;
+	int i, count;
 	struct buffer_head *bh;
 	struct buffer_head *head;
 
 	end = (block + len - 1) >> (PAGE_SHIFT - bd_inode->i_blkbits);
 	pagevec_init(&pvec, 0);
-	while (index <= end && pagevec_lookup(&pvec, bd_mapping, index,
-			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
-		for (i = 0; i < pagevec_count(&pvec); i++) {
+	while (pagevec_lookup_range(&pvec, bd_mapping, &index, end)) {
+		count = pagevec_count(&pvec);
+		for (i = 0; i < count; i++) {
 			struct page *page = pvec.pages[i];
 
-			index = page->index;
-			if (index > end)
-				break;
 			if (!page_has_buffers(page))
 				continue;
 			/*
@@ -1670,7 +1667,9 @@ unlock_page:
 		}
 		pagevec_release(&pvec);
 		cond_resched();
-		index++;
+		/* End of range already reached? */
+		if (index > end || !index)
+			break;
 	}
 }
 EXPORT_SYMBOL(clean_bdev_aliases);
@@ -3057,7 +3056,7 @@ void guard_bio_eod(int op, struct bio *bio)
 	struct bio_vec *bvec = &bio->bi_io_vec[bio->bi_vcnt - 1];
 	unsigned truncated_bytes;
 
-	maxsector = i_size_read(bio->bi_bdev->bd_inode) >> 9;
+	maxsector = get_capacity(bio->bi_disk);
 	if (!maxsector)
 		return;
 
@@ -3116,7 +3115,7 @@ static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
 	}
 
 	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
-	bio->bi_bdev = bh->b_bdev;
+	bio_set_dev(bio, bh->b_bdev);
 	bio->bi_write_hint = write_hint;
 
 	bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh));
@@ -3549,10 +3548,10 @@ page_cache_seek_hole_data(struct inode *inode, loff_t offset, loff_t length,
 	pagevec_init(&pvec, 0);
 
 	do {
-		unsigned want, nr_pages, i;
+		unsigned nr_pages, i;
 
-		want = min_t(unsigned, end - index, PAGEVEC_SIZE);
-		nr_pages = pagevec_lookup(&pvec, inode->i_mapping, index, want);
+		nr_pages = pagevec_lookup_range(&pvec, inode->i_mapping, &index,
+						end - 1);
 		if (nr_pages == 0)
 			break;
 
@@ -3573,10 +3572,6 @@ page_cache_seek_hole_data(struct inode *inode, loff_t offset, loff_t length,
 			    lastoff < page_offset(page))
 				goto check_range;
 
-			/* Searching done if the page index is out of range. */
-			if (page->index >= end)
-				goto not_found;
-
 			lock_page(page);
 			if (likely(page->mapping == inode->i_mapping) &&
 			    page_has_buffers(page)) {
@@ -3589,12 +3584,6 @@ page_cache_seek_hole_data(struct inode *inode, loff_t offset, loff_t length,
 			unlock_page(page);
 			lastoff = page_offset(page) + PAGE_SIZE;
 		}
-
-		/* Searching done if fewer pages returned than wanted. */
-		if (nr_pages < want)
-			break;
-
-		index = pvec.pages[i - 1]->index + 1;
 		pagevec_release(&pvec);
 	} while (index < end);
 

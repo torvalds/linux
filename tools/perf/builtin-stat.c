@@ -213,10 +213,20 @@ static void perf_stat__reset_stats(void)
 static int create_perf_stat_counter(struct perf_evsel *evsel)
 {
 	struct perf_event_attr *attr = &evsel->attr;
+	struct perf_evsel *leader = evsel->leader;
 
-	if (stat_config.scale)
+	if (stat_config.scale) {
 		attr->read_format = PERF_FORMAT_TOTAL_TIME_ENABLED |
 				    PERF_FORMAT_TOTAL_TIME_RUNNING;
+	}
+
+	/*
+	 * The event is part of non trivial group, let's enable
+	 * the group read (for leader) and ID retrieval for all
+	 * members.
+	 */
+	if (leader->nr_members > 1)
+		attr->read_format |= PERF_FORMAT_ID|PERF_FORMAT_GROUP;
 
 	attr->inherit = !no_inherit;
 
@@ -333,12 +343,20 @@ static int read_counter(struct perf_evsel *counter)
 			struct perf_counts_values *count;
 
 			count = perf_counts(counter->counts, cpu, thread);
-			if (perf_evsel__read(counter, cpu, thread, count)) {
+
+			/*
+			 * The leader's group read loads data into its group members
+			 * (via perf_evsel__read_counter) and sets threir count->loaded.
+			 */
+			if (!count->loaded &&
+			    perf_evsel__read_counter(counter, cpu, thread)) {
 				counter->counts->scaled = -1;
 				perf_counts(counter->counts, cpu, thread)->ena = 0;
 				perf_counts(counter->counts, cpu, thread)->run = 0;
 				return -1;
 			}
+
+			count->loaded = false;
 
 			if (STAT_RECORD) {
 				if (perf_evsel__write_stat_event(counter, cpu, thread, count)) {
@@ -559,6 +577,11 @@ static int store_counter_ids(struct perf_evsel *counter)
 	return __store_counter_ids(counter, cpus, threads);
 }
 
+static bool perf_evsel__should_store_id(struct perf_evsel *counter)
+{
+	return STAT_RECORD || counter->attr.read_format & PERF_FORMAT_ID;
+}
+
 static int __run_perf_stat(int argc, const char **argv)
 {
 	int interval = stat_config.interval;
@@ -631,7 +654,8 @@ try_again:
 		if (l > unit_width)
 			unit_width = l;
 
-		if (STAT_RECORD && store_counter_ids(counter))
+		if (perf_evsel__should_store_id(counter) &&
+		    store_counter_ids(counter))
 			return -1;
 	}
 
@@ -683,7 +707,7 @@ try_again:
 				process_interval();
 			}
 		}
-		wait(&status);
+		waitpid(child_pid, &status, 0);
 
 		if (workload_exec_errno) {
 			const char *emsg = str_error_r(workload_exec_errno, msg, sizeof(msg));
@@ -1233,7 +1257,7 @@ static bool collect_data(struct perf_evsel *counter,
 	if (counter->merged_stat)
 		return false;
 	cb(counter, data, true);
-	if (!no_merge)
+	if (!no_merge && counter->auto_merge_stats)
 		collect_all_aliases(counter, cb, data);
 	return true;
 }

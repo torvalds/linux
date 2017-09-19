@@ -29,8 +29,8 @@
 
 #include <crypto/hash.h>
 #include <linux/scatterlist.h>
-#include "../../../include/linux/libcfs/libcfs.h"
-#include "../../../include/linux/libcfs/libcfs_crypto.h"
+#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_crypto.h>
 #include "linux-crypto.h"
 
 /**

@@ -8,10 +8,7 @@ obj-$(CONFIG_KVM) += kvm/
 obj-$(CONFIG_XEN) += xen/
 
 # Hyper-V paravirtualization support
-obj-$(CONFIG_HYPERVISOR_GUEST) += hyperv/
-
-# lguest paravirtualization support
-obj-$(CONFIG_LGUEST_GUEST) += lguest/
+obj-$(subst m,y,$(CONFIG_HYPERV)) += hyperv/
 
 obj-y += realmode/
 obj-y += kernel/

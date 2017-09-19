@@ -36,7 +36,7 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include "../../include/linux/lnet/lib-lnet.h"
+#include <linux/lnet/lib-lnet.h>
 #include <linux/nsproxy.h>
 #include <net/net_namespace.h>
 
@@ -2034,7 +2034,7 @@ LNetPut(lnet_nid_t self, struct lnet_handle_md mdh, enum lnet_ack_req ack,
 		return -ENOENT;
 	}
 
-	CDEBUG(D_NET, "LNetPut -> %s\n", libcfs_id2str(target));
+	CDEBUG(D_NET, "%s -> %s\n", __func__, libcfs_id2str(target));
 
 	lnet_msg_attach_md(msg, md, 0, 0);
 
@@ -2239,7 +2239,7 @@ LNetGet(lnet_nid_t self, struct lnet_handle_md mdh,
 		return -ENOENT;
 	}
 
-	CDEBUG(D_NET, "LNetGet -> %s\n", libcfs_id2str(target));
+	CDEBUG(D_NET, "%s -> %s\n", __func__, libcfs_id2str(target));
 
 	lnet_msg_attach_md(msg, md, 0, 0);
 

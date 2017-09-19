@@ -450,12 +450,12 @@ int fsl_rio_setup(struct platform_device *dev)
 
 	rc = of_address_to_resource(dev->dev.of_node, 0, &regs);
 	if (rc) {
-		dev_err(&dev->dev, "Can't get %s property 'reg'\n",
-				dev->dev.of_node->full_name);
+		dev_err(&dev->dev, "Can't get %pOF property 'reg'\n",
+				dev->dev.of_node);
 		return -EFAULT;
 	}
-	dev_info(&dev->dev, "Of-device full name %s\n",
-			dev->dev.of_node->full_name);
+	dev_info(&dev->dev, "Of-device full name %pOF\n",
+			dev->dev.of_node);
 	dev_info(&dev->dev, "Regs: %pR\n", &regs);
 
 	rio_regs_win = ioremap(regs.start, resource_size(&regs));
@@ -494,8 +494,8 @@ int fsl_rio_setup(struct platform_device *dev)
 	}
 	rc = of_address_to_resource(rmu_node, 0, &rmu_regs);
 	if (rc) {
-		dev_err(&dev->dev, "Can't get %s property 'reg'\n",
-				rmu_node->full_name);
+		dev_err(&dev->dev, "Can't get %pOF property 'reg'\n",
+				rmu_node);
 		goto err_rmu;
 	}
 	rmu_regs_win = ioremap(rmu_regs.start, resource_size(&rmu_regs));
@@ -529,8 +529,8 @@ int fsl_rio_setup(struct platform_device *dev)
 	aw = of_n_addr_cells(np);
 	dt_range = of_get_property(np, "reg", &rlen);
 	if (!dt_range) {
-		pr_err("%s: unable to find 'reg' property\n",
-			np->full_name);
+		pr_err("%pOF: unable to find 'reg' property\n",
+			np);
 		rc = -ENOMEM;
 		goto err_pw;
 	}
@@ -557,8 +557,8 @@ int fsl_rio_setup(struct platform_device *dev)
 	aw = of_n_addr_cells(np);
 	dt_range = of_get_property(np, "reg", &rlen);
 	if (!dt_range) {
-		pr_err("%s: unable to find 'reg' property\n",
-			np->full_name);
+		pr_err("%pOF: unable to find 'reg' property\n",
+			np);
 		rc = -ENOMEM;
 		goto err;
 	}
@@ -569,15 +569,15 @@ int fsl_rio_setup(struct platform_device *dev)
 	for_each_child_of_node(dev->dev.of_node, np) {
 		port_index = of_get_property(np, "cell-index", NULL);
 		if (!port_index) {
-			dev_err(&dev->dev, "Can't get %s property 'cell-index'\n",
-					np->full_name);
+			dev_err(&dev->dev, "Can't get %pOF property 'cell-index'\n",
+					np);
 			continue;
 		}
 
 		dt_range = of_get_property(np, "ranges", &rlen);
 		if (!dt_range) {
-			dev_err(&dev->dev, "Can't get %s property 'ranges'\n",
-					np->full_name);
+			dev_err(&dev->dev, "Can't get %pOF property 'ranges'\n",
+					np);
 			continue;
 		}
 
@@ -598,8 +598,8 @@ int fsl_rio_setup(struct platform_device *dev)
 		range_start = of_read_number(dt_range + aw, paw);
 		range_size = of_read_number(dt_range + aw + paw, sw);
 
-		dev_info(&dev->dev, "%s: LAW start 0x%016llx, size 0x%016llx.\n",
-				np->full_name, range_start, range_size);
+		dev_info(&dev->dev, "%pOF: LAW start 0x%016llx, size 0x%016llx.\n",
+				np, range_start, range_size);
 
 		port = kzalloc(sizeof(struct rio_mport), GFP_KERNEL);
 		if (!port)
@@ -757,8 +757,8 @@ err_rio_regs:
  */
 static int fsl_of_rio_rpn_probe(struct platform_device *dev)
 {
-	printk(KERN_INFO "Setting up RapidIO peer-to-peer network %s\n",
-			dev->dev.of_node->full_name);
+	printk(KERN_INFO "Setting up RapidIO peer-to-peer network %pOF\n",
+			dev->dev.of_node);
 
 	return fsl_rio_setup(dev);
 };

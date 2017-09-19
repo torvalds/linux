@@ -201,9 +201,9 @@ ksocknal_lib_recv_iov(struct ksock_conn *conn)
 			if (fragnob > sum)
 				fragnob = sum;
 
-			conn->ksnc_rx_csum = ksocknal_csum(conn->ksnc_rx_csum,
-							   iov[i].iov_base,
-							   fragnob);
+			conn->ksnc_rx_csum = crc32_le(conn->ksnc_rx_csum,
+						      iov[i].iov_base,
+						      fragnob);
 		}
 		conn->ksnc_msg.ksm_csum = saved_csum;
 	}
@@ -243,8 +243,8 @@ ksocknal_lib_recv_kiov(struct ksock_conn *conn)
 			if (fragnob > sum)
 				fragnob = sum;
 
-			conn->ksnc_rx_csum = ksocknal_csum(conn->ksnc_rx_csum,
-							   base, fragnob);
+			conn->ksnc_rx_csum = crc32_le(conn->ksnc_rx_csum,
+						      base, fragnob);
 
 			kunmap(kiov[i].bv_page);
 		}
@@ -265,22 +265,22 @@ ksocknal_lib_csum_tx(struct ksock_tx *tx)
 
 	tx->tx_msg.ksm_csum = 0;
 
-	csum = ksocknal_csum(~0, tx->tx_iov[0].iov_base,
-			     tx->tx_iov[0].iov_len);
+	csum = crc32_le(~0, tx->tx_iov[0].iov_base,
+			tx->tx_iov[0].iov_len);
 
 	if (tx->tx_kiov) {
 		for (i = 0; i < tx->tx_nkiov; i++) {
 			base = kmap(tx->tx_kiov[i].bv_page) +
 			       tx->tx_kiov[i].bv_offset;
 
-			csum = ksocknal_csum(csum, base, tx->tx_kiov[i].bv_len);
+			csum = crc32_le(csum, base, tx->tx_kiov[i].bv_len);
 
 			kunmap(tx->tx_kiov[i].bv_page);
 		}
 	} else {
 		for (i = 1; i < tx->tx_niov; i++)
-			csum = ksocknal_csum(csum, tx->tx_iov[i].iov_base,
-					     tx->tx_iov[i].iov_len);
+			csum = crc32_le(csum, tx->tx_iov[i].iov_base,
+					tx->tx_iov[i].iov_len);
 	}
 
 	if (*ksocknal_tunables.ksnd_inject_csum_error) {

@@ -106,9 +106,7 @@ static int iser_create_device_ib_res(struct iser_device *device)
 
 	INIT_IB_EVENT_HANDLER(&device->event_handler, ib_dev,
 			      iser_event_handler);
-	if (ib_register_event_handler(&device->event_handler))
-		goto cq_err;
-
+	ib_register_event_handler(&device->event_handler);
 	return 0;
 
 cq_err:
@@ -141,7 +139,7 @@ static void iser_free_device_ib_res(struct iser_device *device)
 		comp->cq = NULL;
 	}
 
-	(void)ib_unregister_event_handler(&device->event_handler);
+	ib_unregister_event_handler(&device->event_handler);
 	ib_dealloc_pd(device->pd);
 
 	kfree(device->comps);
@@ -708,8 +706,14 @@ iser_calc_scsi_params(struct iser_conn *iser_conn,
 	unsigned short sg_tablesize, sup_sg_tablesize;
 
 	sg_tablesize = DIV_ROUND_UP(max_sectors * 512, SIZE_4K);
-	sup_sg_tablesize = min_t(unsigned, ISCSI_ISER_MAX_SG_TABLESIZE,
-				 device->ib_device->attrs.max_fast_reg_page_list_len);
+	if (device->ib_device->attrs.device_cap_flags &
+			IB_DEVICE_MEM_MGT_EXTENSIONS)
+		sup_sg_tablesize =
+			min_t(
+			 uint, ISCSI_ISER_MAX_SG_TABLESIZE,
+			 device->ib_device->attrs.max_fast_reg_page_list_len);
+	else
+		sup_sg_tablesize = ISCSI_ISER_MAX_SG_TABLESIZE;
 
 	iser_conn->scsi_sg_tablesize = min(sg_tablesize, sup_sg_tablesize);
 }

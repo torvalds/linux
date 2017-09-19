@@ -1235,7 +1235,7 @@ struct nfs41_state_protection {
 
 struct nfs41_exchange_id_args {
 	struct nfs_client		*client;
-	nfs4_verifier			*verifier;
+	nfs4_verifier			verifier;
 	u32				flags;
 	struct nfs41_state_protection	state_protect;
 };
@@ -1476,7 +1476,7 @@ struct nfs_pgio_header {
 
 struct nfs_mds_commit_info {
 	atomic_t rpcs_out;
-	unsigned long		ncommit;
+	atomic_long_t		ncommit;
 	struct list_head	list;
 };
 

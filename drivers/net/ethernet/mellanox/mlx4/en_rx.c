@@ -574,16 +574,21 @@ static inline __wsum get_fixed_vlan_csum(__wsum hw_checksum,
  * header, the HW adds it. To address that, we are subtracting the pseudo
  * header checksum from the checksum value provided by the HW.
  */
-static void get_fixed_ipv4_csum(__wsum hw_checksum, struct sk_buff *skb,
-				struct iphdr *iph)
+static int get_fixed_ipv4_csum(__wsum hw_checksum, struct sk_buff *skb,
+			       struct iphdr *iph)
 {
 	__u16 length_for_csum = 0;
 	__wsum csum_pseudo_header = 0;
+	__u8 ipproto = iph->protocol;
+
+	if (unlikely(ipproto == IPPROTO_SCTP))
+		return -1;
 
 	length_for_csum = (be16_to_cpu(iph->tot_len) - (iph->ihl << 2));
 	csum_pseudo_header = csum_tcpudp_nofold(iph->saddr, iph->daddr,
-						length_for_csum, iph->protocol, 0);
+						length_for_csum, ipproto, 0);
 	skb->csum = csum_sub(hw_checksum, csum_pseudo_header);
+	return 0;
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -594,17 +599,20 @@ static void get_fixed_ipv4_csum(__wsum hw_checksum, struct sk_buff *skb,
 static int get_fixed_ipv6_csum(__wsum hw_checksum, struct sk_buff *skb,
 			       struct ipv6hdr *ipv6h)
 {
+	__u8 nexthdr = ipv6h->nexthdr;
 	__wsum csum_pseudo_hdr = 0;
 
-	if (unlikely(ipv6h->nexthdr == IPPROTO_FRAGMENT ||
-		     ipv6h->nexthdr == IPPROTO_HOPOPTS))
+	if (unlikely(nexthdr == IPPROTO_FRAGMENT ||
+		     nexthdr == IPPROTO_HOPOPTS ||
+		     nexthdr == IPPROTO_SCTP))
 		return -1;
-	hw_checksum = csum_add(hw_checksum, (__force __wsum)htons(ipv6h->nexthdr));
+	hw_checksum = csum_add(hw_checksum, (__force __wsum)htons(nexthdr));
 
 	csum_pseudo_hdr = csum_partial(&ipv6h->saddr,
 				       sizeof(ipv6h->saddr) + sizeof(ipv6h->daddr), 0);
 	csum_pseudo_hdr = csum_add(csum_pseudo_hdr, (__force __wsum)ipv6h->payload_len);
-	csum_pseudo_hdr = csum_add(csum_pseudo_hdr, (__force __wsum)ntohs(ipv6h->nexthdr));
+	csum_pseudo_hdr = csum_add(csum_pseudo_hdr,
+				   (__force __wsum)htons(nexthdr));
 
 	skb->csum = csum_sub(hw_checksum, csum_pseudo_hdr);
 	skb->csum = csum_add(skb->csum, csum_partial(ipv6h, sizeof(struct ipv6hdr), 0));
@@ -627,11 +635,10 @@ static int check_csum(struct mlx4_cqe *cqe, struct sk_buff *skb, void *va,
 	}
 
 	if (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPV4))
-		get_fixed_ipv4_csum(hw_checksum, skb, hdr);
+		return get_fixed_ipv4_csum(hw_checksum, skb, hdr);
 #if IS_ENABLED(CONFIG_IPV6)
-	else if (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPV6))
-		if (unlikely(get_fixed_ipv6_csum(hw_checksum, skb, hdr)))
-			return -1;
+	if (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPV6))
+		return get_fixed_ipv6_csum(hw_checksum, skb, hdr);
 #endif
 	return 0;
 }
@@ -1042,14 +1049,14 @@ static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv, int qpn,
 	if (!context)
 		return -ENOMEM;
 
-	err = mlx4_qp_alloc(mdev->dev, qpn, qp, GFP_KERNEL);
+	err = mlx4_qp_alloc(mdev->dev, qpn, qp);
 	if (err) {
 		en_err(priv, "Failed to allocate qp #%x\n", qpn);
 		goto out;
 	}
 	qp->event = mlx4_en_sqp_event;
 
-	memset(context, 0, sizeof *context);
+	memset(context, 0, sizeof(*context));
 	mlx4_en_fill_qp_context(priv, ring->actual_size, ring->stride, 0, 0,
 				qpn, ring->cqn, -1, context);
 	context->db_rec_addr = cpu_to_be64(ring->wqres.db.dma);
@@ -1081,12 +1088,13 @@ int mlx4_en_create_drop_qp(struct mlx4_en_priv *priv)
 	u32 qpn;
 
 	err = mlx4_qp_reserve_range(priv->mdev->dev, 1, 1, &qpn,
-				    MLX4_RESERVE_A0_QP);
+				    MLX4_RESERVE_A0_QP,
+				    MLX4_RES_USAGE_DRIVER);
 	if (err) {
 		en_err(priv, "Failed reserving drop qpn\n");
 		return err;
 	}
-	err = mlx4_qp_alloc(priv->mdev->dev, qpn, &priv->drop_qp, GFP_KERNEL);
+	err = mlx4_qp_alloc(priv->mdev->dev, qpn, &priv->drop_qp);
 	if (err) {
 		en_err(priv, "Failed allocating drop qp\n");
 		mlx4_qp_release_range(priv->mdev->dev, qpn, 1);
@@ -1127,7 +1135,8 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	flags = priv->rx_ring_num == 1 ? MLX4_RESERVE_A0_QP : 0;
 	err = mlx4_qp_reserve_range(mdev->dev, priv->rx_ring_num,
 				    priv->rx_ring_num,
-				    &rss_map->base_qpn, flags);
+				    &rss_map->base_qpn, flags,
+				    MLX4_RES_USAGE_DRIVER);
 	if (err) {
 		en_err(priv, "Failed reserving %d qps\n", priv->rx_ring_num);
 		return err;
@@ -1158,8 +1167,7 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	}
 
 	/* Configure RSS indirection qp */
-	err = mlx4_qp_alloc(mdev->dev, priv->base_qpn, rss_map->indir_qp,
-			    GFP_KERNEL);
+	err = mlx4_qp_alloc(mdev->dev, priv->base_qpn, rss_map->indir_qp);
 	if (err) {
 		en_err(priv, "Failed to allocate RSS indirection QP\n");
 		goto rss_err;

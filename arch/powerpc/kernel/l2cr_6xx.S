@@ -181,7 +181,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_SPEC7450)
 	mtctr	r4
 	li	r4,0
 1:
-	lwzx	r0,r0,r4
+	lwzx	r0,0,r4
 	addi	r4,r4,32		/* Go to start of next cache line */
 	bdnz	1b
 	isync
@@ -328,7 +328,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_L3CR)
 	mtctr	r4
 	li	r4,0
 1:
-	lwzx	r0,r0,r4
+	lwzx	r0,0,r4
 	dcbf	0,r4
 	addi	r4,r4,32		/* Go to start of next cache line */
 	bdnz	1b

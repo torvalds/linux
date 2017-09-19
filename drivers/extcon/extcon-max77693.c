@@ -811,9 +811,8 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 			 */
 			extcon_set_state_sync(info->edev, EXTCON_CHG_USB_DCP,
 						attached);
-			if (!cable_attached)
-				extcon_set_state_sync(info->edev,
-					EXTCON_DISP_MHL, cable_attached);
+			extcon_set_state_sync(info->edev, EXTCON_DISP_MHL,
+						cable_attached);
 			break;
 		}
 

@@ -74,7 +74,7 @@ qla24xx_deallocate_vp_id(scsi_qla_host_t *vha)
 	 * ensures no active vp_list traversal while the vport is removed
 	 * from the queue)
 	 */
-	wait_event_timeout(vha->vref_waitq, atomic_read(&vha->vref_count),
+	wait_event_timeout(vha->vref_waitq, !atomic_read(&vha->vref_count),
 	    10*HZ);
 
 	spin_lock_irqsave(&ha->vport_slock, flags);
@@ -187,6 +187,11 @@ qla24xx_enable_vp(scsi_qla_host_t *vha)
 		!(ha->current_topology & ISP_CFG_F)) {
 		vha->vp_err_state =  VP_ERR_PORTDWN;
 		fc_vport_set_state(vha->fc_vport, FC_VPORT_LINKDOWN);
+		ql_dbg(ql_dbg_taskm, vha, 0x800b,
+		    "%s skip enable. loop_state %x topo %x\n",
+		    __func__, base_vha->loop_state.counter,
+		    ha->current_topology);
+
 		goto enable_failed;
 	}
 
@@ -759,11 +764,18 @@ static void qla_do_work(struct work_struct *work)
 	struct qla_qpair *qpair = container_of(work, struct qla_qpair, q_work);
 	struct scsi_qla_host *vha;
 	struct qla_hw_data *ha = qpair->hw;
+	struct srb_iocb	*nvme, *nxt_nvme;
 
 	spin_lock_irqsave(&qpair->qp_lock, flags);
 	vha = pci_get_drvdata(ha->pdev);
 	qla24xx_process_response_queue(vha, qpair->rsp);
 	spin_unlock_irqrestore(&qpair->qp_lock, flags);
+
+	list_for_each_entry_safe(nvme, nxt_nvme, &qpair->nvme_done_list,
+		    u.nvme.entry) {
+		list_del_init(&nvme->u.nvme.entry);
+		qla_nvme_cmpl_io(nvme);
+	}
 }
 
 /* create response queue */

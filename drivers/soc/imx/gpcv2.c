@@ -200,21 +200,22 @@ static int imx7_pgc_domain_probe(struct platform_device *pdev)
 
 	domain->dev = &pdev->dev;
 
-	ret = pm_genpd_init(&domain->genpd, NULL, true);
-	if (ret) {
-		dev_err(domain->dev, "Failed to init power domain\n");
-		return ret;
-	}
-
 	domain->regulator = devm_regulator_get_optional(domain->dev, "power");
 	if (IS_ERR(domain->regulator)) {
 		if (PTR_ERR(domain->regulator) != -ENODEV) {
-			dev_err(domain->dev, "Failed to get domain's regulator\n");
+			if (PTR_ERR(domain->regulator) != -EPROBE_DEFER)
+				dev_err(domain->dev, "Failed to get domain's regulator\n");
 			return PTR_ERR(domain->regulator);
 		}
 	} else {
 		regulator_set_voltage(domain->regulator,
 				      domain->voltage, domain->voltage);
+	}
+
+	ret = pm_genpd_init(&domain->genpd, NULL, true);
+	if (ret) {
+		dev_err(domain->dev, "Failed to init power domain\n");
+		return ret;
 	}
 
 	ret = of_genpd_add_provider_simple(domain->dev->of_node,

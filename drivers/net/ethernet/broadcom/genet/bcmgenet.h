@@ -544,6 +544,8 @@ struct bcmgenet_hw_params {
 };
 
 struct bcmgenet_skb_cb {
+	struct enet_cb *first_cb;	/* First control block of SKB */
+	struct enet_cb *last_cb;	/* Last control block of SKB */
 	unsigned int bytes_sent;	/* bytes on the wire (no TSB) */
 };
 
@@ -655,6 +657,7 @@ struct bcmgenet_priv {
 
 	struct clk *clk;
 	struct platform_device *pdev;
+	struct platform_device *mii_pdev;
 
 	/* WOL */
 	struct clk *clk_wol;
@@ -669,12 +672,21 @@ struct bcmgenet_priv {
 static inline u32 bcmgenet_##name##_readl(struct bcmgenet_priv *priv,	\
 					u32 off)			\
 {									\
-	return __raw_readl(priv->base + offset + off);			\
+	/* MIPS chips strapped for BE will automagically configure the	\
+	 * peripheral registers for CPU-native byte order.		\
+	 */								\
+	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)) \
+		return __raw_readl(priv->base + offset + off);		\
+	else								\
+		return readl_relaxed(priv->base + offset + off);	\
 }									\
 static inline void bcmgenet_##name##_writel(struct bcmgenet_priv *priv,	\
 					u32 val, u32 off)		\
 {									\
-	__raw_writel(val, priv->base + offset + off);			\
+	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)) \
+		__raw_writel(val, priv->base + offset + off);		\
+	else								\
+		writel_relaxed(val, priv->base + offset + off);		\
 }
 
 GENET_IO_MACRO(ext, GENET_EXT_OFF);
@@ -696,7 +708,7 @@ GENET_IO_MACRO(rbuf, GENET_RBUF_OFF);
 
 /* MDIO routines */
 int bcmgenet_mii_init(struct net_device *dev);
-int bcmgenet_mii_config(struct net_device *dev);
+int bcmgenet_mii_config(struct net_device *dev, bool init);
 int bcmgenet_mii_probe(struct net_device *dev);
 void bcmgenet_mii_exit(struct net_device *dev);
 void bcmgenet_mii_reset(struct net_device *dev);

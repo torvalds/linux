@@ -291,7 +291,7 @@ static int mt7620_pci_probe(struct platform_device *pdev)
 							  IORESOURCE_MEM, 1);
 	u32 val = 0;
 
-	rstpcie0 = devm_reset_control_get(&pdev->dev, "pcie0");
+	rstpcie0 = devm_reset_control_get_exclusive(&pdev->dev, "pcie0");
 	if (IS_ERR(rstpcie0))
 		return PTR_ERR(rstpcie0);
 

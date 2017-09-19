@@ -253,7 +253,7 @@ static const struct watchdog_info ident = {
 	.identity = WATCHDOG_NAME,
 };
 
-static struct watchdog_ops wdt_ops = {
+static const struct watchdog_ops wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = wdt_start,
 	.stop = wdt_stop,

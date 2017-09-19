@@ -541,7 +541,7 @@ EXC_COMMON_BEGIN(instruction_access_common)
 	RECONCILE_IRQ_STATE(r10, r11)
 	ld	r12,_MSR(r1)
 	ld	r3,_NIP(r1)
-	andis.	r4,r12,0x5820
+	andis.	r4,r12,DSISR_BAD_FAULT_64S@h
 	li	r5,0x400
 	std	r3,_DAR(r1)
 	std	r4,_DSISR(r1)
@@ -824,7 +824,7 @@ EXC_COMMON(trap_0b_common, 0xb00, unknown_exception)
  * r3 volatile parameter and return value for status
  * r4-r10 volatile input and output value
  * r11 volatile hypercall number and output value
- * r12 volatile
+ * r12 volatile input and output value
  * r13-r31 nonvolatile
  * LR nonvolatile
  * CTR volatile
@@ -834,25 +834,26 @@ EXC_COMMON(trap_0b_common, 0xb00, unknown_exception)
  * Other registers nonvolatile
  *
  * The intersection of volatile registers that don't contain possible
- * inputs is: r12, cr0, xer, ctr. We may use these as scratch regs
- * upon entry without saving.
+ * inputs is: cr0, xer, ctr. We may use these as scratch regs upon entry
+ * without saving, though xer is not a good idea to use, as hardware may
+ * interpret some bits so it may be costly to change them.
  */
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 	/*
 	 * There is a little bit of juggling to get syscall and hcall
-	 * working well. Save r10 in ctr to be restored in case it is a
-	 * hcall.
+	 * working well. Save r13 in ctr to avoid using SPRG scratch
+	 * register.
 	 *
 	 * Userspace syscalls have already saved the PPR, hcalls must save
 	 * it before setting HMT_MEDIUM.
 	 */
 #define SYSCALL_KVMTEST							\
-	mr	r12,r13;						\
+	mtctr	r13;							\
 	GET_PACA(r13);							\
-	mtctr	r10;							\
+	std	r10,PACA_EXGEN+EX_R10(r13);				\
 	KVMTEST_PR(0xc00); /* uses r10, branch to do_kvm_0xc00_system_call */ \
 	HMT_MEDIUM;							\
-	mr	r9,r12;							\
+	mfctr	r9;
 
 #else
 #define SYSCALL_KVMTEST							\
@@ -935,8 +936,8 @@ EXC_VIRT_END(system_call, 0x4c00, 0x100)
 	 * This is a hcall, so register convention is as above, with these
 	 * differences:
 	 * r13 = PACA
-	 * r12 = orig r13
-	 * ctr = orig r10
+	 * ctr = orig r13
+	 * orig r10 saved in PACA
 	 */
 TRAMP_KVM_BEGIN(do_kvm_0xc00)
 	 /*
@@ -944,14 +945,13 @@ TRAMP_KVM_BEGIN(do_kvm_0xc00)
 	  * HMT_MEDIUM. That allows the KVM code to save that value into the
 	  * guest state (it is the guest's PPR value).
 	  */
-	OPT_GET_SPR(r0, SPRN_PPR, CPU_FTR_HAS_PPR)
+	OPT_GET_SPR(r10, SPRN_PPR, CPU_FTR_HAS_PPR)
 	HMT_MEDIUM
-	OPT_SAVE_REG_TO_PACA(PACA_EXGEN+EX_PPR, r0, CPU_FTR_HAS_PPR)
+	OPT_SAVE_REG_TO_PACA(PACA_EXGEN+EX_PPR, r10, CPU_FTR_HAS_PPR)
 	mfctr	r10
-	SET_SCRATCH0(r12)
+	SET_SCRATCH0(r10)
 	std	r9,PACA_EXGEN+EX_R9(r13)
 	mfcr	r9
-	std	r10,PACA_EXGEN+EX_R10(r13)
 	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xc00)
 #endif
 
@@ -1314,7 +1314,7 @@ EXC_REAL_NONE(0x1800, 0x100)
 EXC_VIRT_NONE(0x5800, 0x100)
 #endif
 
-#if defined(CONFIG_HARDLOCKUP_DETECTOR) && defined(CONFIG_HAVE_HARDLOCKUP_DETECTOR_ARCH)
+#ifdef CONFIG_PPC_WATCHDOG
 
 #define MASKED_DEC_HANDLER_LABEL 3f
 
@@ -1325,20 +1325,28 @@ EXC_VIRT_NONE(0x5800, 0x100)
 	std	r10,PACA_EXGEN+EX_R13(r13);		\
 	EXCEPTION_PROLOG_PSERIES_1(soft_nmi_common, _H)
 
+/*
+ * Branch to soft_nmi_interrupt using the emergency stack. The emergency
+ * stack is one that is usable by maskable interrupts so long as MSR_EE
+ * remains off. It is used for recovery when something has corrupted the
+ * normal kernel stack, for example. The "soft NMI" must not use the process
+ * stack because we want irq disabled sections to avoid touching the stack
+ * at all (other than PMU interrupts), so use the emergency stack for this,
+ * and run it entirely with interrupts hard disabled.
+ */
 EXC_COMMON_BEGIN(soft_nmi_common)
 	mr	r10,r1
 	ld	r1,PACAEMERGSP(r13)
-	ld	r1,PACA_NMI_EMERG_SP(r13)
 	subi	r1,r1,INT_FRAME_SIZE
 	EXCEPTION_COMMON_NORET_STACK(PACA_EXGEN, 0x900,
 			system_reset, soft_nmi_interrupt,
 			ADD_NVGPRS;ADD_RECONCILE)
 	b	ret_from_except
 
-#else
+#else /* CONFIG_PPC_WATCHDOG */
 #define MASKED_DEC_HANDLER_LABEL 2f /* normal return */
 #define MASKED_DEC_HANDLER(_H)
-#endif
+#endif /* CONFIG_PPC_WATCHDOG */
 
 /*
  * An interrupt came in while soft-disabled. We set paca->irq_happened, then:
@@ -1362,19 +1370,16 @@ masked_##_H##interrupt:					\
 	ori	r10,r10,0xffff;				\
 	mtspr	SPRN_DEC,r10;				\
 	b	MASKED_DEC_HANDLER_LABEL;		\
-1:	cmpwi	r10,PACA_IRQ_DBELL;			\
-	beq	2f;					\
-	cmpwi	r10,PACA_IRQ_HMI;			\
-	beq	2f;					\
+1:	andi.	r10,r10,(PACA_IRQ_DBELL|PACA_IRQ_HMI);	\
+	bne	2f;					\
 	mfspr	r10,SPRN_##_H##SRR1;			\
-	rldicl	r10,r10,48,1; /* clear MSR_EE */	\
-	rotldi	r10,r10,16;				\
+	xori	r10,r10,MSR_EE; /* clear MSR_EE */	\
 	mtspr	SPRN_##_H##SRR1,r10;			\
 2:	mtcrf	0x80,r9;				\
 	ld	r9,PACA_EXGEN+EX_R9(r13);		\
 	ld	r10,PACA_EXGEN+EX_R10(r13);		\
 	ld	r11,PACA_EXGEN+EX_R11(r13);		\
-	GET_SCRATCH0(r13);				\
+	/* returns to kernel where r13 must be set up, so don't restore it */ \
 	##_H##rfid;					\
 	b	.;					\
 	MASKED_DEC_HANDLER(_H)
@@ -1477,8 +1482,10 @@ USE_TEXT_SECTION()
  */
 	.balign	IFETCH_ALIGN_BYTES
 do_hash_page:
-#ifdef CONFIG_PPC_STD_MMU_64
-	andis.	r0,r4,0xa450		/* weird error? */
+	#ifdef CONFIG_PPC_STD_MMU_64
+	lis	r0,DSISR_BAD_FAULT_64S@h
+	ori	r0,r0,DSISR_BAD_FAULT_64S@l
+	and.	r0,r4,r0		/* weird error? */
 	bne-	handle_page_fault	/* if not, try to insert a HPTE */
 	CURRENT_THREAD_INFO(r11, r1)
 	lwz	r0,TI_PREEMPT(r11)	/* If we're in an "NMI" */
@@ -1661,25 +1668,27 @@ _GLOBAL(__replay_interrupt)
 	 * we don't give a damn about, so we don't bother storing them.
 	 */
 	mfmsr	r12
-	LOAD_REG_ADDR(r11, 1f)
+	LOAD_REG_ADDR(r11, replay_interrupt_return)
 	mfcr	r9
 	ori	r12,r12,MSR_EE
 	cmpwi	r3,0x900
 	beq	decrementer_common
 	cmpwi	r3,0x500
-	beq	hardware_interrupt_common
 BEGIN_FTR_SECTION
-	cmpwi	r3,0xe80
-	beq	h_doorbell_common_msgclr
-	cmpwi	r3,0xea0
 	beq	h_virt_irq_common
+FTR_SECTION_ELSE
+	beq	hardware_interrupt_common
+ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_300)
+BEGIN_FTR_SECTION
+	cmpwi	r3,0xa00
+	beq	h_doorbell_common_msgclr
 	cmpwi	r3,0xe60
 	beq	hmi_exception_common
 FTR_SECTION_ELSE
 	cmpwi	r3,0xa00
 	beq	doorbell_super_common_msgclr
 ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
-1:
+replay_interrupt_return:
 	blr
 
 _ASM_NOKPROBE_SYMBOL(__replay_interrupt)

@@ -21,6 +21,8 @@
 #include <linux/of_platform.h>
 #include <linux/of_mdio.h>
 
+#include <linux/platform_data/mdio-bcm-unimac.h>
+
 #define MDIO_CMD		0x00
 #define  MDIO_START_BUSY	(1 << 29)
 #define  MDIO_READ_FAIL		(1 << 28)
@@ -41,46 +43,80 @@
 struct unimac_mdio_priv {
 	struct mii_bus		*mii_bus;
 	void __iomem		*base;
+	int (*wait_func)	(void *wait_func_data);
+	void			*wait_func_data;
 };
+
+static inline u32 unimac_mdio_readl(struct unimac_mdio_priv *priv, u32 offset)
+{
+	/* MIPS chips strapped for BE will automagically configure the
+	 * peripheral registers for CPU-native byte order.
+	 */
+	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
+		return __raw_readl(priv->base + offset);
+	else
+		return readl_relaxed(priv->base + offset);
+}
+
+static inline void unimac_mdio_writel(struct unimac_mdio_priv *priv, u32 val,
+				      u32 offset)
+{
+	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
+		__raw_writel(val, priv->base + offset);
+	else
+		writel_relaxed(val, priv->base + offset);
+}
 
 static inline void unimac_mdio_start(struct unimac_mdio_priv *priv)
 {
 	u32 reg;
 
-	reg = __raw_readl(priv->base + MDIO_CMD);
+	reg = unimac_mdio_readl(priv, MDIO_CMD);
 	reg |= MDIO_START_BUSY;
-	__raw_writel(reg, priv->base + MDIO_CMD);
+	unimac_mdio_writel(priv, reg, MDIO_CMD);
 }
 
 static inline unsigned int unimac_mdio_busy(struct unimac_mdio_priv *priv)
 {
-	return __raw_readl(priv->base + MDIO_CMD) & MDIO_START_BUSY;
+	return unimac_mdio_readl(priv, MDIO_CMD) & MDIO_START_BUSY;
+}
+
+static int unimac_mdio_poll(void *wait_func_data)
+{
+	struct unimac_mdio_priv *priv = wait_func_data;
+	unsigned int timeout = 1000;
+
+	do {
+		if (!unimac_mdio_busy(priv))
+			return 0;
+
+		usleep_range(1000, 2000);
+	} while (--timeout);
+
+	if (!timeout)
+		return -ETIMEDOUT;
+
+	return 0;
 }
 
 static int unimac_mdio_read(struct mii_bus *bus, int phy_id, int reg)
 {
 	struct unimac_mdio_priv *priv = bus->priv;
-	unsigned int timeout = 1000;
+	int ret;
 	u32 cmd;
 
 	/* Prepare the read operation */
 	cmd = MDIO_RD | (phy_id << MDIO_PMD_SHIFT) | (reg << MDIO_REG_SHIFT);
-	__raw_writel(cmd, priv->base + MDIO_CMD);
+	unimac_mdio_writel(priv, cmd, MDIO_CMD);
 
 	/* Start MDIO transaction */
 	unimac_mdio_start(priv);
 
-	do {
-		if (!unimac_mdio_busy(priv))
-			break;
+	ret = priv->wait_func(priv->wait_func_data);
+	if (ret)
+		return ret;
 
-		usleep_range(1000, 2000);
-	} while (timeout--);
-
-	if (!timeout)
-		return -ETIMEDOUT;
-
-	cmd = __raw_readl(priv->base + MDIO_CMD);
+	cmd = unimac_mdio_readl(priv, MDIO_CMD);
 
 	/* Some broken devices are known not to release the line during
 	 * turn-around, e.g: Broadcom BCM53125 external switches, so check for
@@ -97,27 +133,16 @@ static int unimac_mdio_write(struct mii_bus *bus, int phy_id,
 			     int reg, u16 val)
 {
 	struct unimac_mdio_priv *priv = bus->priv;
-	unsigned int timeout = 1000;
 	u32 cmd;
 
 	/* Prepare the write operation */
 	cmd = MDIO_WR | (phy_id << MDIO_PMD_SHIFT) |
 		(reg << MDIO_REG_SHIFT) | (0xffff & val);
-	__raw_writel(cmd, priv->base + MDIO_CMD);
+	unimac_mdio_writel(priv, cmd, MDIO_CMD);
 
 	unimac_mdio_start(priv);
 
-	do {
-		if (!unimac_mdio_busy(priv))
-			break;
-
-		usleep_range(1000, 2000);
-	} while (timeout--);
-
-	if (!timeout)
-		return -ETIMEDOUT;
-
-	return 0;
+	return priv->wait_func(priv->wait_func_data);
 }
 
 /* Workaround for integrated BCM7xxx Gigabit PHYs which have a problem with
@@ -155,8 +180,10 @@ static int unimac_mdio_reset(struct mii_bus *bus)
 	}
 
 	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
-		if (read_mask & 1 << addr)
+		if (read_mask & 1 << addr) {
+			dev_dbg(&bus->dev, "Workaround for PHY @ %d\n", addr);
 			mdiobus_read(bus, addr, MII_BMSR);
+		}
 	}
 
 	return 0;
@@ -164,6 +191,7 @@ static int unimac_mdio_reset(struct mii_bus *bus)
 
 static int unimac_mdio_probe(struct platform_device *pdev)
 {
+	struct unimac_mdio_pdata *pdata = pdev->dev.platform_data;
 	struct unimac_mdio_priv *priv;
 	struct device_node *np;
 	struct mii_bus *bus;
@@ -193,12 +221,21 @@ static int unimac_mdio_probe(struct platform_device *pdev)
 
 	bus = priv->mii_bus;
 	bus->priv = priv;
-	bus->name = "unimac MII bus";
+	if (pdata) {
+		bus->name = pdata->bus_name;
+		priv->wait_func = pdata->wait_func;
+		priv->wait_func_data = pdata->wait_func_data;
+		bus->phy_mask = ~pdata->phy_mask;
+	} else {
+		bus->name = "unimac MII bus";
+		priv->wait_func_data = priv;
+		priv->wait_func = unimac_mdio_poll;
+	}
 	bus->parent = &pdev->dev;
 	bus->read = unimac_mdio_read;
 	bus->write = unimac_mdio_write;
 	bus->reset = unimac_mdio_reset;
-	snprintf(bus->id, MII_BUS_ID_SIZE, "%s", pdev->name);
+	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-%d", pdev->name, pdev->id);
 
 	ret = of_mdiobus_register(bus, np);
 	if (ret) {
@@ -240,7 +277,7 @@ MODULE_DEVICE_TABLE(of, unimac_mdio_ids);
 
 static struct platform_driver unimac_mdio_driver = {
 	.driver = {
-		.name = "unimac-mdio",
+		.name = UNIMAC_MDIO_DRV_NAME,
 		.of_match_table = unimac_mdio_ids,
 	},
 	.probe	= unimac_mdio_probe,
@@ -251,4 +288,4 @@ module_platform_driver(unimac_mdio_driver);
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom UniMAC MDIO bus controller");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:unimac-mdio");
+MODULE_ALIAS("platform:" UNIMAC_MDIO_DRV_NAME);

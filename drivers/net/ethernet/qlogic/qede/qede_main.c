@@ -873,9 +873,7 @@ static void qede_update_pf_params(struct qed_dev *cdev)
 	 */
 	pf_params.eth_pf_params.num_vf_cons = 48;
 
-#ifdef CONFIG_RFS_ACCEL
 	pf_params.eth_pf_params.num_arfs_filters = QEDE_RFS_MAX_FLTR;
-#endif
 	qed_ops->common->update_pf_params(cdev, &pf_params);
 }
 
@@ -1984,12 +1982,12 @@ static void qede_unload(struct qede_dev *edev, enum qede_unload_mode mode,
 
 	qede_vlan_mark_nonconfigured(edev);
 	edev->ops->fastpath_stop(edev->cdev);
-#ifdef CONFIG_RFS_ACCEL
+
 	if (!IS_VF(edev) && edev->dev_info.common.num_hwfns == 1) {
 		qede_poll_for_freeing_arfs_filters(edev);
 		qede_free_arfs(edev);
 	}
-#endif
+
 	/* Release the interrupts */
 	qede_sync_free_irqs(edev);
 	edev->ops->common->set_fp_int(edev->cdev, 0);
@@ -2041,13 +2039,12 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode,
 	if (rc)
 		goto err2;
 
-#ifdef CONFIG_RFS_ACCEL
 	if (!IS_VF(edev) && edev->dev_info.common.num_hwfns == 1) {
 		rc = qede_alloc_arfs(edev);
 		if (rc)
 			DP_NOTICE(edev, "aRFS memory allocation failed\n");
 	}
-#endif
+
 	qede_napi_add_enable(edev);
 	DP_INFO(edev, "Napi added and enabled\n");
 

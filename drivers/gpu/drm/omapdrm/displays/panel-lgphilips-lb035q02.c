@@ -19,7 +19,7 @@
 
 #include "../dss/omapdss.h"
 
-static struct videomode lb035q02_vm = {
+static const struct videomode lb035q02_vm = {
 	.hactive = 320,
 	.vactive = 240,
 

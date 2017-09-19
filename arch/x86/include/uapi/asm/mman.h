@@ -3,9 +3,6 @@
 
 #define MAP_32BIT	0x40		/* only give out 32bit addresses */
 
-#define MAP_HUGE_2MB    (21 << MAP_HUGE_SHIFT)
-#define MAP_HUGE_1GB    (30 << MAP_HUGE_SHIFT)
-
 #ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
 /*
  * Take the 4 protection key bits out of the vma->vm_flags

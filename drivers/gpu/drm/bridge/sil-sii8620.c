@@ -597,9 +597,9 @@ static void sii8620_mt_read_devcap(struct sii8620 *ctx, bool xdevcap)
 static void sii8620_mt_read_devcap_reg_recv(struct sii8620 *ctx,
 		struct sii8620_mt_msg *msg)
 {
-	u8 reg = msg->reg[0] & 0x7f;
+	u8 reg = msg->reg[1] & 0x7f;
 
-	if (msg->reg[0] & 0x80)
+	if (msg->reg[1] & 0x80)
 		ctx->xdevcap[reg] = msg->ret;
 	else
 		ctx->devcap[reg] = msg->ret;

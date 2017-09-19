@@ -62,10 +62,10 @@ static struct rc_map_table avertv_303[] = {
 
 static struct rc_map_list avertv_303_map = {
 	.map = {
-		.scan    = avertv_303,
-		.size    = ARRAY_SIZE(avertv_303),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_AVERTV_303,
+		.scan     = avertv_303,
+		.size     = ARRAY_SIZE(avertv_303),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_AVERTV_303,
 	}
 };
 

@@ -593,7 +593,7 @@ static void pcmidi_in_trigger(struct snd_rawmidi_substream *substream, int up)
 	pm->in_triggered = up;
 }
 
-static struct snd_rawmidi_ops pcmidi_in_ops = {
+static const struct snd_rawmidi_ops pcmidi_in_ops = {
 	.open = pcmidi_in_open,
 	.close = pcmidi_in_close,
 	.trigger = pcmidi_in_trigger

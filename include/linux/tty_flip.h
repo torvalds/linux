@@ -12,6 +12,7 @@ extern int tty_prepare_flip_string(struct tty_port *port,
 		unsigned char **chars, size_t size);
 extern void tty_flip_buffer_push(struct tty_port *port);
 void tty_schedule_flip(struct tty_port *port);
+int __tty_insert_flip_char(struct tty_port *port, unsigned char ch, char flag);
 
 static inline int tty_insert_flip_char(struct tty_port *port,
 					unsigned char ch, char flag)
@@ -26,7 +27,7 @@ static inline int tty_insert_flip_char(struct tty_port *port,
 		*char_buf_ptr(tb, tb->used++) = ch;
 		return 1;
 	}
-	return tty_insert_flip_string_flags(port, &ch, &flag, 1);
+	return __tty_insert_flip_char(port, ch, flag);
 }
 
 static inline int tty_insert_flip_string(struct tty_port *port,

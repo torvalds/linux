@@ -150,7 +150,7 @@ static int ptp_kvm_enable(struct ptp_clock_info *ptp,
 	return -EOPNOTSUPP;
 }
 
-static struct ptp_clock_info ptp_kvm_caps = {
+static const struct ptp_clock_info ptp_kvm_caps = {
 	.owner		= THIS_MODULE,
 	.name		= "KVM virtual PTP",
 	.max_adj	= 0,

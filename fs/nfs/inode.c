@@ -1285,7 +1285,6 @@ static bool nfs_file_has_buffered_writers(struct nfs_inode *nfsi)
 
 static unsigned long nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
 	unsigned long ret = 0;
 
 	if ((fattr->valid & NFS_ATTR_FATTR_PRECHANGE)
@@ -1315,7 +1314,7 @@ static unsigned long nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr 
 	if ((fattr->valid & NFS_ATTR_FATTR_PRESIZE)
 			&& (fattr->valid & NFS_ATTR_FATTR_SIZE)
 			&& i_size_read(inode) == nfs_size_to_loff_t(fattr->pre_size)
-			&& nfsi->nrequests == 0) {
+			&& !nfs_have_writebacks(inode)) {
 		i_size_write(inode, nfs_size_to_loff_t(fattr->size));
 		ret |= NFS_INO_INVALID_ATTR;
 	}
@@ -1823,7 +1822,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		if (new_isize != cur_isize) {
 			/* Do we perhaps have any outstanding writes, or has
 			 * the file grown beyond our last write? */
-			if (nfsi->nrequests == 0 || new_isize > cur_isize) {
+			if (!nfs_have_writebacks(inode) || new_isize > cur_isize) {
 				i_size_write(inode, new_isize);
 				if (!have_writers)
 					invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA;
@@ -2012,10 +2011,11 @@ static void init_once(void *foo)
 	INIT_LIST_HEAD(&nfsi->access_cache_entry_lru);
 	INIT_LIST_HEAD(&nfsi->access_cache_inode_lru);
 	INIT_LIST_HEAD(&nfsi->commit_info.list);
-	nfsi->nrequests = 0;
-	nfsi->commit_info.ncommit = 0;
+	atomic_long_set(&nfsi->nrequests, 0);
+	atomic_long_set(&nfsi->commit_info.ncommit, 0);
 	atomic_set(&nfsi->commit_info.rpcs_out, 0);
 	init_rwsem(&nfsi->rmdir_sem);
+	mutex_init(&nfsi->commit_mutex);
 	nfs4_init_once(nfsi);
 }
 

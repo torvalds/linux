@@ -281,7 +281,6 @@ struct esp_cmd_entry {
 
 	u8			flags;
 #define ESP_CMD_FLAG_WRITE	0x01 /* DMA is a write */
-#define ESP_CMD_FLAG_ABORT	0x02 /* being aborted */
 #define ESP_CMD_FLAG_AUTOSENSE	0x04 /* Doing automatic REQUEST_SENSE */
 #define ESP_CMD_FLAG_RESIDUAL	0x08 /* AM53c974 BLAST residual */
 

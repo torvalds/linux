@@ -345,7 +345,7 @@ static int dwc3_pci_resume(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-static struct dev_pm_ops dwc3_pci_dev_pm_ops = {
+static const struct dev_pm_ops dwc3_pci_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(dwc3_pci_suspend, dwc3_pci_resume)
 	SET_RUNTIME_PM_OPS(dwc3_pci_runtime_suspend, dwc3_pci_runtime_resume,
 		NULL)

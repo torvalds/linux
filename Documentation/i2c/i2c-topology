@@ -42,6 +42,10 @@ i2c-arb-gpio-challenge    Parent-locked
 i2c-mux-gpio              Normally parent-locked, mux-locked iff
                           all involved gpio pins are controlled by the
                           same i2c root adapter that they mux.
+i2c-mux-gpmux             Normally parent-locked, mux-locked iff
+                          specified in device-tree.
+i2c-mux-ltc4306           Mux-locked
+i2c-mux-mlxcpld           Parent-locked
 i2c-mux-pca9541           Parent-locked
 i2c-mux-pca954x           Parent-locked
 i2c-mux-pinctrl           Normally parent-locked, mux-locked iff
@@ -50,9 +54,11 @@ i2c-mux-pinctrl           Normally parent-locked, mux-locked iff
 i2c-mux-reg               Parent-locked
 
 In drivers/iio/
+gyro/mpu3050              Mux-locked
 imu/inv_mpu6050/          Mux-locked
 
 In drivers/media/
+dvb-frontends/lgdt3306a   Mux-locked
 dvb-frontends/m88ds3103   Parent-locked
 dvb-frontends/rtl2830     Parent-locked
 dvb-frontends/rtl2832     Mux-locked

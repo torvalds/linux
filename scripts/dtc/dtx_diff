@@ -321,7 +321,7 @@ fi
 cpp_flags="\
 	-nostdinc                                  \
 	-I${srctree}/arch/${ARCH}/boot/dts         \
-	-I${srctree}/arch/${ARCH}/boot/dts/include \
+	-I${srctree}/scripts/dtc/include-prefixes  \
 	-I${srctree}/drivers/of/testcase-data      \
 	-undef -D__DTS__"
 

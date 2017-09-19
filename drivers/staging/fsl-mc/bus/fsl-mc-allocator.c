@@ -16,9 +16,9 @@
 
 static bool __must_check fsl_mc_is_allocatable(const char *obj_type)
 {
-	return strcmp(obj_type, "dpbp") ||
-	       strcmp(obj_type, "dpmcp") ||
-	       strcmp(obj_type, "dpcon");
+	return strcmp(obj_type, "dpbp") == 0 ||
+	       strcmp(obj_type, "dpmcp") == 0 ||
+	       strcmp(obj_type, "dpcon") == 0;
 }
 
 /**

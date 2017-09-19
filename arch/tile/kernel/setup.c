@@ -1200,7 +1200,7 @@ static void __init validate_hv(void)
 	 * We use a struct cpumask for this, so it must be big enough.
 	 */
 	if ((smp_height * smp_width) > nr_cpu_ids)
-		early_panic("Hypervisor %d x %d grid too big for Linux NR_CPUS %d\n",
+		early_panic("Hypervisor %d x %d grid too big for Linux NR_CPUS %u\n",
 			    smp_height, smp_width, nr_cpu_ids);
 #endif
 

@@ -166,11 +166,20 @@ static const char * const mem_lvl[] = {
 	"Uncached",
 };
 
+static const char * const mem_lvlnum[] = {
+	[PERF_MEM_LVLNUM_ANY_CACHE] = "Any cache",
+	[PERF_MEM_LVLNUM_LFB] = "LFB",
+	[PERF_MEM_LVLNUM_RAM] = "RAM",
+	[PERF_MEM_LVLNUM_PMEM] = "PMEM",
+	[PERF_MEM_LVLNUM_NA] = "N/A",
+};
+
 int perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 {
 	size_t i, l = 0;
 	u64 m =  PERF_MEM_LVL_NA;
 	u64 hit, miss;
+	int printed;
 
 	if (mem_info)
 		m  = mem_info->data_src.mem_lvl;
@@ -184,17 +193,37 @@ int perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 	/* already taken care of */
 	m &= ~(PERF_MEM_LVL_HIT|PERF_MEM_LVL_MISS);
 
+
+	if (mem_info && mem_info->data_src.mem_remote) {
+		strcat(out, "Remote ");
+		l += 7;
+	}
+
+	printed = 0;
 	for (i = 0; m && i < ARRAY_SIZE(mem_lvl); i++, m >>= 1) {
 		if (!(m & 0x1))
 			continue;
-		if (l) {
+		if (printed++) {
 			strcat(out, " or ");
 			l += 4;
 		}
 		l += scnprintf(out + l, sz - l, mem_lvl[i]);
 	}
-	if (*out == '\0')
-		l += scnprintf(out, sz - l, "N/A");
+
+	if (mem_info && mem_info->data_src.mem_lvl_num) {
+		int lvl = mem_info->data_src.mem_lvl_num;
+		if (printed++) {
+			strcat(out, " or ");
+			l += 4;
+		}
+		if (mem_lvlnum[lvl])
+			l += scnprintf(out + l, sz - l, mem_lvlnum[lvl]);
+		else
+			l += scnprintf(out + l, sz - l, "L%d", lvl);
+	}
+
+	if (l == 0)
+		l += scnprintf(out + l, sz - l, "N/A");
 	if (hit)
 		l += scnprintf(out + l, sz - l, " hit");
 	if (miss)
@@ -230,6 +259,14 @@ int perf_mem__snp_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 			l += 4;
 		}
 		l += scnprintf(out + l, sz - l, snoop_access[i]);
+	}
+	if (mem_info &&
+	     (mem_info->data_src.mem_snoopx & PERF_MEM_SNOOPX_FWD)) {
+		if (l) {
+			strcat(out, " or ");
+			l += 4;
+		}
+		l += scnprintf(out + l, sz - l, "Fwd");
 	}
 
 	if (*out == '\0')
@@ -279,6 +316,11 @@ int c2c_decode_stats(struct c2c_stats *stats, struct mem_info *mi)
 	u64 lvl    = data_src->mem_lvl;
 	u64 snoop  = data_src->mem_snoop;
 	u64 lock   = data_src->mem_lock;
+	/*
+	 * Skylake might report unknown remote level via this
+	 * bit, consider it when evaluating remote HITMs.
+	 */
+	bool mrem  = data_src->mem_remote;
 	int err = 0;
 
 #define HITM_INC(__f)		\
@@ -324,7 +366,8 @@ do {				\
 			}
 
 			if ((lvl & P(LVL, REM_RAM1)) ||
-			    (lvl & P(LVL, REM_RAM2))) {
+			    (lvl & P(LVL, REM_RAM2)) ||
+			     mrem) {
 				stats->rmt_dram++;
 				if (snoop & P(SNOOP, HIT))
 					stats->ld_shared++;
@@ -334,7 +377,8 @@ do {				\
 		}
 
 		if ((lvl & P(LVL, REM_CCE1)) ||
-		    (lvl & P(LVL, REM_CCE2))) {
+		    (lvl & P(LVL, REM_CCE2)) ||
+		     mrem) {
 			if (snoop & P(SNOOP, HIT))
 				stats->rmt_hit++;
 			else if (snoop & P(SNOOP, HITM))

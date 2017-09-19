@@ -39,6 +39,7 @@
 #include <asm/insn.h>
 #include <asm/debugreg.h>
 #include <asm/set_memory.h>
+#include <asm/sections.h>
 
 #include "common.h"
 
@@ -251,10 +252,12 @@ static int can_optimize(unsigned long paddr)
 
 	/*
 	 * Do not optimize in the entry code due to the unstable
-	 * stack handling.
+	 * stack handling and registers setup.
 	 */
-	if ((paddr >= (unsigned long)__entry_text_start) &&
-	    (paddr <  (unsigned long)__entry_text_end))
+	if (((paddr >= (unsigned long)__entry_text_start) &&
+	     (paddr <  (unsigned long)__entry_text_end)) ||
+	    ((paddr >= (unsigned long)__irqentry_text_start) &&
+	     (paddr <  (unsigned long)__irqentry_text_end)))
 		return 0;
 
 	/* Check there is enough space for a relative jump. */

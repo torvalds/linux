@@ -241,11 +241,11 @@ static inline int pca9685_pwm_gpio_probe(struct pca9685 *pca)
 }
 #endif
 
-static void pca9685_set_sleep_mode(struct pca9685 *pca, int sleep)
+static void pca9685_set_sleep_mode(struct pca9685 *pca, bool enable)
 {
 	regmap_update_bits(pca->regmap, PCA9685_MODE1,
-			   MODE1_SLEEP, sleep ? MODE1_SLEEP : 0);
-	if (!sleep) {
+			   MODE1_SLEEP, enable ? MODE1_SLEEP : 0);
+	if (!enable) {
 		/* Wait 500us for the oscillator to be back up */
 		udelay(500);
 	}
@@ -272,13 +272,13 @@ static int pca9685_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			 * state is guaranteed active here.
 			 */
 			/* Put chip into sleep mode */
-			pca9685_set_sleep_mode(pca, 1);
+			pca9685_set_sleep_mode(pca, true);
 
 			/* Change the chip-wide output frequency */
 			regmap_write(pca->regmap, PCA9685_PRESCALE, prescale);
 
 			/* Wake the chip up */
-			pca9685_set_sleep_mode(pca, 0);
+			pca9685_set_sleep_mode(pca, false);
 
 			pca->period_ns = period_ns;
 		} else {
@@ -534,7 +534,7 @@ static int pca9685_pwm_runtime_suspend(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct pca9685 *pca = i2c_get_clientdata(client);
 
-	pca9685_set_sleep_mode(pca, 1);
+	pca9685_set_sleep_mode(pca, true);
 	return 0;
 }
 
@@ -543,7 +543,7 @@ static int pca9685_pwm_runtime_resume(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct pca9685 *pca = i2c_get_clientdata(client);
 
-	pca9685_set_sleep_mode(pca, 0);
+	pca9685_set_sleep_mode(pca, false);
 	return 0;
 }
 #endif

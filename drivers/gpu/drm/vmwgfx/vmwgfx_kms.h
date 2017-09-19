@@ -390,7 +390,6 @@ int vmw_kms_update_proxy(struct vmw_resource *res,
  * Screen Objects display functions - vmwgfx_scrn.c
  */
 int vmw_kms_sou_init_display(struct vmw_private *dev_priv);
-int vmw_kms_sou_close_display(struct vmw_private *dev_priv);
 int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
 				 struct vmw_framebuffer *framebuffer,
 				 struct drm_clip_rect *clips,
@@ -418,7 +417,6 @@ int vmw_kms_sou_readback(struct vmw_private *dev_priv,
  * Screen Target Display Unit functions - vmwgfx_stdu.c
  */
 int vmw_kms_stdu_init_display(struct vmw_private *dev_priv);
-int vmw_kms_stdu_close_display(struct vmw_private *dev_priv);
 int vmw_kms_stdu_surface_dirty(struct vmw_private *dev_priv,
 			       struct vmw_framebuffer *framebuffer,
 			       struct drm_clip_rect *clips,

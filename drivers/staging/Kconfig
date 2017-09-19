@@ -24,6 +24,8 @@ menuconfig STAGING
 
 if STAGING
 
+source "drivers/staging/irda/net/Kconfig"
+
 source "drivers/staging/wlan-ng/Kconfig"
 
 source "drivers/staging/comedi/Kconfig"
@@ -39,6 +41,8 @@ source "drivers/staging/rtl8723bs/Kconfig"
 source "drivers/staging/rtl8712/Kconfig"
 
 source "drivers/staging/rtl8188eu/Kconfig"
+
+source "drivers/staging/rtlwifi/Kconfig"
 
 source "drivers/staging/rts5208/Kconfig"
 
@@ -109,5 +113,9 @@ source "drivers/staging/vc04_services/Kconfig"
 source "drivers/staging/ccree/Kconfig"
 
 source "drivers/staging/typec/Kconfig"
+
+source "drivers/staging/vboxvideo/Kconfig"
+
+source "drivers/staging/pi433/Kconfig"
 
 endif # STAGING

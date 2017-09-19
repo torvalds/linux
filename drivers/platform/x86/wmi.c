@@ -218,7 +218,7 @@ u32 method_id, const struct acpi_buffer *in, struct acpi_buffer *out)
 	if (!(block->flags & ACPI_WMI_METHOD))
 		return AE_BAD_DATA;
 
-	if (block->instance_count < instance)
+	if (block->instance_count <= instance)
 		return AE_BAD_PARAMETER;
 
 	input.count = 2;
@@ -265,7 +265,7 @@ static acpi_status __query_block(struct wmi_block *wblock, u8 instance,
 	block = &wblock->gblock;
 	handle = wblock->acpi_device->handle;
 
-	if (block->instance_count < instance)
+	if (block->instance_count <= instance)
 		return AE_BAD_PARAMETER;
 
 	/* Check GUID is a data block */
@@ -392,7 +392,7 @@ acpi_status wmi_set_block(const char *guid_string, u8 instance,
 	block = &wblock->gblock;
 	handle = wblock->acpi_device->handle;
 
-	if (block->instance_count < instance)
+	if (block->instance_count <= instance)
 		return AE_BAD_PARAMETER;
 
 	/* Check GUID is a data block */
@@ -1252,11 +1252,11 @@ static int __init acpi_wmi_init(void)
 
 	return 0;
 
-err_unreg_class:
-	class_unregister(&wmi_bus_class);
-
 err_unreg_bus:
 	bus_unregister(&wmi_bus_type);
+
+err_unreg_class:
+	class_unregister(&wmi_bus_class);
 
 	return error;
 }

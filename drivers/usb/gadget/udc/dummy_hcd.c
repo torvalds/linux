@@ -2776,7 +2776,7 @@ static int __init init(void)
 		if (retval < 0) {
 			i--;
 			while (i >= 0)
-				platform_device_del(the_udc_pdev[i]);
+				platform_device_del(the_udc_pdev[i--]);
 			goto err_add_udc;
 		}
 	}

@@ -29,7 +29,6 @@ Example device nodes:
 			clock-names = "ref";
 			#phy-cells = <0>;
 
-			status = "ok";
 		};
 
 		ss_phy: phy@100f8830 {
@@ -39,7 +38,6 @@ Example device nodes:
 			clock-names = "ref";
 			#phy-cells = <0>;
 
-			status = "ok";
 		};
 
 		usb3_0: usb30@0 {
@@ -51,7 +49,6 @@ Example device nodes:
 
 			ranges;
 
-			status = "ok";
 
 			dwc3@10000000 {
 				compatible = "snps,dwc3";

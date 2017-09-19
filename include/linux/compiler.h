@@ -185,8 +185,34 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 #endif
 
 /* Unreachable code */
+#ifdef CONFIG_STACK_VALIDATION
+#define annotate_reachable() ({						\
+	asm("%c0:\n\t"							\
+	    ".pushsection .discard.reachable\n\t"			\
+	    ".long %c0b - .\n\t"					\
+	    ".popsection\n\t" : : "i" (__LINE__));			\
+})
+#define annotate_unreachable() ({					\
+	asm("%c0:\n\t"							\
+	    ".pushsection .discard.unreachable\n\t"			\
+	    ".long %c0b - .\n\t"					\
+	    ".popsection\n\t" : : "i" (__LINE__));			\
+})
+#define ASM_UNREACHABLE							\
+	"999:\n\t"							\
+	".pushsection .discard.unreachable\n\t"				\
+	".long 999b - .\n\t"						\
+	".popsection\n\t"
+#else
+#define annotate_reachable()
+#define annotate_unreachable()
+#endif
+
+#ifndef ASM_UNREACHABLE
+# define ASM_UNREACHABLE
+#endif
 #ifndef unreachable
-# define unreachable() do { } while (1)
+# define unreachable() do { annotate_reachable(); do { } while (1); } while (0)
 #endif
 
 /*
@@ -452,6 +478,11 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 # define __no_randomize_layout
 #endif
 
+#ifndef randomized_struct_fields_start
+# define randomized_struct_fields_start
+# define randomized_struct_fields_end
+#endif
+
 /*
  * Tell gcc if a function is cold. The compiler will assume any path
  * directly leading to the call is unlikely.
@@ -468,6 +499,10 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 
 #ifndef __visible
 #define __visible
+#endif
+
+#ifndef __nostackprotector
+# define __nostackprotector
 #endif
 
 /*
@@ -512,7 +547,8 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 # define __compiletime_error_fallback(condition) do { } while (0)
 #endif
 
-#define __compiletime_assert(condition, msg, prefix, suffix)		\
+#ifdef __OPTIMIZE__
+# define __compiletime_assert(condition, msg, prefix, suffix)		\
 	do {								\
 		bool __cond = !(condition);				\
 		extern void prefix ## suffix(void) __compiletime_error(msg); \
@@ -520,6 +556,9 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 			prefix ## suffix();				\
 		__compiletime_error_fallback(__cond);			\
 	} while (0)
+#else
+# define __compiletime_assert(condition, msg, prefix, suffix) do { } while (0)
+#endif
 
 #define _compiletime_assert(condition, msg, prefix, suffix) \
 	__compiletime_assert(condition, msg, prefix, suffix)

@@ -67,7 +67,6 @@ struct pnfs_layout_segment {
 	u32 pls_seq;
 	unsigned long pls_flags;
 	struct pnfs_layout_hdr *pls_layout;
-	struct work_struct pls_work;
 };
 
 enum pnfs_try_status {
@@ -230,7 +229,6 @@ extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp, bool sync);
 /* pnfs.c */
 void pnfs_get_layout_hdr(struct pnfs_layout_hdr *lo);
 void pnfs_put_lseg(struct pnfs_layout_segment *lseg);
-void pnfs_put_lseg_locked(struct pnfs_layout_segment *lseg);
 
 void set_pnfs_layoutdriver(struct nfs_server *, const struct nfs_fh *, struct nfs_fsinfo *);
 void unset_pnfs_layoutdriver(struct nfs_server *);

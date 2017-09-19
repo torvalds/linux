@@ -1313,14 +1313,14 @@ static ssize_t sector_size_show(struct device *dev,
 	if (is_namespace_blk(dev)) {
 		struct nd_namespace_blk *nsblk = to_nd_namespace_blk(dev);
 
-		return nd_sector_size_show(nsblk->lbasize,
+		return nd_size_select_show(nsblk->lbasize,
 				blk_lbasize_supported, buf);
 	}
 
 	if (is_namespace_pmem(dev)) {
 		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
 
-		return nd_sector_size_show(nspm->lbasize,
+		return nd_size_select_show(nspm->lbasize,
 				pmem_lbasize_supported, buf);
 	}
 	return -ENXIO;
@@ -1352,7 +1352,7 @@ static ssize_t sector_size_store(struct device *dev,
 	if (to_ndns(dev)->claim)
 		rc = -EBUSY;
 	if (rc >= 0)
-		rc = nd_sector_size_store(dev, buf, lbasize, supported);
+		rc = nd_size_select_store(dev, buf, lbasize, supported);
 	if (rc >= 0)
 		rc = nd_namespace_label_update(nd_region, dev);
 	dev_dbg(dev, "%s: result: %zd %s: %s%s", __func__,

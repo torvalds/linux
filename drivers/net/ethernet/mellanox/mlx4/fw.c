@@ -36,6 +36,7 @@
 #include <linux/mlx4/cmd.h>
 #include <linux/module.h>
 #include <linux/cache.h>
+#include <linux/kernel.h>
 
 #include "fw.h"
 #include "icm.h"
@@ -57,7 +58,7 @@ MODULE_PARM_DESC(enable_qos, "Enable Enhanced QoS support (default: off)");
 	do {							      \
 		void *__p = (char *) (source) + (offset);	      \
 		u64 val;                                              \
-		switch (sizeof (dest)) {			      \
+		switch (sizeof(dest)) {			      \
 		case 1: (dest) = *(u8 *) __p;	    break;	      \
 		case 2: (dest) = be16_to_cpup(__p); break;	      \
 		case 4: (dest) = be32_to_cpup(__p); break;	      \
@@ -159,8 +160,10 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[32] = "Loopback source checks support",
 		[33] = "RoCEv2 support",
 		[34] = "DMFS Sniffer support (UC & MC)",
-		[35] = "QinQ VST mode support",
-		[36] = "sl to vl mapping table change event support"
+		[35] = "Diag counters per port",
+		[36] = "QinQ VST mode support",
+		[37] = "sl to vl mapping table change event support",
+		[38] = "user MAC support",
 	};
 	int i;
 
@@ -678,22 +681,22 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u8 gen_or_port,
 
 	if (func_cap->flags1 & QUERY_FUNC_CAP_VF_ENABLE_QP0) {
 		MLX4_GET(qkey, outbox, QUERY_FUNC_CAP_PRIV_VF_QKEY_OFFSET);
-		func_cap->qp0_qkey = qkey;
+		func_cap->spec_qps.qp0_qkey = qkey;
 	} else {
-		func_cap->qp0_qkey = 0;
+		func_cap->spec_qps.qp0_qkey = 0;
 	}
 
 	MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP0_TUNNEL);
-	func_cap->qp0_tunnel_qpn = size & 0xFFFFFF;
+	func_cap->spec_qps.qp0_tunnel = size & 0xFFFFFF;
 
 	MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP0_PROXY);
-	func_cap->qp0_proxy_qpn = size & 0xFFFFFF;
+	func_cap->spec_qps.qp0_proxy = size & 0xFFFFFF;
 
 	MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP1_TUNNEL);
-	func_cap->qp1_tunnel_qpn = size & 0xFFFFFF;
+	func_cap->spec_qps.qp1_tunnel = size & 0xFFFFFF;
 
 	MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP1_PROXY);
-	func_cap->qp1_proxy_qpn = size & 0xFFFFFF;
+	func_cap->spec_qps.qp1_proxy = size & 0xFFFFFF;
 
 	if (func_cap->flags1 & QUERY_FUNC_CAP_FLAGS1_NIC_INFO)
 		MLX4_GET(func_cap->phys_port_id, outbox,
@@ -764,6 +767,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_CQ_TS_SUPPORT_OFFSET	0x3e
 #define QUERY_DEV_CAP_MAX_PKEY_OFFSET		0x3f
 #define QUERY_DEV_CAP_EXT_FLAGS_OFFSET		0x40
+#define QUERY_DEV_CAP_WOL_OFFSET		0x43
 #define QUERY_DEV_CAP_FLAGS_OFFSET		0x44
 #define QUERY_DEV_CAP_RSVD_UAR_OFFSET		0x48
 #define QUERY_DEV_CAP_UAR_SZ_OFFSET		0x49
@@ -776,6 +780,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_MAX_DESC_SZ_SQ_OFFSET	0x52
 #define QUERY_DEV_CAP_MAX_SG_RQ_OFFSET		0x55
 #define QUERY_DEV_CAP_MAX_DESC_SZ_RQ_OFFSET	0x56
+#define QUERY_DEV_CAP_USER_MAC_EN_OFFSET	0x5C
 #define QUERY_DEV_CAP_SVLAN_BY_QP_OFFSET	0x5D
 #define QUERY_DEV_CAP_MAX_QP_MCG_OFFSET		0x61
 #define QUERY_DEV_CAP_RSVD_MCG_OFFSET		0x62
@@ -920,6 +925,9 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	MLX4_GET(ext_flags, outbox, QUERY_DEV_CAP_EXT_FLAGS_OFFSET);
 	MLX4_GET(flags, outbox, QUERY_DEV_CAP_FLAGS_OFFSET);
 	dev_cap->flags = flags | (u64)ext_flags << 32;
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_WOL_OFFSET);
+	dev_cap->wol_port[1] = !!(field & 0x20);
+	dev_cap->wol_port[2] = !!(field & 0x40);
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_RSVD_UAR_OFFSET);
 	dev_cap->reserved_uars = field >> 4;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_UAR_SZ_OFFSET);
@@ -944,6 +952,9 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	MLX4_GET(size, outbox, QUERY_DEV_CAP_MAX_DESC_SZ_SQ_OFFSET);
 	dev_cap->max_sq_desc_sz = size;
 
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_USER_MAC_EN_OFFSET);
+	if (field & (1 << 2))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_USER_MAC_EN;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_SVLAN_BY_QP_OFFSET);
 	if (field & 0x1)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_SVLAN_BY_QP;
@@ -1529,7 +1540,7 @@ int mlx4_map_cmd(struct mlx4_dev *dev, u16 op, struct mlx4_icm *icm, u64 virt)
 		for (i = 0; i < mlx4_icm_size(&iter) >> lg; ++i) {
 			if (virt != -1) {
 				pages[nent * 2] = cpu_to_be64(virt);
-				virt += 1 << lg;
+				virt += 1ULL << lg;
 			}
 
 			pages[nent * 2 + 1] =
@@ -2445,14 +2456,14 @@ int mlx4_config_dev_retrieval(struct mlx4_dev *dev,
 	csum_mask = (config_dev.rx_checksum_val >> CONFIG_DEV_RX_CSUM_MODE_PORT1_BIT_OFFSET) &
 			CONFIG_DEV_RX_CSUM_MODE_MASK;
 
-	if (csum_mask >= sizeof(config_dev_csum_flags)/sizeof(config_dev_csum_flags[0]))
+	if (csum_mask >= ARRAY_SIZE(config_dev_csum_flags))
 		return -EINVAL;
 	params->rx_csum_flags_port_1 = config_dev_csum_flags[csum_mask];
 
 	csum_mask = (config_dev.rx_checksum_val >> CONFIG_DEV_RX_CSUM_MODE_PORT2_BIT_OFFSET) &
 			CONFIG_DEV_RX_CSUM_MODE_MASK;
 
-	if (csum_mask >= sizeof(config_dev_csum_flags)/sizeof(config_dev_csum_flags[0]))
+	if (csum_mask >= ARRAY_SIZE(config_dev_csum_flags))
 		return -EINVAL;
 	params->rx_csum_flags_port_2 = config_dev_csum_flags[csum_mask];
 

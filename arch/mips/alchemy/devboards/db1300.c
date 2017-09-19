@@ -18,7 +18,7 @@
 #include <linux/mmc/host.h>
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/platform_device.h>
 #include <linux/smsc911x.h>
@@ -450,23 +450,26 @@ static struct platform_device db1300_ide_dev = {
 
 static irqreturn_t db1300_mmc_cd(int irq, void *ptr)
 {
-	void(*mmc_cd)(struct mmc_host *, unsigned long);
+	disable_irq_nosync(irq);
+	return IRQ_WAKE_THREAD;
+}
 
-	/* disable the one currently screaming. No other way to shut it up */
-	if (irq == DB1300_SD1_INSERT_INT) {
-		disable_irq_nosync(DB1300_SD1_INSERT_INT);
-		enable_irq(DB1300_SD1_EJECT_INT);
-	} else {
-		disable_irq_nosync(DB1300_SD1_EJECT_INT);
-		enable_irq(DB1300_SD1_INSERT_INT);
-	}
+static irqreturn_t db1300_mmc_cdfn(int irq, void *ptr)
+{
+	void (*mmc_cd)(struct mmc_host *, unsigned long);
 
 	/* link against CONFIG_MMC=m.  We can only be called once MMC core has
 	 * initialized the controller, so symbol_get() should always succeed.
 	 */
 	mmc_cd = symbol_get(mmc_detect_change);
-	mmc_cd(ptr, msecs_to_jiffies(500));
+	mmc_cd(ptr, msecs_to_jiffies(200));
 	symbol_put(mmc_detect_change);
+
+	msleep(100);	/* debounce */
+	if (irq == DB1300_SD1_INSERT_INT)
+		enable_irq(DB1300_SD1_EJECT_INT);
+	else
+		enable_irq(DB1300_SD1_INSERT_INT);
 
 	return IRQ_HANDLED;
 }
@@ -487,13 +490,13 @@ static int db1300_mmc_cd_setup(void *mmc_host, int en)
 	int ret;
 
 	if (en) {
-		ret = request_irq(DB1300_SD1_INSERT_INT, db1300_mmc_cd, 0,
-				  "sd_insert", mmc_host);
+		ret = request_threaded_irq(DB1300_SD1_INSERT_INT, db1300_mmc_cd,
+				db1300_mmc_cdfn, 0, "sd_insert", mmc_host);
 		if (ret)
 			goto out;
 
-		ret = request_irq(DB1300_SD1_EJECT_INT, db1300_mmc_cd, 0,
-				  "sd_eject", mmc_host);
+		ret = request_threaded_irq(DB1300_SD1_EJECT_INT, db1300_mmc_cd,
+				db1300_mmc_cdfn, 0, "sd_eject", mmc_host);
 		if (ret) {
 			free_irq(DB1300_SD1_INSERT_INT, mmc_host);
 			goto out;

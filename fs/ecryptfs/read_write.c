@@ -47,7 +47,7 @@ int ecryptfs_write_lower(struct inode *ecryptfs_inode, char *data,
 	lower_file = ecryptfs_inode_to_private(ecryptfs_inode)->lower_file;
 	if (!lower_file)
 		return -EIO;
-	rc = kernel_write(lower_file, data, size, offset);
+	rc = kernel_write(lower_file, data, size, &offset);
 	mark_inode_dirty_sync(ecryptfs_inode);
 	return rc;
 }
@@ -237,7 +237,7 @@ int ecryptfs_read_lower(char *data, loff_t offset, size_t size,
 	lower_file = ecryptfs_inode_to_private(ecryptfs_inode)->lower_file;
 	if (!lower_file)
 		return -EIO;
-	return kernel_read(lower_file, offset, data, size);
+	return kernel_read(lower_file, data, size, &offset);
 }
 
 /**

@@ -319,7 +319,7 @@ static int drm_atomic_helper_crtc_normalize_zpos(struct drm_crtc *crtc,
 	DRM_DEBUG_ATOMIC("[CRTC:%d:%s] calculating normalized zpos values\n",
 			 crtc->base.id, crtc->name);
 
-	states = kmalloc_array(total_planes, sizeof(*states), GFP_TEMPORARY);
+	states = kmalloc_array(total_planes, sizeof(*states), GFP_KERNEL);
 	if (!states)
 		return -ENOMEM;
 

@@ -133,6 +133,50 @@ static inline struct pts_fs_info *DEVPTS_SB(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
+static int devpts_ptmx_path(struct path *path)
+{
+	struct super_block *sb;
+	int err;
+
+	/* Has the devpts filesystem already been found? */
+	if (path->mnt->mnt_sb->s_magic == DEVPTS_SUPER_MAGIC)
+		return 0;
+
+	/* Is a devpts filesystem at "pts" in the same directory? */
+	err = path_pts(path);
+	if (err)
+		return err;
+
+	/* Is the path the root of a devpts filesystem? */
+	sb = path->mnt->mnt_sb;
+	if ((sb->s_magic != DEVPTS_SUPER_MAGIC) ||
+	    (path->mnt->mnt_root != sb->s_root))
+		return -ENODEV;
+
+	return 0;
+}
+
+struct vfsmount *devpts_mntget(struct file *filp, struct pts_fs_info *fsi)
+{
+	struct path path;
+	int err;
+
+	path = filp->f_path;
+	path_get(&path);
+
+	err = devpts_ptmx_path(&path);
+	dput(path.dentry);
+	if (err) {
+		mntput(path.mnt);
+		path.mnt = ERR_PTR(err);
+	}
+	if (DEVPTS_SB(path.mnt->mnt_sb) != fsi) {
+		mntput(path.mnt);
+		path.mnt = ERR_PTR(-ENODEV);
+	}
+	return path.mnt;
+}
+
 struct pts_fs_info *devpts_acquire(struct file *filp)
 {
 	struct pts_fs_info *result;
@@ -143,27 +187,16 @@ struct pts_fs_info *devpts_acquire(struct file *filp)
 	path = filp->f_path;
 	path_get(&path);
 
-	/* Has the devpts filesystem already been found? */
-	sb = path.mnt->mnt_sb;
-	if (sb->s_magic != DEVPTS_SUPER_MAGIC) {
-		/* Is a devpts filesystem at "pts" in the same directory? */
-		err = path_pts(&path);
-		if (err) {
-			result = ERR_PTR(err);
-			goto out;
-		}
-
-		/* Is the path the root of a devpts filesystem? */
-		result = ERR_PTR(-ENODEV);
-		sb = path.mnt->mnt_sb;
-		if ((sb->s_magic != DEVPTS_SUPER_MAGIC) ||
-		    (path.mnt->mnt_root != sb->s_root))
-			goto out;
+	err = devpts_ptmx_path(&path);
+	if (err) {
+		result = ERR_PTR(err);
+		goto out;
 	}
 
 	/*
 	 * pty code needs to hold extra references in case of last /dev/tty close
 	 */
+	sb = path.mnt->mnt_sb;
 	atomic_inc(&sb->s_active);
 	result = DEVPTS_SB(sb);
 

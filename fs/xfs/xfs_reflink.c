@@ -170,6 +170,8 @@ xfs_reflink_find_shared(
 	error = xfs_alloc_read_agf(mp, tp, agno, 0, &agbp);
 	if (error)
 		return error;
+	if (!agbp)
+		return -ENOMEM;
 
 	cur = xfs_refcountbt_init_cursor(mp, tp, agbp, agno, NULL);
 
@@ -329,7 +331,7 @@ xfs_reflink_convert_cow_extent(
 	xfs_filblks_t			count_fsb,
 	struct xfs_defer_ops		*dfops)
 {
-	xfs_fsblock_t			first_block;
+	xfs_fsblock_t			first_block = NULLFSBLOCK;
 	int				nimaps = 1;
 
 	if (imap->br_state == XFS_EXT_NORM)
@@ -462,7 +464,7 @@ retry:
 		goto out_bmap_cancel;
 
 	/* Finish up. */
-	error = xfs_defer_finish(&tp, &dfops, NULL);
+	error = xfs_defer_finish(&tp, &dfops);
 	if (error)
 		goto out_bmap_cancel;
 
@@ -600,7 +602,8 @@ xfs_reflink_cancel_cow_blocks(
 					-(long)del.br_blockcount);
 
 			/* Roll the transaction */
-			error = xfs_defer_finish(tpp, &dfops, ip);
+			xfs_defer_ijoin(&dfops, ip);
+			error = xfs_defer_finish(tpp, &dfops);
 			if (error) {
 				xfs_defer_cancel(&dfops);
 				break;
@@ -789,7 +792,8 @@ xfs_reflink_end_cow(
 		/* Remove the mapping from the CoW fork. */
 		xfs_bmap_del_extent_cow(ip, &idx, &got, &del);
 
-		error = xfs_defer_finish(&tp, &dfops, ip);
+		xfs_defer_ijoin(&dfops, ip);
+		error = xfs_defer_finish(&tp, &dfops);
 		if (error)
 			goto out_defer;
 next_extent:
@@ -1150,7 +1154,8 @@ xfs_reflink_remap_extent(
 
 next_extent:
 		/* Process all the deferred stuff. */
-		error = xfs_defer_finish(&tp, &dfops, ip);
+		xfs_defer_ijoin(&dfops, ip);
+		error = xfs_defer_finish(&tp, &dfops);
 		if (error)
 			goto out_defer;
 	}

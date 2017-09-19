@@ -710,7 +710,7 @@
 /* Broadcom 6345 ENET DMA definitions */
 #define ENETDMA_6345_CHANCFG_REG	(0x00)
 
-#define ENETDMA_6345_MAXBURST_REG	(0x40)
+#define ENETDMA_6345_MAXBURST_REG	(0x04)
 
 #define ENETDMA_6345_RSTART_REG		(0x08)
 

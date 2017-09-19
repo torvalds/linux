@@ -47,9 +47,25 @@
 #define SUN4V_CHIP_NIAGARA5	0x05
 #define SUN4V_CHIP_SPARC_M6	0x06
 #define SUN4V_CHIP_SPARC_M7	0x07
+#define SUN4V_CHIP_SPARC_M8	0x08
 #define SUN4V_CHIP_SPARC64X	0x8a
 #define SUN4V_CHIP_SPARC_SN	0x8b
 #define SUN4V_CHIP_UNKNOWN	0xff
+
+/*
+ * The following CPU_ID_xxx constants are used
+ * to identify the CPU type in the setup phase
+ * (see head_64.S)
+ */
+#define CPU_ID_NIAGARA1		('1')
+#define CPU_ID_NIAGARA2		('2')
+#define CPU_ID_NIAGARA3		('3')
+#define CPU_ID_NIAGARA4		('4')
+#define CPU_ID_NIAGARA5		('5')
+#define CPU_ID_M6		('6')
+#define CPU_ID_M7		('7')
+#define CPU_ID_M8		('8')
+#define CPU_ID_SONOMA1		('N')
 
 #ifndef __ASSEMBLY__
 

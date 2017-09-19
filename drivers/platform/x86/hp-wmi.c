@@ -107,13 +107,6 @@ enum hp_wmi_hardware_mask {
 	HPWMI_TABLET_MASK	= 0x04,
 };
 
-#define BIOS_ARGS_INIT(write, ctype, size)				\
-	(struct bios_args)	{	.signature = 0x55434553,	\
-					.command = (write) ? 0x2 : 0x1,	\
-					.commandtype = (ctype),		\
-					.datasize = (size),		\
-					.data = 0 }
-
 struct bios_return {
 	u32 sigpass;
 	u32 return_code;
@@ -188,6 +181,22 @@ struct rfkill2_device {
 static int rfkill2_count;
 static struct rfkill2_device rfkill2[HPWMI_MAX_RFKILL2_DEVICES];
 
+/* map output size to the corresponding WMI method id */
+static inline int encode_outsize_for_pvsz(int outsize)
+{
+	if (outsize > 4096)
+		return -EINVAL;
+	if (outsize > 1024)
+		return 5;
+	if (outsize > 128)
+		return 4;
+	if (outsize > 4)
+		return 3;
+	if (outsize > 0)
+		return 2;
+	return 1;
+}
+
 /*
  * hp_wmi_perform_query
  *
@@ -211,6 +220,7 @@ static struct rfkill2_device rfkill2[HPWMI_MAX_RFKILL2_DEVICES];
 static int hp_wmi_perform_query(int query, enum hp_wmi_command command,
 				void *buffer, int insize, int outsize)
 {
+	int mid;
 	struct bios_return *bios_return;
 	int actual_outsize;
 	union acpi_object *obj;
@@ -225,11 +235,15 @@ static int hp_wmi_perform_query(int query, enum hp_wmi_command command,
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
 	int ret = 0;
 
+	mid = encode_outsize_for_pvsz(outsize);
+	if (WARN_ON(mid < 0))
+		return mid;
+
 	if (WARN_ON(insize > sizeof(args.data)))
 		return -EINVAL;
 	memcpy(&args.data, buffer, insize);
 
-	wmi_evaluate_method(HPWMI_BIOS_GUID, 0, 0x3, &input, &output);
+	wmi_evaluate_method(HPWMI_BIOS_GUID, 0, mid, &input, &output);
 
 	obj = output.pointer;
 

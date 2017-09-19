@@ -45,6 +45,9 @@ static inline void set_fs(mm_segment_t fs)
 {
 	current_thread_info()->addr_limit = fs;
 
+	/* On user-mode return, check fs is correct */
+	set_thread_flag(TIF_FSCHECK);
+
 	/*
 	 * Enable/disable UAO so that copy_to_user() etc can access
 	 * kernel memory with the unprivileged instructions.
@@ -69,7 +72,7 @@ static inline void set_fs(mm_segment_t fs)
  */
 #define __range_ok(addr, size)						\
 ({									\
-	unsigned long __addr = (unsigned long __force)(addr);		\
+	unsigned long __addr = (unsigned long)(addr);			\
 	unsigned long flag, roksum;					\
 	__chk_user_ptr(addr);						\
 	asm("adds %1, %1, %3; ccmp %1, %4, #2, cc; cset %0, ls"		\
@@ -346,5 +349,17 @@ static inline unsigned long __must_check clear_user(void __user *to, unsigned lo
 extern long strncpy_from_user(char *dest, const char __user *src, long count);
 
 extern __must_check long strnlen_user(const char __user *str, long n);
+
+#ifdef CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE
+struct page;
+void memcpy_page_flushcache(char *to, struct page *page, size_t offset, size_t len);
+extern unsigned long __must_check __copy_user_flushcache(void *to, const void __user *from, unsigned long n);
+
+static inline int __copy_from_user_flushcache(void *dst, const void __user *src, unsigned size)
+{
+	kasan_check_write(dst, size);
+	return __copy_user_flushcache(dst, src, size);
+}
+#endif
 
 #endif /* __ASM_UACCESS_H */

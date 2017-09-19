@@ -704,6 +704,7 @@ static struct {
 static const struct btrfs_compress_op * const btrfs_compress_op[] = {
 	&btrfs_zlib_compress,
 	&btrfs_lzo_compress,
+	&btrfs_zstd_compress,
 };
 
 void __init btrfs_init_compress(void)
@@ -825,7 +826,7 @@ static void free_workspace(int type, struct list_head *workspace)
 	int *free_ws			= &btrfs_comp_ws[idx].free_ws;
 
 	spin_lock(ws_lock);
-	if (*free_ws < num_online_cpus()) {
+	if (*free_ws <= num_online_cpus()) {
 		list_add(workspace, idle_ws);
 		(*free_ws)++;
 		spin_unlock(ws_lock);
@@ -1046,4 +1047,37 @@ int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
 	}
 
 	return 1;
+}
+
+/*
+ * Compression heuristic.
+ *
+ * For now is's a naive and optimistic 'return true', we'll extend the logic to
+ * quickly (compared to direct compression) detect data characteristics
+ * (compressible/uncompressible) to avoid wasting CPU time on uncompressible
+ * data.
+ *
+ * The following types of analysis can be performed:
+ * - detect mostly zero data
+ * - detect data with low "byte set" size (text, etc)
+ * - detect data with low/high "core byte" set
+ *
+ * Return non-zero if the compression should be done, 0 otherwise.
+ */
+int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end)
+{
+	u64 index = start >> PAGE_SHIFT;
+	u64 end_index = end >> PAGE_SHIFT;
+	struct page *page;
+	int ret = 1;
+
+	while (index <= end_index) {
+		page = find_get_page(inode->i_mapping, index);
+		kmap(page);
+		kunmap(page);
+		put_page(page);
+		index++;
+	}
+
+	return ret;
 }

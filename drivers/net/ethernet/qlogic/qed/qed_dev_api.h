@@ -443,38 +443,35 @@ int qed_final_cleanup(struct qed_hwfn *p_hwfn,
 		      struct qed_ptt *p_ptt, u16 id, bool is_vf);
 
 /**
- * @brief qed_set_rxq_coalesce - Configure coalesce parameters for an Rx queue
- * The fact that we can configure coalescing to up to 511, but on varying
- * accuracy [the bigger the value the less accurate] up to a mistake of 3usec
- * for the highest values.
+ * @brief qed_get_queue_coalesce - Retrieve coalesce value for a given queue.
  *
  * @param p_hwfn
- * @param p_ptt
- * @param coalesce - Coalesce value in micro seconds.
- * @param qid - Queue index.
- * @param qid - SB Id
+ * @param p_coal - store coalesce value read from the hardware.
+ * @param p_handle
  *
  * @return int
- */
-int qed_set_rxq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
-			 u16 coalesce, u16 qid, u16 sb_id);
+ **/
+int qed_get_queue_coalesce(struct qed_hwfn *p_hwfn, u16 *coal, void *handle);
 
 /**
- * @brief qed_set_txq_coalesce - Configure coalesce parameters for a Tx queue
- * While the API allows setting coalescing per-qid, all tx queues sharing a
- * SB should be in same range [i.e., either 0-0x7f, 0x80-0xff or 0x100-0x1ff]
- * otherwise configuration would break.
+ * @brief qed_set_queue_coalesce - Configure coalesce parameters for Rx and
+ *    Tx queue. The fact that we can configure coalescing to up to 511, but on
+ *    varying accuracy [the bigger the value the less accurate] up to a mistake
+ *    of 3usec for the highest values.
+ *    While the API allows setting coalescing per-qid, all queues sharing a SB
+ *    should be in same range [i.e., either 0-0x7f, 0x80-0xff or 0x100-0x1ff]
+ *    otherwise configuration would break.
  *
- * @param p_hwfn
- * @param p_ptt
- * @param coalesce - Coalesce value in micro seconds.
- * @param qid - Queue index.
- * @param qid - SB Id
+ *
+ * @param rx_coal - Rx Coalesce value in micro seconds.
+ * @param tx_coal - TX Coalesce value in micro seconds.
+ * @param p_handle
  *
  * @return int
- */
-int qed_set_txq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
-			 u16 coalesce, u16 qid, u16 sb_id);
+ **/
+int
+qed_set_queue_coalesce(u16 rx_coal, u16 tx_coal, void *p_handle);
+
 
 const char *qed_hw_get_resc_name(enum qed_resources res_id);
 #endif

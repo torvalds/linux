@@ -335,7 +335,7 @@ static int brcm_nsp_sata_init(struct brcm_sata_port *port)
 
 	/* Wait for pll_seq_done bit */
 	try = 50;
-	while (try--) {
+	while (--try) {
 		val = brcm_sata_phy_rd(base, BLOCK0_REG_BANK,
 					BLOCK0_XGXSSTATUS);
 		if (val & BLOCK0_XGXSSTATUS_PLL_LOCK)

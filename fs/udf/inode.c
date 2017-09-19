@@ -114,7 +114,7 @@ static void udf_update_extent_cache(struct inode *inode, loff_t estart,
 	__udf_clear_extent_cache(inode);
 	if (pos->bh)
 		get_bh(pos->bh);
-	memcpy(&iinfo->cached_extent.epos, pos, sizeof(struct extent_position));
+	memcpy(&iinfo->cached_extent.epos, pos, sizeof(*pos));
 	iinfo->cached_extent.lstart = estart;
 	switch (iinfo->i_alloc_type) {
 	case ICBTAG_FLAG_AD_SHORT:
@@ -1572,13 +1572,8 @@ static int udf_alloc_i_data(struct inode *inode, size_t size)
 {
 	struct udf_inode_info *iinfo = UDF_I(inode);
 	iinfo->i_ext.i_data = kmalloc(size, GFP_KERNEL);
-
-	if (!iinfo->i_ext.i_data) {
-		udf_err(inode->i_sb, "(ino %ld) no free memory\n",
-			inode->i_ino);
+	if (!iinfo->i_ext.i_data)
 		return -ENOMEM;
-	}
-
 	return 0;
 }
 
@@ -1703,7 +1698,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 			dsea->impUseLength = cpu_to_le32(sizeof(struct regid));
 		}
 		eid = (struct regid *)dsea->impUse;
-		memset(eid, 0, sizeof(struct regid));
+		memset(eid, 0, sizeof(*eid));
 		strcpy(eid->ident, UDF_ID_DEVELOPER);
 		eid->identSuffix[0] = UDF_OS_CLASS_UNIX;
 		eid->identSuffix[1] = UDF_OS_ID_LINUX;
@@ -1754,7 +1749,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 		udf_time_to_disk_stamp(&efe->createTime, iinfo->i_crtime);
 		udf_time_to_disk_stamp(&efe->attrTime, inode->i_ctime);
 
-		memset(&(efe->impIdent), 0, sizeof(struct regid));
+		memset(&(efe->impIdent), 0, sizeof(efe->impIdent));
 		strcpy(efe->impIdent.ident, UDF_ID_DEVELOPER);
 		efe->impIdent.identSuffix[0] = UDF_OS_CLASS_UNIX;
 		efe->impIdent.identSuffix[1] = UDF_OS_ID_LINUX;

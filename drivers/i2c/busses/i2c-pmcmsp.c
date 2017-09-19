@@ -577,7 +577,7 @@ static u32 pmcmsptwi_i2c_func(struct i2c_adapter *adapter)
 		I2C_FUNC_SMBUS_WORD_DATA | I2C_FUNC_SMBUS_PROC_CALL;
 }
 
-static struct i2c_adapter_quirks pmcmsptwi_i2c_quirks = {
+static const struct i2c_adapter_quirks pmcmsptwi_i2c_quirks = {
 	.flags = I2C_AQ_COMB_WRITE_THEN_READ,
 	.max_write_len = MSP_MAX_BYTES_PER_RW,
 	.max_read_len = MSP_MAX_BYTES_PER_RW,
@@ -587,7 +587,7 @@ static struct i2c_adapter_quirks pmcmsptwi_i2c_quirks = {
 
 /* -- Initialization -- */
 
-static struct i2c_algorithm pmcmsptwi_algo = {
+static const struct i2c_algorithm pmcmsptwi_algo = {
 	.master_xfer	= pmcmsptwi_master_xfer,
 	.functionality	= pmcmsptwi_i2c_func,
 };

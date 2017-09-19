@@ -5,6 +5,8 @@
 
 #if !defined(__ASSEMBLY__)
 
+extern int parisc_narrow_firmware;
+
 extern int pdc_type;
 extern unsigned long parisc_cell_num; /* cell number the CPU runs on (PAT) */
 extern unsigned long parisc_cell_loc; /* cell location of CPU (PAT)	   */

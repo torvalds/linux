@@ -183,14 +183,4 @@ struct vpfe_config_params {
 };
 
 #endif				/* End of __KERNEL__ */
-/**
- * VPFE_CMD_S_CCDC_RAW_PARAMS - EXPERIMENTAL IOCTL to set raw capture params
- * This can be used to configure modules such as defect pixel correction,
- * color space conversion, culling etc. This is an experimental ioctl that
- * will change in future kernels. So use this ioctl with care !
- * TODO: This is to be split into multiple ioctls and also explore the
- * possibility of extending the v4l2 api to include this
- **/
-#define VPFE_CMD_S_CCDC_RAW_PARAMS _IOW('V', BASE_VIDIOC_PRIVATE + 1, \
-					void *)
 #endif				/* _DAVINCI_VPFE_H */

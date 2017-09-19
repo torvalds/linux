@@ -46,6 +46,8 @@
 #define same_context(a, b) (((a)->context_id == (b)->context_id) && \
 		((a)->lrca == (b)->lrca))
 
+static void clean_workloads(struct intel_vgpu *vgpu, unsigned long engine_mask);
+
 static int context_switch_events[] = {
 	[RCS] = RCS_AS_CONTEXT_SWITCH,
 	[BCS] = BCS_AS_CONTEXT_SWITCH,
@@ -499,10 +501,10 @@ static void release_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 static int complete_execlist_workload(struct intel_vgpu_workload *workload)
 {
 	struct intel_vgpu *vgpu = workload->vgpu;
-	struct intel_vgpu_execlist *execlist =
-		&vgpu->execlist[workload->ring_id];
+	int ring_id = workload->ring_id;
+	struct intel_vgpu_execlist *execlist = &vgpu->execlist[ring_id];
 	struct intel_vgpu_workload *next_workload;
-	struct list_head *next = workload_q_head(vgpu, workload->ring_id)->next;
+	struct list_head *next = workload_q_head(vgpu, ring_id)->next;
 	bool lite_restore = false;
 	int ret;
 
@@ -512,10 +514,25 @@ static int complete_execlist_workload(struct intel_vgpu_workload *workload)
 	release_shadow_batch_buffer(workload);
 	release_shadow_wa_ctx(&workload->wa_ctx);
 
-	if (workload->status || vgpu->resetting)
+	if (workload->status || (vgpu->resetting_eng & ENGINE_MASK(ring_id))) {
+		/* if workload->status is not successful means HW GPU
+		 * has occurred GPU hang or something wrong with i915/GVT,
+		 * and GVT won't inject context switch interrupt to guest.
+		 * So this error is a vGPU hang actually to the guest.
+		 * According to this we should emunlate a vGPU hang. If
+		 * there are pending workloads which are already submitted
+		 * from guest, we should clean them up like HW GPU does.
+		 *
+		 * if it is in middle of engine resetting, the pending
+		 * workloads won't be submitted to HW GPU and will be
+		 * cleaned up during the resetting process later, so doing
+		 * the workload clean up here doesn't have any impact.
+		 **/
+		clean_workloads(vgpu, ENGINE_MASK(ring_id));
 		goto out;
+	}
 
-	if (!list_empty(workload_q_head(vgpu, workload->ring_id))) {
+	if (!list_empty(workload_q_head(vgpu, ring_id))) {
 		struct execlist_ctx_descriptor_format *this_desc, *next_desc;
 
 		next_workload = container_of(next,
@@ -605,6 +622,7 @@ static int submit_context(struct intel_vgpu *vgpu, int ring_id,
 	struct list_head *q = workload_q_head(vgpu, ring_id);
 	struct intel_vgpu_workload *last_workload = get_last_workload(q);
 	struct intel_vgpu_workload *workload = NULL;
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	u64 ring_context_gpa;
 	u32 head, tail, start, ctl, ctx_ctl, per_ctx, indirect_ctx;
 	int ret;
@@ -668,6 +686,7 @@ static int submit_context(struct intel_vgpu *vgpu, int ring_id,
 	workload->complete = complete_execlist_workload;
 	workload->status = -EINPROGRESS;
 	workload->emulate_schedule_in = emulate_schedule_in;
+	workload->shadowed = false;
 
 	if (ring_id == RCS) {
 		intel_gvt_hypervisor_read_gpa(vgpu, ring_context_gpa +
@@ -699,6 +718,17 @@ static int submit_context(struct intel_vgpu *vgpu, int ring_id,
 	if (ret) {
 		kmem_cache_free(vgpu->workloads, workload);
 		return ret;
+	}
+
+	/* Only scan and shadow the first workload in the queue
+	 * as there is only one pre-allocated buf-obj for shadow.
+	 */
+	if (list_empty(workload_q_head(vgpu, ring_id))) {
+		intel_runtime_pm_get(dev_priv);
+		mutex_lock(&dev_priv->drm.struct_mutex);
+		intel_gvt_scan_and_shadow_workload(workload);
+		mutex_unlock(&dev_priv->drm.struct_mutex);
+		intel_runtime_pm_put(dev_priv);
 	}
 
 	queue_workload(workload);
@@ -783,6 +813,8 @@ static void clean_workloads(struct intel_vgpu *vgpu, unsigned long engine_mask)
 			list_del_init(&pos->list);
 			free_workload(pos);
 		}
+
+		clear_bit(engine->id, vgpu->shadow_ctx_desc_updated);
 	}
 }
 

@@ -152,12 +152,12 @@ struct pinctrl_map {
 
 #ifdef CONFIG_PINCTRL
 
-extern int pinctrl_register_mappings(struct pinctrl_map const *map,
+extern int pinctrl_register_mappings(const struct pinctrl_map *map,
 				unsigned num_maps);
 extern void pinctrl_provide_dummies(void);
 #else
 
-static inline int pinctrl_register_mappings(struct pinctrl_map const *map,
+static inline int pinctrl_register_mappings(const struct pinctrl_map *map,
 					   unsigned num_maps)
 {
 	return 0;

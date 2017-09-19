@@ -51,40 +51,16 @@ static int rxe_query_device(struct ib_device *dev,
 	return 0;
 }
 
-static void rxe_eth_speed_to_ib_speed(int speed, u8 *active_speed,
-				      u8 *active_width)
-{
-	if (speed <= 1000) {
-		*active_width = IB_WIDTH_1X;
-		*active_speed = IB_SPEED_SDR;
-	} else if (speed <= 10000) {
-		*active_width = IB_WIDTH_1X;
-		*active_speed = IB_SPEED_FDR10;
-	} else if (speed <= 20000) {
-		*active_width = IB_WIDTH_4X;
-		*active_speed = IB_SPEED_DDR;
-	} else if (speed <= 30000) {
-		*active_width = IB_WIDTH_4X;
-		*active_speed = IB_SPEED_QDR;
-	} else if (speed <= 40000) {
-		*active_width = IB_WIDTH_4X;
-		*active_speed = IB_SPEED_FDR10;
-	} else {
-		*active_width = IB_WIDTH_4X;
-		*active_speed = IB_SPEED_EDR;
-	}
-}
-
 static int rxe_query_port(struct ib_device *dev,
 			  u8 port_num, struct ib_port_attr *attr)
 {
 	struct rxe_dev *rxe = to_rdev(dev);
 	struct rxe_port *port;
-	u32 speed;
+	int rc = -EINVAL;
 
 	if (unlikely(port_num != 1)) {
 		pr_warn("invalid port_number %d\n", port_num);
-		goto err1;
+		goto out;
 	}
 
 	port = &rxe->port;
@@ -93,29 +69,12 @@ static int rxe_query_port(struct ib_device *dev,
 	*attr = port->attr;
 
 	mutex_lock(&rxe->usdev_lock);
-	if (rxe->ndev->ethtool_ops->get_link_ksettings) {
-		struct ethtool_link_ksettings ks;
-
-		rxe->ndev->ethtool_ops->get_link_ksettings(rxe->ndev, &ks);
-		speed = ks.base.speed;
-	} else if (rxe->ndev->ethtool_ops->get_settings) {
-		struct ethtool_cmd cmd;
-
-		rxe->ndev->ethtool_ops->get_settings(rxe->ndev, &cmd);
-		speed = cmd.speed;
-	} else {
-		pr_warn("%s speed is unknown, defaulting to 1000\n",
-			rxe->ndev->name);
-		speed = 1000;
-	}
-	rxe_eth_speed_to_ib_speed(speed, &attr->active_speed,
-				  &attr->active_width);
+	rc = ib_get_eth_speed(dev, port_num, &attr->active_speed,
+			      &attr->active_width);
 	mutex_unlock(&rxe->usdev_lock);
 
-	return 0;
-
-err1:
-	return -EINVAL;
+out:
+	return rc;
 }
 
 static int rxe_query_gid(struct ib_device *device,
@@ -914,6 +873,9 @@ static int rxe_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 
 	spin_unlock_irqrestore(&rq->producer_lock, flags);
 
+	if (qp->resp.state == QP_STATE_ERROR)
+		rxe_run_task(&qp->resp.task, 1);
+
 err1:
 	return err;
 }
@@ -956,6 +918,8 @@ err1:
 static int rxe_destroy_cq(struct ib_cq *ibcq)
 {
 	struct rxe_cq *cq = to_rcq(ibcq);
+
+	rxe_cq_disable(cq);
 
 	rxe_drop_ref(cq);
 	return 0;
@@ -1207,8 +1171,8 @@ static int rxe_detach_mcast(struct ib_qp *ibqp, union ib_gid *mgid, u16 mlid)
 	return rxe_mcast_drop_grp_elem(rxe, qp, mgid);
 }
 
-static ssize_t rxe_show_parent(struct device *device,
-			       struct device_attribute *attr, char *buf)
+static ssize_t parent_show(struct device *device,
+			   struct device_attribute *attr, char *buf)
 {
 	struct rxe_dev *rxe = container_of(device, struct rxe_dev,
 					   ib_dev.dev);
@@ -1216,7 +1180,7 @@ static ssize_t rxe_show_parent(struct device *device,
 	return snprintf(buf, 16, "%s\n", rxe_parent_name(rxe, 1));
 }
 
-static DEVICE_ATTR(parent, S_IRUGO, rxe_show_parent, NULL);
+static DEVICE_ATTR_RO(parent);
 
 static struct device_attribute *rxe_dev_attributes[] = {
 	&dev_attr_parent,
@@ -1240,6 +1204,8 @@ int rxe_register_device(struct rxe_dev *rxe)
 	addrconf_addr_eui48((unsigned char *)&dev->node_guid,
 			    rxe->ndev->dev_addr);
 	dev->dev.dma_ops = &dma_virt_ops;
+	dma_coerce_mask_and_coherent(&dev->dev,
+				     dma_get_required_mask(dev->dev.parent));
 
 	dev->uverbs_abi_ver = RXE_UVERBS_ABI_VERSION;
 	dev->uverbs_cmd_mask = BIT_ULL(IB_USER_VERBS_CMD_GET_CONTEXT)
@@ -1331,15 +1297,15 @@ int rxe_register_device(struct rxe_dev *rxe)
 
 	err = ib_register_device(dev, NULL);
 	if (err) {
-		pr_warn("rxe_register_device failed, err = %d\n", err);
+		pr_warn("%s failed with error %d\n", __func__, err);
 		goto err1;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(rxe_dev_attributes); ++i) {
 		err = device_create_file(&dev->dev, rxe_dev_attributes[i]);
 		if (err) {
-			pr_warn("device_create_file failed, i = %d, err = %d\n",
-				i, err);
+			pr_warn("%s failed with error %d for attr number %d\n",
+				__func__, err, i);
 			goto err2;
 		}
 	}

@@ -762,7 +762,7 @@ static const struct snd_soc_dapm_route sun4i_codec_codec_dapm_routes[] = {
 	{ "Mic1", NULL, "VMIC" },
 };
 
-static struct snd_soc_codec_driver sun4i_codec_codec = {
+static const struct snd_soc_codec_driver sun4i_codec_codec = {
 	.component_driver = {
 		.controls		= sun4i_codec_controls,
 		.num_controls		= ARRAY_SIZE(sun4i_codec_controls),
@@ -1068,7 +1068,7 @@ static const struct snd_soc_dapm_route sun6i_codec_codec_dapm_routes[] = {
 	{ "Right ADC", NULL, "Right ADC Mixer" },
 };
 
-static struct snd_soc_codec_driver sun6i_codec_codec = {
+static const struct snd_soc_codec_driver sun6i_codec_codec = {
 	.component_driver = {
 		.controls		= sun6i_codec_codec_widgets,
 		.num_controls		= ARRAY_SIZE(sun6i_codec_codec_widgets),
@@ -1096,7 +1096,7 @@ static const struct snd_soc_dapm_widget sun8i_a23_codec_codec_widgets[] = {
 
 };
 
-static struct snd_soc_codec_driver sun8i_a23_codec_codec = {
+static const struct snd_soc_codec_driver sun8i_a23_codec_codec = {
 	.component_driver = {
 		.controls		= sun8i_a23_codec_codec_controls,
 		.num_controls		= ARRAY_SIZE(sun8i_a23_codec_codec_controls),
@@ -1171,9 +1171,8 @@ static int sun4i_codec_spk_event(struct snd_soc_dapm_widget *w,
 {
 	struct sun4i_codec *scodec = snd_soc_card_get_drvdata(w->dapm->card);
 
-	if (scodec->gpio_pa)
-		gpiod_set_value_cansleep(scodec->gpio_pa,
-					 !!SND_SOC_DAPM_EVENT_ON(event));
+	gpiod_set_value_cansleep(scodec->gpio_pa,
+				 !!SND_SOC_DAPM_EVENT_ON(event));
 
 	return 0;
 }
@@ -1574,7 +1573,8 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 	}
 
 	if (quirks->has_reset) {
-		scodec->rst = devm_reset_control_get(&pdev->dev, NULL);
+		scodec->rst = devm_reset_control_get_exclusive(&pdev->dev,
+							       NULL);
 		if (IS_ERR(scodec->rst)) {
 			dev_err(&pdev->dev, "Failed to get reset control\n");
 			return PTR_ERR(scodec->rst);
@@ -1655,7 +1655,6 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 		goto err_unregister_codec;
 	}
 
-	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, scodec);
 
 	ret = snd_soc_register_card(card);

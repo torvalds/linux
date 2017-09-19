@@ -79,7 +79,7 @@ static int ceph_lock_message(u8 lock_type, u16 operation, struct file *file,
 	err = ceph_mdsc_do_request(mdsc, inode, req);
 
 	if (operation == CEPH_MDS_OP_GETFILELOCK) {
-		fl->fl_pid = le64_to_cpu(req->r_reply_info.filelock_reply->pid);
+		fl->fl_pid = -le64_to_cpu(req->r_reply_info.filelock_reply->pid);
 		if (CEPH_LOCK_SHARED == req->r_reply_info.filelock_reply->type)
 			fl->fl_type = F_RDLCK;
 		else if (CEPH_LOCK_EXCL == req->r_reply_info.filelock_reply->type)

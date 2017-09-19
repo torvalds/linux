@@ -88,7 +88,7 @@
 #define TIOCGPTN	_IOR('t', 134, unsigned int) /* Get Pty Number */
 #define TIOCSPTLCK	_IOW('t', 135, int) /* Lock/unlock PTY */
 #define TIOCSIG		_IOW('t', 136, int) /* Generate signal on Pty slave */
-#define TIOCGPTPEER	_IOR('t', 137, int) /* Safely open the slave */
+#define TIOCGPTPEER	_IO('t', 137) /* Safely open the slave */
 
 /* Little f */
 #define FIOCLEX		_IO('f', 1)

@@ -217,12 +217,7 @@ static int v2_cache_packet_formats(struct snd_motu *motu)
 	calculate_differed_part(&motu->rx_packet_formats, motu->spec->flags,
 			data, V2_OPT_OUT_IFACE_MASK, V2_OPT_OUT_IFACE_SHIFT);
 
-	motu->tx_packet_formats.midi_flag_offset = 4;
-	motu->tx_packet_formats.midi_byte_offset = 6;
 	motu->tx_packet_formats.pcm_byte_offset = 10;
-
-	motu->rx_packet_formats.midi_flag_offset = 4;
-	motu->rx_packet_formats.midi_byte_offset = 6;
 	motu->rx_packet_formats.pcm_byte_offset = 10;
 
 	return 0;

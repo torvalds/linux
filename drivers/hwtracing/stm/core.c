@@ -566,7 +566,7 @@ static int stm_char_policy_set_ioctl(struct stm_file *stmf, void __user *arg)
 	if (copy_from_user(&size, arg, sizeof(size)))
 		return -EFAULT;
 
-	if (size >= PATH_MAX + sizeof(*id))
+	if (size < sizeof(*id) || size >= PATH_MAX + sizeof(*id))
 		return -EINVAL;
 
 	/*

@@ -1,12 +1,14 @@
-* Rockchip RK3128 Clock and Reset Unit
+* Rockchip RK3126/RK3128 Clock and Reset Unit
 
-The RK3128 clock controller generates and supplies clock to various
+The RK3126/RK3128 clock controller generates and supplies clock to various
 controllers within the SoC and also implements a reset controller for SoC
 peripherals.
 
 Required Properties:
 
-- compatible: should be "rockchip,rk3128-cru"
+- compatible: should be "rockchip,rk3126-cru" or "rockchip,rk3128-cru"
+  "rockchip,rk3126-cru" - controller compatible with RK3126 SoC.
+  "rockchip,rk3128-cru" - controller compatible with RK3128 SoC.
 - reg: physical base address of the controller and length of memory mapped
   region.
 - #clock-cells: should be 1.

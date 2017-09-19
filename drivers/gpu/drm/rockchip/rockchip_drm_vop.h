@@ -15,6 +15,14 @@
 #ifndef _ROCKCHIP_DRM_VOP_H
 #define _ROCKCHIP_DRM_VOP_H
 
+/*
+ * major: IP major version, used for IP structure
+ * minor: big feature change under same structure
+ */
+#define VOP_VERSION(major, minor)	((major) << 8 | (minor))
+#define VOP_MAJOR(version)		((version) >> 8)
+#define VOP_MINOR(version)		((version) & 0xff)
+
 enum vop_data_format {
 	VOP_FMT_ARGB8888 = 0,
 	VOP_FMT_RGB888,
@@ -24,53 +32,58 @@ enum vop_data_format {
 	VOP_FMT_YUV444SP,
 };
 
-struct vop_reg_data {
-	uint32_t offset;
-	uint32_t value;
-};
-
 struct vop_reg {
-	uint32_t offset;
-	uint32_t shift;
 	uint32_t mask;
+	uint16_t offset;
+	uint8_t shift;
 	bool write_mask;
+	bool relaxed;
 };
 
-struct vop_ctrl {
-	struct vop_reg standby;
-	struct vop_reg data_blank;
-	struct vop_reg gate_en;
-	struct vop_reg mmu_en;
-	struct vop_reg rgb_en;
+struct vop_modeset {
+	struct vop_reg htotal_pw;
+	struct vop_reg hact_st_end;
+	struct vop_reg hpost_st_end;
+	struct vop_reg vtotal_pw;
+	struct vop_reg vact_st_end;
+	struct vop_reg vpost_st_end;
+};
+
+struct vop_output {
+	struct vop_reg pin_pol;
+	struct vop_reg dp_pin_pol;
+	struct vop_reg edp_pin_pol;
+	struct vop_reg hdmi_pin_pol;
+	struct vop_reg mipi_pin_pol;
+	struct vop_reg rgb_pin_pol;
+	struct vop_reg dp_en;
 	struct vop_reg edp_en;
 	struct vop_reg hdmi_en;
 	struct vop_reg mipi_en;
-	struct vop_reg dp_en;
-	struct vop_reg out_mode;
+	struct vop_reg rgb_en;
+};
+
+struct vop_common {
+	struct vop_reg cfg_done;
+	struct vop_reg dsp_blank;
+	struct vop_reg data_blank;
 	struct vop_reg dither_down;
 	struct vop_reg dither_up;
-	struct vop_reg pin_pol;
-	struct vop_reg rgb_pin_pol;
-	struct vop_reg hdmi_pin_pol;
-	struct vop_reg edp_pin_pol;
-	struct vop_reg mipi_pin_pol;
-	struct vop_reg dp_pin_pol;
+	struct vop_reg gate_en;
+	struct vop_reg mmu_en;
+	struct vop_reg out_mode;
+	struct vop_reg standby;
+};
 
-	struct vop_reg htotal_pw;
-	struct vop_reg hact_st_end;
-	struct vop_reg vtotal_pw;
-	struct vop_reg vact_st_end;
-	struct vop_reg hpost_st_end;
-	struct vop_reg vpost_st_end;
-
-	struct vop_reg line_flag_num[2];
-
-	struct vop_reg cfg_done;
+struct vop_misc {
+	struct vop_reg global_regdone_en;
 };
 
 struct vop_intr {
 	const int *intrs;
 	uint32_t nintrs;
+
+	struct vop_reg line_flag_num[2];
 	struct vop_reg enable;
 	struct vop_reg clear;
 	struct vop_reg status;
@@ -115,6 +128,7 @@ struct vop_win_phy {
 	uint32_t nformats;
 
 	struct vop_reg enable;
+	struct vop_reg gate;
 	struct vop_reg format;
 	struct vop_reg rb_swap;
 	struct vop_reg act_info;
@@ -127,6 +141,7 @@ struct vop_win_phy {
 
 	struct vop_reg dst_alpha_ctl;
 	struct vop_reg src_alpha_ctl;
+	struct vop_reg channel;
 };
 
 struct vop_win_data {
@@ -136,10 +151,12 @@ struct vop_win_data {
 };
 
 struct vop_data {
-	const struct vop_reg_data *init_table;
-	unsigned int table_size;
-	const struct vop_ctrl *ctrl;
+	uint32_t version;
 	const struct vop_intr *intr;
+	const struct vop_common *common;
+	const struct vop_misc *misc;
+	const struct vop_modeset *modeset;
+	const struct vop_output *output;
 	const struct vop_win_data *win;
 	unsigned int win_size;
 
@@ -281,6 +298,9 @@ static inline uint16_t scl_get_bili_dn_vskip(int src_h, int dst_h,
 	int act_height;
 
 	act_height = (src_h + vskiplines - 1) / vskiplines;
+
+	if (act_height == dst_h)
+		return GET_SCL_FT_BILI_DN(src_h, dst_h) / vskiplines;
 
 	return GET_SCL_FT_BILI_DN(act_height, dst_h);
 }

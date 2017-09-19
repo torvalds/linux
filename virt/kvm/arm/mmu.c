@@ -1454,25 +1454,6 @@ out:
 		kvm_set_pfn_accessed(pfn);
 }
 
-static bool is_abort_sea(unsigned long fault_status)
-{
-	switch (fault_status) {
-	case FSC_SEA:
-	case FSC_SEA_TTW0:
-	case FSC_SEA_TTW1:
-	case FSC_SEA_TTW2:
-	case FSC_SEA_TTW3:
-	case FSC_SECC:
-	case FSC_SECC_TTW0:
-	case FSC_SECC_TTW1:
-	case FSC_SECC_TTW2:
-	case FSC_SECC_TTW3:
-		return true;
-	default:
-		return false;
-	}
-}
-
 /**
  * kvm_handle_guest_abort - handles all 2nd stage aborts
  * @vcpu:	the VCPU pointer
@@ -1498,20 +1479,21 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	fault_status = kvm_vcpu_trap_get_fault_type(vcpu);
 
 	fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
+	is_iabt = kvm_vcpu_trap_is_iabt(vcpu);
 
-	/*
-	 * The host kernel will handle the synchronous external abort. There
-	 * is no need to pass the error into the guest.
-	 */
-	if (is_abort_sea(fault_status)) {
+	/* Synchronous External Abort? */
+	if (kvm_vcpu_dabt_isextabt(vcpu)) {
+		/*
+		 * For RAS the host kernel may handle this abort.
+		 * There is no need to pass the error into the guest.
+		 */
 		if (!handle_guest_sea(fault_ipa, kvm_vcpu_get_hsr(vcpu)))
 			return 1;
-	}
 
-	is_iabt = kvm_vcpu_trap_is_iabt(vcpu);
-	if (unlikely(!is_iabt && kvm_vcpu_dabt_isextabt(vcpu))) {
-		kvm_inject_vabt(vcpu);
-		return 1;
+		if (unlikely(!is_iabt)) {
+			kvm_inject_vabt(vcpu);
+			return 1;
+		}
 	}
 
 	trace_kvm_guest_fault(*vcpu_pc(vcpu), kvm_vcpu_get_hsr(vcpu),
@@ -1718,12 +1700,16 @@ static int kvm_test_age_hva_handler(struct kvm *kvm, gpa_t gpa, u64 size, void *
 
 int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end)
 {
+	if (!kvm->arch.pgd)
+		return 0;
 	trace_kvm_age_hva(start, end);
 	return handle_hva_to_gpa(kvm, start, end, kvm_age_hva_handler, NULL);
 }
 
 int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
 {
+	if (!kvm->arch.pgd)
+		return 0;
 	trace_kvm_test_age_hva(hva);
 	return handle_hva_to_gpa(kvm, hva, hva, kvm_test_age_hva_handler, NULL);
 }

@@ -161,7 +161,7 @@ static int ir_sharp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		scancode = address << 8 | command;
 		IR_dprintk(1, "Sharp scancode 0x%04x\n", scancode);
 
-		rc_keydown(dev, RC_TYPE_SHARP, scancode, 0);
+		rc_keydown(dev, RC_PROTO_SHARP, scancode, 0);
 		data->state = STATE_INACTIVE;
 		return 0;
 	}
@@ -196,7 +196,7 @@ static const struct ir_raw_timings_pd ir_sharp_timings = {
  *		-ENOBUFS if there isn't enough space in the array to fit the
  *		encoding. In this case all @max events will have been written.
  */
-static int ir_sharp_encode(enum rc_type protocol, u32 scancode,
+static int ir_sharp_encode(enum rc_proto protocol, u32 scancode,
 			   struct ir_raw_event *events, unsigned int max)
 {
 	struct ir_raw_event *e = events;
@@ -223,7 +223,7 @@ static int ir_sharp_encode(enum rc_type protocol, u32 scancode,
 }
 
 static struct ir_raw_handler sharp_handler = {
-	.protocols	= RC_BIT_SHARP,
+	.protocols	= RC_PROTO_BIT_SHARP,
 	.decode		= ir_sharp_decode,
 	.encode		= ir_sharp_encode,
 };

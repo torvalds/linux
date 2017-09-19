@@ -716,7 +716,7 @@ static void ti_iodelay_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 }
 #endif
 
-static struct pinctrl_ops ti_iodelay_pinctrl_ops = {
+static const struct pinctrl_ops ti_iodelay_pinctrl_ops = {
 	.get_groups_count = pinctrl_generic_get_group_count,
 	.get_group_name = pinctrl_generic_get_group_name,
 	.get_group_pins = pinctrl_generic_get_group_pins,
@@ -726,7 +726,7 @@ static struct pinctrl_ops ti_iodelay_pinctrl_ops = {
 	.dt_node_to_map = ti_iodelay_dt_node_to_map,
 };
 
-static struct pinconf_ops ti_iodelay_pinctrl_pinconf_ops = {
+static const struct pinconf_ops ti_iodelay_pinctrl_pinconf_ops = {
 	.pin_config_group_get = ti_iodelay_pinconf_group_get,
 	.pin_config_group_set = ti_iodelay_pinconf_group_set,
 #ifdef CONFIG_DEBUG_FS

@@ -731,7 +731,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
 	    local->ops->wake_tx_queue) {
 		/* XXX: for AP_VLAN, actually track AP queues */
-		netif_tx_start_all_queues(dev);
+		if (dev)
+			netif_tx_start_all_queues(dev);
 	} else if (dev) {
 		unsigned long flags;
 		int n_acs = IEEE80211_NUM_ACS;
@@ -792,6 +793,7 @@ static int ieee80211_open(struct net_device *dev)
 static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 			      bool going_down)
 {
+	struct ieee80211_sub_if_data *txq_sdata = sdata;
 	struct ieee80211_local *local = sdata->local;
 	struct fq *fq = &local->fq;
 	unsigned long flags;
@@ -937,6 +939,9 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP_VLAN:
+		txq_sdata = container_of(sdata->bss,
+					 struct ieee80211_sub_if_data, u.ap);
+
 		mutex_lock(&local->mtx);
 		list_del(&sdata->u.vlan.list);
 		mutex_unlock(&local->mtx);
@@ -1007,8 +1012,17 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	}
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 
-	if (sdata->vif.txq) {
-		struct txq_info *txqi = to_txq_info(sdata->vif.txq);
+	if (txq_sdata->vif.txq) {
+		struct txq_info *txqi = to_txq_info(txq_sdata->vif.txq);
+
+		/*
+		 * FIXME FIXME
+		 *
+		 * We really shouldn't purge the *entire* txqi since that
+		 * contains frames for the other AP_VLANs (and possibly
+		 * the AP itself) as well, but there's no API in FQ now
+		 * to be able to filter.
+		 */
 
 		spin_lock_bh(&fq->lock);
 		ieee80211_txq_purge(local, txqi);

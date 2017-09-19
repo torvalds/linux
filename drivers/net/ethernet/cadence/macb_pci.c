@@ -128,7 +128,7 @@ static void macb_remove(struct pci_dev *pdev)
 	clk_unregister(plat_data->hclk);
 }
 
-static struct pci_device_id dev_id_table[] = {
+static const struct pci_device_id dev_id_table[] = {
 	{ PCI_DEVICE(CDNS_VENDOR_ID, CDNS_DEVICE_ID), },
 	{ 0, }
 };

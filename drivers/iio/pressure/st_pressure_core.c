@@ -390,7 +390,7 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 		.drdy_irq = {
 			.addr = 0x23,
 			.mask_int1 = 0x01,
-			.mask_int2 = 0x10,
+			.mask_int2 = 0x00,
 			.addr_ihl = 0x22,
 			.mask_ihl = 0x80,
 			.addr_od = 0x22,
@@ -449,14 +449,14 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 		.drdy_irq = {
 			.addr = 0x12,
 			.mask_int1 = 0x04,
-			.mask_int2 = 0x08,
+			.mask_int2 = 0x00,
 			.addr_ihl = 0x12,
 			.mask_ihl = 0x80,
 			.addr_od = 0x12,
 			.mask_od = 0x40,
 			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
-		.multi_read_bit = true,
+		.multi_read_bit = false,
 		.bootime = 2,
 	},
 };

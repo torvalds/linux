@@ -52,6 +52,10 @@
 		usb {
 			label = "bcm53xx:blue:usb";
 			gpios = <&hc595 0 GPIO_ACTIVE_HIGH>;
+			trigger-sources = <&ohci_port1>, <&ehci_port1>,
+					  <&xhci_port1>, <&ohci_port2>,
+					  <&ehci_port2>;
+			linux,default-trigger = "usbport";
 		};
 
 		power0 {

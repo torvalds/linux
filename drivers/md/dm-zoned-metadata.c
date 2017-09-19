@@ -409,7 +409,7 @@ static struct dmz_mblock *dmz_fetch_mblock(struct dmz_metadata *zmd,
 	}
 
 	bio->bi_iter.bi_sector = dmz_blk2sect(block);
-	bio->bi_bdev = zmd->dev->bdev;
+	bio_set_dev(bio, zmd->dev->bdev);
 	bio->bi_private = mblk;
 	bio->bi_end_io = dmz_mblock_bio_end_io;
 	bio_set_op_attrs(bio, REQ_OP_READ, REQ_META | REQ_PRIO);
@@ -564,7 +564,7 @@ static void dmz_write_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk,
 	set_bit(DMZ_META_WRITING, &mblk->state);
 
 	bio->bi_iter.bi_sector = dmz_blk2sect(block);
-	bio->bi_bdev = zmd->dev->bdev;
+	bio_set_dev(bio, zmd->dev->bdev);
 	bio->bi_private = mblk;
 	bio->bi_end_io = dmz_mblock_bio_end_io;
 	bio_set_op_attrs(bio, REQ_OP_WRITE, REQ_META | REQ_PRIO);
@@ -586,7 +586,7 @@ static int dmz_rdwr_block(struct dmz_metadata *zmd, int op, sector_t block,
 		return -ENOMEM;
 
 	bio->bi_iter.bi_sector = dmz_blk2sect(block);
-	bio->bi_bdev = zmd->dev->bdev;
+	bio_set_dev(bio, zmd->dev->bdev);
 	bio_set_op_attrs(bio, op, REQ_SYNC | REQ_META | REQ_PRIO);
 	bio_add_page(bio, page, DMZ_BLOCK_SIZE, 0);
 	ret = submit_bio_wait(bio);
@@ -624,7 +624,7 @@ static int dmz_write_sb(struct dmz_metadata *zmd, unsigned int set)
 
 	ret = dmz_rdwr_block(zmd, REQ_OP_WRITE, block, mblk->page);
 	if (ret == 0)
-		ret = blkdev_issue_flush(zmd->dev->bdev, GFP_KERNEL, NULL);
+		ret = blkdev_issue_flush(zmd->dev->bdev, GFP_NOIO, NULL);
 
 	return ret;
 }
@@ -658,7 +658,7 @@ static int dmz_write_dirty_mblocks(struct dmz_metadata *zmd,
 
 	/* Flush drive cache (this will also sync data) */
 	if (ret == 0)
-		ret = blkdev_issue_flush(zmd->dev->bdev, GFP_KERNEL, NULL);
+		ret = blkdev_issue_flush(zmd->dev->bdev, GFP_NOIO, NULL);
 
 	return ret;
 }
@@ -722,7 +722,7 @@ int dmz_flush_metadata(struct dmz_metadata *zmd)
 
 	/* If there are no dirty metadata blocks, just flush the device cache */
 	if (list_empty(&write_list)) {
-		ret = blkdev_issue_flush(zmd->dev->bdev, GFP_KERNEL, NULL);
+		ret = blkdev_issue_flush(zmd->dev->bdev, GFP_NOIO, NULL);
 		goto out;
 	}
 
@@ -927,7 +927,7 @@ static int dmz_recover_mblocks(struct dmz_metadata *zmd, unsigned int dst_set)
 			(zmd->nr_meta_zones << zmd->dev->zone_nr_blocks_shift);
 	}
 
-	page = alloc_page(GFP_KERNEL);
+	page = alloc_page(GFP_NOIO);
 	if (!page)
 		return -ENOMEM;
 
@@ -1183,7 +1183,7 @@ static int dmz_update_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 
 	/* Get zone information from disk */
 	ret = blkdev_report_zones(zmd->dev->bdev, dmz_start_sect(zmd, zone),
-				  &blkz, &nr_blkz, GFP_KERNEL);
+				  &blkz, &nr_blkz, GFP_NOIO);
 	if (ret) {
 		dmz_dev_err(zmd->dev, "Get zone %u report failed",
 			    dmz_id(zmd, zone));
@@ -1257,7 +1257,7 @@ static int dmz_reset_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 
 		ret = blkdev_reset_zones(dev->bdev,
 					 dmz_start_sect(zmd, zone),
-					 dev->zone_nr_sectors, GFP_KERNEL);
+					 dev->zone_nr_sectors, GFP_NOIO);
 		if (ret) {
 			dmz_dev_err(dev, "Reset zone %u failed %d",
 				    dmz_id(zmd, zone), ret);

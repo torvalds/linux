@@ -1,0 +1,17 @@
+/**
+ * This header provides index for the HSDK v1 reset controller.
+ */
+#ifndef _DT_BINDINGS_RESET_CONTROLLER_HSDK_V1
+#define _DT_BINDINGS_RESET_CONTROLLER_HSDK_V1
+
+#define HSDK_V1_APB_RESET	0
+#define HSDK_V1_AXI_RESET	1
+#define HSDK_V1_ETH_RESET	2
+#define HSDK_V1_USB_RESET	3
+#define HSDK_V1_SDIO_RESET	4
+#define HSDK_V1_HDMI_RESET	5
+#define HSDK_V1_GFX_RESET	6
+#define HSDK_V1_DMAC_RESET	7
+#define HSDK_V1_EBI_RESET	8
+
+#endif /*_DT_BINDINGS_RESET_CONTROLLER_HSDK_V1*/

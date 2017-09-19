@@ -27,16 +27,15 @@
 #include "amdgpu_gfx.h"
 #include <linux/module.h>
 
-const struct kfd2kgd_calls *kfd2kgd;
 const struct kgd2kfd_calls *kgd2kfd;
-bool (*kgd2kfd_init_p)(unsigned, const struct kgd2kfd_calls**);
+bool (*kgd2kfd_init_p)(unsigned int, const struct kgd2kfd_calls**);
 
 int amdgpu_amdkfd_init(void)
 {
 	int ret;
 
 #if defined(CONFIG_HSA_AMD_MODULE)
-	int (*kgd2kfd_init_p)(unsigned, const struct kgd2kfd_calls**);
+	int (*kgd2kfd_init_p)(unsigned int, const struct kgd2kfd_calls**);
 
 	kgd2kfd_init_p = symbol_request(kgd2kfd_init);
 
@@ -61,24 +60,6 @@ int amdgpu_amdkfd_init(void)
 	return ret;
 }
 
-bool amdgpu_amdkfd_load_interface(struct amdgpu_device *adev)
-{
-	switch (adev->asic_type) {
-#ifdef CONFIG_DRM_AMDGPU_CIK
-	case CHIP_KAVERI:
-		kfd2kgd = amdgpu_amdkfd_gfx_7_get_functions();
-		break;
-#endif
-	case CHIP_CARRIZO:
-		kfd2kgd = amdgpu_amdkfd_gfx_8_0_get_functions();
-		break;
-	default:
-		return false;
-	}
-
-	return true;
-}
-
 void amdgpu_amdkfd_fini(void)
 {
 	if (kgd2kfd) {
@@ -89,9 +70,27 @@ void amdgpu_amdkfd_fini(void)
 
 void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 {
-	if (kgd2kfd)
-		adev->kfd = kgd2kfd->probe((struct kgd_dev *)adev,
-					adev->pdev, kfd2kgd);
+	const struct kfd2kgd_calls *kfd2kgd;
+
+	if (!kgd2kfd)
+		return;
+
+	switch (adev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_CIK
+	case CHIP_KAVERI:
+		kfd2kgd = amdgpu_amdkfd_gfx_7_get_functions();
+		break;
+#endif
+	case CHIP_CARRIZO:
+		kfd2kgd = amdgpu_amdkfd_gfx_8_0_get_functions();
+		break;
+	default:
+		dev_info(adev->dev, "kfd not supported on this ASIC\n");
+		return;
+	}
+
+	adev->kfd = kgd2kfd->probe((struct kgd_dev *)adev,
+				   adev->pdev, kfd2kgd);
 }
 
 void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
@@ -101,7 +100,6 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 	if (adev->kfd) {
 		struct kgd2kfd_shared_resources gpu_resources = {
 			.compute_vmid_bitmap = 0xFF00,
-			.num_mec = adev->gfx.mec.num_mec,
 			.num_pipe_per_mec = adev->gfx.mec.num_pipe_per_mec,
 			.num_queue_per_pipe = adev->gfx.mec.num_queue_per_pipe
 		};
@@ -122,7 +120,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 
 		/* According to linux/bitmap.h we shouldn't use bitmap_clear if
 		 * nbits is not compile time constant */
-		last_valid_bit = adev->gfx.mec.num_mec
+		last_valid_bit = 1 /* only first MEC can have compute queues */
 				* adev->gfx.mec.num_pipe_per_mec
 				* adev->gfx.mec.num_queue_per_pipe;
 		for (i = last_valid_bit; i < KGD_MAX_QUEUES; ++i)
@@ -185,7 +183,8 @@ int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 		return -ENOMEM;
 
 	r = amdgpu_bo_create(adev, size, PAGE_SIZE, true, AMDGPU_GEM_DOMAIN_GTT,
-			     AMDGPU_GEM_CREATE_CPU_GTT_USWC, NULL, NULL, &(*mem)->bo);
+			     AMDGPU_GEM_CREATE_CPU_GTT_USWC, NULL, NULL, 0,
+			     &(*mem)->bo);
 	if (r) {
 		dev_err(adev->dev,
 			"failed to allocate BO for amdkfd (%d)\n", r);

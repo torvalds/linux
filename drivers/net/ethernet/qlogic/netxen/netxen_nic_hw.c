@@ -2311,7 +2311,7 @@ netxen_md_rdqueue(struct netxen_adapter *adapter,
 				 loop_cnt++) {
 		NX_WR_DUMP_REG(select_addr, adapter->ahw.pci_base0, queue_id);
 		read_addr = queueEntry->read_addr;
-		for (k = 0; k < read_cnt; k--) {
+		for (k = 0; k < read_cnt; k++) {
 			NX_RD_DUMP_REG(read_addr, adapter->ahw.pci_base0,
 							&read_value);
 			*data_buff++ = read_value;

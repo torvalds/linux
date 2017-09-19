@@ -52,6 +52,10 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
+	aliases {
+		crypto = &crypto;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -62,6 +66,7 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x0>;
 			clocks = <&clockgen 1 0>;
+			cpu-idle-states = <&CPU_PH20>;
 			#cooling-cells = <2>;
 		};
 
@@ -70,6 +75,7 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x1>;
 			clocks = <&clockgen 1 0>;
+			cpu-idle-states = <&CPU_PH20>;
 		};
 
 		cpu2: cpu@2 {
@@ -77,6 +83,7 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x2>;
 			clocks = <&clockgen 1 0>;
+			cpu-idle-states = <&CPU_PH20>;
 		};
 
 		cpu3: cpu@3 {
@@ -84,6 +91,7 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x3>;
 			clocks = <&clockgen 1 0>;
+			cpu-idle-states = <&CPU_PH20>;
 		};
 
 		cpu4: cpu@100 {
@@ -91,6 +99,7 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x100>;
 			clocks = <&clockgen 1 1>;
+			cpu-idle-states = <&CPU_PH20>;
 			#cooling-cells = <2>;
 		};
 
@@ -99,6 +108,7 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x101>;
 			clocks = <&clockgen 1 1>;
+			cpu-idle-states = <&CPU_PH20>;
 		};
 
 		cpu6: cpu@102 {
@@ -106,6 +116,7 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x102>;
 			clocks = <&clockgen 1 1>;
+			cpu-idle-states = <&CPU_PH20>;
 		};
 
 		cpu7: cpu@103 {
@@ -113,6 +124,16 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x103>;
 			clocks = <&clockgen 1 1>;
+			cpu-idle-states = <&CPU_PH20>;
+		};
+
+		CPU_PH20: cpu-ph20 {
+			compatible = "arm,idle-state";
+			idle-state-name = "PH20";
+			arm,psci-suspend-param = <0x00010000>;
+			entry-latency-us = <1000>;
+			exit-latency-us = <1000>;
+			min-residency-us = <3000>;
 		};
 	};
 
@@ -134,6 +155,11 @@
 			     <1 14 IRQ_TYPE_LEVEL_LOW>,/* Physical Non-Secure PPI */
 			     <1 11 IRQ_TYPE_LEVEL_LOW>,/* Virtual PPI */
 			     <1 10 IRQ_TYPE_LEVEL_LOW>;/* Hypervisor PPI */
+	};
+
+	psci {
+		compatible = "arm,psci-0.2";
+		method = "smc";
 	};
 
 	sysclk: sysclk {
@@ -368,6 +394,45 @@
 			clocks = <&clockgen 4 3>;
 			dma-coherent;
 			status = "disabled";
+		};
+
+		crypto: crypto@8000000 {
+			compatible = "fsl,sec-v5.0", "fsl,sec-v4.0";
+			fsl,sec-era = <8>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x00 0x8000000 0x100000>;
+			reg = <0x00 0x8000000 0x0 0x100000>;
+			interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
+			dma-coherent;
+
+			sec_jr0: jr@10000 {
+				compatible = "fsl,sec-v5.0-job-ring",
+					     "fsl,sec-v4.0-job-ring";
+				reg	   = <0x10000 0x10000>;
+				interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			sec_jr1: jr@20000 {
+				compatible = "fsl,sec-v5.0-job-ring",
+					     "fsl,sec-v4.0-job-ring";
+				reg	   = <0x20000 0x10000>;
+				interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			sec_jr2: jr@30000 {
+				compatible = "fsl,sec-v5.0-job-ring",
+					     "fsl,sec-v4.0-job-ring";
+				reg	   = <0x30000 0x10000>;
+				interrupts = <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			sec_jr3: jr@40000 {
+				compatible = "fsl,sec-v5.0-job-ring",
+					     "fsl,sec-v4.0-job-ring";
+				reg	   = <0x40000 0x10000>;
+				interrupts = <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
+			};
 		};
 	};
 

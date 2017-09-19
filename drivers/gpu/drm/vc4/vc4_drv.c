@@ -99,6 +99,7 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 	case DRM_VC4_PARAM_SUPPORTS_BRANCHES:
 	case DRM_VC4_PARAM_SUPPORTS_ETC1:
 	case DRM_VC4_PARAM_SUPPORTS_THREADED_FS:
+	case DRM_VC4_PARAM_SUPPORTS_FIXED_RCL_ORDER:
 		args->value = true;
 		break;
 	default:
@@ -140,6 +141,7 @@ static const struct drm_ioctl_desc vc4_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(VC4_GET_PARAM, vc4_get_param_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(VC4_SET_TILING, vc4_set_tiling_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(VC4_GET_TILING, vc4_get_tiling_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VC4_LABEL_BO, vc4_label_bo_ioctl, DRM_RENDER_ALLOW),
 };
 
 static struct drm_driver vc4_drm_driver = {
@@ -178,8 +180,6 @@ static struct drm_driver vc4_drm_driver = {
 	.gem_prime_mmap = vc4_prime_mmap,
 
 	.dumb_create = vc4_dumb_create,
-	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 
 	.ioctls = vc4_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(vc4_drm_ioctls),
@@ -257,7 +257,9 @@ static int vc4_drm_bind(struct device *dev)
 	vc4->dev = drm;
 	drm->dev_private = vc4;
 
-	vc4_bo_cache_init(drm);
+	ret = vc4_bo_cache_init(drm);
+	if (ret)
+		goto dev_unref;
 
 	drm_mode_config_init(drm);
 
@@ -281,8 +283,9 @@ unbind_all:
 	component_unbind_all(dev, drm);
 gem_destroy:
 	vc4_gem_destroy(drm);
-	drm_dev_unref(drm);
 	vc4_bo_cache_destroy(drm);
+dev_unref:
+	drm_dev_unref(drm);
 	return ret;
 }
 

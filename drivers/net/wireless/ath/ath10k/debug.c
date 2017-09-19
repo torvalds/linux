@@ -70,7 +70,7 @@ struct ath10k_dump_file_data {
 
 	/* some info we can get from ath10k struct that might help */
 
-	u8 uuid[16];
+	guid_t guid;
 
 	__le32 chip_id;
 
@@ -237,7 +237,7 @@ static ssize_t ath10k_read_wmi_services(struct file *file,
 {
 	struct ath10k *ar = file->private_data;
 	char *buf;
-	size_t len = 0, buf_len = 4096;
+	size_t len = 0, buf_len = 8192;
 	const char *name;
 	ssize_t ret_cnt;
 	bool enabled;
@@ -719,7 +719,7 @@ ath10k_debug_get_new_fw_crash_data(struct ath10k *ar)
 	lockdep_assert_held(&ar->data_lock);
 
 	crash_data->crashed_since_read = true;
-	uuid_le_gen(&crash_data->uuid);
+	guid_gen(&crash_data->guid);
 	getnstimeofday(&crash_data->timestamp);
 
 	return crash_data;
@@ -766,7 +766,7 @@ static struct ath10k_dump_file_data *ath10k_build_dump_file(struct ath10k *ar,
 
 	dump_data->version = cpu_to_le32(ATH10K_FW_CRASH_DUMP_VERSION);
 
-	memcpy(dump_data->uuid, &crash_data->uuid, sizeof(dump_data->uuid));
+	guid_copy(&dump_data->guid, &crash_data->guid);
 	dump_data->chip_id = cpu_to_le32(ar->chip_id);
 	dump_data->bus_type = cpu_to_le32(0);
 	dump_data->target_version = cpu_to_le32(ar->target_version);

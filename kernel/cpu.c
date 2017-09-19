@@ -279,7 +279,8 @@ static int bringup_wait_for_ap(unsigned int cpu)
 
 	/* Wait for the CPU to reach CPUHP_AP_ONLINE_IDLE */
 	wait_for_completion(&st->done);
-	BUG_ON(!cpu_online(cpu));
+	if (WARN_ON_ONCE((!cpu_online(cpu))))
+		return -ECANCELED;
 
 	/* Unpark the stopper thread and the hotplug thread of the target cpu */
 	stop_machine_unpark(cpu);
@@ -649,6 +650,7 @@ static int takedown_cpu(unsigned int cpu)
 	__cpu_die(cpu);
 
 	tick_cleanup_dead_cpu(cpu);
+	rcutree_migrate_callbacks(cpu);
 	return 0;
 }
 
@@ -1251,7 +1253,17 @@ static int cpuhp_store_callbacks(enum cpuhp_state state, const char *name,
 	struct cpuhp_step *sp;
 	int ret = 0;
 
-	if (state == CPUHP_AP_ONLINE_DYN || state == CPUHP_BP_PREPARE_DYN) {
+	/*
+	 * If name is NULL, then the state gets removed.
+	 *
+	 * CPUHP_AP_ONLINE_DYN and CPUHP_BP_PREPARE_DYN are handed out on
+	 * the first allocation from these dynamic ranges, so the removal
+	 * would trigger a new allocation and clear the wrong (already
+	 * empty) state, leaving the callbacks of the to be cleared state
+	 * dangling, which causes wreckage on the next hotplug operation.
+	 */
+	if (name && (state == CPUHP_AP_ONLINE_DYN ||
+		     state == CPUHP_BP_PREPARE_DYN)) {
 		ret = cpuhp_reserve_state(state);
 		if (ret < 0)
 			return ret;

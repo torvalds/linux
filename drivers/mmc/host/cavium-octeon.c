@@ -342,18 +342,7 @@ static struct platform_driver octeon_mmc_driver = {
 	},
 };
 
-static int __init octeon_mmc_init(void)
-{
-	return platform_driver_register(&octeon_mmc_driver);
-}
-
-static void __exit octeon_mmc_cleanup(void)
-{
-	platform_driver_unregister(&octeon_mmc_driver);
-}
-
-module_init(octeon_mmc_init);
-module_exit(octeon_mmc_cleanup);
+module_platform_driver(octeon_mmc_driver);
 
 MODULE_AUTHOR("Cavium Inc. <support@cavium.com>");
 MODULE_DESCRIPTION("Low-level driver for Cavium OCTEON MMC/SSD card");

@@ -28,7 +28,7 @@
 /* description */
 #define UDC_MOD_DESCRIPTION     "Synopsys UDC platform driver"
 
-void start_udc(struct udc *udc)
+static void start_udc(struct udc *udc)
 {
 	if (udc->driver) {
 		dev_info(udc->dev, "Connecting...\n");
@@ -38,7 +38,7 @@ void start_udc(struct udc *udc)
 	}
 }
 
-void stop_udc(struct udc *udc)
+static void stop_udc(struct udc *udc)
 {
 	int tmp;
 	u32 reg;
@@ -76,7 +76,7 @@ void stop_udc(struct udc *udc)
 	dev_info(udc->dev, "Device disconnected\n");
 }
 
-void udc_drd_work(struct work_struct *work)
+static void udc_drd_work(struct work_struct *work)
 {
 	struct udc *udc;
 
@@ -184,7 +184,7 @@ static int udc_plat_probe(struct platform_device *pdev)
 			goto exit_phy;
 		}
 
-		ret = extcon_get_cable_state_(udc->edev, EXTCON_USB);
+		ret = extcon_get_state(udc->edev, EXTCON_USB);
 		if (ret < 0) {
 			dev_err(dev, "Can't get cable state\n");
 			goto exit_extcon;
@@ -273,7 +273,7 @@ static int udc_plat_suspend(struct device *dev)
 	udc = dev_get_drvdata(dev);
 	stop_udc(udc);
 
-	if (extcon_get_cable_state_(udc->edev, EXTCON_USB) > 0) {
+	if (extcon_get_state(udc->edev, EXTCON_USB) > 0) {
 		dev_dbg(udc->dev, "device -> idle\n");
 		stop_udc(udc);
 	}
@@ -303,7 +303,7 @@ static int udc_plat_resume(struct device *dev)
 		return ret;
 	}
 
-	if (extcon_get_cable_state_(udc->edev, EXTCON_USB) > 0) {
+	if (extcon_get_state(udc->edev, EXTCON_USB) > 0) {
 		dev_dbg(udc->dev, "idle -> device\n");
 		start_udc(udc);
 	}

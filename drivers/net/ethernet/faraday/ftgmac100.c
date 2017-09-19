@@ -125,7 +125,7 @@ static int ftgmac100_reset_mac(struct ftgmac100 *priv, u32 maccr)
 	iowrite32(maccr, priv->base + FTGMAC100_OFFSET_MACCR);
 	iowrite32(maccr | FTGMAC100_MACCR_SW_RST,
 		  priv->base + FTGMAC100_OFFSET_MACCR);
-	for (i = 0; i < 50; i++) {
+	for (i = 0; i < 200; i++) {
 		unsigned int maccr;
 
 		maccr = ioread32(priv->base + FTGMAC100_OFFSET_MACCR);
@@ -392,7 +392,7 @@ static int ftgmac100_alloc_rx_buf(struct ftgmac100 *priv, unsigned int entry,
 	struct net_device *netdev = priv->netdev;
 	struct sk_buff *skb;
 	dma_addr_t map;
-	int err;
+	int err = 0;
 
 	skb = netdev_alloc_skb_ip_align(netdev, RX_BUF_SIZE);
 	if (unlikely(!skb)) {
@@ -428,7 +428,7 @@ static int ftgmac100_alloc_rx_buf(struct ftgmac100 *priv, unsigned int entry,
 	else
 		rxdes->rxdes0 = 0;
 
-	return 0;
+	return err;
 }
 
 static unsigned int ftgmac100_next_rx_pointer(struct ftgmac100 *priv,
@@ -1623,6 +1623,8 @@ static const struct net_device_ops ftgmac100_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ftgmac100_poll_controller,
 #endif
+	.ndo_vlan_rx_add_vid	= ncsi_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= ncsi_vlan_rx_kill_vid,
 };
 
 static int ftgmac100_setup_mdio(struct net_device *netdev)
@@ -1682,6 +1684,7 @@ static int ftgmac100_setup_mdio(struct net_device *netdev)
 	priv->mii_bus->name = "ftgmac100_mdio";
 	snprintf(priv->mii_bus->id, MII_BUS_ID_SIZE, "%s-%d",
 		 pdev->name, pdev->id);
+	priv->mii_bus->parent = priv->dev;
 	priv->mii_bus->priv = priv->netdev;
 	priv->mii_bus->read = ftgmac100_mdiobus_read;
 	priv->mii_bus->write = ftgmac100_mdiobus_write;
@@ -1836,6 +1839,9 @@ static int ftgmac100_probe(struct platform_device *pdev)
 		NETIF_F_GRO | NETIF_F_SG | NETIF_F_HW_VLAN_CTAG_RX |
 		NETIF_F_HW_VLAN_CTAG_TX;
 
+	if (priv->use_ncsi)
+		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+
 	/* AST2400  doesn't have working HW checksum generation */
 	if (np && (of_device_is_compatible(np, "aspeed,ast2400-mac")))
 		netdev->hw_features &= ~NETIF_F_HW_CSUM;
@@ -1862,7 +1868,6 @@ err_setup_mdio:
 err_ioremap:
 	release_resource(priv->res);
 err_req_mem:
-	netif_napi_del(&priv->napi);
 	free_netdev(netdev);
 err_alloc_etherdev:
 	return err;

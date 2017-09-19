@@ -1055,7 +1055,7 @@ static struct resp_res *find_resource(struct rxe_qp *qp, u32 psn)
 {
 	int i;
 
-	for (i = 0; i < qp->attr.max_rd_atomic; i++) {
+	for (i = 0; i < qp->attr.max_dest_rd_atomic; i++) {
 		struct resp_res *res = &qp->resp.resources[i];
 
 		if (res->type == 0)
@@ -1218,6 +1218,9 @@ void rxe_drain_req_pkts(struct rxe_qp *qp, bool notify)
 		rxe_drop_ref(qp);
 		kfree_skb(skb);
 	}
+
+	if (notify)
+		return;
 
 	while (!qp->srq && qp->rq.queue && queue_head(qp->rq.queue))
 		advance_consumer(qp->rq.queue);

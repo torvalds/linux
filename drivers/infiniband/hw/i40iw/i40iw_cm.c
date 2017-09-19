@@ -1582,15 +1582,14 @@ static enum i40iw_status_code i40iw_del_multiple_qhash(
 }
 
 /**
- * i40iw_netdev_vlan_ipv6 - Gets the netdev and mac
+ * i40iw_netdev_vlan_ipv6 - Gets the netdev and vlan
  * @addr: local IPv6 address
  * @vlan_id: vlan id for the given IPv6 address
- * @mac: mac address for the given IPv6 address
  *
  * Returns the net_device of the IPv6 address and also sets the
- * vlan id and mac for that address.
+ * vlan id for that address.
  */
-static struct net_device *i40iw_netdev_vlan_ipv6(u32 *addr, u16 *vlan_id, u8 *mac)
+static struct net_device *i40iw_netdev_vlan_ipv6(u32 *addr, u16 *vlan_id)
 {
 	struct net_device *ip_dev = NULL;
 	struct in6_addr laddr6;
@@ -1600,15 +1599,11 @@ static struct net_device *i40iw_netdev_vlan_ipv6(u32 *addr, u16 *vlan_id, u8 *ma
 	i40iw_copy_ip_htonl(laddr6.in6_u.u6_addr32, addr);
 	if (vlan_id)
 		*vlan_id = I40IW_NO_VLAN;
-	if (mac)
-		eth_zero_addr(mac);
 	rcu_read_lock();
 	for_each_netdev_rcu(&init_net, ip_dev) {
 		if (ipv6_chk_addr(&init_net, &laddr6, ip_dev, 1)) {
 			if (vlan_id)
 				*vlan_id = rdma_vlan_dev_vlan_id(ip_dev);
-			if (ip_dev->dev_addr && mac)
-				ether_addr_copy(mac, ip_dev->dev_addr);
 			break;
 		}
 	}
@@ -3487,7 +3482,8 @@ static void i40iw_cm_disconn_true(struct i40iw_qp *iwqp)
 	if (((original_hw_tcp_state == I40IW_TCP_STATE_CLOSED) ||
 	     (original_hw_tcp_state == I40IW_TCP_STATE_TIME_WAIT) ||
 	     (last_ae == I40IW_AE_RDMAP_ROE_BAD_LLP_CLOSE) ||
-	     (last_ae == I40IW_AE_LLP_CONNECTION_RESET))) {
+	     (last_ae == I40IW_AE_LLP_CONNECTION_RESET) ||
+	      iwdev->reset)) {
 		issue_close = 1;
 		iwqp->cm_id = NULL;
 		if (!iwqp->flush_issued) {
@@ -3587,7 +3583,7 @@ int i40iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		cm_node->vlan_id = i40iw_get_vlan_ipv4(cm_node->loc_addr);
 	} else {
 		cm_node->ipv4 = false;
-		i40iw_netdev_vlan_ipv6(cm_node->loc_addr, &cm_node->vlan_id, NULL);
+		i40iw_netdev_vlan_ipv6(cm_node->loc_addr, &cm_node->vlan_id);
 	}
 	i40iw_debug(cm_node->dev,
 		    I40IW_DEBUG_CM,
@@ -3686,8 +3682,6 @@ int i40iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	cm_node->accelerated = 1;
 	if (cm_node->accept_pend) {
-		if (!cm_node->listener)
-			i40iw_pr_err("cm_node->listener NULL for passive node\n");
 		atomic_dec(&cm_node->listener->pend_accepts_cnt);
 		cm_node->accept_pend = 0;
 	}
@@ -3788,7 +3782,7 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 				    raddr6->sin6_addr.in6_u.u6_addr32);
 		cm_info.loc_port = ntohs(laddr6->sin6_port);
 		cm_info.rem_port = ntohs(raddr6->sin6_port);
-		i40iw_netdev_vlan_ipv6(cm_info.loc_addr, &cm_info.vlan_id, NULL);
+		i40iw_netdev_vlan_ipv6(cm_info.loc_addr, &cm_info.vlan_id);
 	}
 	cm_info.cm_id = cm_id;
 	cm_info.tos = cm_id->tos;
@@ -3930,8 +3924,7 @@ int i40iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 		cm_info.loc_port = ntohs(laddr6->sin6_port);
 		if (ipv6_addr_type(&laddr6->sin6_addr) != IPV6_ADDR_ANY)
 			i40iw_netdev_vlan_ipv6(cm_info.loc_addr,
-					       &cm_info.vlan_id,
-					       NULL);
+					       &cm_info.vlan_id);
 		else
 			wildcard = true;
 	}
@@ -4055,12 +4048,7 @@ static void i40iw_cm_event_connected(struct i40iw_cm_event *event)
 	i40iw_modify_qp(&iwqp->ibqp, &attr, IB_QP_STATE, NULL);
 
 	cm_node->accelerated = 1;
-	if (cm_node->accept_pend) {
-		if (!cm_node->listener)
-			i40iw_pr_err("listener is null for passive node\n");
-		atomic_dec(&cm_node->listener->pend_accepts_cnt);
-		cm_node->accept_pend = 0;
-	}
+
 	return;
 
 error:
@@ -4265,6 +4253,8 @@ void i40iw_cm_disconnect_all(struct i40iw_device *iwdev)
 		cm_node = container_of(list_node, struct i40iw_cm_node, connected_entry);
 		attr.qp_state = IB_QPS_ERR;
 		i40iw_modify_qp(&cm_node->iwqp->ibqp, &attr, IB_QP_STATE, NULL);
+		if (iwdev->reset)
+			i40iw_cm_disconn(cm_node->iwqp);
 		i40iw_rem_ref_cm_node(cm_node);
 	}
 }

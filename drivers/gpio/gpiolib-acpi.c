@@ -61,7 +61,7 @@ static int acpi_gpiochip_find(struct gpio_chip *gc, void *data)
 #ifdef CONFIG_PINCTRL
 /**
  * acpi_gpiochip_pin_to_gpio_offset() - translates ACPI GPIO to Linux GPIO
- * @chip: GPIO chip
+ * @gdev: GPIO device
  * @pin: ACPI GPIO pin number from GpioIo/GpioInt resource
  *
  * Function takes ACPI GpioIo/GpioInt pin number as a parameter and
@@ -763,7 +763,7 @@ struct gpio_desc *acpi_node_get_gpiod(struct fwnode_handle *fwnode,
  * The function is idempotent, though each time it runs it will configure GPIO
  * pin direction according to the flags in GpioInt resource.
  *
- * Return: Linux IRQ number (>%0) on success, negative errno on failure.
+ * Return: Linux IRQ number (> %0) on success, negative errno on failure.
  */
 int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
 {

@@ -118,7 +118,7 @@ static void radeonfb_destroy_pinned_object(struct drm_gem_object *gobj)
 		radeon_bo_unpin(rbo);
 		radeon_bo_unreserve(rbo);
 	}
-	drm_gem_object_unreference_unlocked(gobj);
+	drm_gem_object_put_unlocked(gobj);
 }
 
 static int radeonfb_create_pinned_object(struct radeon_fbdev *rfbdev,
@@ -264,7 +264,6 @@ static int radeonfb_create(struct drm_fb_helper *helper,
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 
-	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &radeonfb_ops;
 
 	tmp = radeon_bo_gpu_offset(rbo) - rdev->mc.vram_start;
@@ -300,7 +299,7 @@ out:
 
 	}
 	if (fb && ret) {
-		drm_gem_object_unreference_unlocked(gobj);
+		drm_gem_object_put_unlocked(gobj);
 		drm_framebuffer_unregister_private(fb);
 		drm_framebuffer_cleanup(fb);
 		kfree(fb);
@@ -332,8 +331,6 @@ static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfb
 }
 
 static const struct drm_fb_helper_funcs radeon_fb_helper_funcs = {
-	.gamma_set = radeon_crtc_fb_gamma_set,
-	.gamma_get = radeon_crtc_fb_gamma_get,
 	.fb_probe = radeonfb_create,
 };
 
@@ -347,9 +344,12 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 	if (list_empty(&rdev->ddev->mode_config.connector_list))
 		return 0;
 
-	/* select 8 bpp console on RN50 or 16MB cards */
-	if (ASIC_IS_RN50(rdev) || rdev->mc.real_vram_size <= (32*1024*1024))
+	/* select 8 bpp console on 8MB cards, or 16 bpp on RN50 or 32MB */
+	if (rdev->mc.real_vram_size <= (8*1024*1024))
 		bpp_sel = 8;
+	else if (ASIC_IS_RN50(rdev) ||
+		 rdev->mc.real_vram_size <= (32*1024*1024))
+		bpp_sel = 16;
 
 	rfbdev = kzalloc(sizeof(struct radeon_fbdev), GFP_KERNEL);
 	if (!rfbdev)

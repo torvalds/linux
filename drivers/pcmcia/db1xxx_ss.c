@@ -131,22 +131,27 @@ static irqreturn_t db1000_pcmcia_stschgirq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+/* Db/Pb1200 have separate per-socket insertion and ejection
+ * interrupts which stay asserted as long as the card is
+ * inserted/missing.  The one which caused us to be called
+ * needs to be disabled and the other one enabled.
+ */
 static irqreturn_t db1200_pcmcia_cdirq(int irq, void *data)
+{
+	disable_irq_nosync(irq);
+	return IRQ_WAKE_THREAD;
+}
+
+static irqreturn_t db1200_pcmcia_cdirq_fn(int irq, void *data)
 {
 	struct db1x_pcmcia_sock *sock = data;
 
-	/* Db/Pb1200 have separate per-socket insertion and ejection
-	 * interrupts which stay asserted as long as the card is
-	 * inserted/missing.  The one which caused us to be called
-	 * needs to be disabled and the other one enabled.
-	 */
-	if (irq == sock->insert_irq) {
-		disable_irq_nosync(sock->insert_irq);
+	/* Wait a bit for the signals to stop bouncing. */
+	msleep(100);
+	if (irq == sock->insert_irq)
 		enable_irq(sock->eject_irq);
-	} else {
-		disable_irq_nosync(sock->eject_irq);
+	else
 		enable_irq(sock->insert_irq);
-	}
 
 	pcmcia_parse_events(&sock->socket, SS_DETECT);
 
@@ -172,13 +177,13 @@ static int db1x_pcmcia_setup_irqs(struct db1x_pcmcia_sock *sock)
 	 */
 	if ((sock->board_type == BOARD_TYPE_DB1200) ||
 	    (sock->board_type == BOARD_TYPE_DB1300)) {
-		ret = request_irq(sock->insert_irq, db1200_pcmcia_cdirq,
-				  0, "pcmcia_insert", sock);
+		ret = request_threaded_irq(sock->insert_irq, db1200_pcmcia_cdirq,
+			db1200_pcmcia_cdirq_fn, 0, "pcmcia_insert", sock);
 		if (ret)
 			goto out1;
 
-		ret = request_irq(sock->eject_irq, db1200_pcmcia_cdirq,
-				  0, "pcmcia_eject", sock);
+		ret = request_threaded_irq(sock->eject_irq, db1200_pcmcia_cdirq,
+			db1200_pcmcia_cdirq_fn, 0, "pcmcia_eject", sock);
 		if (ret) {
 			free_irq(sock->insert_irq, sock);
 			goto out1;

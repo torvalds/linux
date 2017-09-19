@@ -37,7 +37,7 @@
 
 #define MODULE_NAME	"davinci-vpbe-osd"
 
-static struct platform_device_id vpbe_osd_devtype[] = {
+static const struct platform_device_id vpbe_osd_devtype[] = {
 	{
 		.name = DM644X_VPBE_OSD_SUBDEV_NAME,
 		.driver_data = VPBE_VERSION_1,

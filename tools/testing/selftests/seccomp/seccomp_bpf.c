@@ -107,7 +107,7 @@ TEST(mode_strict_support)
 	ASSERT_EQ(0, ret) {
 		TH_LOG("Kernel does not support CONFIG_SECCOMP");
 	}
-	syscall(__NR_exit, 1);
+	syscall(__NR_exit, 0);
 }
 
 TEST_SIGNAL(mode_strict_cannot_call_prctl, SIGKILL)

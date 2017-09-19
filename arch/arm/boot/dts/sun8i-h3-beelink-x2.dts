@@ -100,6 +100,10 @@
 	};
 };
 
+&ehci0 {
+	status = "okay";
+};
+
 &ehci1 {
 	status = "okay";
 };
@@ -147,7 +151,16 @@
 	status = "okay";
 };
 
+&ohci0 {
+	status = "okay";
+};
+
 &ohci1 {
+	status = "okay";
+};
+
+&reg_usb0_vbus {
+	gpio = <&r_pio 0 2 GPIO_ACTIVE_HIGH>; /* PL2 */
 	status = "okay";
 };
 
@@ -163,7 +176,14 @@
 	status = "okay";
 };
 
-&usbphy {
-	/* USB VBUS is on as long as VCC-IO is on */
+&usb_otg {
+	dr_mode = "otg";
 	status = "okay";
+};
+
+&usbphy {
+	/* USB VBUS is always on except for the OTG port */
+	status = "okay";
+	usb0_id_det-gpios = <&pio 0 7 GPIO_ACTIVE_HIGH>; /* PA07 */
+	usb0_vbus-supply = <&reg_usb0_vbus>;
 };

@@ -220,6 +220,11 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 	int r = 0;
 
 	spin_lock_init(&adev->irq.lock);
+
+	if (!adev->enable_virtual_display)
+		/* Disable vblank irqs aggressively for power-saving */
+		adev->ddev->vblank_disable_immediate = true;
+
 	r = drm_vblank_init(adev->ddev, adev->mode_info.num_crtc);
 	if (r) {
 		return r;
@@ -263,7 +268,6 @@ void amdgpu_irq_fini(struct amdgpu_device *adev)
 {
 	unsigned i, j;
 
-	drm_vblank_cleanup(adev->ddev);
 	if (adev->irq.installed) {
 		drm_irq_uninstall(adev->ddev);
 		adev->irq.installed = false;

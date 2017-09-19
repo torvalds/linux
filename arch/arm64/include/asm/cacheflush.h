@@ -67,7 +67,9 @@
  */
 extern void flush_icache_range(unsigned long start, unsigned long end);
 extern void __flush_dcache_area(void *addr, size_t len);
+extern void __inval_dcache_area(void *addr, size_t len);
 extern void __clean_dcache_area_poc(void *addr, size_t len);
+extern void __clean_dcache_area_pop(void *addr, size_t len);
 extern void __clean_dcache_area_pou(void *addr, size_t len);
 extern long __flush_cache_user_range(unsigned long start, unsigned long end);
 extern void sync_icache_aliases(void *kaddr, unsigned long len);
@@ -150,6 +152,6 @@ static inline void flush_cache_vunmap(unsigned long start, unsigned long end)
 {
 }
 
-int set_memory_valid(unsigned long addr, unsigned long size, int enable);
+int set_memory_valid(unsigned long addr, int numpages, int enable);
 
 #endif

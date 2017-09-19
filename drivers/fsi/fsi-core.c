@@ -475,7 +475,7 @@ static ssize_t fsi_slave_sysfs_raw_write(struct file *file,
 	return count;
 }
 
-static struct bin_attribute fsi_slave_raw_attr = {
+static const struct bin_attribute fsi_slave_raw_attr = {
 	.attr = {
 		.name = "raw",
 		.mode = 0600,
@@ -499,7 +499,7 @@ static ssize_t fsi_slave_sysfs_term_write(struct file *file,
 	return count;
 }
 
-static struct bin_attribute fsi_slave_term_attr = {
+static const struct bin_attribute fsi_slave_term_attr = {
 	.attr = {
 		.name = "term",
 		.mode = 0200,
@@ -532,7 +532,7 @@ static inline uint32_t fsi_smode_sid(int x)
 	return (x & FSI_SMODE_SID_MASK) << FSI_SMODE_SID_SHIFT;
 }
 
-static const uint32_t fsi_slave_smode(int id)
+static uint32_t fsi_slave_smode(int id)
 {
 	return FSI_SMODE_WSC | FSI_SMODE_ECRC
 		| fsi_smode_sid(id)
@@ -883,17 +883,16 @@ struct bus_type fsi_bus_type = {
 };
 EXPORT_SYMBOL_GPL(fsi_bus_type);
 
-static int fsi_init(void)
+static int __init fsi_init(void)
 {
 	return bus_register(&fsi_bus_type);
 }
+postcore_initcall(fsi_init);
 
 static void fsi_exit(void)
 {
 	bus_unregister(&fsi_bus_type);
 }
-
-module_init(fsi_init);
 module_exit(fsi_exit);
 module_param(discard_errors, int, 0664);
 MODULE_LICENSE("GPL");

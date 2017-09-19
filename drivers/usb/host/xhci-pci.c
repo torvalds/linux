@@ -59,6 +59,8 @@
 #define PCI_DEVICE_ID_AMD_PROMONTORYA_2			0x43bb
 #define PCI_DEVICE_ID_AMD_PROMONTORYA_1			0x43bc
 
+#define PCI_DEVICE_ID_ASMEDIA_1042A_XHCI		0x1142
+
 static const char hcd_name[] = "xhci_hcd";
 
 static struct hc_driver __read_mostly xhci_pci_hc_driver;
@@ -217,6 +219,10 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 			pdev->device == 0x1142)
 		xhci->quirks |= XHCI_TRUST_TX_LENGTH;
 
+	if (pdev->vendor == PCI_VENDOR_ID_ASMEDIA &&
+		pdev->device == PCI_DEVICE_ID_ASMEDIA_1042A_XHCI)
+		xhci->quirks |= XHCI_ASMEDIA_MODIFY_FLOWCONTROL;
+
 	if (pdev->vendor == PCI_VENDOR_ID_TI && pdev->device == 0x8241)
 		xhci->quirks |= XHCI_LIMIT_ENDPOINT_INTERVAL_7;
 
@@ -277,6 +283,13 @@ static int xhci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	struct usb_hcd *hcd;
 
 	driver = (struct hc_driver *)id->driver_data;
+
+	/* For some HW implementation, a XHCI reset is just not enough... */
+	if (usb_xhci_needs_pci_reset(dev)) {
+		dev_info(&dev->dev, "Resetting\n");
+		if (pci_reset_function_locked(dev))
+			dev_warn(&dev->dev, "Reset failed");
+	}
 
 	/* Prevent runtime suspending between USB-2 and USB-3 initialization */
 	pm_runtime_get_noresume(&dev->dev);

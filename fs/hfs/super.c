@@ -71,7 +71,7 @@ void hfs_mark_mdb_dirty(struct super_block *sb)
 	struct hfs_sb_info *sbi = HFS_SB(sb);
 	unsigned long delay;
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return;
 
 	spin_lock(&sbi->work_lock);
@@ -115,7 +115,7 @@ static int hfs_remount(struct super_block *sb, int *flags, char *data)
 {
 	sync_filesystem(sb);
 	*flags |= MS_NODIRATIME;
-	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
+	if ((bool)(*flags & MS_RDONLY) == sb_rdonly(sb))
 		return 0;
 	if (!(*flags & MS_RDONLY)) {
 		if (!(HFS_SB(sb)->mdb->drAtrb & cpu_to_be16(HFS_SB_ATTRIB_UNMNT))) {

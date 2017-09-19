@@ -846,9 +846,6 @@ static bool _rtl8723be_init_mac(struct ieee80211_hw *hw)
 		return false;
 	}
 
-	if (rtlpriv->cfg->ops->get_btc_status())
-		rtlpriv->btcoexist.btc_ops->btc_power_on_setting(rtlpriv);
-
 	bytetmp = rtl_read_byte(rtlpriv, REG_MULTI_FUNC_CTRL);
 	rtl_write_byte(rtlpriv, REG_MULTI_FUNC_CTRL, bytetmp | BIT(3));
 
@@ -2113,6 +2110,13 @@ static void _rtl8723be_read_adapter_info(struct ieee80211_hw *hw,
 	rtl8723be_read_bt_coexist_info_from_hwpg(hw,
 						 rtlefuse->autoload_failflag,
 						 hwinfo);
+
+	if (rtlpriv->btcoexist.btc_info.btcoexist == 1)
+		rtlefuse->board_type |= BIT(2); /* ODM_BOARD_BT */
+
+	rtlhal->board_type = rtlefuse->board_type;
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
+		 "board_type = 0x%x\n", rtlefuse->board_type);
 
 	rtlhal->package_type = _rtl8723be_read_package_type(hw);
 

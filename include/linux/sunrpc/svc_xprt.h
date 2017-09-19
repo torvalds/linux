@@ -31,7 +31,7 @@ struct svc_xprt_ops {
 struct svc_xprt_class {
 	const char		*xcl_name;
 	struct module		*xcl_owner;
-	struct svc_xprt_ops	*xcl_ops;
+	const struct svc_xprt_ops *xcl_ops;
 	struct list_head	xcl_list;
 	u32			xcl_max_payload;
 	int			xcl_ident;
@@ -49,7 +49,7 @@ struct svc_xpt_user {
 
 struct svc_xprt {
 	struct svc_xprt_class	*xpt_class;
-	struct svc_xprt_ops	*xpt_ops;
+	const struct svc_xprt_ops *xpt_ops;
 	struct kref		xpt_ref;
 	struct list_head	xpt_list;
 	struct list_head	xpt_ready;

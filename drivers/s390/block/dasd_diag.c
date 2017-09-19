@@ -235,7 +235,7 @@ static void dasd_ext_handler(struct ext_code ext_code,
 {
 	struct dasd_ccw_req *cqr, *next;
 	struct dasd_device *device;
-	unsigned long long expires;
+	unsigned long expires;
 	unsigned long flags;
 	addr_t ip;
 	int rc;

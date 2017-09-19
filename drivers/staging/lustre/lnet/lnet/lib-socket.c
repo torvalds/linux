@@ -40,8 +40,8 @@
 #include <linux/syscalls.h>
 #include <net/sock.h>
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../../include/linux/lnet/lib-lnet.h"
+#include <linux/libcfs/libcfs.h>
+#include <linux/lnet/lib-lnet.h>
 
 static int
 kernel_sock_unlocked_ioctl(struct file *filp, int cmd, unsigned long arg)

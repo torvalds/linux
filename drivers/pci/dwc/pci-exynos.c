@@ -581,13 +581,15 @@ static int exynos_pcie_link_up(struct dw_pcie *pci)
 	return 0;
 }
 
-static void exynos_pcie_host_init(struct pcie_port *pp)
+static int exynos_pcie_host_init(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct exynos_pcie *ep = to_exynos_pcie(pci);
 
 	exynos_pcie_establish_link(ep);
 	exynos_pcie_enable_interrupts(ep);
+
+	return 0;
 }
 
 static const struct dw_pcie_host_ops exynos_pcie_host_ops = {
@@ -605,9 +607,9 @@ static int __init exynos_add_pcie_port(struct exynos_pcie *ep,
 	int ret;
 
 	pp->irq = platform_get_irq(pdev, 1);
-	if (!pp->irq) {
+	if (pp->irq < 0) {
 		dev_err(dev, "failed to get irq\n");
-		return -ENODEV;
+		return pp->irq;
 	}
 	ret = devm_request_irq(dev, pp->irq, exynos_pcie_irq_handler,
 				IRQF_SHARED, "exynos-pcie", ep);
@@ -618,9 +620,9 @@ static int __init exynos_add_pcie_port(struct exynos_pcie *ep,
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		pp->msi_irq = platform_get_irq(pdev, 0);
-		if (!pp->msi_irq) {
+		if (pp->msi_irq < 0) {
 			dev_err(dev, "failed to get msi irq\n");
-			return -ENODEV;
+			return pp->msi_irq;
 		}
 
 		ret = devm_request_irq(dev, pp->msi_irq,

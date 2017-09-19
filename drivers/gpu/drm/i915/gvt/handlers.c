@@ -113,9 +113,17 @@ static int new_mmio_info(struct intel_gvt *gvt,
 
 		info->offset = i;
 		p = find_mmio_info(gvt, info->offset);
-		if (p)
-			gvt_err("dup mmio definition offset %x\n",
+		if (p) {
+			WARN(1, "dup mmio definition offset %x\n",
 				info->offset);
+			kfree(info);
+
+			/* We return -EEXIST here to make GVT-g load fail.
+			 * So duplicated MMIO can be found as soon as
+			 * possible.
+			 */
+			return -EEXIST;
+		}
 
 		info->ro_mask = ro_mask;
 		info->device = device;
@@ -1222,10 +1230,12 @@ static int power_well_ctl_mmio_write(struct intel_vgpu *vgpu,
 {
 	write_vreg(vgpu, offset, p_data, bytes);
 
-	if (vgpu_vreg(vgpu, offset) & HSW_PWR_WELL_ENABLE_REQUEST)
-		vgpu_vreg(vgpu, offset) |= HSW_PWR_WELL_STATE_ENABLED;
+	if (vgpu_vreg(vgpu, offset) & HSW_PWR_WELL_CTL_REQ(HSW_DISP_PW_GLOBAL))
+		vgpu_vreg(vgpu, offset) |=
+			HSW_PWR_WELL_CTL_STATE(HSW_DISP_PW_GLOBAL);
 	else
-		vgpu_vreg(vgpu, offset) &= ~HSW_PWR_WELL_STATE_ENABLED;
+		vgpu_vreg(vgpu, offset) &=
+			~HSW_PWR_WELL_CTL_STATE(HSW_DISP_PW_GLOBAL);
 	return 0;
 }
 
@@ -2242,10 +2252,17 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(GEN6_RC6p_THRESHOLD, D_ALL);
 	MMIO_D(GEN6_RC6pp_THRESHOLD, D_ALL);
 	MMIO_D(GEN6_PMINTRMSK, D_ALL);
-	MMIO_DH(HSW_PWR_WELL_BIOS, D_BDW, NULL, power_well_ctl_mmio_write);
-	MMIO_DH(HSW_PWR_WELL_DRIVER, D_BDW, NULL, power_well_ctl_mmio_write);
-	MMIO_DH(HSW_PWR_WELL_KVMR, D_BDW, NULL, power_well_ctl_mmio_write);
-	MMIO_DH(HSW_PWR_WELL_DEBUG, D_BDW, NULL, power_well_ctl_mmio_write);
+	/*
+	 * Use an arbitrary power well controlled by the PWR_WELL_CTL
+	 * register.
+	 */
+	MMIO_DH(HSW_PWR_WELL_CTL_BIOS(HSW_DISP_PW_GLOBAL), D_BDW, NULL,
+		power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_CTL_DRIVER(HSW_DISP_PW_GLOBAL), D_BDW, NULL,
+		power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_CTL_KVMR, D_BDW, NULL, power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_CTL_DEBUG(HSW_DISP_PW_GLOBAL), D_BDW, NULL,
+		power_well_ctl_mmio_write);
 	MMIO_DH(HSW_PWR_WELL_CTL5, D_BDW, NULL, power_well_ctl_mmio_write);
 	MMIO_DH(HSW_PWR_WELL_CTL6, D_BDW, NULL, power_well_ctl_mmio_write);
 
@@ -2581,7 +2598,6 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 	MMIO_F(0x24d0, 48, F_CMD_ACCESS, 0, 0, D_BDW_PLUS,
 		NULL, force_nonpriv_write);
 
-	MMIO_D(0x22040, D_BDW_PLUS);
 	MMIO_D(0x44484, D_BDW_PLUS);
 	MMIO_D(0x4448c, D_BDW_PLUS);
 
@@ -2636,10 +2652,13 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_F(_DPD_AUX_CH_CTL, 6 * 4, 0, 0, 0, D_SKL_PLUS, NULL,
 						dp_aux_ch_ctl_mmio_write);
 
-	MMIO_D(HSW_PWR_WELL_BIOS, D_SKL_PLUS);
-	MMIO_DH(HSW_PWR_WELL_DRIVER, D_SKL_PLUS, NULL,
-						skl_power_well_ctl_write);
-	MMIO_DH(GEN6_PCODE_MAILBOX, D_SKL_PLUS, NULL, mailbox_write);
+	/*
+	 * Use an arbitrary power well controlled by the PWR_WELL_CTL
+	 * register.
+	 */
+	MMIO_D(HSW_PWR_WELL_CTL_BIOS(SKL_DISP_PW_MISC_IO), D_SKL_PLUS);
+	MMIO_DH(HSW_PWR_WELL_CTL_DRIVER(SKL_DISP_PW_MISC_IO), D_SKL_PLUS, NULL,
+		skl_power_well_ctl_write);
 
 	MMIO_D(0xa210, D_SKL_PLUS);
 	MMIO_D(GEN9_MEDIA_PG_IDLE_HYSTERESIS, D_SKL_PLUS);
@@ -2831,7 +2850,6 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(0x320f0, D_SKL | D_KBL);
 
 	MMIO_DFH(_REG_VCS2_EXCC, D_SKL_PLUS, F_CMD_ACCESS, NULL, NULL);
-	MMIO_DFH(_REG_VECS_EXCC, D_SKL_PLUS, F_CMD_ACCESS, NULL, NULL);
 	MMIO_D(0x70034, D_SKL_PLUS);
 	MMIO_D(0x71034, D_SKL_PLUS);
 	MMIO_D(0x72034, D_SKL_PLUS);
@@ -2849,39 +2867,20 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 		NULL, NULL);
 
 	MMIO_D(0x4ab8, D_KBL);
-	MMIO_D(0x940c, D_SKL_PLUS);
 	MMIO_D(0x2248, D_SKL_PLUS | D_KBL);
-	MMIO_D(0x4ab0, D_SKL | D_KBL);
-	MMIO_D(0x20d4, D_SKL | D_KBL);
 
 	return 0;
 }
-
-/* Special MMIO blocks. */
-static struct gvt_mmio_block {
-	unsigned int device;
-	i915_reg_t   offset;
-	unsigned int size;
-	gvt_mmio_func read;
-	gvt_mmio_func write;
-} gvt_mmio_blocks[] = {
-	{D_SKL_PLUS, _MMIO(CSR_MMIO_START_RANGE), 0x3000, NULL, NULL},
-	{D_ALL, _MMIO(MCHBAR_MIRROR_BASE_SNB), 0x40000, NULL, NULL},
-	{D_ALL, _MMIO(VGT_PVINFO_PAGE), VGT_PVINFO_SIZE,
-		pvinfo_mmio_read, pvinfo_mmio_write},
-	{D_ALL, LGC_PALETTE(PIPE_A, 0), 1024, NULL, NULL},
-	{D_ALL, LGC_PALETTE(PIPE_B, 0), 1024, NULL, NULL},
-	{D_ALL, LGC_PALETTE(PIPE_C, 0), 1024, NULL, NULL},
-};
 
 static struct gvt_mmio_block *find_mmio_block(struct intel_gvt *gvt,
 					      unsigned int offset)
 {
 	unsigned long device = intel_gvt_get_device_type(gvt);
-	struct gvt_mmio_block *block = gvt_mmio_blocks;
+	struct gvt_mmio_block *block = gvt->mmio.mmio_block;
+	int num = gvt->mmio.num_mmio_block;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(gvt_mmio_blocks); i++, block++) {
+	for (i = 0; i < num; i++, block++) {
 		if (!(device & block->device))
 			continue;
 		if (offset >= INTEL_GVT_MMIO_OFFSET(block->offset) &&
@@ -2911,6 +2910,17 @@ void intel_gvt_clean_mmio_info(struct intel_gvt *gvt)
 	vfree(gvt->mmio.mmio_attribute);
 	gvt->mmio.mmio_attribute = NULL;
 }
+
+/* Special MMIO blocks. */
+static struct gvt_mmio_block mmio_blocks[] = {
+	{D_SKL_PLUS, _MMIO(CSR_MMIO_START_RANGE), 0x3000, NULL, NULL},
+	{D_ALL, _MMIO(MCHBAR_MIRROR_BASE_SNB), 0x40000, NULL, NULL},
+	{D_ALL, _MMIO(VGT_PVINFO_PAGE), VGT_PVINFO_SIZE,
+		pvinfo_mmio_read, pvinfo_mmio_write},
+	{D_ALL, LGC_PALETTE(PIPE_A, 0), 1024, NULL, NULL},
+	{D_ALL, LGC_PALETTE(PIPE_B, 0), 1024, NULL, NULL},
+	{D_ALL, LGC_PALETTE(PIPE_C, 0), 1024, NULL, NULL},
+};
 
 /**
  * intel_gvt_setup_mmio_info - setup MMIO information table for GVT device
@@ -2950,6 +2960,9 @@ int intel_gvt_setup_mmio_info(struct intel_gvt *gvt)
 		if (ret)
 			goto err;
 	}
+
+	gvt->mmio.mmio_block = mmio_blocks;
+	gvt->mmio.num_mmio_block = ARRAY_SIZE(mmio_blocks);
 
 	gvt_dbg_mmio("traced %u virtual mmio registers\n",
 		     gvt->mmio.num_tracked_mmio);
@@ -3030,7 +3043,7 @@ int intel_vgpu_mmio_reg_rw(struct intel_vgpu *vgpu, unsigned int offset,
 	gvt_mmio_func func;
 	int ret;
 
-	if (WARN_ON(bytes > 4))
+	if (WARN_ON(bytes > 8))
 		return -EINVAL;
 
 	/*

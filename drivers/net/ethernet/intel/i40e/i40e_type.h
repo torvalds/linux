@@ -185,6 +185,7 @@ struct i40e_link_status {
 	enum i40e_aq_link_speed link_speed;
 	u8 link_info;
 	u8 an_info;
+	u8 req_fec_info;
 	u8 fec_info;
 	u8 ext_info;
 	u8 loopback;

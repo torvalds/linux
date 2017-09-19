@@ -245,6 +245,7 @@ struct trace_array {
 	int			stop_count;
 	int			clock_id;
 	int			nr_topts;
+	bool			clear_trace;
 	struct tracer		*current_trace;
 	unsigned int		trace_flags;
 	unsigned char		trace_flags_index[TRACE_FLAGS_MAX_SIZE];
@@ -1210,9 +1211,9 @@ struct ftrace_event_field {
 struct event_filter {
 	int			n_preds;	/* Number assigned */
 	int			a_preds;	/* allocated */
-	struct filter_pred	*preds;
-	struct filter_pred	*root;
-	char			*filter_string;
+	struct filter_pred __rcu	*preds;
+	struct filter_pred __rcu	*root;
+	char				*filter_string;
 };
 
 struct event_subsystem {

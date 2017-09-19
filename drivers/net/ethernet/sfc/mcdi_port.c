@@ -746,59 +746,171 @@ static const char *efx_mcdi_phy_test_name(struct efx_nic *efx,
 	return NULL;
 }
 
-#define SFP_PAGE_SIZE	128
-#define SFP_NUM_PAGES	2
-static int efx_mcdi_phy_get_module_eeprom(struct efx_nic *efx,
-					  struct ethtool_eeprom *ee, u8 *data)
+#define SFP_PAGE_SIZE		128
+#define SFF_DIAG_TYPE_OFFSET	92
+#define SFF_DIAG_ADDR_CHANGE	BIT(2)
+#define SFF_8079_NUM_PAGES	2
+#define SFF_8472_NUM_PAGES	4
+#define SFF_8436_NUM_PAGES	5
+#define SFF_DMT_LEVEL_OFFSET	94
+
+/** efx_mcdi_phy_get_module_eeprom_page() - Get a single page of module eeprom
+ * @efx:	NIC context
+ * @page:	EEPROM page number
+ * @data:	Destination data pointer
+ * @offset:	Offset in page to copy from in to data
+ * @space:	Space available in data
+ *
+ * Return:
+ *   >=0 - amount of data copied
+ *   <0  - error
+ */
+static int efx_mcdi_phy_get_module_eeprom_page(struct efx_nic *efx,
+					       unsigned int page,
+					       u8 *data, ssize_t offset,
+					       ssize_t space)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_PHY_MEDIA_INFO_OUT_LENMAX);
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_GET_PHY_MEDIA_INFO_IN_LEN);
 	size_t outlen;
-	int rc;
 	unsigned int payload_len;
-	unsigned int space_remaining = ee->len;
-	unsigned int page;
-	unsigned int page_off;
 	unsigned int to_copy;
-	u8 *user_data = data;
+	int rc;
 
-	BUILD_BUG_ON(SFP_PAGE_SIZE * SFP_NUM_PAGES != ETH_MODULE_SFF_8079_LEN);
+	if (offset > SFP_PAGE_SIZE)
+		return -EINVAL;
+
+	to_copy = min(space, SFP_PAGE_SIZE - offset);
+
+	MCDI_SET_DWORD(inbuf, GET_PHY_MEDIA_INFO_IN_PAGE, page);
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_GET_PHY_MEDIA_INFO,
+				inbuf, sizeof(inbuf),
+				outbuf, sizeof(outbuf),
+				&outlen);
+
+	if (rc)
+		return rc;
+
+	if (outlen < (MC_CMD_GET_PHY_MEDIA_INFO_OUT_DATA_OFST +
+			SFP_PAGE_SIZE))
+		return -EIO;
+
+	payload_len = MCDI_DWORD(outbuf, GET_PHY_MEDIA_INFO_OUT_DATALEN);
+	if (payload_len != SFP_PAGE_SIZE)
+		return -EIO;
+
+	memcpy(data, MCDI_PTR(outbuf, GET_PHY_MEDIA_INFO_OUT_DATA) + offset,
+	       to_copy);
+
+	return to_copy;
+}
+
+static int efx_mcdi_phy_get_module_eeprom_byte(struct efx_nic *efx,
+					       unsigned int page,
+					       u8 byte)
+{
+	int rc;
+	u8 data;
+
+	rc = efx_mcdi_phy_get_module_eeprom_page(efx, page, &data, byte, 1);
+	if (rc == 1)
+		return data;
+
+	return rc;
+}
+
+static int efx_mcdi_phy_diag_type(struct efx_nic *efx)
+{
+	/* Page zero of the EEPROM includes the diagnostic type at byte 92. */
+	return efx_mcdi_phy_get_module_eeprom_byte(efx, 0,
+						   SFF_DIAG_TYPE_OFFSET);
+}
+
+static int efx_mcdi_phy_sff_8472_level(struct efx_nic *efx)
+{
+	/* Page zero of the EEPROM includes the DMT level at byte 94. */
+	return efx_mcdi_phy_get_module_eeprom_byte(efx, 0,
+						   SFF_DMT_LEVEL_OFFSET);
+}
+
+static u32 efx_mcdi_phy_module_type(struct efx_nic *efx)
+{
+	struct efx_mcdi_phy_data *phy_data = efx->phy_data;
+
+	if (phy_data->media != MC_CMD_MEDIA_QSFP_PLUS)
+		return phy_data->media;
+
+	/* A QSFP+ NIC may actually have an SFP+ module attached.
+	 * The ID is page 0, byte 0.
+	 */
+	switch (efx_mcdi_phy_get_module_eeprom_byte(efx, 0, 0)) {
+	case 0x3:
+		return MC_CMD_MEDIA_SFP_PLUS;
+	case 0xc:
+	case 0xd:
+		return MC_CMD_MEDIA_QSFP_PLUS;
+	default:
+		return 0;
+	}
+}
+
+static int efx_mcdi_phy_get_module_eeprom(struct efx_nic *efx,
+					  struct ethtool_eeprom *ee, u8 *data)
+{
+	int rc;
+	ssize_t space_remaining = ee->len;
+	unsigned int page_off;
+	bool ignore_missing;
+	int num_pages;
+	int page;
+
+	switch (efx_mcdi_phy_module_type(efx)) {
+	case MC_CMD_MEDIA_SFP_PLUS:
+		num_pages = efx_mcdi_phy_sff_8472_level(efx) > 0 ?
+				SFF_8472_NUM_PAGES : SFF_8079_NUM_PAGES;
+		page = 0;
+		ignore_missing = false;
+		break;
+	case MC_CMD_MEDIA_QSFP_PLUS:
+		num_pages = SFF_8436_NUM_PAGES;
+		page = -1; /* We obtain the lower page by asking for -1. */
+		ignore_missing = true; /* Ignore missing pages after page 0. */
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
 
 	page_off = ee->offset % SFP_PAGE_SIZE;
-	page = ee->offset / SFP_PAGE_SIZE;
+	page += ee->offset / SFP_PAGE_SIZE;
 
-	while (space_remaining && (page < SFP_NUM_PAGES)) {
-		MCDI_SET_DWORD(inbuf, GET_PHY_MEDIA_INFO_IN_PAGE, page);
+	while (space_remaining && (page < num_pages)) {
+		rc = efx_mcdi_phy_get_module_eeprom_page(efx, page,
+							 data, page_off,
+							 space_remaining);
 
-		rc = efx_mcdi_rpc(efx, MC_CMD_GET_PHY_MEDIA_INFO,
-				  inbuf, sizeof(inbuf),
-				  outbuf, sizeof(outbuf),
-				  &outlen);
-		if (rc)
+		if (rc > 0) {
+			space_remaining -= rc;
+			data += rc;
+			page_off = 0;
+			page++;
+		} else if (rc == 0) {
+			space_remaining = 0;
+		} else if (ignore_missing && (page > 0)) {
+			int intended_size = SFP_PAGE_SIZE - page_off;
+
+			space_remaining -= intended_size;
+			if (space_remaining < 0) {
+				space_remaining = 0;
+			} else {
+				memset(data, 0, intended_size);
+				data += intended_size;
+				page_off = 0;
+				page++;
+				rc = 0;
+			}
+		} else {
 			return rc;
-
-		if (outlen < (MC_CMD_GET_PHY_MEDIA_INFO_OUT_DATA_OFST +
-			      SFP_PAGE_SIZE))
-			return -EIO;
-
-		payload_len = MCDI_DWORD(outbuf,
-					 GET_PHY_MEDIA_INFO_OUT_DATALEN);
-		if (payload_len != SFP_PAGE_SIZE)
-			return -EIO;
-
-		/* Copy as much as we can into data */
-		payload_len -= page_off;
-		to_copy = (space_remaining < payload_len) ?
-			space_remaining : payload_len;
-
-		memcpy(user_data,
-		       MCDI_PTR(outbuf, GET_PHY_MEDIA_INFO_OUT_DATA) + page_off,
-		       to_copy);
-
-		space_remaining -= to_copy;
-		user_data += to_copy;
-		page_off = 0;
-		page++;
+		}
 	}
 
 	return 0;
@@ -807,16 +919,42 @@ static int efx_mcdi_phy_get_module_eeprom(struct efx_nic *efx,
 static int efx_mcdi_phy_get_module_info(struct efx_nic *efx,
 					struct ethtool_modinfo *modinfo)
 {
-	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
+	int sff_8472_level;
+	int diag_type;
 
-	switch (phy_cfg->media) {
+	switch (efx_mcdi_phy_module_type(efx)) {
 	case MC_CMD_MEDIA_SFP_PLUS:
-		modinfo->type = ETH_MODULE_SFF_8079;
-		modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
-		return 0;
+		sff_8472_level = efx_mcdi_phy_sff_8472_level(efx);
+
+		/* If we can't read the diagnostics level we have none. */
+		if (sff_8472_level < 0)
+			return -EOPNOTSUPP;
+
+		/* Check if this module requires the (unsupported) address
+		 * change operation.
+		 */
+		diag_type = efx_mcdi_phy_diag_type(efx);
+
+		if ((sff_8472_level == 0) ||
+		    (diag_type & SFF_DIAG_ADDR_CHANGE)) {
+			modinfo->type = ETH_MODULE_SFF_8079;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
+		} else {
+			modinfo->type = ETH_MODULE_SFF_8472;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
+		}
+		break;
+
+	case MC_CMD_MEDIA_QSFP_PLUS:
+		modinfo->type = ETH_MODULE_SFF_8436;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+		break;
+
 	default:
 		return -EOPNOTSUPP;
 	}
+
+	return 0;
 }
 
 static const struct efx_phy_operations efx_mcdi_phy_ops = {
@@ -938,7 +1076,6 @@ enum efx_stats_action {
 static int efx_mcdi_mac_stats(struct efx_nic *efx,
 			      enum efx_stats_action action, int clear)
 {
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAC_STATS_IN_LEN);
 	int rc;
 	int change = action == EFX_STATS_PULL ? 0 : 1;
@@ -960,7 +1097,12 @@ static int efx_mcdi_mac_stats(struct efx_nic *efx,
 			      MAC_STATS_IN_PERIODIC_NOEVENT, 1,
 			      MAC_STATS_IN_PERIOD_MS, period);
 	MCDI_SET_DWORD(inbuf, MAC_STATS_IN_DMA_LEN, dma_len);
-	MCDI_SET_DWORD(inbuf, MAC_STATS_IN_PORT_ID, nic_data->vport_id);
+
+	if (efx_nic_rev(efx) >= EFX_REV_HUNT_A0) {
+		struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
+		MCDI_SET_DWORD(inbuf, MAC_STATS_IN_PORT_ID, nic_data->vport_id);
+	}
 
 	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_MAC_STATS, inbuf, sizeof(inbuf),
 				NULL, 0, NULL);

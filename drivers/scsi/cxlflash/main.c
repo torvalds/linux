@@ -820,8 +820,7 @@ static void term_afu(struct cxlflash_cfg *cfg)
 	for (k = cfg->afu->num_hwqs - 1; k >= 0; k--)
 		term_intr(cfg, UNMAP_THREE, k);
 
-	if (cfg->afu)
-		stop_afu(cfg);
+	stop_afu(cfg);
 
 	for (k = cfg->afu->num_hwqs - 1; k >= 0; k--)
 		term_mc(cfg, k);
@@ -3401,9 +3400,10 @@ static int cxlflash_afu_debug(struct cxlflash_cfg *cfg,
 		if (is_write) {
 			req_flags |= SISL_REQ_FLAGS_HOST_WRITE;
 
-			rc = copy_from_user(kbuf, ubuf, ulen);
-			if (unlikely(rc))
+			if (copy_from_user(kbuf, ubuf, ulen)) {
+				rc = -EFAULT;
 				goto out;
+			}
 		}
 	}
 
@@ -3431,8 +3431,10 @@ static int cxlflash_afu_debug(struct cxlflash_cfg *cfg,
 		goto out;
 	}
 
-	if (ulen && !is_write)
-		rc = copy_to_user(ubuf, kbuf, ulen);
+	if (ulen && !is_write) {
+		if (copy_to_user(ubuf, kbuf, ulen))
+			rc = -EFAULT;
+	}
 out:
 	kfree(buf);
 	dev_dbg(dev, "%s: returning rc=%d\n", __func__, rc);

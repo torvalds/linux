@@ -202,6 +202,9 @@ struct wcn36xx {
 	struct qcom_smem_state	*tx_rings_empty_state;
 	unsigned		tx_rings_empty_state_bit;
 
+	/* prevents concurrent FW reconfiguration */
+	struct mutex		conf_mutex;
+
 	/*
 	 * smd_buf must be protected with smd_mutex to garantee
 	 * that all messages are sent one after another

@@ -1031,15 +1031,15 @@ static __init int cgw_module_init(void)
 	notifier.notifier_call = cgw_notifier;
 	register_netdevice_notifier(&notifier);
 
-	if (__rtnl_register(PF_CAN, RTM_GETROUTE, NULL, cgw_dump_jobs, NULL)) {
+	if (__rtnl_register(PF_CAN, RTM_GETROUTE, NULL, cgw_dump_jobs, 0)) {
 		unregister_netdevice_notifier(&notifier);
 		kmem_cache_destroy(cgw_cache);
 		return -ENOBUFS;
 	}
 
 	/* Only the first call to __rtnl_register can fail */
-	__rtnl_register(PF_CAN, RTM_NEWROUTE, cgw_create_job, NULL, NULL);
-	__rtnl_register(PF_CAN, RTM_DELROUTE, cgw_remove_job, NULL, NULL);
+	__rtnl_register(PF_CAN, RTM_NEWROUTE, cgw_create_job, NULL, 0);
+	__rtnl_register(PF_CAN, RTM_DELROUTE, cgw_remove_job, NULL, 0);
 
 	return 0;
 }

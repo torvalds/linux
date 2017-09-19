@@ -26,6 +26,7 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
+    Pointer to struct :c:type:`v4l2_event`.
 
 
 Description
@@ -38,7 +39,7 @@ exceptions which the application may get by e.g. using the select system
 call.
 
 
-.. tabularcolumns:: |p{3.0cm}|p{4.3cm}|p{2.5cm}|p{7.7cm}|
+.. tabularcolumns:: |p{3.0cm}|p{4.4cm}|p{2.4cm}|p{7.7cm}|
 
 .. c:type:: v4l2_event
 

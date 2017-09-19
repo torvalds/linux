@@ -809,7 +809,7 @@ out:
  * The hardware can handle at most two messages concatenated by a
  * repeated start via it's internal address feature.
  */
-static struct i2c_adapter_quirks at91_twi_quirks = {
+static const struct i2c_adapter_quirks at91_twi_quirks = {
 	.flags = I2C_AQ_COMB | I2C_AQ_COMB_WRITE_FIRST | I2C_AQ_COMB_SAME_ADDR,
 	.max_comb_1st_msg_len = 3,
 };

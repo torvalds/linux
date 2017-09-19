@@ -32,7 +32,7 @@ unsigned long bfin_get_addr_from_rp(u32 *ptr,
 		break;
 
 	case FLAT_BFIN_RELOC_TYPE_32_BIT:
-		pr_debug("*ptr = %lx", get_unaligned(ptr));
+		pr_debug("*ptr = %x", get_unaligned(ptr));
 		val = get_unaligned(ptr);
 		break;
 
@@ -77,7 +77,7 @@ void bfin_put_addr_at_rp(u32 *ptr, u32 addr, u32 relval)
 
 	case FLAT_BFIN_RELOC_TYPE_32_BIT:
 		put_unaligned(addr, ptr);
-		pr_debug("new ptr =%lx", get_unaligned(ptr));
+		pr_debug("new ptr =%x", get_unaligned(ptr));
 		break;
 	}
 }

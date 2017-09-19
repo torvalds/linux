@@ -5,7 +5,7 @@
  * table is used to represent the type enforcement
  * tables.
  *
- *  Author : Stephen Smalley, <sds@epoch.ncsc.mil>
+ *  Author : Stephen Smalley, <sds@tycho.nsa.gov>
  */
 
 /* Updated: Frank Mayer <mayerf@tresys.com> and Karl MacMillan <kmacmillan@tresys.com>

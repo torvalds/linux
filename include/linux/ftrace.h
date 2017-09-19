@@ -145,8 +145,8 @@ enum {
 #ifdef CONFIG_DYNAMIC_FTRACE
 /* The hash used to know what functions callbacks trace */
 struct ftrace_ops_hash {
-	struct ftrace_hash		*notrace_hash;
-	struct ftrace_hash		*filter_hash;
+	struct ftrace_hash __rcu	*notrace_hash;
+	struct ftrace_hash __rcu	*filter_hash;
 	struct mutex			regex_lock;
 };
 
@@ -168,7 +168,7 @@ static inline void ftrace_free_init_mem(void) { }
  */
 struct ftrace_ops {
 	ftrace_func_t			func;
-	struct ftrace_ops		*next;
+	struct ftrace_ops __rcu		*next;
 	unsigned long			flags;
 	void				*private;
 	ftrace_func_t			saved_func;
@@ -307,7 +307,7 @@ DECLARE_PER_CPU(int, disable_stack_tracer);
 static inline void stack_tracer_disable(void)
 {
 	/* Preemption or interupts must be disabled */
-	if (IS_ENABLED(CONFIG_PREEMPT_DEBUG))
+	if (IS_ENABLED(CONFIG_DEBUG_PREEMPT))
 		WARN_ON_ONCE(!preempt_count() || !irqs_disabled());
 	this_cpu_inc(disable_stack_tracer);
 }
@@ -320,7 +320,7 @@ static inline void stack_tracer_disable(void)
  */
 static inline void stack_tracer_enable(void)
 {
-	if (IS_ENABLED(CONFIG_PREEMPT_DEBUG))
+	if (IS_ENABLED(CONFIG_DEBUG_PREEMPT))
 		WARN_ON_ONCE(!preempt_count() || !irqs_disabled());
 	this_cpu_dec(disable_stack_tracer);
 }

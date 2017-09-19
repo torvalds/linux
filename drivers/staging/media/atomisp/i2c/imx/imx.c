@@ -1084,46 +1084,15 @@ static int imx_g_bin_factor_y(struct v4l2_subdev *sd, s32 *val)
 	return 0;
 }
 
-int imx_vcm_power_up(struct v4l2_subdev *sd)
-{
-	struct imx_device *dev = to_imx_sensor(sd);
-	if (dev->vcm_driver && dev->vcm_driver->power_up)
-		return dev->vcm_driver->power_up(sd);
-	return 0;
-}
-
-int imx_vcm_power_down(struct v4l2_subdev *sd)
-{
-	struct imx_device *dev = to_imx_sensor(sd);
-	if (dev->vcm_driver && dev->vcm_driver->power_down)
-		return dev->vcm_driver->power_down(sd);
-	return 0;
-}
-
-int imx_vcm_init(struct v4l2_subdev *sd)
-{
-	struct imx_device *dev = to_imx_sensor(sd);
-	if (dev->vcm_driver && dev->vcm_driver->init)
-		return dev->vcm_driver->init(sd);
-	return 0;
-}
-
-int imx_t_focus_vcm(struct v4l2_subdev *sd, u16 val)
-{
-	struct imx_device *dev = to_imx_sensor(sd);
-	if (dev->vcm_driver && dev->vcm_driver->t_focus_vcm)
-		return dev->vcm_driver->t_focus_vcm(sd, val);
-	return 0;
-}
-
-int imx_t_focus_abs(struct v4l2_subdev *sd, s32 value)
+static int imx_t_focus_abs(struct v4l2_subdev *sd, s32 value)
 {
 	struct imx_device *dev = to_imx_sensor(sd);
 	if (dev->vcm_driver && dev->vcm_driver->t_focus_abs)
 		return dev->vcm_driver->t_focus_abs(sd, value);
 	return 0;
 }
-int imx_t_focus_rel(struct v4l2_subdev *sd, s32 value)
+
+static int imx_t_focus_rel(struct v4l2_subdev *sd, s32 value)
 {
 	struct imx_device *dev = to_imx_sensor(sd);
 	if (dev->vcm_driver && dev->vcm_driver->t_focus_rel)
@@ -1131,7 +1100,7 @@ int imx_t_focus_rel(struct v4l2_subdev *sd, s32 value)
 	return 0;
 }
 
-int imx_q_focus_status(struct v4l2_subdev *sd, s32 *value)
+static int imx_q_focus_status(struct v4l2_subdev *sd, s32 *value)
 {
 	struct imx_device *dev = to_imx_sensor(sd);
 	if (dev->vcm_driver && dev->vcm_driver->q_focus_status)
@@ -1139,7 +1108,7 @@ int imx_q_focus_status(struct v4l2_subdev *sd, s32 *value)
 	return 0;
 }
 
-int imx_q_focus_abs(struct v4l2_subdev *sd, s32 *value)
+static int imx_q_focus_abs(struct v4l2_subdev *sd, s32 *value)
 {
 	struct imx_device *dev = to_imx_sensor(sd);
 	if (dev->vcm_driver && dev->vcm_driver->q_focus_abs)
@@ -1147,7 +1116,7 @@ int imx_q_focus_abs(struct v4l2_subdev *sd, s32 *value)
 	return 0;
 }
 
-int imx_t_vcm_slew(struct v4l2_subdev *sd, s32 value)
+static int imx_t_vcm_slew(struct v4l2_subdev *sd, s32 value)
 {
 	struct imx_device *dev = to_imx_sensor(sd);
 	if (dev->vcm_driver && dev->vcm_driver->t_vcm_slew)
@@ -1155,7 +1124,7 @@ int imx_t_vcm_slew(struct v4l2_subdev *sd, s32 value)
 	return 0;
 }
 
-int imx_t_vcm_timing(struct v4l2_subdev *sd, s32 value)
+static int imx_t_vcm_timing(struct v4l2_subdev *sd, s32 value)
 {
 	struct imx_device *dev = to_imx_sensor(sd);
 	if (dev->vcm_driver && dev->vcm_driver->t_vcm_timing)
@@ -2105,8 +2074,7 @@ imx_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *param)
 	return 0;
 }
 
-int
-imx_g_frame_interval(struct v4l2_subdev *sd,
+static int imx_g_frame_interval(struct v4l2_subdev *sd,
 				struct v4l2_subdev_frame_interval *interval)
 {
 	struct imx_device *dev = to_imx_sensor(sd);

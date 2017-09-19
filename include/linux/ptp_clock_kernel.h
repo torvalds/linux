@@ -99,6 +99,11 @@ struct system_device_crosststamp;
  *            parameter func: the desired function to use.
  *            parameter chan: the function channel index to use.
  *
+ * @do_work:  Request driver to perform auxiliary (periodic) operations
+ *	      Driver should return delay of the next auxiliary work scheduling
+ *	      time (>=0) or negative value in case further scheduling
+ *	      is not required.
+ *
  * Drivers should embed their ptp_clock_info within a private
  * structure, obtaining a reference to it using container_of().
  *
@@ -126,6 +131,7 @@ struct ptp_clock_info {
 		      struct ptp_clock_request *request, int on);
 	int (*verify)(struct ptp_clock_info *ptp, unsigned int pin,
 		      enum ptp_pin_function func, unsigned int chan);
+	long (*do_aux_work)(struct ptp_clock_info *ptp);
 };
 
 struct ptp_clock;
@@ -211,6 +217,16 @@ extern int ptp_clock_index(struct ptp_clock *ptp);
 int ptp_find_pin(struct ptp_clock *ptp,
 		 enum ptp_pin_function func, unsigned int chan);
 
+/**
+ * ptp_schedule_worker() - schedule ptp auxiliary work
+ *
+ * @ptp:    The clock obtained from ptp_clock_register().
+ * @delay:  number of jiffies to wait before queuing
+ *          See kthread_queue_delayed_work() for more info.
+ */
+
+int ptp_schedule_worker(struct ptp_clock *ptp, unsigned long delay);
+
 #else
 static inline struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 						   struct device *parent)
@@ -225,6 +241,10 @@ static inline int ptp_clock_index(struct ptp_clock *ptp)
 static inline int ptp_find_pin(struct ptp_clock *ptp,
 			       enum ptp_pin_function func, unsigned int chan)
 { return -1; }
+static inline int ptp_schedule_worker(struct ptp_clock *ptp,
+				      unsigned long delay)
+{ return -EOPNOTSUPP; }
+
 #endif
 
 #endif

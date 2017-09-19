@@ -402,6 +402,7 @@ void __init mem_init(void)
 void free_initmem(void)
 {
 	ppc_md.progress = ppc_printk_progress;
+	mark_initmem_nx();
 	free_initmem_default(POISON_FREE_INITMEM);
 }
 
@@ -435,7 +436,7 @@ void flush_dcache_icache_page(struct page *page)
 		return;
 	}
 #endif
-#if defined(CONFIG_8xx) || defined(CONFIG_PPC64)
+#if defined(CONFIG_PPC_8xx) || defined(CONFIG_PPC64)
 	/* On 8xx there is no need to kmap since highmem is not supported */
 	__flush_dcache_icache(page_address(page));
 #else

@@ -1122,6 +1122,16 @@
 		non-removable;
 	};
 
+	usb@7d000000 {
+		compatible = "nvidia,tegra114-udc";
+		status = "okay";
+		dr_mode = "peripheral";
+	};
+
+	usb-phy@7d000000 {
+		status = "okay";
+	};
+
 	usb@7d008000 {
 		status = "okay";
 	};

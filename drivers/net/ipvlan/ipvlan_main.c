@@ -15,7 +15,7 @@ struct ipvlan_netns {
 	unsigned int ipvl_nf_hook_refcnt;
 };
 
-static struct nf_hook_ops ipvl_nfops[] __read_mostly = {
+static const struct nf_hook_ops ipvl_nfops[] = {
 	{
 		.hook     = ipvlan_nf_input,
 		.pf       = NFPROTO_IPV4,
@@ -169,7 +169,7 @@ static void ipvlan_port_destroy(struct net_device *dev)
 
 #define IPVLAN_FEATURES \
 	(NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_HIGHDMA | NETIF_F_FRAGLIST | \
-	 NETIF_F_GSO | NETIF_F_TSO | NETIF_F_UFO | NETIF_F_GSO_ROBUST | \
+	 NETIF_F_GSO | NETIF_F_TSO | NETIF_F_GSO_ROBUST | \
 	 NETIF_F_TSO_ECN | NETIF_F_TSO6 | NETIF_F_GRO | NETIF_F_RXCSUM | \
 	 NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_VLAN_STAG_FILTER)
 
@@ -192,7 +192,7 @@ static int ipvlan_init(struct net_device *dev)
 
 	netdev_lockdep_set_classes(dev);
 
-	ipvlan->pcpu_stats = alloc_percpu(struct ipvl_pcpu_stats);
+	ipvlan->pcpu_stats = netdev_alloc_pcpu_stats(struct ipvl_pcpu_stats);
 	if (!ipvlan->pcpu_stats)
 		return -ENOMEM;
 

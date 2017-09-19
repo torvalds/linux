@@ -134,7 +134,9 @@ enum flag_bits {
 	Faulty,			/* device is known to have a fault */
 	In_sync,		/* device is in_sync with rest of array */
 	Bitmap_sync,		/* ..actually, not quite In_sync.  Need a
-				 * bitmap-based recovery to get fully in sync
+				 * bitmap-based recovery to get fully in sync.
+				 * The bit is only meaningful before device
+				 * has been passed to pers->hot_add_disk.
 				 */
 	WriteMostly,		/* Avoid reading if at all possible */
 	AutoDetected,		/* added by auto-detect */
@@ -234,6 +236,7 @@ enum mddev_flags {
 				 * never cause the array to become failed.
 				 */
 	MD_HAS_PPL,		/* The raid array has PPL feature set */
+	MD_HAS_MULTIPLE_PPLS,	/* The raid array has multiple PPLs feature set */
 };
 
 enum mddev_sb_flags {
@@ -507,6 +510,11 @@ static inline void md_sync_acct(struct block_device *bdev, unsigned long nr_sect
 	atomic_add(nr_sectors, &bdev->bd_contains->bd_disk->sync_io);
 }
 
+static inline void md_sync_acct_bio(struct bio *bio, unsigned long nr_sectors)
+{
+	atomic_add(nr_sectors, &bio->bi_disk->sync_io);
+}
+
 struct md_personality
 {
 	char *name;
@@ -719,68 +727,14 @@ static inline void mddev_clear_unsupported_flags(struct mddev *mddev,
 static inline void mddev_check_writesame(struct mddev *mddev, struct bio *bio)
 {
 	if (bio_op(bio) == REQ_OP_WRITE_SAME &&
-	    !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors)
+	    !bio->bi_disk->queue->limits.max_write_same_sectors)
 		mddev->queue->limits.max_write_same_sectors = 0;
 }
 
 static inline void mddev_check_write_zeroes(struct mddev *mddev, struct bio *bio)
 {
 	if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
-	    !bdev_get_queue(bio->bi_bdev)->limits.max_write_zeroes_sectors)
+	    !bio->bi_disk->queue->limits.max_write_zeroes_sectors)
 		mddev->queue->limits.max_write_zeroes_sectors = 0;
-}
-
-/* Maximum size of each resync request */
-#define RESYNC_BLOCK_SIZE (64*1024)
-#define RESYNC_PAGES ((RESYNC_BLOCK_SIZE + PAGE_SIZE-1) / PAGE_SIZE)
-
-/* for managing resync I/O pages */
-struct resync_pages {
-	unsigned	idx;	/* for get/put page from the pool */
-	void		*raid_bio;
-	struct page	*pages[RESYNC_PAGES];
-};
-
-static inline int resync_alloc_pages(struct resync_pages *rp,
-				     gfp_t gfp_flags)
-{
-	int i;
-
-	for (i = 0; i < RESYNC_PAGES; i++) {
-		rp->pages[i] = alloc_page(gfp_flags);
-		if (!rp->pages[i])
-			goto out_free;
-	}
-
-	return 0;
-
-out_free:
-	while (--i >= 0)
-		put_page(rp->pages[i]);
-	return -ENOMEM;
-}
-
-static inline void resync_free_pages(struct resync_pages *rp)
-{
-	int i;
-
-	for (i = 0; i < RESYNC_PAGES; i++)
-		put_page(rp->pages[i]);
-}
-
-static inline void resync_get_all_pages(struct resync_pages *rp)
-{
-	int i;
-
-	for (i = 0; i < RESYNC_PAGES; i++)
-		get_page(rp->pages[i]);
-}
-
-static inline struct page *resync_fetch_page(struct resync_pages *rp,
-					     unsigned idx)
-{
-	if (WARN_ON_ONCE(idx >= RESYNC_PAGES))
-		return NULL;
-	return rp->pages[idx];
 }
 #endif /* _MD_MD_H */

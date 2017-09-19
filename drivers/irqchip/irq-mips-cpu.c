@@ -101,7 +101,7 @@ static void mips_mt_send_ipi(struct irq_data *d, unsigned int cpu)
 	local_irq_save(flags);
 
 	/* We can only send IPIs to VPEs within the local core */
-	WARN_ON(cpu_data[cpu].core != current_cpu_data.core);
+	WARN_ON(!cpus_are_siblings(smp_processor_id(), cpu));
 
 	vpflags = dvpe();
 	settc(cpu_vpe_id(&cpu_data[cpu]));
@@ -154,7 +154,7 @@ asmlinkage void __weak plat_irq_dispatch(void)
 static int mips_cpu_intc_map(struct irq_domain *d, unsigned int irq,
 			     irq_hw_number_t hw)
 {
-	static struct irq_chip *chip;
+	struct irq_chip *chip;
 
 	if (hw < 2 && cpu_has_mipsmt) {
 		/* Software interrupts are used for MT/CMT IPI */

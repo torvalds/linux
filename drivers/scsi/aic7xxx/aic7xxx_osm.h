@@ -688,7 +688,6 @@ void	ahc_done(struct ahc_softc*, struct scb*);
 void	ahc_send_async(struct ahc_softc *, char channel,
 		       u_int target, u_int lun, ac_code);
 void	ahc_print_path(struct ahc_softc *, struct scb *);
-void	ahc_platform_dump_card_state(struct ahc_softc *ahc);
 
 #ifdef CONFIG_PCI
 #define AHC_PCI_CONFIG 1

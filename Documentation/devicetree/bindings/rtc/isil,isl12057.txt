@@ -24,7 +24,6 @@ Optional properties:
 
  - "wakeup-source": mark the chip as a wakeup source, independently of
     the availability of an IRQ line connected to the SoC.
-    (Legacy property supported: "isil,irq2-can-wakeup-machine")
 
  - "interrupt-parent", "interrupts": for passing the interrupt line
    of the SoC connected to IRQ#2 of the RTC chip.

@@ -26,13 +26,13 @@ static int __init tango_clocksource_init(struct device_node *np)
 
 	xtal_in_cnt = of_iomap(np, 0);
 	if (xtal_in_cnt == NULL) {
-		pr_err("%s: invalid address\n", np->full_name);
+		pr_err("%pOF: invalid address\n", np);
 		return -ENXIO;
 	}
 
 	clk = of_clk_get(np, 0);
 	if (IS_ERR(clk)) {
-		pr_err("%s: invalid clock\n", np->full_name);
+		pr_err("%pOF: invalid clock\n", np);
 		return PTR_ERR(clk);
 	}
 
@@ -43,7 +43,7 @@ static int __init tango_clocksource_init(struct device_node *np)
 	ret = clocksource_mmio_init(xtal_in_cnt, "tango-xtal", xtal_freq, 350,
 				    32, clocksource_mmio_readl_up);
 	if (ret) {
-		pr_err("%s: registration failed\n", np->full_name);
+		pr_err("%pOF: registration failed\n", np);
 		return ret;
 	}
 

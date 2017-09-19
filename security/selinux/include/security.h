@@ -1,7 +1,7 @@
 /*
  * Security server interface.
  *
- * Author : Stephen Smalley, <sds@epoch.ncsc.mil>
+ * Author : Stephen Smalley, <sds@tycho.nsa.gov>
  *
  */
 
@@ -73,6 +73,7 @@ enum {
 	POLICYDB_CAPABILITY_EXTSOCKCLASS,
 	POLICYDB_CAPABILITY_ALWAYSNETWORK,
 	POLICYDB_CAPABILITY_CGROUPSECLABEL,
+	POLICYDB_CAPABILITY_NNP_NOSUID_TRANSITION,
 	__POLICYDB_CAPABILITY_MAX
 };
 #define POLICYDB_CAPABILITY_MAX (__POLICYDB_CAPABILITY_MAX - 1)
@@ -84,6 +85,7 @@ extern int selinux_policycap_openperm;
 extern int selinux_policycap_extsockclass;
 extern int selinux_policycap_alwaysnetwork;
 extern int selinux_policycap_cgroupseclabel;
+extern int selinux_policycap_nnp_nosuid_transition;
 
 /*
  * type_datum properties

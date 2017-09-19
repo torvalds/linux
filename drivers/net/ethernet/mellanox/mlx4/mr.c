@@ -106,9 +106,9 @@ static int mlx4_buddy_init(struct mlx4_buddy *buddy, int max_order)
 	buddy->max_order = max_order;
 	spin_lock_init(&buddy->lock);
 
-	buddy->bits = kcalloc(buddy->max_order + 1, sizeof (long *),
+	buddy->bits = kcalloc(buddy->max_order + 1, sizeof(long *),
 			      GFP_KERNEL);
-	buddy->num_free = kcalloc((buddy->max_order + 1), sizeof *buddy->num_free,
+	buddy->num_free = kcalloc(buddy->max_order + 1, sizeof(*buddy->num_free),
 				  GFP_KERNEL);
 	if (!buddy->bits || !buddy->num_free)
 		goto err_out;
@@ -479,14 +479,14 @@ static void mlx4_mpt_release(struct mlx4_dev *dev, u32 index)
 	__mlx4_mpt_release(dev, index);
 }
 
-int __mlx4_mpt_alloc_icm(struct mlx4_dev *dev, u32 index, gfp_t gfp)
+int __mlx4_mpt_alloc_icm(struct mlx4_dev *dev, u32 index)
 {
 	struct mlx4_mr_table *mr_table = &mlx4_priv(dev)->mr_table;
 
-	return mlx4_table_get(dev, &mr_table->dmpt_table, index, gfp);
+	return mlx4_table_get(dev, &mr_table->dmpt_table, index);
 }
 
-static int mlx4_mpt_alloc_icm(struct mlx4_dev *dev, u32 index, gfp_t gfp)
+static int mlx4_mpt_alloc_icm(struct mlx4_dev *dev, u32 index)
 {
 	u64 param = 0;
 
@@ -497,7 +497,7 @@ static int mlx4_mpt_alloc_icm(struct mlx4_dev *dev, u32 index, gfp_t gfp)
 							MLX4_CMD_TIME_CLASS_A,
 							MLX4_CMD_WRAPPED);
 	}
-	return __mlx4_mpt_alloc_icm(dev, index, gfp);
+	return __mlx4_mpt_alloc_icm(dev, index);
 }
 
 void __mlx4_mpt_free_icm(struct mlx4_dev *dev, u32 index)
@@ -629,7 +629,7 @@ int mlx4_mr_enable(struct mlx4_dev *dev, struct mlx4_mr *mr)
 	struct mlx4_mpt_entry *mpt_entry;
 	int err;
 
-	err = mlx4_mpt_alloc_icm(dev, key_to_hw_index(mr->key), GFP_KERNEL);
+	err = mlx4_mpt_alloc_icm(dev, key_to_hw_index(mr->key));
 	if (err)
 		return err;
 
@@ -703,13 +703,13 @@ static int mlx4_write_mtt_chunk(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		return -ENOMEM;
 
 	dma_sync_single_for_cpu(&dev->persist->pdev->dev, dma_handle,
-				npages * sizeof (u64), DMA_TO_DEVICE);
+				npages * sizeof(u64), DMA_TO_DEVICE);
 
 	for (i = 0; i < npages; ++i)
 		mtts[i] = cpu_to_be64(page_list[i] | MLX4_MTT_FLAG_PRESENT);
 
 	dma_sync_single_for_device(&dev->persist->pdev->dev, dma_handle,
-				   npages * sizeof (u64), DMA_TO_DEVICE);
+				   npages * sizeof(u64), DMA_TO_DEVICE);
 
 	return 0;
 }
@@ -787,14 +787,13 @@ int mlx4_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 EXPORT_SYMBOL_GPL(mlx4_write_mtt);
 
 int mlx4_buf_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
-		       struct mlx4_buf *buf, gfp_t gfp)
+		       struct mlx4_buf *buf)
 {
 	u64 *page_list;
 	int err;
 	int i;
 
-	page_list = kmalloc(buf->npages * sizeof *page_list,
-			    gfp);
+	page_list = kcalloc(buf->npages, sizeof(*page_list), GFP_KERNEL);
 	if (!page_list)
 		return -ENOMEM;
 
@@ -841,7 +840,7 @@ int mlx4_mw_enable(struct mlx4_dev *dev, struct mlx4_mw *mw)
 	struct mlx4_mpt_entry *mpt_entry;
 	int err;
 
-	err = mlx4_mpt_alloc_icm(dev, key_to_hw_index(mw->key), GFP_KERNEL);
+	err = mlx4_mpt_alloc_icm(dev, key_to_hw_index(mw->key));
 	if (err)
 		return err;
 
@@ -1053,7 +1052,7 @@ int mlx4_fmr_alloc(struct mlx4_dev *dev, u32 pd, u32 access, int max_pages,
 		return -EINVAL;
 
 	/* All MTTs must fit in the same page */
-	if (max_pages * sizeof *fmr->mtts > PAGE_SIZE)
+	if (max_pages * sizeof(*fmr->mtts) > PAGE_SIZE)
 		return -EINVAL;
 
 	fmr->page_shift = page_shift;

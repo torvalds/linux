@@ -160,12 +160,12 @@ static ssize_t node_read_numastat(struct device *dev,
 		       "interleave_hit %lu\n"
 		       "local_node %lu\n"
 		       "other_node %lu\n",
-		       sum_zone_node_page_state(dev->id, NUMA_HIT),
-		       sum_zone_node_page_state(dev->id, NUMA_MISS),
-		       sum_zone_node_page_state(dev->id, NUMA_FOREIGN),
-		       sum_zone_node_page_state(dev->id, NUMA_INTERLEAVE_HIT),
-		       sum_zone_node_page_state(dev->id, NUMA_LOCAL),
-		       sum_zone_node_page_state(dev->id, NUMA_OTHER));
+		       sum_zone_numa_state(dev->id, NUMA_HIT),
+		       sum_zone_numa_state(dev->id, NUMA_MISS),
+		       sum_zone_numa_state(dev->id, NUMA_FOREIGN),
+		       sum_zone_numa_state(dev->id, NUMA_INTERLEAVE_HIT),
+		       sum_zone_numa_state(dev->id, NUMA_LOCAL),
+		       sum_zone_numa_state(dev->id, NUMA_OTHER));
 }
 static DEVICE_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
 
@@ -181,9 +181,17 @@ static ssize_t node_read_vmstat(struct device *dev,
 		n += sprintf(buf+n, "%s %lu\n", vmstat_text[i],
 			     sum_zone_node_page_state(nid, i));
 
-	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
+#ifdef CONFIG_NUMA
+	for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++)
 		n += sprintf(buf+n, "%s %lu\n",
 			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
+			     sum_zone_numa_state(nid, i));
+#endif
+
+	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
+		n += sprintf(buf+n, "%s %lu\n",
+			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS +
+			     NR_VM_NUMA_STAT_ITEMS],
 			     node_page_state(pgdat, i));
 
 	return n;

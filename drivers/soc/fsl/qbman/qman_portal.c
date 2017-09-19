@@ -237,30 +237,27 @@ static int qman_portal_probe(struct platform_device *pdev)
 	addr_phys[0] = platform_get_resource(pdev, IORESOURCE_MEM,
 					     DPAA_PORTAL_CE);
 	if (!addr_phys[0]) {
-		dev_err(dev, "Can't get %s property 'reg::CE'\n",
-			node->full_name);
+		dev_err(dev, "Can't get %pOF property 'reg::CE'\n", node);
 		return -ENXIO;
 	}
 
 	addr_phys[1] = platform_get_resource(pdev, IORESOURCE_MEM,
 					     DPAA_PORTAL_CI);
 	if (!addr_phys[1]) {
-		dev_err(dev, "Can't get %s property 'reg::CI'\n",
-			node->full_name);
+		dev_err(dev, "Can't get %pOF property 'reg::CI'\n", node);
 		return -ENXIO;
 	}
 
 	err = of_property_read_u32(node, "cell-index", &val);
 	if (err) {
-		dev_err(dev, "Can't get %s property 'cell-index'\n",
-			node->full_name);
+		dev_err(dev, "Can't get %pOF property 'cell-index'\n", node);
 		return err;
 	}
 	pcfg->channel = val;
 	pcfg->cpu = -1;
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
-		dev_err(dev, "Can't get %s IRQ\n", node->full_name);
+		dev_err(dev, "Can't get %pOF IRQ\n", node);
 		return -ENXIO;
 	}
 	pcfg->irq = irq;

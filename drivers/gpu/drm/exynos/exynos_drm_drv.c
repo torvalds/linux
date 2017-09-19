@@ -145,8 +145,6 @@ static struct drm_driver exynos_drm_driver = {
 	.gem_free_object_unlocked = exynos_drm_gem_free_object,
 	.gem_vm_ops		= &exynos_drm_gem_vm_ops,
 	.dumb_create		= exynos_drm_gem_dumb_create,
-	.dumb_map_offset	= exynos_drm_gem_dumb_map_offset,
-	.dumb_destroy		= drm_gem_dumb_destroy,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
 	.gem_prime_export	= drm_gem_prime_export,
@@ -395,8 +393,9 @@ static int exynos_drm_bind(struct device *dev)
 	/* init kms poll for handling hpd */
 	drm_kms_helper_poll_init(drm);
 
-	/* force connectors detection */
-	drm_helper_hpd_irq_event(drm);
+	ret = exynos_drm_fbdev_init(drm);
+	if (ret)
+		goto err_cleanup_poll;
 
 	/* register the DRM device */
 	ret = drm_dev_register(drm, 0);
@@ -407,6 +406,7 @@ static int exynos_drm_bind(struct device *dev)
 
 err_cleanup_fbdev:
 	exynos_drm_fbdev_fini(drm);
+err_cleanup_poll:
 	drm_kms_helper_poll_fini(drm);
 	exynos_drm_device_subdrv_remove(drm);
 err_unbind_all:
@@ -453,7 +453,6 @@ static int exynos_drm_platform_probe(struct platform_device *pdev)
 	struct component_match *match;
 
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-	exynos_drm_driver.num_ioctls = ARRAY_SIZE(exynos_ioctls);
 
 	match = exynos_drm_match_add(&pdev->dev);
 	if (IS_ERR(match))

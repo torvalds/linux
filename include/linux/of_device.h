@@ -50,7 +50,7 @@ static inline struct device_node *of_cpu_device_node_get(int cpu)
 	struct device *cpu_dev;
 	cpu_dev = get_cpu_device(cpu);
 	if (!cpu_dev)
-		return NULL;
+		return of_get_cpu_node(cpu, NULL);
 	return of_node_get(cpu_dev->of_node);
 }
 

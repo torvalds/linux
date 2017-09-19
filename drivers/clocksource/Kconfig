@@ -262,7 +262,7 @@ config CLKSRC_LPC32XX
 
 config CLKSRC_PISTACHIO
 	bool "Clocksource for Pistachio SoC" if COMPILE_TEST
-	depends on HAS_IOMEM
+	depends on GENERIC_CLOCKEVENTS && HAS_IOMEM
 	select TIMER_OF
 	help
 	  Enables the clocksource for the Pistachio SoC.
@@ -597,6 +597,14 @@ config CLKSRC_IMX_GPT
 	bool "Clocksource using i.MX GPT" if COMPILE_TEST
 	depends on ARM && CLKDEV_LOOKUP
 	select CLKSRC_MMIO
+
+config CLKSRC_IMX_TPM
+	bool "Clocksource using i.MX TPM" if COMPILE_TEST
+	depends on ARM && CLKDEV_LOOKUP && GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
+	help
+	  Enable this option to use IMX Timer/PWM Module (TPM) timer as
+	  clocksource.
 
 config CLKSRC_ST_LPC
 	bool "Low power clocksource found in the LPC" if COMPILE_TEST

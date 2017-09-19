@@ -9,8 +9,6 @@
  * kind, whether express or implied.
  */
 
-#define CPG_AUDIO_CLK_I		R8A7796_CLK_S0D4
-
 /dts-v1/;
 #include "r8a7796.dtsi"
 #include "ulcb.dtsi"
@@ -29,4 +27,16 @@
 		device_type = "memory";
 		reg = <0x6 0x00000000 0x0 0x40000000>;
 	};
+};
+
+&du {
+	clocks = <&cpg CPG_MOD 724>,
+		 <&cpg CPG_MOD 723>,
+		 <&cpg CPG_MOD 722>,
+		 <&cpg CPG_MOD 727>,
+		 <&versaclock5 1>,
+		 <&versaclock5 3>,
+		 <&versaclock5 2>;
+	clock-names = "du.0", "du.1", "du.2", "lvds.0",
+		      "dclkin.0", "dclkin.1", "dclkin.2";
 };

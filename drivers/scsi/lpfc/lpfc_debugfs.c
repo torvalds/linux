@@ -782,8 +782,11 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 				atomic_read(&tgtp->xmt_ls_rsp_error));
 
 		len += snprintf(buf + len, size - len,
-				"FCP: Rcv %08x Drop %08x\n",
+				"FCP: Rcv %08x Defer %08x Release %08x "
+				"Drop %08x\n",
 				atomic_read(&tgtp->rcv_fcp_cmd_in),
+				atomic_read(&tgtp->rcv_fcp_cmd_defer),
+				atomic_read(&tgtp->xmt_fcp_release),
 				atomic_read(&tgtp->rcv_fcp_cmd_drop));
 
 		if (atomic_read(&tgtp->rcv_fcp_cmd_in) !=
@@ -848,13 +851,10 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 			spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
 		}
 
-		spin_lock(&phba->sli4_hba.nvmet_ctx_get_lock);
-		spin_lock(&phba->sli4_hba.nvmet_ctx_put_lock);
-		tot = phba->sli4_hba.nvmet_xri_cnt -
-			(phba->sli4_hba.nvmet_ctx_get_cnt +
-			phba->sli4_hba.nvmet_ctx_put_cnt);
-		spin_unlock(&phba->sli4_hba.nvmet_ctx_put_lock);
-		spin_unlock(&phba->sli4_hba.nvmet_ctx_get_lock);
+		/* Calculate outstanding IOs */
+		tot = atomic_read(&tgtp->rcv_fcp_cmd_drop);
+		tot += atomic_read(&tgtp->xmt_fcp_release);
+		tot = atomic_read(&tgtp->rcv_fcp_cmd_in) - tot;
 
 		len += snprintf(buf + len, size - len,
 				"IO_CTX: %08x  WAIT: cur %08x tot %08x\n"

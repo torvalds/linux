@@ -3702,7 +3702,10 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	if (rt2x00_rt(rt2x00dev, RT3572))
 		rt2800_rfcsr_write(rt2x00dev, 8, 0);
 
-	tx_pin = rt2800_register_read(rt2x00dev, TX_PIN_CFG);
+	if (rt2x00_rt(rt2x00dev, RT6352))
+		tx_pin = rt2800_register_read(rt2x00dev, TX_PIN_CFG);
+	else
+		tx_pin = 0;
 
 	switch (rt2x00dev->default_ant.tx_chain_num) {
 	case 3:
@@ -5704,7 +5707,7 @@ static void rt2800_init_freq_calibration(struct rt2x00_dev *rt2x00dev)
 
 static void rt2800_init_bbp_5592_glrt(struct rt2x00_dev *rt2x00dev)
 {
-	const u8 glrt_table[] = {
+	static const u8 glrt_table[] = {
 		0xE0, 0x1F, 0X38, 0x32, 0x08, 0x28, 0x19, 0x0A, 0xFF, 0x00, /* 128 ~ 137 */
 		0x16, 0x10, 0x10, 0x0B, 0x36, 0x2C, 0x26, 0x24, 0x42, 0x36, /* 138 ~ 147 */
 		0x30, 0x2D, 0x4C, 0x46, 0x3D, 0x40, 0x3E, 0x42, 0x3D, 0x40, /* 148 ~ 157 */

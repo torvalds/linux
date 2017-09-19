@@ -32,6 +32,8 @@
 
 #define NVME_RDMA_IP_PORT	4420
 
+#define NVME_NSID_ALL		0xffffffff
+
 enum nvme_subsys_type {
 	NVME_NQN_DISC	= 1,		/* Discovery type target subsystem */
 	NVME_NQN_NVME	= 2,		/* NVME type target subsystem */
@@ -133,19 +135,26 @@ enum {
 enum {
 	NVME_CC_ENABLE		= 1 << 0,
 	NVME_CC_CSS_NVM		= 0 << 4,
+	NVME_CC_EN_SHIFT	= 0,
+	NVME_CC_CSS_SHIFT	= 4,
 	NVME_CC_MPS_SHIFT	= 7,
-	NVME_CC_ARB_RR		= 0 << 11,
-	NVME_CC_ARB_WRRU	= 1 << 11,
-	NVME_CC_ARB_VS		= 7 << 11,
-	NVME_CC_SHN_NONE	= 0 << 14,
-	NVME_CC_SHN_NORMAL	= 1 << 14,
-	NVME_CC_SHN_ABRUPT	= 2 << 14,
-	NVME_CC_SHN_MASK	= 3 << 14,
-	NVME_CC_IOSQES		= NVME_NVM_IOSQES << 16,
-	NVME_CC_IOCQES		= NVME_NVM_IOCQES << 20,
+	NVME_CC_AMS_SHIFT	= 11,
+	NVME_CC_SHN_SHIFT	= 14,
+	NVME_CC_IOSQES_SHIFT	= 16,
+	NVME_CC_IOCQES_SHIFT	= 20,
+	NVME_CC_AMS_RR		= 0 << NVME_CC_AMS_SHIFT,
+	NVME_CC_AMS_WRRU	= 1 << NVME_CC_AMS_SHIFT,
+	NVME_CC_AMS_VS		= 7 << NVME_CC_AMS_SHIFT,
+	NVME_CC_SHN_NONE	= 0 << NVME_CC_SHN_SHIFT,
+	NVME_CC_SHN_NORMAL	= 1 << NVME_CC_SHN_SHIFT,
+	NVME_CC_SHN_ABRUPT	= 2 << NVME_CC_SHN_SHIFT,
+	NVME_CC_SHN_MASK	= 3 << NVME_CC_SHN_SHIFT,
+	NVME_CC_IOSQES		= NVME_NVM_IOSQES << NVME_CC_IOSQES_SHIFT,
+	NVME_CC_IOCQES		= NVME_NVM_IOCQES << NVME_CC_IOCQES_SHIFT,
 	NVME_CSTS_RDY		= 1 << 0,
 	NVME_CSTS_CFS		= 1 << 1,
 	NVME_CSTS_NSSRO		= 1 << 4,
+	NVME_CSTS_PP		= 1 << 5,
 	NVME_CSTS_SHST_NORMAL	= 0 << 2,
 	NVME_CSTS_SHST_OCCUR	= 1 << 2,
 	NVME_CSTS_SHST_CMPLT	= 2 << 2,
@@ -217,7 +226,9 @@ struct nvme_id_ctrl {
 	__le16			mntmt;
 	__le16			mxtmt;
 	__le32			sanicap;
-	__u8			rsvd332[180];
+	__le32			hmminds;
+	__le16			hmmaxd;
+	__u8			rsvd338[174];
 	__u8			sqes;
 	__u8			cqes;
 	__le16			maxcmd;
@@ -251,10 +262,11 @@ enum {
 	NVME_CTRL_ONCS_WRITE_UNCORRECTABLE	= 1 << 1,
 	NVME_CTRL_ONCS_DSM			= 1 << 2,
 	NVME_CTRL_ONCS_WRITE_ZEROES		= 1 << 3,
+	NVME_CTRL_ONCS_TIMESTAMP		= 1 << 6,
 	NVME_CTRL_VWC_PRESENT			= 1 << 0,
 	NVME_CTRL_OACS_SEC_SUPP                 = 1 << 0,
 	NVME_CTRL_OACS_DIRECTIVES		= 1 << 5,
-	NVME_CTRL_OACS_DBBUF_SUPP		= 1 << 7,
+	NVME_CTRL_OACS_DBBUF_SUPP		= 1 << 8,
 };
 
 struct nvme_lbaf {
@@ -376,6 +388,13 @@ struct nvme_smart_log {
 	__u8			rsvd216[296];
 };
 
+struct nvme_fw_slot_info_log {
+	__u8			afi;
+	__u8			rsvd1[7];
+	__le64			frs[7];
+	__u8			rsvd64[448];
+};
+
 enum {
 	NVME_SMART_CRIT_SPARE		= 1 << 0,
 	NVME_SMART_CRIT_TEMPERATURE	= 1 << 1,
@@ -386,6 +405,7 @@ enum {
 
 enum {
 	NVME_AER_NOTICE_NS_CHANGED	= 0x0002,
+	NVME_AER_NOTICE_FW_ACT_STARTING = 0x0102,
 };
 
 struct nvme_lba_range_type {
@@ -677,6 +697,7 @@ enum {
 	NVME_FEAT_ASYNC_EVENT	= 0x0b,
 	NVME_FEAT_AUTO_PST	= 0x0c,
 	NVME_FEAT_HOST_MEM_BUF	= 0x0d,
+	NVME_FEAT_TIMESTAMP	= 0x0e,
 	NVME_FEAT_KATO		= 0x0f,
 	NVME_FEAT_SW_PROGRESS	= 0x80,
 	NVME_FEAT_HOST_ID	= 0x81,
@@ -963,14 +984,14 @@ struct nvme_dbbuf {
 };
 
 struct streams_directive_params {
-	__u16	msl;
-	__u16	nssa;
-	__u16	nsso;
+	__le16	msl;
+	__le16	nssa;
+	__le16	nsso;
 	__u8	rsvd[10];
-	__u32	sws;
-	__u16	sgs;
-	__u16	nsa;
-	__u16	nso;
+	__le32	sws;
+	__le16	sgs;
+	__le16	nsa;
+	__le16	nso;
 	__u8	rsvd2[6];
 };
 
@@ -1006,7 +1027,7 @@ static inline bool nvme_is_write(struct nvme_command *cmd)
 	 * Why can't we simply have a Fabrics In and Fabrics out command?
 	 */
 	if (unlikely(cmd->common.opcode == nvme_fabrics_command))
-		return cmd->fabrics.opcode & 1;
+		return cmd->fabrics.fctype & 1;
 	return cmd->common.opcode & 1;
 }
 

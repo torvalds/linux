@@ -45,7 +45,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	audio_clkout: audio_clkout {
+	audio_clkout: audio-clkout {
 		/*
 		 * This is same as <&rcar_sound 0>
 		 * but needed to avoid cs2000/rcar_sound probe dead-lock
@@ -266,10 +266,6 @@
 		port@0 {
 			endpoint {
 				remote-endpoint = <&adv7123_in>;
-			};
-		};
-		port@3 {
-			lvds_connector: endpoint {
 			};
 		};
 	};
@@ -508,7 +504,7 @@
 
 	/* audio_clkout0/1/2/3 */
 	#clock-cells = <1>;
-	clock-frequency = <11289600 12288000>;
+	clock-frequency = <12288000 11289600>;
 
 	status = "okay";
 

@@ -149,24 +149,6 @@ DECLARE_EVENT_CLASS(xen_mmu__set_pte,
 DEFINE_XEN_MMU_SET_PTE(xen_mmu_set_pte);
 DEFINE_XEN_MMU_SET_PTE(xen_mmu_set_pte_atomic);
 
-TRACE_EVENT(xen_mmu_set_domain_pte,
-	    TP_PROTO(pte_t *ptep, pte_t pteval, unsigned domid),
-	    TP_ARGS(ptep, pteval, domid),
-	    TP_STRUCT__entry(
-		    __field(pte_t *, ptep)
-		    __field(pteval_t, pteval)
-		    __field(unsigned, domid)
-		    ),
-	    TP_fast_assign(__entry->ptep = ptep;
-			   __entry->pteval = pteval.pte;
-			   __entry->domid = domid),
-	    TP_printk("ptep %p pteval %0*llx (raw %0*llx) domid %u",
-		      __entry->ptep,
-		      (int)sizeof(pteval_t) * 2, (unsigned long long)pte_val(native_make_pte(__entry->pteval)),
-		      (int)sizeof(pteval_t) * 2, (unsigned long long)__entry->pteval,
-		      __entry->domid)
-	);
-
 TRACE_EVENT(xen_mmu_set_pte_at,
 	    TP_PROTO(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep, pte_t pteval),
@@ -266,16 +248,6 @@ TRACE_EVENT(xen_mmu_set_p4d,
 		      (int)sizeof(p4dval_t) * 2, (unsigned long long)pgd_val(native_make_pgd(__entry->p4dval)),
 		      (int)sizeof(p4dval_t) * 2, (unsigned long long)__entry->p4dval)
 	);
-
-TRACE_EVENT(xen_mmu_pud_clear,
-	    TP_PROTO(pud_t *pudp),
-	    TP_ARGS(pudp),
-	    TP_STRUCT__entry(
-		    __field(pud_t *, pudp)
-		    ),
-	    TP_fast_assign(__entry->pudp = pudp),
-	    TP_printk("pudp %p", __entry->pudp)
-	);
 #else
 
 TRACE_EVENT(xen_mmu_set_pud,
@@ -294,16 +266,6 @@ TRACE_EVENT(xen_mmu_set_pud,
 	);
 
 #endif
-
-TRACE_EVENT(xen_mmu_pgd_clear,
-	    TP_PROTO(pgd_t *pgdp),
-	    TP_ARGS(pgdp),
-	    TP_STRUCT__entry(
-		    __field(pgd_t *, pgdp)
-		    ),
-	    TP_fast_assign(__entry->pgdp = pgdp),
-	    TP_printk("pgdp %p", __entry->pgdp)
-	);
 
 DECLARE_EVENT_CLASS(xen_mmu_ptep_modify_prot,
 	    TP_PROTO(struct mm_struct *mm, unsigned long addr,

@@ -101,10 +101,10 @@ static struct rc_map_table dib0700_nec_table[] = {
 
 static struct rc_map_list dib0700_nec_map = {
 	.map = {
-		.scan    = dib0700_nec_table,
-		.size    = ARRAY_SIZE(dib0700_nec_table),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_DIB0700_NEC_TABLE,
+		.scan     = dib0700_nec_table,
+		.size     = ARRAY_SIZE(dib0700_nec_table),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_DIB0700_NEC_TABLE,
 	}
 };
 

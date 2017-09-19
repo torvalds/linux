@@ -1326,7 +1326,7 @@ dasd_timeout_store(struct device *dev, struct device_attribute *attr,
 {
 	struct dasd_device *device;
 	struct request_queue *q;
-	unsigned long val, flags;
+	unsigned long val;
 
 	device = dasd_device_from_cdev(to_ccwdev(dev));
 	if (IS_ERR(device) || !device->block)
@@ -1342,16 +1342,10 @@ dasd_timeout_store(struct device *dev, struct device_attribute *attr,
 		dasd_put_device(device);
 		return -ENODEV;
 	}
-	spin_lock_irqsave(&device->block->request_queue_lock, flags);
-	if (!val)
-		blk_queue_rq_timed_out(q, NULL);
-	else
-		blk_queue_rq_timed_out(q, dasd_times_out);
 
 	device->blk_timeout = val;
 
 	blk_queue_rq_timeout(q, device->blk_timeout * HZ);
-	spin_unlock_irqrestore(&device->block->request_queue_lock, flags);
 
 	dasd_put_device(device);
 	return count;
@@ -1634,7 +1628,7 @@ static struct attribute * dasd_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group dasd_attr_group = {
+static const struct attribute_group dasd_attr_group = {
 	.attrs = dasd_attrs,
 };
 
@@ -1676,6 +1670,7 @@ dasd_set_feature(struct ccw_device *cdev, int feature, int flag)
 	spin_unlock(&dasd_devmap_lock);
 	return 0;
 }
+EXPORT_SYMBOL(dasd_set_feature);
 
 
 int

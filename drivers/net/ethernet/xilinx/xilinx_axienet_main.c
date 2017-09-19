@@ -531,11 +531,11 @@ static void axienet_adjust_link(struct net_device *ndev)
 	link_state = phy->speed | (phy->duplex << 1) | phy->link;
 	if (lp->last_link != link_state) {
 		if ((phy->speed == SPEED_10) || (phy->speed == SPEED_100)) {
-			if (lp->phy_type == XAE_PHY_TYPE_1000BASE_X)
+			if (lp->phy_mode == PHY_INTERFACE_MODE_1000BASEX)
 				setspeed = 0;
 		} else {
 			if ((phy->speed == SPEED_1000) &&
-			    (lp->phy_type == XAE_PHY_TYPE_MII))
+			    (lp->phy_mode == PHY_INTERFACE_MODE_MII))
 				setspeed = 0;
 		}
 
@@ -935,15 +935,8 @@ static int axienet_open(struct net_device *ndev)
 		return ret;
 
 	if (lp->phy_node) {
-		if (lp->phy_type == XAE_PHY_TYPE_GMII) {
-			phydev = of_phy_connect(lp->ndev, lp->phy_node,
-						axienet_adjust_link, 0,
-						PHY_INTERFACE_MODE_GMII);
-		} else if (lp->phy_type == XAE_PHY_TYPE_RGMII_2_0) {
-			phydev = of_phy_connect(lp->ndev, lp->phy_node,
-						axienet_adjust_link, 0,
-						PHY_INTERFACE_MODE_RGMII_ID);
-		}
+		phydev = of_phy_connect(lp->ndev, lp->phy_node,
+					axienet_adjust_link, 0, lp->phy_mode);
 
 		if (!phydev)
 			dev_err(lp->dev, "of_phy_connect() failed\n");
@@ -1539,7 +1532,38 @@ static int axienet_probe(struct platform_device *pdev)
 	 * the device-tree and accordingly set flags.
 	 */
 	of_property_read_u32(pdev->dev.of_node, "xlnx,rxmem", &lp->rxmem);
-	of_property_read_u32(pdev->dev.of_node, "xlnx,phy-type", &lp->phy_type);
+
+	/* Start with the proprietary, and broken phy_type */
+	ret = of_property_read_u32(pdev->dev.of_node, "xlnx,phy-type", &value);
+	if (!ret) {
+		netdev_warn(ndev, "Please upgrade your device tree binary blob to use phy-mode");
+		switch (value) {
+		case XAE_PHY_TYPE_MII:
+			lp->phy_mode = PHY_INTERFACE_MODE_MII;
+			break;
+		case XAE_PHY_TYPE_GMII:
+			lp->phy_mode = PHY_INTERFACE_MODE_GMII;
+			break;
+		case XAE_PHY_TYPE_RGMII_2_0:
+			lp->phy_mode = PHY_INTERFACE_MODE_RGMII_ID;
+			break;
+		case XAE_PHY_TYPE_SGMII:
+			lp->phy_mode = PHY_INTERFACE_MODE_SGMII;
+			break;
+		case XAE_PHY_TYPE_1000BASE_X:
+			lp->phy_mode = PHY_INTERFACE_MODE_1000BASEX;
+			break;
+		default:
+			ret = -EINVAL;
+			goto free_netdev;
+		}
+	} else {
+		lp->phy_mode = of_get_phy_mode(pdev->dev.of_node);
+		if (lp->phy_mode < 0) {
+			ret = -EINVAL;
+			goto free_netdev;
+		}
+	}
 
 	/* Find the DMA node, map the DMA registers, and decode the DMA IRQs */
 	np = of_parse_phandle(pdev->dev.of_node, "axistream-connected", 0);

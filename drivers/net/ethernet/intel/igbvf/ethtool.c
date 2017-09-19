@@ -296,7 +296,11 @@ static int igbvf_link_test(struct igbvf_adapter *adapter, u64 *data)
 	struct e1000_hw *hw = &adapter->hw;
 	*data = 0;
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	hw->mac.ops.check_for_link(hw);
+
+	spin_unlock_bh(&hw->mbx_lock);
 
 	if (!(er32(STATUS) & E1000_STATUS_LU))
 		*data = 1;

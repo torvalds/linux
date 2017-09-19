@@ -412,8 +412,8 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 	rem = of_graph_get_remote_port_parent(ep);
 	of_node_put(ep);
 	if (rem == NULL) {
-		v4l2_info(&fmd->v4l2_dev, "Remote device at %s not found\n",
-							ep->full_name);
+		v4l2_info(&fmd->v4l2_dev, "Remote device at %pOF not found\n",
+							ep);
 		return 0;
 	}
 
@@ -430,8 +430,8 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 		 */
 		pd->sensor_bus_type = FIMC_BUS_TYPE_MIPI_CSI2;
 	} else {
-		v4l2_err(&fmd->v4l2_dev, "Wrong port id (%u) at node %s\n",
-			 endpoint.base.port, rem->full_name);
+		v4l2_err(&fmd->v4l2_dev, "Wrong port id (%u) at node %pOF\n",
+			 endpoint.base.port, rem);
 	}
 	/*
 	 * For FIMC-IS handled sensors, that are placed under i2c-isp device

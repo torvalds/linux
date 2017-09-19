@@ -310,7 +310,8 @@ static const struct intel_device_info intel_haswell_info = {
 	BDW_COLORS, \
 	.has_logical_ring_contexts = 1, \
 	.has_full_48bit_ppgtt = 1, \
-	.has_64bit_reloc = 1
+	.has_64bit_reloc = 1, \
+	.has_reset_engine = 1
 
 #define BDW_PLATFORM \
 	BDW_FEATURES, \
@@ -342,6 +343,7 @@ static const struct intel_device_info intel_cherryview_info = {
 	.has_gmch_display = 1,
 	.has_aliasing_ppgtt = 1,
 	.has_full_ppgtt = 1,
+	.has_reset_engine = 1,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
 	GEN_CHV_PIPEOFFSETS,
 	CURSOR_OFFSETS,
@@ -387,6 +389,7 @@ static const struct intel_device_info intel_skylake_gt3_info = {
 	.has_aliasing_ppgtt = 1, \
 	.has_full_ppgtt = 1, \
 	.has_full_48bit_ppgtt = 1, \
+	.has_reset_engine = 1, \
 	GEN_DEFAULT_PIPEOFFSETS, \
 	IVB_CURSOR_OFFSETS, \
 	BDW_COLORS
@@ -395,6 +398,7 @@ static const struct intel_device_info intel_broxton_info = {
 	GEN9_LP_FEATURES,
 	.platform = INTEL_BROXTON,
 	.ddb_size = 512,
+	.has_reset_engine = false,
 };
 
 static const struct intel_device_info intel_geminilake_info = {
@@ -446,6 +450,7 @@ static const struct intel_device_info intel_cannonlake_info = {
 	.gen = 10,
 	.ddb_size = 1024,
 	.has_csr = 1,
+	.color = { .degamma_lut_size = 0, .gamma_lut_size = 1024 }
 };
 
 /*

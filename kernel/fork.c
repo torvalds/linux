@@ -37,6 +37,7 @@
 #include <linux/binfmts.h>
 #include <linux/mman.h>
 #include <linux/mmu_notifier.h>
+#include <linux/hmm.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/vmacache.h>
@@ -88,6 +89,7 @@
 #include <linux/sysctl.h>
 #include <linux/kcov.h>
 #include <linux/livepatch.h>
+#include <linux/thread_info.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -217,7 +219,7 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
 		return s->addr;
 	}
 
-	stack = __vmalloc_node_range(THREAD_SIZE, THREAD_SIZE,
+	stack = __vmalloc_node_range(THREAD_SIZE, THREAD_ALIGN,
 				     VMALLOC_START, VMALLOC_END,
 				     THREADINFO_GFP,
 				     PAGE_KERNEL,
@@ -484,6 +486,8 @@ void __init fork_init(void)
 	cpuhp_setup_state(CPUHP_BP_PREPARE_DYN, "fork:vm_stack_cache",
 			  NULL, free_vm_stack_cache);
 #endif
+
+	lockdep_init_task(&init_task);
 }
 
 int __weak arch_dup_task_struct(struct task_struct *dst,
@@ -654,7 +658,12 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
 		retval = dup_userfaultfd(tmp, &uf);
 		if (retval)
 			goto fail_nomem_anon_vma_fork;
-		if (anon_vma_fork(tmp, mpnt))
+		if (tmp->vm_flags & VM_WIPEONFORK) {
+			/* VM_WIPEONFORK gets a clean slate in the child. */
+			tmp->anon_vma = NULL;
+			if (anon_vma_prepare(tmp))
+				goto fail_nomem_anon_vma_fork;
+		} else if (anon_vma_fork(tmp, mpnt))
 			goto fail_nomem_anon_vma_fork;
 		tmp->vm_flags &= ~(VM_LOCKED | VM_LOCKONFAULT);
 		tmp->vm_next = tmp->vm_prev = NULL;
@@ -698,7 +707,8 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
 		rb_parent = &tmp->vm_rb;
 
 		mm->map_count++;
-		retval = copy_page_range(mm, oldmm, mpnt);
+		if (!(tmp->vm_flags & VM_WIPEONFORK))
+			retval = copy_page_range(mm, oldmm, mpnt);
 
 		if (tmp->vm_ops && tmp->vm_ops->open)
 			tmp->vm_ops->open(tmp);
@@ -785,6 +795,13 @@ static void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
 #endif
 }
 
+static void mm_init_uprobes_state(struct mm_struct *mm)
+{
+#ifdef CONFIG_UPROBES
+	mm->uprobes_state.xol_area = NULL;
+#endif
+}
+
 static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
 	struct user_namespace *user_ns)
 {
@@ -806,11 +823,14 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
 	mm_init_cpumask(mm);
 	mm_init_aio(mm);
 	mm_init_owner(mm, p);
+	RCU_INIT_POINTER(mm->exe_file, NULL);
 	mmu_notifier_mm_init(mm);
-	clear_tlb_flush_pending(mm);
+	hmm_mm_init(mm);
+	init_tlb_flush_pending(mm);
 #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
 	mm->pmd_huge_pte = NULL;
 #endif
+	mm_init_uprobes_state(mm);
 
 	if (current->mm) {
 		mm->flags = current->mm->flags & MMF_INIT_MASK;
@@ -885,6 +905,7 @@ void __mmdrop(struct mm_struct *mm)
 	BUG_ON(mm == &init_mm);
 	mm_free_pgd(mm);
 	destroy_context(mm);
+	hmm_mm_destroy(mm);
 	mmu_notifier_mm_destroy(mm);
 	check_mm(mm);
 	put_user_ns(mm->user_ns);
@@ -910,7 +931,6 @@ static inline void __mmput(struct mm_struct *mm)
 	}
 	if (mm->binfmt)
 		module_put(mm->binfmt->module);
-	set_bit(MMF_OOM_SKIP, &mm->flags);
 	mmdrop(mm);
 }
 
@@ -925,22 +945,6 @@ void mmput(struct mm_struct *mm)
 		__mmput(mm);
 }
 EXPORT_SYMBOL_GPL(mmput);
-
-#ifdef CONFIG_MMU
-static void mmput_async_fn(struct work_struct *work)
-{
-	struct mm_struct *mm = container_of(work, struct mm_struct, async_put_work);
-	__mmput(mm);
-}
-
-void mmput_async(struct mm_struct *mm)
-{
-	if (atomic_dec_and_test(&mm->mm_users)) {
-		INIT_WORK(&mm->async_put_work, mmput_async_fn);
-		schedule_work(&mm->async_put_work);
-	}
-}
-#endif
 
 /**
  * set_mm_exe_file - change a reference to the mm's executable file
@@ -1458,8 +1462,7 @@ static void rt_mutex_init_task(struct task_struct *p)
 {
 	raw_spin_lock_init(&p->pi_lock);
 #ifdef CONFIG_RT_MUTEXES
-	p->pi_waiters = RB_ROOT;
-	p->pi_waiters_leftmost = NULL;
+	p->pi_waiters = RB_ROOT_CACHED;
 	p->pi_top_task = NULL;
 	p->pi_blocked_on = NULL;
 #endif
@@ -1565,10 +1568,6 @@ static __latent_entropy struct task_struct *copy_process(
 				current->nsproxy->pid_ns_for_children))
 			return ERR_PTR(-EINVAL);
 	}
-
-	retval = security_task_create(clone_flags);
-	if (retval)
-		goto fork_out;
 
 	retval = -ENOMEM;
 	p = dup_task_struct(current, node);
@@ -1691,6 +1690,7 @@ static __latent_entropy struct task_struct *copy_process(
 	p->lockdep_depth = 0; /* no locks held yet */
 	p->curr_chain_key = 0;
 	p->lockdep_recursion = 0;
+	lockdep_init_task(p);
 #endif
 
 #ifdef CONFIG_DEBUG_MUTEXES
@@ -1949,6 +1949,7 @@ bad_fork_cleanup_audit:
 bad_fork_cleanup_perf:
 	perf_event_free_task(p);
 bad_fork_cleanup_policy:
+	lockdep_free_task(p);
 #ifdef CONFIG_NUMA
 	mpol_put(p->mempolicy);
 bad_fork_cleanup_threadgroup_lock:

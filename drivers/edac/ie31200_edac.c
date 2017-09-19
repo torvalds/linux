@@ -45,7 +45,6 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include "edac_module.h"
 
-#define IE31200_REVISION "1.0"
 #define EDAC_MOD_STR "ie31200_edac"
 
 #define ie31200_printk(level, fmt, arg...) \
@@ -420,7 +419,6 @@ static int ie31200_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->edac_ctl_cap = EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->mod_name = EDAC_MOD_STR;
-	mci->mod_ver = IE31200_REVISION;
 	mci->ctl_name = ie31200_devs[dev_idx].ctl_name;
 	mci->dev_name = pci_name(pdev);
 	mci->edac_check = ie31200_check;

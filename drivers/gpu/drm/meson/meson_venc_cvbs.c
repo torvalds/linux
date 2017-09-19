@@ -118,7 +118,6 @@ static int meson_cvbs_connector_mode_valid(struct drm_connector *connector,
 }
 
 static const struct drm_connector_funcs meson_cvbs_connector_funcs = {
-	.dpms			= drm_atomic_helper_connector_dpms,
 	.detect			= meson_cvbs_connector_detect,
 	.fill_modes		= drm_helper_probe_single_connector_modes,
 	.destroy		= meson_cvbs_connector_destroy,

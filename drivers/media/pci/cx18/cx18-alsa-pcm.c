@@ -44,7 +44,7 @@ MODULE_PARM_DESC(pcm_debug, "enable debug messages for pcm");
 				  __func__, ##arg); 			\
 	} while (0)
 
-static struct snd_pcm_hardware snd_cx18_hw_capture = {
+static const struct snd_pcm_hardware snd_cx18_hw_capture = {
 	.info = SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		SNDRV_PCM_INFO_MMAP           |
 		SNDRV_PCM_INFO_INTERLEAVED    |

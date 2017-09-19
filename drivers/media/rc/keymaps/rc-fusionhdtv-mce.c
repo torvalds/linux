@@ -75,10 +75,10 @@ static struct rc_map_table fusionhdtv_mce[] = {
 
 static struct rc_map_list fusionhdtv_mce_map = {
 	.map = {
-		.scan    = fusionhdtv_mce,
-		.size    = ARRAY_SIZE(fusionhdtv_mce),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_FUSIONHDTV_MCE,
+		.scan     = fusionhdtv_mce,
+		.size     = ARRAY_SIZE(fusionhdtv_mce),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_FUSIONHDTV_MCE,
 	}
 };
 

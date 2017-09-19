@@ -202,37 +202,38 @@ bool ovl_is_private_xattr(const char *name)
 		       sizeof(OVL_XATTR_PREFIX) - 1) == 0;
 }
 
-int ovl_xattr_set(struct dentry *dentry, const char *name, const void *value,
-		  size_t size, int flags)
+int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char *name,
+		  const void *value, size_t size, int flags)
 {
 	int err;
-	struct path realpath;
-	enum ovl_path_type type = ovl_path_real(dentry, &realpath);
+	struct dentry *upperdentry = ovl_i_dentry_upper(inode);
+	struct dentry *realdentry = upperdentry ?: ovl_dentry_lower(dentry);
 	const struct cred *old_cred;
 
 	err = ovl_want_write(dentry);
 	if (err)
 		goto out;
 
-	if (!value && !OVL_TYPE_UPPER(type)) {
-		err = vfs_getxattr(realpath.dentry, name, NULL, 0);
+	if (!value && !upperdentry) {
+		err = vfs_getxattr(realdentry, name, NULL, 0);
 		if (err < 0)
 			goto out_drop_write;
 	}
 
-	err = ovl_copy_up(dentry);
-	if (err)
-		goto out_drop_write;
+	if (!upperdentry) {
+		err = ovl_copy_up(dentry);
+		if (err)
+			goto out_drop_write;
 
-	if (!OVL_TYPE_UPPER(type))
-		ovl_path_upper(dentry, &realpath);
+		realdentry = ovl_dentry_upper(dentry);
+	}
 
 	old_cred = ovl_override_creds(dentry->d_sb);
 	if (value)
-		err = vfs_setxattr(realpath.dentry, name, value, size, flags);
+		err = vfs_setxattr(realdentry, name, value, size, flags);
 	else {
 		WARN_ON(flags != XATTR_REPLACE);
-		err = vfs_removexattr(realpath.dentry, name);
+		err = vfs_removexattr(realdentry, name);
 	}
 	revert_creds(old_cred);
 
@@ -242,12 +243,13 @@ out:
 	return err;
 }
 
-int ovl_xattr_get(struct dentry *dentry, const char *name,
+int ovl_xattr_get(struct dentry *dentry, struct inode *inode, const char *name,
 		  void *value, size_t size)
 {
-	struct dentry *realdentry = ovl_dentry_real(dentry);
 	ssize_t res;
 	const struct cred *old_cred;
+	struct dentry *realdentry =
+		ovl_i_dentry_upper(inode) ?: ovl_dentry_lower(dentry);
 
 	old_cred = ovl_override_creds(dentry->d_sb);
 	res = vfs_getxattr(realdentry, name, value, size);
@@ -496,6 +498,9 @@ static int ovl_set_nlink_common(struct dentry *dentry,
 	len = snprintf(buf, sizeof(buf), format,
 		       (int) (inode->i_nlink - realinode->i_nlink));
 
+	if (WARN_ON(len >= sizeof(buf)))
+		return -EIO;
+
 	return ovl_do_setxattr(ovl_dentry_upper(dentry),
 			       OVL_XATTR_NLINK, buf, len, 0);
 }
@@ -574,10 +579,13 @@ static int ovl_inode_set(struct inode *inode, void *data)
 static bool ovl_verify_inode(struct inode *inode, struct dentry *lowerdentry,
 			     struct dentry *upperdentry)
 {
-	struct inode *lowerinode = lowerdentry ? d_inode(lowerdentry) : NULL;
-
-	/* Lower (origin) inode must match, even if NULL */
-	if (ovl_inode_lower(inode) != lowerinode)
+	/*
+	 * Allow non-NULL lower inode in ovl_inode even if lowerdentry is NULL.
+	 * This happens when finding a copied up overlay inode for a renamed
+	 * or hardlinked overlay dentry and lower dentry cannot be followed
+	 * by origin because lower fs does not support file handles.
+	 */
+	if (lowerdentry && ovl_inode_lower(inode) != d_inode(lowerdentry))
 		return false;
 
 	/*

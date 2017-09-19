@@ -51,7 +51,7 @@ __be32 nfs4_callback_getattr(void *argp, void *resp,
 		goto out_iput;
 	res->size = i_size_read(inode);
 	res->change_attr = delegation->change_attr;
-	if (nfsi->nrequests != 0)
+	if (nfs_have_writebacks(inode))
 		res->change_attr++;
 	res->ctime = inode->i_ctime;
 	res->mtime = inode->i_mtime;

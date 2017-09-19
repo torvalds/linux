@@ -59,7 +59,6 @@ static void exynos_dpi_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs exynos_dpi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = exynos_dpi_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = exynos_dpi_connector_destroy,
@@ -203,18 +202,14 @@ int exynos_dpi_bind(struct drm_device *dev, struct drm_encoder *encoder)
 {
 	int ret;
 
-	ret = exynos_drm_crtc_get_pipe_from_type(dev, EXYNOS_DISPLAY_TYPE_LCD);
-	if (ret < 0)
-		return ret;
-
-	encoder->possible_crtcs = 1 << ret;
-
-	DRM_DEBUG_KMS("possible_crtcs = 0x%x\n", encoder->possible_crtcs);
-
 	drm_encoder_init(dev, encoder, &exynos_dpi_encoder_funcs,
 			 DRM_MODE_ENCODER_TMDS, NULL);
 
 	drm_encoder_helper_add(encoder, &exynos_dpi_encoder_helper_funcs);
+
+	ret = exynos_drm_set_possible_crtcs(encoder, EXYNOS_DISPLAY_TYPE_LCD);
+	if (ret < 0)
+		return ret;
 
 	ret = exynos_dpi_create_connector(encoder);
 	if (ret) {

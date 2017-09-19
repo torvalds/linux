@@ -80,6 +80,17 @@ static long madvise_behavior(struct vm_area_struct *vma,
 		}
 		new_flags &= ~VM_DONTCOPY;
 		break;
+	case MADV_WIPEONFORK:
+		/* MADV_WIPEONFORK is only supported on anonymous memory. */
+		if (vma->vm_file || vma->vm_flags & VM_SHARED) {
+			error = -EINVAL;
+			goto out;
+		}
+		new_flags |= VM_WIPEONFORK;
+		break;
+	case MADV_KEEPONFORK:
+		new_flags &= ~VM_WIPEONFORK;
+		break;
 	case MADV_DONTDUMP:
 		new_flags |= VM_DONTDUMP;
 		break;
@@ -320,6 +331,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
 
 	tlb_remove_check_page_size_change(tlb, PAGE_SIZE);
 	orig_pte = pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+	flush_tlb_batched_pending(mm);
 	arch_enter_lazy_mmu_mode();
 	for (; addr != end; pte++, addr += PAGE_SIZE) {
 		ptent = *pte;
@@ -343,7 +355,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
 			continue;
 		}
 
-		page = vm_normal_page(vma, addr, ptent);
+		page = _vm_normal_page(vma, addr, ptent, true);
 		if (!page)
 			continue;
 
@@ -367,8 +379,8 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
 				pte_offset_map_lock(mm, pmd, addr, &ptl);
 				goto out;
 			}
-			put_page(page);
 			unlock_page(page);
+			put_page(page);
 			pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
 			pte--;
 			addr -= PAGE_SIZE;
@@ -612,6 +624,7 @@ static int madvise_inject_error(int behavior,
 		unsigned long start, unsigned long end)
 {
 	struct page *page;
+	struct zone *zone;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -645,6 +658,11 @@ static int madvise_inject_error(int behavior,
 		if (ret)
 			return ret;
 	}
+
+	/* Ensure that all poisoned pages are removed from per-cpu lists */
+	for_each_populated_zone(zone)
+		drain_all_pages(zone);
+
 	return 0;
 }
 #endif
@@ -689,6 +707,8 @@ madvise_behavior_valid(int behavior)
 #endif
 	case MADV_DONTDUMP:
 	case MADV_DODUMP:
+	case MADV_WIPEONFORK:
+	case MADV_KEEPONFORK:
 #ifdef CONFIG_MEMORY_FAILURE
 	case MADV_SOFT_OFFLINE:
 	case MADV_HWPOISON:

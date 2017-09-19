@@ -17,6 +17,7 @@ Required properties:
   * which must be preceded by one of the following vendor specifics:
     + "amlogic,meson-gxm-mali"
     + "rockchip,rk3288-mali"
+    + "rockchip,rk3399-mali"
 
 - reg : Physical base address of the device and length of the register area.
 
@@ -40,7 +41,7 @@ Optional properties:
 Example for a Mali-T760:
 
 gpu@ffa30000 {
-	compatible = "rockchip,rk3288-mali", "arm,mali-t760", "arm,mali-midgard";
+	compatible = "rockchip,rk3288-mali", "arm,mali-t760";
 	reg = <0xffa30000 0x10000>;
 	interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
 		     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,

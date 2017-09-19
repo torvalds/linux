@@ -77,7 +77,7 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 
 		bio = next_bio(bio, 0, gfp_mask);
 		bio->bi_iter.bi_sector = sector;
-		bio->bi_bdev = bdev;
+		bio_set_dev(bio, bdev);
 		bio_set_op_attrs(bio, op, 0);
 
 		bio->bi_iter.bi_size = req_sects << 9;
@@ -168,7 +168,7 @@ static int __blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
 	while (nr_sects) {
 		bio = next_bio(bio, 1, gfp_mask);
 		bio->bi_iter.bi_sector = sector;
-		bio->bi_bdev = bdev;
+		bio_set_dev(bio, bdev);
 		bio->bi_vcnt = 1;
 		bio->bi_io_vec->bv_page = page;
 		bio->bi_io_vec->bv_offset = 0;
@@ -241,7 +241,7 @@ static int __blkdev_issue_write_zeroes(struct block_device *bdev,
 	while (nr_sects) {
 		bio = next_bio(bio, 0, gfp_mask);
 		bio->bi_iter.bi_sector = sector;
-		bio->bi_bdev = bdev;
+		bio_set_dev(bio, bdev);
 		bio->bi_opf = REQ_OP_WRITE_ZEROES;
 		if (flags & BLKDEV_ZERO_NOUNMAP)
 			bio->bi_opf |= REQ_NOUNMAP;
@@ -269,9 +269,9 @@ static int __blkdev_issue_write_zeroes(struct block_device *bdev,
  */
 static unsigned int __blkdev_sectors_to_bio_pages(sector_t nr_sects)
 {
-	sector_t bytes = (nr_sects << 9) + PAGE_SIZE - 1;
+	sector_t pages = DIV_ROUND_UP_SECTOR_T(nr_sects, PAGE_SIZE / 512);
 
-	return min(bytes >> PAGE_SHIFT, (sector_t)BIO_MAX_PAGES);
+	return min(pages, (sector_t)BIO_MAX_PAGES);
 }
 
 /**
@@ -323,7 +323,7 @@ int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 		bio = next_bio(bio, __blkdev_sectors_to_bio_pages(nr_sects),
 			       gfp_mask);
 		bio->bi_iter.bi_sector = sector;
-		bio->bi_bdev   = bdev;
+		bio_set_dev(bio, bdev);
 		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
 		while (nr_sects != 0) {

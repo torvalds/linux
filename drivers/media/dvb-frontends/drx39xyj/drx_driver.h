@@ -307,7 +307,7 @@ int drxbsp_tuner_default_i2c_write_read(struct tuner_instance *tuner,
 * \def DRX_UNKNOWN
 * \brief Generic UNKNOWN value for DRX enumerated types.
 *
-* Used to indicate that the parameter value is unknown or not yet initalized.
+* Used to indicate that the parameter value is unknown or not yet initialized.
 */
 #ifndef DRX_UNKNOWN
 #define DRX_UNKNOWN (254)
@@ -448,19 +448,6 @@ MACROS
 */
 #define DRX_16TO8(x) ((u8) (((u16)x) & 0xFF)), \
 			((u8)((((u16)x)>>8)&0xFF))
-
-/**
-* \brief Macro to sign extend signed 9 bit value to signed  16 bit value
-*/
-#define DRX_S9TOS16(x) ((((u16)x)&0x100) ? ((s16)((u16)(x)|0xFF00)) : (x))
-
-/**
-* \brief Macro to sign extend signed 9 bit value to signed  16 bit value
-*/
-#define DRX_S24TODRXFREQ(x) ((((u32) x) & 0x00800000UL) ? \
-				 ((s32) \
-				    (((u32) x) | 0xFF000000)) : \
-				 ((s32) x))
 
 /**
 * \brief Macro to convert 16 bit register value to a s32

@@ -363,6 +363,103 @@ static void rsem_AA3(void)
 }
 
 /*
+ * read_lock(A)
+ * spin_lock(B)
+ *		spin_lock(B)
+ *		write_lock(A)
+ */
+static void rlock_ABBA1(void)
+{
+	RL(X1);
+	L(Y1);
+	U(Y1);
+	RU(X1);
+
+	L(Y1);
+	WL(X1);
+	WU(X1);
+	U(Y1); // should fail
+}
+
+static void rwsem_ABBA1(void)
+{
+	RSL(X1);
+	ML(Y1);
+	MU(Y1);
+	RSU(X1);
+
+	ML(Y1);
+	WSL(X1);
+	WSU(X1);
+	MU(Y1); // should fail
+}
+
+/*
+ * read_lock(A)
+ * spin_lock(B)
+ *		spin_lock(B)
+ *		read_lock(A)
+ */
+static void rlock_ABBA2(void)
+{
+	RL(X1);
+	L(Y1);
+	U(Y1);
+	RU(X1);
+
+	L(Y1);
+	RL(X1);
+	RU(X1);
+	U(Y1); // should NOT fail
+}
+
+static void rwsem_ABBA2(void)
+{
+	RSL(X1);
+	ML(Y1);
+	MU(Y1);
+	RSU(X1);
+
+	ML(Y1);
+	RSL(X1);
+	RSU(X1);
+	MU(Y1); // should fail
+}
+
+
+/*
+ * write_lock(A)
+ * spin_lock(B)
+ *		spin_lock(B)
+ *		write_lock(A)
+ */
+static void rlock_ABBA3(void)
+{
+	WL(X1);
+	L(Y1);
+	U(Y1);
+	WU(X1);
+
+	L(Y1);
+	WL(X1);
+	WU(X1);
+	U(Y1); // should fail
+}
+
+static void rwsem_ABBA3(void)
+{
+	WSL(X1);
+	ML(Y1);
+	MU(Y1);
+	WSU(X1);
+
+	ML(Y1);
+	WSL(X1);
+	WSU(X1);
+	MU(Y1); // should fail
+}
+
+/*
  * ABBA deadlock:
  */
 
@@ -1056,8 +1153,6 @@ static void dotest(void (*testcase_fn)(void), int expected, int lockclass_mask)
 	if (debug_locks != expected) {
 		unexpected_testcase_failures++;
 		pr_cont("FAILED|");
-
-		dump_stack();
 	} else {
 		testcase_successes++;
 		pr_cont("  ok  |");
@@ -1932,6 +2027,30 @@ void locking_selftest(void)
 	pr_cont("             |");
 	dotest(rsem_AA3, FAILURE, LOCKTYPE_RWSEM);
 	pr_cont("\n");
+
+	print_testname("mixed read-lock/lock-write ABBA");
+	pr_cont("             |");
+	dotest(rlock_ABBA1, FAILURE, LOCKTYPE_RWLOCK);
+	/*
+	 * Lockdep does indeed fail here, but there's nothing we can do about
+	 * that now.  Don't kill lockdep for it.
+	 */
+	unexpected_testcase_failures--;
+
+	pr_cont("             |");
+	dotest(rwsem_ABBA1, FAILURE, LOCKTYPE_RWSEM);
+
+	print_testname("mixed read-lock/lock-read ABBA");
+	pr_cont("             |");
+	dotest(rlock_ABBA2, SUCCESS, LOCKTYPE_RWLOCK);
+	pr_cont("             |");
+	dotest(rwsem_ABBA2, FAILURE, LOCKTYPE_RWSEM);
+
+	print_testname("mixed write-lock/lock-write ABBA");
+	pr_cont("             |");
+	dotest(rlock_ABBA3, FAILURE, LOCKTYPE_RWLOCK);
+	pr_cont("             |");
+	dotest(rwsem_ABBA3, FAILURE, LOCKTYPE_RWSEM);
 
 	printk("  --------------------------------------------------------------------------\n");
 

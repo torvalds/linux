@@ -229,8 +229,8 @@ static int __init initrd_setup(char *str)
 
 #endif
 
-extern struct plat_smp_ops sb_smp_ops;
-extern struct plat_smp_ops bcm1480_smp_ops;
+extern const struct plat_smp_ops sb_smp_ops;
+extern const struct plat_smp_ops bcm1480_smp_ops;
 
 /*
  * prom_init is called just after the cpu type is determined, from setup_arch()

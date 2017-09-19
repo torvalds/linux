@@ -310,7 +310,7 @@ static void asc_receive_chars(struct uart_port *port)
 	if (mode == ASC_CTL_MODE_8BIT || mode == ASC_CTL_MODE_8BIT_PAR)
 		ignore_pe = true;
 
-	if (port->irq_wake)
+	if (irqd_is_wakeup_set(irq_get_irq_data(port->irq)))
 		pm_wakeup_event(tport->tty->dev, 0);
 
 	while ((status = asc_in(port, ASC_STA)) & ASC_STA_RBF) {
@@ -758,6 +758,7 @@ static int asc_init_port(struct asc_port *ascport,
 	if (IS_ERR(ascport->pinctrl)) {
 		ret = PTR_ERR(ascport->pinctrl);
 		dev_err(&pdev->dev, "Failed to get Pinctrl: %d\n", ret);
+		return ret;
 	}
 
 	ascport->states[DEFAULT] =

@@ -1085,10 +1085,12 @@ static ssize_t rx_trigger_store(struct device *dev,
 {
 	struct uart_port *port = dev_get_drvdata(dev);
 	struct sci_port *sci = to_sci_port(port);
+	int ret;
 	long r;
 
-	if (kstrtol(buf, 0, &r) == -EINVAL)
-		return -EINVAL;
+	ret = kstrtol(buf, 0, &r);
+	if (ret)
+		return ret;
 
 	sci->rx_trigger = scif_set_rtrg(port, r);
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB)
@@ -1116,10 +1118,12 @@ static ssize_t rx_fifo_timeout_store(struct device *dev,
 {
 	struct uart_port *port = dev_get_drvdata(dev);
 	struct sci_port *sci = to_sci_port(port);
+	int ret;
 	long r;
 
-	if (kstrtol(buf, 0, &r) == -EINVAL)
-		return -EINVAL;
+	ret = kstrtol(buf, 0, &r);
+	if (ret)
+		return ret;
 	sci->rx_fifo_timeout = r;
 	scif_set_rtrg(port, 1);
 	if (r > 0)
@@ -3069,8 +3073,7 @@ static struct plat_sci_port *sci_parse_dt(struct platform_device *pdev,
 	p->type = SCI_OF_TYPE(match->data);
 	p->regtype = SCI_OF_REGTYPE(match->data);
 
-	if (of_find_property(np, "uart-has-rtscts", NULL))
-		sp->has_rtscts = true;
+	sp->has_rtscts = of_property_read_bool(np, "uart-has-rtscts");
 
 	return p;
 }

@@ -181,7 +181,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc2_pins>;
 	vmmc-supply = <&w3cbw003c_npoweron>;
-	vmmc_aux-supply = <&w3cbw003c_wifi_nreset>;
+	vqmmc-supply = <&w3cbw003c_wifi_nreset>;
 	bus-width = <4>;
 	cap-sdio-irq;
 	non-removable;

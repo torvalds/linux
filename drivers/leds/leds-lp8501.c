@@ -118,19 +118,19 @@ static int lp8501_post_init_device(struct lp55xx_chip *chip)
 static void lp8501_load_engine(struct lp55xx_chip *chip)
 {
 	enum lp55xx_engine_index idx = chip->engine_idx;
-	u8 mask[] = {
+	static const u8 mask[] = {
 		[LP55XX_ENGINE_1] = LP8501_MODE_ENG1_M,
 		[LP55XX_ENGINE_2] = LP8501_MODE_ENG2_M,
 		[LP55XX_ENGINE_3] = LP8501_MODE_ENG3_M,
 	};
 
-	u8 val[] = {
+	static const u8 val[] = {
 		[LP55XX_ENGINE_1] = LP8501_LOAD_ENG1,
 		[LP55XX_ENGINE_2] = LP8501_LOAD_ENG2,
 		[LP55XX_ENGINE_3] = LP8501_LOAD_ENG3,
 	};
 
-	u8 page_sel[] = {
+	static const u8 page_sel[] = {
 		[LP55XX_ENGINE_1] = LP8501_PAGE_ENG1,
 		[LP55XX_ENGINE_2] = LP8501_PAGE_ENG2,
 		[LP55XX_ENGINE_3] = LP8501_PAGE_ENG3,

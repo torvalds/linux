@@ -218,12 +218,15 @@ static int load_misc_binary(struct linux_binprm *bprm)
 
 	bprm->file = interp_file;
 	if (fmt->flags & MISC_FMT_CREDENTIALS) {
+		loff_t pos = 0;
+
 		/*
 		 * No need to call prepare_binprm(), it's already been
 		 * done.  bprm->buf is stale, update from interp_file.
 		 */
 		memset(bprm->buf, 0, BINPRM_BUF_SIZE);
-		retval = kernel_read(bprm->file, 0, bprm->buf, BINPRM_BUF_SIZE);
+		retval = kernel_read(bprm->file, bprm->buf, BINPRM_BUF_SIZE,
+				&pos);
 	} else
 		retval = prepare_binprm(bprm);
 

@@ -8,8 +8,6 @@
  * kind, whether express or implied.
  */
 
-#define CPG_AUDIO_CLK_I		R8A7795_CLK_S0D4
-
 /dts-v1/;
 #include "r8a7795.dtsi"
 #include "salvator-xs.dtsi"
@@ -46,10 +44,12 @@
 		 <&cpg CPG_MOD 722>,
 		 <&cpg CPG_MOD 721>,
 		 <&cpg CPG_MOD 727>,
+		 <&versaclock6 1>,
 		 <&x21_clk>,
-		 <&x22_clk>;
+		 <&x22_clk>,
+		 <&versaclock6 2>;
 	clock-names = "du.0", "du.1", "du.2", "du.3", "lvds.0",
-		      "dclkin.1", "dclkin.2";
+		      "dclkin.0", "dclkin.1", "dclkin.2", "dclkin.3";
 };
 
 &ehci2 {

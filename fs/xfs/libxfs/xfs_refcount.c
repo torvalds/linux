@@ -1638,6 +1638,10 @@ xfs_refcount_recover_cow_leftovers(
 	error = xfs_alloc_read_agf(mp, tp, agno, 0, &agbp);
 	if (error)
 		goto out_trans;
+	if (!agbp) {
+		error = -ENOMEM;
+		goto out_trans;
+	}
 	cur = xfs_refcountbt_init_cursor(mp, tp, agbp, agno, NULL);
 
 	/* Find all the leftover CoW staging extents. */
@@ -1675,7 +1679,7 @@ xfs_refcount_recover_cow_leftovers(
 		xfs_bmap_add_free(mp, &dfops, fsb,
 				rr->rr_rrec.rc_blockcount, NULL);
 
-		error = xfs_defer_finish(&tp, &dfops, NULL);
+		error = xfs_defer_finish(&tp, &dfops);
 		if (error)
 			goto out_defer;
 

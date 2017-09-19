@@ -2872,7 +2872,7 @@ MAKE_AV7110_INFO(fsc,        "Fujitsu Siemens DVB-C");
 MAKE_AV7110_INFO(fss,        "Fujitsu Siemens DVB-S rev1.6");
 MAKE_AV7110_INFO(gxs_1_3,    "Galaxis DVB-S rev1.3");
 
-static struct pci_device_id pci_tbl[] = {
+static const struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(fsc,         0x110a, 0x0000),
 	MAKE_EXTENSION_PCI(tts_1_X_fsc, 0x13c2, 0x0000),
 	MAKE_EXTENSION_PCI(ttt_1_X,     0x13c2, 0x0001),

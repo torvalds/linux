@@ -149,9 +149,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	subf	r4, r4, r3
 	mtspr	SPRN_DEC, r4
 
+BEGIN_FTR_SECTION
 	/* hwthread_req may have got set by cede or no vcpu, so clear it */
 	li	r0, 0
 	stb	r0, HSTATE_HWTHREAD_REQ(r13)
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 
 	/*
 	 * For external interrupts we need to call the Linux
@@ -314,6 +316,7 @@ kvm_novcpu_exit:
  * Relocation is off and most register values are lost.
  * r13 points to the PACA.
  * r3 contains the SRR1 wakeup value, SRR1 is trashed.
+ * This is not used by ISAv3.0B processors.
  */
 	.globl	kvm_start_guest
 kvm_start_guest:
@@ -432,6 +435,9 @@ kvm_secondary_got_guest:
  * While waiting we also need to check if we get given a vcpu to run.
  */
 kvm_no_guest:
+BEGIN_FTR_SECTION
+	twi	31,0,0
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	lbz	r3, HSTATE_HWTHREAD_REQ(r13)
 	cmpwi	r3, 0
 	bne	53f
@@ -765,6 +771,9 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 BEGIN_FTR_SECTION
+	/*
+	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS INCLUDING CR
+	 */
 	bl	kvmppc_restore_tm
 END_FTR_SECTION_IFSET(CPU_FTR_TM)
 #endif
@@ -976,7 +985,7 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 #ifdef CONFIG_KVM_XICS
 	/* We are entering the guest on that thread, push VCPU to XIVE */
 	ld	r10, HSTATE_XIVE_TIMA_PHYS(r13)
-	cmpldi	cr0, r10, r0
+	cmpldi	cr0, r10, 0
 	beq	no_xive
 	ld	r11, VCPU_XIVE_SAVED_STATE(r4)
 	li	r9, TM_QW1_OS
@@ -1280,7 +1289,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	cmpwi	r12,BOOK3S_INTERRUPT_HV_DECREMENTER
 	bne	2f
 	mfspr	r3,SPRN_HDEC
-	cmpwi	r3,0
+	EXTEND_HDEC(r3)
+	cmpdi	r3,0
 	mr	r4,r9
 	bge	fast_guest_return
 2:
@@ -1291,6 +1301,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	/* Hypervisor doorbell - exit only if host IPI flag set */
 	cmpwi	r12, BOOK3S_INTERRUPT_H_DOORBELL
 	bne	3f
+BEGIN_FTR_SECTION
+	PPC_MSGSYNC
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	lbz	r0, HSTATE_HOST_IPI(r13)
 	cmpwi	r0, 0
 	beq	4f
@@ -1443,12 +1456,14 @@ mc_cont:
 	ori	r6,r6,1
 	mtspr	SPRN_CTRLT,r6
 4:
-	/* Read the guest SLB and save it away */
+	/* Check if we are running hash or radix and store it in cr2 */
 	ld	r5, VCPU_KVM(r9)
 	lbz	r0, KVM_RADIX(r5)
-	cmpwi	r0, 0
+	cmpwi	cr2,r0,0
+
+	/* Read the guest SLB and save it away */
 	li	r5, 0
-	bne	3f			/* for radix, save 0 entries */
+	bne	cr2, 3f			/* for radix, save 0 entries */
 	lwz	r0,VCPU_SLB_NR(r9)	/* number of entries in SLB */
 	mtctr	r0
 	li	r6,0
@@ -1618,6 +1633,9 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 BEGIN_FTR_SECTION
+	/*
+	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS INCLUDING CR
+	 */
 	bl	kvmppc_save_tm
 END_FTR_SECTION_IFSET(CPU_FTR_TM)
 #endif
@@ -1712,11 +1730,6 @@ BEGIN_FTR_SECTION_NESTED(96)
 END_FTR_SECTION_NESTED(CPU_FTR_ARCH_300, 0, 96)
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 22:
-	/* Clear out SLB */
-	li	r5,0
-	slbmte	r5,r5
-	slbia
-	ptesync
 
 	/* Restore host values of some registers */
 BEGIN_FTR_SECTION
@@ -1737,10 +1750,59 @@ BEGIN_FTR_SECTION
 	mtspr	SPRN_PID, r7
 	mtspr	SPRN_IAMR, r8
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+
+#ifdef CONFIG_PPC_RADIX_MMU
+	/*
+	 * Are we running hash or radix ?
+	 */
+	ld	r5, VCPU_KVM(r9)
+	lbz	r0, KVM_RADIX(r5)
+	cmpwi	cr2, r0, 0
+	beq	cr2, 3f
+
+	/* Radix: Handle the case where the guest used an illegal PID */
+	LOAD_REG_ADDR(r4, mmu_base_pid)
+	lwz	r3, VCPU_GUEST_PID(r9)
+	lwz	r5, 0(r4)
+	cmpw	cr0,r3,r5
+	blt	2f
+
+	/*
+	 * Illegal PID, the HW might have prefetched and cached in the TLB
+	 * some translations for the  LPID 0 / guest PID combination which
+	 * Linux doesn't know about, so we need to flush that PID out of
+	 * the TLB. First we need to set LPIDR to 0 so tlbiel applies to
+	 * the right context.
+	*/
+	li	r0,0
+	mtspr	SPRN_LPID,r0
+	isync
+
+	/* Then do a congruence class local flush */
+	ld	r6,VCPU_KVM(r9)
+	lwz	r0,KVM_TLB_SETS(r6)
+	mtctr	r0
+	li	r7,0x400		/* IS field = 0b01 */
+	ptesync
+	sldi	r0,r3,32		/* RS has PID */
+1:	PPC_TLBIEL(7,0,2,1,1)		/* RIC=2, PRS=1, R=1 */
+	addi	r7,r7,0x1000
+	bdnz	1b
+	ptesync
+
+2:	/* Flush the ERAT on radix P9 DD1 guest exit */
 BEGIN_FTR_SECTION
 	PPC_INVALIDATE_ERAT
 END_FTR_SECTION_IFSET(CPU_FTR_POWER9_DD1)
+	b	4f
+#endif /* CONFIG_PPC_RADIX_MMU */
 
+	/* Hash: clear out SLB */
+3:	li	r5,0
+	slbmte	r5,r5
+	slbia
+	ptesync
+4:
 	/*
 	 * POWER7/POWER8 guest -> host partition switch code.
 	 * We don't have to lock against tlbies but we do
@@ -2413,6 +2475,9 @@ _GLOBAL(kvmppc_h_cede)		/* r3 = vcpu pointer, r11 = msr, r13 = paca */
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 BEGIN_FTR_SECTION
+	/*
+	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS INCLUDING CR
+	 */
 	ld	r9, HSTATE_KVM_VCPU(r13)
 	bl	kvmppc_save_tm
 END_FTR_SECTION_IFSET(CPU_FTR_TM)
@@ -2466,8 +2531,10 @@ kvm_do_nap:
 	clrrdi	r0, r0, 1
 	mtspr	SPRN_CTRLT, r0
 
+BEGIN_FTR_SECTION
 	li	r0,1
 	stb	r0,HSTATE_HWTHREAD_REQ(r13)
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 	mfspr	r5,SPRN_LPCR
 	ori	r5,r5,LPCR_PECE0 | LPCR_PECE1
 BEGIN_FTR_SECTION
@@ -2523,6 +2590,9 @@ kvm_end_cede:
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 BEGIN_FTR_SECTION
+	/*
+	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS INCLUDING CR
+	 */
 	bl	kvmppc_restore_tm
 END_FTR_SECTION_IFSET(CPU_FTR_TM)
 #endif

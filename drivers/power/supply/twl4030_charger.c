@@ -18,7 +18,7 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 #include <linux/power_supply.h>
 #include <linux/notifier.h>
 #include <linux/usb/otg.h>

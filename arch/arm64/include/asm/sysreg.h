@@ -329,6 +329,7 @@
 #define ID_AA64ISAR1_LRCPC_SHIFT	20
 #define ID_AA64ISAR1_FCMA_SHIFT		16
 #define ID_AA64ISAR1_JSCVT_SHIFT	12
+#define ID_AA64ISAR1_DPB_SHIFT		0
 
 /* id_aa64pfr0 */
 #define ID_AA64PFR0_GIC_SHIFT		24
@@ -492,7 +493,7 @@ asm(
  * the "%x0" template means XZR.
  */
 #define write_sysreg(v, r) do {					\
-	u64 __val = (u64)v;					\
+	u64 __val = (u64)(v);					\
 	asm volatile("msr " __stringify(r) ", %x0"		\
 		     : : "rZ" (__val));				\
 } while (0)
@@ -508,7 +509,7 @@ asm(
 })
 
 #define write_sysreg_s(v, r) do {					\
-	u64 __val = (u64)v;						\
+	u64 __val = (u64)(v);						\
 	asm volatile("msr_s " __stringify(r) ", %x0" : : "rZ" (__val));	\
 } while (0)
 

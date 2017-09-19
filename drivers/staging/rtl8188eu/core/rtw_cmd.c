@@ -132,7 +132,7 @@ void rtw_free_cmd_obj(struct cmd_obj *pcmd)
 		kfree(pcmd->parmbuf);
 	}
 
-	if (!pcmd->rsp) {
+	if (pcmd->rsp) {
 		if (pcmd->rspsz != 0) {
 			/* free rsp in cmd_obj */
 			kfree(pcmd->rsp);
@@ -186,7 +186,7 @@ _next:
 			pcmd->res = H2C_DROPPED;
 		} else {
 			if (pcmd->cmdcode < ARRAY_SIZE(wlancmds)) {
-			    cmd_hdl = wlancmds[pcmd->cmdcode].h2cfuns;
+				cmd_hdl = wlancmds[pcmd->cmdcode].h2cfuns;
 
 				if (cmd_hdl) {
 					ret = cmd_hdl(pcmd->padapter, pcmd->parmbuf);

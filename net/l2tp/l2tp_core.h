@@ -162,6 +162,10 @@ struct l2tp_tunnel {
 	int			magic;		/* Should be L2TP_TUNNEL_MAGIC */
 	struct rcu_head rcu;
 	rwlock_t		hlist_lock;	/* protect session_hlist */
+	bool			acpt_newsess;	/* Indicates whether this
+						 * tunnel accepts new sessions.
+						 * Protected by hlist_lock.
+						 */
 	struct hlist_head	session_hlist[L2TP_HASH_SIZE];
 						/* hashed list of sessions,
 						 * hashed by id */
@@ -197,7 +201,9 @@ struct l2tp_tunnel {
 };
 
 struct l2tp_nl_cmd_ops {
-	int (*session_create)(struct net *net, u32 tunnel_id, u32 session_id, u32 peer_session_id, struct l2tp_session_cfg *cfg);
+	int (*session_create)(struct net *net, struct l2tp_tunnel *tunnel,
+			      u32 session_id, u32 peer_session_id,
+			      struct l2tp_session_cfg *cfg);
 	int (*session_delete)(struct l2tp_session *session);
 };
 
@@ -230,6 +236,8 @@ static inline struct l2tp_tunnel *l2tp_sock_to_tunnel(struct sock *sk)
 out:
 	return tunnel;
 }
+
+struct l2tp_tunnel *l2tp_tunnel_get(const struct net *net, u32 tunnel_id);
 
 struct l2tp_session *l2tp_session_get(const struct net *net,
 				      struct l2tp_tunnel *tunnel,
@@ -268,6 +276,17 @@ int l2tp_nl_register_ops(enum l2tp_pwtype pw_type,
 			 const struct l2tp_nl_cmd_ops *ops);
 void l2tp_nl_unregister_ops(enum l2tp_pwtype pw_type);
 int l2tp_ioctl(struct sock *sk, int cmd, unsigned long arg);
+
+static inline void l2tp_tunnel_inc_refcount(struct l2tp_tunnel *tunnel)
+{
+	refcount_inc(&tunnel->ref_count);
+}
+
+static inline void l2tp_tunnel_dec_refcount(struct l2tp_tunnel *tunnel)
+{
+	if (refcount_dec_and_test(&tunnel->ref_count))
+		kfree_rcu(tunnel, rcu);
+}
 
 /* Session reference counts. Incremented when code obtains a reference
  * to a session.

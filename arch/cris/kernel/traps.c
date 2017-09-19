@@ -42,7 +42,7 @@ void (*nmi_handler)(struct pt_regs *);
 void show_trace(unsigned long *stack)
 {
 	unsigned long addr, module_start, module_end;
-	extern char _stext, _etext;
+	extern char _stext[], _etext[];
 	int i;
 
 	pr_err("\nCall Trace: ");
@@ -69,8 +69,8 @@ void show_trace(unsigned long *stack)
 		 * down the cause of the crash will be able to figure
 		 * out the call path that was taken.
 		 */
-		if (((addr >= (unsigned long)&_stext) &&
-		     (addr <= (unsigned long)&_etext)) ||
+		if (((addr >= (unsigned long)_stext) &&
+		     (addr <= (unsigned long)_etext)) ||
 		    ((addr >= module_start) && (addr <= module_end))) {
 #ifdef CONFIG_KALLSYMS
 			print_ip_sym(addr);

@@ -914,7 +914,7 @@ int rtas_online_cpus_mask(cpumask_var_t cpus)
 	if (ret) {
 		cpumask_var_t tmp_mask;
 
-		if (!alloc_cpumask_var(&tmp_mask, GFP_TEMPORARY))
+		if (!alloc_cpumask_var(&tmp_mask, GFP_KERNEL))
 			return ret;
 
 		/* Use tmp_mask to preserve cpus mask from first failure */
@@ -962,7 +962,7 @@ int rtas_ibm_suspend_me(u64 handle)
 		return -EIO;
 	}
 
-	if (!alloc_cpumask_var(&offline_mask, GFP_TEMPORARY))
+	if (!alloc_cpumask_var(&offline_mask, GFP_KERNEL))
 		return -ENOMEM;
 
 	atomic_set(&data.working, 0);

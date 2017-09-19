@@ -27,7 +27,7 @@
 /*
  * On 40x and 8xx, we directly inline tlbia and tlbivax
  */
-#if defined(CONFIG_40x) || defined(CONFIG_8xx)
+#if defined(CONFIG_40x) || defined(CONFIG_PPC_8xx)
 static inline void _tlbil_all(void)
 {
 	asm volatile ("sync; tlbia; isync" : : : "memory");
@@ -38,7 +38,7 @@ static inline void _tlbil_pid(unsigned int pid)
 }
 #define _tlbil_pid_noind(pid)	_tlbil_pid(pid)
 
-#else /* CONFIG_40x || CONFIG_8xx */
+#else /* CONFIG_40x || CONFIG_PPC_8xx */
 extern void _tlbil_all(void);
 extern void _tlbil_pid(unsigned int pid);
 #ifdef CONFIG_PPC_BOOK3E
@@ -46,12 +46,12 @@ extern void _tlbil_pid_noind(unsigned int pid);
 #else
 #define _tlbil_pid_noind(pid)	_tlbil_pid(pid)
 #endif
-#endif /* !(CONFIG_40x || CONFIG_8xx) */
+#endif /* !(CONFIG_40x || CONFIG_PPC_8xx) */
 
 /*
  * On 8xx, we directly inline tlbie, on others, it's extern
  */
-#ifdef CONFIG_8xx
+#ifdef CONFIG_PPC_8xx
 static inline void _tlbil_va(unsigned long address, unsigned int pid,
 			     unsigned int tsize, unsigned int ind)
 {
@@ -67,7 +67,7 @@ static inline void _tlbil_va(unsigned long address, unsigned int pid,
 {
 	__tlbil_va(address, pid);
 }
-#endif /* CONFIG_8xx */
+#endif /* CONFIG_PPC_8xx */
 
 #if defined(CONFIG_PPC_BOOK3E) || defined(CONFIG_PPC_47x)
 extern void _tlbivax_bcast(unsigned long address, unsigned int pid,

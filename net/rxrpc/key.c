@@ -92,6 +92,7 @@ static int rxrpc_preparse_xdr_rxkad(struct key_preparsed_payload *prep,
 				    const __be32 *xdr, unsigned int toklen)
 {
 	struct rxrpc_key_token *token, **pptoken;
+	time64_t expiry;
 	size_t plen;
 	u32 tktlen;
 
@@ -158,8 +159,9 @@ static int rxrpc_preparse_xdr_rxkad(struct key_preparsed_payload *prep,
 	     pptoken = &(*pptoken)->next)
 		continue;
 	*pptoken = token;
-	if (token->kad->expiry < prep->expiry)
-		prep->expiry = token->kad->expiry;
+	expiry = rxrpc_u32_to_time64(token->kad->expiry);
+	if (expiry < prep->expiry)
+		prep->expiry = expiry;
 
 	_leave(" = 0");
 	return 0;
@@ -433,6 +435,7 @@ static int rxrpc_preparse_xdr_rxk5(struct key_preparsed_payload *prep,
 	struct rxrpc_key_token *token, **pptoken;
 	struct rxk5_key *rxk5;
 	const __be32 *end_xdr = xdr + (toklen >> 2);
+	time64_t expiry;
 	int ret;
 
 	_enter(",{%x,%x,%x,%x},%u",
@@ -533,8 +536,9 @@ static int rxrpc_preparse_xdr_rxk5(struct key_preparsed_payload *prep,
 	     pptoken = &(*pptoken)->next)
 		continue;
 	*pptoken = token;
-	if (token->kad->expiry < prep->expiry)
-		prep->expiry = token->kad->expiry;
+	expiry = rxrpc_u32_to_time64(token->k5->endtime);
+	if (expiry < prep->expiry)
+		prep->expiry = expiry;
 
 	_leave(" = 0");
 	return 0;
@@ -691,6 +695,7 @@ static int rxrpc_preparse(struct key_preparsed_payload *prep)
 {
 	const struct rxrpc_key_data_v1 *v1;
 	struct rxrpc_key_token *token, **pp;
+	time64_t expiry;
 	size_t plen;
 	u32 kver;
 	int ret;
@@ -777,8 +782,9 @@ static int rxrpc_preparse(struct key_preparsed_payload *prep)
 	while (*pp)
 		pp = &(*pp)->next;
 	*pp = token;
-	if (token->kad->expiry < prep->expiry)
-		prep->expiry = token->kad->expiry;
+	expiry = rxrpc_u32_to_time64(token->kad->expiry);
+	if (expiry < prep->expiry)
+		prep->expiry = expiry;
 	token = NULL;
 	ret = 0;
 
@@ -955,7 +961,7 @@ int rxrpc_server_keyring(struct rxrpc_sock *rx, char __user *optval,
  */
 int rxrpc_get_server_data_key(struct rxrpc_connection *conn,
 			      const void *session_key,
-			      time_t expiry,
+			      time64_t expiry,
 			      u32 kvno)
 {
 	const struct cred *cred = current_cred();
@@ -982,7 +988,7 @@ int rxrpc_get_server_data_key(struct rxrpc_connection *conn,
 	data.kver = 1;
 	data.v1.security_index = RXRPC_SECURITY_RXKAD;
 	data.v1.ticket_length = 0;
-	data.v1.expiry = expiry;
+	data.v1.expiry = rxrpc_time64_to_u32(expiry);
 	data.v1.kvno = 0;
 
 	memcpy(&data.v1.session_key, session_key, sizeof(data.v1.session_key));

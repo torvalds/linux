@@ -238,7 +238,7 @@ static void dmz_submit_write_bio(struct dmz_target *dmz, struct dm_zone *zone,
 	struct dmz_bioctx *bioctx = dm_per_bio_data(bio, sizeof(struct dmz_bioctx));
 
 	/* Setup and submit the BIO */
-	bio->bi_bdev = dmz->dev->bdev;
+	bio_set_dev(bio, dmz->dev->bdev);
 	bio->bi_iter.bi_sector = dmz_start_sect(dmz->metadata, zone) + dmz_blk2sect(chunk_block);
 	atomic_inc(&bioctx->ref);
 	generic_make_request(bio);
@@ -541,7 +541,7 @@ static void dmz_queue_chunk_work(struct dmz_target *dmz, struct bio *bio)
 		int ret;
 
 		/* Create a new chunk work */
-		cw = kmalloc(sizeof(struct dm_chunk_work), GFP_NOFS);
+		cw = kmalloc(sizeof(struct dm_chunk_work), GFP_NOIO);
 		if (!cw)
 			goto out;
 
@@ -586,9 +586,9 @@ static int dmz_map(struct dm_target *ti, struct bio *bio)
 		      (unsigned long long)dmz_chunk_block(dmz->dev, dmz_bio_block(bio)),
 		      (unsigned int)dmz_bio_blocks(bio));
 
-	bio->bi_bdev = dev->bdev;
+	bio_set_dev(bio, dev->bdev);
 
-	if (!nr_sectors && (bio_op(bio) != REQ_OP_FLUSH) && (bio_op(bio) != REQ_OP_WRITE))
+	if (!nr_sectors && bio_op(bio) != REQ_OP_WRITE)
 		return DM_MAPIO_REMAPPED;
 
 	/* The BIO should be block aligned */
@@ -603,7 +603,7 @@ static int dmz_map(struct dm_target *ti, struct bio *bio)
 	bioctx->status = BLK_STS_OK;
 
 	/* Set the BIO pending in the flush list */
-	if (bio_op(bio) == REQ_OP_FLUSH || (!nr_sectors && bio_op(bio) == REQ_OP_WRITE)) {
+	if (!nr_sectors && bio_op(bio) == REQ_OP_WRITE) {
 		spin_lock(&dmz->flush_lock);
 		bio_list_add(&dmz->flush_list, bio);
 		spin_unlock(&dmz->flush_lock);
@@ -785,7 +785,7 @@ static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	/* Chunk BIO work */
 	mutex_init(&dmz->chunk_lock);
-	INIT_RADIX_TREE(&dmz->chunk_rxtree, GFP_NOFS);
+	INIT_RADIX_TREE(&dmz->chunk_rxtree, GFP_KERNEL);
 	dmz->chunk_wq = alloc_workqueue("dmz_cwq_%s", WQ_MEM_RECLAIM | WQ_UNBOUND,
 					0, dev->name);
 	if (!dmz->chunk_wq) {

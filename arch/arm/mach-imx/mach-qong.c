@@ -18,7 +18,7 @@
 #include <linux/memory.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/gpio.h>
 
 #include <asm/mach-types.h>

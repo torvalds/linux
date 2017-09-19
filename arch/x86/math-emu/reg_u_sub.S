@@ -270,3 +270,4 @@ L_exit:
 	popl	%esi
 	leave
 	ret
+ENDPROC(FPU_u_sub)

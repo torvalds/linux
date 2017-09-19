@@ -741,10 +741,21 @@ static void send_sigio_to_task(struct task_struct *p,
 			si.si_signo = signum;
 			si.si_errno = 0;
 		        si.si_code  = reason;
+			/*
+			 * Posix definies POLL_IN and friends to be signal
+			 * specific si_codes for SIG_POLL.  Linux extended
+			 * these si_codes to other signals in a way that is
+			 * ambiguous if other signals also have signal
+			 * specific si_codes.  In that case use SI_SIGIO instead
+			 * to remove the ambiguity.
+			 */
+			if (sig_specific_sicodes(signum))
+				si.si_code = SI_SIGIO;
+
 			/* Make sure we are called with one of the POLL_*
 			   reasons, otherwise we could leak kernel stack into
 			   userspace.  */
-			BUG_ON((reason & __SI_MASK) != __SI_POLL);
+			BUG_ON((reason < POLL_IN) || ((reason - POLL_IN) >= NSIGPOLL));
 			if (reason - POLL_IN >= NSIGPOLL)
 				si.si_band  = ~0L;
 			else

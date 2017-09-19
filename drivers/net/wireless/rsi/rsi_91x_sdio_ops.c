@@ -69,20 +69,37 @@ int rsi_sdio_master_access_msword(struct rsi_hw *adapter, u16 ms_word)
 static int rsi_process_pkt(struct rsi_common *common)
 {
 	struct rsi_hw *adapter = common->priv;
+	struct rsi_91x_sdiodev *dev =
+		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	u8 num_blks = 0;
 	u32 rcv_pkt_len = 0;
 	int status = 0;
+	u8 value = 0;
 
-	status = rsi_sdio_read_register(adapter,
-					SDIO_RX_NUM_BLOCKS_REG,
-					&num_blks);
+	num_blks = ((adapter->interrupt_status & 1) |
+			((adapter->interrupt_status >> RECV_NUM_BLOCKS) << 1));
 
-	if (status) {
-		rsi_dbg(ERR_ZONE,
-			"%s: Failed to read pkt length from the card:\n",
-			__func__);
-		return status;
+	if (!num_blks) {
+		status = rsi_sdio_read_register(adapter,
+						SDIO_RX_NUM_BLOCKS_REG,
+						&value);
+		if (status) {
+			rsi_dbg(ERR_ZONE,
+				"%s: Failed to read pkt length from the card:\n",
+				__func__);
+			return status;
+		}
+		num_blks = value & 0x1f;
 	}
+
+	if (dev->write_fail == 2)
+		rsi_sdio_ack_intr(common->priv, (1 << MSDU_PKT_PENDING));
+
+	if (unlikely(!num_blks)) {
+		dev->write_fail = 2;
+		return -1;
+	}
+
 	rcv_pkt_len = (num_blks * 256);
 
 	common->rx_data_pkt = kmalloc(rcv_pkt_len, GFP_KERNEL);
@@ -213,7 +230,7 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 	dev->rx_info.sdio_int_counter++;
 
 	do {
-		mutex_lock(&common->tx_rxlock);
+		mutex_lock(&common->rx_lock);
 		status = rsi_sdio_read_register(common->priv,
 						RSI_FN1_INT_REGISTER,
 						&isr_status);
@@ -221,14 +238,15 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 			rsi_dbg(ERR_ZONE,
 				"%s: Failed to Read Intr Status Register\n",
 				__func__);
-			mutex_unlock(&common->tx_rxlock);
+			mutex_unlock(&common->rx_lock);
 			return;
 		}
+		adapter->interrupt_status = isr_status;
 
 		if (isr_status == 0) {
 			rsi_set_event(&common->tx_thread.event);
 			dev->rx_info.sdio_intr_status_zero++;
-			mutex_unlock(&common->tx_rxlock);
+			mutex_unlock(&common->rx_lock);
 			return;
 		}
 
@@ -241,10 +259,12 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 
 			switch (isr_type) {
 			case BUFFER_AVAILABLE:
-				dev->rx_info.watch_bufferfull_count = 0;
-				dev->rx_info.buffer_full = false;
-				dev->rx_info.semi_buffer_full = false;
-				dev->rx_info.mgmt_buffer_full = false;
+				status = rsi_sdio_check_buffer_status(adapter,
+								      0);
+				if (status < 0)
+					rsi_dbg(ERR_ZONE,
+						"%s: Failed to check buffer status\n",
+						__func__);
 				rsi_sdio_ack_intr(common->priv,
 						  (1 << PKT_BUFF_AVAILABLE));
 				rsi_set_event(&common->tx_thread.event);
@@ -252,7 +272,7 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 				rsi_dbg(ISR_ZONE,
 					"%s: ==> BUFFER_AVAILABLE <==\n",
 					__func__);
-				dev->rx_info.buf_available_counter++;
+				dev->buff_status_updated = true;
 				break;
 
 			case FIRMWARE_ASSERT_IND:
@@ -286,7 +306,7 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 					rsi_dbg(ERR_ZONE,
 						"%s: Failed to read pkt\n",
 						__func__);
-					mutex_unlock(&common->tx_rxlock);
+					mutex_unlock(&common->rx_lock);
 					return;
 				}
 				break;
@@ -301,28 +321,28 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 			}
 			isr_status ^= BIT(isr_type - 1);
 		} while (isr_status);
-		mutex_unlock(&common->tx_rxlock);
+		mutex_unlock(&common->rx_lock);
 	} while (1);
 }
 
-/**
- * rsi_sdio_read_buffer_status_register() - This function is used to the read
- *					    buffer status register and set
- *					    relevant fields in
- *					    rsi_91x_sdiodev struct.
- * @adapter: Pointer to the driver hw structure.
- * @q_num: The Q number whose status is to be found.
- *
- * Return: status: -1 on failure or else queue full/stop is indicated.
+/* This function is used to read buffer status register and
+ * set relevant fields in rsi_91x_sdiodev struct.
  */
-int rsi_sdio_read_buffer_status_register(struct rsi_hw *adapter, u8 q_num)
+int rsi_sdio_check_buffer_status(struct rsi_hw *adapter, u8 q_num)
 {
 	struct rsi_common *common = adapter->priv;
 	struct rsi_91x_sdiodev *dev =
 		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	u8 buf_status = 0;
 	int status = 0;
+	static int counter = 4;
 
+	if (!dev->buff_status_updated && counter) {
+		counter--;
+		goto out;
+	}
+
+	dev->buff_status_updated = false;
 	status = rsi_sdio_read_register(common->priv,
 					RSI_DEVICE_BUFFER_STATUS_REGISTER,
 					&buf_status);
@@ -357,10 +377,16 @@ int rsi_sdio_read_buffer_status_register(struct rsi_hw *adapter, u8 q_num)
 		dev->rx_info.semi_buffer_full = false;
 	}
 
+	if (dev->rx_info.mgmt_buffer_full || dev->rx_info.buf_full_counter)
+		counter = 1;
+	else
+		counter = 4;
+
+out:
 	if ((q_num == MGMT_SOFT_Q) && (dev->rx_info.mgmt_buffer_full))
 		return QUEUE_FULL;
 
-	if (dev->rx_info.buffer_full)
+	if ((q_num < MGMT_SOFT_Q) && (dev->rx_info.buffer_full))
 		return QUEUE_FULL;
 
 	return QUEUE_NOT_FULL;

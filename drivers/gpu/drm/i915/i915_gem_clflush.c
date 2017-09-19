@@ -114,7 +114,7 @@ i915_clflush_notify(struct i915_sw_fence *fence,
 	return NOTIFY_DONE;
 }
 
-void i915_gem_clflush_object(struct drm_i915_gem_object *obj,
+bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 			     unsigned int flags)
 {
 	struct clflush *clflush;
@@ -128,7 +128,7 @@ void i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	 */
 	if (!i915_gem_object_has_struct_page(obj)) {
 		obj->cache_dirty = false;
-		return;
+		return false;
 	}
 
 	/* If the GPU is snooping the contents of the CPU cache,
@@ -139,8 +139,9 @@ void i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	 * snooping behaviour occurs naturally as the result of our domain
 	 * tracking.
 	 */
-	if (!(flags & I915_CLFLUSH_FORCE) && obj->cache_coherent)
-		return;
+	if (!(flags & I915_CLFLUSH_FORCE) &&
+	    obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_READ)
+		return false;
 
 	trace_i915_gem_object_clflush(obj);
 
@@ -179,4 +180,5 @@ void i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	}
 
 	obj->cache_dirty = false;
+	return true;
 }

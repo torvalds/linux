@@ -31,7 +31,6 @@ struct ion_cma_heap {
 
 #define to_cma_heap(x) container_of(x, struct ion_cma_heap, heap)
 
-
 /* ION CMA heap operations functions */
 static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 			    unsigned long len,
@@ -46,7 +45,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 	if (!pages)
 		return -ENOMEM;
 
-	table = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
+	table = kmalloc(sizeof(*table), GFP_KERNEL);
 	if (!table)
 		goto err;
 
@@ -106,7 +105,7 @@ static struct ion_heap *__ion_cma_heap_create(struct cma *cma)
 	return &cma_heap->heap;
 }
 
-int __ion_add_cma_heaps(struct cma *cma, void *data)
+static int __ion_add_cma_heaps(struct cma *cma, void *data)
 {
 	struct ion_heap *heap;
 

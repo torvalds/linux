@@ -479,6 +479,9 @@ static int arm_v7s_map(struct io_pgtable_ops *ops, unsigned long iova,
 	if (!(prot & (IOMMU_READ | IOMMU_WRITE)))
 		return 0;
 
+	if (WARN_ON(upper_32_bits(iova) || upper_32_bits(paddr)))
+		return -ERANGE;
+
 	ret = __arm_v7s_map(data, iova, paddr, size, prot, 1, data->pgd);
 	/*
 	 * Synchronise all PTE updates for the new mapping before there's
@@ -658,6 +661,9 @@ static int arm_v7s_unmap(struct io_pgtable_ops *ops, unsigned long iova,
 {
 	struct arm_v7s_io_pgtable *data = io_pgtable_ops_to_data(ops);
 	size_t unmapped;
+
+	if (WARN_ON(upper_32_bits(iova)))
+		return 0;
 
 	unmapped = __arm_v7s_unmap(data, iova, size, 1, data->pgd);
 	if (unmapped)

@@ -1278,6 +1278,12 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 	case 85721:
 		/* WinTV-HVR1290 (PCIe, OEM, RCA in, IR,
 			Dual channel ATSC and Basic analog */
+	case 121019:
+		/* WinTV-HVR4400 (PCIe, DVB-S2, DVB-C/T) */
+		break;
+	case 121029:
+		/* WinTV-HVR5500 (PCIe, DVB-S2, DVB-C/T) */
+		break;
 	case 150329:
 		/* WinTV-HVR5525 (PCIe, DVB-S/S2, DVB-T/T2/C) */
 		break;

@@ -44,6 +44,7 @@
 #include <asm/machdep.h>
 #include <asm/ppc-pci.h>
 #include <asm/rtas.h>
+#include <asm/pte-walk.h>
 
 
 /** Overview:
@@ -169,10 +170,10 @@ static size_t eeh_dump_dev_log(struct eeh_dev *edev, char *buf, size_t len)
 	char buffer[128];
 
 	n += scnprintf(buf+n, len-n, "%04x:%02x:%02x.%01x\n",
-		       edev->phb->global_number, pdn->busno,
+		       pdn->phb->global_number, pdn->busno,
 		       PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn));
 	pr_warn("EEH: of node=%04x:%02x:%02x.%01x\n",
-		edev->phb->global_number, pdn->busno,
+		pdn->phb->global_number, pdn->busno,
 		PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn));
 
 	eeh_ops->read_config(pdn, PCI_VENDOR_ID, 4, &cfg);
@@ -352,8 +353,7 @@ static inline unsigned long eeh_token_to_phys(unsigned long token)
 	 * worried about _PAGE_SPLITTING/collapse. Also we will not hit
 	 * page table free, because of init_mm.
 	 */
-	ptep = __find_linux_pte_or_hugepte(init_mm.pgd, token,
-					   NULL, &hugepage_shift);
+	ptep = find_init_mm_pte(token, &hugepage_shift);
 	if (!ptep)
 		return token;
 	WARN_ON(hugepage_shift);
@@ -435,7 +435,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	int ret;
 	int active_flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 	unsigned long flags;
-	struct pci_dn *pdn;
+	struct device_node *dn;
 	struct pci_dev *dev;
 	struct eeh_pe *pe, *parent_pe, *phb_pe;
 	int rc = 0;
@@ -493,9 +493,10 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	if (pe->state & EEH_PE_ISOLATED) {
 		pe->check_count++;
 		if (pe->check_count % EEH_MAX_FAILS == 0) {
-			pdn = eeh_dev_to_pdn(edev);
-			if (pdn->node)
-				location = of_get_property(pdn->node, "ibm,loc-code", NULL);
+			dn = pci_device_to_OF_node(dev);
+			if (dn)
+				location = of_get_property(dn, "ibm,loc-code",
+						NULL);
 			printk(KERN_ERR "EEH: %d reads ignored for recovering device at "
 				"location=%s driver=%s pci addr=%s\n",
 				pe->check_count,
@@ -1064,7 +1065,7 @@ core_initcall_sync(eeh_init);
  */
 void eeh_add_device_early(struct pci_dn *pdn)
 {
-	struct pci_controller *phb;
+	struct pci_controller *phb = pdn ? pdn->phb : NULL;
 	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 
 	if (!edev)
@@ -1074,7 +1075,6 @@ void eeh_add_device_early(struct pci_dn *pdn)
 		return;
 
 	/* USB Bus children of PCI devices will not have BUID's */
-	phb = edev->phb;
 	if (NULL == phb ||
 	    (eeh_has_flag(EEH_PROBE_MODE_DEVTREE) && 0 == phb->buid))
 		return;

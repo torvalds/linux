@@ -329,14 +329,14 @@ static u32 au0828_functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm au0828_i2c_algo_template = {
+static const struct i2c_algorithm au0828_i2c_algo_template = {
 	.master_xfer	= i2c_xfer,
 	.functionality	= au0828_functionality,
 };
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_adapter au0828_i2c_adap_template = {
+static const struct i2c_adapter au0828_i2c_adap_template = {
 	.name              = KBUILD_MODNAME,
 	.owner             = THIS_MODULE,
 	.algo              = &au0828_i2c_algo_template,

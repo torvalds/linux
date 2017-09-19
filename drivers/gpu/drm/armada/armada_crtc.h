@@ -102,8 +102,6 @@ struct armada_crtc {
 };
 #define drm_to_armada_crtc(c) container_of(c, struct armada_crtc, crtc)
 
-void armada_drm_crtc_gamma_set(struct drm_crtc *, u16, u16, u16, int);
-void armada_drm_crtc_gamma_get(struct drm_crtc *, u16 *, u16 *, u16 *, int);
 void armada_drm_crtc_update_regs(struct armada_crtc *, struct armada_regs *);
 
 void armada_drm_crtc_plane_disable(struct armada_crtc *dcrtc,

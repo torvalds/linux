@@ -2090,7 +2090,7 @@ S: Kuala Lumpur, Malaysia
 
 N: Mohit Kumar
 D: ST Microelectronics SPEAr13xx PCI host bridge driver
-D: Synopsys Designware PCI host bridge driver
+D: Synopsys DesignWare PCI host bridge driver
 
 N: Gabor Kuti
 E: seasons@falcon.sch.bme.hu
@@ -2606,11 +2606,9 @@ E: tmolina@cablespeed.com
 D: bug fixes, documentation, minor hackery
 
 N: Paul Moore
-E: paul.moore@hp.com
-D: NetLabel author
-S: Hewlett-Packard
-S: 110 Spit Brook Road
-S: Nashua, NH 03062
+E: paul@paul-moore.com
+W: http://www.paul-moore.com
+D: NetLabel, SELinux, audit
 
 N: James Morris
 E: jmorris@namei.org

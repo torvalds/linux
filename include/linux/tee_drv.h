@@ -28,6 +28,7 @@
 #define TEE_SHM_MAPPED		0x1	/* Memory mapped by the kernel */
 #define TEE_SHM_DMA_BUF		0x2	/* Memory with dma-buf handle */
 
+struct device;
 struct tee_device;
 struct tee_shm;
 struct tee_shm_pool;

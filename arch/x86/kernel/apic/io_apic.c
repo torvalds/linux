@@ -1243,7 +1243,7 @@ static void io_apic_print_entries(unsigned int apic, unsigned int nr_entries)
 			 entry.vector, entry.irr, entry.delivery_status);
 		if (ir_entry->format)
 			printk(KERN_DEBUG "%s, remapped, I(%04X),  Z(%X)\n",
-			       buf, (ir_entry->index << 15) | ir_entry->index,
+			       buf, (ir_entry->index2 << 15) | ir_entry->index,
 			       ir_entry->zero);
 		else
 			printk(KERN_DEBUG "%s, %s, D(%02X), M(%1d)\n",
@@ -2093,7 +2093,7 @@ static inline void __init check_timer(void)
 			int idx;
 			idx = find_irq_entry(apic1, pin1, mp_INT);
 			if (idx != -1 && irq_trigger(idx))
-				unmask_ioapic_irq(irq_get_chip_data(0));
+				unmask_ioapic_irq(irq_get_irq_data(0));
 		}
 		irq_domain_deactivate_irq(irq_data);
 		irq_domain_activate_irq(irq_data);

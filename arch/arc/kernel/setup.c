@@ -385,13 +385,13 @@ void setup_processor(void)
 	read_arc_build_cfg_regs();
 	arc_init_IRQ();
 
-	printk(arc_cpu_mumbojumbo(cpu_id, str, sizeof(str)));
+	pr_info("%s", arc_cpu_mumbojumbo(cpu_id, str, sizeof(str)));
 
 	arc_mmu_init();
 	arc_cache_init();
 
-	printk(arc_extn_mumbojumbo(cpu_id, str, sizeof(str)));
-	printk(arc_platform_smp_cpuinfo());
+	pr_info("%s", arc_extn_mumbojumbo(cpu_id, str, sizeof(str)));
+	pr_info("%s", arc_platform_smp_cpuinfo());
 
 	arc_chk_core_config();
 }
@@ -510,7 +510,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		goto done;
 	}
 
-	str = (char *)__get_free_page(GFP_TEMPORARY);
+	str = (char *)__get_free_page(GFP_KERNEL);
 	if (!str)
 		goto done;
 

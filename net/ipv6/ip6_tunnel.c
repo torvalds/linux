@@ -171,7 +171,7 @@ ip6_tnl_lookup(struct net *net, const struct in6_addr *remote, const struct in6_
 	}
 
 	t = rcu_dereference(ip6n->collect_md_tun);
-	if (t)
+	if (t && t->dev->flags & IFF_UP)
 		return t;
 
 	t = rcu_dereference(ip6n->tnls_wc[0]);
@@ -1184,6 +1184,7 @@ route_lookup:
 		init_tel_txopt(&opt, encap_limit);
 		ipv6_push_frag_opts(skb, &opt.ops, &proto);
 	}
+	hop_limit = hop_limit ? : ip6_dst_hoplimit(dst);
 
 	/* Calculate max headroom for all the headers and adjust
 	 * needed_headroom if necessary.

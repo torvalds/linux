@@ -84,6 +84,11 @@ hardware descriptions such as device tree or ACPI:
   NAND flash MTD subsystem and provides chip access and partition parsing like
   any other NAND driving hardware.
 
+- ps2-gpio: drivers/input/serio/ps2-gpio.c is used to drive a PS/2 (IBM) serio
+  bus, data and clock line, by bit banging two GPIO lines. It will appear as
+  any other serio bus to the system and makes it possible to connect drivers
+  for e.g. keyboards and other PS/2 protocol based devices.
+
 Apart from this there are special GPIO drivers in subsystems like MMC/SD to
 read card detect and write protect GPIO lines, and in the TTY serial subsystem
 to emulate MCTRL (modem control) signals CTS/RTS by using two GPIO lines. The

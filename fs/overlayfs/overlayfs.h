@@ -47,7 +47,8 @@ enum ovl_flag {
 /* Is the real inode encoded in fid an upper inode? */
 #define OVL_FH_FLAG_PATH_UPPER	(1 << 2)
 
-#define OVL_FH_FLAG_ALL (OVL_FH_FLAG_BIG_ENDIAN | OVL_FH_FLAG_ANY_ENDIAN)
+#define OVL_FH_FLAG_ALL (OVL_FH_FLAG_BIG_ENDIAN | OVL_FH_FLAG_ANY_ENDIAN | \
+			 OVL_FH_FLAG_PATH_UPPER)
 
 #if defined(__LITTLE_ENDIAN)
 #define OVL_FH_FLAG_CPU_ENDIAN 0
@@ -199,11 +200,12 @@ enum ovl_path_type ovl_path_real(struct dentry *dentry, struct path *path);
 struct dentry *ovl_dentry_upper(struct dentry *dentry);
 struct dentry *ovl_dentry_lower(struct dentry *dentry);
 struct dentry *ovl_dentry_real(struct dentry *dentry);
+struct dentry *ovl_i_dentry_upper(struct inode *inode);
 struct inode *ovl_inode_upper(struct inode *inode);
 struct inode *ovl_inode_lower(struct inode *inode);
 struct inode *ovl_inode_real(struct inode *inode);
-struct ovl_dir_cache *ovl_dir_cache(struct dentry *dentry);
-void ovl_set_dir_cache(struct dentry *dentry, struct ovl_dir_cache *cache);
+struct ovl_dir_cache *ovl_dir_cache(struct inode *inode);
+void ovl_set_dir_cache(struct inode *inode, struct ovl_dir_cache *cache);
 bool ovl_dentry_is_opaque(struct dentry *dentry);
 bool ovl_dentry_is_whiteout(struct dentry *dentry);
 void ovl_dentry_set_opaque(struct dentry *dentry);
@@ -215,7 +217,7 @@ void ovl_dentry_set_redirect(struct dentry *dentry, const char *redirect);
 void ovl_inode_init(struct inode *inode, struct dentry *upperdentry,
 		    struct dentry *lowerdentry);
 void ovl_inode_update(struct inode *inode, struct dentry *upperdentry);
-void ovl_dentry_version_inc(struct dentry *dentry);
+void ovl_dentry_version_inc(struct dentry *dentry, bool impurity);
 u64 ovl_dentry_version_get(struct dentry *dentry);
 bool ovl_is_whiteout(struct dentry *dentry);
 struct file *ovl_path_open(struct path *path, int flags);
@@ -227,6 +229,7 @@ int ovl_check_setxattr(struct dentry *dentry, struct dentry *upperdentry,
 		       int xerr);
 int ovl_set_impure(struct dentry *dentry, struct dentry *upperdentry);
 void ovl_set_flag(unsigned long flag, struct inode *inode);
+void ovl_clear_flag(unsigned long flag, struct inode *inode);
 bool ovl_test_flag(unsigned long flag, struct inode *inode);
 bool ovl_inuse_trylock(struct dentry *dentry);
 void ovl_inuse_unlock(struct dentry *dentry);
@@ -254,6 +257,7 @@ extern const struct file_operations ovl_dir_operations;
 int ovl_check_empty_dir(struct dentry *dentry, struct list_head *list);
 void ovl_cleanup_whiteouts(struct dentry *upper, struct list_head *list);
 void ovl_cache_free(struct list_head *list);
+void ovl_dir_cache_free(struct inode *inode);
 int ovl_check_d_type_supported(struct path *realpath);
 void ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
 			 struct dentry *dentry, int level);
@@ -270,9 +274,9 @@ int ovl_setattr(struct dentry *dentry, struct iattr *attr);
 int ovl_getattr(const struct path *path, struct kstat *stat,
 		u32 request_mask, unsigned int flags);
 int ovl_permission(struct inode *inode, int mask);
-int ovl_xattr_set(struct dentry *dentry, const char *name, const void *value,
-		  size_t size, int flags);
-int ovl_xattr_get(struct dentry *dentry, const char *name,
+int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char *name,
+		  const void *value, size_t size, int flags);
+int ovl_xattr_get(struct dentry *dentry, struct inode *inode, const char *name,
 		  void *value, size_t size);
 ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size);
 struct posix_acl *ovl_get_acl(struct inode *inode, int type);

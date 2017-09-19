@@ -1,0 +1,22 @@
+ZTE ZX PWM controller
+
+Required properties:
+ - compatible: Should be "zte,zx296718-pwm".
+ - reg: Physical base address and length of the controller's registers.
+ - clocks : The phandle and specifier referencing the controller's clocks.
+ - clock-names: "pclk" for PCLK, "wclk" for WCLK to the PWM controller.  The
+   PCLK is for register access, while WCLK is the reference clock for
+   calculating period and duty cycles.
+ - #pwm-cells: Should be 3. See pwm.txt in this directory for a description of
+   the cells format.
+
+Example:
+
+	pwm: pwm@1439000 {
+		compatible = "zte,zx296718-pwm";
+		reg = <0x1439000 0x1000>;
+		clocks = <&lsp1crm LSP1_PWM_PCLK>,
+			 <&lsp1crm LSP1_PWM_WCLK>;
+		clock-names = "pclk", "wclk";
+		#pwm-cells = <3>;
+	};

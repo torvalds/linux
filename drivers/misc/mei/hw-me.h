@@ -41,8 +41,7 @@ struct mei_cfg {
 #define MEI_PCI_DEVICE(dev, cfg) \
 	.vendor = PCI_VENDOR_ID_INTEL, .device = (dev), \
 	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID, \
-	.driver_data = (kernel_ulong_t)&(cfg)
-
+	.driver_data = (kernel_ulong_t)(cfg),
 
 #define MEI_ME_RPM_TIMEOUT    500 /* ms */
 
@@ -63,12 +62,36 @@ struct mei_me_hw {
 
 #define to_me_hw(dev) (struct mei_me_hw *)((dev)->hw)
 
-extern const struct mei_cfg mei_me_legacy_cfg;
-extern const struct mei_cfg mei_me_ich_cfg;
-extern const struct mei_cfg mei_me_pch_cfg;
-extern const struct mei_cfg mei_me_pch_cpt_pbg_cfg;
-extern const struct mei_cfg mei_me_pch8_cfg;
-extern const struct mei_cfg mei_me_pch8_sps_cfg;
+/**
+ * enum mei_cfg_idx - indices to platform specific configurations.
+ *
+ * Note: has to be synchronized with mei_cfg_list[]
+ *
+ * @MEI_ME_UNDEF_CFG:      Lower sentinel.
+ * @MEI_ME_ICH_CFG:        I/O Controller Hub legacy devices.
+ * @MEI_ME_ICH10_CFG:      I/O Controller Hub platforms Gen10
+ * @MEI_ME_PCH_CFG:        Platform Controller Hub platforms (Up to Gen8).
+ * @MEI_ME_PCH_CPT_PBG_CFG:Platform Controller Hub workstations
+ *                         with quirk for Node Manager exclusion.
+ * @MEI_ME_PCH8_CFG:       Platform Controller Hub Gen8 and newer
+ *                         client platforms.
+ * @MEI_ME_PCH8_SPS_CFG:   Platform Controller Hub Gen8 and newer
+ *                         servers platforms with quirk for
+ *                         SPS firmware exclusion.
+ * @MEI_ME_NUM_CFG:        Upper Sentinel.
+ */
+enum mei_cfg_idx {
+	MEI_ME_UNDEF_CFG,
+	MEI_ME_ICH_CFG,
+	MEI_ME_ICH10_CFG,
+	MEI_ME_PCH_CFG,
+	MEI_ME_PCH_CPT_PBG_CFG,
+	MEI_ME_PCH8_CFG,
+	MEI_ME_PCH8_SPS_CFG,
+	MEI_ME_NUM_CFG,
+};
+
+const struct mei_cfg *mei_me_get_cfg(kernel_ulong_t idx);
 
 struct mei_device *mei_me_dev_init(struct pci_dev *pdev,
 				   const struct mei_cfg *cfg);

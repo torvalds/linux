@@ -25,7 +25,7 @@
  *
  * So we play the same trick that "mkdep" played before. We replace
  * the dependency on autoconf.h by a dependency on every config
- * option which is mentioned in any of the listed prequisites.
+ * option which is mentioned in any of the listed prerequisites.
  *
  * kconfig populates a tree in include/config/ with an empty file
  * for each config symbol and when the configuration is updated
@@ -34,7 +34,7 @@
  * the config symbols are rebuilt.
  *
  * So if the user changes his CONFIG_HIS_DRIVER option, only the objects
- * which depend on "include/linux/config/his/driver.h" will be rebuilt,
+ * which depend on "include/config/his/driver.h" will be rebuilt,
  * so most likely only his driver ;-)
  *
  * The idea above dates, by the way, back to Michael E Chastain, AFAIK.
@@ -75,7 +75,7 @@
  * and then basically copies the .<target>.d file to stdout, in the
  * process filtering out the dependency on autoconf.h and adding
  * dependencies on include/config/my/option.h for every
- * CONFIG_MY_OPTION encountered in any of the prequisites.
+ * CONFIG_MY_OPTION encountered in any of the prerequisites.
  *
  * It will also filter out all the dependencies on *.ver. We need
  * to make sure that the generated version checksum are globally up

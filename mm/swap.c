@@ -765,6 +765,17 @@ void release_pages(struct page **pages, int nr, bool cold)
 		if (is_huge_zero_page(page))
 			continue;
 
+		/* Device public page can not be huge page */
+		if (is_device_public_page(page)) {
+			if (locked_pgdat) {
+				spin_unlock_irqrestore(&locked_pgdat->lru_lock,
+						       flags);
+				locked_pgdat = NULL;
+			}
+			put_zone_device_private_or_public_page(page);
+			continue;
+		}
+
 		page = compound_head(page);
 		if (!put_page_testzero(page))
 			continue;
@@ -946,28 +957,34 @@ void pagevec_remove_exceptionals(struct pagevec *pvec)
 }
 
 /**
- * pagevec_lookup - gang pagecache lookup
+ * pagevec_lookup_range - gang pagecache lookup
  * @pvec:	Where the resulting pages are placed
  * @mapping:	The address_space to search
  * @start:	The starting page index
+ * @end:	The final page index
  * @nr_pages:	The maximum number of pages
  *
- * pagevec_lookup() will search for and return a group of up to @nr_pages pages
- * in the mapping.  The pages are placed in @pvec.  pagevec_lookup() takes a
+ * pagevec_lookup_range() will search for and return a group of up to @nr_pages
+ * pages in the mapping starting from index @start and upto index @end
+ * (inclusive).  The pages are placed in @pvec.  pagevec_lookup() takes a
  * reference against the pages in @pvec.
  *
  * The search returns a group of mapping-contiguous pages with ascending
- * indexes.  There may be holes in the indices due to not-present pages.
+ * indexes.  There may be holes in the indices due to not-present pages. We
+ * also update @start to index the next page for the traversal.
  *
- * pagevec_lookup() returns the number of pages which were found.
+ * pagevec_lookup_range() returns the number of pages which were found. If this
+ * number is smaller than @nr_pages, the end of specified range has been
+ * reached.
  */
-unsigned pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
-		pgoff_t start, unsigned nr_pages)
+unsigned pagevec_lookup_range(struct pagevec *pvec,
+		struct address_space *mapping, pgoff_t *start, pgoff_t end)
 {
-	pvec->nr = find_get_pages(mapping, start, nr_pages, pvec->pages);
+	pvec->nr = find_get_pages_range(mapping, start, end, PAGEVEC_SIZE,
+					pvec->pages);
 	return pagevec_count(pvec);
 }
-EXPORT_SYMBOL(pagevec_lookup);
+EXPORT_SYMBOL(pagevec_lookup_range);
 
 unsigned pagevec_lookup_tag(struct pagevec *pvec, struct address_space *mapping,
 		pgoff_t *index, int tag, unsigned nr_pages)

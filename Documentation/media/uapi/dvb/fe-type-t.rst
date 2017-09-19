@@ -78,7 +78,7 @@ parameter.
 
 In the old days, struct :c:type:`dvb_frontend_info`
 used to contain ``fe_type_t`` field to indicate the delivery systems,
-filled with either FE_QPSK, FE_QAM, FE_OFDM or FE_ATSC. While this
+filled with either ``FE_QPSK, FE_QAM, FE_OFDM`` or ``FE_ATSC``. While this
 is still filled to keep backward compatibility, the usage of this field
 is deprecated, as it can report just one delivery system, but some
 devices support multiple delivery systems. Please use

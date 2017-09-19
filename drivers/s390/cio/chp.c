@@ -143,7 +143,7 @@ static ssize_t chp_measurement_chars_read(struct file *filp,
 				       sizeof(chp->cmg_chars));
 }
 
-static struct bin_attribute chp_measurement_chars_attr = {
+static const struct bin_attribute chp_measurement_chars_attr = {
 	.attr = {
 		.name = "measurement_chars",
 		.mode = S_IRUSR,
@@ -197,7 +197,7 @@ static ssize_t chp_measurement_read(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute chp_measurement_attr = {
+static const struct bin_attribute chp_measurement_attr = {
 	.attr = {
 		.name = "measurement",
 		.mode = S_IRUSR,
@@ -559,6 +559,7 @@ static void chp_process_crw(struct crw *crw0, struct crw *crw1,
 	chpid.id = crw0->rsid;
 	switch (crw0->erc) {
 	case CRW_ERC_IPARM: /* Path has come. */
+	case CRW_ERC_INIT:
 		if (!chp_is_registered(chpid))
 			chp_new(chpid);
 		chsc_chp_online(chpid);

@@ -238,6 +238,18 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon)
 	 * the same SMB session
 	 */
 	mutex_lock(&tcon->ses->session_mutex);
+
+	/*
+	 * Recheck after acquire mutex. If another thread is negotiating
+	 * and the server never sends an answer the socket will be closed
+	 * and tcpStatus set to reconnect.
+	 */
+	if (server->tcpStatus == CifsNeedReconnect) {
+		rc = -EHOSTDOWN;
+		mutex_unlock(&tcon->ses->session_mutex);
+		goto out;
+	}
+
 	rc = cifs_negotiate_protocol(0, tcon->ses);
 	if (!rc && tcon->ses->need_reconnect)
 		rc = cifs_setup_session(0, tcon->ses, nls_codepage);
@@ -514,7 +526,12 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	 * No tcon so can't do
 	 * cifs_stats_inc(&tcon->stats.smb2_stats.smb2_com_fail[SMB2...]);
 	 */
-	if (rc != 0)
+	if (rc == -EOPNOTSUPP) {
+		cifs_dbg(VFS, "Dialect not supported by server. Consider "
+			"specifying vers=1.0 or vers=2.1 on mount for accessing"
+			" older servers\n");
+		goto neg_exit;
+	} else if (rc != 0)
 		goto neg_exit;
 
 	cifs_dbg(FYI, "mode 0x%x\n", rsp->SecurityMode);
@@ -2140,6 +2157,18 @@ qinf_exit:
 	return rc;
 }
 
+int SMB2_query_eas(const unsigned int xid, struct cifs_tcon *tcon,
+	u64 persistent_fid, u64 volatile_fid,
+	struct smb2_file_full_ea_info *data)
+{
+	return query_info(xid, tcon, persistent_fid, volatile_fid,
+			  FILE_FULL_EA_INFORMATION, SMB2_O_INFO_FILE, 0,
+			  SMB2_MAX_EA_BUF,
+			  sizeof(struct smb2_file_full_ea_info),
+			  (void **)&data,
+			  NULL);
+}
+
 int SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 	u64 persistent_fid, u64 volatile_fid, struct smb2_file_all_info *data)
 {
@@ -3180,6 +3209,16 @@ SMB2_set_acl(const unsigned int xid, struct cifs_tcon *tcon,
 }
 
 int
+SMB2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
+	    u64 persistent_fid, u64 volatile_fid,
+	    struct smb2_file_full_ea_info *buf, int len)
+{
+	return send_set_info(xid, tcon, persistent_fid, volatile_fid,
+		current->tgid, FILE_FULL_EA_INFORMATION, SMB2_O_INFO_FILE,
+		0, 1, (void **)&buf, &len);
+}
+
+int
 SMB2_oplock_break(const unsigned int xid, struct cifs_tcon *tcon,
 		  const u64 persistent_fid, const u64 volatile_fid,
 		  __u8 oplock_level)
@@ -3219,8 +3258,8 @@ copy_fs_info_to_kstatfs(struct smb2_fs_full_size_info *pfs_inf,
 	kst->f_bsize = le32_to_cpu(pfs_inf->BytesPerSector) *
 			  le32_to_cpu(pfs_inf->SectorsPerAllocationUnit);
 	kst->f_blocks = le64_to_cpu(pfs_inf->TotalAllocationUnits);
-	kst->f_bfree  = le64_to_cpu(pfs_inf->ActualAvailableAllocationUnits);
-	kst->f_bavail = le64_to_cpu(pfs_inf->CallerAvailableAllocationUnits);
+	kst->f_bfree  = kst->f_bavail =
+			le64_to_cpu(pfs_inf->CallerAvailableAllocationUnits);
 	return;
 }
 

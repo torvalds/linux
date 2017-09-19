@@ -125,7 +125,9 @@ static int mxs_saif_set_clk(struct mxs_saif *saif,
 	 *
 	 * If MCLK is not used, we just set saif clk to 512*fs.
 	 */
-	clk_prepare_enable(master_saif->clk);
+	ret = clk_prepare_enable(master_saif->clk);
+	if (ret)
+		return ret;
 
 	if (master_saif->mclk_in_use) {
 		switch (mclk / rate) {
@@ -388,6 +390,7 @@ static int mxs_saif_startup(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *cpu_dai)
 {
 	struct mxs_saif *saif = snd_soc_dai_get_drvdata(cpu_dai);
+	int ret;
 
 	/* clear error status to 0 for each re-open */
 	saif->fifo_underrun = 0;
@@ -401,7 +404,9 @@ static int mxs_saif_startup(struct snd_pcm_substream *substream,
 	__raw_writel(BM_SAIF_CTRL_CLKGATE,
 		saif->base + SAIF_CTRL + MXS_CLR_ADDR);
 
-	clk_prepare(saif->clk);
+	ret = clk_prepare(saif->clk);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -468,7 +473,9 @@ static int mxs_saif_hw_params(struct snd_pcm_substream *substream,
 		if (ret)
 			return ret;
 
-		clk_prepare(master_saif->clk);
+		ret = clk_prepare(master_saif->clk);
+		if (ret)
+			return ret;
 	}
 
 	scr = __raw_readl(saif->base + SAIF_CTRL);

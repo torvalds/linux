@@ -33,6 +33,5 @@ Example:
 		clock-names = "hsic_480M", "hsic_12M", "phy";
 		resets = <&usb_phy_clk 18>, <&usb_phy_clk 19>;
 		reset-names = "hsic", "phy";
-		status = "disabled";
 		#phy-cells = <0>;
 	};

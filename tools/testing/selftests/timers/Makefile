@@ -1,5 +1,4 @@
-BUILD_FLAGS = -DKTEST
-CFLAGS += -O3 -Wl,-no-as-needed -Wall $(BUILD_FLAGS)
+CFLAGS += -O3 -Wl,-no-as-needed -Wall
 LDFLAGS += -lrt -lpthread -lm
 
 # these are all "safe" tests that don't modify
@@ -7,9 +6,11 @@ LDFLAGS += -lrt -lpthread -lm
 TEST_GEN_PROGS = posix_timers nanosleep nsleep-lat set-timer-lat mqueue-lat \
 	     inconsistency-check raw_skew threadtest rtctest
 
-TEST_GEN_PROGS_EXTENDED = alarmtimer-suspend valid-adjtimex adjtick change_skew \
+DESTRUCTIVE_TESTS = alarmtimer-suspend valid-adjtimex adjtick change_skew \
 		      skew_consistency clocksource-switch freq-step leap-a-day \
-		      leapcrash set-tai set-2038 set-tz rtctest_setdate
+		      leapcrash set-tai set-2038 set-tz
+
+TEST_GEN_PROGS_EXTENDED = $(DESTRUCTIVE_TESTS) rtctest_setdate
 
 
 include ../lib.mk
@@ -18,16 +19,4 @@ include ../lib.mk
 # and may modify the system time or trigger
 # other behavior like suspend
 run_destructive_tests: run_tests
-	./alarmtimer-suspend
-	./valid-adjtimex
-	./adjtick
-	./change_skew
-	./skew_consistency
-	./clocksource-switch
-	./freq-step
-	./leap-a-day -s -i 10
-	./leapcrash
-	./set-tz
-	./set-tai
-	./set-2038
-
+	$(call RUN_TESTS, $(DESTRUCTIVE_TESTS))

@@ -110,7 +110,8 @@ intel_pch_panel_fitting(struct intel_crtc *intel_crtc,
 
 	/* Native modes don't need fitting */
 	if (adjusted_mode->crtc_hdisplay == pipe_config->pipe_src_w &&
-	    adjusted_mode->crtc_vdisplay == pipe_config->pipe_src_h)
+	    adjusted_mode->crtc_vdisplay == pipe_config->pipe_src_h &&
+	    !pipe_config->ycbcr420)
 		goto done;
 
 	switch (fitting_mode) {
@@ -469,7 +470,7 @@ static u32 intel_panel_compute_brightness(struct intel_connector *connector,
 
 	if (i915.invert_brightness > 0 ||
 	    dev_priv->quirks & QUIRK_INVERT_BRIGHTNESS) {
-		return panel->backlight.max - val;
+		return panel->backlight.max - val + panel->backlight.min;
 	}
 
 	return val;
@@ -1919,11 +1920,13 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 
 int intel_panel_init(struct intel_panel *panel,
 		     struct drm_display_mode *fixed_mode,
+		     struct drm_display_mode *alt_fixed_mode,
 		     struct drm_display_mode *downclock_mode)
 {
 	intel_panel_init_backlight_funcs(panel);
 
 	panel->fixed_mode = fixed_mode;
+	panel->alt_fixed_mode = alt_fixed_mode;
 	panel->downclock_mode = downclock_mode;
 
 	return 0;
@@ -1936,6 +1939,10 @@ void intel_panel_fini(struct intel_panel *panel)
 
 	if (panel->fixed_mode)
 		drm_mode_destroy(intel_connector->base.dev, panel->fixed_mode);
+
+	if (panel->alt_fixed_mode)
+		drm_mode_destroy(intel_connector->base.dev,
+				panel->alt_fixed_mode);
 
 	if (panel->downclock_mode)
 		drm_mode_destroy(intel_connector->base.dev,

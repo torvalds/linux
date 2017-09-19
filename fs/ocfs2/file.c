@@ -196,7 +196,7 @@ static int ocfs2_sync_file(struct file *file, loff_t start, loff_t end,
 	if (ocfs2_is_hard_readonly(osb) || ocfs2_is_soft_readonly(osb))
 		return -EROFS;
 
-	err = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	err = file_write_and_wait_range(file, start, end);
 	if (err)
 		return err;
 
@@ -711,13 +711,6 @@ leave:
 	bh = NULL;
 
 	return status;
-}
-
-int ocfs2_extend_allocation(struct inode *inode, u32 logical_start,
-		u32 clusters_to_add, int mark_unwritten)
-{
-	return __ocfs2_extend_allocation(inode, logical_start,
-			clusters_to_add, mark_unwritten);
 }
 
 /*

@@ -11,6 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/mii.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>

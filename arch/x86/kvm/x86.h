@@ -11,7 +11,7 @@
 
 static inline void kvm_clear_exception_queue(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.exception.pending = false;
+	vcpu->arch.exception.injected = false;
 }
 
 static inline void kvm_queue_interrupt(struct kvm_vcpu *vcpu, u8 vector,
@@ -29,7 +29,7 @@ static inline void kvm_clear_interrupt_queue(struct kvm_vcpu *vcpu)
 
 static inline bool kvm_event_needs_reinjection(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.exception.pending || vcpu->arch.interrupt.pending ||
+	return vcpu->arch.exception.injected || vcpu->arch.interrupt.pending ||
 		vcpu->arch.nmi_injected;
 }
 
@@ -62,6 +62,16 @@ static inline bool is_64_bit_mode(struct kvm_vcpu *vcpu)
 	return cs_l;
 }
 
+static inline bool is_la57_mode(struct kvm_vcpu *vcpu)
+{
+#ifdef CONFIG_X86_64
+	return (vcpu->arch.efer & EFER_LMA) &&
+		 kvm_read_cr4_bits(vcpu, X86_CR4_LA57);
+#else
+	return 0;
+#endif
+}
+
 static inline bool mmu_is_nested(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.walk_mmu == &vcpu->arch.nested_mmu;
@@ -87,10 +97,48 @@ static inline u32 bit(int bitno)
 	return 1 << (bitno & 31);
 }
 
+static inline u8 vcpu_virt_addr_bits(struct kvm_vcpu *vcpu)
+{
+	return kvm_read_cr4_bits(vcpu, X86_CR4_LA57) ? 57 : 48;
+}
+
+static inline u8 ctxt_virt_addr_bits(struct x86_emulate_ctxt *ctxt)
+{
+	return (ctxt->ops->get_cr(ctxt, 4) & X86_CR4_LA57) ? 57 : 48;
+}
+
+static inline u64 get_canonical(u64 la, u8 vaddr_bits)
+{
+	return ((int64_t)la << (64 - vaddr_bits)) >> (64 - vaddr_bits);
+}
+
+static inline bool is_noncanonical_address(u64 la, struct kvm_vcpu *vcpu)
+{
+#ifdef CONFIG_X86_64
+	return get_canonical(la, vcpu_virt_addr_bits(vcpu)) != la;
+#else
+	return false;
+#endif
+}
+
+static inline bool emul_is_noncanonical_address(u64 la,
+						struct x86_emulate_ctxt *ctxt)
+{
+#ifdef CONFIG_X86_64
+	return get_canonical(la, ctxt_virt_addr_bits(ctxt)) != la;
+#else
+	return false;
+#endif
+}
+
 static inline void vcpu_cache_mmio_info(struct kvm_vcpu *vcpu,
 					gva_t gva, gfn_t gfn, unsigned access)
 {
-	vcpu->arch.mmio_gva = gva & PAGE_MASK;
+	/*
+	 * If this is a shadow nested page table, the "GVA" is
+	 * actually a nGPA.
+	 */
+	vcpu->arch.mmio_gva = mmu_is_nested(vcpu) ? 0 : gva & PAGE_MASK;
 	vcpu->arch.access = access;
 	vcpu->arch.mmio_gfn = gfn;
 	vcpu->arch.mmio_gen = kvm_memslots(vcpu->kvm)->generation;

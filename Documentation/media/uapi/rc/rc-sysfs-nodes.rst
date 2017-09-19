@@ -34,9 +34,9 @@ receiver device where N is the number of the receiver.
 /sys/class/rc/rcN/protocols
 ===========================
 
-Reading this file returns a list of available protocols, something like:
+Reading this file returns a list of available protocols, something like::
 
-``rc5 [rc6] nec jvc [sony]``
+	rc5 [rc6] nec jvc [sony]
 
 Enabled protocols are shown in [] brackets.
 
@@ -90,11 +90,11 @@ This value may be reset to 0 if the current protocol is altered.
 ==================================
 
 Reading this file returns a list of available protocols to use for the
-wakeup filter, something like:
+wakeup filter, something like::
 
-``rc-5 nec nec-x rc-6-0 rc-6-6a-24 [rc-6-6a-32] rc-6-mce``
+	rc-5 nec nec-x rc-6-0 rc-6-6a-24 [rc-6-6a-32] rc-6-mce
 
-Note that protocol variants are listed, so "nec", "sony", "rc-5", "rc-6"
+Note that protocol variants are listed, so ``nec``, ``sony``, ``rc-5``, ``rc-6``
 have their different bit length encodings listed if available.
 
 Note that all protocol variants are listed.

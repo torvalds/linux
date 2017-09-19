@@ -237,6 +237,11 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 
 	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, addr, &al);
 	if (!al.map || !al.map->dso) {
+		if (cpumode == PERF_RECORD_MISC_HYPERVISOR) {
+			pr_debug("Hypervisor address can not be resolved - skipping\n");
+			return 0;
+		}
+
 		pr_debug("thread__find_addr_map failed\n");
 		return -1;
 	}
@@ -673,7 +678,7 @@ out_err:
 	return err;
 }
 
-int test__code_reading(int subtest __maybe_unused)
+int test__code_reading(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int ret;
 

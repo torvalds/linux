@@ -88,7 +88,7 @@ EXPORT_SYMBOL_GPL(ir_raw_event_store);
 /**
  * ir_raw_event_store_edge() - notify raw ir decoders of the start of a pulse/space
  * @dev:	the struct rc_dev device descriptor
- * @type:	the type of the event that has occurred
+ * @pulse:	true for pulse, false for space
  *
  * This routine (which may be called from an interrupt context) is used to
  * store the beginning of an ir pulse or space (or the start/end of ir
@@ -96,43 +96,31 @@ EXPORT_SYMBOL_GPL(ir_raw_event_store);
  * hardware which does not provide durations directly but only interrupts
  * (or similar events) on state change.
  */
-int ir_raw_event_store_edge(struct rc_dev *dev, enum raw_event_type type)
+int ir_raw_event_store_edge(struct rc_dev *dev, bool pulse)
 {
 	ktime_t			now;
-	s64			delta; /* ns */
 	DEFINE_IR_RAW_EVENT(ev);
 	int			rc = 0;
-	int			delay;
 
 	if (!dev->raw)
 		return -EINVAL;
 
 	now = ktime_get();
-	delta = ktime_to_ns(ktime_sub(now, dev->raw->last_event));
-	delay = MS_TO_NS(dev->input_dev->rep[REP_DELAY]);
+	ev.duration = ktime_to_ns(ktime_sub(now, dev->raw->last_event));
+	ev.pulse = !pulse;
 
-	/* Check for a long duration since last event or if we're
-	 * being called for the first time, note that delta can't
-	 * possibly be negative.
-	 */
-	if (delta > delay || !dev->raw->last_type)
-		type |= IR_START_EVENT;
-	else
-		ev.duration = delta;
-
-	if (type & IR_START_EVENT)
-		ir_raw_event_reset(dev);
-	else if (dev->raw->last_type & IR_SPACE) {
-		ev.pulse = false;
-		rc = ir_raw_event_store(dev, &ev);
-	} else if (dev->raw->last_type & IR_PULSE) {
-		ev.pulse = true;
-		rc = ir_raw_event_store(dev, &ev);
-	} else
-		return 0;
+	rc = ir_raw_event_store(dev, &ev);
 
 	dev->raw->last_event = now;
-	dev->raw->last_type = type;
+
+	/* timer could be set to timeout (125ms by default) */
+	if (!timer_pending(&dev->raw->edge_handle) ||
+	    time_after(dev->raw->edge_handle.expires,
+		       jiffies + msecs_to_jiffies(15))) {
+		mod_timer(&dev->raw->edge_handle,
+			  jiffies + msecs_to_jiffies(15));
+	}
+
 	return rc;
 }
 EXPORT_SYMBOL_GPL(ir_raw_event_store_edge);
@@ -225,7 +213,7 @@ ir_raw_get_allowed_protocols(void)
 	return atomic64_read(&available_protocols);
 }
 
-static int change_protocol(struct rc_dev *dev, u64 *rc_type)
+static int change_protocol(struct rc_dev *dev, u64 *rc_proto)
 {
 	/* the caller will update dev->enabled_protocols */
 	return 0;
@@ -462,7 +450,7 @@ EXPORT_SYMBOL(ir_raw_gen_pl);
  *		-EINVAL if the scancode is ambiguous or invalid, or if no
  *		compatible encoder was found.
  */
-int ir_raw_encode_scancode(enum rc_type protocol, u32 scancode,
+int ir_raw_encode_scancode(enum rc_proto protocol, u32 scancode,
 			   struct ir_raw_event *events, unsigned int max)
 {
 	struct ir_raw_handler *handler;
@@ -482,6 +470,27 @@ int ir_raw_encode_scancode(enum rc_type protocol, u32 scancode,
 	return ret;
 }
 EXPORT_SYMBOL(ir_raw_encode_scancode);
+
+static void edge_handle(unsigned long arg)
+{
+	struct rc_dev *dev = (struct rc_dev *)arg;
+	ktime_t interval = ktime_sub(ktime_get(), dev->raw->last_event);
+
+	if (ktime_to_ns(interval) >= dev->timeout) {
+		DEFINE_IR_RAW_EVENT(ev);
+
+		ev.timeout = true;
+		ev.duration = ktime_to_ns(interval);
+
+		ir_raw_event_store(dev, &ev);
+	} else {
+		mod_timer(&dev->raw->edge_handle,
+			  jiffies + nsecs_to_jiffies(dev->timeout -
+						     ktime_to_ns(interval)));
+	}
+
+	ir_raw_event_handle(dev);
+}
 
 /*
  * Used to (un)register raw event clients
@@ -504,6 +513,8 @@ int ir_raw_event_prepare(struct rc_dev *dev)
 
 	dev->raw->dev = dev;
 	dev->change_protocol = change_protocol;
+	setup_timer(&dev->raw->edge_handle, edge_handle,
+		    (unsigned long)dev);
 	INIT_KFIFO(dev->raw->kfifo);
 
 	return 0;
@@ -555,6 +566,7 @@ void ir_raw_event_unregister(struct rc_dev *dev)
 		return;
 
 	kthread_stop(dev->raw->thread);
+	del_timer_sync(&dev->raw->edge_handle);
 
 	mutex_lock(&ir_raw_handler_lock);
 	list_del(&dev->raw->list);

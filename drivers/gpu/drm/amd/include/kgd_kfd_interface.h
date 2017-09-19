@@ -41,6 +41,11 @@ struct kgd_dev;
 
 struct kgd_mem;
 
+enum kfd_preempt_type {
+	KFD_PREEMPT_TYPE_WAVEFRONT_DRAIN = 0,
+	KFD_PREEMPT_TYPE_WAVEFRONT_RESET,
+};
+
 enum kgd_memory_pool {
 	KGD_POOL_SYSTEM_CACHEABLE = 1,
 	KGD_POOL_SYSTEM_WRITECOMBINE = 2,
@@ -63,9 +68,6 @@ struct kgd2kfd_shared_resources {
 	/* Bit n == 1 means VMID n is available for KFD. */
 	unsigned int compute_vmid_bitmap;
 
-	/* number of mec available from the hardware */
-	uint32_t num_mec;
-
 	/* number of pipes per mec */
 	uint32_t num_pipe_per_mec;
 
@@ -83,6 +85,17 @@ struct kgd2kfd_shared_resources {
 
 	/* Number of bytes at start of aperture reserved for KGD. */
 	size_t doorbell_start_offset;
+};
+
+struct tile_config {
+	uint32_t *tile_config_ptr;
+	uint32_t *macro_tile_config_ptr;
+	uint32_t num_tile_configs;
+	uint32_t num_macro_tile_configs;
+
+	uint32_t gb_addr_config;
+	uint32_t num_banks;
+	uint32_t num_ranks;
 };
 
 /**
@@ -126,6 +139,11 @@ struct kgd2kfd_shared_resources {
  *
  * @get_fw_version: Returns FW versions from the header
  *
+ * @set_scratch_backing_va: Sets VA for scratch backing memory of a VMID.
+ * Only used for no cp scheduling mode
+ *
+ * @get_tile_config: Returns GPU-specific tiling mode information
+ *
  * This structure contains function pointers to services that the kgd driver
  * provides to amdkfd driver.
  *
@@ -156,14 +174,16 @@ struct kfd2kgd_calls {
 	int (*init_interrupts)(struct kgd_dev *kgd, uint32_t pipe_id);
 
 	int (*hqd_load)(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
-			uint32_t queue_id, uint32_t __user *wptr);
+			uint32_t queue_id, uint32_t __user *wptr,
+			uint32_t wptr_shift, uint32_t wptr_mask,
+			struct mm_struct *mm);
 
 	int (*hqd_sdma_load)(struct kgd_dev *kgd, void *mqd);
 
 	bool (*hqd_is_occupied)(struct kgd_dev *kgd, uint64_t queue_address,
 				uint32_t pipe_id, uint32_t queue_id);
 
-	int (*hqd_destroy)(struct kgd_dev *kgd, uint32_t reset_type,
+	int (*hqd_destroy)(struct kgd_dev *kgd, void *mqd, uint32_t reset_type,
 				unsigned int timeout, uint32_t pipe_id,
 				uint32_t queue_id);
 
@@ -195,6 +215,9 @@ struct kfd2kgd_calls {
 
 	uint16_t (*get_fw_version)(struct kgd_dev *kgd,
 				enum kgd_engine_type type);
+	void (*set_scratch_backing_va)(struct kgd_dev *kgd,
+				uint64_t va, uint32_t vmid);
+	int (*get_tile_config)(struct kgd_dev *kgd, struct tile_config *config);
 };
 
 /**

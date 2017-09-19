@@ -518,13 +518,8 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 	gma_crtc->pipe = pipe;
 	gma_crtc->plane = pipe;
 
-	for (i = 0; i < 256; i++) {
-		gma_crtc->lut_r[i] = i;
-		gma_crtc->lut_g[i] = i;
-		gma_crtc->lut_b[i] = i;
-
+	for (i = 0; i < 256; i++)
 		gma_crtc->lut_adj[i] = 0;
-	}
 
 	gma_crtc->mode_dev = mode_dev;
 	gma_crtc->cursor_addr = 0;

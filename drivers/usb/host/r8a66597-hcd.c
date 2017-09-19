@@ -2312,7 +2312,7 @@ static int r8a66597_bus_resume(struct usb_hcd *hcd)
 #define	r8a66597_bus_resume	NULL
 #endif
 
-static struct hc_driver r8a66597_hc_driver = {
+static const struct hc_driver r8a66597_hc_driver = {
 	.description =		hcd_name,
 	.hcd_priv_size =	sizeof(struct r8a66597),
 	.irq =			r8a66597_irq,

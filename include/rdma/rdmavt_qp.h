@@ -277,7 +277,6 @@ struct rvt_qp {
 
 	unsigned long timeout_jiffies;  /* computed from timeout */
 
-	enum ib_mtu path_mtu;
 	int srate_mbps;		/* s_srate (below) converted to Mbit/s */
 	pid_t pid;		/* pid for user mode QPs */
 	u32 remote_qpn;
@@ -396,7 +395,7 @@ struct rvt_srq {
 #define RVT_QPNMAP_ENTRIES          (RVT_QPN_MAX / PAGE_SIZE / BITS_PER_BYTE)
 #define RVT_BITS_PER_PAGE           (PAGE_SIZE * BITS_PER_BYTE)
 #define RVT_BITS_PER_PAGE_MASK      (RVT_BITS_PER_PAGE - 1)
-#define RVT_QPN_MASK		    0xFFFFFF
+#define RVT_QPN_MASK		    IB_QPN_MASK
 
 /*
  * QPN-map pages start out as NULL, they get allocated upon
@@ -647,6 +646,20 @@ static inline u32 rvt_div_mtu(struct rvt_qp *qp, u32 len)
 	return len >> qp->log_pmtu;
 }
 
+/**
+ * rvt_timeout_to_jiffies - Convert a ULP timeout input into jiffies
+ * @timeout - timeout input(0 - 31).
+ *
+ * Return a timeout value in jiffies.
+ */
+static inline unsigned long rvt_timeout_to_jiffies(u8 timeout)
+{
+	if (timeout > 31)
+		timeout = 31;
+
+	return usecs_to_jiffies(1U << timeout) * 4096UL / 1000UL;
+}
+
 extern const int  ib_rvt_state_ops[];
 
 struct rvt_dev_info;
@@ -660,4 +673,34 @@ void rvt_del_timers_sync(struct rvt_qp *qp);
 void rvt_stop_rc_timers(struct rvt_qp *qp);
 void rvt_add_retry_timer(struct rvt_qp *qp);
 
+/**
+ * struct rvt_qp_iter - the iterator for QPs
+ * @qp - the current QP
+ *
+ * This structure defines the current iterator
+ * state for sequenced access to all QPs relative
+ * to an rvt_dev_info.
+ */
+struct rvt_qp_iter {
+	struct rvt_qp *qp;
+	/* private: backpointer */
+	struct rvt_dev_info *rdi;
+	/* private: callback routine */
+	void (*cb)(struct rvt_qp *qp, u64 v);
+	/* private: for arg to callback routine */
+	u64 v;
+	/* private: number of SMI,GSI QPs for device */
+	int specials;
+	/* private: current iterator index */
+	int n;
+};
+
+struct rvt_qp_iter *rvt_qp_iter_init(struct rvt_dev_info *rdi,
+				     u64 v,
+				     void (*cb)(struct rvt_qp *qp, u64 v));
+int rvt_qp_iter_next(struct rvt_qp_iter *iter);
+void rvt_qp_iter(struct rvt_dev_info *rdi,
+		 u64 v,
+		 void (*cb)(struct rvt_qp *qp, u64 v));
+void rvt_qp_mr_clean(struct rvt_qp *qp, u32 lkey);
 #endif          /* DEF_RDMAVT_INCQP_H */

@@ -32,6 +32,8 @@
 #include <linux/device.h>
 #include <linux/efi.h>
 #include <linux/fb.h>
+#include <linux/fbcon.h>
+#include <linux/mem_encrypt.h>
 
 #include <asm/fb.h>
 
@@ -315,7 +317,7 @@ static void fb_set_logo(struct fb_info *info,
 		for (i = 0; i < logo->height; i++) {
 			for (j = 0; j < logo->width; src++) {
 				d = *src ^ xor;
-				for (k = 7; k >= 0; k--) {
+				for (k = 7; k >= 0 && j < logo->width; k--) {
 					*dst++ = ((d >> k) & 1) ? fg : 0;
 					j++;
 				}
@@ -462,7 +464,7 @@ static int fb_show_logo_line(struct fb_info *info, int rotate,
 
 	/* Return if the frame buffer is not mapped or suspended */
 	if (logo == NULL || info->state != FBINFO_STATE_RUNNING ||
-	    info->flags & FBINFO_MODULE)
+	    info->fbops->owner)
 		return 0;
 
 	image.depth = 8;
@@ -600,7 +602,7 @@ int fb_prepare_logo(struct fb_info *info, int rotate)
 	memset(&fb_logo, 0, sizeof(struct logo_data));
 
 	if (info->flags & FBINFO_MISC_TILEBLITTING ||
-	    info->flags & FBINFO_MODULE)
+	    info->fbops->owner)
 		return 0;
 
 	if (info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
@@ -1396,6 +1398,12 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 	mutex_lock(&info->mm_lock);
 	if (fb->fb_mmap) {
 		int res;
+
+		/*
+		 * The framebuffer needs to be accessed decrypted, be sure
+		 * SME protection is removed ahead of the call
+		 */
+		vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
 		res = fb->fb_mmap(info, vma);
 		mutex_unlock(&info->mm_lock);
 		return res;
@@ -1421,6 +1429,11 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 	mutex_unlock(&info->mm_lock);
 
 	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+	/*
+	 * The framebuffer needs to be accessed decrypted, be sure
+	 * SME protection is removed
+	 */
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
 	fb_pgprotect(file, vma, start);
 
 	return vm_iomap_memory(vma, start, len);
@@ -1880,6 +1893,9 @@ fbmem_init(void)
 		fb_class = NULL;
 		goto err_class;
 	}
+
+	fb_console_init();
+
 	return 0;
 
 err_class:
@@ -1894,6 +1910,8 @@ module_init(fbmem_init);
 static void __exit
 fbmem_exit(void)
 {
+	fb_console_exit();
+
 	remove_proc_entry("fb", NULL);
 	class_destroy(fb_class);
 	unregister_chrdev(FB_MAJOR, "fb");

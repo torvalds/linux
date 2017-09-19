@@ -12,25 +12,21 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
+#include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/power_supply.h>
-#include <linux/i2c.h>
-#include <linux/slab.h>
-#include <linux/interrupt.h>
 #include <linux/gpio/consumer.h>
+#include <linux/i2c.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of.h>
-#include <linux/stat.h>
-
 #include <linux/power/sbs-battery.h>
+#include <linux/power_supply.h>
+#include <linux/slab.h>
+#include <linux/stat.h>
 
 enum {
 	REG_MANUFACTURER_DATA,
@@ -60,8 +56,8 @@ enum {
 #define BATTERY_MODE_OFFSET		0x03
 #define BATTERY_MODE_MASK		0x8000
 enum sbs_battery_mode {
-	BATTERY_MODE_AMPS,
-	BATTERY_MODE_WATTS
+	BATTERY_MODE_AMPS = 0,
+	BATTERY_MODE_WATTS = 0x8000
 };
 
 /* manufacturer access defines */
@@ -531,6 +527,8 @@ static enum sbs_battery_mode sbs_set_battery_mode(struct i2c_client *client,
 	ret = sbs_write_word_data(client, BATTERY_MODE_OFFSET, ret);
 	if (ret < 0)
 		return ret;
+
+	usleep_range(1000, 2000);
 
 	return original_val & BATTERY_MODE_MASK;
 }

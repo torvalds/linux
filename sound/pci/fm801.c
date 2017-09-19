@@ -599,7 +599,7 @@ static irqreturn_t snd_fm801_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct snd_pcm_hardware snd_fm801_playback =
+static const struct snd_pcm_hardware snd_fm801_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -619,7 +619,7 @@ static struct snd_pcm_hardware snd_fm801_playback =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_fm801_capture =
+static const struct snd_pcm_hardware snd_fm801_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1235,8 +1235,6 @@ static int snd_fm801_create(struct snd_card *card,
 		}
 	}
 
-	snd_fm801_chip_init(chip);
-
 	if ((chip->tea575x_tuner & TUNER_ONLY) == 0) {
 		if (devm_request_irq(&pci->dev, pci->irq, snd_fm801_interrupt,
 				IRQF_SHARED, KBUILD_MODNAME, chip)) {
@@ -1247,6 +1245,8 @@ static int snd_fm801_create(struct snd_card *card,
 		chip->irq = pci->irq;
 		pci_set_master(pci);
 	}
+
+	snd_fm801_chip_init(chip);
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
 		snd_fm801_free(chip);

@@ -734,7 +734,7 @@ static void hidp_stop(struct hid_device *hid)
 	hid->claimed = 0;
 }
 
-static struct hid_ll_driver hidp_hid_driver = {
+struct hid_ll_driver hidp_hid_driver = {
 	.parse = hidp_parse,
 	.start = hidp_start,
 	.stop = hidp_stop,
@@ -743,6 +743,7 @@ static struct hid_ll_driver hidp_hid_driver = {
 	.raw_request = hidp_raw_request,
 	.output_report = hidp_output_report,
 };
+EXPORT_SYMBOL_GPL(hidp_hid_driver);
 
 /* This function sets up the hid device. It does not add it
    to the HID system. That is done in hidp_add_connection(). */

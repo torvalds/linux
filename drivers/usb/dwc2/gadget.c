@@ -3573,6 +3573,9 @@ irq_retry:
 		/* Report disconnection if it is not already done. */
 		dwc2_hsotg_disconnect(hsotg);
 
+		/* Reset device address to zero */
+		__bic32(hsotg->regs + DCFG, DCFG_DEVADDR_MASK);
+
 		if (usb_status & GOTGCTL_BSESVLD && connected)
 			dwc2_hsotg_core_init_disconnected(hsotg, true);
 	}
@@ -4176,7 +4179,7 @@ static int dwc2_hsotg_ep_sethalt_lock(struct usb_ep *ep, int value)
 	return ret;
 }
 
-static struct usb_ep_ops dwc2_hsotg_ep_ops = {
+static const struct usb_ep_ops dwc2_hsotg_ep_ops = {
 	.enable		= dwc2_hsotg_ep_enable,
 	.disable	= dwc2_hsotg_ep_disable,
 	.alloc_request	= dwc2_hsotg_ep_alloc_request,

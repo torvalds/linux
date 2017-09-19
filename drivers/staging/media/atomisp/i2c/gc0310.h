@@ -454,6 +454,6 @@ struct gc0310_resolution gc0310_res_video[] = {
 #define N_RES_VIDEO (ARRAY_SIZE(gc0310_res_video))
 
 static struct gc0310_resolution *gc0310_res = gc0310_res_preview;
-static int N_RES = N_RES_PREVIEW;
+static unsigned long N_RES = N_RES_PREVIEW;
 #endif
 
