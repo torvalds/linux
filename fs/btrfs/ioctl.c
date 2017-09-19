@@ -4114,10 +4114,12 @@ static long btrfs_ioctl_space_info(struct btrfs_fs_info *fs_info,
 	struct btrfs_ioctl_space_info *dest_orig;
 	struct btrfs_ioctl_space_info __user *user_dest;
 	struct btrfs_space_info *info;
-	u64 types[] = {BTRFS_BLOCK_GROUP_DATA,
-		       BTRFS_BLOCK_GROUP_SYSTEM,
-		       BTRFS_BLOCK_GROUP_METADATA,
-		       BTRFS_BLOCK_GROUP_DATA | BTRFS_BLOCK_GROUP_METADATA};
+	static const u64 types[] = {
+		BTRFS_BLOCK_GROUP_DATA,
+		BTRFS_BLOCK_GROUP_SYSTEM,
+		BTRFS_BLOCK_GROUP_METADATA,
+		BTRFS_BLOCK_GROUP_DATA | BTRFS_BLOCK_GROUP_METADATA
+	};
 	int num_types = 4;
 	int alloc_size;
 	int ret = 0;
