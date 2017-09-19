@@ -815,12 +815,13 @@ static int b53_setup(struct dsa_switch *ds)
 	if (ret)
 		dev_err(ds->dev, "failed to apply configuration\n");
 
+	/* Configure IMP/CPU port, disable unused ports. Enabled
+	 * ports will be configured with .port_enable
+	 */
 	for (port = 0; port < dev->num_ports; port++) {
-		if (BIT(port) & ds->enabled_port_mask)
-			b53_enable_port(ds, port, NULL);
-		else if (dsa_is_cpu_port(ds, port))
+		if (dsa_is_cpu_port(ds, port))
 			b53_enable_cpu_port(dev, port);
-		else
+		else if (!(BIT(port) & ds->enabled_port_mask))
 			b53_disable_port(ds, port, NULL);
 	}
 
