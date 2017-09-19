@@ -2779,7 +2779,7 @@ static int hclge_unmap_ring_from_vector(
 			}
 			i = 0;
 			hclge_cmd_setup_basic_desc(&desc,
-						   HCLGE_OPC_ADD_RING_TO_VECTOR,
+						   HCLGE_OPC_DEL_RING_TO_VECTOR,
 						   false);
 			req->int_vector_id = vector_id;
 		}
