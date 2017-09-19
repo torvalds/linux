@@ -873,15 +873,14 @@ int ttm_pool_populate(struct ttm_tt *ttm)
 	if (ttm->state != tt_unpopulated)
 		return 0;
 
-	for (i = 0; i < ttm->num_pages; ++i) {
-		ret = ttm_get_pages(&ttm->pages[i], 1,
-				    ttm->page_flags,
-				    ttm->caching_state);
-		if (ret != 0) {
-			ttm_pool_unpopulate(ttm);
-			return -ENOMEM;
-		}
+	ret = ttm_get_pages(ttm->pages, ttm->num_pages, ttm->page_flags,
+			    ttm->caching_state);
+	if (unlikely(ret != 0)) {
+		ttm_pool_unpopulate(ttm);
+		return ret;
+	}
 
+	for (i = 0; i < ttm->num_pages; ++i) {
 		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i],
 						PAGE_SIZE);
 		if (unlikely(ret != 0)) {
@@ -908,14 +907,14 @@ void ttm_pool_unpopulate(struct ttm_tt *ttm)
 	unsigned i;
 
 	for (i = 0; i < ttm->num_pages; ++i) {
-		if (ttm->pages[i]) {
-			ttm_mem_global_free_page(ttm->glob->mem_glob,
-						 ttm->pages[i], PAGE_SIZE);
-			ttm_put_pages(&ttm->pages[i], 1,
-				      ttm->page_flags,
-				      ttm->caching_state);
-		}
+		if (!ttm->pages[i])
+			continue;
+
+		ttm_mem_global_free_page(ttm->glob->mem_glob, ttm->pages[i],
+					 PAGE_SIZE);
 	}
+	ttm_put_pages(ttm->pages, ttm->num_pages, ttm->page_flags,
+		      ttm->caching_state);
 	ttm->state = tt_unpopulated;
 }
 EXPORT_SYMBOL(ttm_pool_unpopulate);
