@@ -1597,7 +1597,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 	if (pages_addr) {
 		/* copy commands needed */
-		ndw += ncmds * 7;
+		ndw += ncmds * adev->vm_manager.vm_pte_funcs->copy_pte_num_dw;
 
 		/* and also PTEs */
 		ndw += nptes * 2;

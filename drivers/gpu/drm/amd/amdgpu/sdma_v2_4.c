@@ -1324,7 +1324,9 @@ static void sdma_v2_4_set_buffer_funcs(struct amdgpu_device *adev)
 }
 
 static const struct amdgpu_vm_pte_funcs sdma_v2_4_vm_pte_funcs = {
+	.copy_pte_num_dw = 7,
 	.copy_pte = sdma_v2_4_vm_copy_pte,
+
 	.write_pte = sdma_v2_4_vm_write_pte,
 
 	.set_max_nums_pte_pde = 0x1fffff >> 3,
