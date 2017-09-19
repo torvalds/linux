@@ -574,12 +574,13 @@ static void dsa_cpu_port_get_ethtool_stats(struct net_device *dev,
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
 	struct dsa_port *cpu_dp = dsa_get_cpu_port(dst);
 	struct dsa_switch *ds = cpu_dp->ds;
+	const struct ethtool_ops *ops = cpu_dp->orig_ethtool_ops;
 	s8 cpu_port = cpu_dp->index;
 	int count = 0;
 
-	if (cpu_dp->ethtool_ops.get_sset_count) {
-		count = cpu_dp->ethtool_ops.get_sset_count(dev, ETH_SS_STATS);
-		cpu_dp->ethtool_ops.get_ethtool_stats(dev, stats, data);
+	if (ops && ops->get_sset_count && ops->get_ethtool_stats) {
+		count = ops->get_sset_count(dev, ETH_SS_STATS);
+		ops->get_ethtool_stats(dev, stats, data);
 	}
 
 	if (ds->ops->get_ethtool_stats)
@@ -591,10 +592,11 @@ static int dsa_cpu_port_get_sset_count(struct net_device *dev, int sset)
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
 	struct dsa_port *cpu_dp = dsa_get_cpu_port(dst);
 	struct dsa_switch *ds = cpu_dp->ds;
+	const struct ethtool_ops *ops = cpu_dp->orig_ethtool_ops;
 	int count = 0;
 
-	if (cpu_dp->ethtool_ops.get_sset_count)
-		count += cpu_dp->ethtool_ops.get_sset_count(dev, sset);
+	if (ops && ops->get_sset_count)
+		count += ops->get_sset_count(dev, sset);
 
 	if (sset == ETH_SS_STATS && ds->ops->get_sset_count)
 		count += ds->ops->get_sset_count(ds);
@@ -608,6 +610,7 @@ static void dsa_cpu_port_get_strings(struct net_device *dev,
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
 	struct dsa_port *cpu_dp = dsa_get_cpu_port(dst);
 	struct dsa_switch *ds = cpu_dp->ds;
+	const struct ethtool_ops *ops = cpu_dp->orig_ethtool_ops;
 	s8 cpu_port = cpu_dp->index;
 	int len = ETH_GSTRING_LEN;
 	int mcount = 0, count;
@@ -619,9 +622,9 @@ static void dsa_cpu_port_get_strings(struct net_device *dev,
 	/* We do not want to be NULL-terminated, since this is a prefix */
 	pfx[sizeof(pfx) - 1] = '_';
 
-	if (cpu_dp->ethtool_ops.get_sset_count) {
-		mcount = cpu_dp->ethtool_ops.get_sset_count(dev, ETH_SS_STATS);
-		cpu_dp->ethtool_ops.get_strings(dev, stringset, data);
+	if (ops && ops->get_sset_count && ops->get_strings) {
+		mcount = ops->get_sset_count(dev, ETH_SS_STATS);
+		ops->get_strings(dev, stringset, data);
 	}
 
 	if (stringset == ETH_SS_STATS && ds->ops->get_strings) {

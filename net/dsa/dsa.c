@@ -124,11 +124,10 @@ int dsa_cpu_port_ethtool_setup(struct dsa_port *cpu_dp)
 	if (!cpu_ops)
 		return -ENOMEM;
 
-	memcpy(&cpu_dp->ethtool_ops, master->ethtool_ops,
-	       sizeof(struct ethtool_ops));
 	cpu_dp->orig_ethtool_ops = master->ethtool_ops;
-	memcpy(cpu_ops, &cpu_dp->ethtool_ops,
-	       sizeof(struct ethtool_ops));
+	if (cpu_dp->orig_ethtool_ops)
+		memcpy(cpu_ops, cpu_dp->orig_ethtool_ops, sizeof(*cpu_ops));
+
 	dsa_cpu_port_ethtool_init(cpu_ops);
 	master->ethtool_ops = cpu_ops;
 
@@ -138,6 +137,7 @@ int dsa_cpu_port_ethtool_setup(struct dsa_port *cpu_dp)
 void dsa_cpu_port_ethtool_restore(struct dsa_port *cpu_dp)
 {
 	cpu_dp->netdev->ethtool_ops = cpu_dp->orig_ethtool_ops;
+	cpu_dp->orig_ethtool_ops = NULL;
 }
 
 void dsa_cpu_dsa_destroy(struct dsa_port *port)
