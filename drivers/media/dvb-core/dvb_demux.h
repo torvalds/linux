@@ -75,8 +75,6 @@ struct dvb_demux_filter {
 	u16 hw_handle;
 };
 
-#define DMX_FEED_ENTRY(pos) list_entry(pos, struct dvb_demux_feed, list_head)
-
 struct dvb_demux_feed {
 	union {
 		struct dmx_ts_feed ts;
