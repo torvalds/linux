@@ -1061,16 +1061,22 @@ static void ip_tunnel_destroy(struct ip_tunnel_net *itn, struct list_head *head,
 	}
 }
 
-void ip_tunnel_delete_net(struct ip_tunnel_net *itn, struct rtnl_link_ops *ops)
+void ip_tunnel_delete_nets(struct list_head *net_list, unsigned int id,
+			   struct rtnl_link_ops *ops)
 {
+	struct ip_tunnel_net *itn;
+	struct net *net;
 	LIST_HEAD(list);
 
 	rtnl_lock();
-	ip_tunnel_destroy(itn, &list, ops);
+	list_for_each_entry(net, net_list, exit_list) {
+		itn = net_generic(net, id);
+		ip_tunnel_destroy(itn, &list, ops);
+	}
 	unregister_netdevice_many(&list);
 	rtnl_unlock();
 }
-EXPORT_SYMBOL_GPL(ip_tunnel_delete_net);
+EXPORT_SYMBOL_GPL(ip_tunnel_delete_nets);
 
 int ip_tunnel_newlink(struct net_device *dev, struct nlattr *tb[],
 		      struct ip_tunnel_parm *p, __u32 fwmark)
