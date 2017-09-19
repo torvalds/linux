@@ -1513,10 +1513,10 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			op->type = COMPUTE + SETCC;
 			imm = 0xf0000000UL;
 			val = regs->gpr[rd];
-			op->val = regs->ccr;
+			op->ccval = regs->ccr;
 			for (sh = 0; sh < 8; ++sh) {
 				if (instr & (0x80000 >> sh))
-					op->val = (op->val & ~imm) |
+					op->ccval = (op->ccval & ~imm) |
 						(val & imm);
 				imm >>= 4;
 			}
