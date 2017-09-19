@@ -2680,7 +2680,11 @@ int hclge_map_vport_ring_to_vector(struct hclge_vport *vport, int vector_id,
 			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
 		hnae_set_field(req->tqp_type_and_id[i], HCLGE_TQP_ID_M,
 			       HCLGE_TQP_ID_S,	node->tqp_index);
+		hnae_set_field(req->tqp_type_and_id[i], HCLGE_INT_GL_IDX_M,
+			       HCLGE_INT_GL_IDX_S,
+			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
 		req->tqp_type_and_id[i] = cpu_to_le16(req->tqp_type_and_id[i]);
+		req->vfid = vport->vport_id;
 
 		if (++i >= HCLGE_VECTOR_ELEMENTS_PER_CMD) {
 			req->int_cause_num = HCLGE_VECTOR_ELEMENTS_PER_CMD;
@@ -2764,8 +2768,12 @@ static int hclge_unmap_ring_from_vector(
 			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
 		hnae_set_field(req->tqp_type_and_id[i], HCLGE_TQP_ID_M,
 			       HCLGE_TQP_ID_S,	node->tqp_index);
+		hnae_set_field(req->tqp_type_and_id[i], HCLGE_INT_GL_IDX_M,
+			       HCLGE_INT_GL_IDX_S,
+			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
 
 		req->tqp_type_and_id[i] = cpu_to_le16(req->tqp_type_and_id[i]);
+		req->vfid = vport->vport_id;
 
 		if (++i >= HCLGE_VECTOR_ELEMENTS_PER_CMD) {
 			req->int_cause_num = HCLGE_VECTOR_ELEMENTS_PER_CMD;
