@@ -4474,7 +4474,8 @@ int atomisp_css_load_acc_binary(struct atomisp_sub_device *asd,
 static struct atomisp_sub_device *__get_atomisp_subdev(
 					struct ia_css_pipe *css_pipe,
 					struct atomisp_device *isp,
-					enum atomisp_input_stream_id *stream_id) {
+					enum atomisp_input_stream_id *stream_id)
+{
 	int i, j, k;
 	struct atomisp_sub_device *asd;
 	struct atomisp_stream_env *stream_env;
