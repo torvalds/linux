@@ -1541,8 +1541,11 @@ static struct rockchip_clk_branch rk3399_clk_pmu_branches[] __initdata = {
 	MUX(0, "clk_testout_2io", mux_clk_testout2_2io_p, CLK_IGNORE_UNUSED,
 			RK3399_PMU_CLKSEL_CON(4), 15, 1, MFLAGS),
 
-	COMPOSITE(0, "clk_uart4_div", mux_24m_ppll_p, 0,
-			RK3399_PMU_CLKSEL_CON(5), 10, 1, MFLAGS, 0, 7, DFLAGS,
+	MUX(SCLK_UART4_SRC, "clk_uart4_src", mux_24m_ppll_p, CLK_SET_RATE_NO_REPARENT,
+			RK3399_PMU_CLKSEL_CON(5), 10, 1, MFLAGS),
+
+	COMPOSITE_NOMUX(0, "clk_uart4_div", "clk_uart4_src", CLK_SET_RATE_PARENT,
+			RK3399_PMU_CLKSEL_CON(5), 0, 7, DFLAGS,
 			RK3399_PMU_CLKGATE_CON(0), 5, GFLAGS),
 
 	COMPOSITE_FRACMUX(0, "clk_uart4_frac", "clk_uart4_div", CLK_SET_RATE_PARENT,

@@ -367,6 +367,7 @@
 #define SCLK_I2C0_PMU			9
 #define SCLK_I2C4_PMU			10
 #define SCLK_I2C8_PMU			11
+#define SCLK_UART4_SRC			12
 
 #define PCLK_SRC_PMU			19
 #define PCLK_PMU			20
