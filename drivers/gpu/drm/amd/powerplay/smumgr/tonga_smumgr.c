@@ -82,7 +82,7 @@ static int tonga_start_in_protection_mode(struct pp_hwmgr *hwmgr)
 		SMU_STATUS, SMU_DONE, 0);
 
 	/* Check pass/failed indicator */
-	if (1 != SMUM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
+	if (1 != PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
 				CGS_IND_REG__SMC, SMU_STATUS, SMU_PASS)) {
 		pr_err("SMU Firmware start failed\n");
 		return -EINVAL;
@@ -143,7 +143,7 @@ static int tonga_start_smu(struct pp_hwmgr *hwmgr)
 	if (!(smu7_is_smc_ram_running(hwmgr) ||
 		cgs_is_virtualization_enabled(hwmgr->device))) {
 		/*Check if SMU is running in protected mode*/
-		if (0 == SMUM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+		if (0 == PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 					SMU_FIRMWARE, SMU_MODE)) {
 			result = tonga_start_in_non_protection_mode(hwmgr);
 			if (result)

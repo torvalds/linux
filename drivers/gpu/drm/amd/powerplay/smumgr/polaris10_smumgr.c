@@ -252,7 +252,7 @@ static int polaris10_start_smu_in_protection_mode(struct pp_hwmgr *hwmgr)
 
 	PHM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(hwmgr, SMC_IND, SMU_STATUS, SMU_DONE, 0);
 
-	if (1 != SMUM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	if (1 != PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 						SMU_STATUS, SMU_PASS))
 		PP_ASSERT_WITH_CODE(false, "SMU Firmware start failed!", return -1);
 
@@ -316,8 +316,8 @@ static int polaris10_start_smu(struct pp_hwmgr *hwmgr)
 	/* Only start SMC if SMC RAM is not running */
 	if (!smu7_is_smc_ram_running(hwmgr)) {
 		SMU_VFT_INTACT = false;
-		smu_data->protected_mode = (uint8_t) (SMUM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_MODE));
-		smu_data->smu7_data.security_hard_key = (uint8_t) (SMUM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_SEL));
+		smu_data->protected_mode = (uint8_t) (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_MODE));
+		smu_data->smu7_data.security_hard_key = (uint8_t) (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_SEL));
 
 		/* Check if SMU is running in protected mode */
 		if (smu_data->protected_mode == 0) {

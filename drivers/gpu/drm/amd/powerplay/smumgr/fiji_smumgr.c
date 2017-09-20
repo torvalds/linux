@@ -108,7 +108,7 @@ static int fiji_start_smu_in_protection_mode(struct pp_hwmgr *hwmgr)
 			SMU_STATUS, SMU_DONE, 0);
 
 	/* Check pass/failed indicator */
-	if (SMUM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	if (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 			SMU_STATUS, SMU_PASS) != 1) {
 		PP_ASSERT_WITH_CODE(false,
 				"SMU Firmware start failed!", return -1);
@@ -304,7 +304,7 @@ static int fiji_start_smu(struct pp_hwmgr *hwmgr)
 		fiji_avfs_event_mgr(hwmgr, false);
 
 		/* Check if SMU is running in protected mode */
-		if (0 == SMUM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
+		if (0 == PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
 				CGS_IND_REG__SMC,
 				SMU_FIRMWARE, SMU_MODE)) {
 			result = fiji_start_smu_in_non_protection_mode(hwmgr);

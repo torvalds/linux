@@ -188,7 +188,7 @@ static int ci_program_jump_on_start(struct pp_hwmgr *hwmgr)
 
 bool ci_is_smc_ram_running(struct pp_hwmgr *hwmgr)
 {
-	return ((0 == SMUM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
+	return ((0 == PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
 			CGS_IND_REG__SMC, SMC_SYSCON_CLOCK_CNTL_0, ck_disable))
 	&& (0x20100 <= cgs_read_ind_register(hwmgr->device,
 			CGS_IND_REG__SMC, ixSMC_PC_C)));
