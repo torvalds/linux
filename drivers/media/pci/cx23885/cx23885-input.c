@@ -340,14 +340,23 @@ int cx23885_input_init(struct cx23885_dev *dev)
 	kernel_ir->cx = dev;
 	kernel_ir->name = kasprintf(GFP_KERNEL, "cx23885 IR (%s)",
 				    cx23885_boards[dev->board].name);
+	if (!kernel_ir->name) {
+		ret = -ENOMEM;
+		goto err_out_free;
+	}
+
 	kernel_ir->phys = kasprintf(GFP_KERNEL, "pci-%s/ir0",
 				    pci_name(dev->pci));
+	if (!kernel_ir->phys) {
+		ret = -ENOMEM;
+		goto err_out_free_name;
+	}
 
 	/* input device */
 	rc = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!rc) {
 		ret = -ENOMEM;
-		goto err_out_free;
+		goto err_out_free_phys;
 	}
 
 	kernel_ir->rc = rc;
@@ -382,9 +391,11 @@ err_out_stop:
 	cx23885_input_ir_stop(dev);
 	dev->kernel_ir = NULL;
 	rc_free_device(rc);
-err_out_free:
+err_out_free_phys:
 	kfree(kernel_ir->phys);
+err_out_free_name:
 	kfree(kernel_ir->name);
+err_out_free:
 	kfree(kernel_ir);
 	return ret;
 }
