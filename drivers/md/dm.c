@@ -52,6 +52,12 @@ static struct workqueue_struct *deferred_remove_workqueue;
 atomic_t dm_global_event_nr = ATOMIC_INIT(0);
 DECLARE_WAIT_QUEUE_HEAD(dm_global_eventq);
 
+void dm_issue_global_event(void)
+{
+	atomic_inc(&dm_global_event_nr);
+	wake_up(&dm_global_eventq);
+}
+
 /*
  * One of these is allocated per bio.
  */
@@ -1865,9 +1871,8 @@ static void event_callback(void *context)
 	dm_send_uevents(&uevents, &disk_to_dev(md->disk)->kobj);
 
 	atomic_inc(&md->event_nr);
-	atomic_inc(&dm_global_event_nr);
 	wake_up(&md->eventq);
-	wake_up(&dm_global_eventq);
+	dm_issue_global_event();
 }
 
 /*
@@ -2283,6 +2288,7 @@ struct dm_table *dm_swap_table(struct mapped_device *md, struct dm_table *table)
 	}
 
 	map = __bind(md, table, &limits);
+	dm_issue_global_event();
 
 out:
 	mutex_unlock(&md->suspend_lock);
