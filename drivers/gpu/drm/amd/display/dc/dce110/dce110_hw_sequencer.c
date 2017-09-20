@@ -819,13 +819,6 @@ void hwss_blacklight_control(
 		return;
 	}
 
-	if (!enable && !is_panel_backlight_on(hws)) {
-		dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
-				"%s: panel already powered down. Do nothing.\n",
-				__func__);
-		return;
-	}
-
 	/* Send VBIOS command to control eDP panel backlight */
 
 	dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
