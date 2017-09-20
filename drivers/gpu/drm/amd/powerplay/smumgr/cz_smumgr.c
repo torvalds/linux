@@ -191,17 +191,17 @@ static int cz_load_mec_firmware(struct pp_hwmgr *hwmgr)
 	/* Disable MEC parsing/prefetching */
 	tmp = cgs_read_register(hwmgr->device,
 					mmCP_MEC_CNTL);
-	tmp = SMUM_SET_FIELD(tmp, CP_MEC_CNTL, MEC_ME1_HALT, 1);
-	tmp = SMUM_SET_FIELD(tmp, CP_MEC_CNTL, MEC_ME2_HALT, 1);
+	tmp = PHM_SET_FIELD(tmp, CP_MEC_CNTL, MEC_ME1_HALT, 1);
+	tmp = PHM_SET_FIELD(tmp, CP_MEC_CNTL, MEC_ME2_HALT, 1);
 	cgs_write_register(hwmgr->device, mmCP_MEC_CNTL, tmp);
 
 	tmp = cgs_read_register(hwmgr->device,
 					mmCP_CPC_IC_BASE_CNTL);
 
-	tmp = SMUM_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, VMID, 0);
-	tmp = SMUM_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, ATC, 0);
-	tmp = SMUM_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, CACHE_POLICY, 0);
-	tmp = SMUM_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, MTYPE, 1);
+	tmp = PHM_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, VMID, 0);
+	tmp = PHM_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, ATC, 0);
+	tmp = PHM_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, CACHE_POLICY, 0);
+	tmp = PHM_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, MTYPE, 1);
 	cgs_write_register(hwmgr->device, mmCP_CPC_IC_BASE_CNTL, tmp);
 
 	reg_data = smu_lower_32_bits(info.mc_addr) &

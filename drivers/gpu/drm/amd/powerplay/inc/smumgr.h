@@ -170,11 +170,6 @@ extern bool smum_is_hw_avfs_present(struct pp_hwmgr *hwmgr);
 #define SMUM_READ_FIELD(device, reg, field)                           \
 		SMUM_GET_FIELD(cgs_read_register(device, mm##reg), reg, field)
 
-#define SMUM_SET_FIELD(value, reg, field, field_val)                  \
-		(((value) & ~SMUM_FIELD_MASK(reg, field)) |                    \
-		(SMUM_FIELD_MASK(reg, field) & ((field_val) <<                 \
-			SMUM_FIELD_SHIFT(reg, field))))
-
 #define SMUM_READ_INDIRECT_FIELD(device, port, reg, field) \
 	    SMUM_GET_FIELD(cgs_read_ind_register(device, port, ix##reg), \
 			   reg, field)
