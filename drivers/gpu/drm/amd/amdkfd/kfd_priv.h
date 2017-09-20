@@ -521,6 +521,7 @@ struct kfd_process {
 	struct list_head signal_event_pages;
 	u32 next_nonsignal_event_id;
 	size_t signal_event_count;
+	bool signal_event_limit_reached;
 };
 
 /**
