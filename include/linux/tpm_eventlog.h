@@ -10,6 +10,9 @@
 #define ACPI_TCPA_SIG		"TCPA"	/* 0x41504354 /'TCPA' */
 #define TPM2_ACTIVE_PCR_BANKS	3
 
+#define EFI_TCG2_EVENT_LOG_FORMAT_TCG_1_2 0x1
+#define EFI_TCG2_EVENT_LOG_FORMAT_TCG_2   0x2
+
 #ifdef CONFIG_PPC64
 #define do_endian_conversion(x) be32_to_cpu(x)
 #else
