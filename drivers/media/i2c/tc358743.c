@@ -2147,8 +2147,8 @@ static int tc358743_probe(struct i2c_client *client,
 	} else {
 		INIT_WORK(&state->work_i2c_poll,
 			  tc358743_work_i2c_poll);
-		state->timer.data = (unsigned long)state;
-		state->timer.function = tc358743_irq_poll_timer;
+		setup_timer(&state->timer, tc358743_irq_poll_timer,
+			    (unsigned long)state);
 		state->timer.expires = jiffies +
 				       msecs_to_jiffies(POLL_INTERVAL_MS);
 		add_timer(&state->timer);
