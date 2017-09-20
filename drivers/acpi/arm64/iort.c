@@ -1049,33 +1049,33 @@ static bool __init arm_smmu_is_coherent(struct acpi_iort_node *node)
 	return smmu->flags & ACPI_IORT_SMMU_COHERENT_WALK;
 }
 
-struct iort_iommu_config {
+struct iort_dev_config {
 	const char *name;
-	int (*iommu_init)(struct acpi_iort_node *node);
-	bool (*iommu_is_coherent)(struct acpi_iort_node *node);
-	int (*iommu_count_resources)(struct acpi_iort_node *node);
-	void (*iommu_init_resources)(struct resource *res,
+	int (*dev_init)(struct acpi_iort_node *node);
+	bool (*dev_is_coherent)(struct acpi_iort_node *node);
+	int (*dev_count_resources)(struct acpi_iort_node *node);
+	void (*dev_init_resources)(struct resource *res,
 				     struct acpi_iort_node *node);
-	void (*iommu_set_proximity)(struct device *dev,
+	void (*dev_set_proximity)(struct device *dev,
 				    struct acpi_iort_node *node);
 };
 
-static const struct iort_iommu_config iort_arm_smmu_v3_cfg __initconst = {
+static const struct iort_dev_config iort_arm_smmu_v3_cfg __initconst = {
 	.name = "arm-smmu-v3",
-	.iommu_is_coherent = arm_smmu_v3_is_coherent,
-	.iommu_count_resources = arm_smmu_v3_count_resources,
-	.iommu_init_resources = arm_smmu_v3_init_resources,
-	.iommu_set_proximity = arm_smmu_v3_set_proximity,
+	.dev_is_coherent = arm_smmu_v3_is_coherent,
+	.dev_count_resources = arm_smmu_v3_count_resources,
+	.dev_init_resources = arm_smmu_v3_init_resources,
+	.dev_set_proximity = arm_smmu_v3_set_proximity,
 };
 
-static const struct iort_iommu_config iort_arm_smmu_cfg __initconst = {
+static const struct iort_dev_config iort_arm_smmu_cfg __initconst = {
 	.name = "arm-smmu",
-	.iommu_is_coherent = arm_smmu_is_coherent,
-	.iommu_count_resources = arm_smmu_count_resources,
-	.iommu_init_resources = arm_smmu_init_resources
+	.dev_is_coherent = arm_smmu_is_coherent,
+	.dev_count_resources = arm_smmu_count_resources,
+	.dev_init_resources = arm_smmu_init_resources
 };
 
-static __init const struct iort_iommu_config *iort_get_iommu_cfg(
+static __init const struct iort_dev_config *iort_get_dev_cfg(
 			struct acpi_iort_node *node)
 {
 	switch (node->type) {
@@ -1089,31 +1089,28 @@ static __init const struct iort_iommu_config *iort_get_iommu_cfg(
 }
 
 /**
- * iort_add_smmu_platform_device() - Allocate a platform device for SMMU
- * @node: Pointer to SMMU ACPI IORT node
+ * iort_add_platform_device() - Allocate a platform device for IORT node
+ * @node: Pointer to device ACPI IORT node
  *
  * Returns: 0 on success, <0 failure
  */
-static int __init iort_add_smmu_platform_device(struct acpi_iort_node *node)
+static int __init iort_add_platform_device(struct acpi_iort_node *node,
+					   const struct iort_dev_config *ops)
 {
 	struct fwnode_handle *fwnode;
 	struct platform_device *pdev;
 	struct resource *r;
 	enum dev_dma_attr attr;
 	int ret, count;
-	const struct iort_iommu_config *ops = iort_get_iommu_cfg(node);
-
-	if (!ops)
-		return -ENODEV;
 
 	pdev = platform_device_alloc(ops->name, PLATFORM_DEVID_AUTO);
 	if (!pdev)
 		return -ENOMEM;
 
-	if (ops->iommu_set_proximity)
-		ops->iommu_set_proximity(&pdev->dev, node);
+	if (ops->dev_set_proximity)
+		ops->dev_set_proximity(&pdev->dev, node);
 
-	count = ops->iommu_count_resources(node);
+	count = ops->dev_count_resources(node);
 
 	r = kcalloc(count, sizeof(*r), GFP_KERNEL);
 	if (!r) {
@@ -1121,7 +1118,7 @@ static int __init iort_add_smmu_platform_device(struct acpi_iort_node *node)
 		goto dev_put;
 	}
 
-	ops->iommu_init_resources(r, node);
+	ops->dev_init_resources(r, node);
 
 	ret = platform_device_add_resources(pdev, r, count);
 	/*
@@ -1156,8 +1153,8 @@ static int __init iort_add_smmu_platform_device(struct acpi_iort_node *node)
 
 	pdev->dev.fwnode = fwnode;
 
-	attr = ops->iommu_is_coherent(node) ?
-			     DEV_DMA_COHERENT : DEV_DMA_NON_COHERENT;
+	attr = ops->dev_is_coherent && ops->dev_is_coherent(node) ?
+			DEV_DMA_COHERENT : DEV_DMA_NON_COHERENT;
 
 	/* Configure DMA for the page table walker */
 	acpi_dma_configure(&pdev->dev, attr);
@@ -1182,6 +1179,7 @@ static void __init iort_init_platform_devices(void)
 	struct acpi_table_iort *iort;
 	struct fwnode_handle *fwnode;
 	int i, ret;
+	const struct iort_dev_config *ops;
 
 	/*
 	 * iort_table and iort both point to the start of IORT table, but
@@ -1201,16 +1199,15 @@ static void __init iort_init_platform_devices(void)
 			return;
 		}
 
-		if ((iort_node->type == ACPI_IORT_NODE_SMMU) ||
-			(iort_node->type == ACPI_IORT_NODE_SMMU_V3)) {
-
+		ops = iort_get_dev_cfg(iort_node);
+		if (ops) {
 			fwnode = acpi_alloc_fwnode_static();
 			if (!fwnode)
 				return;
 
 			iort_set_fwnode(iort_node, fwnode);
 
-			ret = iort_add_smmu_platform_device(iort_node);
+			ret = iort_add_platform_device(iort_node, ops);
 			if (ret) {
 				iort_delete_fwnode(iort_node);
 				acpi_free_fwnode_static(fwnode);
