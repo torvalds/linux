@@ -35,6 +35,7 @@
 #include <linux/notifier.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/compat.h>
 
 /*
  * An i2c_dev represents an i2c_adapter ... an I2C or SMBus master, not a
@@ -238,46 +239,29 @@ static int i2cdev_check_addr(struct i2c_adapter *adapter, unsigned int addr)
 }
 
 static noinline int i2cdev_ioctl_rdwr(struct i2c_client *client,
-		unsigned long arg)
+		unsigned nmsgs, struct i2c_msg *msgs)
 {
-	struct i2c_rdwr_ioctl_data rdwr_arg;
-	struct i2c_msg *rdwr_pa;
 	u8 __user **data_ptrs;
 	int i, res;
 
-	if (copy_from_user(&rdwr_arg,
-			   (struct i2c_rdwr_ioctl_data __user *)arg,
-			   sizeof(rdwr_arg)))
-		return -EFAULT;
-
-	/* Put an arbitrary limit on the number of messages that can
-	 * be sent at once */
-	if (rdwr_arg.nmsgs > I2C_RDWR_IOCTL_MAX_MSGS)
-		return -EINVAL;
-
-	rdwr_pa = memdup_user(rdwr_arg.msgs,
-			      rdwr_arg.nmsgs * sizeof(struct i2c_msg));
-	if (IS_ERR(rdwr_pa))
-		return PTR_ERR(rdwr_pa);
-
-	data_ptrs = kmalloc(rdwr_arg.nmsgs * sizeof(u8 __user *), GFP_KERNEL);
+	data_ptrs = kmalloc(nmsgs * sizeof(u8 __user *), GFP_KERNEL);
 	if (data_ptrs == NULL) {
-		kfree(rdwr_pa);
+		kfree(msgs);
 		return -ENOMEM;
 	}
 
 	res = 0;
-	for (i = 0; i < rdwr_arg.nmsgs; i++) {
+	for (i = 0; i < nmsgs; i++) {
 		/* Limit the size of the message to a sane amount */
-		if (rdwr_pa[i].len > 8192) {
+		if (msgs[i].len > 8192) {
 			res = -EINVAL;
 			break;
 		}
 
-		data_ptrs[i] = (u8 __user *)rdwr_pa[i].buf;
-		rdwr_pa[i].buf = memdup_user(data_ptrs[i], rdwr_pa[i].len);
-		if (IS_ERR(rdwr_pa[i].buf)) {
-			res = PTR_ERR(rdwr_pa[i].buf);
+		data_ptrs[i] = (u8 __user *)msgs[i].buf;
+		msgs[i].buf = memdup_user(data_ptrs[i], msgs[i].len);
+		if (IS_ERR(msgs[i].buf)) {
+			res = PTR_ERR(msgs[i].buf);
 			break;
 		}
 
@@ -292,121 +276,117 @@ static noinline int i2cdev_ioctl_rdwr(struct i2c_client *client,
 		 * greater (for example to account for a checksum byte at
 		 * the end of the message.)
 		 */
-		if (rdwr_pa[i].flags & I2C_M_RECV_LEN) {
-			if (!(rdwr_pa[i].flags & I2C_M_RD) ||
-			    rdwr_pa[i].buf[0] < 1 ||
-			    rdwr_pa[i].len < rdwr_pa[i].buf[0] +
+		if (msgs[i].flags & I2C_M_RECV_LEN) {
+			if (!(msgs[i].flags & I2C_M_RD) ||
+			    msgs[i].buf[0] < 1 ||
+			    msgs[i].len < msgs[i].buf[0] +
 					     I2C_SMBUS_BLOCK_MAX) {
 				res = -EINVAL;
 				break;
 			}
 
-			rdwr_pa[i].len = rdwr_pa[i].buf[0];
+			msgs[i].len = msgs[i].buf[0];
 		}
 	}
 	if (res < 0) {
 		int j;
 		for (j = 0; j < i; ++j)
-			kfree(rdwr_pa[j].buf);
+			kfree(msgs[j].buf);
 		kfree(data_ptrs);
-		kfree(rdwr_pa);
+		kfree(msgs);
 		return res;
 	}
 
-	res = i2c_transfer(client->adapter, rdwr_pa, rdwr_arg.nmsgs);
+	res = i2c_transfer(client->adapter, msgs, nmsgs);
 	while (i-- > 0) {
-		if (res >= 0 && (rdwr_pa[i].flags & I2C_M_RD)) {
-			if (copy_to_user(data_ptrs[i], rdwr_pa[i].buf,
-					 rdwr_pa[i].len))
+		if (res >= 0 && (msgs[i].flags & I2C_M_RD)) {
+			if (copy_to_user(data_ptrs[i], msgs[i].buf,
+					 msgs[i].len))
 				res = -EFAULT;
 		}
-		kfree(rdwr_pa[i].buf);
+		kfree(msgs[i].buf);
 	}
 	kfree(data_ptrs);
-	kfree(rdwr_pa);
+	kfree(msgs);
 	return res;
 }
 
 static noinline int i2cdev_ioctl_smbus(struct i2c_client *client,
-		unsigned long arg)
+		u8 read_write, u8 command, u32 size,
+		union i2c_smbus_data __user *data)
 {
-	struct i2c_smbus_ioctl_data data_arg;
 	union i2c_smbus_data temp = {};
 	int datasize, res;
 
-	if (copy_from_user(&data_arg,
-			   (struct i2c_smbus_ioctl_data __user *) arg,
-			   sizeof(struct i2c_smbus_ioctl_data)))
-		return -EFAULT;
-	if ((data_arg.size != I2C_SMBUS_BYTE) &&
-	    (data_arg.size != I2C_SMBUS_QUICK) &&
-	    (data_arg.size != I2C_SMBUS_BYTE_DATA) &&
-	    (data_arg.size != I2C_SMBUS_WORD_DATA) &&
-	    (data_arg.size != I2C_SMBUS_PROC_CALL) &&
-	    (data_arg.size != I2C_SMBUS_BLOCK_DATA) &&
-	    (data_arg.size != I2C_SMBUS_I2C_BLOCK_BROKEN) &&
-	    (data_arg.size != I2C_SMBUS_I2C_BLOCK_DATA) &&
-	    (data_arg.size != I2C_SMBUS_BLOCK_PROC_CALL)) {
+	if ((size != I2C_SMBUS_BYTE) &&
+	    (size != I2C_SMBUS_QUICK) &&
+	    (size != I2C_SMBUS_BYTE_DATA) &&
+	    (size != I2C_SMBUS_WORD_DATA) &&
+	    (size != I2C_SMBUS_PROC_CALL) &&
+	    (size != I2C_SMBUS_BLOCK_DATA) &&
+	    (size != I2C_SMBUS_I2C_BLOCK_BROKEN) &&
+	    (size != I2C_SMBUS_I2C_BLOCK_DATA) &&
+	    (size != I2C_SMBUS_BLOCK_PROC_CALL)) {
 		dev_dbg(&client->adapter->dev,
 			"size out of range (%x) in ioctl I2C_SMBUS.\n",
-			data_arg.size);
+			size);
 		return -EINVAL;
 	}
 	/* Note that I2C_SMBUS_READ and I2C_SMBUS_WRITE are 0 and 1,
 	   so the check is valid if size==I2C_SMBUS_QUICK too. */
-	if ((data_arg.read_write != I2C_SMBUS_READ) &&
-	    (data_arg.read_write != I2C_SMBUS_WRITE)) {
+	if ((read_write != I2C_SMBUS_READ) &&
+	    (read_write != I2C_SMBUS_WRITE)) {
 		dev_dbg(&client->adapter->dev,
 			"read_write out of range (%x) in ioctl I2C_SMBUS.\n",
-			data_arg.read_write);
+			read_write);
 		return -EINVAL;
 	}
 
 	/* Note that command values are always valid! */
 
-	if ((data_arg.size == I2C_SMBUS_QUICK) ||
-	    ((data_arg.size == I2C_SMBUS_BYTE) &&
-	    (data_arg.read_write == I2C_SMBUS_WRITE)))
+	if ((size == I2C_SMBUS_QUICK) ||
+	    ((size == I2C_SMBUS_BYTE) &&
+	    (read_write == I2C_SMBUS_WRITE)))
 		/* These are special: we do not use data */
 		return i2c_smbus_xfer(client->adapter, client->addr,
-				      client->flags, data_arg.read_write,
-				      data_arg.command, data_arg.size, NULL);
+				      client->flags, read_write,
+				      command, size, NULL);
 
-	if (data_arg.data == NULL) {
+	if (data == NULL) {
 		dev_dbg(&client->adapter->dev,
 			"data is NULL pointer in ioctl I2C_SMBUS.\n");
 		return -EINVAL;
 	}
 
-	if ((data_arg.size == I2C_SMBUS_BYTE_DATA) ||
-	    (data_arg.size == I2C_SMBUS_BYTE))
-		datasize = sizeof(data_arg.data->byte);
-	else if ((data_arg.size == I2C_SMBUS_WORD_DATA) ||
-		 (data_arg.size == I2C_SMBUS_PROC_CALL))
-		datasize = sizeof(data_arg.data->word);
+	if ((size == I2C_SMBUS_BYTE_DATA) ||
+	    (size == I2C_SMBUS_BYTE))
+		datasize = sizeof(data->byte);
+	else if ((size == I2C_SMBUS_WORD_DATA) ||
+		 (size == I2C_SMBUS_PROC_CALL))
+		datasize = sizeof(data->word);
 	else /* size == smbus block, i2c block, or block proc. call */
-		datasize = sizeof(data_arg.data->block);
+		datasize = sizeof(data->block);
 
-	if ((data_arg.size == I2C_SMBUS_PROC_CALL) ||
-	    (data_arg.size == I2C_SMBUS_BLOCK_PROC_CALL) ||
-	    (data_arg.size == I2C_SMBUS_I2C_BLOCK_DATA) ||
-	    (data_arg.read_write == I2C_SMBUS_WRITE)) {
-		if (copy_from_user(&temp, data_arg.data, datasize))
+	if ((size == I2C_SMBUS_PROC_CALL) ||
+	    (size == I2C_SMBUS_BLOCK_PROC_CALL) ||
+	    (size == I2C_SMBUS_I2C_BLOCK_DATA) ||
+	    (read_write == I2C_SMBUS_WRITE)) {
+		if (copy_from_user(&temp, data, datasize))
 			return -EFAULT;
 	}
-	if (data_arg.size == I2C_SMBUS_I2C_BLOCK_BROKEN) {
+	if (size == I2C_SMBUS_I2C_BLOCK_BROKEN) {
 		/* Convert old I2C block commands to the new
 		   convention. This preserves binary compatibility. */
-		data_arg.size = I2C_SMBUS_I2C_BLOCK_DATA;
-		if (data_arg.read_write == I2C_SMBUS_READ)
+		size = I2C_SMBUS_I2C_BLOCK_DATA;
+		if (read_write == I2C_SMBUS_READ)
 			temp.block[0] = I2C_SMBUS_BLOCK_MAX;
 	}
 	res = i2c_smbus_xfer(client->adapter, client->addr, client->flags,
-	      data_arg.read_write, data_arg.command, data_arg.size, &temp);
-	if (!res && ((data_arg.size == I2C_SMBUS_PROC_CALL) ||
-		     (data_arg.size == I2C_SMBUS_BLOCK_PROC_CALL) ||
-		     (data_arg.read_write == I2C_SMBUS_READ))) {
-		if (copy_to_user(data_arg.data, &temp, datasize))
+	      read_write, command, size, &temp);
+	if (!res && ((size == I2C_SMBUS_PROC_CALL) ||
+		     (size == I2C_SMBUS_BLOCK_PROC_CALL) ||
+		     (read_write == I2C_SMBUS_READ))) {
+		if (copy_to_user(data, &temp, datasize))
 			return -EFAULT;
 	}
 	return res;
@@ -454,12 +434,39 @@ static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		funcs = i2c_get_functionality(client->adapter);
 		return put_user(funcs, (unsigned long __user *)arg);
 
-	case I2C_RDWR:
-		return i2cdev_ioctl_rdwr(client, arg);
+	case I2C_RDWR: {
+		struct i2c_rdwr_ioctl_data rdwr_arg;
+		struct i2c_msg *rdwr_pa;
 
-	case I2C_SMBUS:
-		return i2cdev_ioctl_smbus(client, arg);
+		if (copy_from_user(&rdwr_arg,
+				   (struct i2c_rdwr_ioctl_data __user *)arg,
+				   sizeof(rdwr_arg)))
+			return -EFAULT;
 
+		/* Put an arbitrary limit on the number of messages that can
+		 * be sent at once */
+		if (rdwr_arg.nmsgs > I2C_RDWR_IOCTL_MAX_MSGS)
+			return -EINVAL;
+
+		rdwr_pa = memdup_user(rdwr_arg.msgs,
+				      rdwr_arg.nmsgs * sizeof(struct i2c_msg));
+		if (IS_ERR(rdwr_pa))
+			return PTR_ERR(rdwr_pa);
+
+		return i2cdev_ioctl_rdwr(client, rdwr_arg.nmsgs, rdwr_pa);
+	}
+
+	case I2C_SMBUS: {
+		struct i2c_smbus_ioctl_data data_arg;
+		if (copy_from_user(&data_arg,
+				   (struct i2c_smbus_ioctl_data __user *) arg,
+				   sizeof(struct i2c_smbus_ioctl_data)))
+			return -EFAULT;
+		return i2cdev_ioctl_smbus(client, data_arg.read_write,
+					  data_arg.command,
+					  data_arg.size,
+					  data_arg.data);
+	}
 	case I2C_RETRIES:
 		client->adapter->retries = arg;
 		break;
@@ -479,6 +486,90 @@ static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 	return 0;
 }
+
+#ifdef CONFIG_COMPAT
+
+struct i2c_smbus_ioctl_data32 {
+	u8 read_write;
+	u8 command;
+	u32 size;
+	compat_caddr_t data; /* union i2c_smbus_data *data */
+};
+
+struct i2c_msg32 {
+	u16 addr;
+	u16 flags;
+	u16 len;
+	compat_caddr_t buf;
+};
+
+struct i2c_rdwr_ioctl_data32 {
+	compat_caddr_t msgs; /* struct i2c_msg __user *msgs */
+	u32 nmsgs;
+};
+
+static long compat_i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct i2c_client *client = file->private_data;
+	unsigned long funcs;
+	switch (cmd) {
+	case I2C_FUNCS:
+		funcs = i2c_get_functionality(client->adapter);
+		return put_user(funcs, (compat_ulong_t __user *)arg);
+	case I2C_RDWR: {
+		struct i2c_rdwr_ioctl_data32 rdwr_arg;
+		struct i2c_msg32 *p;
+		struct i2c_msg *rdwr_pa;
+		int i;
+
+		if (copy_from_user(&rdwr_arg,
+				   (struct i2c_rdwr_ioctl_data32 __user *)arg,
+				   sizeof(rdwr_arg)))
+			return -EFAULT;
+
+		if (rdwr_arg.nmsgs > I2C_RDWR_IOCTL_MAX_MSGS)
+			return -EINVAL;
+
+		rdwr_pa = kmalloc_array(rdwr_arg.nmsgs, sizeof(struct i2c_msg),
+				      GFP_KERNEL);
+		if (!rdwr_pa)
+			return -ENOMEM;
+
+		p = compat_ptr(rdwr_arg.msgs);
+		for (i = 0; i < rdwr_arg.nmsgs; i++) {
+			struct i2c_msg32 umsg;
+			if (copy_from_user(&umsg, p + i, sizeof(umsg))) {
+				kfree(rdwr_pa);
+				return -EFAULT;
+			}
+			rdwr_pa[i] = (struct i2c_msg) {
+				.addr = umsg.addr,
+				.flags = umsg.flags,
+				.len = umsg.len,
+				.buf = compat_ptr(umsg.buf)
+			};
+		}
+
+		return i2cdev_ioctl_rdwr(client, rdwr_arg.nmsgs, rdwr_pa);
+	}
+	case I2C_SMBUS: {
+		struct i2c_smbus_ioctl_data32	data32;
+		if (copy_from_user(&data32,
+				   (void __user *) arg,
+				   sizeof(data32)))
+			return -EFAULT;
+		return i2cdev_ioctl_smbus(client, data32.read_write,
+					  data32.command,
+					  data32.size,
+					  compat_ptr(data32.data));
+	}
+	default:
+		return i2cdev_ioctl(file, cmd, arg);
+	}
+}
+#else
+#define compat_i2cdev_ioctl NULL
+#endif
 
 static int i2cdev_open(struct inode *inode, struct file *file)
 {
@@ -527,6 +618,7 @@ static const struct file_operations i2cdev_fops = {
 	.read		= i2cdev_read,
 	.write		= i2cdev_write,
 	.unlocked_ioctl	= i2cdev_ioctl,
+	.compat_ioctl	= compat_i2cdev_ioctl,
 	.open		= i2cdev_open,
 	.release	= i2cdev_release,
 };
