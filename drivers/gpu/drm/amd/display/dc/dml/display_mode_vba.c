@@ -633,7 +633,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.NumberOfCursors[mode_lib->vba.NumberOfActivePlanes] = 0;
 		// The DML spreadsheet assumes that the two cursors utilize the same amount of bandwidth. We'll
 		// calculate things a little more accurately
-		for (k = 0; k < DC__NUM_CURSOR; ++k) {
+		for (k = 0; k < DC__NUM_CURSOR__MAX; ++k) {
 			switch (k) {
 			case 0:
 				mode_lib->vba.CursorBPP[mode_lib->vba.NumberOfActivePlanes][0] =

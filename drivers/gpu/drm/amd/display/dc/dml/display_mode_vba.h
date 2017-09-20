@@ -332,8 +332,8 @@ struct vba_vars_st {
 	unsigned int BlendingAndTiming[DC__NUM_DPP__MAX];
 	bool SynchronizedVBlank;
 	unsigned int NumberOfCursors[DC__NUM_DPP__MAX];
-	unsigned int CursorWidth[DC__NUM_DPP__MAX][DC__NUM_CURSOR];
-	unsigned int CursorBPP[DC__NUM_DPP__MAX][DC__NUM_CURSOR];
+	unsigned int CursorWidth[DC__NUM_DPP__MAX][DC__NUM_CURSOR__MAX];
+	unsigned int CursorBPP[DC__NUM_DPP__MAX][DC__NUM_CURSOR__MAX];
 	bool XFCEnabled[DC__NUM_DPP__MAX];
 	bool ScalerEnabled[DC__NUM_DPP__MAX];
 
