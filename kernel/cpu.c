@@ -202,7 +202,14 @@ err:
 	hlist_for_each(node, &step->list) {
 		if (!cnt--)
 			break;
-		cbm(cpu, node);
+
+		trace_cpuhp_multi_enter(cpu, st->target, state, cbm, node);
+		ret = cbm(cpu, node);
+		trace_cpuhp_exit(cpu, st->state, state, ret);
+		/*
+		 * Rollback must not fail,
+		 */
+		WARN_ON_ONCE(ret);
 	}
 	return ret;
 }
@@ -659,6 +666,7 @@ static int take_cpu_down(void *_param)
 	struct cpuhp_cpu_state *st = this_cpu_ptr(&cpuhp_state);
 	enum cpuhp_state target = max((int)st->target, CPUHP_AP_OFFLINE);
 	int err, cpu = smp_processor_id();
+	int ret;
 
 	/* Ensure this CPU doesn't handle any more interrupts. */
 	err = __cpu_disable();
@@ -672,8 +680,13 @@ static int take_cpu_down(void *_param)
 	WARN_ON(st->state != CPUHP_TEARDOWN_CPU);
 	st->state--;
 	/* Invoke the former CPU_DYING callbacks */
-	for (; st->state > target; st->state--)
-		cpuhp_invoke_callback(cpu, st->state, false, NULL, NULL);
+	for (; st->state > target; st->state--) {
+		ret = cpuhp_invoke_callback(cpu, st->state, false, NULL, NULL);
+		/*
+		 * DYING must not fail!
+		 */
+		WARN_ON_ONCE(ret);
+	}
 
 	/* Give up timekeeping duties */
 	tick_handover_do_timer();
@@ -876,11 +889,16 @@ void notify_cpu_starting(unsigned int cpu)
 {
 	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
 	enum cpuhp_state target = min((int)st->target, CPUHP_AP_ONLINE);
+	int ret;
 
 	rcu_cpu_starting(cpu);	/* Enables RCU usage on this CPU. */
 	while (st->state < target) {
 		st->state++;
-		cpuhp_invoke_callback(cpu, st->state, true, NULL, NULL);
+		ret = cpuhp_invoke_callback(cpu, st->state, true, NULL, NULL);
+		/*
+		 * STARTING must not fail!
+		 */
+		WARN_ON_ONCE(ret);
 	}
 }
 
