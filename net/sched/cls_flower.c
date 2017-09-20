@@ -947,28 +947,28 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 
 		if (!tc_flags_valid(fnew->flags)) {
 			err = -EINVAL;
-			goto errout;
+			goto errout_idr;
 		}
 	}
 
 	err = fl_set_parms(net, tp, fnew, &mask, base, tb, tca[TCA_RATE], ovr);
 	if (err)
-		goto errout;
+		goto errout_idr;
 
 	err = fl_check_assign_mask(head, &mask);
 	if (err)
-		goto errout;
+		goto errout_idr;
 
 	if (!tc_skip_sw(fnew->flags)) {
 		if (!fold && fl_lookup(head, &fnew->mkey)) {
 			err = -EEXIST;
-			goto errout;
+			goto errout_idr;
 		}
 
 		err = rhashtable_insert_fast(&head->ht, &fnew->ht_node,
 					     head->ht_params);
 		if (err)
-			goto errout;
+			goto errout_idr;
 	}
 
 	if (!tc_skip_hw(fnew->flags)) {
@@ -977,7 +977,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 					   &mask.key,
 					   fnew);
 		if (err)
-			goto errout;
+			goto errout_idr;
 	}
 
 	if (!tc_in_hw(fnew->flags))
@@ -1006,6 +1006,9 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	kfree(tb);
 	return 0;
 
+errout_idr:
+	if (fnew->handle)
+		idr_remove_ext(&head->handle_idr, fnew->handle);
 errout:
 	tcf_exts_destroy(&fnew->exts);
 	kfree(fnew);
