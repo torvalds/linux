@@ -151,10 +151,10 @@ int smum_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type)
 	return 0;
 }
 
-uint32_t smum_get_offsetof(struct pp_smumgr *smumgr, uint32_t type, uint32_t member)
+uint32_t smum_get_offsetof(struct pp_hwmgr *hwmgr, uint32_t type, uint32_t member)
 {
-	if (NULL != smumgr->smumgr_funcs->get_offsetof)
-		return smumgr->smumgr_funcs->get_offsetof(type, member);
+	if (NULL != hwmgr->smumgr->smumgr_funcs->get_offsetof)
+		return hwmgr->smumgr->smumgr_funcs->get_offsetof(type, member);
 
 	return 0;
 }
@@ -166,97 +166,96 @@ int smum_process_firmware_header(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int smum_get_argument(struct pp_smumgr *smumgr)
+int smum_get_argument(struct pp_hwmgr *hwmgr)
 {
-	if (NULL != smumgr->smumgr_funcs->get_argument)
-		return smumgr->smumgr_funcs->get_argument(smumgr);
+	if (NULL != hwmgr->smumgr->smumgr_funcs->get_argument)
+		return hwmgr->smumgr->smumgr_funcs->get_argument(hwmgr);
 
 	return 0;
 }
 
-uint32_t smum_get_mac_definition(struct pp_smumgr *smumgr, uint32_t value)
+uint32_t smum_get_mac_definition(struct pp_hwmgr *hwmgr, uint32_t value)
 {
-	if (NULL != smumgr->smumgr_funcs->get_mac_definition)
-		return smumgr->smumgr_funcs->get_mac_definition(value);
+	if (NULL != hwmgr->smumgr->smumgr_funcs->get_mac_definition)
+		return hwmgr->smumgr->smumgr_funcs->get_mac_definition(value);
 
 	return 0;
 }
 
-int smum_download_powerplay_table(struct pp_smumgr *smumgr,
-								void **table)
+int smum_download_powerplay_table(struct pp_hwmgr *hwmgr, void **table)
 {
-	if (NULL != smumgr->smumgr_funcs->download_pptable_settings)
-		return smumgr->smumgr_funcs->download_pptable_settings(smumgr,
+	if (NULL != hwmgr->smumgr->smumgr_funcs->download_pptable_settings)
+		return hwmgr->smumgr->smumgr_funcs->download_pptable_settings(hwmgr,
 									table);
 	return 0;
 }
 
-int smum_upload_powerplay_table(struct pp_smumgr *smumgr)
+int smum_upload_powerplay_table(struct pp_hwmgr *hwmgr)
 {
-	if (NULL != smumgr->smumgr_funcs->upload_pptable_settings)
-		return smumgr->smumgr_funcs->upload_pptable_settings(smumgr);
+	if (NULL != hwmgr->smumgr->smumgr_funcs->upload_pptable_settings)
+		return hwmgr->smumgr->smumgr_funcs->upload_pptable_settings(hwmgr);
 
 	return 0;
 }
 
-int smum_send_msg_to_smc(struct pp_smumgr *smumgr, uint16_t msg)
+int smum_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 {
-	if (smumgr == NULL || smumgr->smumgr_funcs->send_msg_to_smc == NULL)
+	if (hwmgr == NULL || hwmgr->smumgr->smumgr_funcs->send_msg_to_smc == NULL)
 		return -EINVAL;
 
-	return smumgr->smumgr_funcs->send_msg_to_smc(smumgr, msg);
+	return hwmgr->smumgr->smumgr_funcs->send_msg_to_smc(hwmgr, msg);
 }
 
-int smum_send_msg_to_smc_with_parameter(struct pp_smumgr *smumgr,
+int smum_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 					uint16_t msg, uint32_t parameter)
 {
-	if (smumgr == NULL ||
-		smumgr->smumgr_funcs->send_msg_to_smc_with_parameter == NULL)
+	if (hwmgr == NULL ||
+		hwmgr->smumgr->smumgr_funcs->send_msg_to_smc_with_parameter == NULL)
 		return -EINVAL;
-	return smumgr->smumgr_funcs->send_msg_to_smc_with_parameter(
-						smumgr, msg, parameter);
+	return hwmgr->smumgr->smumgr_funcs->send_msg_to_smc_with_parameter(
+						hwmgr, msg, parameter);
 }
 
 /*
  * Returns once the part of the register indicated by the mask has
  * reached the given value.
  */
-int smum_wait_on_register(struct pp_smumgr *smumgr,
+int smum_wait_on_register(struct pp_hwmgr *hwmgr,
 				uint32_t index,
 				uint32_t value, uint32_t mask)
 {
 	uint32_t i;
 	uint32_t cur_value;
 
-	if (smumgr == NULL || smumgr->device == NULL)
+	if (hwmgr == NULL || hwmgr->device == NULL)
 		return -EINVAL;
 
-	for (i = 0; i < smumgr->usec_timeout; i++) {
-		cur_value = cgs_read_register(smumgr->device, index);
+	for (i = 0; i < hwmgr->usec_timeout; i++) {
+		cur_value = cgs_read_register(hwmgr->device, index);
 		if ((cur_value & mask) == (value & mask))
 			break;
 		udelay(1);
 	}
 
 	/* timeout means wrong logic*/
-	if (i == smumgr->usec_timeout)
+	if (i == hwmgr->usec_timeout)
 		return -1;
 
 	return 0;
 }
 
-int smum_wait_for_register_unequal(struct pp_smumgr *smumgr,
+int smum_wait_for_register_unequal(struct pp_hwmgr *hwmgr,
 					uint32_t index,
 					uint32_t value, uint32_t mask)
 {
 	uint32_t i;
 	uint32_t cur_value;
 
-	if (smumgr == NULL)
+	if (hwmgr == NULL)
 		return -EINVAL;
 
-	for (i = 0; i < smumgr->usec_timeout; i++) {
-		cur_value = cgs_read_register(smumgr->device,
+	for (i = 0; i < hwmgr->usec_timeout; i++) {
+		cur_value = cgs_read_register(hwmgr->device,
 									index);
 		if ((cur_value & mask) != (value & mask))
 			break;
@@ -264,7 +263,7 @@ int smum_wait_for_register_unequal(struct pp_smumgr *smumgr,
 	}
 
 	/* timeout means wrong logic */
-	if (i == smumgr->usec_timeout)
+	if (i == hwmgr->usec_timeout)
 		return -1;
 
 	return 0;
@@ -276,31 +275,31 @@ int smum_wait_for_register_unequal(struct pp_smumgr *smumgr,
  * has reached the given value.The indirect space is described by
  * giving the memory-mapped index of the indirect index register.
  */
-int smum_wait_on_indirect_register(struct pp_smumgr *smumgr,
+int smum_wait_on_indirect_register(struct pp_hwmgr *hwmgr,
 					uint32_t indirect_port,
 					uint32_t index,
 					uint32_t value,
 					uint32_t mask)
 {
-	if (smumgr == NULL || smumgr->device == NULL)
+	if (hwmgr == NULL || hwmgr->device == NULL)
 		return -EINVAL;
 
-	cgs_write_register(smumgr->device, indirect_port, index);
-	return smum_wait_on_register(smumgr, indirect_port + 1,
+	cgs_write_register(hwmgr->device, indirect_port, index);
+	return smum_wait_on_register(hwmgr, indirect_port + 1,
 						mask, value);
 }
 
 void smum_wait_for_indirect_register_unequal(
-						struct pp_smumgr *smumgr,
+						struct pp_hwmgr *hwmgr,
 						uint32_t indirect_port,
 						uint32_t index,
 						uint32_t value,
 						uint32_t mask)
 {
-	if (smumgr == NULL || smumgr->device == NULL)
+	if (hwmgr == NULL || hwmgr->device == NULL)
 		return;
-	cgs_write_register(smumgr->device, indirect_port, index);
-	smum_wait_for_register_unequal(smumgr, indirect_port + 1,
+	cgs_write_register(hwmgr->device, indirect_port, index);
+	smum_wait_for_register_unequal(hwmgr, indirect_port + 1,
 						value, mask);
 }
 
@@ -406,10 +405,10 @@ int smum_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-bool smum_is_hw_avfs_present(struct pp_smumgr *smumgr)
+bool smum_is_hw_avfs_present(struct pp_hwmgr *hwmgr)
 {
-	if (smumgr->smumgr_funcs->is_hw_avfs_present)
-		return smumgr->smumgr_funcs->is_hw_avfs_present(smumgr);
+	if (hwmgr->smumgr->smumgr_funcs->is_hw_avfs_present)
+		return hwmgr->smumgr->smumgr_funcs->is_hw_avfs_present(hwmgr);
 
 	return false;
 }

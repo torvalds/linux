@@ -338,7 +338,7 @@ static int fiji_populate_dw8(struct pp_hwmgr *hwmgr, uint32_t fuse_table_offset)
 	const struct fiji_pt_defaults *defaults = smu_data->power_tune_defaults;
 	uint32_t temp;
 
-	if (smu7_read_smc_sram_dword(hwmgr->smumgr,
+	if (smu7_read_smc_sram_dword(hwmgr,
 			fuse_table_offset +
 			offsetof(SMU73_Discrete_PmFuses, TdcWaterfallCtl),
 			(uint32_t *)&temp, SMC_RAM_END))
@@ -425,7 +425,7 @@ static int fiji_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_PowerContainment)) {
-		if (smu7_read_smc_sram_dword(hwmgr->smumgr,
+		if (smu7_read_smc_sram_dword(hwmgr,
 				SMU7_FIRMWARE_HEADER_LOCATION +
 				offsetof(SMU73_Firmware_Header, PmFuseTable),
 				&pm_fuse_table_offset, SMC_RAM_END))
@@ -473,7 +473,7 @@ static int fiji_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 					"Attempt to populate BapmVddCBaseLeakage Hi and Lo "
 					"Sidd Failed!", return -EINVAL);
 
-		if (smu7_copy_bytes_to_smc(hwmgr->smumgr, pm_fuse_table_offset,
+		if (smu7_copy_bytes_to_smc(hwmgr, pm_fuse_table_offset,
 				(uint8_t *)&smu_data->power_tune_table,
 				sizeof(struct SMU73_Discrete_PmFuses), SMC_RAM_END))
 			PP_ASSERT_WITH_CODE(false,
@@ -848,7 +848,7 @@ int fiji_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 		levels[1].pcieDpmLevel = mid_pcie_level_enabled;
 	}
 	/* level count will send to smc once at init smc table and never change */
-	result = smu7_copy_bytes_to_smc(hwmgr->smumgr, array, (uint8_t *)levels,
+	result = smu7_copy_bytes_to_smc(hwmgr, array, (uint8_t *)levels,
 			(uint32_t)array_size, SMC_RAM_END);
 
 	return result;
@@ -1032,7 +1032,7 @@ int fiji_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 			PPSMC_DISPLAY_WATERMARK_HIGH;
 
 	/* level count will send to smc once at init smc table and never change */
-	result = smu7_copy_bytes_to_smc(hwmgr->smumgr, array, (uint8_t *)levels,
+	result = smu7_copy_bytes_to_smc(hwmgr, array, (uint8_t *)levels,
 			(uint32_t)array_size, SMC_RAM_END);
 
 	return result;
@@ -1359,7 +1359,7 @@ static int fiji_program_memory_timing_parameters(struct pp_hwmgr *hwmgr)
 
 	if (!result)
 		result = smu7_copy_bytes_to_smc(
-				hwmgr->smumgr,
+				hwmgr,
 				smu_data->smu7_data.arb_table_start,
 				(uint8_t *)&arb_regs,
 				sizeof(SMU73_Discrete_MCArbDramTimingTable),
@@ -1683,9 +1683,9 @@ static int fiji_populate_vr_config(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int fiji_init_arb_table_index(struct pp_smumgr *smumgr)
+static int fiji_init_arb_table_index(struct pp_hwmgr *hwmgr)
 {
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
 	uint32_t tmp;
 	int result;
 
@@ -1697,7 +1697,7 @@ static int fiji_init_arb_table_index(struct pp_smumgr *smumgr)
 	 * In reality this field should not be in that structure
 	 * but in a soft register.
 	 */
-	result = smu7_read_smc_sram_dword(smumgr,
+	result = smu7_read_smc_sram_dword(hwmgr,
 			smu_data->smu7_data.arb_table_start, &tmp, SMC_RAM_END);
 
 	if (result)
@@ -1706,7 +1706,7 @@ static int fiji_init_arb_table_index(struct pp_smumgr *smumgr)
 	tmp &= 0x00FFFFFF;
 	tmp |= ((uint32_t)MC_CG_ARB_FREQ_F1) << 24;
 
-	return smu7_write_smc_sram_dword(smumgr,
+	return smu7_write_smc_sram_dword(hwmgr,
 			smu_data->smu7_data.arb_table_start,  tmp, SMC_RAM_END);
 }
 
@@ -1771,7 +1771,7 @@ static int fiji_setup_dpm_led_config(struct pp_hwmgr *hwmgr)
 		}
 	}
 	if (mask)
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 						    PPSMC_MSG_LedConfig,
 						    mask);
 	return 0;
@@ -1974,7 +1974,7 @@ int fiji_init_smc_table(struct pp_hwmgr *hwmgr)
 	CONVERT_FROM_HOST_TO_SMC_US(table->PhaseResponseTime);
 
 	/* Upload all dpm data to SMC memory.(dpm level, dpm level count etc) */
-	result = smu7_copy_bytes_to_smc(hwmgr->smumgr,
+	result = smu7_copy_bytes_to_smc(hwmgr,
 			smu_data->smu7_data.dpm_table_start +
 			offsetof(SMU73_Discrete_DpmTable, SystemFlags),
 			(uint8_t *)&(table->SystemFlags),
@@ -1983,7 +1983,7 @@ int fiji_init_smc_table(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to upload dpm data to SMC memory!", return result);
 
-	result = fiji_init_arb_table_index(hwmgr->smumgr);
+	result = fiji_init_arb_table_index(hwmgr);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to upload arb data to SMC memory!", return result);
 
@@ -2093,20 +2093,20 @@ int fiji_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 			hwmgr->device, CGS_IND_REG__SMC,
 			CG_MULT_THERMAL_CTRL, TEMP_SEL);
 
-	res = smu7_copy_bytes_to_smc(hwmgr->smumgr, smu_data->smu7_data.fan_table_start,
+	res = smu7_copy_bytes_to_smc(hwmgr, smu_data->smu7_data.fan_table_start,
 			(uint8_t *)&fan_table, (uint32_t)sizeof(fan_table),
 			SMC_RAM_END);
 
 	if (!res && hwmgr->thermal_controller.
 			advanceFanControlParameters.ucMinimumPWMLimit)
-		res = smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		res = smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetFanMinPwm,
 				hwmgr->thermal_controller.
 				advanceFanControlParameters.ucMinimumPWMLimit);
 
 	if (!res && hwmgr->thermal_controller.
 			advanceFanControlParameters.ulMinFanSCLKAcousticLimit)
-		res = smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		res = smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetFanSclkTarget,
 				hwmgr->thermal_controller.
 				advanceFanControlParameters.ulMinFanSCLKAcousticLimit);
@@ -2122,13 +2122,12 @@ int fiji_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 int fiji_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 {
 	int ret;
-	struct pp_smumgr *smumgr = (struct pp_smumgr *)(hwmgr->smumgr);
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(smumgr->backend);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smumgr->backend);
 
 	if (smu_data->avfs.avfs_btc_status != AVFS_BTC_ENABLEAVFS)
 		return 0;
 
-	ret = smum_send_msg_to_smc(smumgr, PPSMC_MSG_EnableAvfs);
+	ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_EnableAvfs);
 
 	if (!ret)
 		/* If this param is not changed, this function could fire unnecessarily */
@@ -2168,7 +2167,7 @@ int fiji_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 		CONVERT_FROM_HOST_TO_SMC_UL(low_sclk_interrupt_threshold);
 
 		result = smu7_copy_bytes_to_smc(
-				hwmgr->smumgr,
+				hwmgr,
 				smu_data->smu7_data.dpm_table_start +
 				offsetof(SMU73_Discrete_DpmTable,
 					LowSclkInterruptThreshold),
@@ -2269,7 +2268,7 @@ static int fiji_update_uvd_smc_table(struct pp_hwmgr *hwmgr)
 			PHM_PlatformCaps_UVDDPM) ||
 		phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_StablePState))
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_UVDDPM_SetEnabledMask,
 				(uint32_t)(1 << smu_data->smc_state_table.UvdBootLevel));
 	return 0;
@@ -2301,7 +2300,7 @@ static int fiji_update_vce_smc_table(struct pp_hwmgr *hwmgr)
 			CGS_IND_REG__SMC, mm_boot_level_offset, mm_boot_level_value);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_StablePState))
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_VCEDPM_SetEnabledMask,
 				(uint32_t)1 << smu_data->smc_state_table.VceBootLevel);
 	return 0;
@@ -2328,7 +2327,7 @@ static int fiji_update_samu_smc_table(struct pp_hwmgr *hwmgr)
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_StablePState))
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SAMUDPM_SetEnabledMask,
 				(uint32_t)(1 << smu_data->smc_state_table.SamuBootLevel));
 	return 0;
@@ -2367,7 +2366,7 @@ int fiji_process_firmware_header(struct pp_hwmgr *hwmgr)
 	int result;
 	bool error = false;
 
-	result = smu7_read_smc_sram_dword(hwmgr->smumgr,
+	result = smu7_read_smc_sram_dword(hwmgr,
 			SMU7_FIRMWARE_HEADER_LOCATION +
 			offsetof(SMU73_Firmware_Header, DpmTable),
 			&tmp, SMC_RAM_END);
@@ -2377,7 +2376,7 @@ int fiji_process_firmware_header(struct pp_hwmgr *hwmgr)
 
 	error |= (0 != result);
 
-	result = smu7_read_smc_sram_dword(hwmgr->smumgr,
+	result = smu7_read_smc_sram_dword(hwmgr,
 			SMU7_FIRMWARE_HEADER_LOCATION +
 			offsetof(SMU73_Firmware_Header, SoftRegisters),
 			&tmp, SMC_RAM_END);
@@ -2389,7 +2388,7 @@ int fiji_process_firmware_header(struct pp_hwmgr *hwmgr)
 
 	error |= (0 != result);
 
-	result = smu7_read_smc_sram_dword(hwmgr->smumgr,
+	result = smu7_read_smc_sram_dword(hwmgr,
 			SMU7_FIRMWARE_HEADER_LOCATION +
 			offsetof(SMU73_Firmware_Header, mcRegisterTable),
 			&tmp, SMC_RAM_END);
@@ -2397,7 +2396,7 @@ int fiji_process_firmware_header(struct pp_hwmgr *hwmgr)
 	if (!result)
 		smu_data->smu7_data.mc_reg_table_start = tmp;
 
-	result = smu7_read_smc_sram_dword(hwmgr->smumgr,
+	result = smu7_read_smc_sram_dword(hwmgr,
 			SMU7_FIRMWARE_HEADER_LOCATION +
 			offsetof(SMU73_Firmware_Header, FanTable),
 			&tmp, SMC_RAM_END);
@@ -2407,7 +2406,7 @@ int fiji_process_firmware_header(struct pp_hwmgr *hwmgr)
 
 	error |= (0 != result);
 
-	result = smu7_read_smc_sram_dword(hwmgr->smumgr,
+	result = smu7_read_smc_sram_dword(hwmgr,
 			SMU7_FIRMWARE_HEADER_LOCATION +
 			offsetof(SMU73_Firmware_Header, mcArbDramTimingTable),
 			&tmp, SMC_RAM_END);
@@ -2417,7 +2416,7 @@ int fiji_process_firmware_header(struct pp_hwmgr *hwmgr)
 
 	error |= (0 != result);
 
-	result = smu7_read_smc_sram_dword(hwmgr->smumgr,
+	result = smu7_read_smc_sram_dword(hwmgr,
 			SMU7_FIRMWARE_HEADER_LOCATION +
 			offsetof(SMU73_Firmware_Header, Version),
 			&tmp, SMC_RAM_END);
@@ -2482,6 +2481,6 @@ int fiji_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
 		levels[i].DownHyst = request->down_hyst;
 	}
 
-	return smu7_copy_bytes_to_smc(hwmgr->smumgr, array, (uint8_t *)levels,
+	return smu7_copy_bytes_to_smc(hwmgr, array, (uint8_t *)levels,
 				array_size, SMC_RAM_END);
 }

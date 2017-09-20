@@ -37,125 +37,125 @@
 #include "smu7_smumgr.h"
 
 
-static int tonga_start_in_protection_mode(struct pp_smumgr *smumgr)
+static int tonga_start_in_protection_mode(struct pp_hwmgr *hwmgr)
 {
 	int result;
 
 	/* Assert reset */
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC,
+	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 		SMC_SYSCON_RESET_CNTL, rst_reg, 1);
 
-	result = smu7_upload_smu_firmware_image(smumgr);
+	result = smu7_upload_smu_firmware_image(hwmgr);
 	if (result)
 		return result;
 
 	/* Clear status */
-	cgs_write_ind_register(smumgr->device, CGS_IND_REG__SMC,
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
 		ixSMU_STATUS, 0);
 
 	/* Enable clock */
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC,
+	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 		SMC_SYSCON_CLOCK_CNTL_0, ck_disable, 0);
 
 	/* De-assert reset */
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC,
+	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 		SMC_SYSCON_RESET_CNTL, rst_reg, 0);
 
 	/* Set SMU Auto Start */
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC,
+	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 		SMU_INPUT_DATA, AUTO_START, 1);
 
 	/* Clear firmware interrupt enable flag */
-	cgs_write_ind_register(smumgr->device, CGS_IND_REG__SMC,
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
 		ixFIRMWARE_FLAGS, 0);
 
-	SMUM_WAIT_VFPF_INDIRECT_FIELD(smumgr, SMC_IND,
+	SMUM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND,
 		RCU_UC_EVENTS, INTERRUPTS_ENABLED, 1);
 
 	/**
 	 * Call Test SMU message with 0x20000 offset to trigger SMU start
 	 */
-	smu7_send_msg_to_smc_offset(smumgr);
+	smu7_send_msg_to_smc_offset(hwmgr);
 
 	/* Wait for done bit to be set */
-	SMUM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(smumgr, SMC_IND,
+	SMUM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(hwmgr, SMC_IND,
 		SMU_STATUS, SMU_DONE, 0);
 
 	/* Check pass/failed indicator */
-	if (1 != SMUM_READ_VFPF_INDIRECT_FIELD(smumgr->device,
+	if (1 != SMUM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
 				CGS_IND_REG__SMC, SMU_STATUS, SMU_PASS)) {
 		pr_err("SMU Firmware start failed\n");
 		return -EINVAL;
 	}
 
 	/* Wait for firmware to initialize */
-	SMUM_WAIT_VFPF_INDIRECT_FIELD(smumgr, SMC_IND,
+	SMUM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND,
 		FIRMWARE_FLAGS, INTERRUPTS_ENABLED, 1);
 
 	return 0;
 }
 
 
-static int tonga_start_in_non_protection_mode(struct pp_smumgr *smumgr)
+static int tonga_start_in_non_protection_mode(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
 
 	/* wait for smc boot up */
-	SMUM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(smumgr, SMC_IND,
+	SMUM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(hwmgr, SMC_IND,
 		RCU_UC_EVENTS, boot_seq_done, 0);
 
 	/*Clear firmware interrupt enable flag*/
-	cgs_write_ind_register(smumgr->device, CGS_IND_REG__SMC,
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
 		ixFIRMWARE_FLAGS, 0);
 
 
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC,
+	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 		SMC_SYSCON_RESET_CNTL, rst_reg, 1);
 
-	result = smu7_upload_smu_firmware_image(smumgr);
+	result = smu7_upload_smu_firmware_image(hwmgr);
 
 	if (result != 0)
 		return result;
 
 	/* Set smc instruct start point at 0x0 */
-	smu7_program_jump_on_start(smumgr);
+	smu7_program_jump_on_start(hwmgr);
 
 
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC,
+	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 		SMC_SYSCON_CLOCK_CNTL_0, ck_disable, 0);
 
 	/*De-assert reset*/
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC,
+	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 		SMC_SYSCON_RESET_CNTL, rst_reg, 0);
 
 	/* Wait for firmware to initialize */
-	SMUM_WAIT_VFPF_INDIRECT_FIELD(smumgr, SMC_IND,
+	SMUM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND,
 		FIRMWARE_FLAGS, INTERRUPTS_ENABLED, 1);
 
 	return result;
 }
 
-static int tonga_start_smu(struct pp_smumgr *smumgr)
+static int tonga_start_smu(struct pp_hwmgr *hwmgr)
 {
 	int result;
 
 	/* Only start SMC if SMC RAM is not running */
-	if (!(smu7_is_smc_ram_running(smumgr) ||
-		cgs_is_virtualization_enabled(smumgr->device))) {
+	if (!(smu7_is_smc_ram_running(hwmgr) ||
+		cgs_is_virtualization_enabled(hwmgr->device))) {
 		/*Check if SMU is running in protected mode*/
-		if (0 == SMUM_READ_VFPF_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC,
+		if (0 == SMUM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 					SMU_FIRMWARE, SMU_MODE)) {
-			result = tonga_start_in_non_protection_mode(smumgr);
+			result = tonga_start_in_non_protection_mode(hwmgr);
 			if (result)
 				return result;
 		} else {
-			result = tonga_start_in_protection_mode(smumgr);
+			result = tonga_start_in_protection_mode(hwmgr);
 			if (result)
 				return result;
 		}
 	}
 
-	result = smu7_request_smu_load_fw(smumgr);
+	result = smu7_request_smu_load_fw(hwmgr);
 
 	return result;
 }
@@ -167,7 +167,7 @@ static int tonga_start_smu(struct pp_smumgr *smumgr)
  * @param    smcAddress the address in the SMC RAM to access.
  * @param    value to write to the SMC SRAM.
  */
-static int tonga_smu_init(struct pp_smumgr *smumgr)
+static int tonga_smu_init(struct pp_hwmgr *hwmgr)
 {
 	struct tonga_smumgr *tonga_priv = NULL;
 	int  i;
@@ -176,9 +176,9 @@ static int tonga_smu_init(struct pp_smumgr *smumgr)
 	if (tonga_priv == NULL)
 		return -ENOMEM;
 
-	smumgr->backend = tonga_priv;
+	hwmgr->smumgr->backend = tonga_priv;
 
-	if (smu7_init(smumgr))
+	if (smu7_init(hwmgr))
 		return -EINVAL;
 
 	for (i = 0; i < SMU72_MAX_LEVELS_GRAPHICS; i++)

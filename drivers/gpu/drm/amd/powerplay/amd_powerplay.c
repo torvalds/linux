@@ -83,7 +83,7 @@ static int pp_sw_init(void *handle)
 		if (smumgr->smumgr_funcs->smu_init == NULL)
 			return -EINVAL;
 
-		ret = smumgr->smumgr_funcs->smu_init(smumgr);
+		ret = smumgr->smumgr_funcs->smu_init(pp_handle->hwmgr);
 
 		pr_info("amdgpu: powerplay sw initialized\n");
 	}
@@ -103,7 +103,7 @@ static int pp_sw_fini(void *handle)
 		if (smumgr->smumgr_funcs->smu_fini == NULL)
 			return -EINVAL;
 
-		ret = smumgr->smumgr_funcs->smu_fini(smumgr);
+		ret = smumgr->smumgr_funcs->smu_fini(pp_handle->hwmgr);
 	}
 	return ret;
 }
@@ -122,9 +122,9 @@ static int pp_hw_init(void *handle)
 		if (smumgr->smumgr_funcs->start_smu == NULL)
 			return -EINVAL;
 
-		if(smumgr->smumgr_funcs->start_smu(smumgr)) {
+		if(smumgr->smumgr_funcs->start_smu(pp_handle->hwmgr)) {
 			pr_err("smc start failed\n");
-			smumgr->smumgr_funcs->smu_fini(smumgr);
+			smumgr->smumgr_funcs->smu_fini(pp_handle->hwmgr);
 			return -EINVAL;;
 		}
 		if (ret == PP_DPM_DISABLED)
@@ -246,10 +246,10 @@ static int pp_resume(void *handle)
 	if (smumgr->smumgr_funcs->start_smu == NULL)
 		return -EINVAL;
 
-	ret = smumgr->smumgr_funcs->start_smu(smumgr);
+	ret = smumgr->smumgr_funcs->start_smu(pp_handle->hwmgr);
 	if (ret) {
 		pr_err("smc start failed\n");
-		smumgr->smumgr_funcs->smu_fini(smumgr);
+		smumgr->smumgr_funcs->smu_fini(pp_handle->hwmgr);
 		return ret;
 	}
 

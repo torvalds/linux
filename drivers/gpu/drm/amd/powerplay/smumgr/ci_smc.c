@@ -94,7 +94,7 @@ static const struct ci_pt_defaults defaults_saturn_xt = {
 };
 
 
-static int ci_set_smc_sram_address(struct pp_smumgr *smumgr,
+static int ci_set_smc_sram_address(struct pp_hwmgr *hwmgr,
 					uint32_t smc_addr, uint32_t limit)
 {
 	if ((0 != (3 & smc_addr))
@@ -103,12 +103,12 @@ static int ci_set_smc_sram_address(struct pp_smumgr *smumgr,
 		return -EINVAL;
 	}
 
-	cgs_write_register(smumgr->device, mmSMC_IND_INDEX_0, smc_addr);
-	SMUM_WRITE_FIELD(smumgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 0);
+	cgs_write_register(hwmgr->device, mmSMC_IND_INDEX_0, smc_addr);
+	SMUM_WRITE_FIELD(hwmgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 0);
 	return 0;
 }
 
-static int ci_copy_bytes_to_smc(struct pp_smumgr *smumgr, uint32_t smc_start_address,
+static int ci_copy_bytes_to_smc(struct pp_hwmgr *hwmgr, uint32_t smc_start_address,
 				const uint8_t *src, uint32_t byte_count, uint32_t limit)
 {
 	int result;
@@ -129,12 +129,12 @@ static int ci_copy_bytes_to_smc(struct pp_smumgr *smumgr, uint32_t smc_start_add
 	/* Bytes are written into the SMC address space with the MSB first. */
 		data = src[0] * 0x1000000 + src[1] * 0x10000 + src[2] * 0x100 + src[3];
 
-		result = ci_set_smc_sram_address(smumgr, addr, limit);
+		result = ci_set_smc_sram_address(hwmgr, addr, limit);
 
 		if (0 != result)
 			return result;
 
-		cgs_write_register(smumgr->device, mmSMC_IND_DATA_0, data);
+		cgs_write_register(hwmgr->device, mmSMC_IND_DATA_0, data);
 
 		src += 4;
 		byte_count -= 4;
@@ -145,13 +145,13 @@ static int ci_copy_bytes_to_smc(struct pp_smumgr *smumgr, uint32_t smc_start_add
 
 		data = 0;
 
-		result = ci_set_smc_sram_address(smumgr, addr, limit);
+		result = ci_set_smc_sram_address(hwmgr, addr, limit);
 
 		if (0 != result)
 			return result;
 
 
-		original_data = cgs_read_register(smumgr->device, mmSMC_IND_DATA_0);
+		original_data = cgs_read_register(hwmgr->device, mmSMC_IND_DATA_0);
 
 		extra_shift = 8 * (4 - byte_count);
 
@@ -165,61 +165,61 @@ static int ci_copy_bytes_to_smc(struct pp_smumgr *smumgr, uint32_t smc_start_add
 
 		data |= (original_data & ~((~0UL) << extra_shift));
 
-		result = ci_set_smc_sram_address(smumgr, addr, limit);
+		result = ci_set_smc_sram_address(hwmgr, addr, limit);
 
 		if (0 != result)
 			return result;
 
-		cgs_write_register(smumgr->device, mmSMC_IND_DATA_0, data);
+		cgs_write_register(hwmgr->device, mmSMC_IND_DATA_0, data);
 	}
 
 	return 0;
 }
 
 
-static int ci_program_jump_on_start(struct pp_smumgr *smumgr)
+static int ci_program_jump_on_start(struct pp_hwmgr *hwmgr)
 {
 	static const unsigned char data[4] = { 0xE0, 0x00, 0x80, 0x40 };
 
-	ci_copy_bytes_to_smc(smumgr, 0x0, data, 4, sizeof(data)+1);
+	ci_copy_bytes_to_smc(hwmgr, 0x0, data, 4, sizeof(data)+1);
 
 	return 0;
 }
 
-bool ci_is_smc_ram_running(struct pp_smumgr *smumgr)
+bool ci_is_smc_ram_running(struct pp_hwmgr *hwmgr)
 {
-	return ((0 == SMUM_READ_VFPF_INDIRECT_FIELD(smumgr->device,
+	return ((0 == SMUM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
 			CGS_IND_REG__SMC, SMC_SYSCON_CLOCK_CNTL_0, ck_disable))
-	&& (0x20100 <= cgs_read_ind_register(smumgr->device,
+	&& (0x20100 <= cgs_read_ind_register(hwmgr->device,
 			CGS_IND_REG__SMC, ixSMC_PC_C)));
 }
 
-static int ci_read_smc_sram_dword(struct pp_smumgr *smumgr, uint32_t smc_addr,
+static int ci_read_smc_sram_dword(struct pp_hwmgr *hwmgr, uint32_t smc_addr,
 				uint32_t *value, uint32_t limit)
 {
 	int result;
 
-	result = ci_set_smc_sram_address(smumgr, smc_addr, limit);
+	result = ci_set_smc_sram_address(hwmgr, smc_addr, limit);
 
 	if (result)
 		return result;
 
-	*value = cgs_read_register(smumgr->device, mmSMC_IND_DATA_0);
+	*value = cgs_read_register(hwmgr->device, mmSMC_IND_DATA_0);
 	return 0;
 }
 
-int ci_send_msg_to_smc(struct pp_smumgr *smumgr, uint16_t msg)
+int ci_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 {
 	int ret;
 
-	if (!ci_is_smc_ram_running(smumgr))
+	if (!ci_is_smc_ram_running(hwmgr))
 		return -EINVAL;
 
-	cgs_write_register(smumgr->device, mmSMC_MESSAGE_0, msg);
+	cgs_write_register(hwmgr->device, mmSMC_MESSAGE_0, msg);
 
-	SMUM_WAIT_FIELD_UNEQUAL(smumgr, SMC_RESP_0, SMC_RESP, 0);
+	SMUM_WAIT_FIELD_UNEQUAL(hwmgr, SMC_RESP_0, SMC_RESP, 0);
 
-	ret = SMUM_READ_FIELD(smumgr->device, SMC_RESP_0, SMC_RESP);
+	ret = SMUM_READ_FIELD(hwmgr->device, SMC_RESP_0, SMC_RESP);
 
 	if (ret != 1)
 		pr_info("\n failed to send message %x ret is %d\n",  msg, ret);
@@ -227,11 +227,11 @@ int ci_send_msg_to_smc(struct pp_smumgr *smumgr, uint16_t msg)
 	return 0;
 }
 
-int ci_send_msg_to_smc_with_parameter(struct pp_smumgr *smumgr,
+int ci_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 					uint16_t msg, uint32_t parameter)
 {
-	cgs_write_register(smumgr->device, mmSMC_MSG_ARG_0, parameter);
-	return ci_send_msg_to_smc(smumgr, msg);
+	cgs_write_register(hwmgr->device, mmSMC_MSG_ARG_0, parameter);
+	return ci_send_msg_to_smc(hwmgr, msg);
 }
 
 static void ci_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
@@ -510,7 +510,7 @@ int ci_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 	data->dpm_level_enable_mask.sclk_dpm_enable_mask =
 		phm_get_dpm_level_enable_mask_value(&dpm_table->sclk_table);
 
-	result = ci_copy_bytes_to_smc(hwmgr->smumgr, array,
+	result = ci_copy_bytes_to_smc(hwmgr, array,
 				   (u8 *)levels, array_size,
 				   SMC_RAM_END);
 
@@ -553,7 +553,7 @@ static int ci_populate_dw8(struct pp_hwmgr *hwmgr, uint32_t fuse_table_offset)
 	const struct ci_pt_defaults *defaults = smu_data->power_tune_defaults;
 	uint32_t temp;
 
-	if (ci_read_smc_sram_dword(hwmgr->smumgr,
+	if (ci_read_smc_sram_dword(hwmgr,
 			fuse_table_offset +
 			offsetof(SMU7_Discrete_PmFuses, TdcWaterfallCtl),
 			(uint32_t *)&temp, SMC_RAM_END))
@@ -686,7 +686,7 @@ static int ci_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_PowerContainment)) {
-		if (ci_read_smc_sram_dword(hwmgr->smumgr,
+		if (ci_read_smc_sram_dword(hwmgr,
 				SMU7_FIRMWARE_HEADER_LOCATION +
 				offsetof(SMU7_Firmware_Header, PmFuseTable),
 				&pm_fuse_table_offset, SMC_RAM_END)) {
@@ -713,7 +713,7 @@ static int ci_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 		if (ret)
 			return ret;
 
-		ret = ci_copy_bytes_to_smc(hwmgr->smumgr, pm_fuse_table_offset,
+		ret = ci_copy_bytes_to_smc(hwmgr, pm_fuse_table_offset,
 				(uint8_t *)&smu_data->power_tune_table,
 				sizeof(struct SMU7_Discrete_PmFuses), SMC_RAM_END);
 	}
@@ -1343,7 +1343,7 @@ int ci_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 	data->dpm_level_enable_mask.mclk_dpm_enable_mask = phm_get_dpm_level_enable_mask_value(&dpm_table->mclk_table);
 	smu_data->smc_state_table.MemoryLevel[dpm_table->mclk_table.count-1].DisplayWatermark = PPSMC_DISPLAY_WATERMARK_HIGH;
 
-	result = ci_copy_bytes_to_smc(hwmgr->smumgr,
+	result = ci_copy_bytes_to_smc(hwmgr,
 		level_array_address, (uint8_t *)levels, (uint32_t)level_array_size,
 		SMC_RAM_END);
 
@@ -1705,7 +1705,7 @@ static int ci_program_memory_timing_parameters(struct pp_hwmgr *hwmgr)
 
 	if (0 == result) {
 		result = ci_copy_bytes_to_smc(
-				hwmgr->smumgr,
+				hwmgr,
 				smu_data->arb_table_start,
 				(uint8_t *)&arb_regs,
 				sizeof(SMU7_Discrete_MCArbDramTimingTable),
@@ -1756,10 +1756,10 @@ static int ci_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
-static int ci_populate_mc_reg_address(struct pp_smumgr *smumgr,
+static int ci_populate_mc_reg_address(struct pp_hwmgr *hwmgr,
 				 SMU7_Discrete_MCRegisters *mc_reg_table)
 {
-	const struct ci_smumgr *smu_data = (struct ci_smumgr *)smumgr->backend;
+	const struct ci_smumgr *smu_data = (struct ci_smumgr *)hwmgr->smumgr->backend;
 
 	uint32_t i, j;
 
@@ -1796,12 +1796,12 @@ static void ci_convert_mc_registers(
 }
 
 static int ci_convert_mc_reg_table_entry_to_smc(
-		struct pp_smumgr *smumgr,
+		struct pp_hwmgr *hwmgr,
 		const uint32_t memory_clock,
 		SMU7_Discrete_MCRegisterSet *mc_reg_table_data
 		)
 {
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
 	uint32_t i = 0;
 
 	for (i = 0; i < smu_data->mc_reg_table.num_entries; i++) {
@@ -1831,7 +1831,7 @@ static int ci_convert_mc_reg_table_to_smc(struct pp_hwmgr *hwmgr,
 
 	for (i = 0; i < data->dpm_table.mclk_table.count; i++) {
 		res = ci_convert_mc_reg_table_entry_to_smc(
-				hwmgr->smumgr,
+				hwmgr,
 				data->dpm_table.mclk_table.dpm_levels[i].value,
 				&mc_regs->data[i]
 				);
@@ -1845,8 +1845,7 @@ static int ci_convert_mc_reg_table_to_smc(struct pp_hwmgr *hwmgr,
 
 static int ci_update_and_upload_mc_reg_table(struct pp_hwmgr *hwmgr)
 {
-	struct pp_smumgr *smumgr = hwmgr->smumgr;
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	uint32_t address;
 	int32_t result;
@@ -1864,7 +1863,7 @@ static int ci_update_and_upload_mc_reg_table(struct pp_hwmgr *hwmgr)
 
 	address = smu_data->mc_reg_table_start + (uint32_t)offsetof(SMU7_Discrete_MCRegisters, data[0]);
 
-	return  ci_copy_bytes_to_smc(hwmgr->smumgr, address,
+	return  ci_copy_bytes_to_smc(hwmgr, address,
 				 (uint8_t *)&smu_data->mc_regs.data[0],
 				sizeof(SMU7_Discrete_MCRegisterSet) * data->dpm_table.mclk_table.count,
 				SMC_RAM_END);
@@ -1873,11 +1872,10 @@ static int ci_update_and_upload_mc_reg_table(struct pp_hwmgr *hwmgr)
 static int ci_populate_initial_mc_reg_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
-	struct pp_smumgr *smumgr = hwmgr->smumgr;
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
 
 	memset(&smu_data->mc_regs, 0x00, sizeof(SMU7_Discrete_MCRegisters));
-	result = ci_populate_mc_reg_address(smumgr, &(smu_data->mc_regs));
+	result = ci_populate_mc_reg_address(hwmgr, &(smu_data->mc_regs));
 	PP_ASSERT_WITH_CODE(0 == result,
 		"Failed to initialize MCRegTable for the MC register addresses!", return result;);
 
@@ -1885,7 +1883,7 @@ static int ci_populate_initial_mc_reg_table(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE(0 == result,
 		"Failed to initialize MCRegTable for driver state!", return result;);
 
-	return ci_copy_bytes_to_smc(smumgr, smu_data->mc_reg_table_start,
+	return ci_copy_bytes_to_smc(hwmgr, smu_data->mc_reg_table_start,
 			(uint8_t *)&smu_data->mc_regs, sizeof(SMU7_Discrete_MCRegisters), SMC_RAM_END);
 }
 
@@ -1930,17 +1928,17 @@ static int ci_populate_smc_svi2_config(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int ci_start_smc(struct pp_smumgr *smumgr)
+static int ci_start_smc(struct pp_hwmgr *hwmgr)
 {
 	/* set smc instruct start point at 0x0 */
-	ci_program_jump_on_start(smumgr);
+	ci_program_jump_on_start(hwmgr);
 
 	/* enable smc clock */
-	SMUM_WRITE_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC, SMC_SYSCON_CLOCK_CNTL_0, ck_disable, 0);
+	SMUM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMC_SYSCON_CLOCK_CNTL_0, ck_disable, 0);
 
-	SMUM_WRITE_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC, SMC_SYSCON_RESET_CNTL, rst_reg, 0);
+	SMUM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMC_SYSCON_RESET_CNTL, rst_reg, 0);
 
-	SMUM_WAIT_INDIRECT_FIELD(smumgr, SMC_IND, FIRMWARE_FLAGS,
+	SMUM_WAIT_INDIRECT_FIELD(hwmgr, SMC_IND, FIRMWARE_FLAGS,
 				 INTERRUPTS_ENABLED, 1);
 
 	return 0;
@@ -2105,7 +2103,7 @@ int ci_init_smc_table(struct pp_hwmgr *hwmgr)
 	table->BootMVdd = PP_HOST_TO_SMC_US(table->BootMVdd * VOLTAGE_SCALE);
 
 	/* Upload all dpm data to SMC memory.(dpm level, dpm level count etc) */
-	result = ci_copy_bytes_to_smc(hwmgr->smumgr, smu_data->dpm_table_start +
+	result = ci_copy_bytes_to_smc(hwmgr, smu_data->dpm_table_start +
 					offsetof(SMU7_Discrete_DpmTable, SystemFlags),
 					(uint8_t *)&(table->SystemFlags),
 					sizeof(SMU7_Discrete_DpmTable)-3 * sizeof(SMU7_PIDController),
@@ -2122,7 +2120,7 @@ int ci_init_smc_table(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to  populate PM fuses to SMC memory!", return result);
 
-	ci_start_smc(hwmgr->smumgr);
+	ci_start_smc(hwmgr);
 
 	return 0;
 }
@@ -2197,7 +2195,7 @@ int ci_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 
 	fan_table.TempSrc = (uint8_t)PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, CG_MULT_THERMAL_CTRL, TEMP_SEL);
 
-	res = ci_copy_bytes_to_smc(hwmgr->smumgr, ci_data->fan_table_start, (uint8_t *)&fan_table, (uint32_t)sizeof(fan_table), SMC_RAM_END);
+	res = ci_copy_bytes_to_smc(hwmgr, ci_data->fan_table_start, (uint8_t *)&fan_table, (uint32_t)sizeof(fan_table), SMC_RAM_END);
 
 	return 0;
 }
@@ -2233,7 +2231,7 @@ int ci_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 		CONVERT_FROM_HOST_TO_SMC_UL(low_sclk_interrupt_threshold);
 
 		result = ci_copy_bytes_to_smc(
-				hwmgr->smumgr,
+				hwmgr,
 				smu_data->dpm_table_start +
 				offsetof(SMU7_Discrete_DpmTable,
 					LowSclkInterruptT),
@@ -2303,7 +2301,7 @@ uint32_t ci_get_mac_definition(uint32_t value)
 	return 0;
 }
 
-static int ci_load_smc_ucode(struct pp_smumgr *smumgr)
+static int ci_load_smc_ucode(struct pp_hwmgr *hwmgr)
 {
 	uint32_t byte_count, start_addr;
 	uint8_t *src;
@@ -2311,9 +2309,9 @@ static int ci_load_smc_ucode(struct pp_smumgr *smumgr)
 
 	struct cgs_firmware_info info = {0};
 
-	cgs_get_firmware_info(smumgr->device, CGS_UCODE_ID_SMU, &info);
+	cgs_get_firmware_info(hwmgr->device, CGS_UCODE_ID_SMU, &info);
 
-	smumgr->is_kicker = info.is_kicker;
+	hwmgr->smumgr->is_kicker = info.is_kicker;
 	byte_count = info.image_size;
 	src = (uint8_t *)info.kptr;
 	start_addr = info.ucode_start_address;
@@ -2323,15 +2321,15 @@ static int ci_load_smc_ucode(struct pp_smumgr *smumgr)
 		return -EINVAL;
 	}
 
-	cgs_write_register(smumgr->device, mmSMC_IND_INDEX_0, start_addr);
-	SMUM_WRITE_FIELD(smumgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 1);
+	cgs_write_register(hwmgr->device, mmSMC_IND_INDEX_0, start_addr);
+	SMUM_WRITE_FIELD(hwmgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 1);
 
 	for (; byte_count >= 4; byte_count -= 4) {
 		data = (src[0] << 24) | (src[1] << 16) | (src[2] << 8) | src[3];
-		cgs_write_register(smumgr->device, mmSMC_IND_DATA_0, data);
+		cgs_write_register(hwmgr->device, mmSMC_IND_DATA_0, data);
 		src += 4;
 	}
-	SMUM_WRITE_FIELD(smumgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 0);
+	SMUM_WRITE_FIELD(hwmgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 0);
 
 	if (0 != byte_count) {
 		pr_err("SMC size must be dividable by 4\n");
@@ -2343,18 +2341,18 @@ static int ci_load_smc_ucode(struct pp_smumgr *smumgr)
 
 static int ci_upload_firmware(struct pp_hwmgr *hwmgr)
 {
-	if (ci_is_smc_ram_running(hwmgr->smumgr)) {
+	if (ci_is_smc_ram_running(hwmgr)) {
 		pr_info("smc is running, no need to load smc firmware\n");
 		return 0;
 	}
-	SMUM_WAIT_VFPF_INDIRECT_FIELD(hwmgr->smumgr, SMC_IND, RCU_UC_EVENTS,
+	SMUM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND, RCU_UC_EVENTS,
 			boot_seq_done, 1);
 	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMC_SYSCON_MISC_CNTL,
 			pre_fetcher_en, 1);
 
 	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMC_SYSCON_CLOCK_CNTL_0, ck_disable, 1);
 	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMC_SYSCON_RESET_CNTL, rst_reg, 1);
-	return ci_load_smc_ucode(hwmgr->smumgr);
+	return ci_load_smc_ucode(hwmgr);
 }
 
 int ci_process_firmware_header(struct pp_hwmgr *hwmgr)
@@ -2369,7 +2367,7 @@ int ci_process_firmware_header(struct pp_hwmgr *hwmgr)
 	if (ci_upload_firmware(hwmgr))
 		return -EINVAL;
 
-	result = ci_read_smc_sram_dword(hwmgr->smumgr,
+	result = ci_read_smc_sram_dword(hwmgr,
 				SMU7_FIRMWARE_HEADER_LOCATION +
 				offsetof(SMU7_Firmware_Header, DpmTable),
 				&tmp, SMC_RAM_END);
@@ -2379,7 +2377,7 @@ int ci_process_firmware_header(struct pp_hwmgr *hwmgr)
 
 	error |= (0 != result);
 
-	result = ci_read_smc_sram_dword(hwmgr->smumgr,
+	result = ci_read_smc_sram_dword(hwmgr,
 				SMU7_FIRMWARE_HEADER_LOCATION +
 				offsetof(SMU7_Firmware_Header, SoftRegisters),
 				&tmp, SMC_RAM_END);
@@ -2391,7 +2389,7 @@ int ci_process_firmware_header(struct pp_hwmgr *hwmgr)
 
 	error |= (0 != result);
 
-	result = ci_read_smc_sram_dword(hwmgr->smumgr,
+	result = ci_read_smc_sram_dword(hwmgr,
 				SMU7_FIRMWARE_HEADER_LOCATION +
 				offsetof(SMU7_Firmware_Header, mcRegisterTable),
 				&tmp, SMC_RAM_END);
@@ -2399,7 +2397,7 @@ int ci_process_firmware_header(struct pp_hwmgr *hwmgr)
 	if (0 == result)
 		ci_data->mc_reg_table_start = tmp;
 
-	result = ci_read_smc_sram_dword(hwmgr->smumgr,
+	result = ci_read_smc_sram_dword(hwmgr,
 				SMU7_FIRMWARE_HEADER_LOCATION +
 				offsetof(SMU7_Firmware_Header, FanTable),
 				&tmp, SMC_RAM_END);
@@ -2409,7 +2407,7 @@ int ci_process_firmware_header(struct pp_hwmgr *hwmgr)
 
 	error |= (0 != result);
 
-	result = ci_read_smc_sram_dword(hwmgr->smumgr,
+	result = ci_read_smc_sram_dword(hwmgr,
 				SMU7_FIRMWARE_HEADER_LOCATION +
 				offsetof(SMU7_Firmware_Header, mcArbDramTimingTable),
 				&tmp, SMC_RAM_END);
@@ -2419,7 +2417,7 @@ int ci_process_firmware_header(struct pp_hwmgr *hwmgr)
 
 	error |= (0 != result);
 
-	result = ci_read_smc_sram_dword(hwmgr->smumgr,
+	result = ci_read_smc_sram_dword(hwmgr,
 				SMU7_FIRMWARE_HEADER_LOCATION +
 				offsetof(SMU7_Firmware_Header, Version),
 				&tmp, SMC_RAM_END);
@@ -2726,7 +2724,7 @@ int ci_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 
 bool ci_is_dpm_running(struct pp_hwmgr *hwmgr)
 {
-	return ci_is_smc_ram_running(hwmgr->smumgr);
+	return ci_is_smc_ram_running(hwmgr);
 }
 
 int ci_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
@@ -2750,6 +2748,6 @@ int ci_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
 		levels[i].DownH = request->down_hyst;
 	}
 
-	return ci_copy_bytes_to_smc(hwmgr->smumgr, array, (uint8_t *)levels,
+	return ci_copy_bytes_to_smc(hwmgr, array, (uint8_t *)levels,
 				array_size, SMC_RAM_END);
 }

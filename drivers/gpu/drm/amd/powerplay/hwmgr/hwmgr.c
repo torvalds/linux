@@ -818,7 +818,7 @@ void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr)
 	for (i = 0; i < vddc_table->count; i++) {
 		if (req_vddc <= vddc_table->entries[i].vddc) {
 			req_volt = (((uint32_t)vddc_table->entries[i].vddc) * VOLTAGE_SCALE);
-			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_VddC_Request, req_volt);
 			return;
 		}

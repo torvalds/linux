@@ -31,11 +31,11 @@
 
 static int vega10_get_current_rpm(struct pp_hwmgr *hwmgr, uint32_t *current_rpm)
 {
-	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr->smumgr,
+	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
 				PPSMC_MSG_GetCurrentRpm),
 			"Attempt to get current RPM from SMC Failed!",
 			return -1);
-	PP_ASSERT_WITH_CODE(!vega10_read_arg_from_smc(hwmgr->smumgr,
+	PP_ASSERT_WITH_CODE(!vega10_read_arg_from_smc(hwmgr,
 			current_rpm),
 			"Attempt to read current RPM from SMC Failed!",
 			return -1);
@@ -199,7 +199,7 @@ static int vega10_enable_fan_control_feature(struct pp_hwmgr *hwmgr)
 
 	if (data->smu_features[GNLD_FAN_CONTROL].supported) {
 		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(
-				hwmgr->smumgr, true,
+				hwmgr, true,
 				data->smu_features[GNLD_FAN_CONTROL].
 				smu_feature_bitmap),
 				"Attempt to Enable FAN CONTROL feature Failed!",
@@ -216,7 +216,7 @@ static int vega10_disable_fan_control_feature(struct pp_hwmgr *hwmgr)
 
 	if (data->smu_features[GNLD_FAN_CONTROL].supported) {
 		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(
-				hwmgr->smumgr, false,
+				hwmgr, false,
 				data->smu_features[GNLD_FAN_CONTROL].
 				smu_feature_bitmap),
 				"Attempt to Enable FAN CONTROL feature Failed!",
@@ -458,7 +458,7 @@ static int vega10_thermal_enable_alert(struct pp_hwmgr *hwmgr)
 		if (data->smu_features[GNLD_FW_CTF].enabled)
 			printk("[Thermal_EnableAlert] FW CTF Already Enabled!\n");
 
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				true,
 				data->smu_features[GNLD_FW_CTF].smu_feature_bitmap),
 				"Attempt to Enable FW CTF feature Failed!",
@@ -490,7 +490,7 @@ int vega10_thermal_disable_alert(struct pp_hwmgr *hwmgr)
 			printk("[Thermal_EnableAlert] FW CTF Already disabled!\n");
 
 
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 			false,
 			data->smu_features[GNLD_FW_CTF].smu_feature_bitmap),
 			"Attempt to disable FW CTF feature Failed!",
@@ -546,7 +546,7 @@ int vega10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 	table->FanTargetTemperature = hwmgr->thermal_controller.
 			advanceFanControlParameters.usTMax;
 
-	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetFanTemperatureTarget,
 				(uint32_t)table->FanTargetTemperature);
 
@@ -575,7 +575,7 @@ int vega10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 	table->FanStartTemp = hwmgr->thermal_controller.
 			advanceFanControlParameters.usZeroRPMStartTemperature;
 
-	ret = vega10_copy_table_to_smc(hwmgr->smumgr,
+	ret = vega10_copy_table_to_smc(hwmgr,
 			(uint8_t *)(&(data->smc_state_table.pp_table)), PPTABLE);
 	if (ret)
 		pr_info("Failed to update Fan Control Table in PPTable!");

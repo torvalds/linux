@@ -152,7 +152,7 @@ int smu7_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 
 	if (PP_CAP(PHM_PlatformCaps_ODFuzzyFanControlSupport)) {
 		cgs_write_register(hwmgr->device, mmSMC_MSG_ARG_0, FAN_CONTROL_FUZZY);
-		result = smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_StartFanControl);
+		result = smum_send_msg_to_smc(hwmgr, PPSMC_StartFanControl);
 
 		if (PP_CAP(PHM_PlatformCaps_FanSpeedInTableIsRPM))
 			hwmgr->hwmgr_func->set_max_fan_rpm_output(hwmgr,
@@ -165,12 +165,12 @@ int smu7_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 
 	} else {
 		cgs_write_register(hwmgr->device, mmSMC_MSG_ARG_0, FAN_CONTROL_TABLE);
-		result = smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_StartFanControl);
+		result = smum_send_msg_to_smc(hwmgr, PPSMC_StartFanControl);
 	}
 
 	if (!result && hwmgr->thermal_controller.
 			advanceFanControlParameters.ucTargetTemperature)
-		result = smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		result = smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetFanTemperatureTarget,
 				hwmgr->thermal_controller.
 				advanceFanControlParameters.ucTargetTemperature);
@@ -183,7 +183,7 @@ int smu7_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 int smu7_fan_ctrl_stop_smc_fan_control(struct pp_hwmgr *hwmgr)
 {
 	hwmgr->fan_ctrl_enabled = false;
-	return smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_StopFanControl);
+	return smum_send_msg_to_smc(hwmgr, PPSMC_StopFanControl);
 }
 
 /**
@@ -371,7 +371,7 @@ static void smu7_thermal_enable_alert(struct pp_hwmgr *hwmgr)
 			CG_THERMAL_INT, THERM_INT_MASK, alert);
 
 	/* send message to SMU to enable internal thermal interrupts */
-	smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_Thermal_Cntl_Enable);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_Thermal_Cntl_Enable);
 }
 
 /**
@@ -389,7 +389,7 @@ int smu7_thermal_disable_alert(struct pp_hwmgr *hwmgr)
 			CG_THERMAL_INT, THERM_INT_MASK, alert);
 
 	/* send message to SMU to disable internal thermal interrupts */
-	return smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_Thermal_Cntl_Disable);
+	return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_Thermal_Cntl_Disable);
 }
 
 /**

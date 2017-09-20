@@ -174,33 +174,33 @@ static int rv_set_clock_limit(struct pp_hwmgr *hwmgr, const void *input)
 	    ((hwmgr->uvd_arbiter.dclk_soft_min / 100) != rv_data->dclk_soft_min)) {
 		rv_data->vclk_soft_min = hwmgr->uvd_arbiter.vclk_soft_min / 100;
 		rv_data->dclk_soft_min = hwmgr->uvd_arbiter.dclk_soft_min / 100;
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetSoftMinVcn,
 			(rv_data->vclk_soft_min << 16) | rv_data->vclk_soft_min);
 	}
 
 	if((hwmgr->gfx_arbiter.sclk_hard_min != 0) &&
 		((hwmgr->gfx_arbiter.sclk_hard_min / 100) != rv_data->soc_actual_hard_min_freq)) {
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetHardMinSocclkByFreq,
 					hwmgr->gfx_arbiter.sclk_hard_min / 100);
-		rv_read_arg_from_smc(hwmgr->smumgr, &rv_data->soc_actual_hard_min_freq);
+		rv_read_arg_from_smc(hwmgr, &rv_data->soc_actual_hard_min_freq);
 	}
 
 	if ((hwmgr->gfx_arbiter.gfxclk != 0) &&
 		(rv_data->gfx_actual_soft_min_freq != (hwmgr->gfx_arbiter.gfxclk))) {
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetMinVideoGfxclkFreq,
 					hwmgr->gfx_arbiter.gfxclk / 100);
-		rv_read_arg_from_smc(hwmgr->smumgr, &rv_data->gfx_actual_soft_min_freq);
+		rv_read_arg_from_smc(hwmgr, &rv_data->gfx_actual_soft_min_freq);
 	}
 
 	if ((hwmgr->gfx_arbiter.fclk != 0) &&
 		(rv_data->fabric_actual_soft_min_freq != (hwmgr->gfx_arbiter.fclk / 100))) {
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetMinVideoFclkFreq,
 					hwmgr->gfx_arbiter.fclk / 100);
-		rv_read_arg_from_smc(hwmgr->smumgr, &rv_data->fabric_actual_soft_min_freq);
+		rv_read_arg_from_smc(hwmgr, &rv_data->fabric_actual_soft_min_freq);
 	}
 
 	return 0;
@@ -212,7 +212,7 @@ static int rv_set_deep_sleep_dcefclk(struct pp_hwmgr *hwmgr, uint32_t clock)
 
 	if (rv_data->need_min_deep_sleep_dcefclk && rv_data->deep_sleep_dcefclk != clock/100) {
 		rv_data->deep_sleep_dcefclk = clock/100;
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetMinDeepSleepDcefclk,
 					rv_data->deep_sleep_dcefclk);
 	}
@@ -225,7 +225,7 @@ static int rv_set_active_display_count(struct pp_hwmgr *hwmgr, uint32_t count)
 
 	if (rv_data->num_active_display != count) {
 		rv_data->num_active_display = count;
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetDisplayCount,
 				rv_data->num_active_display);
 	}
@@ -277,7 +277,7 @@ static int rv_disable_gfx_off(struct pp_hwmgr *hwmgr)
 	struct rv_hwmgr *rv_data = (struct rv_hwmgr *)(hwmgr->backend);
 
 	if (rv_data->gfx_off_controled_by_driver)
-		smum_send_msg_to_smc(hwmgr->smumgr,
+		smum_send_msg_to_smc(hwmgr,
 						PPSMC_MSG_DisableGfxOff);
 
 	return 0;
@@ -293,7 +293,7 @@ static int rv_enable_gfx_off(struct pp_hwmgr *hwmgr)
 	struct rv_hwmgr *rv_data = (struct rv_hwmgr *)(hwmgr->backend);
 
 	if (rv_data->gfx_off_controled_by_driver)
-		smum_send_msg_to_smc(hwmgr->smumgr,
+		smum_send_msg_to_smc(hwmgr,
 						PPSMC_MSG_EnableGfxOff);
 
 	return 0;
@@ -383,7 +383,7 @@ static int rv_populate_clock_table(struct pp_hwmgr *hwmgr)
 	DpmClocks_t  *table = &(rv_data->clock_table);
 	struct rv_clock_voltage_information *pinfo = &(rv_data->clock_vol_info);
 
-	result = rv_copy_table_from_smc(hwmgr->smumgr, (uint8_t *)table, CLOCKTABLE);
+	result = rv_copy_table_from_smc(hwmgr, (uint8_t *)table, CLOCKTABLE);
 
 	PP_ASSERT_WITH_CODE((0 == result),
 			"Attempt to copy clock table from smc failed",
@@ -799,7 +799,7 @@ int rv_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
 		return -EINVAL;
 	}
 
-	result = smum_send_msg_to_smc_with_parameter(hwmgr->smumgr, msg,
+	result = smum_send_msg_to_smc_with_parameter(hwmgr, msg,
 							clk_freq);
 
 	return result;

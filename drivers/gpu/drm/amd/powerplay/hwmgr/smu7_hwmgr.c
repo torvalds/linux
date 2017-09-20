@@ -164,7 +164,7 @@ static int smu7_get_current_pcie_lane_number(struct pp_hwmgr *hwmgr)
 static int smu7_enable_smc_voltage_controller(struct pp_hwmgr *hwmgr)
 {
 	if (hwmgr->feature_mask & PP_SMC_VOLTAGE_CONTROL_MASK)
-		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_Voltage_Cntl_Enable);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_Voltage_Cntl_Enable);
 
 	return 0;
 }
@@ -301,28 +301,28 @@ static int smu7_construct_voltage_tables(struct pp_hwmgr *hwmgr)
 			"Failed to retrieve SVI2 VDDC table from dependancy table.", return result;);
 	}
 
-	tmp = smum_get_mac_definition(hwmgr->smumgr, SMU_MAX_LEVELS_VDDC);
+	tmp = smum_get_mac_definition(hwmgr, SMU_MAX_LEVELS_VDDC);
 	PP_ASSERT_WITH_CODE(
 			(data->vddc_voltage_table.count <= tmp),
 		"Too many voltage values for VDDC. Trimming to fit state table.",
 			phm_trim_voltage_table_to_fit_state_table(tmp,
 						&(data->vddc_voltage_table)));
 
-	tmp = smum_get_mac_definition(hwmgr->smumgr, SMU_MAX_LEVELS_VDDGFX);
+	tmp = smum_get_mac_definition(hwmgr, SMU_MAX_LEVELS_VDDGFX);
 	PP_ASSERT_WITH_CODE(
 			(data->vddgfx_voltage_table.count <= tmp),
 		"Too many voltage values for VDDC. Trimming to fit state table.",
 			phm_trim_voltage_table_to_fit_state_table(tmp,
 						&(data->vddgfx_voltage_table)));
 
-	tmp = smum_get_mac_definition(hwmgr->smumgr, SMU_MAX_LEVELS_VDDCI);
+	tmp = smum_get_mac_definition(hwmgr, SMU_MAX_LEVELS_VDDCI);
 	PP_ASSERT_WITH_CODE(
 			(data->vddci_voltage_table.count <= tmp),
 		"Too many voltage values for VDDCI. Trimming to fit state table.",
 			phm_trim_voltage_table_to_fit_state_table(tmp,
 					&(data->vddci_voltage_table)));
 
-	tmp = smum_get_mac_definition(hwmgr->smumgr, SMU_MAX_LEVELS_MVDD);
+	tmp = smum_get_mac_definition(hwmgr, SMU_MAX_LEVELS_MVDD);
 	PP_ASSERT_WITH_CODE(
 			(data->mvdd_voltage_table.count <= tmp),
 		"Too many voltage values for MVDD. Trimming to fit state table.",
@@ -471,7 +471,7 @@ static int smu7_copy_and_switch_arb_sets(struct pp_hwmgr *hwmgr,
 
 static int smu7_reset_to_default(struct pp_hwmgr *hwmgr)
 {
-	return smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_ResetToDefaults);
+	return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ResetToDefaults);
 }
 
 /**
@@ -529,7 +529,7 @@ static int smu7_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
 		data->pcie_gen_performance = data->pcie_gen_power_saving;
 		data->pcie_lane_performance = data->pcie_lane_power_saving;
 	}
-	tmp = smum_get_mac_definition(hwmgr->smumgr, SMU_MAX_LEVELS_LINK);
+	tmp = smum_get_mac_definition(hwmgr, SMU_MAX_LEVELS_LINK);
 	phm_reset_single_dpm_table(&data->dpm_table.pcie_speed_table,
 					tmp,
 					MAX_REGULAR_DPM_NUMBER);
@@ -610,27 +610,27 @@ static int smu7_reset_dpm_tables(struct pp_hwmgr *hwmgr)
 
 	phm_reset_single_dpm_table(
 			&data->dpm_table.sclk_table,
-				smum_get_mac_definition(hwmgr->smumgr,
+				smum_get_mac_definition(hwmgr,
 					SMU_MAX_LEVELS_GRAPHICS),
 					MAX_REGULAR_DPM_NUMBER);
 	phm_reset_single_dpm_table(
 			&data->dpm_table.mclk_table,
-			smum_get_mac_definition(hwmgr->smumgr,
+			smum_get_mac_definition(hwmgr,
 				SMU_MAX_LEVELS_MEMORY), MAX_REGULAR_DPM_NUMBER);
 
 	phm_reset_single_dpm_table(
 			&data->dpm_table.vddc_table,
-				smum_get_mac_definition(hwmgr->smumgr,
+				smum_get_mac_definition(hwmgr,
 					SMU_MAX_LEVELS_VDDC),
 					MAX_REGULAR_DPM_NUMBER);
 	phm_reset_single_dpm_table(
 			&data->dpm_table.vddci_table,
-			smum_get_mac_definition(hwmgr->smumgr,
+			smum_get_mac_definition(hwmgr,
 				SMU_MAX_LEVELS_VDDCI), MAX_REGULAR_DPM_NUMBER);
 
 	phm_reset_single_dpm_table(
 			&data->dpm_table.mvdd_table,
-				smum_get_mac_definition(hwmgr->smumgr,
+				smum_get_mac_definition(hwmgr,
 					SMU_MAX_LEVELS_MVDD),
 					MAX_REGULAR_DPM_NUMBER);
 	return 0;
@@ -840,7 +840,7 @@ static int smu7_enable_vrhot_gpio_interrupt(struct pp_hwmgr *hwmgr)
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_RegulatorHot))
-		return smum_send_msg_to_smc(hwmgr->smumgr,
+		return smum_send_msg_to_smc(hwmgr,
 				PPSMC_MSG_EnableVRHotGPIOInterrupt);
 
 	return 0;
@@ -858,7 +858,7 @@ static int smu7_enable_ulv(struct pp_hwmgr *hwmgr)
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
 	if (data->ulv_supported)
-		return smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_EnableULV);
+		return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_EnableULV);
 
 	return 0;
 }
@@ -868,7 +868,7 @@ static int smu7_disable_ulv(struct pp_hwmgr *hwmgr)
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
 	if (data->ulv_supported)
-		return smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_DisableULV);
+		return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_DisableULV);
 
 	return 0;
 }
@@ -877,12 +877,12 @@ static int smu7_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkDeepSleep)) {
-		if (smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_MASTER_DeepSleep_ON))
+		if (smum_send_msg_to_smc(hwmgr, PPSMC_MSG_MASTER_DeepSleep_ON))
 			PP_ASSERT_WITH_CODE(false,
 					"Attempt to enable Master Deep Sleep switch failed!",
 					return -EINVAL);
 	} else {
-		if (smum_send_msg_to_smc(hwmgr->smumgr,
+		if (smum_send_msg_to_smc(hwmgr,
 				PPSMC_MSG_MASTER_DeepSleep_OFF)) {
 			PP_ASSERT_WITH_CODE(false,
 					"Attempt to disable Master Deep Sleep switch failed!",
@@ -897,7 +897,7 @@ static int smu7_disable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkDeepSleep)) {
-		if (smum_send_msg_to_smc(hwmgr->smumgr,
+		if (smum_send_msg_to_smc(hwmgr,
 				PPSMC_MSG_MASTER_DeepSleep_OFF)) {
 			PP_ASSERT_WITH_CODE(false,
 					"Attempt to disable Master Deep Sleep switch failed!",
@@ -913,12 +913,12 @@ static int smu7_disable_handshake_uvd(struct pp_hwmgr *hwmgr)
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	uint32_t soft_register_value = 0;
 	uint32_t handshake_disables_offset = data->soft_regs_start
-				+ smum_get_offsetof(hwmgr->smumgr,
+				+ smum_get_offsetof(hwmgr,
 					SMU_SoftRegisters, HandshakeDisables);
 
 	soft_register_value = cgs_read_ind_register(hwmgr->device,
 				CGS_IND_REG__SMC, handshake_disables_offset);
-	soft_register_value |= smum_get_mac_definition(hwmgr->smumgr,
+	soft_register_value |= smum_get_mac_definition(hwmgr,
 					SMU_UVD_MCLK_HANDSHAKE_DISABLE);
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
 			handshake_disables_offset, soft_register_value);
@@ -932,7 +932,7 @@ static int smu7_enable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	/* enable SCLK dpm */
 	if (!data->sclk_dpm_key_disabled)
 		PP_ASSERT_WITH_CODE(
-		(0 == smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_DPM_Enable)),
+		(0 == smum_send_msg_to_smc(hwmgr, PPSMC_MSG_DPM_Enable)),
 		"Failed to enable SCLK DPM during DPM Start Function!",
 		return -EINVAL);
 
@@ -941,7 +941,7 @@ static int smu7_enable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 		if (!(hwmgr->feature_mask & PP_UVD_HANDSHAKE_MASK))
 			smu7_disable_handshake_uvd(hwmgr);
 		PP_ASSERT_WITH_CODE(
-				(0 == smum_send_msg_to_smc(hwmgr->smumgr,
+				(0 == smum_send_msg_to_smc(hwmgr,
 						PPSMC_MSG_MCLKDPM_Enable)),
 				"Failed to enable MCLK DPM during DPM Start Function!",
 				return -EINVAL);
@@ -989,7 +989,7 @@ static int smu7_start_dpm(struct pp_hwmgr *hwmgr)
 
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
 			data->soft_regs_start +
-			smum_get_offsetof(hwmgr->smumgr, SMU_SoftRegisters,
+			smum_get_offsetof(hwmgr, SMU_SoftRegisters,
 						VoltageChangeTimeout), 0x1000);
 	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__PCIE,
 			SWRST_COMMAND_1, RESETLC, 0x0);
@@ -1006,7 +1006,7 @@ static int smu7_start_dpm(struct pp_hwmgr *hwmgr)
 	/* enable PCIE dpm */
 	if (0 == data->pcie_dpm_key_disabled) {
 		PP_ASSERT_WITH_CODE(
-				(0 == smum_send_msg_to_smc(hwmgr->smumgr,
+				(0 == smum_send_msg_to_smc(hwmgr,
 						PPSMC_MSG_PCIeDPM_Enable)),
 				"Failed to enable pcie DPM during DPM Start Function!",
 				return -EINVAL);
@@ -1014,7 +1014,7 @@ static int smu7_start_dpm(struct pp_hwmgr *hwmgr)
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_Falcon_QuickTransition)) {
-		PP_ASSERT_WITH_CODE((0 == smum_send_msg_to_smc(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE((0 == smum_send_msg_to_smc(hwmgr,
 				PPSMC_MSG_EnableACDCGPIOInterrupt)),
 				"Failed to enable AC DC GPIO Interrupt!",
 				);
@@ -1032,7 +1032,7 @@ static int smu7_disable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 		PP_ASSERT_WITH_CODE(true == smum_is_dpm_running(hwmgr),
 				"Trying to disable SCLK DPM when DPM is disabled",
 				return 0);
-		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_DPM_Disable);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_DPM_Disable);
 	}
 
 	/* disable MCLK dpm */
@@ -1040,7 +1040,7 @@ static int smu7_disable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 		PP_ASSERT_WITH_CODE(true == smum_is_dpm_running(hwmgr),
 				"Trying to disable MCLK DPM when DPM is disabled",
 				return 0);
-		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_MCLKDPM_Disable);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_MCLKDPM_Disable);
 	}
 
 	return 0;
@@ -1060,7 +1060,7 @@ static int smu7_stop_dpm(struct pp_hwmgr *hwmgr)
 	/* disable PCIE dpm */
 	if (!data->pcie_dpm_key_disabled) {
 		PP_ASSERT_WITH_CODE(
-				(smum_send_msg_to_smc(hwmgr->smumgr,
+				(smum_send_msg_to_smc(hwmgr,
 						PPSMC_MSG_PCIeDPM_Disable) == 0),
 				"Failed to disable pcie DPM during DPM Stop Function!",
 				return -EINVAL);
@@ -1072,7 +1072,7 @@ static int smu7_stop_dpm(struct pp_hwmgr *hwmgr)
 			"Trying to disable voltage DPM when DPM is disabled",
 			return 0);
 
-	smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_Voltage_Cntl_Disable);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_Voltage_Cntl_Disable);
 
 	return 0;
 }
@@ -1226,7 +1226,7 @@ static int smu7_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to enable VR hot GPIO interrupt!", result = tmp_result);
 
-	smum_send_msg_to_smc(hwmgr->smumgr, (PPSMC_Msg)PPSMC_NoDisplay);
+	smum_send_msg_to_smc(hwmgr, (PPSMC_Msg)PPSMC_NoDisplay);
 
 	tmp_result = smu7_enable_sclk_control(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
@@ -1692,7 +1692,7 @@ static int phm_add_voltage(struct pp_hwmgr *hwmgr,
 	PP_ASSERT_WITH_CODE((0 != look_up_table->count),
 		"Lookup Table empty.", return -EINVAL);
 
-	i = smum_get_mac_definition(hwmgr->smumgr, SMU_MAX_LEVELS_VDDGFX);
+	i = smum_get_mac_definition(hwmgr, SMU_MAX_LEVELS_VDDGFX);
 	PP_ASSERT_WITH_CODE((i >= look_up_table->count),
 		"Lookup Table is full.", return -EINVAL);
 
@@ -2423,7 +2423,7 @@ static int smu7_force_dpm_highest(struct pp_hwmgr *hwmgr)
 				level++;
 
 			if (level)
-				smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+				smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_PCIeDPM_ForceLevel, level);
 		}
 	}
@@ -2436,7 +2436,7 @@ static int smu7_force_dpm_highest(struct pp_hwmgr *hwmgr)
 				level++;
 
 			if (level)
-				smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+				smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SCLKDPM_SetEnabledMask,
 						(1 << level));
 		}
@@ -2450,7 +2450,7 @@ static int smu7_force_dpm_highest(struct pp_hwmgr *hwmgr)
 				level++;
 
 			if (level)
-				smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+				smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_MCLKDPM_SetEnabledMask,
 						(1 << level));
 		}
@@ -2469,14 +2469,14 @@ static int smu7_upload_dpm_level_enable_mask(struct pp_hwmgr *hwmgr)
 
 	if (!data->sclk_dpm_key_disabled) {
 		if (data->dpm_level_enable_mask.sclk_dpm_enable_mask)
-			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SCLKDPM_SetEnabledMask,
 					data->dpm_level_enable_mask.sclk_dpm_enable_mask);
 	}
 
 	if (!data->mclk_dpm_key_disabled) {
 		if (data->dpm_level_enable_mask.mclk_dpm_enable_mask)
-			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_MCLKDPM_SetEnabledMask,
 					data->dpm_level_enable_mask.mclk_dpm_enable_mask);
 	}
@@ -2492,7 +2492,7 @@ static int smu7_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
 		return -EINVAL;
 
 	if (!data->pcie_dpm_key_disabled) {
-		smum_send_msg_to_smc(hwmgr->smumgr,
+		smum_send_msg_to_smc(hwmgr,
 				PPSMC_MSG_PCIeDPM_UnForceLevel);
 	}
 
@@ -2509,7 +2509,7 @@ static int smu7_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 		if (data->dpm_level_enable_mask.sclk_dpm_enable_mask) {
 			level = phm_get_lowest_enabled_level(hwmgr,
 							      data->dpm_level_enable_mask.sclk_dpm_enable_mask);
-			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			smum_send_msg_to_smc_with_parameter(hwmgr,
 							    PPSMC_MSG_SCLKDPM_SetEnabledMask,
 							    (1 << level));
 
@@ -2519,7 +2519,7 @@ static int smu7_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 		if (data->dpm_level_enable_mask.mclk_dpm_enable_mask) {
 			level = phm_get_lowest_enabled_level(hwmgr,
 							      data->dpm_level_enable_mask.mclk_dpm_enable_mask);
-			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			smum_send_msg_to_smc_with_parameter(hwmgr,
 							    PPSMC_MSG_MCLKDPM_SetEnabledMask,
 							    (1 << level));
 		}
@@ -2529,7 +2529,7 @@ static int smu7_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 		if (data->dpm_level_enable_mask.pcie_dpm_enable_mask) {
 			level = phm_get_lowest_enabled_level(hwmgr,
 							      data->dpm_level_enable_mask.pcie_dpm_enable_mask);
-			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			smum_send_msg_to_smc_with_parameter(hwmgr,
 							    PPSMC_MSG_PCIeDPM_ForceLevel,
 							    (level));
 		}
@@ -3005,7 +3005,7 @@ static int smu7_get_pp_table_entry_callback_func_v1(struct pp_hwmgr *hwmgr,
 			[smu7_power_state->performance_level_count++]);
 
 	PP_ASSERT_WITH_CODE(
-			(smu7_power_state->performance_level_count < smum_get_mac_definition(hwmgr->smumgr, SMU_MAX_LEVELS_GRAPHICS)),
+			(smu7_power_state->performance_level_count < smum_get_mac_definition(hwmgr, SMU_MAX_LEVELS_GRAPHICS)),
 			"Performance levels exceeds SMC limit!",
 			return -EINVAL);
 
@@ -3169,7 +3169,7 @@ static int smu7_get_pp_table_entry_callback_func_v0(struct pp_hwmgr *hwmgr,
 		data->highest_mclk = memory_clock;
 
 	PP_ASSERT_WITH_CODE(
-			(ps->performance_level_count < smum_get_mac_definition(hwmgr->smumgr, SMU_MAX_LEVELS_GRAPHICS)),
+			(ps->performance_level_count < smum_get_mac_definition(hwmgr, SMU_MAX_LEVELS_GRAPHICS)),
 			"Performance levels exceeds SMC limit!",
 			return -EINVAL);
 
@@ -3315,14 +3315,14 @@ static int smu7_get_pp_table_entry(struct pp_hwmgr *hwmgr,
 static int smu7_get_gpu_power(struct pp_hwmgr *hwmgr,
 		struct pp_gpu_power *query)
 {
-	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr->smumgr,
+	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
 			PPSMC_MSG_PmStatusLogStart),
 			"Failed to start pm status log!",
 			return -1);
 
 	msleep_interruptible(20);
 
-	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr->smumgr,
+	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
 			PPSMC_MSG_PmStatusLogSample),
 			"Failed to sample pm status log!",
 			return -1);
@@ -3356,19 +3356,19 @@ static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 
 	switch (idx) {
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
-		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetSclkFrequency);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_API_GetSclkFrequency);
 		sclk = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
 		*((uint32_t *)value) = sclk;
 		*size = 4;
 		return 0;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
-		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetMclkFrequency);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_API_GetMclkFrequency);
 		mclk = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
 		*((uint32_t *)value) = mclk;
 		*size = 4;
 		return 0;
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		offset = data->soft_regs_start + smum_get_offsetof(hwmgr->smumgr,
+		offset = data->soft_regs_start + smum_get_offsetof(hwmgr,
 								SMU_SoftRegisters,
 								AverageGraphicsActivity);
 
@@ -3535,7 +3535,7 @@ static int smu7_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 		PP_ASSERT_WITH_CODE(true == smum_is_dpm_running(hwmgr),
 				"Trying to freeze SCLK DPM when DPM is disabled",
 				);
-		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr,
 				PPSMC_MSG_SCLKDPM_FreezeLevel),
 				"Failed to freeze SCLK DPM during FreezeSclkMclkDPM Function!",
 				return -EINVAL);
@@ -3547,7 +3547,7 @@ static int smu7_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 		PP_ASSERT_WITH_CODE(true == smum_is_dpm_running(hwmgr),
 				"Trying to freeze MCLK DPM when DPM is disabled",
 				);
-		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr,
 				PPSMC_MSG_MCLKDPM_FreezeLevel),
 				"Failed to freeze MCLK DPM during FreezeSclkMclkDPM Function!",
 				return -EINVAL);
@@ -3765,7 +3765,7 @@ static int smu7_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 		PP_ASSERT_WITH_CODE(true == smum_is_dpm_running(hwmgr),
 				"Trying to Unfreeze SCLK DPM when DPM is disabled",
 				);
-		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr,
 				PPSMC_MSG_SCLKDPM_UnfreezeLevel),
 			"Failed to unfreeze SCLK DPM during UnFreezeSclkMclkDPM Function!",
 			return -EINVAL);
@@ -3777,7 +3777,7 @@ static int smu7_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 		PP_ASSERT_WITH_CODE(true == smum_is_dpm_running(hwmgr),
 				"Trying to Unfreeze MCLK DPM when DPM is disabled",
 				);
-		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr,
 				PPSMC_MSG_SCLKDPM_UnfreezeLevel),
 		    "Failed to unfreeze MCLK DPM during UnFreezeSclkMclkDPM Function!",
 		    return -EINVAL);
@@ -3828,9 +3828,9 @@ static int smu7_notify_smc_display(struct pp_hwmgr *hwmgr)
 	int ret = 0;
 
 	if (hwmgr->feature_mask & PP_VBI_TIME_SUPPORT_MASK) {
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 			(PPSMC_Msg)PPSMC_MSG_SetVBITimeout, data->frame_time_x2);
-		ret = (smum_send_msg_to_smc(hwmgr->smumgr, (PPSMC_Msg)PPSMC_HasDisplay) == 0) ?  0 : -EINVAL;
+		ret = (smum_send_msg_to_smc(hwmgr, (PPSMC_Msg)PPSMC_HasDisplay) == 0) ?  0 : -EINVAL;
 	}
 	return ret;
 }
@@ -3905,7 +3905,7 @@ static int smu7_set_max_fan_pwm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_f
 	hwmgr->thermal_controller.
 	advanceFanControlParameters.usMaxFanPWM = us_max_fan_pwm;
 
-	return smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+	return smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetFanPwmMax, us_max_fan_pwm);
 }
 
@@ -3914,7 +3914,7 @@ smu7_notify_smc_display_change(struct pp_hwmgr *hwmgr, bool has_display)
 {
 	PPSMC_Msg msg = has_display ? (PPSMC_Msg)PPSMC_HasDisplay : (PPSMC_Msg)PPSMC_NoDisplay;
 
-	return (smum_send_msg_to_smc(hwmgr->smumgr, msg) == 0) ?  0 : -1;
+	return (smum_send_msg_to_smc(hwmgr, msg) == 0) ?  0 : -1;
 }
 
 static int
@@ -3977,12 +3977,12 @@ static int smu7_program_display_gap(struct pp_hwmgr *hwmgr)
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCG_DISPLAY_GAP_CNTL2, display_gap2);
 
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			data->soft_regs_start + smum_get_offsetof(hwmgr->smumgr,
+			data->soft_regs_start + smum_get_offsetof(hwmgr,
 							SMU_SoftRegisters,
 							PreVBlankGap), 0x64);
 
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			data->soft_regs_start + smum_get_offsetof(hwmgr->smumgr,
+			data->soft_regs_start + smum_get_offsetof(hwmgr,
 							SMU_SoftRegisters,
 							VBlankTimeout),
 					(frame_time_in_us - pre_vbi_time_in_us));
@@ -4007,7 +4007,7 @@ static int smu7_set_max_fan_rpm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_f
 	hwmgr->thermal_controller.
 	advanceFanControlParameters.usMaxFanRPM = us_max_fan_rpm;
 
-	return smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+	return smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetFanRpmMax, us_max_fan_rpm);
 }
 
@@ -4257,13 +4257,13 @@ static int smu7_force_clock_level(struct pp_hwmgr *hwmgr,
 	switch (type) {
 	case PP_SCLK:
 		if (!data->sclk_dpm_key_disabled)
-			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SCLKDPM_SetEnabledMask,
 					data->dpm_level_enable_mask.sclk_dpm_enable_mask & mask);
 		break;
 	case PP_MCLK:
 		if (!data->mclk_dpm_key_disabled)
-			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_MCLKDPM_SetEnabledMask,
 					data->dpm_level_enable_mask.mclk_dpm_enable_mask & mask);
 		break;
@@ -4276,7 +4276,7 @@ static int smu7_force_clock_level(struct pp_hwmgr *hwmgr,
 			level++;
 
 		if (!data->pcie_dpm_key_disabled)
-			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_PCIeDPM_ForceLevel,
 					level);
 		break;
@@ -4300,7 +4300,7 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 
 	switch (type) {
 	case PP_SCLK:
-		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetSclkFrequency);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_API_GetSclkFrequency);
 		clock = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
 
 		for (i = 0; i < sclk_table->count; i++) {
@@ -4316,7 +4316,7 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 					(i == now) ? "*" : "");
 		break;
 	case PP_MCLK:
-		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetMclkFrequency);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_API_GetMclkFrequency);
 		clock = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
 
 		for (i = 0; i < mclk_table->count; i++) {
@@ -4602,7 +4602,7 @@ static int smu7_set_power_profile_state(struct pp_hwmgr *hwmgr,
 
 	if (sclk_mask) {
 		if (!data->sclk_dpm_key_disabled)
-			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SCLKDPM_SetEnabledMask,
 				data->dpm_level_enable_mask.
 				sclk_dpm_enable_mask &
@@ -4611,7 +4611,7 @@ static int smu7_set_power_profile_state(struct pp_hwmgr *hwmgr,
 
 	if (mclk_mask) {
 		if (!data->mclk_dpm_key_disabled)
-			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_MCLKDPM_SetEnabledMask,
 				data->dpm_level_enable_mask.
 				mclk_dpm_enable_mask &
@@ -4623,8 +4623,7 @@ static int smu7_set_power_profile_state(struct pp_hwmgr *hwmgr,
 
 static int smu7_avfs_control(struct pp_hwmgr *hwmgr, bool enable)
 {
-	struct pp_smumgr *smumgr = (struct pp_smumgr *)(hwmgr->smumgr);
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(smumgr->backend);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smumgr->backend);
 
 	if (smu_data == NULL)
 		return -EINVAL;
@@ -4636,13 +4635,13 @@ static int smu7_avfs_control(struct pp_hwmgr *hwmgr, bool enable)
 		if (!PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
 				CGS_IND_REG__SMC, FEATURE_STATUS, AVS_ON))
 			PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(
-					hwmgr->smumgr, PPSMC_MSG_EnableAvfs),
+					hwmgr, PPSMC_MSG_EnableAvfs),
 					"Failed to enable AVFS!",
 					return -EINVAL);
 	} else if (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
 			CGS_IND_REG__SMC, FEATURE_STATUS, AVS_ON))
 		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(
-				hwmgr->smumgr, PPSMC_MSG_DisableAvfs),
+				hwmgr, PPSMC_MSG_DisableAvfs),
 				"Failed to disable AVFS!",
 				return -EINVAL);
 

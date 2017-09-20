@@ -113,12 +113,12 @@ int cz_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
 				  PHM_PlatformCaps_UVDDPM)) {
 		cz_hwmgr->dpm_flags |= DPMFlags_UVD_Enabled;
 		dpm_features |= UVD_DPM_MASK;
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 			    PPSMC_MSG_EnableAllSmuFeatures, dpm_features);
 	} else {
 		dpm_features |= UVD_DPM_MASK;
 		cz_hwmgr->dpm_flags &= ~DPMFlags_UVD_Enabled;
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 			   PPSMC_MSG_DisableAllSmuFeatures, dpm_features);
 	}
 	return 0;
@@ -134,12 +134,12 @@ int cz_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 				PHM_PlatformCaps_VCEDPM)) {
 		cz_hwmgr->dpm_flags |= DPMFlags_VCE_Enabled;
 		dpm_features |= VCE_DPM_MASK;
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 			    PPSMC_MSG_EnableAllSmuFeatures, dpm_features);
 	} else {
 		dpm_features |= VCE_DPM_MASK;
 		cz_hwmgr->dpm_flags &= ~DPMFlags_VCE_Enabled;
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 			   PPSMC_MSG_DisableAllSmuFeatures, dpm_features);
 	}
 

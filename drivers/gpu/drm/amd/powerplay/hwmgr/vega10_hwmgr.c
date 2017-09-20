@@ -425,8 +425,8 @@ static void vega10_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	if (data->registry_data.vr0hot_enabled)
 		data->smu_features[GNLD_VR0HOT].supported = true;
 
-	smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_GetSmuVersion);
-	vega10_read_arg_from_smc(hwmgr->smumgr, &(data->smu_version));
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetSmuVersion);
+	vega10_read_arg_from_smc(hwmgr, &(data->smu_version));
 		/* ACG firmware has major version 5 */
 	if ((data->smu_version & 0xff000000) == 0x5000000)
 		data->smu_features[GNLD_ACG].supported = true;
@@ -922,7 +922,7 @@ static bool vega10_is_dpm_running(struct pp_hwmgr *hwmgr)
 {
 	uint32_t features_enabled;
 
-	if (!vega10_get_smc_features(hwmgr->smumgr, &features_enabled)) {
+	if (!vega10_get_smc_features(hwmgr, &features_enabled)) {
 		if (features_enabled & SMC_DPM_FEATURES)
 			return true;
 	}
@@ -2272,21 +2272,21 @@ static int vega10_acg_enable(struct pp_hwmgr *hwmgr)
 	uint32_t agc_btc_response;
 
 	if (data->smu_features[GNLD_ACG].supported) {
-		if (0 == vega10_enable_smc_features(hwmgr->smumgr, true,
+		if (0 == vega10_enable_smc_features(hwmgr, true,
 					data->smu_features[GNLD_DPM_PREFETCHER].smu_feature_bitmap))
 			data->smu_features[GNLD_DPM_PREFETCHER].enabled = true;
 
-		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_InitializeAcg);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_InitializeAcg);
 
-		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_RunAcgBtc);
-		vega10_read_arg_from_smc(hwmgr->smumgr, &agc_btc_response);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_RunAcgBtc);
+		vega10_read_arg_from_smc(hwmgr, &agc_btc_response);
 
 		if (1 == agc_btc_response) {
 			if (1 == data->acg_loop_state)
-				smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_RunAcgInClosedLoop);
+				smum_send_msg_to_smc(hwmgr, PPSMC_MSG_RunAcgInClosedLoop);
 			else if (2 == data->acg_loop_state)
-				smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_RunAcgInOpenLoop);
-			if (0 == vega10_enable_smc_features(hwmgr->smumgr, true,
+				smum_send_msg_to_smc(hwmgr, PPSMC_MSG_RunAcgInOpenLoop);
+			if (0 == vega10_enable_smc_features(hwmgr, true,
 				data->smu_features[GNLD_ACG].smu_feature_bitmap))
 					data->smu_features[GNLD_ACG].enabled = true;
 		} else {
@@ -2305,7 +2305,7 @@ static int vega10_acg_disable(struct pp_hwmgr *hwmgr)
 
 	if (data->smu_features[GNLD_ACG].supported && 
 	    data->smu_features[GNLD_ACG].enabled)
-		if (!vega10_enable_smc_features(hwmgr->smumgr, false,
+		if (!vega10_enable_smc_features(hwmgr, false,
 			data->smu_features[GNLD_ACG].smu_feature_bitmap))
 			data->smu_features[GNLD_ACG].enabled = false;
 
@@ -2355,14 +2355,14 @@ static int vega10_avfs_enable(struct pp_hwmgr *hwmgr, bool enable)
 
 	if (data->smu_features[GNLD_AVFS].supported) {
 		if (enable) {
-			PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+			PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 					true,
 					data->smu_features[GNLD_AVFS].smu_feature_bitmap),
 					"[avfs_control] Attempt to Enable AVFS feature Failed!",
 					return -1);
 			data->smu_features[GNLD_AVFS].enabled = true;
 		} else {
-			PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+			PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 					false,
 					data->smu_features[GNLD_AVFS].smu_feature_id),
 					"[avfs_control] Attempt to Disable AVFS feature Failed!",
@@ -2385,11 +2385,11 @@ static int vega10_populate_and_upload_avfs_fuse_override(struct pp_hwmgr *hwmgr)
 	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
 	AvfsFuseOverride_t *avfs_fuse_table = &(data->smc_state_table.avfs_fuse_override_table);
 
-	smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_ReadSerialNumTop32);
-	vega10_read_arg_from_smc(hwmgr->smumgr, &top32);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ReadSerialNumTop32);
+	vega10_read_arg_from_smc(hwmgr, &top32);
 
-	smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_ReadSerialNumBottom32);
-	vega10_read_arg_from_smc(hwmgr->smumgr, &bottom32);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ReadSerialNumBottom32);
+	vega10_read_arg_from_smc(hwmgr, &bottom32);
 
 	serial_number = ((uint64_t)bottom32 << 32) | top32;
 
@@ -2403,7 +2403,7 @@ static int vega10_populate_and_upload_avfs_fuse_override(struct pp_hwmgr *hwmgr)
 		avfs_fuse_table->VFT2_b  = fuse.VFT2_b;
 		avfs_fuse_table->VFT2_m1 = fuse.VFT2_m1;
 		avfs_fuse_table->VFT2_m2 = fuse.VFT2_m2;
-		result = vega10_copy_table_to_smc(hwmgr->smumgr,
+		result = vega10_copy_table_to_smc(hwmgr,
 			(uint8_t *)avfs_fuse_table, AVFSFUSETABLE);
 		PP_ASSERT_WITH_CODE(!result,
 			"Failed to upload FuseOVerride!",
@@ -2542,14 +2542,14 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 		data->vbios_boot_state.soc_clock = boot_up_values.ulSocClk;
 		data->vbios_boot_state.dcef_clock = boot_up_values.ulDCEFClk;
 		if (0 != boot_up_values.usVddc) {
-			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetFloorSocVoltage,
 						(boot_up_values.usVddc * 4));
 			data->vbios_boot_state.bsoc_vddc_lock = true;
 		} else {
 			data->vbios_boot_state.bsoc_vddc_lock = false;
 		}
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetMinDeepSleepDcefclk,
 			(uint32_t)(data->vbios_boot_state.dcef_clock / 100));
 	}
@@ -2575,7 +2575,7 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 
 	vega10_populate_and_upload_avfs_fuse_override(hwmgr);
 
-	result = vega10_copy_table_to_smc(hwmgr->smumgr,
+	result = vega10_copy_table_to_smc(hwmgr,
 			(uint8_t *)pp_table, PPTABLE);
 	PP_ASSERT_WITH_CODE(!result,
 			"Failed to upload PPtable!", return result);
@@ -2598,7 +2598,7 @@ static int vega10_enable_thermal_protection(struct pp_hwmgr *hwmgr)
 			pr_info("THERMAL Feature Already enabled!");
 
 		PP_ASSERT_WITH_CODE(
-				!vega10_enable_smc_features(hwmgr->smumgr,
+				!vega10_enable_smc_features(hwmgr,
 				true,
 				data->smu_features[GNLD_THERMAL].smu_feature_bitmap),
 				"Enable THERMAL Feature Failed!",
@@ -2618,7 +2618,7 @@ static int vega10_disable_thermal_protection(struct pp_hwmgr *hwmgr)
 			pr_info("THERMAL Feature Already disabled!");
 
 		PP_ASSERT_WITH_CODE(
-				!vega10_enable_smc_features(hwmgr->smumgr,
+				!vega10_enable_smc_features(hwmgr,
 				false,
 				data->smu_features[GNLD_THERMAL].smu_feature_bitmap),
 				"disable THERMAL Feature Failed!",
@@ -2637,7 +2637,7 @@ static int vega10_enable_vrhot_feature(struct pp_hwmgr *hwmgr)
 	if (PP_CAP(PHM_PlatformCaps_RegulatorHot)) {
 		if (data->smu_features[GNLD_VR0HOT].supported) {
 			PP_ASSERT_WITH_CODE(
-					!vega10_enable_smc_features(hwmgr->smumgr,
+					!vega10_enable_smc_features(hwmgr,
 					true,
 					data->smu_features[GNLD_VR0HOT].smu_feature_bitmap),
 					"Attempt to Enable VR0 Hot feature Failed!",
@@ -2646,7 +2646,7 @@ static int vega10_enable_vrhot_feature(struct pp_hwmgr *hwmgr)
 		} else {
 			if (data->smu_features[GNLD_VR1HOT].supported) {
 				PP_ASSERT_WITH_CODE(
-						!vega10_enable_smc_features(hwmgr->smumgr,
+						!vega10_enable_smc_features(hwmgr,
 						true,
 						data->smu_features[GNLD_VR1HOT].smu_feature_bitmap),
 						"Attempt to Enable VR0 Hot feature Failed!",
@@ -2664,7 +2664,7 @@ static int vega10_enable_ulv(struct pp_hwmgr *hwmgr)
 			(struct vega10_hwmgr *)(hwmgr->backend);
 
 	if (data->registry_data.ulv_support) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				true, data->smu_features[GNLD_ULV].smu_feature_bitmap),
 				"Enable ULV Feature Failed!",
 				return -1);
@@ -2680,7 +2680,7 @@ static int vega10_disable_ulv(struct pp_hwmgr *hwmgr)
 			(struct vega10_hwmgr *)(hwmgr->backend);
 
 	if (data->registry_data.ulv_support) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				false, data->smu_features[GNLD_ULV].smu_feature_bitmap),
 				"disable ULV Feature Failed!",
 				return -EINVAL);
@@ -2696,7 +2696,7 @@ static int vega10_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 			(struct vega10_hwmgr *)(hwmgr->backend);
 
 	if (data->smu_features[GNLD_DS_GFXCLK].supported) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				true, data->smu_features[GNLD_DS_GFXCLK].smu_feature_bitmap),
 				"Attempt to Enable DS_GFXCLK Feature Failed!",
 				return -EINVAL);
@@ -2704,7 +2704,7 @@ static int vega10_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 	}
 
 	if (data->smu_features[GNLD_DS_SOCCLK].supported) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				true, data->smu_features[GNLD_DS_SOCCLK].smu_feature_bitmap),
 				"Attempt to Enable DS_SOCCLK Feature Failed!",
 				return -EINVAL);
@@ -2712,7 +2712,7 @@ static int vega10_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 	}
 
 	if (data->smu_features[GNLD_DS_LCLK].supported) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				true, data->smu_features[GNLD_DS_LCLK].smu_feature_bitmap),
 				"Attempt to Enable DS_LCLK Feature Failed!",
 				return -EINVAL);
@@ -2720,7 +2720,7 @@ static int vega10_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 	}
 
 	if (data->smu_features[GNLD_DS_DCEFCLK].supported) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				true, data->smu_features[GNLD_DS_DCEFCLK].smu_feature_bitmap),
 				"Attempt to Enable DS_DCEFCLK Feature Failed!",
 				return -EINVAL);
@@ -2736,7 +2736,7 @@ static int vega10_disable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 			(struct vega10_hwmgr *)(hwmgr->backend);
 
 	if (data->smu_features[GNLD_DS_GFXCLK].supported) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				false, data->smu_features[GNLD_DS_GFXCLK].smu_feature_bitmap),
 				"Attempt to disable DS_GFXCLK Feature Failed!",
 				return -EINVAL);
@@ -2744,7 +2744,7 @@ static int vega10_disable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 	}
 
 	if (data->smu_features[GNLD_DS_SOCCLK].supported) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				false, data->smu_features[GNLD_DS_SOCCLK].smu_feature_bitmap),
 				"Attempt to disable DS_ Feature Failed!",
 				return -EINVAL);
@@ -2752,7 +2752,7 @@ static int vega10_disable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 	}
 
 	if (data->smu_features[GNLD_DS_LCLK].supported) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				false, data->smu_features[GNLD_DS_LCLK].smu_feature_bitmap),
 				"Attempt to disable DS_LCLK Feature Failed!",
 				return -EINVAL);
@@ -2760,7 +2760,7 @@ static int vega10_disable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 	}
 
 	if (data->smu_features[GNLD_DS_DCEFCLK].supported) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				false, data->smu_features[GNLD_DS_DCEFCLK].smu_feature_bitmap),
 				"Attempt to disable DS_DCEFCLK Feature Failed!",
 				return -EINVAL);
@@ -2778,7 +2778,7 @@ static int vega10_stop_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
 
 
 	if(data->smu_features[GNLD_LED_DISPLAY].supported == true){
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				false, data->smu_features[GNLD_LED_DISPLAY].smu_feature_bitmap),
 		"Attempt to disable LED DPM feature failed!", return -EINVAL);
 		data->smu_features[GNLD_LED_DISPLAY].enabled = false;
@@ -2796,7 +2796,7 @@ static int vega10_stop_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
 		}
 	}
 
-	vega10_enable_smc_features(hwmgr->smumgr, false, feature_mask);
+	vega10_enable_smc_features(hwmgr, false, feature_mask);
 
 	return 0;
 }
@@ -2826,7 +2826,7 @@ static int vega10_start_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
 		}
 	}
 
-	if (vega10_enable_smc_features(hwmgr->smumgr,
+	if (vega10_enable_smc_features(hwmgr,
 			true, feature_mask)) {
 		for (i = 0; i < GNLD_DPM_MAX; i++) {
 			if (data->smu_features[i].smu_feature_bitmap &
@@ -2836,21 +2836,21 @@ static int vega10_start_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
 	}
 
 	if(data->smu_features[GNLD_LED_DISPLAY].supported == true){
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				true, data->smu_features[GNLD_LED_DISPLAY].smu_feature_bitmap),
 		"Attempt to Enable LED DPM feature Failed!", return -EINVAL);
 		data->smu_features[GNLD_LED_DISPLAY].enabled = true;
 	}
 
 	if (data->vbios_boot_state.bsoc_vddc_lock) {
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetFloorSocVoltage, 0);
 		data->vbios_boot_state.bsoc_vddc_lock = false;
 	}
 
 	if (PP_CAP(PHM_PlatformCaps_Falcon_QuickTransition)) {
 		if (data->smu_features[GNLD_ACDC].supported) {
-			PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+			PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 					true, data->smu_features[GNLD_ACDC].smu_feature_bitmap),
 					"Attempt to Enable DS_GFXCLK Feature Failed!",
 					return -1);
@@ -2867,13 +2867,13 @@ static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 			(struct vega10_hwmgr *)(hwmgr->backend);
 	int tmp_result, result = 0;
 
-	tmp_result = smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+	tmp_result = smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_ConfigureTelemetry, data->config_telemetry);
 	PP_ASSERT_WITH_CODE(!tmp_result,
 			"Failed to configure telemetry!",
 			return tmp_result);
 
-	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_NumOfDisplays, 0);
 
 	tmp_result = (!vega10_is_dpm_running(hwmgr)) ? 0 : -1;
@@ -3674,7 +3674,7 @@ static int vega10_upload_dpm_bootup_level(struct pp_hwmgr *hwmgr)
 		if (data->smc_state_table.gfx_boot_level !=
 				data->dpm_table.gfx_table.dpm_state.soft_min_level) {
 				PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc_with_parameter(
-				hwmgr->smumgr,
+				hwmgr,
 				PPSMC_MSG_SetSoftMinGfxclkByIndex,
 				data->smc_state_table.gfx_boot_level),
 				"Failed to set soft min sclk index!",
@@ -3690,14 +3690,14 @@ static int vega10_upload_dpm_bootup_level(struct pp_hwmgr *hwmgr)
 			if (data->smc_state_table.mem_boot_level == NUM_UCLK_DPM_LEVELS - 1) {
 				socclk_idx = vega10_get_soc_index_for_max_uclk(hwmgr);
 				PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc_with_parameter(
-							hwmgr->smumgr,
+							hwmgr,
 						PPSMC_MSG_SetSoftMinSocclkByIndex,
 						socclk_idx),
 						"Failed to set soft min uclk index!",
 						return -EINVAL);
 			} else {
 				PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc_with_parameter(
-						hwmgr->smumgr,
+						hwmgr,
 						PPSMC_MSG_SetSoftMinUclkByIndex,
 						data->smc_state_table.mem_boot_level),
 						"Failed to set soft min uclk index!",
@@ -3722,7 +3722,7 @@ static int vega10_upload_dpm_max_level(struct pp_hwmgr *hwmgr)
 		if (data->smc_state_table.gfx_max_level !=
 				data->dpm_table.gfx_table.dpm_state.soft_max_level) {
 				PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc_with_parameter(
-				hwmgr->smumgr,
+				hwmgr,
 				PPSMC_MSG_SetSoftMaxGfxclkByIndex,
 				data->smc_state_table.gfx_max_level),
 				"Failed to set soft max sclk index!",
@@ -3736,7 +3736,7 @@ static int vega10_upload_dpm_max_level(struct pp_hwmgr *hwmgr)
 		if (data->smc_state_table.mem_max_level !=
 				data->dpm_table.mem_table.dpm_state.soft_max_level) {
 				PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc_with_parameter(
-				hwmgr->smumgr,
+				hwmgr,
 				PPSMC_MSG_SetSoftMaxUclkByIndex,
 				data->smc_state_table.mem_max_level),
 				"Failed to set soft max mclk index!",
@@ -3795,7 +3795,7 @@ int vega10_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 			(struct vega10_hwmgr *)(hwmgr->backend);
 
 	if (data->smu_features[GNLD_DPM_VCE].supported) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				enable,
 				data->smu_features[GNLD_DPM_VCE].smu_feature_bitmap),
 				"Attempt to Enable/Disable DPM VCE Failed!",
@@ -3825,7 +3825,7 @@ static int vega10_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 				cpu_to_le32(low_sclk_interrupt_threshold);
 
 		/* This message will also enable SmcToHost Interrupt */
-		result = smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		result = smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetLowGfxclkInterruptThreshold,
 				(uint32_t)low_sclk_interrupt_threshold);
 	}
@@ -3861,7 +3861,7 @@ static int vega10_set_power_state_tasks(struct pp_hwmgr *hwmgr,
 			"Failed to update SCLK threshold!",
 			result = tmp_result);
 
-	result = vega10_copy_table_to_smc(hwmgr->smumgr,
+	result = vega10_copy_table_to_smc(hwmgr,
 			(uint8_t *)pp_table, PPTABLE);
 	PP_ASSERT_WITH_CODE(!result,
 			"Failed to upload PPtable!", return result);
@@ -3921,12 +3921,12 @@ static int vega10_get_gpu_power(struct pp_hwmgr *hwmgr,
 {
 	uint32_t value;
 
-	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr->smumgr,
+	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
 			PPSMC_MSG_GetCurrPkgPwr),
 			"Failed to get current package power!",
 			return -EINVAL);
 
-	vega10_read_arg_from_smc(hwmgr->smumgr, &value);
+	vega10_read_arg_from_smc(hwmgr, &value);
 	/* power value is an integer */
 	query->average_gpu_power = value << 8;
 
@@ -3943,25 +3943,25 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 
 	switch (idx) {
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
-		ret = smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_GetCurrentGfxclkIndex);
+		ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentGfxclkIndex);
 		if (!ret) {
-			vega10_read_arg_from_smc(hwmgr->smumgr, &sclk_idx);
+			vega10_read_arg_from_smc(hwmgr, &sclk_idx);
 			*((uint32_t *)value) = dpm_table->gfx_table.dpm_levels[sclk_idx].value;
 			*size = 4;
 		}
 		break;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
-		ret = smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_GetCurrentUclkIndex);
+		ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentUclkIndex);
 		if (!ret) {
-			vega10_read_arg_from_smc(hwmgr->smumgr, &mclk_idx);
+			vega10_read_arg_from_smc(hwmgr, &mclk_idx);
 			*((uint32_t *)value) = dpm_table->mem_table.dpm_levels[mclk_idx].value;
 			*size = 4;
 		}
 		break;
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		ret = smum_send_msg_to_smc_with_parameter(hwmgr->smumgr, PPSMC_MSG_GetAverageGfxActivity, 0);
+		ret = smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetAverageGfxActivity, 0);
 		if (!ret) {
-			vega10_read_arg_from_smc(hwmgr->smumgr, &activity_percent);
+			vega10_read_arg_from_smc(hwmgr, &activity_percent);
 			*((uint32_t *)value) = activity_percent > 100 ? 100 : activity_percent;
 			*size = 4;
 		}
@@ -3996,7 +3996,7 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 static int vega10_notify_smc_display_change(struct pp_hwmgr *hwmgr,
 		bool has_disp)
 {
-	return smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+	return smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetUclkFastSwitch,
 			has_disp ? 0 : 1);
 }
@@ -4031,7 +4031,7 @@ int vega10_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
 
 	if (!result) {
 		clk_request = (clk_freq << 16) | clk_select;
-		result = smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		result = smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_RequestDisplayClockByFreq,
 				clk_request);
 	}
@@ -4101,7 +4101,7 @@ static int vega10_notify_smc_display_config_after_ps_adjustment(
 		clock_req.clock_freq_in_khz = dpm_table->dpm_levels[i].value;
 		if (!vega10_display_clock_voltage_request(hwmgr, &clock_req)) {
 			PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc_with_parameter(
-					hwmgr->smumgr, PPSMC_MSG_SetMinDeepSleepDcefclk,
+					hwmgr, PPSMC_MSG_SetMinDeepSleepDcefclk,
 					min_clocks.dcefClockInSR /100),
 					"Attempt to set divider for DCEFCLK Failed!",);
 		} else {
@@ -4113,7 +4113,7 @@ static int vega10_notify_smc_display_config_after_ps_adjustment(
 
 	if (min_clocks.memoryClock != 0) {
 		idx = vega10_get_uclk_index(hwmgr, mclk_table, min_clocks.memoryClock);
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr, PPSMC_MSG_SetSoftMinUclkByIndex, idx);
+		smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_SetSoftMinUclkByIndex, idx);
 		data->dpm_table.mem_table.dpm_state.soft_min_level= idx;
 	}
 
@@ -4596,11 +4596,11 @@ static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 		if (data->registry_data.sclk_dpm_key_disabled)
 			break;
 
-		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
 				PPSMC_MSG_GetCurrentGfxclkIndex),
 				"Attempt to get current sclk index Failed!",
 				return -1);
-		PP_ASSERT_WITH_CODE(!vega10_read_arg_from_smc(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_read_arg_from_smc(hwmgr,
 				&now),
 				"Attempt to read sclk index Failed!",
 				return -1);
@@ -4614,11 +4614,11 @@ static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 		if (data->registry_data.mclk_dpm_key_disabled)
 			break;
 
-		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
 				PPSMC_MSG_GetCurrentUclkIndex),
 				"Attempt to get current mclk index Failed!",
 				return -1);
-		PP_ASSERT_WITH_CODE(!vega10_read_arg_from_smc(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_read_arg_from_smc(hwmgr,
 				&now),
 				"Attempt to read mclk index Failed!",
 				return -1);
@@ -4629,11 +4629,11 @@ static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 					(i == now) ? "*" : "");
 		break;
 	case PP_PCIE:
-		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
 				PPSMC_MSG_GetCurrentLinkIndex),
 				"Attempt to get current mclk index Failed!",
 				return -1);
-		PP_ASSERT_WITH_CODE(!vega10_read_arg_from_smc(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_read_arg_from_smc(hwmgr,
 				&now),
 				"Attempt to read mclk index Failed!",
 				return -1);
@@ -4661,7 +4661,7 @@ static int vega10_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 
 	if ((data->water_marks_bitmap & WaterMarksExist) &&
 			!(data->water_marks_bitmap & WaterMarksLoaded)) {
-		result = vega10_copy_table_to_smc(hwmgr->smumgr,
+		result = vega10_copy_table_to_smc(hwmgr,
 			(uint8_t *)wm_table, WMTABLE);
 		PP_ASSERT_WITH_CODE(result, "Failed to update WMTABLE!", return EINVAL);
 		data->water_marks_bitmap |= WaterMarksLoaded;
@@ -4670,7 +4670,7 @@ static int vega10_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 	if (data->water_marks_bitmap & WaterMarksLoaded) {
 		cgs_get_active_displays_info(hwmgr->device, &info);
 		num_turned_on_displays = info.display_count;
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_NumOfDisplays, num_turned_on_displays);
 	}
 
@@ -4683,7 +4683,7 @@ int vega10_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
 			(struct vega10_hwmgr *)(hwmgr->backend);
 
 	if (data->smu_features[GNLD_DPM_UVD].supported) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				enable,
 				data->smu_features[GNLD_DPM_UVD].smu_feature_bitmap),
 				"Attempt to Enable/Disable DPM UVD Failed!",
@@ -4870,7 +4870,7 @@ static int vega10_set_power_profile_state(struct pp_hwmgr *hwmgr,
 		if (!data->registry_data.sclk_dpm_key_disabled)
 			PP_ASSERT_WITH_CODE(
 					!smum_send_msg_to_smc_with_parameter(
-					hwmgr->smumgr,
+					hwmgr,
 					PPSMC_MSG_SetSoftMinGfxclkByIndex,
 					sclk_idx),
 					"Failed to set soft min sclk index!",
@@ -4881,7 +4881,7 @@ static int vega10_set_power_profile_state(struct pp_hwmgr *hwmgr,
 		if (!data->registry_data.mclk_dpm_key_disabled)
 			PP_ASSERT_WITH_CODE(
 					!smum_send_msg_to_smc_with_parameter(
-					hwmgr->smumgr,
+					hwmgr,
 					PPSMC_MSG_SetSoftMinUclkByIndex,
 					mclk_idx),
 					"Failed to set soft min mclk index!",

@@ -103,21 +103,21 @@ enum SMU_MAC_DEFINITION {
 
 
 struct pp_smumgr_func {
-	int (*smu_init)(struct pp_smumgr *smumgr);
-	int (*smu_fini)(struct pp_smumgr *smumgr);
-	int (*start_smu)(struct pp_smumgr *smumgr);
-	int (*check_fw_load_finish)(struct pp_smumgr *smumgr,
+	int (*smu_init)(struct pp_hwmgr *hwmgr);
+	int (*smu_fini)(struct pp_hwmgr *hwmgr);
+	int (*start_smu)(struct pp_hwmgr *hwmgr);
+	int (*check_fw_load_finish)(struct pp_hwmgr *hwmgr,
 				    uint32_t firmware);
-	int (*request_smu_load_fw)(struct pp_smumgr *smumgr);
-	int (*request_smu_load_specific_fw)(struct pp_smumgr *smumgr,
+	int (*request_smu_load_fw)(struct pp_hwmgr *hwmgr);
+	int (*request_smu_load_specific_fw)(struct pp_hwmgr *hwmgr,
 					    uint32_t firmware);
-	int (*get_argument)(struct pp_smumgr *smumgr);
-	int (*send_msg_to_smc)(struct pp_smumgr *smumgr, uint16_t msg);
-	int (*send_msg_to_smc_with_parameter)(struct pp_smumgr *smumgr,
+	int (*get_argument)(struct pp_hwmgr *hwmgr);
+	int (*send_msg_to_smc)(struct pp_hwmgr *hwmgr, uint16_t msg);
+	int (*send_msg_to_smc_with_parameter)(struct pp_hwmgr *hwmgr,
 					  uint16_t msg, uint32_t parameter);
-	int (*download_pptable_settings)(struct pp_smumgr *smumgr,
+	int (*download_pptable_settings)(struct pp_hwmgr *hwmgr,
 					 void **table);
-	int (*upload_pptable_settings)(struct pp_smumgr *smumgr);
+	int (*upload_pptable_settings)(struct pp_hwmgr *hwmgr);
 	int (*update_smc_table)(struct pp_hwmgr *hwmgr, uint32_t type);
 	int (*process_firmware_header)(struct pp_hwmgr *hwmgr);
 	int (*update_sclk_threshold)(struct pp_hwmgr *hwmgr);
@@ -132,7 +132,7 @@ struct pp_smumgr_func {
 	bool (*is_dpm_running)(struct pp_hwmgr *hwmgr);
 	int (*populate_requested_graphic_levels)(struct pp_hwmgr *hwmgr,
 			struct amd_pp_profile *request);
-	bool (*is_hw_avfs_present)(struct pp_smumgr *smumgr);
+	bool (*is_hw_avfs_present)(struct pp_hwmgr *hwmgr);
 };
 
 struct pp_smumgr {
@@ -148,30 +148,30 @@ struct pp_smumgr {
 
 extern int smum_early_init(struct pp_instance *handle);
 
-extern int smum_get_argument(struct pp_smumgr *smumgr);
+extern int smum_get_argument(struct pp_hwmgr *hwmgr);
 
-extern int smum_download_powerplay_table(struct pp_smumgr *smumgr, void **table);
+extern int smum_download_powerplay_table(struct pp_hwmgr *hwmgr, void **table);
 
-extern int smum_upload_powerplay_table(struct pp_smumgr *smumgr);
+extern int smum_upload_powerplay_table(struct pp_hwmgr *hwmgr);
 
-extern int smum_send_msg_to_smc(struct pp_smumgr *smumgr, uint16_t msg);
+extern int smum_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg);
 
-extern int smum_send_msg_to_smc_with_parameter(struct pp_smumgr *smumgr,
+extern int smum_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 					uint16_t msg, uint32_t parameter);
 
-extern int smum_wait_on_register(struct pp_smumgr *smumgr,
+extern int smum_wait_on_register(struct pp_hwmgr *hwmgr,
 				uint32_t index, uint32_t value, uint32_t mask);
 
-extern int smum_wait_for_register_unequal(struct pp_smumgr *smumgr,
+extern int smum_wait_for_register_unequal(struct pp_hwmgr *hwmgr,
 				uint32_t index, uint32_t value, uint32_t mask);
 
-extern int smum_wait_on_indirect_register(struct pp_smumgr *smumgr,
+extern int smum_wait_on_indirect_register(struct pp_hwmgr *hwmgr,
 				uint32_t indirect_port, uint32_t index,
 				uint32_t value, uint32_t mask);
 
 
 extern void smum_wait_for_indirect_register_unequal(
-				struct pp_smumgr *smumgr,
+				struct pp_hwmgr *hwmgr,
 				uint32_t indirect_port, uint32_t index,
 				uint32_t value, uint32_t mask);
 
@@ -181,7 +181,7 @@ extern int smu_allocate_memory(void *device, uint32_t size,
 			 void **kptr, void *handle);
 
 extern int smu_free_memory(void *device, void *handle);
-extern int vega10_smum_init(struct pp_smumgr *smumgr);
+extern int vega10_smum_init(struct pp_hwmgr *hwmgr);
 
 extern int smum_update_sclk_threshold(struct pp_hwmgr *hwmgr);
 
@@ -193,44 +193,44 @@ extern int smum_init_smc_table(struct pp_hwmgr *hwmgr);
 extern int smum_populate_all_graphic_levels(struct pp_hwmgr *hwmgr);
 extern int smum_populate_all_memory_levels(struct pp_hwmgr *hwmgr);
 extern int smum_initialize_mc_reg_table(struct pp_hwmgr *hwmgr);
-extern uint32_t smum_get_offsetof(struct pp_smumgr *smumgr,
+extern uint32_t smum_get_offsetof(struct pp_hwmgr *hwmgr,
 				uint32_t type, uint32_t member);
-extern uint32_t smum_get_mac_definition(struct pp_smumgr *smumgr, uint32_t value);
+extern uint32_t smum_get_mac_definition(struct pp_hwmgr *hwmgr, uint32_t value);
 
 extern bool smum_is_dpm_running(struct pp_hwmgr *hwmgr);
 
 extern int smum_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
 		struct amd_pp_profile *request);
 
-extern bool smum_is_hw_avfs_present(struct pp_smumgr *smumgr);
+extern bool smum_is_hw_avfs_present(struct pp_hwmgr *hwmgr);
 
 #define SMUM_FIELD_SHIFT(reg, field) reg##__##field##__SHIFT
 
 #define SMUM_FIELD_MASK(reg, field) reg##__##field##_MASK
 
-#define SMUM_WAIT_INDIRECT_REGISTER_GIVEN_INDEX(smumgr,			\
+#define SMUM_WAIT_INDIRECT_REGISTER_GIVEN_INDEX(hwmgr,			\
 					port, index, value, mask)	\
-	smum_wait_on_indirect_register(smumgr,				\
+	smum_wait_on_indirect_register(hwmgr,				\
 				mm##port##_INDEX, index, value, mask)
 
-#define SMUM_WAIT_INDIRECT_REGISTER(smumgr, port, reg, value, mask)    \
-	    SMUM_WAIT_INDIRECT_REGISTER_GIVEN_INDEX(smumgr, port, ix##reg, value, mask)
+#define SMUM_WAIT_INDIRECT_REGISTER(hwmgr, port, reg, value, mask)    \
+	    SMUM_WAIT_INDIRECT_REGISTER_GIVEN_INDEX(hwmgr, port, ix##reg, value, mask)
 
-#define SMUM_WAIT_INDIRECT_FIELD(smumgr, port, reg, field, fieldval)                          \
-	    SMUM_WAIT_INDIRECT_REGISTER(smumgr, port, reg, (fieldval) << SMUM_FIELD_SHIFT(reg, field), \
+#define SMUM_WAIT_INDIRECT_FIELD(hwmgr, port, reg, field, fieldval)                          \
+	    SMUM_WAIT_INDIRECT_REGISTER(hwmgr, port, reg, (fieldval) << SMUM_FIELD_SHIFT(reg, field), \
 			            SMUM_FIELD_MASK(reg, field) )
 
-#define SMUM_WAIT_REGISTER_UNEQUAL_GIVEN_INDEX(smumgr,         \
+#define SMUM_WAIT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr,         \
 							index, value, mask) \
-		smum_wait_for_register_unequal(smumgr,            \
+		smum_wait_for_register_unequal(hwmgr,            \
 					index, value, mask)
 
-#define SMUM_WAIT_REGISTER_UNEQUAL(smumgr, reg, value, mask)		\
-	SMUM_WAIT_REGISTER_UNEQUAL_GIVEN_INDEX(smumgr,			\
+#define SMUM_WAIT_REGISTER_UNEQUAL(hwmgr, reg, value, mask)		\
+	SMUM_WAIT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr,			\
 				mm##reg, value, mask)
 
-#define SMUM_WAIT_FIELD_UNEQUAL(smumgr, reg, field, fieldval)		\
-	SMUM_WAIT_REGISTER_UNEQUAL(smumgr, reg,				\
+#define SMUM_WAIT_FIELD_UNEQUAL(hwmgr, reg, field, fieldval)		\
+	SMUM_WAIT_REGISTER_UNEQUAL(hwmgr, reg,				\
 		(fieldval) << SMUM_FIELD_SHIFT(reg, field),		\
 		SMUM_FIELD_MASK(reg, field))
 
@@ -250,22 +250,22 @@ extern bool smum_is_hw_avfs_present(struct pp_smumgr *smumgr);
 	    SMUM_GET_FIELD(cgs_read_ind_register(device, port, ix##reg), \
 			   reg, field)
 
-#define SMUM_WAIT_VFPF_INDIRECT_REGISTER_GIVEN_INDEX(smumgr,		\
+#define SMUM_WAIT_VFPF_INDIRECT_REGISTER_GIVEN_INDEX(hwmgr,		\
 				port, index, value, mask)		\
-	smum_wait_on_indirect_register(smumgr,				\
+	smum_wait_on_indirect_register(hwmgr,				\
 		mm##port##_INDEX_0, index, value, mask)
 
-#define SMUM_WAIT_VFPF_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(smumgr,	\
+#define SMUM_WAIT_VFPF_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr,	\
 				port, index, value, mask)		\
-	smum_wait_for_indirect_register_unequal(smumgr,			\
+	smum_wait_for_indirect_register_unequal(hwmgr,			\
 		mm##port##_INDEX_0, index, value, mask)
 
 
-#define SMUM_WAIT_VFPF_INDIRECT_REGISTER(smumgr, port, reg, value, mask) \
-	SMUM_WAIT_VFPF_INDIRECT_REGISTER_GIVEN_INDEX(smumgr, port, ix##reg, value, mask)
+#define SMUM_WAIT_VFPF_INDIRECT_REGISTER(hwmgr, port, reg, value, mask) \
+	SMUM_WAIT_VFPF_INDIRECT_REGISTER_GIVEN_INDEX(hwmgr, port, ix##reg, value, mask)
 
-#define SMUM_WAIT_VFPF_INDIRECT_REGISTER_UNEQUAL(smumgr, port, reg, value, mask)     \
-		SMUM_WAIT_VFPF_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(smumgr, port, ix##reg, value, mask)
+#define SMUM_WAIT_VFPF_INDIRECT_REGISTER_UNEQUAL(hwmgr, port, reg, value, mask)     \
+		SMUM_WAIT_VFPF_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr, port, ix##reg, value, mask)
 
 
 /*Operations on named fields.*/
@@ -290,25 +290,25 @@ extern bool smum_is_hw_avfs_present(struct pp_smumgr *smumgr);
 				       reg, field, fieldval))
 
 
-#define SMUM_WAIT_VFPF_INDIRECT_FIELD(smumgr, port, reg, field, fieldval) \
-	SMUM_WAIT_VFPF_INDIRECT_REGISTER(smumgr, port, reg,		\
+#define SMUM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, port, reg, field, fieldval) \
+	SMUM_WAIT_VFPF_INDIRECT_REGISTER(hwmgr, port, reg,		\
 		(fieldval) << SMUM_FIELD_SHIFT(reg, field),		\
 		SMUM_FIELD_MASK(reg, field))
 
-#define SMUM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(smumgr, port, reg, field, fieldval) \
-	SMUM_WAIT_VFPF_INDIRECT_REGISTER_UNEQUAL(smumgr, port, reg,	\
+#define SMUM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(hwmgr, port, reg, field, fieldval) \
+	SMUM_WAIT_VFPF_INDIRECT_REGISTER_UNEQUAL(hwmgr, port, reg,	\
 		(fieldval) << SMUM_FIELD_SHIFT(reg, field),		\
 		SMUM_FIELD_MASK(reg, field))
 
-#define SMUM_WAIT_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(smumgr, port, index, value, mask)    \
-	smum_wait_for_indirect_register_unequal(smumgr,			\
+#define SMUM_WAIT_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr, port, index, value, mask)    \
+	smum_wait_for_indirect_register_unequal(hwmgr,			\
 		mm##port##_INDEX, index, value, mask)
 
-#define SMUM_WAIT_INDIRECT_REGISTER_UNEQUAL(smumgr, port, reg, value, mask)    \
-	    SMUM_WAIT_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(smumgr, port, ix##reg, value, mask)
+#define SMUM_WAIT_INDIRECT_REGISTER_UNEQUAL(hwmgr, port, reg, value, mask)    \
+	    SMUM_WAIT_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr, port, ix##reg, value, mask)
 
-#define SMUM_WAIT_INDIRECT_FIELD_UNEQUAL(smumgr, port, reg, field, fieldval)                          \
-	    SMUM_WAIT_INDIRECT_REGISTER_UNEQUAL(smumgr, port, reg, (fieldval) << SMUM_FIELD_SHIFT(reg, field), \
+#define SMUM_WAIT_INDIRECT_FIELD_UNEQUAL(hwmgr, port, reg, field, fieldval)                          \
+	    SMUM_WAIT_INDIRECT_REGISTER_UNEQUAL(hwmgr, port, reg, (fieldval) << SMUM_FIELD_SHIFT(reg, field), \
 			            SMUM_FIELD_MASK(reg, field) )
 
 #endif

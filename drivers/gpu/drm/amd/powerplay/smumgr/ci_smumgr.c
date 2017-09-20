@@ -30,7 +30,7 @@
 #include "cgs_common.h"
 #include "ci_smc.h"
 
-static int ci_smu_init(struct pp_smumgr *smumgr)
+static int ci_smu_init(struct pp_hwmgr *hwmgr)
 {
 	int i;
 	struct ci_smumgr *ci_priv = NULL;
@@ -43,20 +43,20 @@ static int ci_smu_init(struct pp_smumgr *smumgr)
 	for (i = 0; i < SMU7_MAX_LEVELS_GRAPHICS; i++)
 		ci_priv->activity_target[i] = 30;
 
-	smumgr->backend = ci_priv;
+	hwmgr->smumgr->backend = ci_priv;
 
 	return 0;
 }
 
-static int ci_smu_fini(struct pp_smumgr *smumgr)
+static int ci_smu_fini(struct pp_hwmgr *hwmgr)
 {
-	kfree(smumgr->backend);
-	smumgr->backend = NULL;
-	cgs_rel_firmware(smumgr->device, CGS_UCODE_ID_SMU);
+	kfree(hwmgr->smumgr->backend);
+	hwmgr->smumgr->backend = NULL;
+	cgs_rel_firmware(hwmgr->device, CGS_UCODE_ID_SMU);
 	return 0;
 }
 
-static int ci_start_smu(struct pp_smumgr *smumgr)
+static int ci_start_smu(struct pp_hwmgr *hwmgr)
 {
 	return 0;
 }
