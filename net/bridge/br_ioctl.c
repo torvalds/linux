@@ -99,10 +99,8 @@ static int add_del_if(struct net_bridge *br, int ifindex, int isadd)
 
 	if (isadd)
 		ret = br_add_if(br, dev);
-	else {
+	else
 		ret = br_del_if(br, dev);
-		rtmsg_ifinfo(RTM_NEWLINK, dev, IFF_MASTER, GFP_KERNEL);
-	}
 
 	return ret;
 }
