@@ -94,6 +94,7 @@ struct mlxsw_sp_mid {
 	unsigned char addr[ETH_ALEN];
 	u16 fid;
 	u16 mid;
+	bool in_hw;
 	unsigned long *ports_in_mid; /* bits array */
 };
 

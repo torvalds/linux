@@ -1260,6 +1260,42 @@ mlxsw_sp_mid *__mlxsw_sp_mc_get(struct mlxsw_sp_bridge_device *bridge_device,
 	return NULL;
 }
 
+static bool
+mlxsw_sp_mc_write_mdb_entry(struct mlxsw_sp *mlxsw_sp,
+			    struct mlxsw_sp_mid *mid)
+{
+	u16 mid_idx;
+	int err;
+
+	mid_idx = find_first_zero_bit(mlxsw_sp->bridge->mids_bitmap,
+				      MLXSW_SP_MID_MAX);
+	if (mid_idx == MLXSW_SP_MID_MAX)
+		return false;
+
+	mid->mid = mid_idx;
+	err = mlxsw_sp_port_smid_full_entry(mlxsw_sp, mid_idx);
+	if (err)
+		return false;
+
+	err = mlxsw_sp_port_mdb_op(mlxsw_sp, mid->addr, mid->fid, mid_idx,
+				   true);
+	if (err)
+		return false;
+
+	set_bit(mid_idx, mlxsw_sp->bridge->mids_bitmap);
+	mid->in_hw = true;
+	return true;
+}
+
+static int mlxsw_sp_mc_remove_mdb_entry(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_mid *mid)
+{
+	clear_bit(mid->mid, mlxsw_sp->bridge->mids_bitmap);
+	mid->in_hw = false;
+	return mlxsw_sp_port_mdb_op(mlxsw_sp, mid->addr, mid->fid, mid->mid,
+				    false);
+}
+
 static struct
 mlxsw_sp_mid *__mlxsw_sp_mc_alloc(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_bridge_device *bridge_device,
@@ -1268,12 +1304,6 @@ mlxsw_sp_mid *__mlxsw_sp_mc_alloc(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_mid *mid;
 	size_t alloc_size;
-	u16 mid_idx;
-
-	mid_idx = find_first_zero_bit(mlxsw_sp->bridge->mids_bitmap,
-				      MLXSW_SP_MID_MAX);
-	if (mid_idx == MLXSW_SP_MID_MAX)
-		return NULL;
 
 	mid = kzalloc(sizeof(*mid), GFP_KERNEL);
 	if (!mid)
@@ -1281,36 +1311,43 @@ mlxsw_sp_mid *__mlxsw_sp_mc_alloc(struct mlxsw_sp *mlxsw_sp,
 
 	alloc_size = sizeof(unsigned long) *
 		     BITS_TO_LONGS(mlxsw_core_max_ports(mlxsw_sp->core));
-	mid->ports_in_mid = kzalloc(alloc_size, GFP_KERNEL);
-	if (!mid->ports_in_mid) {
-		kfree(mid);
-		return NULL;
-	}
 
-	set_bit(mid_idx, mlxsw_sp->bridge->mids_bitmap);
+	mid->ports_in_mid = kzalloc(alloc_size, GFP_KERNEL);
+	if (!mid->ports_in_mid)
+		goto err_ports_in_mid_alloc;
+
 	ether_addr_copy(mid->addr, addr);
 	mid->fid = fid;
-	mid->mid = mid_idx;
+	mid->in_hw = false;
+	if (!mlxsw_sp_mc_write_mdb_entry(mlxsw_sp, mid))
+		goto err_write_mdb_entry;
+
 	list_add_tail(&mid->list, &bridge_device->mids_list);
 
 	return mid;
+
+err_write_mdb_entry:
+	kfree(mid->ports_in_mid);
+err_ports_in_mid_alloc:
+	kfree(mid);
+	return NULL;
 }
 
 static int mlxsw_sp_port_remove_from_mid(struct mlxsw_sp_port *mlxsw_sp_port,
 					 struct mlxsw_sp_mid *mid)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	int err = 0;
 
 	clear_bit(mlxsw_sp_port->local_port, mid->ports_in_mid);
 	if (bitmap_empty(mid->ports_in_mid,
 			 mlxsw_core_max_ports(mlxsw_sp->core))) {
+		err = mlxsw_sp_mc_remove_mdb_entry(mlxsw_sp, mid);
 		list_del(&mid->list);
-		clear_bit(mid->mid, mlxsw_sp->bridge->mids_bitmap);
 		kfree(mid->ports_in_mid);
 		kfree(mid);
-		return 1;
 	}
-	return 0;
+	return err;
 }
 
 static int mlxsw_sp_port_mdb_add(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -1324,7 +1361,6 @@ static int mlxsw_sp_port_mdb_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	struct mlxsw_sp_bridge_device *bridge_device;
 	struct mlxsw_sp_bridge_port *bridge_port;
 	struct mlxsw_sp_mid *mid;
-	bool is_new_mid = false;
 	u16 fid_index;
 	int err = 0;
 
@@ -1352,8 +1388,6 @@ static int mlxsw_sp_port_mdb_add(struct mlxsw_sp_port *mlxsw_sp_port,
 			netdev_err(dev, "Unable to allocate MC group\n");
 			return -ENOMEM;
 		}
-		is_new_mid = true;
-		mlxsw_sp_port_smid_full_entry(mlxsw_sp, mid->mid);
 	}
 	set_bit(mlxsw_sp_port->local_port, mid->ports_in_mid);
 
@@ -1361,15 +1395,6 @@ static int mlxsw_sp_port_mdb_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (err) {
 		netdev_err(dev, "Unable to set SMID\n");
 		goto err_out;
-	}
-
-	if (is_new_mid) {
-		err = mlxsw_sp_port_mdb_op(mlxsw_sp, mdb->addr, fid_index,
-					   mid->mid, true);
-		if (err) {
-			netdev_err(dev, "Unable to set MC SFD\n");
-			goto err_out;
-		}
 	}
 
 	return 0;
@@ -1481,12 +1506,9 @@ static int mlxsw_sp_port_mdb_del(struct mlxsw_sp_port *mlxsw_sp_port,
 		netdev_err(dev, "Unable to remove port from SMID\n");
 
 	mid_idx = mid->mid;
-	if (mlxsw_sp_port_remove_from_mid(mlxsw_sp_port, mid)) {
-		err = mlxsw_sp_port_mdb_op(mlxsw_sp, mdb->addr, fid_index,
-					   mid_idx, false);
-		if (err)
-			netdev_err(dev, "Unable to remove MC SFD\n");
-	}
+	err = mlxsw_sp_port_remove_from_mid(mlxsw_sp_port, mid);
+	if (err)
+		netdev_err(dev, "Unable to remove MC SFD\n");
 
 	return err;
 }
