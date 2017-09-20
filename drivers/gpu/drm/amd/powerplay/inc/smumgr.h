@@ -195,12 +195,12 @@ extern bool smum_is_hw_avfs_present(struct pp_hwmgr *hwmgr);
 #define SMUM_WAIT_VFPF_INDIRECT_REGISTER_GIVEN_INDEX(hwmgr,		\
 				port, index, value, mask)		\
 	smum_wait_on_indirect_register(hwmgr,				\
-		mm##port##_INDEX_0, index, value, mask)
+		mm##port##_INDEX_11, index, value, mask)
 
 #define SMUM_WAIT_VFPF_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr,	\
 				port, index, value, mask)		\
 	smum_wait_for_indirect_register_unequal(hwmgr,			\
-		mm##port##_INDEX_0, index, value, mask)
+		mm##port##_INDEX_11, index, value, mask)
 
 
 #define SMUM_WAIT_VFPF_INDIRECT_REGISTER(hwmgr, port, reg, value, mask) \

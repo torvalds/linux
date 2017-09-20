@@ -2345,7 +2345,7 @@ static int ci_upload_firmware(struct pp_hwmgr *hwmgr)
 		pr_info("smc is running, no need to load smc firmware\n");
 		return 0;
 	}
-	SMUM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND, RCU_UC_EVENTS,
+	PHM_WAIT_INDIRECT_FIELD(hwmgr, SMC_IND, RCU_UC_EVENTS,
 			boot_seq_done, 1);
 	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMC_SYSCON_MISC_CNTL,
 			pre_fetcher_en, 1);
