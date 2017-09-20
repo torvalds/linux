@@ -52,6 +52,7 @@
 struct cpuhp_cpu_state {
 	enum cpuhp_state	state;
 	enum cpuhp_state	target;
+	enum cpuhp_state	fail;
 #ifdef CONFIG_SMP
 	struct task_struct	*thread;
 	bool			should_run;
@@ -67,7 +68,9 @@ struct cpuhp_cpu_state {
 #endif
 };
 
-static DEFINE_PER_CPU(struct cpuhp_cpu_state, cpuhp_state);
+static DEFINE_PER_CPU(struct cpuhp_cpu_state, cpuhp_state) = {
+	.fail = CPUHP_INVALID,
+};
 
 #if defined(CONFIG_LOCKDEP) && defined(CONFIG_SMP)
 static struct lockdep_map cpuhp_state_up_map =
@@ -159,6 +162,15 @@ static int cpuhp_invoke_callback(unsigned int cpu, enum cpuhp_state state,
 	int (*cbm)(unsigned int cpu, struct hlist_node *node);
 	int (*cb)(unsigned int cpu);
 	int ret, cnt;
+
+	if (st->fail == state) {
+		st->fail = CPUHP_INVALID;
+
+		if (!(bringup ? step->startup.single : step->teardown.single))
+			return 0;
+
+		return -EAGAIN;
+	}
 
 	if (!step->multi_instance) {
 		WARN_ON_ONCE(lastp && *lastp);
@@ -1805,9 +1817,55 @@ static ssize_t show_cpuhp_target(struct device *dev,
 }
 static DEVICE_ATTR(target, 0644, show_cpuhp_target, write_cpuhp_target);
 
+
+static ssize_t write_cpuhp_fail(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, dev->id);
+	struct cpuhp_step *sp;
+	int fail, ret;
+
+	ret = kstrtoint(buf, 10, &fail);
+	if (ret)
+		return ret;
+
+	/*
+	 * Cannot fail STARTING/DYING callbacks.
+	 */
+	if (cpuhp_is_atomic_state(fail))
+		return -EINVAL;
+
+	/*
+	 * Cannot fail anything that doesn't have callbacks.
+	 */
+	mutex_lock(&cpuhp_state_mutex);
+	sp = cpuhp_get_step(fail);
+	if (!sp->startup.single && !sp->teardown.single)
+		ret = -EINVAL;
+	mutex_unlock(&cpuhp_state_mutex);
+	if (ret)
+		return ret;
+
+	st->fail = fail;
+
+	return count;
+}
+
+static ssize_t show_cpuhp_fail(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, dev->id);
+
+	return sprintf(buf, "%d\n", st->fail);
+}
+
+static DEVICE_ATTR(fail, 0644, show_cpuhp_fail, write_cpuhp_fail);
+
 static struct attribute *cpuhp_cpu_attrs[] = {
 	&dev_attr_state.attr,
 	&dev_attr_target.attr,
+	&dev_attr_fail.attr,
 	NULL
 };
 
