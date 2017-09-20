@@ -1604,8 +1604,8 @@ fec_enet_interrupt(int irq, void *dev_id)
 	}
 
 	if (fep->ptp_clock)
-		fec_ptp_check_pps_event(fep);
-
+		if (fec_ptp_check_pps_event(fep))
+			ret = IRQ_HANDLED;
 	return ret;
 }
 
