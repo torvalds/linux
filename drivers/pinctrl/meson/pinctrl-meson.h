@@ -124,8 +124,6 @@ struct meson_pinctrl {
 	struct device_node *of_node;
 };
 
-#define PIN(x, b)	(b + x)
-
 #define GROUP(grp, r, b)						\
 	{								\
 		.name = #grp,						\
@@ -135,10 +133,10 @@ struct meson_pinctrl {
 		.bit = b,						\
 	 }
 
-#define GPIO_GROUP(gpio, b)						\
+#define GPIO_GROUP(gpio)						\
 	{								\
 		.name = #gpio,						\
-		.pins = (const unsigned int[]){ PIN(gpio, b) },		\
+		.pins = (const unsigned int[]){ gpio },			\
 		.num_pins = 1,						\
 		.is_gpio = true,					\
 	 }
@@ -166,7 +164,7 @@ struct meson_pinctrl {
 		},							\
 	 }
 
-#define MESON_PIN(x, b) PINCTRL_PIN(PIN(x, b), #x)
+#define MESON_PIN(x) PINCTRL_PIN(x, #x)
 
 extern struct meson_pinctrl_data meson8_cbus_pinctrl_data;
 extern struct meson_pinctrl_data meson8_aobus_pinctrl_data;
