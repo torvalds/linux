@@ -1504,6 +1504,11 @@ int hclge_rx_buffer_calc(struct hclge_dev *hdev, u32 tx_size)
 				priv->wl.high = 2 * hdev->mps;
 				priv->buf_size = priv->wl.high;
 			}
+		} else {
+			priv->enable = 0;
+			priv->wl.low = 0;
+			priv->wl.high = 0;
+			priv->buf_size = 0;
 		}
 	}
 
@@ -1516,8 +1521,15 @@ int hclge_rx_buffer_calc(struct hclge_dev *hdev, u32 tx_size)
 	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
 		priv = &hdev->priv_buf[i];
 
-		if (hdev->hw_tc_map & BIT(i))
-			priv->enable = 1;
+		priv->enable = 0;
+		priv->wl.low = 0;
+		priv->wl.high = 0;
+		priv->buf_size = 0;
+
+		if (!(hdev->hw_tc_map & BIT(i)))
+			continue;
+
+		priv->enable = 1;
 
 		if (hdev->tm_info.hw_pfc_map & BIT(i)) {
 			priv->wl.low = 128;
