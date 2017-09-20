@@ -17,9 +17,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <signal.h>
 #include <sys/ioctl.h>
 #include <lkl.h>
 #include <lkl_host.h>
@@ -328,6 +328,17 @@ hijack_init(void)
 
 	if (single_cpu_mode == 1)
 		PinToFirstCpu(&ori_cpu);
+
+#ifdef __ANDROID__
+	struct sigaction sa;
+
+	sa.sa_handler = SIG_IGN;
+	sa.sa_flags = 0;
+	if (sigaction(32, &sa, 0) == -1) {
+		perror("sigaction");
+		exit(1);
+	}
+#endif
 
 	ret = lkl_start_kernel(&lkl_host_ops, boot_cmdline);
 	if (ret) {

@@ -5,19 +5,29 @@ general:
 machine:
   # Add some environment variables
   environment:
-    CROSS_COMPILE: $(case $CIRCLE_NODE_INDEX in 0) host='' ;; 1) host='i686-w64-mingw32-' ;; 2) host='arm-linux-androideabi-' ;; esac; echo $host)
-    MKARG: $(case $CIRCLE_NODE_INDEX in 0) mkarg='dpdk=yes' ;; 1) host='i686-w64-mingw32-' ;; 2) host='arm-linux-androideabi-' ;; esac; echo $mkarg)
-    PATH: /home/ubuntu/android-toolchain/bin:${PATH}
+    CROSS_COMPILE: $(case $CIRCLE_NODE_INDEX in 0) host='' ;; 1) host='i686-w64-mingw32-' ;; 2) host='arm-linux-androideabi-' ;; 3) host='aarch64-linux-android-' ;; esac; echo $host)
+    MKARG: $(case $CIRCLE_NODE_INDEX in 0) mkarg='dpdk=yes' ;; 1)  ;; 2)  ;; 3) ;; esac; echo $mkarg)
+    PATH: /home/ubuntu/aarch64-linux-android-5.4-linaro-2016.06/bin:/home/ubuntu/android-toolchain/bin:${PATH}
     LKL_TEST_DHCP: 1
+    LKL_ANDROID_TEST: $(case $CIRCLE_NODE_INDEX in 2) echo 1 ;; 3) echo 1 ;; esac)
 
 ## Customize dependencies
 dependencies:
   pre:
     # required for 14.04 container
-    # - sudo dpkg --add-architecture i386
+    - sudo dpkg --add-architecture i386
+    - echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | sudo debconf-set-selections
+    - wget https://dl.winehq.org/wine-builds/Release.key ; sudo apt-key add Release.key ; sudo apt-add-repository 'https://dl.winehq.org/wine-builds/ubuntu/'
     - sudo apt-get update; sudo apt-get install bc libfuse-dev libarchive-dev xfsprogs valgrind gcc-mingw-w64-i686 wine qemu-user-static linux-headers-$(uname -r) ccache
-    - /usr/local/android-ndk/build/tools/make-standalone-toolchain.sh --platform=android-21 --install-dir=/home/ubuntu/android-toolchain --arch=arm
+    - wget -q --output-document=android-ndk.zip https://dl.google.com/android/repository/android-ndk-r15b-linux-x86_64.zip && unzip android-ndk.zip
+    - if [ $CIRCLE_NODE_INDEX -eq 2 ] ; then ./android-ndk-r15b/build/tools/make_standalone_toolchain.py --arch arm --api 24 --install-dir /home/ubuntu/android-toolchain ; fi:
+        parallel: true
+    - if [ $CIRCLE_NODE_INDEX -eq 3 ] ; then ./android-ndk-r15b/build/tools/make_standalone_toolchain.py --arch arm64 --api 24 --install-dir /home/ubuntu/android-toolchain ; fi:
+        parallel: true
     - sudo cp tools/lkl/bin/i686-w64-mingw32-* /usr/bin:
+        parallel: true
+    # for aarch64 instance
+    - if [ $CIRCLE_NODE_INDEX -eq 3 ] ; then cd $HOME ; wget https://android-git.linaro.org/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-5.4-linaro.git/snapshot/aarch64-linux-android-5.4-linaro-2016.06.tar.gz ; tar xfz aarch64-linux-android-5.4-linaro-2016.06.tar.gz ; cd aarch64-linux-android-5.4-linaro-2016.06 ; ln -s /home/ubuntu/android-toolchain/sysroot ; fi:
         parallel: true
     - git fetch --tags git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
   override:
@@ -36,9 +46,13 @@ test:
   pre:
     - tools/lkl/scripts/checkpatch.sh
   override:
-    - cd tools/lkl && if [ $CIRCLE_NODE_INDEX -eq 2 ] ; then make tests/boot-in.o; arm-linux-androideabi-gcc -o tests/boot tests/boot-in.o liblkl.a -static ; fi:
+    - if [ $CIRCLE_NODE_INDEX -eq 2 -o $CIRCLE_NODE_INDEX -eq 3 ] ; then emulator -avd circleci-android24 -no-window ; fi:
+        background: true
         parallel: true
-    - cd tools/lkl && make test:
+    - if [ $CIRCLE_NODE_INDEX -eq 2 -o $CIRCLE_NODE_INDEX -eq 3 ] ; then circle-android wait-for-boot ; fi:
+        parallel: true
+    # can't exec qemu-aarch64 emulator on circleci ...
+    - if [ $CIRCLE_NODE_INDEX -ne 3 ] ; then cd tools/lkl && make test ; fi:
          parallel: true
 
     - ? >

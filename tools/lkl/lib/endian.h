@@ -5,9 +5,6 @@
 #include <sys/endian.h>
 #elif defined(__ANDROID__)
 #include <sys/endian.h>
-#define le16toh(x) letoh16(x)
-#define le32toh(x) letoh32(x)
-#define le64toh(x) letoh64(x)
 #elif defined(__MINGW32__)
 #include <winsock.h>
 #define le32toh(x) (x)

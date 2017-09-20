@@ -1,6 +1,5 @@
-#ifdef CONFIG_AUTO_LKL_VIRTIO_NET_VDE
-
 #include <stdio.h>
+#ifdef CONFIG_AUTO_LKL_VIRTIO_NET_VDE
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>

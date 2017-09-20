@@ -39,10 +39,11 @@ export srctree
 export CFLAGS += -I$(OUTPUT)/include -Iinclude -Wall -g -O2 -Wextra \
 	 -Wno-unused-parameter \
 	 -Wno-missing-field-initializers -fno-strict-aliasing
+LDFLAGS += -pie
 
 OUTPUT_FORMAT = $(shell $(LD) -r -print-output-format)
 
-ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64 elf32-i386 elf64-x86-64-freebsd elf32-littlearm))
+ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64 elf32-i386 elf64-x86-64-freebsd elf32-littlearm elf64-littleaarch64))
   OUTPUT_DEF = $(shell echo | $(CC) -dM -E -)
   CFLAGS   += -fPIC -pthread
   ifeq (,$(filter $(OUTPUT_DEF),__ANDROID__))
@@ -112,6 +113,9 @@ $(OUTPUT)liblkl$(SOSUF): LDFLAGS += -shared
 $(OUTPUT)liblkl-hijack$(SOSUF): $(OUTPUT)lib/hijack/hijack-in.o $(OUTPUT)liblkl.a
 $(OUTPUT)liblkl-hijack$(SOSUF): LDFLAGS += -shared -nodefaultlibs
 $(OUTPUT)liblkl-hijack$(SOSUF): LDLIBS += -ldl
+ifneq (,$(filter $(OUTPUT_DEF),__ANDROID__))
+  $(OUTPUT)liblkl-hijack$(SOSUF): LDLIBS += -lgcc -lc
+endif
 
 $(OUTPUT)lklfuse$(EXESUF): $(OUTPUT)lklfuse-in.o $(OUTPUT)liblkl.a
 $(OUTPUT)lklfuse$(EXESUF): LDLIBS += -lfuse
@@ -131,12 +135,15 @@ endif
 TEST_TARGETS        := test valgrind gdb
 
 $(OUTPUT)tests/boot: $(OUTPUT)tests/boot-in.o $(OUTPUT)liblkl.a
+ifneq (,$(filter $(OUTPUT_DEF),__ANDROID__))
+  $(OUTPUT)tests/boot: LDLIBS += -lc
+endif
 $(OUTPUT)tests/net-test: $(OUTPUT)tests/net-test-in.o $(OUTPUT)liblkl.a
 $(TEST_TARGETS): $(OUTPUT)tests/boot $(OUTPUT)tests/net-test
 
 # because of libdl, liblkl-hijack will not compile on windows
 # fortunately, the test target will handle a missing libhijack.so correctly
-ifeq (,$(filter $(OUTPUT_FORMAT),pe-i386 elf32-littlearm))
+ifeq (,$(filter $(OUTPUT_FORMAT),pe-i386))
   test: liblkl-hijack$(SOSUF)
 endif
 
@@ -145,7 +152,9 @@ $(OUTPUT)%-in.o: $(OUTPUT)lib/lkl.o FORCE
 
 $(OUTPUT)lib/lkl.o:
 	$(Q)$(MAKE) -C ../.. ARCH=lkl $(KOPT) defconfig
-	$(Q)$(MAKE) -C ../.. ARCH=lkl $(KOPT) install INSTALL_PATH=$(OUTPUT)
+# this workaround is for arm32 linker (ld.gold)
+	$(Q)export PATH=$(srctree)/tools/lkl/bin/:${PATH} ;\
+	$(MAKE) -C ../.. ARCH=lkl $(KOPT) install INSTALL_PATH=$(OUTPUT)
 
 $(OUTPUT)liblkl.a: $(OUTPUT)lib/lkl-in.o $(OUTPUT)lib/lkl.o
 	$(QUIET_AR)$(AR) -rc $@ $^
@@ -162,9 +171,7 @@ $(OUTPUT)cpfromfs$(EXESUF): cptofs$(EXESUF)
 ifneq (,$(filter $(OUTPUT_FORMAT),pe-i386))
   all: $(filter-out $(OUTPUT)liblkl-hijack$(SOSUF), $(ALL_LIBRARIES))
 else ifneq (,$(filter $(OUTPUT_DEF),__ANDROID__))
-  all: $(filter-out $(OUTPUT)liblkl-hijack$(SOSUF), $(ALL_LIBRARIES))
-else ifneq (,$(filter $(OUTPUT_FORMAT),elf32-littlearm))
-  all: $(filter-out $(OUTPUT)liblkl-hijack$(SOSUF), $(ALL_LIBRARIES)) $(ALL_PROGRAMS)
+  all: $(ALL_LIBRARIES)
 else
   all: $(ALL_PROGRAMS) $(ALL_LIBRARIES)
 endif
