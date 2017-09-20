@@ -123,13 +123,16 @@ static struct cpuhp_step *cpuhp_get_step(enum cpuhp_state state)
 /**
  * cpuhp_invoke_callback _ Invoke the callbacks for a given state
  * @cpu:	The cpu for which the callback should be invoked
- * @step:	The step in the state machine
+ * @state:	The state to do callbacks for
  * @bringup:	True if the bringup callback should be invoked
+ * @node:	For multi-instance, do a single entry callback for install/remove
+ * @lastp:	For multi-instance rollback, remember how far we got
  *
  * Called from cpu hotplug and from the state register machinery.
  */
 static int cpuhp_invoke_callback(unsigned int cpu, enum cpuhp_state state,
-				 bool bringup, struct hlist_node *node)
+				 bool bringup, struct hlist_node *node,
+				 struct hlist_node **lastp)
 {
 	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
 	struct cpuhp_step *step = cpuhp_get_step(state);
@@ -138,6 +141,7 @@ static int cpuhp_invoke_callback(unsigned int cpu, enum cpuhp_state state,
 	int ret, cnt;
 
 	if (!step->multi_instance) {
+		WARN_ON_ONCE(lastp && *lastp);
 		cb = bringup ? step->startup.single : step->teardown.single;
 		if (!cb)
 			return 0;
@@ -152,6 +156,7 @@ static int cpuhp_invoke_callback(unsigned int cpu, enum cpuhp_state state,
 
 	/* Single invocation for instance add/remove */
 	if (node) {
+		WARN_ON_ONCE(lastp && *lastp);
 		trace_cpuhp_multi_enter(cpu, st->target, state, cbm, node);
 		ret = cbm(cpu, node);
 		trace_cpuhp_exit(cpu, st->state, state, ret);
@@ -161,13 +166,23 @@ static int cpuhp_invoke_callback(unsigned int cpu, enum cpuhp_state state,
 	/* State transition. Invoke on all instances */
 	cnt = 0;
 	hlist_for_each(node, &step->list) {
+		if (lastp && node == *lastp)
+			break;
+
 		trace_cpuhp_multi_enter(cpu, st->target, state, cbm, node);
 		ret = cbm(cpu, node);
 		trace_cpuhp_exit(cpu, st->state, state, ret);
-		if (ret)
-			goto err;
+		if (ret) {
+			if (!lastp)
+				goto err;
+
+			*lastp = node;
+			return ret;
+		}
 		cnt++;
 	}
+	if (lastp)
+		*lastp = NULL;
 	return 0;
 err:
 	/* Rollback the instances if one failed */
@@ -323,7 +338,7 @@ static void undo_cpu_down(unsigned int cpu, struct cpuhp_cpu_state *st)
 		struct cpuhp_step *step = cpuhp_get_step(st->state);
 
 		if (!step->skip_onerr)
-			cpuhp_invoke_callback(cpu, st->state, true, NULL);
+			cpuhp_invoke_callback(cpu, st->state, true, NULL, NULL);
 	}
 }
 
@@ -334,7 +349,7 @@ static int cpuhp_down_callbacks(unsigned int cpu, struct cpuhp_cpu_state *st,
 	int ret = 0;
 
 	for (; st->state > target; st->state--) {
-		ret = cpuhp_invoke_callback(cpu, st->state, false, NULL);
+		ret = cpuhp_invoke_callback(cpu, st->state, false, NULL, NULL);
 		if (ret) {
 			st->target = prev_state;
 			undo_cpu_down(cpu, st);
@@ -350,7 +365,7 @@ static void undo_cpu_up(unsigned int cpu, struct cpuhp_cpu_state *st)
 		struct cpuhp_step *step = cpuhp_get_step(st->state);
 
 		if (!step->skip_onerr)
-			cpuhp_invoke_callback(cpu, st->state, false, NULL);
+			cpuhp_invoke_callback(cpu, st->state, false, NULL, NULL);
 	}
 }
 
@@ -362,7 +377,7 @@ static int cpuhp_up_callbacks(unsigned int cpu, struct cpuhp_cpu_state *st,
 
 	while (st->state < target) {
 		st->state++;
-		ret = cpuhp_invoke_callback(cpu, st->state, true, NULL);
+		ret = cpuhp_invoke_callback(cpu, st->state, true, NULL, NULL);
 		if (ret) {
 			st->target = prev_state;
 			undo_cpu_up(cpu, st);
@@ -428,11 +443,13 @@ static void cpuhp_thread_fun(unsigned int cpu)
 		if (st->cb_state < CPUHP_AP_ONLINE) {
 			local_irq_disable();
 			ret = cpuhp_invoke_callback(cpu, st->cb_state,
-						    st->bringup, st->node);
+						    st->bringup, st->node,
+						    NULL);
 			local_irq_enable();
 		} else {
 			ret = cpuhp_invoke_callback(cpu, st->cb_state,
-						    st->bringup, st->node);
+						    st->bringup, st->node,
+						    NULL);
 		}
 	} else if (st->rollback) {
 		BUG_ON(st->state < CPUHP_AP_ONLINE_IDLE);
@@ -472,7 +489,7 @@ cpuhp_invoke_ap_callback(int cpu, enum cpuhp_state state, bool bringup,
 	 * we invoke the thread function directly.
 	 */
 	if (!st->thread)
-		return cpuhp_invoke_callback(cpu, state, bringup, node);
+		return cpuhp_invoke_callback(cpu, state, bringup, node, NULL);
 
 	st->cb_state = state;
 	st->single = true;
@@ -595,7 +612,7 @@ static int take_cpu_down(void *_param)
 	st->state--;
 	/* Invoke the former CPU_DYING callbacks */
 	for (; st->state > target; st->state--)
-		cpuhp_invoke_callback(cpu, st->state, false, NULL);
+		cpuhp_invoke_callback(cpu, st->state, false, NULL, NULL);
 
 	/* Give up timekeeping duties */
 	tick_handover_do_timer();
@@ -776,7 +793,7 @@ void notify_cpu_starting(unsigned int cpu)
 	rcu_cpu_starting(cpu);	/* Enables RCU usage on this CPU. */
 	while (st->state < target) {
 		st->state++;
-		cpuhp_invoke_callback(cpu, st->state, true, NULL);
+		cpuhp_invoke_callback(cpu, st->state, true, NULL, NULL);
 	}
 }
 
@@ -1307,9 +1324,9 @@ static int cpuhp_issue_call(int cpu, enum cpuhp_state state, bool bringup,
 	if (cpuhp_is_ap_state(state))
 		ret = cpuhp_invoke_ap_callback(cpu, state, bringup, node);
 	else
-		ret = cpuhp_invoke_callback(cpu, state, bringup, node);
+		ret = cpuhp_invoke_callback(cpu, state, bringup, node, NULL);
 #else
-	ret = cpuhp_invoke_callback(cpu, state, bringup, node);
+	ret = cpuhp_invoke_callback(cpu, state, bringup, node, NULL);
 #endif
 	BUG_ON(ret && !bringup);
 	return ret;
