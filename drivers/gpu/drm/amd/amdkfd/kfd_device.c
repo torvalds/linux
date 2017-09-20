@@ -184,7 +184,7 @@ static void iommu_pasid_shutdown_callback(struct pci_dev *pdev, int pasid)
 	struct kfd_dev *dev = kfd_device_by_pci_dev(pdev);
 
 	if (dev)
-		kfd_unbind_process_from_device(dev, pasid);
+		kfd_process_iommu_unbind_callback(dev, pasid);
 }
 
 /*
@@ -332,12 +332,16 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 
 void kgd2kfd_suspend(struct kfd_dev *kfd)
 {
-	if (kfd->init_complete) {
-		kfd->dqm->ops.stop(kfd->dqm);
-		amd_iommu_set_invalidate_ctx_cb(kfd->pdev, NULL);
-		amd_iommu_set_invalid_ppr_cb(kfd->pdev, NULL);
-		amd_iommu_free_device(kfd->pdev);
-	}
+	if (!kfd->init_complete)
+		return;
+
+	kfd->dqm->ops.stop(kfd->dqm);
+
+	kfd_unbind_processes_from_device(kfd);
+
+	amd_iommu_set_invalidate_ctx_cb(kfd->pdev, NULL);
+	amd_iommu_set_invalid_ppr_cb(kfd->pdev, NULL);
+	amd_iommu_free_device(kfd->pdev);
 }
 
 int kgd2kfd_resume(struct kfd_dev *kfd)
@@ -362,6 +366,10 @@ static int kfd_resume(struct kfd_dev *kfd)
 	amd_iommu_set_invalid_ppr_cb(kfd->pdev,
 				     iommu_invalid_ppr_cb);
 
+	err = kfd_bind_processes_to_device(kfd);
+	if (err)
+		goto processes_bind_error;
+
 	err = kfd->dqm->ops.start(kfd->dqm);
 	if (err) {
 		dev_err(kfd_device,
@@ -373,6 +381,7 @@ static int kfd_resume(struct kfd_dev *kfd)
 	return err;
 
 dqm_start_error:
+processes_bind_error:
 	amd_iommu_free_device(kfd->pdev);
 
 	return err;

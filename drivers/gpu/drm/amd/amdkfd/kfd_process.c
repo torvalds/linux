@@ -174,9 +174,10 @@ static void kfd_process_wq_release(struct work_struct *work)
 		if (pdd->reset_wavefronts)
 			dbgdev_wave_reset_wavefronts(pdd->dev, p);
 
-		amd_iommu_unbind_pasid(pdd->dev->pdev, p->pasid);
-		list_del(&pdd->per_device_list);
+		if (pdd->bound == PDD_BOUND)
+			amd_iommu_unbind_pasid(pdd->dev->pdev, p->pasid);
 
+		list_del(&pdd->per_device_list);
 		kfree(pdd);
 	}
 
@@ -351,9 +352,9 @@ struct kfd_process_device *kfd_get_process_device_data(struct kfd_dev *dev,
 
 	list_for_each_entry(pdd, &p->per_device_data, per_device_list)
 		if (pdd->dev == dev)
-			break;
+			return pdd;
 
-	return pdd;
+	return NULL;
 }
 
 struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
@@ -368,6 +369,7 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 		INIT_LIST_HEAD(&pdd->qpd.priv_queue_list);
 		pdd->qpd.dqm = dev->dqm;
 		pdd->reset_wavefronts = false;
+		pdd->bound = PDD_UNBOUND;
 		list_add(&pdd->per_device_list, &p->per_device_data);
 	}
 
@@ -393,19 +395,91 @@ struct kfd_process_device *kfd_bind_process_to_device(struct kfd_dev *dev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	if (pdd->bound)
+	if (pdd->bound == PDD_BOUND) {
 		return pdd;
+	} else if (unlikely(pdd->bound == PDD_BOUND_SUSPENDED)) {
+		pr_err("Binding PDD_BOUND_SUSPENDED pdd is unexpected!\n");
+		return ERR_PTR(-EINVAL);
+	}
 
 	err = amd_iommu_bind_pasid(dev->pdev, p->pasid, p->lead_thread);
 	if (err < 0)
 		return ERR_PTR(err);
 
-	pdd->bound = true;
+	pdd->bound = PDD_BOUND;
 
 	return pdd;
 }
 
-void kfd_unbind_process_from_device(struct kfd_dev *dev, unsigned int pasid)
+/*
+ * Bind processes do the device that have been temporarily unbound
+ * (PDD_BOUND_SUSPENDED) in kfd_unbind_processes_from_device.
+ */
+int kfd_bind_processes_to_device(struct kfd_dev *dev)
+{
+	struct kfd_process_device *pdd;
+	struct kfd_process *p;
+	unsigned int temp;
+	int err = 0;
+
+	int idx = srcu_read_lock(&kfd_processes_srcu);
+
+	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
+		mutex_lock(&p->mutex);
+		pdd = kfd_get_process_device_data(dev, p);
+		if (pdd->bound != PDD_BOUND_SUSPENDED) {
+			mutex_unlock(&p->mutex);
+			continue;
+		}
+
+		err = amd_iommu_bind_pasid(dev->pdev, p->pasid,
+				p->lead_thread);
+		if (err < 0) {
+			pr_err("unexpected pasid %d binding failure\n",
+					p->pasid);
+			mutex_unlock(&p->mutex);
+			break;
+		}
+
+		pdd->bound = PDD_BOUND;
+		mutex_unlock(&p->mutex);
+	}
+
+	srcu_read_unlock(&kfd_processes_srcu, idx);
+
+	return err;
+}
+
+/*
+ * Temporarily unbind currently bound processes from the device and
+ * mark them as PDD_BOUND_SUSPENDED. These processes will be restored
+ * to PDD_BOUND state in kfd_bind_processes_to_device.
+ */
+void kfd_unbind_processes_from_device(struct kfd_dev *dev)
+{
+	struct kfd_process_device *pdd;
+	struct kfd_process *p;
+	unsigned int temp, temp_bound, temp_pasid;
+
+	int idx = srcu_read_lock(&kfd_processes_srcu);
+
+	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
+		mutex_lock(&p->mutex);
+		pdd = kfd_get_process_device_data(dev, p);
+		temp_bound = pdd->bound;
+		temp_pasid = p->pasid;
+		if (pdd->bound == PDD_BOUND)
+			pdd->bound = PDD_BOUND_SUSPENDED;
+		mutex_unlock(&p->mutex);
+
+		if (temp_bound == PDD_BOUND)
+			amd_iommu_unbind_pasid(dev->pdev, temp_pasid);
+	}
+
+	srcu_read_unlock(&kfd_processes_srcu, idx);
+}
+
+void kfd_process_iommu_unbind_callback(struct kfd_dev *dev, unsigned int pasid)
 {
 	struct kfd_process *p;
 	struct kfd_process_device *pdd;
@@ -437,15 +511,6 @@ void kfd_unbind_process_from_device(struct kfd_dev *dev, unsigned int pasid)
 		dbgdev_wave_reset_wavefronts(pdd->dev, p);
 		pdd->reset_wavefronts = false;
 	}
-
-	/*
-	 * Just mark pdd as unbound, because we still need it
-	 * to call amd_iommu_unbind_pasid() in when the
-	 * process exits.
-	 * We don't call amd_iommu_unbind_pasid() here
-	 * because the IOMMU called us.
-	 */
-	pdd->bound = false;
 
 	mutex_unlock(&p->mutex);
 }
