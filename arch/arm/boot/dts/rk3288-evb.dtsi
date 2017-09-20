@@ -305,6 +305,8 @@
 		clock-names = "mclk";
 		interrupt-parent = <&gpio6>;
 		interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s0_mclk>;
 	};
 };
 

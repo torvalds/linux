@@ -421,6 +421,8 @@
 		hp-det-gpio = <&gpio5 19 GPIO_ACTIVE_HIGH>;
 		clock-names = "mclk";
 		clocks = <&cru SCLK_I2S0_OUT>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s0_mclk>;
 		#sound-dai-cells = <0>;
 	};
 };

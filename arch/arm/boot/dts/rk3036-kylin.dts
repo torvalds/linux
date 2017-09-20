@@ -357,6 +357,8 @@
 		reg = <0x1b>;
 		clocks = <&cru SCLK_I2S_OUT>;
 		clock-names = "mclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s_mclk>;
 		#sound-dai-cells = <0>;
 	};
 };

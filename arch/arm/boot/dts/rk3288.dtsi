@@ -1860,8 +1860,11 @@
 						<6 1 RK_FUNC_1 &pcfg_pull_none>,
 						<6 2 RK_FUNC_1 &pcfg_pull_none>,
 						<6 3 RK_FUNC_1 &pcfg_pull_none>,
-						<6 4 RK_FUNC_1 &pcfg_pull_none>,
-						<6 8 RK_FUNC_1 &pcfg_pull_none>;
+						<6 4 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			i2s0_mclk: i2s0-mclk {
+				rockchip,pins = <6 8 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 
