@@ -171,7 +171,7 @@ enum {
 };
 
 enum hns_roce_mtt_type {
-	MTT_TYPE_WQE = 0,
+	MTT_TYPE_WQE,
 	MTT_TYPE_CQE,
 };
 
