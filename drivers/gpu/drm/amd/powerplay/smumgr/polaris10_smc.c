@@ -866,7 +866,7 @@ static int polaris10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 
 	if (mclk_stutter_mode_threshold &&
 		(clock <= mclk_stutter_mode_threshold) &&
-		(SMUM_READ_FIELD(hwmgr->device, DPG_PIPE_STUTTER_CONTROL,
+		(PHM_READ_FIELD(hwmgr->device, DPG_PIPE_STUTTER_CONTROL,
 				STUTTER_ENABLE) & 0x1))
 		mem_level->StutterEnable = true;
 

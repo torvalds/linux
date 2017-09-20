@@ -219,7 +219,7 @@ int ci_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 
 	PHM_WAIT_FIELD_UNEQUAL(hwmgr, SMC_RESP_0, SMC_RESP, 0);
 
-	ret = SMUM_READ_FIELD(hwmgr->device, SMC_RESP_0, SMC_RESP);
+	ret = PHM_READ_FIELD(hwmgr->device, SMC_RESP_0, SMC_RESP);
 
 	if (ret != 1)
 		pr_info("\n failed to send message %x ret is %d\n",  msg, ret);

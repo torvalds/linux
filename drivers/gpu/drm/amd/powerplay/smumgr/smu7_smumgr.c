@@ -172,7 +172,7 @@ int smu7_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 
 	PHM_WAIT_FIELD_UNEQUAL(hwmgr, SMC_RESP_0, SMC_RESP, 0);
 
-	ret = SMUM_READ_FIELD(hwmgr->device, SMC_RESP_0, SMC_RESP);
+	ret = PHM_READ_FIELD(hwmgr->device, SMC_RESP_0, SMC_RESP);
 
 	if (ret != 1)
 		pr_info("\n failed to send pre message %x ret is %d \n",  msg, ret);
@@ -181,7 +181,7 @@ int smu7_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 
 	PHM_WAIT_FIELD_UNEQUAL(hwmgr, SMC_RESP_0, SMC_RESP, 0);
 
-	ret = SMUM_READ_FIELD(hwmgr->device, SMC_RESP_0, SMC_RESP);
+	ret = PHM_READ_FIELD(hwmgr->device, SMC_RESP_0, SMC_RESP);
 
 	if (ret != 1)
 		pr_info("\n failed to send message %x ret is %d \n",  msg, ret);
@@ -224,7 +224,7 @@ int smu7_send_msg_to_smc_offset(struct pp_hwmgr *hwmgr)
 
 	PHM_WAIT_FIELD_UNEQUAL(hwmgr, SMC_RESP_0, SMC_RESP, 0);
 
-	if (1 != SMUM_READ_FIELD(hwmgr->device, SMC_RESP_0, SMC_RESP))
+	if (1 != PHM_READ_FIELD(hwmgr->device, SMC_RESP_0, SMC_RESP))
 		pr_info("Failed to send Message.\n");
 
 	return 0;
