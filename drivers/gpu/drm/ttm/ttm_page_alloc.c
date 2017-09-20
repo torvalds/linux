@@ -685,12 +685,24 @@ static void ttm_put_pages(struct page **pages, unsigned npages, int flags,
 
 	if (pool == NULL) {
 		/* No pool for this memory type so free the pages */
-		for (i = 0; i < npages; i++) {
-			if (pages[i]) {
-				if (page_count(pages[i]) != 1)
-					pr_err("Erroneous page count. Leaking pages.\n");
-				__free_page(pages[i]);
-				pages[i] = NULL;
+		i = 0;
+		while (i < npages) {
+			unsigned order;
+
+			if (!pages[i]) {
+				++i;
+				continue;
+			}
+
+			if (page_count(pages[i]) != 1)
+				pr_err("Erroneous page count. Leaking pages.\n");
+			order = compound_order(pages[i]);
+			__free_pages(pages[i], order);
+
+			order = 1 << order;
+			while (order) {
+				pages[i++] = NULL;
+				--order;
 			}
 		}
 		return;
@@ -740,12 +752,33 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 
 	/* No pool for cached pages */
 	if (pool == NULL) {
+		unsigned i, j;
+
 		if (flags & TTM_PAGE_FLAG_DMA32)
 			gfp_flags |= GFP_DMA32;
 		else
 			gfp_flags |= GFP_HIGHUSER;
 
-		for (r = 0; r < npages; ++r) {
+		i = 0;
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+		while (npages >= HPAGE_PMD_NR) {
+			gfp_t huge_flags = gfp_flags;
+
+			huge_flags |= GFP_TRANSHUGE;
+			huge_flags &= ~__GFP_MOVABLE;
+			huge_flags &= ~__GFP_COMP;
+			p = alloc_pages(huge_flags, HPAGE_PMD_ORDER);
+			if (!p)
+				break;
+
+			for (j = 0; j < HPAGE_PMD_NR; ++j)
+				pages[i++] = p++;
+
+			npages -= HPAGE_PMD_NR;
+		}
+#endif
+
+		while (npages) {
 			p = alloc_page(gfp_flags);
 			if (!p) {
 
@@ -753,7 +786,8 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 				return -ENOMEM;
 			}
 
-			pages[r] = p;
+			pages[i++] = p;
+			--npages;
 		}
 		return 0;
 	}
