@@ -399,7 +399,7 @@ static int meson_pinconf_group_set(struct pinctrl_dev *pcdev,
 static int meson_pinconf_group_get(struct pinctrl_dev *pcdev,
 				   unsigned int group, unsigned long *config)
 {
-	return -ENOSYS;
+	return -ENOTSUPP;
 }
 
 static const struct pinconf_ops meson_pinconf_ops = {
