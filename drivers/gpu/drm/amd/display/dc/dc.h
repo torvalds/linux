@@ -191,6 +191,8 @@ struct dc_debug {
 	bool disable_dmcu;
 	bool disable_psr;
 	bool force_abm_enable;
+	bool disable_hbup_pg;
+	bool disable_dpp_pg;
 };
 struct dc_state;
 struct resource_pool;
