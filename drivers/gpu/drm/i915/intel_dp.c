@@ -2697,7 +2697,7 @@ static void intel_disable_dp(struct intel_encoder *encoder,
 	if (old_crtc_state->has_audio)
 		intel_audio_codec_disable(encoder);
 
-	if (HAS_PSR(dev_priv) && !HAS_DDI(dev_priv))
+	if (!HAS_DDI(dev_priv))
 		intel_psr_disable(intel_dp, old_crtc_state);
 
 	/* Make sure the panel is off before trying to change the mode. But also
