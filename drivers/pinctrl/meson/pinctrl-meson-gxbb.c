@@ -141,8 +141,6 @@ static const struct pinctrl_pin_desc meson_gxbb_periphs_pins[] = {
 	MESON_PIN(GPIOCLK_1),
 	MESON_PIN(GPIOCLK_2),
 	MESON_PIN(GPIOCLK_3),
-
-	MESON_PIN(GPIO_TEST_N),
 };
 
 static const unsigned int emmc_nand_d07_pins[] = {
@@ -258,6 +256,8 @@ static const struct pinctrl_pin_desc meson_gxbb_aobus_pins[] = {
 	MESON_PIN(GPIOAO_11),
 	MESON_PIN(GPIOAO_12),
 	MESON_PIN(GPIOAO_13),
+
+	MESON_PIN(GPIO_TEST_N),
 };
 
 static const unsigned int uart_tx_ao_a_pins[]	= { GPIOAO_0 };
@@ -596,8 +596,6 @@ static const char * const gpio_periphs_groups[] = {
 	"GPIOX_10", "GPIOX_11", "GPIOX_12", "GPIOX_13", "GPIOX_14",
 	"GPIOX_15", "GPIOX_16", "GPIOX_17", "GPIOX_18", "GPIOX_19",
 	"GPIOX_20", "GPIOX_21", "GPIOX_22",
-
-	"GPIO_TEST_N",
 };
 
 static const char * const emmc_groups[] = {
@@ -706,6 +704,8 @@ static const char * const gpio_aobus_groups[] = {
 	"GPIOAO_0", "GPIOAO_1", "GPIOAO_2", "GPIOAO_3", "GPIOAO_4",
 	"GPIOAO_5", "GPIOAO_6", "GPIOAO_7", "GPIOAO_8", "GPIOAO_9",
 	"GPIOAO_10", "GPIOAO_11", "GPIOAO_12", "GPIOAO_13",
+
+	"GPIO_TEST_N",
 };
 
 static const char * const uart_ao_groups[] = {
