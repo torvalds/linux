@@ -66,6 +66,10 @@ void cxl_debugfs_add_adapter_regs_psl9(struct cxl *adapter, struct dentry *dir)
 			      _cxl_p1_addr(adapter, CXL_PSL9_FIR_MASK));
 	debugfs_create_io_x64("fir_cntl", S_IRUSR, dir, _cxl_p1_addr(adapter, CXL_PSL9_FIR_CNTL));
 	debugfs_create_io_x64("trace", S_IRUSR | S_IWUSR, dir, _cxl_p1_addr(adapter, CXL_PSL9_TRACECFG));
+	debugfs_create_io_x64("debug", 0600, dir,
+			      _cxl_p1_addr(adapter, CXL_PSL9_DEBUG));
+	debugfs_create_io_x64("xsl-debug", 0600, dir,
+			      _cxl_p1_addr(adapter, CXL_XSL9_DBG));
 }
 
 void cxl_debugfs_add_adapter_regs_psl8(struct cxl *adapter, struct dentry *dir)
