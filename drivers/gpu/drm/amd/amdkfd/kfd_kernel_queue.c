@@ -185,7 +185,7 @@ static void uninitialize(struct kernel_queue *kq)
 		kq->mqd->destroy_mqd(kq->mqd,
 					kq->queue->mqd,
 					KFD_PREEMPT_TYPE_WAVEFRONT_RESET,
-					QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS,
+					KFD_UNMAP_LATENCY_MS,
 					kq->queue->pipe,
 					kq->queue->queue);
 	else if (kq->queue->properties.type == KFD_QUEUE_TYPE_DIQ)

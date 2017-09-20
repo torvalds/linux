@@ -676,11 +676,8 @@ int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
 
 /* Packet Manager */
 
-#define KFD_HIQ_TIMEOUT (500)
-
 #define KFD_FENCE_COMPLETED (100)
 #define KFD_FENCE_INIT   (10)
-#define KFD_UNMAP_LATENCY (150)
 
 struct packet_manager {
 	struct device_queue_manager *dqm;

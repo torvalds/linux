@@ -376,7 +376,7 @@ int pm_send_set_resources(struct packet_manager *pm,
 	packet->bitfields2.queue_type =
 			queue_type__mes_set_resources__hsa_interface_queue_hiq;
 	packet->bitfields2.vmid_mask = res->vmid_mask;
-	packet->bitfields2.unmap_latency = KFD_UNMAP_LATENCY;
+	packet->bitfields2.unmap_latency = KFD_UNMAP_LATENCY_MS / 100;
 	packet->bitfields7.oac_mask = res->oac_mask;
 	packet->bitfields8.gds_heap_base = res->gds_heap_base;
 	packet->bitfields8.gds_heap_size = res->gds_heap_size;

@@ -323,7 +323,7 @@ static int destroy_queue_nocpsch(struct device_queue_manager *dqm,
 
 	retval = mqd->destroy_mqd(mqd, q->mqd,
 				KFD_PREEMPT_TYPE_WAVEFRONT_RESET,
-				QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS,
+				KFD_UNMAP_LATENCY_MS,
 				q->pipe, q->queue);
 
 	if (retval)

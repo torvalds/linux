@@ -29,7 +29,9 @@
 #include "kfd_priv.h"
 #include "kfd_mqd_manager.h"
 
-#define QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS	(500)
+#define KFD_UNMAP_LATENCY_MS			(4000)
+#define QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS (2 * KFD_UNMAP_LATENCY_MS + 1000)
+
 #define CIK_VMID_NUM				(8)
 #define KFD_VMID_START_OFFSET			(8)
 #define VMID_PER_DEVICE				CIK_VMID_NUM
