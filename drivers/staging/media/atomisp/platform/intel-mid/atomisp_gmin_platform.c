@@ -4,10 +4,10 @@
 #include <linux/efi.h>
 #include <linux/pci.h>
 #include <linux/acpi.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <media/v4l2-subdev.h>
 #include <linux/mfd/intel_soc_pmic.h>
-#include "../../include/linux/vlv2_plat_clock.h"
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio.h>
@@ -17,11 +17,7 @@
 
 #define MAX_SUBDEVS 8
 
-/* Should be defined in vlv2_plat_clock API, isn't: */
-#define VLV2_CLK_PLL_19P2MHZ 1
-#define VLV2_CLK_XTAL_19P2MHZ 0
-#define VLV2_CLK_ON      1
-#define VLV2_CLK_OFF     2
+#define VLV2_CLK_PLL_19P2MHZ 1 /* XTAL on CHT */
 #define ELDO1_SEL_REG	0x19
 #define ELDO1_1P8V	0x16
 #define ELDO1_CTRL_SHIFT 0x00
@@ -33,6 +29,7 @@ struct gmin_subdev {
 	struct v4l2_subdev *subdev;
 	int clock_num;
 	int clock_src;
+	struct clk *pmc_clk;
 	struct gpio_desc *gpio0;
 	struct gpio_desc *gpio1;
 	struct regulator *v1p8_reg;
@@ -344,6 +341,9 @@ static int gmin_platform_deinit(void)
 	return 0;
 }
 
+#define GMIN_PMC_CLK_NAME 14 /* "pmc_plt_clk_[0..5]" */
+static char gmin_pmc_clk_name[GMIN_PMC_CLK_NAME];
+
 static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 {
 	int i, ret;
@@ -376,6 +376,37 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 	gmin_subdevs[i].csi_lanes = gmin_get_var_int(dev, "CsiLanes", 1);
 	gmin_subdevs[i].gpio0 = gpiod_get_index(dev, NULL, 0, GPIOD_OUT_LOW);
 	gmin_subdevs[i].gpio1 = gpiod_get_index(dev, NULL, 1, GPIOD_OUT_LOW);
+
+	/* get PMC clock with clock framework */
+	snprintf(gmin_pmc_clk_name,
+		 sizeof(gmin_pmc_clk_name),
+		 "%s_%d", "pmc_plt_clk", gmin_subdevs[i].clock_num);
+
+	gmin_subdevs[i].pmc_clk = devm_clk_get(dev, gmin_pmc_clk_name);
+	if (IS_ERR(gmin_subdevs[i].pmc_clk)) {
+		ret = PTR_ERR(gmin_subdevs[i].pmc_clk);
+
+		dev_err(dev,
+			"Failed to get clk from %s : %d\n",
+			gmin_pmc_clk_name,
+			ret);
+
+		return NULL;
+	}
+
+	/*
+	 * The firmware might enable the clock at
+	 * boot (this information may or may not
+	 * be reflected in the enable clock register).
+	 * To change the rate we must disable the clock
+	 * first to cover these cases. Due to common
+	 * clock framework restrictions that do not allow
+	 * to disable a clock that has not been enabled,
+	 * we need to enable the clock first.
+	 */
+	ret = clk_prepare_enable(gmin_subdevs[i].pmc_clk);
+	if (!ret)
+		clk_disable_unprepare(gmin_subdevs[i].pmc_clk);
 
 	if (!IS_ERR(gmin_subdevs[i].gpio0)) {
 		ret = gpiod_direction_output(gmin_subdevs[i].gpio0, 0);
@@ -539,13 +570,21 @@ static int gmin_flisclk_ctrl(struct v4l2_subdev *subdev, int on)
 {
 	int ret = 0;
 	struct gmin_subdev *gs = find_gmin_subdev(subdev);
+	struct i2c_client *client = v4l2_get_subdevdata(subdev);
 
-	if (on)
-		ret = vlv2_plat_set_clock_freq(gs->clock_num, gs->clock_src);
-	if (ret)
-		return ret;
-	return vlv2_plat_configure_clock(gs->clock_num,
-					 on ? VLV2_CLK_ON : VLV2_CLK_OFF);
+	if (on) {
+		ret = clk_set_rate(gs->pmc_clk, gs->clock_src);
+
+		if (ret)
+			dev_err(&client->dev, "unable to set PMC rate %d\n",
+				gs->clock_src);
+
+		ret = clk_prepare_enable(gs->pmc_clk);
+	} else {
+		clk_disable_unprepare(gs->pmc_clk);
+	}
+
+	return ret;
 }
 
 static int gmin_csi_cfg(struct v4l2_subdev *sd, int flag)
