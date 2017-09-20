@@ -386,7 +386,7 @@ out_unlock:
 	return retval;
 }
 
-static struct mqd_manager *get_mqd_manager_nocpsch(
+static struct mqd_manager *get_mqd_manager(
 		struct device_queue_manager *dqm, enum KFD_MQD_TYPE type)
 {
 	struct mqd_manager *mqd;
@@ -407,7 +407,7 @@ static struct mqd_manager *get_mqd_manager_nocpsch(
 	return mqd;
 }
 
-static int register_process_nocpsch(struct device_queue_manager *dqm,
+static int register_process(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd)
 {
 	struct device_process_node *n;
@@ -431,7 +431,7 @@ static int register_process_nocpsch(struct device_queue_manager *dqm,
 	return retval;
 }
 
-static int unregister_process_nocpsch(struct device_queue_manager *dqm,
+static int unregister_process(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd)
 {
 	int retval;
@@ -513,7 +513,7 @@ static int initialize_nocpsch(struct device_queue_manager *dqm)
 	return 0;
 }
 
-static void uninitialize_nocpsch(struct device_queue_manager *dqm)
+static void uninitialize(struct device_queue_manager *dqm)
 {
 	int i;
 
@@ -1095,10 +1095,10 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		dqm->ops.stop = stop_cpsch;
 		dqm->ops.destroy_queue = destroy_queue_cpsch;
 		dqm->ops.update_queue = update_queue;
-		dqm->ops.get_mqd_manager = get_mqd_manager_nocpsch;
-		dqm->ops.register_process = register_process_nocpsch;
-		dqm->ops.unregister_process = unregister_process_nocpsch;
-		dqm->ops.uninitialize = uninitialize_nocpsch;
+		dqm->ops.get_mqd_manager = get_mqd_manager;
+		dqm->ops.register_process = register_process;
+		dqm->ops.unregister_process = unregister_process;
+		dqm->ops.uninitialize = uninitialize;
 		dqm->ops.create_kernel_queue = create_kernel_queue_cpsch;
 		dqm->ops.destroy_kernel_queue = destroy_kernel_queue_cpsch;
 		dqm->ops.set_cache_memory_policy = set_cache_memory_policy;
@@ -1110,11 +1110,11 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		dqm->ops.create_queue = create_queue_nocpsch;
 		dqm->ops.destroy_queue = destroy_queue_nocpsch;
 		dqm->ops.update_queue = update_queue;
-		dqm->ops.get_mqd_manager = get_mqd_manager_nocpsch;
-		dqm->ops.register_process = register_process_nocpsch;
-		dqm->ops.unregister_process = unregister_process_nocpsch;
+		dqm->ops.get_mqd_manager = get_mqd_manager;
+		dqm->ops.register_process = register_process;
+		dqm->ops.unregister_process = unregister_process;
 		dqm->ops.initialize = initialize_nocpsch;
-		dqm->ops.uninitialize = uninitialize_nocpsch;
+		dqm->ops.uninitialize = uninitialize;
 		dqm->ops.set_cache_memory_policy = set_cache_memory_policy;
 		break;
 	default:
