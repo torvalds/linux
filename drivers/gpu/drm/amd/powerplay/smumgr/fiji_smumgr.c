@@ -104,7 +104,7 @@ static int fiji_start_smu_in_protection_mode(struct pp_hwmgr *hwmgr)
 	SMUM_WAIT_FIELD_UNEQUAL(hwmgr, SMC_RESP_0, SMC_RESP, 0);
 
 	/* Wait for done bit to be set */
-	SMUM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(hwmgr, SMC_IND,
+	PHM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(hwmgr, SMC_IND,
 			SMU_STATUS, SMU_DONE, 0);
 
 	/* Check pass/failed indicator */
@@ -126,7 +126,7 @@ static int fiji_start_smu_in_non_protection_mode(struct pp_hwmgr *hwmgr)
 	int result = 0;
 
 	/* wait for smc boot up */
-	SMUM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(hwmgr, SMC_IND,
+	PHM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(hwmgr, SMC_IND,
 			RCU_UC_EVENTS, boot_seq_done, 0);
 
 	/* Clear firmware interrupt enable flag */

@@ -220,7 +220,7 @@ static int polaris10_start_smu_in_protection_mode(struct pp_hwmgr *hwmgr)
 	int result = 0;
 
 	/* Wait for smc boot up */
-	/* SMUM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(smumgr, SMC_IND, RCU_UC_EVENTS, boot_seq_done, 0) */
+	/* PHM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(smumgr, SMC_IND, RCU_UC_EVENTS, boot_seq_done, 0) */
 
 	/* Assert reset */
 	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
@@ -250,7 +250,7 @@ static int polaris10_start_smu_in_protection_mode(struct pp_hwmgr *hwmgr)
 	/* Wait done bit to be set */
 	/* Check pass/failed indicator */
 
-	SMUM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(hwmgr, SMC_IND, SMU_STATUS, SMU_DONE, 0);
+	PHM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(hwmgr, SMC_IND, SMU_STATUS, SMU_DONE, 0);
 
 	if (1 != SMUM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 						SMU_STATUS, SMU_PASS))
@@ -275,7 +275,7 @@ static int polaris10_start_smu_in_non_protection_mode(struct pp_hwmgr *hwmgr)
 	int result = 0;
 
 	/* wait for smc boot up */
-	SMUM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(hwmgr, SMC_IND, RCU_UC_EVENTS, boot_seq_done, 0);
+	PHM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(hwmgr, SMC_IND, RCU_UC_EVENTS, boot_seq_done, 0);
 
 	/* Clear firmware interrupt enable flag */
 	/* SMUM_WRITE_VFPF_INDIRECT_FIELD(pSmuMgr, SMC_IND, SMC_SYSCON_MISC_CNTL, pre_fetcher_en, 1); */
