@@ -1938,7 +1938,7 @@ static int ci_start_smc(struct pp_hwmgr *hwmgr)
 
 	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMC_SYSCON_RESET_CNTL, rst_reg, 0);
 
-	SMUM_WAIT_INDIRECT_FIELD(hwmgr, SMC_IND, FIRMWARE_FLAGS,
+	PHM_WAIT_INDIRECT_FIELD(hwmgr, SMC_IND, FIRMWARE_FLAGS,
 				 INTERRUPTS_ENABLED, 1);
 
 	return 0;

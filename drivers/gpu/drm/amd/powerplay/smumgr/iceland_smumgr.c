@@ -80,7 +80,7 @@ static int iceland_smu_start_smc(struct pp_hwmgr *hwmgr)
 	/* de-assert reset */
 	iceland_start_smc(hwmgr);
 
-	SMUM_WAIT_INDIRECT_FIELD(hwmgr, SMC_IND, FIRMWARE_FLAGS,
+	PHM_WAIT_INDIRECT_FIELD(hwmgr, SMC_IND, FIRMWARE_FLAGS,
 				 INTERRUPTS_ENABLED, 1);
 
 	return 0;
