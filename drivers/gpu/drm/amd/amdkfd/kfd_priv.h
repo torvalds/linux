@@ -672,7 +672,7 @@ struct kernel_queue *pqm_get_kernel_queue(struct process_queue_manager *pqm,
 
 int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
 				unsigned int fence_value,
-				unsigned long timeout);
+				unsigned int timeout_ms);
 
 /* Packet Manager */
 
