@@ -657,7 +657,7 @@
 		clock-names = "mclk";
 		realtek,in1-differential;
 		pinctrl-names = "default";
-		pinctrl-0 = <&rt5640_hpcon>;
+		pinctrl-0 = <&rt5640_hpcon &i2s_8ch_mclk>;
 		hp-con-gpio = <&gpio4 21 GPIO_ACTIVE_HIGH>;
 		//hp-det-gpio = <&gpio4 28 GPIO_ACTIVE_LOW>;
 		io-channels = <&saradc 4>;

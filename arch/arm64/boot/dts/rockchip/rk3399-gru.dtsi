@@ -590,7 +590,7 @@ ap_i2c_audio: &i2c8 {
 		reg = <0x1a>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&headset_int_l>;
+		pinctrl-0 = <&headset_int_l &i2s_8ch_mclk>;
 
 		interrupt-parent = <&gpio1>;
 		interrupts = <23 IRQ_TYPE_LEVEL_LOW>;

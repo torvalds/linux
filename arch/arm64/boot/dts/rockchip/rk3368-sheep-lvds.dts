@@ -509,6 +509,8 @@
 		#sound-dai-cells = <0>;
 		clocks = <&cru SCLK_I2S_8CH_OUT>;
 		clock-names = "mclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s_8ch_mclk>;
 		realtek,in1-differential;
 		status = "okay";
 	};

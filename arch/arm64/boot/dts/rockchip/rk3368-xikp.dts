@@ -590,6 +590,8 @@
 		clock-names = "mclk";
 		spk-con-gpio = <&gpio3 9 GPIO_ACTIVE_HIGH>;
 		hp-det-gpio = <&gpio0 23 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s_8ch_mclk>;
 	};
 };
 
