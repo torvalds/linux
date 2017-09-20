@@ -10,3 +10,5 @@ w1_ds2438
 	- The Maxim/Dallas Semiconductor ds2438 smart battery monitor.
 w1_ds28e04
 	- The Maxim/Dallas Semiconductor ds28e04 eeprom.
+w1_ds28e17
+	- The Maxim/Dallas Semiconductor ds28e17 1-Wire-to-I2C Master Bridge.
