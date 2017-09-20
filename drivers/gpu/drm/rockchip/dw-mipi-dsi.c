@@ -673,35 +673,20 @@ static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 				   struct mipi_dsi_device *device)
 {
 	struct dw_mipi_dsi *dsi = host_to_dsi(host);
-	int lanes;
 
 	if (dsi->master)
 		return 0;
 
-	lanes = dsi->slave ? device->lanes / 2 : device->lanes;
-
-	if (lanes > dsi->pdata->max_data_lanes) {
+	if (device->lanes < 0 || device->lanes > 8) {
 		dev_err(dsi->dev, "the number of data lanes(%u) is too many\n",
-				lanes);
+			device->lanes);
 		return -EINVAL;
 	}
 
-	if (!(device->mode_flags & MIPI_DSI_MODE_VIDEO_BURST)) {
-		dev_err(dsi->dev, "device mode is unsupported\n");
-		return -EINVAL;
-	}
-
-	dsi->lanes = lanes;
+	dsi->lanes = device->lanes;
 	dsi->channel = device->channel;
 	dsi->format = device->format;
 	dsi->mode_flags = device->mode_flags;
-
-	if (dsi->slave) {
-		dsi->slave->lanes = lanes;
-		dsi->slave->channel = device->channel;
-		dsi->slave->format = device->format;
-		dsi->slave->mode_flags = device->mode_flags;
-	}
 
 	dsi->panel = of_drm_find_panel(device->dev.of_node);
 	if (!dsi->panel) {
@@ -1328,6 +1313,12 @@ static int rockchip_dsi_dual_channel_probe(struct dw_mipi_dsi *dsi)
 			return -EPROBE_DEFER;
 
 		dsi->slave->master = dsi;
+		dsi->lanes /= 2;
+
+		dsi->slave->lanes = dsi->lanes;
+		dsi->slave->channel = dsi->channel;
+		dsi->slave->format = dsi->format;
+		dsi->slave->mode_flags = dsi->mode_flags;
 	}
 
 	return 0;
