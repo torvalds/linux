@@ -243,9 +243,13 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 	if (of_property_read_bool(np, "aspeed,external-signal"))
 		wdt->ctrl |= WDT_CTRL_WDT_EXT;
 
-	writel(wdt->ctrl, wdt->base + WDT_CTRL);
-
 	if (readl(wdt->base + WDT_CTRL) & WDT_CTRL_ENABLE)  {
+		/*
+		 * The watchdog is running, but invoke aspeed_wdt_start() to
+		 * write wdt->ctrl to WDT_CTRL to ensure the watchdog's
+		 * configuration conforms to the driver's expectations.
+		 * Primarily, ensure we're using the 1MHz clock source.
+		 */
 		aspeed_wdt_start(&wdt->wdd);
 		set_bit(WDOG_HW_RUNNING, &wdt->wdd.status);
 	}
