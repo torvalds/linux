@@ -1290,6 +1290,9 @@ mlxsw_sp_mc_write_mdb_entry(struct mlxsw_sp *mlxsw_sp,
 static int mlxsw_sp_mc_remove_mdb_entry(struct mlxsw_sp *mlxsw_sp,
 					struct mlxsw_sp_mid *mid)
 {
+	if (!mid->in_hw)
+		return 0;
+
 	clear_bit(mid->mid, mlxsw_sp->bridge->mids_bitmap);
 	mid->in_hw = false;
 	return mlxsw_sp_port_mdb_op(mlxsw_sp, mid->addr, mid->fid, mid->mid,
@@ -1319,11 +1322,15 @@ mlxsw_sp_mid *__mlxsw_sp_mc_alloc(struct mlxsw_sp *mlxsw_sp,
 	ether_addr_copy(mid->addr, addr);
 	mid->fid = fid;
 	mid->in_hw = false;
+
+	if (!bridge_device->multicast_enabled)
+		goto out;
+
 	if (!mlxsw_sp_mc_write_mdb_entry(mlxsw_sp, mid))
 		goto err_write_mdb_entry;
 
+out:
 	list_add_tail(&mid->list, &bridge_device->mids_list);
-
 	return mid;
 
 err_write_mdb_entry:
@@ -1390,6 +1397,9 @@ static int mlxsw_sp_port_mdb_add(struct mlxsw_sp_port *mlxsw_sp_port,
 		}
 	}
 	set_bit(mlxsw_sp_port->local_port, mid->ports_in_mid);
+
+	if (!bridge_device->multicast_enabled)
+		return 0;
 
 	err = mlxsw_sp_port_smid_set(mlxsw_sp_port, mid->mid, true);
 	if (err) {
@@ -1476,9 +1486,12 @@ __mlxsw_sp_port_mdb_del(struct mlxsw_sp_port *mlxsw_sp_port,
 	struct net_device *dev = mlxsw_sp_port->dev;
 	int err;
 
-	err = mlxsw_sp_port_smid_set(mlxsw_sp_port, mid->mid, false);
-	if (err)
-		netdev_err(dev, "Unable to remove port from SMID\n");
+	if (bridge_port->bridge_device->multicast_enabled) {
+		err = mlxsw_sp_port_smid_set(mlxsw_sp_port, mid->mid, false);
+
+		if (err)
+			netdev_err(dev, "Unable to remove port from SMID\n");
+	}
 
 	err = mlxsw_sp_port_remove_from_mid(mlxsw_sp_port, mid);
 	if (err)
