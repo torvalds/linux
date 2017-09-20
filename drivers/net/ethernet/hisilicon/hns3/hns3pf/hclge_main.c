@@ -1772,18 +1772,22 @@ int hclge_buffer_alloc(struct hclge_dev *hdev)
 		return ret;
 	}
 
-	ret = hclge_rx_priv_wl_config(hdev);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"could not configure rx private waterline %d\n", ret);
-		return ret;
-	}
+	if (hnae3_dev_dcb_supported(hdev)) {
+		ret = hclge_rx_priv_wl_config(hdev);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"could not configure rx private waterline %d\n",
+				ret);
+			return ret;
+		}
 
-	ret = hclge_common_thrd_config(hdev);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"could not configure common threshold %d\n", ret);
-		return ret;
+		ret = hclge_common_thrd_config(hdev);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"could not configure common threshold %d\n",
+				ret);
+			return ret;
+		}
 	}
 
 	ret = hclge_common_wl_config(hdev);

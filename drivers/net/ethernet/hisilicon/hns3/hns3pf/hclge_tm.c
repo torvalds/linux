@@ -976,6 +976,10 @@ int hclge_pause_setup_hw(struct hclge_dev *hdev)
 	if (ret)
 		return ret;
 
+	/* Only DCB-supported dev supports qset back pressure setting */
+	if (!hnae3_dev_dcb_supported(hdev))
+		return 0;
+
 	for (i = 0; i < hdev->tm_info.num_tc; i++) {
 		ret = hclge_tm_qs_bp_cfg(hdev, i);
 		if (ret)
