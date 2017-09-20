@@ -213,6 +213,8 @@
 };
 
 &hdmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hdmi_cec>;
 	ddc-i2c-bus = <&i2c2>;
 	status = "okay";
 };
@@ -482,6 +484,12 @@
 				MX6QDL_PAD_EIM_D29__GPIO3_IO29 0x1b0b0
 				MX6QDL_PAD_GPIO_4__GPIO1_IO04  0x1b0b0
 				MX6QDL_PAD_GPIO_5__GPIO1_IO05  0x1b0b0
+			>;
+		};
+
+		pinctrl_hdmi_cec: hdmicecgrp {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_ROW2__HDMI_TX_CEC_LINE	0x1f8b0
 			>;
 		};
 
