@@ -27,9 +27,7 @@ __KERNELRELEASE=`echo $KERNELRELEASE | sed -e "s/-/_/g"`
 echo "Name: kernel"
 echo "Summary: The Linux Kernel"
 echo "Version: $__KERNELRELEASE"
-# we need to determine the NEXT version number so that uname and
-# rpm -q will agree
-echo "Release: `. $srctree/scripts/mkversion`"
+echo "Release: $(cat .version 2>/dev/null || echo 1)"
 echo "License: GPL"
 echo "Group: System Environment/Kernel"
 echo "Vendor: The Linux Community"
@@ -77,7 +75,7 @@ fi
 echo "%build"
 
 if ! $PREBUILT; then
-echo "make clean && make %{?_smp_mflags}"
+echo "make clean && make %{?_smp_mflags} KBUILD_BUILD_VERSION=%{release}"
 echo ""
 fi
 
