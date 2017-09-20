@@ -33,6 +33,8 @@
 #include <linux/kfd_ioctl.h>
 #include <kgd_kfd_interface.h>
 
+#include "amd_shared.h"
+
 #define KFD_SYSFS_FILE_MODE 0444
 
 #define KFD_MMAP_DOORBELL_MASK 0x8000000000000
@@ -112,11 +114,6 @@ enum cache_policy {
 	cache_policy_noncoherent
 };
 
-enum asic_family_type {
-	CHIP_KAVERI = 0,
-	CHIP_CARRIZO
-};
-
 struct kfd_event_interrupt_class {
 	bool (*interrupt_isr)(struct kfd_dev *dev,
 				const uint32_t *ih_ring_entry);
@@ -125,7 +122,7 @@ struct kfd_event_interrupt_class {
 };
 
 struct kfd_device_info {
-	unsigned int asic_family;
+	enum amd_asic_type asic_family;
 	const struct kfd_event_interrupt_class *event_interrupt_class;
 	unsigned int max_pasid_bits;
 	unsigned int max_no_of_hqd;

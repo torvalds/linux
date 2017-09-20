@@ -1130,6 +1130,10 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 	case CHIP_KAVERI:
 		device_queue_manager_init_cik(&dqm->ops_asic_specific);
 		break;
+	default:
+		WARN(1, "Unexpected ASIC family %u",
+		     dev->device_info->asic_family);
+		goto out_free;
 	}
 
 	if (!dqm->ops.initialize(dqm))
