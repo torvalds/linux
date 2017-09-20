@@ -41,7 +41,7 @@
 
 static int iceland_start_smc(struct pp_hwmgr *hwmgr)
 {
-	SMUM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 				  SMC_SYSCON_RESET_CNTL, rst_reg, 0);
 
 	return 0;
@@ -49,7 +49,7 @@ static int iceland_start_smc(struct pp_hwmgr *hwmgr)
 
 static void iceland_reset_smc(struct pp_hwmgr *hwmgr)
 {
-	SMUM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 				  SMC_SYSCON_RESET_CNTL,
 				  rst_reg, 1);
 }
@@ -57,14 +57,14 @@ static void iceland_reset_smc(struct pp_hwmgr *hwmgr)
 
 static void iceland_stop_smc_clock(struct pp_hwmgr *hwmgr)
 {
-	SMUM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 				  SMC_SYSCON_CLOCK_CNTL_0,
 				  ck_disable, 1);
 }
 
 static void iceland_start_smc_clock(struct pp_hwmgr *hwmgr)
 {
-	SMUM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 				  SMC_SYSCON_CLOCK_CNTL_0,
 				  ck_disable, 0);
 }
