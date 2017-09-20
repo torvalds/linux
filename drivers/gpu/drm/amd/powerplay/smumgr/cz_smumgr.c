@@ -205,11 +205,11 @@ static int cz_load_mec_firmware(struct pp_hwmgr *hwmgr)
 	cgs_write_register(hwmgr->device, mmCP_CPC_IC_BASE_CNTL, tmp);
 
 	reg_data = smu_lower_32_bits(info.mc_addr) &
-			SMUM_FIELD_MASK(CP_CPC_IC_BASE_LO, IC_BASE_LO);
+			PHM_FIELD_MASK(CP_CPC_IC_BASE_LO, IC_BASE_LO);
 	cgs_write_register(hwmgr->device, mmCP_CPC_IC_BASE_LO, reg_data);
 
 	reg_data = smu_upper_32_bits(info.mc_addr) &
-			SMUM_FIELD_MASK(CP_CPC_IC_BASE_HI, IC_BASE_HI);
+			PHM_FIELD_MASK(CP_CPC_IC_BASE_HI, IC_BASE_HI);
 	cgs_write_register(hwmgr->device, mmCP_CPC_IC_BASE_HI, reg_data);
 
 	return 0;
