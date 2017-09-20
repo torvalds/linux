@@ -473,6 +473,39 @@ typedef struct {
 	u64 get_all;
 } apple_properties_protocol_64_t;
 
+typedef struct {
+	u32 get_capability;
+	u32 get_event_log;
+	u32 hash_log_extend_event;
+	u32 submit_command;
+	u32 get_active_pcr_banks;
+	u32 set_active_pcr_banks;
+	u32 get_result_of_set_active_pcr_banks;
+} efi_tcg2_protocol_32_t;
+
+typedef struct {
+	u64 get_capability;
+	u64 get_event_log;
+	u64 hash_log_extend_event;
+	u64 submit_command;
+	u64 get_active_pcr_banks;
+	u64 set_active_pcr_banks;
+	u64 get_result_of_set_active_pcr_banks;
+} efi_tcg2_protocol_64_t;
+
+typedef u32 efi_tcg2_event_log_format;
+
+typedef struct {
+	void *get_capability;
+	efi_status_t (*get_event_log)(efi_handle_t, efi_tcg2_event_log_format,
+		efi_physical_addr_t *, efi_physical_addr_t *, efi_bool_t *);
+	void *hash_log_extend_event;
+	void *submit_command;
+	void *get_active_pcr_banks;
+	void *set_active_pcr_banks;
+	void *get_result_of_set_active_pcr_banks;
+} efi_tcg2_protocol_t;
+
 /*
  * Types and defines for EFI ResetSystem
  */
@@ -623,6 +656,7 @@ void efi_native_runtime_setup(void);
 #define EFI_MEMORY_ATTRIBUTES_TABLE_GUID	EFI_GUID(0xdcfa911d, 0x26eb, 0x469f,  0xa2, 0x20, 0x38, 0xb7, 0xdc, 0x46, 0x12, 0x20)
 #define EFI_CONSOLE_OUT_DEVICE_GUID		EFI_GUID(0xd3b36f2c, 0xd551, 0x11d4,  0x9a, 0x46, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d)
 #define APPLE_PROPERTIES_PROTOCOL_GUID		EFI_GUID(0x91bd12fe, 0xf6c3, 0x44fb,  0xa5, 0xb7, 0x51, 0x22, 0xab, 0x30, 0x3a, 0xe0)
+#define EFI_TCG2_PROTOCOL_GUID			EFI_GUID(0x607f766c, 0x7455, 0x42be,  0x93, 0x0b, 0xe4, 0xd7, 0x6d, 0xb2, 0x72, 0x0f)
 
 #define EFI_IMAGE_SECURITY_DATABASE_GUID	EFI_GUID(0xd719b2cb, 0x3d3a, 0x4596,  0xa3, 0xbc, 0xda, 0xd0, 0x0e, 0x67, 0x65, 0x6f)
 #define EFI_SHIM_LOCK_GUID			EFI_GUID(0x605dab50, 0xe046, 0x4300,  0xab, 0xb6, 0x3d, 0xd8, 0x10, 0xdd, 0x8b, 0x23)
@@ -635,6 +669,7 @@ void efi_native_runtime_setup(void);
 #define LINUX_EFI_ARM_SCREEN_INFO_TABLE_GUID	EFI_GUID(0xe03fc20a, 0x85dc, 0x406e,  0xb9, 0x0e, 0x4a, 0xb5, 0x02, 0x37, 0x1d, 0x95)
 #define LINUX_EFI_LOADER_ENTRY_GUID		EFI_GUID(0x4a67b082, 0x0a4c, 0x41cf,  0xb6, 0xc7, 0x44, 0x0b, 0x29, 0xbb, 0x8c, 0x4f)
 #define LINUX_EFI_RANDOM_SEED_TABLE_GUID	EFI_GUID(0x1ce1e5bc, 0x7ceb, 0x42f2,  0x81, 0xe5, 0x8a, 0xad, 0xf1, 0x80, 0xf5, 0x7b)
+#define LINUX_EFI_TPM_EVENT_LOG_GUID		EFI_GUID(0xb7799cb0, 0xeca2, 0x4943,  0x96, 0x67, 0x1f, 0xae, 0x07, 0xb7, 0x47, 0xfa)
 
 typedef struct {
 	efi_guid_t guid;
@@ -909,6 +944,7 @@ extern struct efi {
 	unsigned long properties_table;	/* properties table */
 	unsigned long mem_attr_table;	/* memory attributes table */
 	unsigned long rng_seed;		/* UEFI firmware random seed */
+	unsigned long tpm_log;		/* TPM2 Event Log table */
 	efi_get_time_t *get_time;
 	efi_set_time_t *set_time;
 	efi_get_wakeup_time_t *get_wakeup_time;
@@ -1534,6 +1570,8 @@ static inline void
 efi_enable_reset_attack_mitigation(efi_system_table_t *sys_table_arg) { }
 #endif
 
+void efi_retrieve_tpm2_eventlog(efi_system_table_t *sys_table);
+
 /*
  * Arch code can implement the following three template macros, avoiding
  * reptition for the void/non-void return cases of {__,}efi_call_virt():
@@ -1600,5 +1638,13 @@ struct linux_efi_random_seed {
 	u32	size;
 	u8	bits[];
 };
+
+struct linux_efi_tpm_eventlog {
+	u32	size;
+	u8	version;
+	u8	log[];
+};
+
+extern int efi_tpm_eventlog_init(void);
 
 #endif /* _LINUX_EFI_H */
