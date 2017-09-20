@@ -1018,9 +1018,17 @@ bool dcn_validate_bandwidth(
 		context->bw.dcn.calc_clk.min_active_dram_ccm_us = (int)(v->min_active_dram_clock_change_margin);
 		context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz = (int)(v->dcf_clk_deep_sleep * 1000);
 		context->bw.dcn.calc_clk.dcfclk_khz = (int)(v->dcfclk * 1000);
+
 		context->bw.dcn.calc_clk.dispclk_khz = (int)(v->dispclk * 1000);
 		if (dc->debug.max_disp_clk == true)
 			context->bw.dcn.calc_clk.dispclk_khz = (int)(dc->dcn_soc->max_dispclk_vmax0p9 * 1000);
+
+		if (context->bw.dcn.calc_clk.dispclk_khz <
+				dc->debug.min_disp_clk_khz) {
+			context->bw.dcn.calc_clk.dispclk_khz =
+					dc->debug.min_disp_clk_khz;
+		}
+
 		context->bw.dcn.calc_clk.dppclk_div = (int)(v->dispclk_dppclk_ratio) == 2;
 
 		for (i = 0, input_idx = 0; i < pool->pipe_count; i++) {

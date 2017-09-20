@@ -420,6 +420,9 @@ static const struct dc_debug debug_defaults_drv = {
 		.force_abm_enable = false,
 		.timing_trace = false,
 		.clock_trace = true,
+
+		.min_disp_clk_khz = 300000,
+
 		.disable_pplib_clock_request = true,
 		.disable_pplib_wm_range = false,
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)

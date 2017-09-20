@@ -178,6 +178,7 @@ struct dc_debug {
 	bool disable_pplib_wm_range;
 	bool use_dml_wm;
 	bool disable_pipe_split;
+	unsigned int min_disp_clk_khz;
 	int sr_exit_time_dpm0_ns;
 	int sr_enter_plus_exit_time_dpm0_ns;
 	int sr_exit_time_ns;
