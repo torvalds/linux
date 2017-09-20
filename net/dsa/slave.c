@@ -263,16 +263,11 @@ dsa_slave_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 	};
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_port *dp = p->dp;
-	struct dsa_switch *ds = dp->ds;
 	int err;
 
-	if (!ds->ops->port_fdb_dump)
-		return -EOPNOTSUPP;
-
-	err = ds->ops->port_fdb_dump(ds, dp->index,
-				     dsa_slave_port_fdb_do_dump,
-				     &dump);
+	err = dsa_port_fdb_dump(dp, dsa_slave_port_fdb_do_dump, &dump);
 	*idx = dump.idx;
+
 	return err;
 }
 
