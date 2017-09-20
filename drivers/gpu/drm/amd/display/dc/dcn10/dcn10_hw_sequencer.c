@@ -771,14 +771,16 @@ static void power_on_plane(
 	struct dce_hwseq *hws,
 	int plane_id)
 {
-	REG_SET(DC_IP_REQUEST_CNTL, 0,
-			IP_REQUEST_EN, 1);
-	dpp_pg_control(hws, plane_id, true);
-	hubp_pg_control(hws, plane_id, true);
-	REG_SET(DC_IP_REQUEST_CNTL, 0,
-			IP_REQUEST_EN, 0);
-	dm_logger_write(hws->ctx->logger, LOG_DEBUG,
-			"Un-gated front end for pipe %d\n", plane_id);
+	if (REG(DC_IP_REQUEST_CNTL)) {
+		REG_SET(DC_IP_REQUEST_CNTL, 0,
+				IP_REQUEST_EN, 1);
+		dpp_pg_control(hws, plane_id, true);
+		hubp_pg_control(hws, plane_id, true);
+		REG_SET(DC_IP_REQUEST_CNTL, 0,
+				IP_REQUEST_EN, 0);
+		dm_logger_write(hws->ctx->logger, LOG_DEBUG,
+				"Un-gated front end for pipe %d\n", plane_id);
+	}
 }
 
 static void undo_DEGVIDCN10_253_wa(struct dc *dc)
@@ -1130,18 +1132,20 @@ static void plane_atomic_power_down(struct dc *dc, int fe_idx)
 	struct dce_hwseq *hws = dc->hwseq;
 	struct transform *xfm = dc->res_pool->transforms[fe_idx];
 
-	REG_SET(DC_IP_REQUEST_CNTL, 0,
-			IP_REQUEST_EN, 1);
-	dpp_pg_control(hws, fe_idx, false);
-	hubp_pg_control(hws, fe_idx, false);
-	xfm->funcs->transform_reset(xfm);
-	REG_SET(DC_IP_REQUEST_CNTL, 0,
-			IP_REQUEST_EN, 0);
-	dm_logger_write(dc->ctx->logger, LOG_DEBUG,
-			"Power gated front end %d\n", fe_idx);
+	if (REG(DC_IP_REQUEST_CNTL)) {
+		REG_SET(DC_IP_REQUEST_CNTL, 0,
+				IP_REQUEST_EN, 1);
+		dpp_pg_control(hws, fe_idx, false);
+		hubp_pg_control(hws, fe_idx, false);
+		xfm->funcs->transform_reset(xfm);
+		REG_SET(DC_IP_REQUEST_CNTL, 0,
+				IP_REQUEST_EN, 0);
+		dm_logger_write(dc->ctx->logger, LOG_DEBUG,
+				"Power gated front end %d\n", fe_idx);
 
-	if (dc->debug.sanity_checks)
-		verify_allow_pstate_change_high(dc->hwseq);
+		if (dc->debug.sanity_checks)
+			verify_allow_pstate_change_high(dc->hwseq);
+	}
 }
 
 
