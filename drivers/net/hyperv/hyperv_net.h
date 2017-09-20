@@ -150,6 +150,8 @@ struct netvsc_device_info {
 	u32  num_chn;
 	u32  send_sections;
 	u32  recv_sections;
+	u32  send_section_size;
+	u32  recv_section_size;
 };
 
 enum rndis_device_state {
