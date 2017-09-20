@@ -1468,6 +1468,25 @@ static int mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 	return 0;
 }
 
+static int
+__mlxsw_sp_port_mdb_del(struct mlxsw_sp_port *mlxsw_sp_port,
+			struct mlxsw_sp_bridge_port *bridge_port,
+			struct mlxsw_sp_mid *mid)
+{
+	struct net_device *dev = mlxsw_sp_port->dev;
+	int err;
+
+	err = mlxsw_sp_port_smid_set(mlxsw_sp_port, mid->mid, false);
+	if (err)
+		netdev_err(dev, "Unable to remove port from SMID\n");
+
+	err = mlxsw_sp_port_remove_from_mid(mlxsw_sp_port, mid);
+	if (err)
+		netdev_err(dev, "Unable to remove MC SFD\n");
+
+	return err;
+}
+
 static int mlxsw_sp_port_mdb_del(struct mlxsw_sp_port *mlxsw_sp_port,
 				 const struct switchdev_obj_port_mdb *mdb)
 {
@@ -1479,8 +1498,6 @@ static int mlxsw_sp_port_mdb_del(struct mlxsw_sp_port *mlxsw_sp_port,
 	struct mlxsw_sp_bridge_port *bridge_port;
 	struct mlxsw_sp_mid *mid;
 	u16 fid_index;
-	u16 mid_idx;
-	int err = 0;
 
 	bridge_port = mlxsw_sp_bridge_port_find(mlxsw_sp->bridge, orig_dev);
 	if (!bridge_port)
@@ -1501,16 +1518,7 @@ static int mlxsw_sp_port_mdb_del(struct mlxsw_sp_port *mlxsw_sp_port,
 		return -EINVAL;
 	}
 
-	err = mlxsw_sp_port_smid_set(mlxsw_sp_port, mid->mid, false);
-	if (err)
-		netdev_err(dev, "Unable to remove port from SMID\n");
-
-	mid_idx = mid->mid;
-	err = mlxsw_sp_port_remove_from_mid(mlxsw_sp_port, mid);
-	if (err)
-		netdev_err(dev, "Unable to remove MC SFD\n");
-
-	return err;
+	return __mlxsw_sp_port_mdb_del(mlxsw_sp_port, bridge_port, mid);
 }
 
 static int mlxsw_sp_port_obj_del(struct net_device *dev,
