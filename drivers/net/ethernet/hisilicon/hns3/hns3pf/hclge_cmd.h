@@ -270,7 +270,8 @@ struct hclge_tx_buff_alloc {
 
 struct hclge_rx_priv_buff {
 	__le16 buf_num[HCLGE_TC_NUM];
-	u8 rsv[8];
+	__le16 shared_buf;
+	u8 rsv[6];
 };
 
 struct hclge_query_version {

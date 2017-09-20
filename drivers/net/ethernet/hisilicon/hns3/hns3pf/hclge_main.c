@@ -1622,6 +1622,10 @@ static int hclge_rx_priv_buf_alloc(struct hclge_dev *hdev)
 			cpu_to_le16(true << HCLGE_TC0_PRI_BUF_EN_B);
 	}
 
+	req->shared_buf =
+		cpu_to_le16((hdev->s_buf.buf_size >> HCLGE_BUF_UNIT_S) |
+			    (1 << HCLGE_TC0_PRI_BUF_EN_B));
+
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
