@@ -1491,6 +1491,9 @@ static int mlxsw_sp_port_mdb_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (!bridge_device->multicast_enabled)
 		return 0;
 
+	if (bridge_port->mrouter)
+		return 0;
+
 	err = mlxsw_sp_port_smid_set(mlxsw_sp_port, mid->mid, true);
 	if (err) {
 		netdev_err(dev, "Unable to set SMID\n");
@@ -1613,10 +1616,12 @@ __mlxsw_sp_port_mdb_del(struct mlxsw_sp_port *mlxsw_sp_port,
 	int err;
 
 	if (bridge_port->bridge_device->multicast_enabled) {
-		err = mlxsw_sp_port_smid_set(mlxsw_sp_port, mid->mid, false);
-
-		if (err)
-			netdev_err(dev, "Unable to remove port from SMID\n");
+		if (bridge_port->bridge_device->multicast_enabled) {
+			err = mlxsw_sp_port_smid_set(mlxsw_sp_port, mid->mid,
+						     false);
+			if (err)
+				netdev_err(dev, "Unable to remove port from SMID\n");
+		}
 	}
 
 	err = mlxsw_sp_port_remove_from_mid(mlxsw_sp_port, mid);
