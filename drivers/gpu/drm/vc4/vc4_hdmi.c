@@ -693,7 +693,22 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 	}
 }
 
+static enum drm_mode_status
+vc4_hdmi_encoder_mode_valid(struct drm_encoder *crtc,
+			    const struct drm_display_mode *mode)
+{
+	/* HSM clock must be 108% of the pixel clock.  Additionally,
+	 * the AXI clock needs to be at least 25% of pixel clock, but
+	 * HSM ends up being the limiting factor.
+	 */
+	if (mode->clock > HSM_CLOCK_FREQ / (1000 * 108 / 100))
+		return MODE_CLOCK_HIGH;
+
+	return MODE_OK;
+}
+
 static const struct drm_encoder_helper_funcs vc4_hdmi_encoder_helper_funcs = {
+	.mode_valid = vc4_hdmi_encoder_mode_valid,
 	.disable = vc4_hdmi_encoder_disable,
 	.enable = vc4_hdmi_encoder_enable,
 };
