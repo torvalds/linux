@@ -918,7 +918,8 @@ static int o2net_recv_tcp_msg(struct socket *sock, void *data, size_t len)
 {
 	struct kvec vec = { .iov_len = len, .iov_base = data, };
 	struct msghdr msg = { .msg_flags = MSG_DONTWAIT, };
-	return kernel_recvmsg(sock, &msg, &vec, 1, len, msg.msg_flags);
+	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, &vec, 1, len);
+	return sock_recvmsg(sock, &msg, MSG_DONTWAIT);
 }
 
 static int o2net_send_tcp_msg(struct socket *sock, struct kvec *vec,
