@@ -117,6 +117,7 @@ extern void smum_wait_for_indirect_register_unequal(
 				uint32_t indirect_port, uint32_t index,
 				uint32_t value, uint32_t mask);
 
+
 extern int smu_allocate_memory(void *device, uint32_t size,
 			 enum cgs_gpu_mem_type type,
 			 uint32_t byte_align, uint64_t *mc_addr,
@@ -242,15 +243,5 @@ extern bool smum_is_hw_avfs_present(struct pp_hwmgr *hwmgr);
 		(fieldval) << SMUM_FIELD_SHIFT(reg, field),		\
 		SMUM_FIELD_MASK(reg, field))
 
-#define SMUM_WAIT_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr, port, index, value, mask)    \
-	smum_wait_for_indirect_register_unequal(hwmgr,			\
-		mm##port##_INDEX, index, value, mask)
-
-#define SMUM_WAIT_INDIRECT_REGISTER_UNEQUAL(hwmgr, port, reg, value, mask)    \
-	    SMUM_WAIT_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr, port, ix##reg, value, mask)
-
-#define SMUM_WAIT_INDIRECT_FIELD_UNEQUAL(hwmgr, port, reg, field, fieldval)                          \
-	    SMUM_WAIT_INDIRECT_REGISTER_UNEQUAL(hwmgr, port, reg, (fieldval) << SMUM_FIELD_SHIFT(reg, field), \
-			            SMUM_FIELD_MASK(reg, field) )
 
 #endif

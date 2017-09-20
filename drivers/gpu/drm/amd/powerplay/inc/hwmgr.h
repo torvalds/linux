@@ -889,4 +889,17 @@ extern int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_t
 	PHM_WAIT_INDIRECT_REGISTER(hwmgr, port, reg, (fieldval)	\
 			<< PHM_FIELD_SHIFT(reg, field), PHM_FIELD_MASK(reg, field))
 
+#define PHM_WAIT_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr, port, index, value, mask)    \
+		phm_wait_for_indirect_register_unequal(hwmgr,                   \
+				mm##port##_INDEX, index, value, mask)
+
+#define PHM_WAIT_INDIRECT_REGISTER_UNEQUAL(hwmgr, port, reg, value, mask)    \
+		PHM_WAIT_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr, port, ix##reg, value, mask)
+
+#define PHM_WAIT_INDIRECT_FIELD_UNEQUAL(hwmgr, port, reg, field, fieldval)                          \
+		PHM_WAIT_INDIRECT_REGISTER_UNEQUAL(hwmgr, port, reg, \
+				(fieldval) << PHM_FIELD_SHIFT(reg, field), \
+					PHM_FIELD_MASK(reg, field) )
+
+
 #endif /* _HWMGR_H_ */

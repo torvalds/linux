@@ -63,7 +63,7 @@ static int fiji_start_smu_in_protection_mode(struct pp_hwmgr *hwmgr)
 	int result = 0;
 
 	/* Wait for smc boot up */
-	/* SMUM_WAIT_INDIRECT_FIELD_UNEQUAL(hwmgr, SMC_IND,
+	/* PHM_WAIT_INDIRECT_FIELD_UNEQUAL(hwmgr, SMC_IND,
 		RCU_UC_EVENTS, boot_seq_done, 0); */
 
 	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,

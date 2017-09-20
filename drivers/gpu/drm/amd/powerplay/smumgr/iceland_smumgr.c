@@ -137,7 +137,7 @@ static int iceland_smu_upload_firmware_image(struct pp_hwmgr *hwmgr)
 	}
 
 	/* wait for smc boot up */
-	SMUM_WAIT_INDIRECT_FIELD_UNEQUAL(hwmgr, SMC_IND,
+	PHM_WAIT_INDIRECT_FIELD_UNEQUAL(hwmgr, SMC_IND,
 					 RCU_UC_EVENTS, boot_seq_done, 0);
 
 	/* clear firmware interrupt enable flag */
