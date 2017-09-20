@@ -130,6 +130,11 @@ mlxsw_sp_bridge_mdb_mc_enable_sync(struct mlxsw_sp_port *mlxsw_sp_port,
 				   struct mlxsw_sp_bridge_device
 				   *bridge_device);
 
+static void
+mlxsw_sp_port_mrouter_update_mdb(struct mlxsw_sp_port *mlxsw_sp_port,
+				 struct mlxsw_sp_bridge_port *bridge_port,
+				 bool add);
+
 static struct mlxsw_sp_bridge_device *
 mlxsw_sp_bridge_device_find(const struct mlxsw_sp_bridge *bridge,
 			    const struct net_device *br_dev)
@@ -747,6 +752,8 @@ static int mlxsw_sp_port_attr_mrouter_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (err)
 		return err;
 
+	mlxsw_sp_port_mrouter_update_mdb(mlxsw_sp_port, bridge_port,
+					 is_port_mrouter);
 out:
 	bridge_port->mrouter = is_port_mrouter;
 	return 0;
@@ -1514,6 +1521,22 @@ mlxsw_sp_bridge_mdb_mc_enable_sync(struct mlxsw_sp_port *mlxsw_sp_port,
 						    bridge_device);
 		else
 			mlxsw_sp_mc_remove_mdb_entry(mlxsw_sp, mid);
+	}
+}
+
+static void
+mlxsw_sp_port_mrouter_update_mdb(struct mlxsw_sp_port *mlxsw_sp_port,
+				 struct mlxsw_sp_bridge_port *bridge_port,
+				 bool add)
+{
+	struct mlxsw_sp_bridge_device *bridge_device;
+	struct mlxsw_sp_mid *mid;
+
+	bridge_device = bridge_port->bridge_device;
+
+	list_for_each_entry(mid, &bridge_device->mids_list, list) {
+		if (!test_bit(mlxsw_sp_port->local_port, mid->ports_in_mid))
+			mlxsw_sp_port_smid_set(mlxsw_sp_port, mid->mid, add);
 	}
 }
 
