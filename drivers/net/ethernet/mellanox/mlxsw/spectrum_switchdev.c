@@ -262,7 +262,8 @@ mlxsw_sp_bridge_port_create(struct mlxsw_sp_bridge_device *bridge_device,
 	bridge_port->dev = brport_dev;
 	bridge_port->bridge_device = bridge_device;
 	bridge_port->stp_state = BR_STATE_DISABLED;
-	bridge_port->flags = BR_LEARNING | BR_FLOOD | BR_LEARNING_SYNC;
+	bridge_port->flags = BR_LEARNING | BR_FLOOD | BR_LEARNING_SYNC |
+			     BR_MCAST_FLOOD;
 	INIT_LIST_HEAD(&bridge_port->vlans_list);
 	list_add(&bridge_port->list, &bridge_device->ports_list);
 	bridge_port->ref_count = 1;
@@ -468,7 +469,8 @@ static int mlxsw_sp_port_attr_get(struct net_device *dev,
 					       &attr->u.brport_flags);
 		break;
 	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS_SUPPORT:
-		attr->u.brport_flags_support = BR_LEARNING | BR_FLOOD;
+		attr->u.brport_flags_support = BR_LEARNING | BR_FLOOD |
+					       BR_MCAST_FLOOD;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -653,8 +655,18 @@ static int mlxsw_sp_port_attr_br_flags_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (err)
 		return err;
 
-	memcpy(&bridge_port->flags, &brport_flags, sizeof(brport_flags));
+	if (bridge_port->bridge_device->multicast_enabled)
+		goto out;
 
+	err = mlxsw_sp_bridge_port_flood_table_set(mlxsw_sp_port, bridge_port,
+						   MLXSW_SP_FLOOD_TYPE_MC,
+						   brport_flags &
+						   BR_MCAST_FLOOD);
+	if (err)
+		return err;
+
+out:
+	memcpy(&bridge_port->flags, &brport_flags, sizeof(brport_flags));
 	return 0;
 }
 
@@ -747,7 +759,8 @@ static bool mlxsw_sp_mc_flood(const struct mlxsw_sp_bridge_port *bridge_port)
 	const struct mlxsw_sp_bridge_device *bridge_device;
 
 	bridge_device = bridge_port->bridge_device;
-	return !bridge_device->multicast_enabled ? true : bridge_port->mrouter;
+	return bridge_device->multicast_enabled ? bridge_port->mrouter :
+					bridge_port->flags & BR_MCAST_FLOOD;
 }
 
 static int mlxsw_sp_port_mc_disabled_set(struct mlxsw_sp_port *mlxsw_sp_port,
