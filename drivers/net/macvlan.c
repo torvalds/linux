@@ -1231,11 +1231,14 @@ static int macvlan_validate(struct nlattr *tb[], struct nlattr *data[],
 			return -EADDRNOTAVAIL;
 	}
 
-	if (data && data[IFLA_MACVLAN_FLAGS] &&
+	if (!data)
+		return 0;
+
+	if (data[IFLA_MACVLAN_FLAGS] &&
 	    nla_get_u16(data[IFLA_MACVLAN_FLAGS]) & ~MACVLAN_FLAG_NOPROMISC)
 		return -EINVAL;
 
-	if (data && data[IFLA_MACVLAN_MODE]) {
+	if (data[IFLA_MACVLAN_MODE]) {
 		switch (nla_get_u32(data[IFLA_MACVLAN_MODE])) {
 		case MACVLAN_MODE_PRIVATE:
 		case MACVLAN_MODE_VEPA:
@@ -1248,7 +1251,7 @@ static int macvlan_validate(struct nlattr *tb[], struct nlattr *data[],
 		}
 	}
 
-	if (data && data[IFLA_MACVLAN_MACADDR_MODE]) {
+	if (data[IFLA_MACVLAN_MACADDR_MODE]) {
 		switch (nla_get_u32(data[IFLA_MACVLAN_MACADDR_MODE])) {
 		case MACVLAN_MACADDR_ADD:
 		case MACVLAN_MACADDR_DEL:
@@ -1260,7 +1263,7 @@ static int macvlan_validate(struct nlattr *tb[], struct nlattr *data[],
 		}
 	}
 
-	if (data && data[IFLA_MACVLAN_MACADDR]) {
+	if (data[IFLA_MACVLAN_MACADDR]) {
 		if (nla_len(data[IFLA_MACVLAN_MACADDR]) != ETH_ALEN)
 			return -EINVAL;
 
@@ -1268,7 +1271,7 @@ static int macvlan_validate(struct nlattr *tb[], struct nlattr *data[],
 			return -EADDRNOTAVAIL;
 	}
 
-	if (data && data[IFLA_MACVLAN_MACADDR_COUNT])
+	if (data[IFLA_MACVLAN_MACADDR_COUNT])
 		return -EINVAL;
 
 	return 0;
