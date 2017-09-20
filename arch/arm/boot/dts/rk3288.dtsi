@@ -2185,8 +2185,11 @@
 						<6 RK_PA1 1 &pcfg_pull_none>,
 						<6 RK_PA2 1 &pcfg_pull_none>,
 						<6 RK_PA3 1 &pcfg_pull_none>,
-						<6 RK_PA4 1 &pcfg_pull_none>,
-						<6 RK_PB0 1 &pcfg_pull_none>;
+						<6 RK_PA4 1 &pcfg_pull_none>;
+			};
+
+			i2s0_mclk: i2s0-mclk {
+				rockchip,pins = <6 RK_PB0 1 &pcfg_pull_none>;
 			};
 		};
 
