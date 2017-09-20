@@ -1444,7 +1444,11 @@ static bool  hclge_is_rx_buf_ok(struct hclge_dev *hdev, u32 rx_all)
 	tc_num = hclge_get_tc_num(hdev);
 	pfc_enable_num = hclge_get_pfc_enalbe_num(hdev);
 
-	shared_buf_min = 2 * hdev->mps + HCLGE_DEFAULT_DV;
+	if (hnae3_dev_dcb_supported(hdev))
+		shared_buf_min = 2 * hdev->mps + HCLGE_DEFAULT_DV;
+	else
+		shared_buf_min = 2 * hdev->mps + HCLGE_DEFAULT_NON_DCB_DV;
+
 	shared_buf_tc = pfc_enable_num * hdev->mps +
 			(tc_num - pfc_enable_num) * hdev->mps / 2 +
 			hdev->mps;
