@@ -383,6 +383,9 @@ struct vba_vars_st {
 	double DPPCLK_calculated[DC__NUM_DPP__MAX];
 
 	unsigned int VStartup[DC__NUM_DPP__MAX];
+	unsigned int VUpdateOffsetPix[DC__NUM_DPP__MAX];
+	unsigned int VUpdateWidthPix[DC__NUM_DPP__MAX];
+	unsigned int VReadyOffsetPix[DC__NUM_DPP__MAX];
 	unsigned int VStartupRequiredWhenNotEnoughTimeForDynamicMetadata;
 
 	double ImmediateFlipBW;

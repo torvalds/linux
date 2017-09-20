@@ -88,7 +88,10 @@ static bool CalculatePrefetchSchedule(
 		double *VRatioPrefetchC,
 		double *RequiredPrefetchPixDataBW,
 		unsigned int *VStartupRequiredWhenNotEnoughTimeForDynamicMetadata,
-		double *Tno_bw);
+		double *Tno_bw,
+		unsigned int *VUpdateOffsetPix,
+		unsigned int *VUpdateWidthPix,
+		unsigned int *VReadyOffsetPix);
 static double RoundToDFSGranularityUp(double Clock, double VCOSpeed);
 static double RoundToDFSGranularityDown(double Clock, double VCOSpeed);
 static double CalculatePrefetchSourceLines(
@@ -264,7 +267,7 @@ unsigned int dml_get_voltage_level(
 	memcpy(mode_lib->vba.cache_pipes, pipes, sizeof(*pipes) * num_pipes);
 	mode_lib->vba.cache_num_pipes = num_pipes;
 
-	if (need_recalculate)
+	if (need_recalculate && pipes[0].clks_cfg.dppclk_mhz != 0)
 		recalculate(mode_lib);
 	else {
 		fetch_socbb_params(mode_lib);
@@ -1066,10 +1069,13 @@ static bool CalculatePrefetchSchedule(
 		double *VRatioPrefetchC,
 		double *RequiredPrefetchPixDataBW,
 		unsigned int *VStartupRequiredWhenNotEnoughTimeForDynamicMetadata,
-		double *Tno_bw)
+		double *Tno_bw,
+		unsigned int *VUpdateOffsetPix,
+		unsigned int *VUpdateWidthPix,
+		unsigned int *VReadyOffsetPix)
 {
 	bool MyError = false;
-	unsigned int DPPCycles, DISPCLKCycles, VUpdateOffsetPix, VUpdateWidthPix, VReadyOffsetPix;
+	unsigned int DPPCycles, DISPCLKCycles;
 	double DSTTotalPixelsAfterScaler, TotalRepeaterDelayTime;
 	double Tdm, LineTime, Tsetup;
 	double dst_y_prefetch_equ;
@@ -1110,17 +1116,17 @@ static bool CalculatePrefetchSchedule(
 	*DSTYAfterScaler = dml_floor(DSTTotalPixelsAfterScaler / HTotal, 1);
 	*DSTXAfterScaler = DSTTotalPixelsAfterScaler - ((double) (*DSTYAfterScaler * HTotal));
 
-	VUpdateOffsetPix = dml_ceil(HTotal / 4.0, 1);
+	*VUpdateOffsetPix = dml_ceil(HTotal / 4.0, 1);
 	TotalRepeaterDelayTime = MaxInterDCNTileRepeaters * (2.0 / DPPCLK + 3.0 / DISPCLK);
-	VUpdateWidthPix = (14.0 / DCFClkDeepSleep + 12.0 / DPPCLK + TotalRepeaterDelayTime)
+	*VUpdateWidthPix = (14.0 / DCFClkDeepSleep + 12.0 / DPPCLK + TotalRepeaterDelayTime)
 			* PixelClock;
 
-	VReadyOffsetPix = dml_max(
+	*VReadyOffsetPix = dml_max(
 			150.0 / DPPCLK,
 			TotalRepeaterDelayTime + 20.0 / DCFClkDeepSleep + 10.0 / DPPCLK)
 			* PixelClock;
 
-	Tsetup = (double) (VUpdateOffsetPix + VUpdateWidthPix + VReadyOffsetPix) / PixelClock;
+	Tsetup = (double) (*VUpdateOffsetPix + *VUpdateWidthPix + *VReadyOffsetPix) / PixelClock;
 
 	LineTime = (double) HTotal / PixelClock;
 
@@ -2710,7 +2716,10 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 							&mode_lib->vba.VRatioPrefetchC[k],
 							&mode_lib->vba.RequiredPrefetchPixDataBW[k],
 							&mode_lib->vba.VStartupRequiredWhenNotEnoughTimeForDynamicMetadata,
-							&mode_lib->vba.Tno_bw[k]);
+							&mode_lib->vba.Tno_bw[k],
+							&mode_lib->vba.VUpdateOffsetPix[k],
+							&mode_lib->vba.VUpdateWidthPix[k],
+							&mode_lib->vba.VReadyOffsetPix[k]);
 			if (mode_lib->vba.BlendingAndTiming[k] == k) {
 				mode_lib->vba.VStartup[k] = dml_min(
 						mode_lib->vba.VStartupLines,
@@ -5805,7 +5814,10 @@ static void ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_
 							&mode_lib->vba.VRatioPreC[i][k],
 							&mode_lib->vba.RequiredPrefetchPixelDataBW[i][k],
 							&mode_lib->vba.VStartupRequiredWhenNotEnoughTimeForDynamicMetadata,
-							&mode_lib->vba.Tno_bw[k]);
+							&mode_lib->vba.Tno_bw[k],
+							&mode_lib->vba.VUpdateOffsetPix[k],
+							&mode_lib->vba.VUpdateWidthPix[k],
+							&mode_lib->vba.VReadyOffsetPix[k]);
 		}
 		for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++) {
 			mode_lib->vba.cursor_bw[k] = mode_lib->vba.NumberOfCursors[k]
