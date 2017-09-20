@@ -195,7 +195,7 @@ int big_key_preparse(struct key_preparsed_payload *prep)
 		*path = file->f_path;
 		path_get(path);
 		fput(file);
-		kfree(data);
+		kzfree(data);
 	} else {
 		/* Just store the data in a buffer */
 		void *data = kmalloc(datalen, GFP_KERNEL);
@@ -211,9 +211,9 @@ int big_key_preparse(struct key_preparsed_payload *prep)
 err_fput:
 	fput(file);
 err_enckey:
-	kfree(enckey);
+	kzfree(enckey);
 error:
-	kfree(data);
+	kzfree(data);
 	return ret;
 }
 
@@ -227,7 +227,7 @@ void big_key_free_preparse(struct key_preparsed_payload *prep)
 
 		path_put(path);
 	}
-	kfree(prep->payload.data[big_key_data]);
+	kzfree(prep->payload.data[big_key_data]);
 }
 
 /*
@@ -259,7 +259,7 @@ void big_key_destroy(struct key *key)
 		path->mnt = NULL;
 		path->dentry = NULL;
 	}
-	kfree(key->payload.data[big_key_data]);
+	kzfree(key->payload.data[big_key_data]);
 	key->payload.data[big_key_data] = NULL;
 }
 
@@ -328,7 +328,7 @@ long big_key_read(const struct key *key, char __user *buffer, size_t buflen)
 err_fput:
 		fput(file);
 error:
-		kfree(data);
+		kzfree(data);
 	} else {
 		ret = datalen;
 		if (copy_to_user(buffer, key->payload.data[big_key_data],
