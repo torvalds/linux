@@ -441,6 +441,13 @@ perf_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/perf_ioctl.sh
 $(perf_ioctl_array): $(perf_hdr_dir)/perf_event.h $(perf_ioctl_tbl)
 	$(Q)$(SHELL) '$(perf_ioctl_tbl)' $(perf_hdr_dir) > $@
 
+madvise_behavior_array := $(beauty_outdir)/madvise_behavior_array.c
+madvise_hdr_dir := $(srctree)/tools/include/uapi/asm-generic/
+madvise_behavior_tbl := $(srctree)/tools/perf/trace/beauty/madvise_behavior.sh
+
+$(madvise_behavior_array): $(madvise_hdr_dir)/mman-common.h $(madvise_behavior_tbl)
+	$(Q)$(SHELL) '$(madvise_behavior_tbl)' $(madvise_hdr_dir) > $@
+
 all: shell_compatibility_test $(ALL_PROGRAMS) $(LANG_BINDINGS) $(OTHER_PROGRAMS)
 
 $(OUTPUT)python/perf.so: $(PYTHON_EXT_SRCS) $(PYTHON_EXT_DEPS) $(LIBTRACEEVENT_DYNAMIC_LIST)
@@ -541,6 +548,7 @@ prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h archheaders $(drm_ioc
 	$(sndrv_ctl_ioctl_array) \
 	$(kvm_ioctl_array) \
 	$(vhost_virtio_ioctl_array) \
+	$(madvise_behavior_array) \
 	$(perf_ioctl_array)
 
 $(OUTPUT)%.o: %.c prepare FORCE
@@ -814,6 +822,7 @@ clean:: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clea
 		$(OUTPUT)util/intel-pt-decoder/inat-tables.c \
 		$(OUTPUT)tests/llvm-src-{base,kbuild,prologue,relocation}.c \
 		$(OUTPUT)pmu-events/pmu-events.c \
+		$(OUTPUT)$(madvise_behavior_array) \
 		$(OUTPUT)$(drm_ioctl_array) \
 		$(OUTPUT)$(pkey_alloc_access_rights_array) \
 		$(OUTPUT)$(sndrv_ctl_ioctl_array) \
