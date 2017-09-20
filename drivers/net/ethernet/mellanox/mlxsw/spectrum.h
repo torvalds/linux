@@ -95,6 +95,7 @@ struct mlxsw_sp_mid {
 	u16 fid;
 	u16 mid;
 	unsigned int ref_count;
+	unsigned long *ports_in_mid; /* bits array */
 };
 
 enum mlxsw_sp_span_type {
