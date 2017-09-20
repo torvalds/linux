@@ -820,7 +820,6 @@ static struct meson_bank meson_gxbb_aobus_banks[] = {
 
 struct meson_pinctrl_data meson_gxbb_periphs_pinctrl_data = {
 	.name		= "periphs-banks",
-	.pin_base	= 0,
 	.pins		= meson_gxbb_periphs_pins,
 	.groups		= meson_gxbb_periphs_groups,
 	.funcs		= meson_gxbb_periphs_functions,
@@ -833,7 +832,6 @@ struct meson_pinctrl_data meson_gxbb_periphs_pinctrl_data = {
 
 struct meson_pinctrl_data meson_gxbb_aobus_pinctrl_data = {
 	.name		= "aobus-banks",
-	.pin_base	= 0,
 	.pins		= meson_gxbb_aobus_pins,
 	.groups		= meson_gxbb_aobus_groups,
 	.funcs		= meson_gxbb_aobus_functions,

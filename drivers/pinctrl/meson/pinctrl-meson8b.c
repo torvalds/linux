@@ -906,7 +906,6 @@ static struct meson_bank meson8b_aobus_banks[] = {
 
 struct meson_pinctrl_data meson8b_cbus_pinctrl_data = {
 	.name		= "cbus-banks",
-	.pin_base	= 0,
 	.pins		= meson8b_cbus_pins,
 	.groups		= meson8b_cbus_groups,
 	.funcs		= meson8b_cbus_functions,
@@ -919,7 +918,6 @@ struct meson_pinctrl_data meson8b_cbus_pinctrl_data = {
 
 struct meson_pinctrl_data meson8b_aobus_pinctrl_data = {
 	.name		= "aobus-banks",
-	.pin_base	= 0,
 	.pins		= meson8b_aobus_pins,
 	.groups		= meson8b_aobus_groups,
 	.funcs		= meson8b_aobus_functions,
