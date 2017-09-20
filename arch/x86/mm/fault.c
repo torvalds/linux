@@ -806,7 +806,6 @@ no_context(struct pt_regs *regs, unsigned long error_code,
 	if (is_vmalloc_addr((void *)address) &&
 	    (((unsigned long)tsk->stack - 1 - address < PAGE_SIZE) ||
 	     address - ((unsigned long)tsk->stack + THREAD_SIZE) < PAGE_SIZE)) {
-		register void *__sp asm("rsp");
 		unsigned long stack = this_cpu_read(orig_ist.ist[DOUBLEFAULT_STACK]) - sizeof(void *);
 		/*
 		 * We're likely to be running with very little stack space
@@ -821,7 +820,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
 		asm volatile ("movq %[stack], %%rsp\n\t"
 			      "call handle_stack_overflow\n\t"
 			      "1: jmp 1b"
-			      : "+r" (__sp)
+			      : ASM_CALL_CONSTRAINT
 			      : "D" ("kernel stack overflow (page fault)"),
 				"S" (regs), "d" (address),
 				[stack] "rm" (stack));
