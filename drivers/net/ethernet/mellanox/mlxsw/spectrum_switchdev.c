@@ -699,10 +699,10 @@ static int mlxsw_sp_port_attr_br_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	return -EINVAL;
 }
 
-static int mlxsw_sp_port_attr_mc_router_set(struct mlxsw_sp_port *mlxsw_sp_port,
-					    struct switchdev_trans *trans,
-					    struct net_device *orig_dev,
-					    bool is_port_mc_router)
+static int mlxsw_sp_port_attr_mrouter_set(struct mlxsw_sp_port *mlxsw_sp_port,
+					  struct switchdev_trans *trans,
+					  struct net_device *orig_dev,
+					  bool is_port_mrouter)
 {
 	struct mlxsw_sp_bridge_port *bridge_port;
 	int err;
@@ -720,12 +720,12 @@ static int mlxsw_sp_port_attr_mc_router_set(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	err = mlxsw_sp_bridge_port_flood_table_set(mlxsw_sp_port, bridge_port,
 						   MLXSW_SP_FLOOD_TYPE_MC,
-						   is_port_mc_router);
+						   is_port_mrouter);
 	if (err)
 		return err;
 
 out:
-	bridge_port->mrouter = is_port_mc_router;
+	bridge_port->mrouter = is_port_mrouter;
 	return 0;
 }
 
@@ -793,9 +793,9 @@ static int mlxsw_sp_port_attr_set(struct net_device *dev,
 						     attr->u.vlan_filtering);
 		break;
 	case SWITCHDEV_ATTR_ID_PORT_MROUTER:
-		err = mlxsw_sp_port_attr_mc_router_set(mlxsw_sp_port, trans,
-						       attr->orig_dev,
-						       attr->u.mrouter);
+		err = mlxsw_sp_port_attr_mrouter_set(mlxsw_sp_port, trans,
+						     attr->orig_dev,
+						     attr->u.mrouter);
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_MC_DISABLED:
 		err = mlxsw_sp_port_mc_disabled_set(mlxsw_sp_port, trans,
