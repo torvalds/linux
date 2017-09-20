@@ -219,6 +219,11 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	kfd->shared_resources = *gpu_resources;
 
+	kfd->vm_info.first_vmid_kfd = ffs(gpu_resources->compute_vmid_bitmap)-1;
+	kfd->vm_info.last_vmid_kfd = fls(gpu_resources->compute_vmid_bitmap)-1;
+	kfd->vm_info.vmid_num_kfd = kfd->vm_info.last_vmid_kfd
+			- kfd->vm_info.first_vmid_kfd + 1;
+
 	/* calculate max size of mqds needed for queues */
 	size = max_num_of_queues_per_device *
 			kfd->device_info->mqd_size_aligned;
