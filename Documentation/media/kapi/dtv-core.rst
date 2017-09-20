@@ -34,3 +34,4 @@ I2C bus.
     dtv-frontend
     dtv-demux
     dtv-ca
+    dtv-net
