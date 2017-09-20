@@ -280,6 +280,7 @@
 		 <&clkc CLKID_CLK81>,
 		 <&clkc CLKID_GCLK_VENCI_INT0>;
 	clock-names = "isfr", "iahb", "venci";
+	#sound-dai-cells = <0>;
 };
 
 &sysctrl {
