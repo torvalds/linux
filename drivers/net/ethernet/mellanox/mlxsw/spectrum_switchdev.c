@@ -1673,6 +1673,9 @@ mlxsw_sp_bridge_port_mdb_flush(struct mlxsw_sp_port *mlxsw_sp_port,
 		if (test_bit(mlxsw_sp_port->local_port, mid->ports_in_mid)) {
 			__mlxsw_sp_port_mdb_del(mlxsw_sp_port, bridge_port,
 						mid);
+		} else if (bridge_device->multicast_enabled &&
+			   bridge_port->mrouter) {
+			mlxsw_sp_port_smid_set(mlxsw_sp_port, mid->mid, false);
 		}
 	}
 }
