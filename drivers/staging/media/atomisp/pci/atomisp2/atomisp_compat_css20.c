@@ -155,7 +155,7 @@ static void atomisp_css2_hw_store(hrt_address addr,
 				  const void *from, uint32_t n)
 {
 	unsigned long flags;
-	unsigned i;
+	unsigned int i;
 	unsigned int _to = (unsigned int)addr;
 	const char *_from = (const char *)from;
 
@@ -168,7 +168,7 @@ static void atomisp_css2_hw_store(hrt_address addr,
 static void atomisp_css2_hw_load(hrt_address addr, void *to, uint32_t n)
 {
 	unsigned long flags;
-	unsigned i;
+	unsigned int i;
 	char *_to = (char *)to;
 	unsigned int _from = (unsigned int)addr;
 
@@ -4659,7 +4659,7 @@ int atomisp_css_dump_sp_raw_copy_linecount(bool reduced)
 int atomisp_css_dump_blob_infor(void)
 {
 	struct ia_css_blob_descr *bd = sh_css_blob_info;
-	unsigned i, nm = sh_css_num_binaries;
+	unsigned int i, nm = sh_css_num_binaries;
 
 	if (nm == 0)
 		return -EPERM;
