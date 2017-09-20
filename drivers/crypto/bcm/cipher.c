@@ -4809,7 +4809,6 @@ static int spu_dt_read(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct spu_hw *spu = &iproc_priv.spu;
 	struct resource *spu_ctrl_regs;
-	const struct of_device_id *match;
 	const struct spu_type_subtype *matched_spu_type;
 	struct device_node *dn = pdev->dev.of_node;
 	int err, i;
@@ -4817,13 +4816,11 @@ static int spu_dt_read(struct platform_device *pdev)
 	/* Count number of mailbox channels */
 	spu->num_chan = of_count_phandle_with_args(dn, "mboxes", "#mbox-cells");
 
-	match = of_match_device(of_match_ptr(bcm_spu_dt_ids), dev);
-	if (!match) {
+	matched_spu_type = of_device_get_match_data(dev);
+	if (!matched_spu_type) {
 		dev_err(&pdev->dev, "Failed to match device\n");
 		return -ENODEV;
 	}
-
-	matched_spu_type = match->data;
 
 	spu->spu_type = matched_spu_type->type;
 	spu->spu_subtype = matched_spu_type->subtype;
