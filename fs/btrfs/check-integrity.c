@@ -2913,7 +2913,7 @@ int btrfsic_mount(struct btrfs_fs_info *fs_info,
 	state = kvzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state) {
 		pr_info("btrfs check-integrity: allocation failed!\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	if (!btrfsic_is_initialized) {
@@ -2945,7 +2945,7 @@ int btrfsic_mount(struct btrfs_fs_info *fs_info,
 		if (NULL == ds) {
 			pr_info("btrfs check-integrity: kmalloc() failed!\n");
 			mutex_unlock(&btrfsic_mutex);
-			return -1;
+			return -ENOMEM;
 		}
 		ds->bdev = device->bdev;
 		ds->state = state;
