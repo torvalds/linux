@@ -852,21 +852,27 @@ enum intel_platform {
 };
 
 struct intel_device_info {
-	u32 display_mmio_offset;
 	u16 device_id;
+	u16 gen_mask;
+
+	u8 gen;
+	u8 gt; /* GT number, 0 if undefined */
+	u8 num_rings;
+	u8 ring_mask; /* Rings supported by the HW */
+
+	enum intel_platform platform;
+
+	u32 display_mmio_offset;
+
 	u8 num_pipes;
 	u8 num_sprites[I915_MAX_PIPES];
 	u8 num_scalers[I915_MAX_PIPES];
-	u8 gen;
-	u16 gen_mask;
-	enum intel_platform platform;
-	u8 gt; /* GT number, 0 if undefined */
-	u8 ring_mask; /* Rings supported by the HW */
-	u8 num_rings;
+
 #define DEFINE_FLAG(name) u8 name:1
 	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG);
 #undef DEFINE_FLAG
 	u16 ddb_size; /* in blocks */
+
 	/* Register offsets for the various display pipes and transcoders */
 	int pipe_offsets[I915_MAX_TRANSCODERS];
 	int trans_offsets[I915_MAX_TRANSCODERS];
