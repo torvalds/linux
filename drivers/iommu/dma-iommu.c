@@ -370,10 +370,12 @@ static dma_addr_t iommu_dma_alloc_iova(struct iommu_domain *domain,
 
 	/* Try to get PCI devices a SAC address */
 	if (dma_limit > DMA_BIT_MASK(32) && dev_is_pci(dev))
-		iova = alloc_iova_fast(iovad, iova_len, DMA_BIT_MASK(32) >> shift);
+		iova = alloc_iova_fast(iovad, iova_len,
+				       DMA_BIT_MASK(32) >> shift, false);
 
 	if (!iova)
-		iova = alloc_iova_fast(iovad, iova_len, dma_limit >> shift);
+		iova = alloc_iova_fast(iovad, iova_len, dma_limit >> shift,
+				       true);
 
 	return (dma_addr_t)iova << shift;
 }

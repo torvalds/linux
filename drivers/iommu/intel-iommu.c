@@ -3469,11 +3469,12 @@ static unsigned long intel_alloc_iova(struct device *dev,
 		 * from higher range
 		 */
 		iova_pfn = alloc_iova_fast(&domain->iovad, nrpages,
-					   IOVA_PFN(DMA_BIT_MASK(32)));
+					   IOVA_PFN(DMA_BIT_MASK(32)), false);
 		if (iova_pfn)
 			return iova_pfn;
 	}
-	iova_pfn = alloc_iova_fast(&domain->iovad, nrpages, IOVA_PFN(dma_mask));
+	iova_pfn = alloc_iova_fast(&domain->iovad, nrpages,
+				   IOVA_PFN(dma_mask), true);
 	if (unlikely(!iova_pfn)) {
 		pr_err("Allocating %ld-page iova for %s failed",
 		       nrpages, dev_name(dev));

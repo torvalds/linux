@@ -1546,10 +1546,11 @@ static unsigned long dma_ops_alloc_iova(struct device *dev,
 
 	if (dma_mask > DMA_BIT_MASK(32))
 		pfn = alloc_iova_fast(&dma_dom->iovad, pages,
-				      IOVA_PFN(DMA_BIT_MASK(32)));
+				      IOVA_PFN(DMA_BIT_MASK(32)), false);
 
 	if (!pfn)
-		pfn = alloc_iova_fast(&dma_dom->iovad, pages, IOVA_PFN(dma_mask));
+		pfn = alloc_iova_fast(&dma_dom->iovad, pages,
+				      IOVA_PFN(dma_mask), true);
 
 	return (pfn << PAGE_SHIFT);
 }

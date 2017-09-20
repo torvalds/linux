@@ -395,14 +395,15 @@ EXPORT_SYMBOL_GPL(free_iova);
  * @iovad: - iova domain in question
  * @size: - size of page frames to allocate
  * @limit_pfn: - max limit address
+ * @flush_rcache: - set to flush rcache on regular allocation failure
  * This function tries to satisfy an iova allocation from the rcache,
- * and falls back to regular allocation on failure.
+ * and falls back to regular allocation on failure. If regular allocation
+ * fails too and the flush_rcache flag is set then the rcache will be flushed.
 */
 unsigned long
 alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
-		unsigned long limit_pfn)
+		unsigned long limit_pfn, bool flush_rcache)
 {
-	bool flushed_rcache = false;
 	unsigned long iova_pfn;
 	struct iova *new_iova;
 
@@ -415,11 +416,11 @@ retry:
 	if (!new_iova) {
 		unsigned int cpu;
 
-		if (flushed_rcache)
+		if (!flush_rcache)
 			return 0;
 
 		/* Try replenishing IOVAs by flushing rcache. */
-		flushed_rcache = true;
+		flush_rcache = false;
 		for_each_online_cpu(cpu)
 			free_cpu_cached_iovas(cpu, iovad);
 		goto retry;
