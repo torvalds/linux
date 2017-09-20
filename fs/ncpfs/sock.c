@@ -39,7 +39,8 @@ static int _recv(struct socket *sock, void *buf, int size, unsigned flags)
 {
 	struct msghdr msg = {NULL, };
 	struct kvec iov = {buf, size};
-	return kernel_recvmsg(sock, &msg, &iov, 1, size, flags);
+	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, &iov, 1, size);
+	return sock_recvmsg(sock, &msg, flags);
 }
 
 static int _send(struct socket *sock, const void *buff, int len)
