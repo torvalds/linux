@@ -270,7 +270,8 @@ struct hclge_tx_buff_alloc {
 
 struct hclge_rx_priv_buff {
 	__le16 buf_num[HCLGE_TC_NUM];
-	u8 rsv[8];
+	__le16 shared_buf;
+	u8 rsv[6];
 };
 
 struct hclge_query_version {
@@ -688,6 +689,7 @@ struct hclge_reset_tqp_queue {
 #define HCLGE_DEFAULT_TX_BUF		0x4000	 /* 16k  bytes */
 #define HCLGE_TOTAL_PKT_BUF		0x108000 /* 1.03125M bytes */
 #define HCLGE_DEFAULT_DV		0xA000	 /* 40k byte */
+#define HCLGE_DEFAULT_NON_DCB_DV	0x7800	/* 30K byte */
 
 #define HCLGE_TYPE_CRQ			0
 #define HCLGE_TYPE_CSQ			1
