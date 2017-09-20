@@ -742,6 +742,14 @@ out:
 	return 0;
 }
 
+static bool mlxsw_sp_mc_flood(const struct mlxsw_sp_bridge_port *bridge_port)
+{
+	const struct mlxsw_sp_bridge_device *bridge_device;
+
+	bridge_device = bridge_port->bridge_device;
+	return !bridge_device->multicast_enabled ? true : bridge_port->mrouter;
+}
+
 static int mlxsw_sp_port_mc_disabled_set(struct mlxsw_sp_port *mlxsw_sp_port,
 					 struct switchdev_trans *trans,
 					 struct net_device *orig_dev,
@@ -770,7 +778,7 @@ static int mlxsw_sp_port_mc_disabled_set(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	list_for_each_entry(bridge_port, &bridge_device->ports_list, list) {
 		enum mlxsw_sp_flood_type packet_type = MLXSW_SP_FLOOD_TYPE_MC;
-		bool member = mc_disabled ? true : bridge_port->mrouter;
+		bool member = mlxsw_sp_mc_flood(bridge_port);
 
 		err = mlxsw_sp_bridge_port_flood_table_set(mlxsw_sp_port,
 							   bridge_port,
@@ -827,14 +835,6 @@ static int mlxsw_sp_port_attr_set(struct net_device *dev,
 	}
 
 	return err;
-}
-
-static bool mlxsw_sp_mc_flood(const struct mlxsw_sp_bridge_port *bridge_port)
-{
-	const struct mlxsw_sp_bridge_device *bridge_device;
-
-	bridge_device = bridge_port->bridge_device;
-	return !bridge_device->multicast_enabled ? true : bridge_port->mrouter;
 }
 
 static int
