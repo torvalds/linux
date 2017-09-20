@@ -91,10 +91,6 @@ int etnaviv_gem_cpu_fini(struct drm_gem_object *obj);
 void etnaviv_gem_free_object(struct drm_gem_object *obj);
 int etnaviv_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 		u32 size, u32 flags, u32 *handle);
-struct drm_gem_object *etnaviv_gem_new_locked(struct drm_device *dev,
-		u32 size, u32 flags);
-struct drm_gem_object *etnaviv_gem_new(struct drm_device *dev,
-		u32 size, u32 flags);
 int etnaviv_gem_new_userptr(struct drm_device *dev, struct drm_file *file,
 	uintptr_t ptr, u32 size, u32 flags, u32 *handle);
 u16 etnaviv_buffer_init(struct etnaviv_gpu *gpu);
