@@ -97,7 +97,7 @@ static int iceland_upload_smc_firmware_data(struct pp_hwmgr *hwmgr,
 	PP_ASSERT_WITH_CODE((limit >= byte_count), "SMC address is beyond the SMC RAM area.", return -EINVAL);
 
 	cgs_write_register(hwmgr->device, mmSMC_IND_INDEX_0, start_addr);
-	SMUM_WRITE_FIELD(hwmgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 1);
+	PHM_WRITE_FIELD(hwmgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 1);
 
 	while (byte_count >= 4) {
 		data = src[0] * 0x1000000 + src[1] * 0x10000 + src[2] * 0x100 + src[3];
@@ -106,7 +106,7 @@ static int iceland_upload_smc_firmware_data(struct pp_hwmgr *hwmgr,
 		byte_count -= 4;
 	}
 
-	SMUM_WRITE_FIELD(hwmgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 0);
+	PHM_WRITE_FIELD(hwmgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 0);
 
 	PP_ASSERT_WITH_CODE((0 == byte_count), "SMC size must be dividable by 4.", return -EINVAL);
 

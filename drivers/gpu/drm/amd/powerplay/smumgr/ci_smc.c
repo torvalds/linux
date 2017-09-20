@@ -104,7 +104,7 @@ static int ci_set_smc_sram_address(struct pp_hwmgr *hwmgr,
 	}
 
 	cgs_write_register(hwmgr->device, mmSMC_IND_INDEX_0, smc_addr);
-	SMUM_WRITE_FIELD(hwmgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 0);
+	PHM_WRITE_FIELD(hwmgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 0);
 	return 0;
 }
 
@@ -2322,14 +2322,14 @@ static int ci_load_smc_ucode(struct pp_hwmgr *hwmgr)
 	}
 
 	cgs_write_register(hwmgr->device, mmSMC_IND_INDEX_0, start_addr);
-	SMUM_WRITE_FIELD(hwmgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 1);
+	PHM_WRITE_FIELD(hwmgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 1);
 
 	for (; byte_count >= 4; byte_count -= 4) {
 		data = (src[0] << 24) | (src[1] << 16) | (src[2] << 8) | src[3];
 		cgs_write_register(hwmgr->device, mmSMC_IND_DATA_0, data);
 		src += 4;
 	}
-	SMUM_WRITE_FIELD(hwmgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 0);
+	PHM_WRITE_FIELD(hwmgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 0);
 
 	if (0 != byte_count) {
 		pr_err("SMC size must be dividable by 4\n");

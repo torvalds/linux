@@ -185,9 +185,6 @@ extern bool smum_is_hw_avfs_present(struct pp_hwmgr *hwmgr);
 		SMUM_GET_FIELD(cgs_read_ind_register(device, port, ix##reg), \
 			reg, field)
 
-#define SMUM_WRITE_FIELD(device, reg, field, fieldval)            \
-		cgs_write_register(device, mm##reg, \
-		SMUM_SET_FIELD(cgs_read_register(device, mm##reg), reg, field, fieldval))
 
 #define SMUM_WRITE_VFPF_INDIRECT_FIELD(device, port, reg, field, fieldval)    \
 		cgs_write_ind_register(device, port, ix##reg, \
