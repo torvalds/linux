@@ -922,16 +922,26 @@ EXPORT_SYMBOL(ttm_pool_unpopulate);
 #if defined(CONFIG_SWIOTLB) || defined(CONFIG_INTEL_IOMMU)
 int ttm_populate_and_map_pages(struct device *dev, struct ttm_dma_tt *tt)
 {
-	unsigned i;
+	unsigned i, j;
 	int r;
 
 	r = ttm_pool_populate(&tt->ttm);
 	if (r)
 		return r;
 
-	for (i = 0; i < tt->ttm.num_pages; i++) {
+	for (i = 0; i < tt->ttm.num_pages; ++i) {
+		struct page *p = tt->ttm.pages[i];
+		size_t num_pages = 1;
+
+		for (j = i + 1; j < tt->ttm.num_pages; ++j) {
+			if (++p != tt->ttm.pages[j])
+				break;
+
+			++num_pages;
+		}
+
 		tt->dma_address[i] = dma_map_page(dev, tt->ttm.pages[i],
-						  0, PAGE_SIZE,
+						  0, num_pages * PAGE_SIZE,
 						  DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(dev, tt->dma_address[i])) {
 			while (i--) {
@@ -942,6 +952,11 @@ int ttm_populate_and_map_pages(struct device *dev, struct ttm_dma_tt *tt)
 			ttm_pool_unpopulate(&tt->ttm);
 			return -EFAULT;
 		}
+
+		for (j = 1; j < num_pages; ++j) {
+			tt->dma_address[i + 1] = tt->dma_address[i] + PAGE_SIZE;
+			++i;
+		}
 	}
 	return 0;
 }
@@ -949,13 +964,28 @@ EXPORT_SYMBOL(ttm_populate_and_map_pages);
 
 void ttm_unmap_and_unpopulate_pages(struct device *dev, struct ttm_dma_tt *tt)
 {
-	unsigned i;
-	
-	for (i = 0; i < tt->ttm.num_pages; i++) {
-		if (tt->dma_address[i]) {
-			dma_unmap_page(dev, tt->dma_address[i],
-				       PAGE_SIZE, DMA_BIDIRECTIONAL);
+	unsigned i, j;
+
+	for (i = 0; i < tt->ttm.num_pages;) {
+		struct page *p = tt->ttm.pages[i];
+		size_t num_pages = 1;
+
+		if (!tt->dma_address[i] || !tt->ttm.pages[i]) {
+			++i;
+			continue;
 		}
+
+		for (j = i + 1; j < tt->ttm.num_pages; ++j) {
+			if (++p != tt->ttm.pages[j])
+				break;
+
+			++num_pages;
+		}
+
+		dma_unmap_page(dev, tt->dma_address[i], num_pages * PAGE_SIZE,
+			       DMA_BIDIRECTIONAL);
+
+		i += num_pages;
 	}
 	ttm_pool_unpopulate(&tt->ttm);
 }
