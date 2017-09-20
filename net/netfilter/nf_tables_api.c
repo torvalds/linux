@@ -2741,8 +2741,10 @@ cont:
 	list_for_each_entry(i, &ctx->table->sets, list) {
 		if (!nft_is_active_next(ctx->net, i))
 			continue;
-		if (!strcmp(set->name, i->name))
+		if (!strcmp(set->name, i->name)) {
+			kfree(set->name);
 			return -ENFILE;
+		}
 	}
 	return 0;
 }
