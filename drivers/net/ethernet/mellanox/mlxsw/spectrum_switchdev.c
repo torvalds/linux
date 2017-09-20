@@ -121,6 +121,11 @@ mlxsw_sp_bridge_port_fdb_flush(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_bridge_port *bridge_port,
 			       u16 fid_index);
 
+static void
+mlxsw_sp_bridge_mdb_mc_enable_sync(struct mlxsw_sp_port *mlxsw_sp_port,
+				   struct mlxsw_sp_bridge_device
+				   *bridge_device);
+
 static struct mlxsw_sp_bridge_device *
 mlxsw_sp_bridge_device_find(const struct mlxsw_sp_bridge *bridge,
 			    const struct net_device *br_dev)
@@ -757,6 +762,12 @@ static int mlxsw_sp_port_mc_disabled_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (!bridge_device)
 		return 0;
 
+	if (bridge_device->multicast_enabled != !mc_disabled) {
+		bridge_device->multicast_enabled = !mc_disabled;
+		mlxsw_sp_bridge_mdb_mc_enable_sync(mlxsw_sp_port,
+						   bridge_device);
+	}
+
 	list_for_each_entry(bridge_port, &bridge_device->ports_list, list) {
 		enum mlxsw_sp_flood_type packet_type = MLXSW_SP_FLOOD_TYPE_MC;
 		bool member = mc_disabled ? true : bridge_port->mrouter;
@@ -1207,9 +1218,8 @@ static int mlxsw_sp_port_mdb_op(struct mlxsw_sp *mlxsw_sp, const char *addr,
 	return err;
 }
 
-/* clean the an entry from the HW and write there a full new entry */
-static int mlxsw_sp_port_smid_full_entry(struct mlxsw_sp *mlxsw_sp,
-					 u16 mid_idx)
+static int mlxsw_sp_port_smid_full_entry(struct mlxsw_sp *mlxsw_sp, u16 mid_idx,
+					 long *ports_bitmap)
 {
 	char *smid_pl;
 	int err, i;
@@ -1223,6 +1233,9 @@ static int mlxsw_sp_port_smid_full_entry(struct mlxsw_sp *mlxsw_sp,
 		if (mlxsw_sp->ports[i])
 			mlxsw_reg_smid_port_mask_set(smid_pl, i, 1);
 	}
+
+	for_each_set_bit(i, ports_bitmap, mlxsw_core_max_ports(mlxsw_sp->core))
+		mlxsw_reg_smid_port_set(smid_pl, i, 1);
 
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(smid), smid_pl);
 	kfree(smid_pl);
@@ -1273,7 +1286,8 @@ mlxsw_sp_mc_write_mdb_entry(struct mlxsw_sp *mlxsw_sp,
 		return false;
 
 	mid->mid = mid_idx;
-	err = mlxsw_sp_port_smid_full_entry(mlxsw_sp, mid_idx);
+	err = mlxsw_sp_port_smid_full_entry(mlxsw_sp, mid_idx,
+					    mid->ports_in_mid);
 	if (err)
 		return false;
 
@@ -1412,6 +1426,25 @@ static int mlxsw_sp_port_mdb_add(struct mlxsw_sp_port *mlxsw_sp_port,
 err_out:
 	mlxsw_sp_port_remove_from_mid(mlxsw_sp_port, mid);
 	return err;
+}
+
+static void
+mlxsw_sp_bridge_mdb_mc_enable_sync(struct mlxsw_sp_port *mlxsw_sp_port,
+				   struct mlxsw_sp_bridge_device
+				   *bridge_device)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_mid *mid;
+	bool mc_enabled;
+
+	mc_enabled = bridge_device->multicast_enabled;
+
+	list_for_each_entry(mid, &bridge_device->mids_list, list) {
+		if (mc_enabled)
+			mlxsw_sp_mc_write_mdb_entry(mlxsw_sp, mid);
+		else
+			mlxsw_sp_mc_remove_mdb_entry(mlxsw_sp, mid);
+	}
 }
 
 static int mlxsw_sp_port_obj_add(struct net_device *dev,
