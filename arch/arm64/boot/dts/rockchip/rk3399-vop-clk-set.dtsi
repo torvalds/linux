@@ -75,8 +75,8 @@
 };
 
 &uart4 {
-		assigned-clocks = <&cru SCLK_UART_SRC>;
-		assigned-clock-parents = <&cru PLL_GPLL>;
+		assigned-clocks = <&pmucru SCLK_UART4_SRC>;
+		assigned-clock-parents = <&pmucru PLL_PPLL>;
 };
 
 &spdif {
