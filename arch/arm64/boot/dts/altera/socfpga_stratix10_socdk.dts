@@ -14,7 +14,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/include/ "socfpga_stratix10.dtsi"
+#include "socfpga_stratix10.dtsi"
 
 / {
 	model = "SoCFPGA Stratix 10 SoCDK";

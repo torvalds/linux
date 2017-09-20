@@ -15,6 +15,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/reset/altr,rst-mgr-s10.h>
 
 / {
 	compatible = "altr,socfpga-stratix10";
