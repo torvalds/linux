@@ -658,6 +658,7 @@ static int wm9712_soc_probe(struct snd_soc_codec *codec)
 		if (IS_ERR(regmap)) {
 			ret = PTR_ERR(regmap);
 			goto err_free_ac97_codec;
+		}
 #endif
 	}
 
