@@ -187,42 +187,45 @@ static int tc358749x_parse_dts(struct i2c_client *i2c,
 	int ret = 0;
 	struct device *dev = &i2c->dev;
 
-	tc358749x->gpio_int = devm_gpiod_get_optional(dev, "int",
-							GPIOD_OUT_HIGH);
-	if (IS_ERR(tc358749x->gpio_int)) {
-		ret = PTR_ERR(tc358749x->gpio_int);
-		dev_err(&i2c->dev, "Unable to claim gpio \"int\".\n");
-		return ret;
-	}
-	/* I2C Slave Address selection through boot-strap  */
-	gpiod_direction_output(tc358749x->gpio_int, 0);
-
-	tc358749x->gpio_power = devm_gpiod_get_optional(dev, "power",
-							GPIOD_OUT_HIGH);
-	if (IS_ERR(tc358749x->gpio_power)) {
-		ret = PTR_ERR(tc358749x->gpio_power);
-		dev_err(&i2c->dev, "Unable to claim gpio \"power\".\n");
-		return ret;
-	}
-	gpiod_direction_output(tc358749x->gpio_power, 1);
-
 	tc358749x->gpio_power18 = devm_gpiod_get_optional(dev, "power18",
-							  GPIOD_OUT_HIGH);
+							GPIOD_OUT_LOW);
 	if (IS_ERR(tc358749x->gpio_power18)) {
 		ret = PTR_ERR(tc358749x->gpio_power18);
 		dev_err(&i2c->dev, "Unable to claim gpio \"power18\".\n");
 		return ret;
 	}
-	gpiod_direction_output(tc358749x->gpio_power18, 1);
+
+	tc358749x->gpio_power = devm_gpiod_get_optional(dev, "power",
+							GPIOD_OUT_LOW);
+	if (IS_ERR(tc358749x->gpio_power)) {
+		ret = PTR_ERR(tc358749x->gpio_power);
+		dev_err(&i2c->dev, "Unable to claim gpio \"power\".\n");
+		return ret;
+	}
 
 	tc358749x->gpio_power33 = devm_gpiod_get_optional(dev, "power33",
-							  GPIOD_OUT_HIGH);
+							GPIOD_OUT_LOW);
 	if (IS_ERR(tc358749x->gpio_power33)) {
 		ret = PTR_ERR(tc358749x->gpio_power33);
 		dev_err(&i2c->dev, "Unable to claim gpio \"power33\".\n");
 		return ret;
 	}
-	gpiod_direction_output(tc358749x->gpio_power33, 1);
+
+	tc358749x->gpio_int = devm_gpiod_get_optional(dev, "int",
+							GPIOD_OUT_LOW);
+	if (IS_ERR(tc358749x->gpio_int)) {
+		ret = PTR_ERR(tc358749x->gpio_int);
+		dev_err(&i2c->dev, "Unable to claim gpio \"int\".\n");
+		return ret;
+	}
+
+	tc358749x->gpio_reset = devm_gpiod_get_optional(dev, "reset",
+							GPIOD_OUT_LOW);
+	if (IS_ERR(tc358749x->gpio_reset)) {
+		ret = PTR_ERR(tc358749x->gpio_reset);
+		dev_err(&i2c->dev, "Unable to claim gpio \"reset\".\n");
+		return ret;
+	}
 
 	tc358749x->gpio_csi_ctl = devm_gpiod_get_optional(dev, "csi-ctl",
 							  GPIOD_OUT_LOW);
@@ -231,16 +234,6 @@ static int tc358749x_parse_dts(struct i2c_client *i2c,
 		dev_err(&i2c->dev, "Unable to claim gpio \"csi-ctl\".\n");
 		return ret;
 	}
-	gpiod_direction_output(tc358749x->gpio_csi_ctl, 0);
-
-	tc358749x->gpio_reset = devm_gpiod_get_optional(dev, "reset",
-							GPIOD_OUT_HIGH);
-	if (IS_ERR(tc358749x->gpio_reset)) {
-		ret = PTR_ERR(tc358749x->gpio_reset);
-		dev_err(&i2c->dev, "Unable to claim gpio \"reset\".\n");
-		return ret;
-	}
-	gpiod_direction_output(tc358749x->gpio_reset, 1);
 
 	tc358749x->gpio_stanby = devm_gpiod_get_optional(dev, "stanby",
 							 GPIOD_OUT_LOW);
@@ -249,7 +242,12 @@ static int tc358749x_parse_dts(struct i2c_client *i2c,
 		dev_err(&i2c->dev, "Unable to claim gpio \"stanby\".\n");
 		return ret;
 	}
+
+	gpiod_direction_output(tc358749x->gpio_power18, 1);
+	gpiod_direction_output(tc358749x->gpio_power33, 1);
+	gpiod_direction_output(tc358749x->gpio_power, 1);
 	gpiod_direction_output(tc358749x->gpio_stanby, 1);
+	gpiod_direction_output(tc358749x->gpio_reset, 1);
 
 	/* Wait 10ms tc358749x lock I2C Slave address */
 	usleep_range(10000, 11000);
