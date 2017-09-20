@@ -83,8 +83,7 @@
 	wireless-wlan {
 		compatible = "wlan-platdata";
 		rockchip,grf = <&grf>;
-		wifi_chip_type = "ap6335";
-		sdio_vref = <3300>;
+		wifi_chip_type = "ap6255";
 		WIFI,host_wake_irq = <&gpio0 28 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
@@ -309,7 +308,7 @@
 	status = "okay";
 
 	vccio1-supply = <&vcc_io>;
-	vccio2-supply = <&vcc_io>;
+	vccio2-supply = <&vcc_18>;
 	vccio4-supply = <&vcc_io>;
 };
 
@@ -343,10 +342,11 @@
 };
 
 &sdio {
-	status = "okay";
+	max-frequency = <150000000>;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	assigned-clocks = <&cru SCLK_SDIO_SRC>;
-	assigned-clock-parents = <&xin24m>;
+	num-slots = <1>;
+	sd-uhs-sdr104;
+	status = "okay";
 };
 
 &rockchip_suspend {
