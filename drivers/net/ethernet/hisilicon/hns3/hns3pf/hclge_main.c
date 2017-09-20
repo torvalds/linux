@@ -1489,6 +1489,16 @@ int hclge_rx_buffer_calc(struct hclge_dev *hdev, u32 tx_size)
 	struct hclge_priv_buf *priv;
 	int i;
 
+	/* When DCB is not supported, rx private
+	 * buffer is not allocated.
+	 */
+	if (!hnae3_dev_dcb_supported(hdev)) {
+		if (!hclge_is_rx_buf_ok(hdev, rx_all))
+			return -ENOMEM;
+
+		return 0;
+	}
+
 	/* step 1, try to alloc private buffer for all enabled tc */
 	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
 		priv = &hdev->priv_buf[i];
