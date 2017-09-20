@@ -42,7 +42,7 @@ static int tonga_start_in_protection_mode(struct pp_hwmgr *hwmgr)
 	int result;
 
 	/* Assert reset */
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 		SMC_SYSCON_RESET_CNTL, rst_reg, 1);
 
 	result = smu7_upload_smu_firmware_image(hwmgr);
@@ -54,15 +54,15 @@ static int tonga_start_in_protection_mode(struct pp_hwmgr *hwmgr)
 		ixSMU_STATUS, 0);
 
 	/* Enable clock */
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 		SMC_SYSCON_CLOCK_CNTL_0, ck_disable, 0);
 
 	/* De-assert reset */
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 		SMC_SYSCON_RESET_CNTL, rst_reg, 0);
 
 	/* Set SMU Auto Start */
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 		SMU_INPUT_DATA, AUTO_START, 1);
 
 	/* Clear firmware interrupt enable flag */
@@ -109,7 +109,7 @@ static int tonga_start_in_non_protection_mode(struct pp_hwmgr *hwmgr)
 		ixFIRMWARE_FLAGS, 0);
 
 
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 		SMC_SYSCON_RESET_CNTL, rst_reg, 1);
 
 	result = smu7_upload_smu_firmware_image(hwmgr);
@@ -121,11 +121,11 @@ static int tonga_start_in_non_protection_mode(struct pp_hwmgr *hwmgr)
 	smu7_program_jump_on_start(hwmgr);
 
 
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 		SMC_SYSCON_CLOCK_CNTL_0, ck_disable, 0);
 
 	/*De-assert reset*/
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 		SMC_SYSCON_RESET_CNTL, rst_reg, 0);
 
 	/* Wait for firmware to initialize */

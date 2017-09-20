@@ -223,7 +223,7 @@ static int polaris10_start_smu_in_protection_mode(struct pp_hwmgr *hwmgr)
 	/* PHM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(smumgr, SMC_IND, RCU_UC_EVENTS, boot_seq_done, 0) */
 
 	/* Assert reset */
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 					SMC_SYSCON_RESET_CNTL, rst_reg, 1);
 
 	result = smu7_upload_smu_firmware_image(hwmgr);
@@ -233,11 +233,11 @@ static int polaris10_start_smu_in_protection_mode(struct pp_hwmgr *hwmgr)
 	/* Clear status */
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixSMU_STATUS, 0);
 
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 					SMC_SYSCON_CLOCK_CNTL_0, ck_disable, 0);
 
 	/* De-assert reset */
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 					SMC_SYSCON_RESET_CNTL, rst_reg, 0);
 
 
@@ -258,10 +258,10 @@ static int polaris10_start_smu_in_protection_mode(struct pp_hwmgr *hwmgr)
 
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixFIRMWARE_FLAGS, 0);
 
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 					SMC_SYSCON_RESET_CNTL, rst_reg, 1);
 
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 					SMC_SYSCON_RESET_CNTL, rst_reg, 0);
 
 	/* Wait for firmware to initialize */
@@ -278,11 +278,11 @@ static int polaris10_start_smu_in_non_protection_mode(struct pp_hwmgr *hwmgr)
 	PHM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(hwmgr, SMC_IND, RCU_UC_EVENTS, boot_seq_done, 0);
 
 	/* Clear firmware interrupt enable flag */
-	/* SMUM_WRITE_VFPF_INDIRECT_FIELD(pSmuMgr, SMC_IND, SMC_SYSCON_MISC_CNTL, pre_fetcher_en, 1); */
+	/* PHM_WRITE_VFPF_INDIRECT_FIELD(pSmuMgr, SMC_IND, SMC_SYSCON_MISC_CNTL, pre_fetcher_en, 1); */
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
 				ixFIRMWARE_FLAGS, 0);
 
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 					SMC_SYSCON_RESET_CNTL,
 					rst_reg, 1);
 
@@ -293,10 +293,10 @@ static int polaris10_start_smu_in_non_protection_mode(struct pp_hwmgr *hwmgr)
 	/* Set smc instruct start point at 0x0 */
 	smu7_program_jump_on_start(hwmgr);
 
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 					SMC_SYSCON_CLOCK_CNTL_0, ck_disable, 0);
 
-	SMUM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 					SMC_SYSCON_RESET_CNTL, rst_reg, 0);
 
 	/* Wait for firmware to initialize */
