@@ -1064,7 +1064,6 @@ MODULE_DEVICE_TABLE(of, sun6i_dma_match);
 
 static int sun6i_dma_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *device;
 	struct sun6i_dma_dev *sdc;
 	struct resource *res;
 	int ret, i;
@@ -1073,10 +1072,9 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	if (!sdc)
 		return -ENOMEM;
 
-	device = of_match_device(sun6i_dma_match, &pdev->dev);
-	if (!device)
+	sdc->cfg = of_device_get_match_data(&pdev->dev);
+	if (!sdc->cfg)
 		return -ENODEV;
-	sdc->cfg = device->data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	sdc->base = devm_ioremap_resource(&pdev->dev, res);
