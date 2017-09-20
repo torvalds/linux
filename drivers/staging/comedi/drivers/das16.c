@@ -934,6 +934,9 @@ static void das16_alloc_dma(struct comedi_device *dev, unsigned int dma_chan)
 {
 	struct das16_private_struct *devpriv = dev->private;
 
+	setup_timer(&devpriv->timer, das16_timer_interrupt,
+		    (unsigned long)dev);
+
 	/* only DMA channels 3 and 1 are valid */
 	if (!(dma_chan == 1 || dma_chan == 3))
 		return;
@@ -941,10 +944,6 @@ static void das16_alloc_dma(struct comedi_device *dev, unsigned int dma_chan)
 	/* DMA uses two buffers */
 	devpriv->dma = comedi_isadma_alloc(dev, 2, dma_chan, dma_chan,
 					   DAS16_DMA_SIZE, COMEDI_ISADMA_READ);
-	if (devpriv->dma) {
-		setup_timer(&devpriv->timer, das16_timer_interrupt,
-			    (unsigned long)dev);
-	}
 }
 
 static void das16_free_dma(struct comedi_device *dev)
@@ -952,8 +951,7 @@ static void das16_free_dma(struct comedi_device *dev)
 	struct das16_private_struct *devpriv = dev->private;
 
 	if (devpriv) {
-		if (devpriv->timer.data)
-			del_timer_sync(&devpriv->timer);
+		del_timer_sync(&devpriv->timer);
 		comedi_isadma_free(devpriv->dma);
 	}
 }
