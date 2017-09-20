@@ -85,6 +85,35 @@
 		};
 	};
 
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "meson-gx-audio";
+
+		assigned-clocks = <&clkc CLKID_MPLL2>,
+				  <&clkc CLKID_MPLL0>,
+				  <&clkc CLKID_MPLL1>;
+		assigned-clock-parents = <0>, <0>, <0>;
+		assigned-clock-rates = <294912000>,
+				       <270950400>,
+				       <393216000>;
+
+		simple-audio-card,dai-link@0 {
+			/* HDMI Output */
+			format = "i2s";
+			mclk-fs = <256>;
+			bitclock-master = <&aiu_i2s>;
+			frame-master = <&aiu_i2s>;
+
+			cpu {
+				sound-dai = <&aiu_i2s>;
+			};
+
+			codec {
+				sound-dai = <&hdmi_tx>;
+			};
+		};
+	};
+
 	pwmleds {
 		compatible = "pwm-leds";
 
@@ -199,6 +228,14 @@
 	pinctrl-0 = <&ao_cec_pins>;
 	pinctrl-names = "default";
 	hdmi-phandle = <&hdmi_tx>;
+};
+
+&audio {
+	status = "okay";
+};
+
+&aiu_i2s {
+	status = "okay";
 };
 
 &cpu0 {
