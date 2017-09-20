@@ -4748,7 +4748,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		if (ret)
 			goto fail;
 
-		if (!dc_validate_global_state(dc, dm_state->context)) {
+		if (dc_validate_global_state(dc, dm_state->context) != DC_OK) {
 			ret = -EINVAL;
 			goto fail;
 		}

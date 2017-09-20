@@ -1716,7 +1716,7 @@ void dc_resource_state_construct(
 	dst_ctx->dis_clk = dc->res_pool->display_clock;
 }
 
-bool dc_validate_global_state(
+enum dc_status dc_validate_global_state(
 		struct dc *dc,
 		struct dc_state *new_ctx)
 {
