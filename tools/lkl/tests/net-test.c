@@ -11,6 +11,9 @@
 #include <arpa/inet.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
+#ifdef __ANDROID__
+#include <linux/icmp.h>
+#endif
 
 #include <lkl.h>
 #include <lkl_host.h>

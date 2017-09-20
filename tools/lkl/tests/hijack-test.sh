@@ -34,12 +34,12 @@ ${hijack_script} ip route
 
 echo "== ping test=="
 cp `which ping` .
-${hijack_script} ./ping 127.0.0.1 -c 1
+${hijack_script} ./ping -c 1 127.0.0.1
 rm ./ping
 
 echo "== ping6 test=="
 cp `which ping6` .
-${hijack_script} ./ping6 ::1 -c 1
+${hijack_script} ./ping6 -c 1 ::1
 rm ./ping6
 
 echo "== Mount/dump tests =="
@@ -50,18 +50,27 @@ ans=$(LKL_HIJACK_MOUNT=proc,sysfs\
   ${hijack_script} ip -h) || true
 # Need to grab the end because something earlier on prints out this
 # number
+# XXX: android-23 doesn't call destructor...
+if [ -z ${LKL_ANDROID_TEST} ] ; then
 echo "$ans" | tail -n 15 | grep "65536" # lo's MTU
 # lo's dev id
 echo "$ans" | grep "0x0"        # lo's dev_id
 # Doesn't really belong in this section, but might as well check for
 # it here.
 ! echo "$ans" | grep "WARN: failed to free"
+fi
 
 # boot_cmdline test
 echo "== boot command line tests =="
 ans=$(LKL_HIJACK_DEBUG=1\
   LKL_HIJACK_BOOT_CMDLINE="mem=100M" ${hijack_script} ip ad)
+if [ -z ${CROSS_COMPILE} ] ; then
 echo "$ans" | grep "100752k"
+elif [ "${CROSS_COMPILE}" = "arm-linux-androideabi-" ] ; then
+echo "$ans" | grep "101424k"
+elif [ "${CROSS_COMPILE}" = "aarch64-linux-android-" ] ; then
+echo "$ans" | grep "100756k"
+fi
 
 echo "== TAP tests =="
 if [ ! -c /dev/net/tun ]; then

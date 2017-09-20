@@ -19,6 +19,10 @@ extern "C" {
 #define strtok_r strtok_s
 #endif
 
+#if defined(__ANDROID__) && __LKL__BITS_PER_LONG == 32
+#define __lkl__NR_fcntl __lkl__NR_fcntl64
+#endif
+
 #if __LKL__BITS_PER_LONG == 64
 #define lkl_sys_stat lkl_sys_newstat
 #define lkl_sys_lstat lkl_sys_newlstat
