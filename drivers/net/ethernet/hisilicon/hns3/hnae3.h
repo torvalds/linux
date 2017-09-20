@@ -49,7 +49,10 @@
 #define HNAE3_CLASS_NAME_SIZE 16
 
 #define HNAE3_DEV_INITED_B			0x0
-#define HNAE_DEV_SUPPORT_ROCE_B			0x1
+#define HNAE3_DEV_SUPPORT_ROCE_B		0x1
+
+#define hnae3_dev_roce_supported(hdev) \
+	hnae_get_bit(hdev->ae_dev->flag, HNAE3_DEV_SUPPORT_ROCE_B)
 
 #define ring_ptr_move_fw(ring, p) \
 	((ring)->p = ((ring)->p + 1) % (ring)->desc_num)

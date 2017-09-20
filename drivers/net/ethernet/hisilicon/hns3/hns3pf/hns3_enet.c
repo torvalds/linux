@@ -41,11 +41,16 @@ static struct hnae3_client client;
 static const struct pci_device_id hns3_pci_tbl[] = {
 	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_GE), 0},
 	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_25GE), 0},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_25GE_RDMA), 0},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_25GE_RDMA_MACSEC), 0},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_50GE_RDMA), 0},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_50GE_RDMA_MACSEC), 0},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_100G_RDMA_MACSEC), 0},
+	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_25GE_RDMA),
+	 BIT(HNAE3_DEV_SUPPORT_ROCE_B)},
+	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_25GE_RDMA_MACSEC),
+	 BIT(HNAE3_DEV_SUPPORT_ROCE_B)},
+	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_50GE_RDMA),
+	 BIT(HNAE3_DEV_SUPPORT_ROCE_B)},
+	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_50GE_RDMA_MACSEC),
+	 BIT(HNAE3_DEV_SUPPORT_ROCE_B)},
+	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_100G_RDMA_MACSEC),
+	 BIT(HNAE3_DEV_SUPPORT_ROCE_B)},
 	/* required last entry */
 	{0, }
 };
@@ -1348,6 +1353,7 @@ static int hns3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	ae_dev->pdev = pdev;
+	ae_dev->flag = ent->driver_data;
 	ae_dev->dev_type = HNAE3_DEV_KNIC;
 	pci_set_drvdata(pdev, ae_dev);
 

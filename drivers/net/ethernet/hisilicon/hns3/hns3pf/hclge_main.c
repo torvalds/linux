@@ -46,17 +46,7 @@ static const struct pci_device_id ae_algo_pci_tbl[] = {
 	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_50GE_RDMA), 0},
 	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_50GE_RDMA_MACSEC), 0},
 	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_100G_RDMA_MACSEC), 0},
-	/* Required last entry */
-	{0, }
-};
-
-static const struct pci_device_id roce_pci_tbl[] = {
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_25GE_RDMA), 0},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_25GE_RDMA_MACSEC), 0},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_50GE_RDMA), 0},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_50GE_RDMA_MACSEC), 0},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_100G_RDMA_MACSEC), 0},
-	/* Required last entry */
+	/* required last entry */
 	{0, }
 };
 
@@ -894,7 +884,7 @@ static int hclge_query_pf_resource(struct hclge_dev *hdev)
 	hdev->num_tqps = __le16_to_cpu(req->tqp_num);
 	hdev->pkt_buf_size = __le16_to_cpu(req->buf_size) << HCLGE_BUF_UNIT_S;
 
-	if (hnae_get_bit(hdev->ae_dev->flag, HNAE_DEV_SUPPORT_ROCE_B)) {
+	if (hnae3_dev_roce_supported(hdev)) {
 		hdev->num_roce_msix =
 		hnae_get_field(__le16_to_cpu(req->pf_intr_vector_number),
 			       HCLGE_PF_VEC_NUM_M, HCLGE_PF_VEC_NUM_S);
@@ -3932,8 +3922,7 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 				goto err;
 
 			if (hdev->roce_client &&
-			    hnae_get_bit(hdev->ae_dev->flag,
-					 HNAE_DEV_SUPPORT_ROCE_B)) {
+			    hnae3_dev_roce_supported(hdev)) {
 				struct hnae3_client *rc = hdev->roce_client;
 
 				ret = hclge_init_roce_base_info(vport);
@@ -3956,8 +3945,7 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 
 			break;
 		case HNAE3_CLIENT_ROCE:
-			if (hnae_get_bit(hdev->ae_dev->flag,
-					 HNAE_DEV_SUPPORT_ROCE_B)) {
+			if (hnae3_dev_roce_supported(hdev)) {
 				hdev->roce_client = client;
 				vport->roce.client = client;
 			}
@@ -4069,7 +4057,6 @@ static void hclge_pci_uninit(struct hclge_dev *hdev)
 static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 {
 	struct pci_dev *pdev = ae_dev->pdev;
-	const struct pci_device_id *id;
 	struct hclge_dev *hdev;
 	int ret;
 
@@ -4083,10 +4070,6 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hdev->pdev = pdev;
 	hdev->ae_dev = ae_dev;
 	ae_dev->priv = hdev;
-
-	id = pci_match_id(roce_pci_tbl, ae_dev->pdev);
-	if (id)
-		hnae_set_bit(ae_dev->flag, HNAE_DEV_SUPPORT_ROCE_B, 1);
 
 	ret = hclge_pci_init(hdev);
 	if (ret) {
