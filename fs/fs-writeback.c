@@ -1947,12 +1947,12 @@ void wb_workfn(struct work_struct *work)
 }
 
 /*
- * Start writeback of `nr_pages' pages.  If `nr_pages' is zero, write back
- * the whole world.
+ * Wakeup the flusher threads to start writeback of all currently dirty pages
  */
-void wakeup_flusher_threads(long nr_pages, enum wb_reason reason)
+void wakeup_flusher_threads(enum wb_reason reason)
 {
 	struct backing_dev_info *bdi;
+	long nr_pages;
 
 	/*
 	 * If we are expecting writeback progress we must submit plugged IO.
@@ -1960,8 +1960,7 @@ void wakeup_flusher_threads(long nr_pages, enum wb_reason reason)
 	if (blk_needs_flush_plug(current))
 		blk_schedule_flush_plug(current);
 
-	if (!nr_pages)
-		nr_pages = get_nr_dirty_pages();
+	nr_pages = get_nr_dirty_pages();
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list) {
