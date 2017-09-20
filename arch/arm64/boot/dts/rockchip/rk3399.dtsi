@@ -2479,7 +2479,11 @@
 					<3 RK_PD4 1 &pcfg_pull_none>,
 					<3 RK_PD5 1 &pcfg_pull_none>,
 					<3 RK_PD6 1 &pcfg_pull_none>,
-					<3 RK_PD7 1 &pcfg_pull_none>,
+					<3 RK_PD7 1 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_mclk: i2s-8ch-mclk {
+				rockchip,pins =
 					<4 RK_PA0 1 &pcfg_pull_none>;
 			};
 		};
