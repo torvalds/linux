@@ -1294,7 +1294,7 @@ static int dsa_slave_netdevice_event(struct notifier_block *nb,
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
-	if (dev->netdev_ops != &dsa_slave_netdev_ops)
+	if (!dsa_slave_dev_check(dev))
 		return NOTIFY_DONE;
 
 	if (event == NETDEV_CHANGEUPPER)
