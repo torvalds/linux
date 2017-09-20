@@ -107,6 +107,7 @@ static void end_compressed_bio_read(struct bio *bio)
 	struct inode *inode;
 	struct page *page;
 	unsigned long index;
+	unsigned int mirror = btrfs_io_bio(bio)->mirror_num;
 	int ret;
 
 	if (bio->bi_status)
@@ -117,6 +118,14 @@ static void end_compressed_bio_read(struct bio *bio)
 	 */
 	if (!refcount_dec_and_test(&cb->pending_bios))
 		goto out;
+
+	/*
+	 * Record the correct mirror_num in cb->orig_bio so that
+	 * read-repair can work properly.
+	 */
+	ASSERT(btrfs_io_bio(cb->orig_bio));
+	btrfs_io_bio(cb->orig_bio)->mirror_num = mirror;
+	cb->mirror_num = mirror;
 
 	inode = cb->inode;
 	ret = check_compressed_csum(BTRFS_I(inode), cb,
