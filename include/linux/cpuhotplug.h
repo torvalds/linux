@@ -3,6 +3,24 @@
 
 #include <linux/types.h>
 
+/*
+ * CPU-up			CPU-down
+ *
+ * BP		AP		BP		AP
+ *
+ * OFFLINE			OFFLINE
+ *   |				  ^
+ *   v				  |
+ * BRINGUP_CPU->AP_OFFLINE	BRINGUP_CPU  <- AP_IDLE_DEAD (idle thread/play_dead)
+ *		  |				AP_OFFLINE
+ *		  v (IRQ-off)	  ,---------------^
+ *		AP_ONLNE	  | (stop_machine)
+ *		  |		TEARDOWN_CPU <-	AP_ONLINE_IDLE
+ *		  |				  ^
+ *		  v				  |
+ *              AP_ACTIVE			AP_ACTIVE
+ */
+
 enum cpuhp_state {
 	CPUHP_OFFLINE,
 	CPUHP_CREATE_THREADS,
