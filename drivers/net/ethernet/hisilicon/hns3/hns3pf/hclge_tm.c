@@ -280,11 +280,11 @@ static int hclge_tm_pg_shapping_cfg(struct hclge_dev *hdev,
 
 	shap_cfg_cmd->pg_id = pg_id;
 
-	hclge_tm_set_feild(shap_cfg_cmd->pg_shapping_para, IR_B, ir_b);
-	hclge_tm_set_feild(shap_cfg_cmd->pg_shapping_para, IR_U, ir_u);
-	hclge_tm_set_feild(shap_cfg_cmd->pg_shapping_para, IR_S, ir_s);
-	hclge_tm_set_feild(shap_cfg_cmd->pg_shapping_para, BS_B, bs_b);
-	hclge_tm_set_feild(shap_cfg_cmd->pg_shapping_para, BS_S, bs_s);
+	hclge_tm_set_field(shap_cfg_cmd->pg_shapping_para, IR_B, ir_b);
+	hclge_tm_set_field(shap_cfg_cmd->pg_shapping_para, IR_U, ir_u);
+	hclge_tm_set_field(shap_cfg_cmd->pg_shapping_para, IR_S, ir_s);
+	hclge_tm_set_field(shap_cfg_cmd->pg_shapping_para, BS_B, bs_b);
+	hclge_tm_set_field(shap_cfg_cmd->pg_shapping_para, BS_S, bs_s);
 
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
@@ -307,11 +307,11 @@ static int hclge_tm_pri_shapping_cfg(struct hclge_dev *hdev,
 
 	shap_cfg_cmd->pri_id = pri_id;
 
-	hclge_tm_set_feild(shap_cfg_cmd->pri_shapping_para, IR_B, ir_b);
-	hclge_tm_set_feild(shap_cfg_cmd->pri_shapping_para, IR_U, ir_u);
-	hclge_tm_set_feild(shap_cfg_cmd->pri_shapping_para, IR_S, ir_s);
-	hclge_tm_set_feild(shap_cfg_cmd->pri_shapping_para, BS_B, bs_b);
-	hclge_tm_set_feild(shap_cfg_cmd->pri_shapping_para, BS_S, bs_s);
+	hclge_tm_set_field(shap_cfg_cmd->pri_shapping_para, IR_B, ir_b);
+	hclge_tm_set_field(shap_cfg_cmd->pri_shapping_para, IR_U, ir_u);
+	hclge_tm_set_field(shap_cfg_cmd->pri_shapping_para, IR_S, ir_s);
+	hclge_tm_set_field(shap_cfg_cmd->pri_shapping_para, BS_B, bs_b);
+	hclge_tm_set_field(shap_cfg_cmd->pri_shapping_para, BS_S, bs_s);
 
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
