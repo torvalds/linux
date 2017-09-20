@@ -101,30 +101,12 @@ extern int smum_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg);
 extern int smum_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 					uint16_t msg, uint32_t parameter);
 
-extern int smum_wait_on_register(struct pp_hwmgr *hwmgr,
-				uint32_t index, uint32_t value, uint32_t mask);
-
-extern int smum_wait_for_register_unequal(struct pp_hwmgr *hwmgr,
-				uint32_t index, uint32_t value, uint32_t mask);
-
-extern int smum_wait_on_indirect_register(struct pp_hwmgr *hwmgr,
-				uint32_t indirect_port, uint32_t index,
-				uint32_t value, uint32_t mask);
-
-
-extern void smum_wait_for_indirect_register_unequal(
-				struct pp_hwmgr *hwmgr,
-				uint32_t indirect_port, uint32_t index,
-				uint32_t value, uint32_t mask);
-
-
 extern int smu_allocate_memory(void *device, uint32_t size,
 			 enum cgs_gpu_mem_type type,
 			 uint32_t byte_align, uint64_t *mc_addr,
 			 void **kptr, void *handle);
 
 extern int smu_free_memory(void *device, void *handle);
-extern int vega10_smum_init(struct pp_hwmgr *hwmgr);
 
 extern int smum_update_sclk_threshold(struct pp_hwmgr *hwmgr);
 
@@ -146,20 +128,6 @@ extern int smum_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
 		struct amd_pp_profile *request);
 
 extern bool smum_is_hw_avfs_present(struct pp_hwmgr *hwmgr);
-
-#define SMUM_FIELD_SHIFT(reg, field) reg##__##field##__SHIFT
-
-#define SMUM_FIELD_MASK(reg, field) reg##__##field##_MASK
-
-
-#define SMUM_GET_FIELD(value, reg, field)				\
-		(((value) & SMUM_FIELD_MASK(reg, field))		\
-		>> SMUM_FIELD_SHIFT(reg, field))
-
-
-#define SMUM_READ_INDIRECT_FIELD(device, port, reg, field) \
-	    SMUM_GET_FIELD(cgs_read_ind_register(device, port, ix##reg), \
-			   reg, field)
 
 
 #endif
