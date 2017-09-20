@@ -119,6 +119,7 @@ config ARM64
 	select PCI_ECAM if ACPI
 	select POWER_RESET
 	select POWER_SUPPLY
+	select REFCOUNT_FULL
 	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
