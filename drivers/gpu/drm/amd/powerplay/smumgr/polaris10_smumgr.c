@@ -241,7 +241,7 @@ static int polaris10_start_smu_in_protection_mode(struct pp_hwmgr *hwmgr)
 					SMC_SYSCON_RESET_CNTL, rst_reg, 0);
 
 
-	SMUM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND, RCU_UC_EVENTS, INTERRUPTS_ENABLED, 1);
+	PHM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND, RCU_UC_EVENTS, INTERRUPTS_ENABLED, 1);
 
 
 	/* Call Test SMU message with 0x20000 offset to trigger SMU start */
@@ -265,7 +265,7 @@ static int polaris10_start_smu_in_protection_mode(struct pp_hwmgr *hwmgr)
 					SMC_SYSCON_RESET_CNTL, rst_reg, 0);
 
 	/* Wait for firmware to initialize */
-	SMUM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND, FIRMWARE_FLAGS, INTERRUPTS_ENABLED, 1);
+	PHM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND, FIRMWARE_FLAGS, INTERRUPTS_ENABLED, 1);
 
 	return result;
 }
@@ -301,7 +301,7 @@ static int polaris10_start_smu_in_non_protection_mode(struct pp_hwmgr *hwmgr)
 
 	/* Wait for firmware to initialize */
 
-	SMUM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND,
+	PHM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND,
 					FIRMWARE_FLAGS, INTERRUPTS_ENABLED, 1);
 
 	return result;

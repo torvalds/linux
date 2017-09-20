@@ -915,4 +915,18 @@ extern int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_t
 		(fieldval) << PHM_FIELD_SHIFT(reg, field),		\
 		PHM_FIELD_MASK(reg, field))
 
+
+#define PHM_WAIT_VFPF_INDIRECT_REGISTER_GIVEN_INDEX(hwmgr,		\
+				port, index, value, mask)		\
+	phm_wait_on_indirect_register(hwmgr,				\
+		mm##port##_INDEX_11, index, value, mask)
+
+#define PHM_WAIT_VFPF_INDIRECT_REGISTER(hwmgr, port, reg, value, mask) \
+	PHM_WAIT_VFPF_INDIRECT_REGISTER_GIVEN_INDEX(hwmgr, port, ix##reg, value, mask)
+
+#define PHM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, port, reg, field, fieldval) \
+	PHM_WAIT_VFPF_INDIRECT_REGISTER(hwmgr, port, reg,		\
+		(fieldval) << PHM_FIELD_SHIFT(reg, field),		\
+		PHM_FIELD_MASK(reg, field))
+
 #endif /* _HWMGR_H_ */

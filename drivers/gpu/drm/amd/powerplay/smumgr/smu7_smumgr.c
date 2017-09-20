@@ -235,7 +235,7 @@ int smu7_wait_for_smc_inactive(struct pp_hwmgr *hwmgr)
 	if (!smu7_is_smc_ram_running(hwmgr))
 		return -EINVAL;
 
-	SMUM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND, SMC_SYSCON_CLOCK_CNTL_0, cken, 0);
+	PHM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND, SMC_SYSCON_CLOCK_CNTL_0, cken, 0);
 	return 0;
 }
 

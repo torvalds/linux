@@ -96,7 +96,7 @@ static int fiji_start_smu_in_protection_mode(struct pp_hwmgr *hwmgr)
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
 			ixFIRMWARE_FLAGS, 0);
 
-	SMUM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND, RCU_UC_EVENTS,
+	PHM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND, RCU_UC_EVENTS,
 			INTERRUPTS_ENABLED, 1);
 
 	cgs_write_register(hwmgr->device, mmSMC_MSG_ARG_0, 0x20000);
@@ -115,7 +115,7 @@ static int fiji_start_smu_in_protection_mode(struct pp_hwmgr *hwmgr)
 	}
 
 	/* Wait for firmware to initialize */
-	SMUM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND,
+	PHM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND,
 			FIRMWARE_FLAGS, INTERRUPTS_ENABLED, 1);
 
 	return result;
@@ -153,7 +153,7 @@ static int fiji_start_smu_in_non_protection_mode(struct pp_hwmgr *hwmgr)
 			SMC_SYSCON_RESET_CNTL, rst_reg, 0);
 
 	/* Wait for firmware to initialize */
-	SMUM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND,
+	PHM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND,
 			FIRMWARE_FLAGS, INTERRUPTS_ENABLED, 1);
 
 	return result;

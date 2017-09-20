@@ -193,16 +193,7 @@ extern bool smum_is_hw_avfs_present(struct pp_hwmgr *hwmgr);
 	    SMUM_GET_FIELD(cgs_read_ind_register(device, port, ix##reg), \
 			   reg, field)
 
-#define SMUM_WAIT_VFPF_INDIRECT_REGISTER_GIVEN_INDEX(hwmgr,		\
-				port, index, value, mask)		\
-	smum_wait_on_indirect_register(hwmgr,				\
-		mm##port##_INDEX_11, index, value, mask)
 
-
-
-
-#define SMUM_WAIT_VFPF_INDIRECT_REGISTER(hwmgr, port, reg, value, mask) \
-	SMUM_WAIT_VFPF_INDIRECT_REGISTER_GIVEN_INDEX(hwmgr, port, ix##reg, value, mask)
 
 
 
@@ -229,10 +220,7 @@ extern bool smum_is_hw_avfs_present(struct pp_hwmgr *hwmgr);
 				       reg, field, fieldval))
 
 
-#define SMUM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, port, reg, field, fieldval) \
-	SMUM_WAIT_VFPF_INDIRECT_REGISTER(hwmgr, port, reg,		\
-		(fieldval) << SMUM_FIELD_SHIFT(reg, field),		\
-		SMUM_FIELD_MASK(reg, field))
+
 
 
 #endif
