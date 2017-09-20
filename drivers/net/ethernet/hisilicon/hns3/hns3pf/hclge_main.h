@@ -176,7 +176,6 @@ struct hclge_pg_info {
 struct hclge_tc_info {
 	u8 tc_id;
 	u8 tc_sch_mode;		/* 0: sp; 1: dwrr */
-	u8 up;
 	u8 pgid;
 	u32 bw_limit;
 };
@@ -197,6 +196,7 @@ struct hclge_tm_info {
 	u8 num_tc;
 	u8 num_pg;      /* It must be 1 if vNET-Base schd */
 	u8 pg_dwrr[HCLGE_PG_NUM];
+	u8 prio_tc[HNAE3_MAX_USER_PRIO];
 	struct hclge_pg_info pg_info[HCLGE_PG_NUM];
 	struct hclge_tc_info tc_info[HNAE3_MAX_TC];
 	enum hclge_fc_mode fc_mode;

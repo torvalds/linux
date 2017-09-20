@@ -128,9 +128,7 @@ static int hclge_fill_pri_array(struct hclge_dev *hdev, u8 *pri, u8 pri_id)
 {
 	u8 tc;
 
-	for (tc = 0; tc < hdev->tm_info.num_tc; tc++)
-		if (hdev->tm_info.tc_info[tc].up == pri_id)
-			break;
+	tc = hdev->tm_info.prio_tc[pri_id];
 
 	if (tc >= hdev->tm_info.num_tc)
 		return -EINVAL;
@@ -158,7 +156,7 @@ static int hclge_up_to_tc_map(struct hclge_dev *hdev)
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_PRI_TO_TC_MAPPING, false);
 
-	for (pri_id = 0; pri_id < hdev->tm_info.num_tc; pri_id++) {
+	for (pri_id = 0; pri_id < HNAE3_MAX_USER_PRIO; pri_id++) {
 		ret = hclge_fill_pri_array(hdev, pri, pri_id);
 		if (ret)
 			return ret;
@@ -405,16 +403,17 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 			kinfo->tc_info[i].tqp_offset = i * kinfo->rss_size;
 			kinfo->tc_info[i].tqp_count = kinfo->rss_size;
 			kinfo->tc_info[i].tc = i;
-			kinfo->tc_info[i].up = hdev->tm_info.tc_info[i].up;
 		} else {
 			/* Set to default queue if TC is disable */
 			kinfo->tc_info[i].enable = false;
 			kinfo->tc_info[i].tqp_offset = 0;
 			kinfo->tc_info[i].tqp_count = 1;
 			kinfo->tc_info[i].tc = 0;
-			kinfo->tc_info[i].up = 0;
 		}
 	}
+
+	memcpy(kinfo->prio_tc, hdev->tm_info.prio_tc,
+	       FIELD_SIZEOF(struct hnae3_knic_private_info, prio_tc));
 }
 
 static void hclge_tm_vport_info_update(struct hclge_dev *hdev)
@@ -436,11 +435,14 @@ static void hclge_tm_tc_info_init(struct hclge_dev *hdev)
 	for (i = 0; i < hdev->tm_info.num_tc; i++) {
 		hdev->tm_info.tc_info[i].tc_id = i;
 		hdev->tm_info.tc_info[i].tc_sch_mode = HCLGE_SCH_MODE_DWRR;
-		hdev->tm_info.tc_info[i].up = i;
 		hdev->tm_info.tc_info[i].pgid = 0;
 		hdev->tm_info.tc_info[i].bw_limit =
 			hdev->tm_info.pg_info[0].bw_limit;
 	}
+
+	for (i = 0; i < HNAE3_MAX_USER_PRIO; i++)
+		hdev->tm_info.prio_tc[i] =
+			(i >= hdev->tm_info.num_tc) ? 0 : i;
 
 	hdev->flag &= ~HCLGE_FLAG_DCB_ENABLE;
 }

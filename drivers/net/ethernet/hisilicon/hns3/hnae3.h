@@ -376,12 +376,12 @@ struct hnae3_ae_algo {
 struct hnae3_tc_info {
 	u16	tqp_offset;	/* TQP offset from base TQP */
 	u16	tqp_count;	/* Total TQPs */
-	u8	up;		/* user priority */
 	u8	tc;		/* TC index */
 	bool	enable;		/* If this TC is enable or not */
 };
 
 #define HNAE3_MAX_TC		8
+#define HNAE3_MAX_USER_PRIO	8
 struct hnae3_knic_private_info {
 	struct net_device *netdev; /* Set by KNIC client when init instance */
 	u16 rss_size;		   /* Allocated RSS queues */
@@ -389,6 +389,7 @@ struct hnae3_knic_private_info {
 	u16 num_desc;
 
 	u8 num_tc;		   /* Total number of enabled TCs */
+	u8 prio_tc[HNAE3_MAX_USER_PRIO];  /* TC indexed by prio */
 	struct hnae3_tc_info tc_info[HNAE3_MAX_TC]; /* Idx of array is HW TC */
 
 	u16 num_tqps;		  /* total number of TQPs in this handle */
