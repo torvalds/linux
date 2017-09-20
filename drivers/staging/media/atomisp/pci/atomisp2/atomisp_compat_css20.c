@@ -896,12 +896,12 @@ static inline int __set_css_print_env(struct atomisp_device *isp, int opt)
 {
 	int ret = 0;
 
-	if (0 == opt)
+	if (opt == 0)
 		isp->css_env.isp_css_env.print_env.debug_print = NULL;
-	else if (1 == opt)
+	else if (opt == 1)
 		isp->css_env.isp_css_env.print_env.debug_print =
 			atomisp_css2_dbg_ftrace_print;
-	else if (2 == opt)
+	else if (opt == 2)
 		isp->css_env.isp_css_env.print_env.debug_print =
 			atomisp_css2_dbg_print;
 	else
@@ -4706,7 +4706,7 @@ int atomisp_set_css_dbgfunc(struct atomisp_device *isp, int opt)
 	int ret;
 
 	ret = __set_css_print_env(isp, opt);
-	if (0 == ret)
+	if (ret == 0)
 		dbg_func = opt;
 
 	return ret;
