@@ -126,20 +126,31 @@ static struct scsi_device_handler *scsi_dh_lookup(const char *name)
 static int scsi_dh_handler_attach(struct scsi_device *sdev,
 				  struct scsi_device_handler *scsi_dh)
 {
-	int error;
+	int error, ret = 0;
 
 	if (!try_module_get(scsi_dh->module))
 		return -EINVAL;
 
 	error = scsi_dh->attach(sdev);
-	if (error) {
+	if (error != SCSI_DH_OK) {
+		switch (error) {
+		case SCSI_DH_NOMEM:
+			ret = -ENOMEM;
+			break;
+		case SCSI_DH_RES_TEMP_UNAVAIL:
+			ret = -EAGAIN;
+			break;
+		default:
+			ret = -EINVAL;
+			break;
+		}
 		sdev_printk(KERN_ERR, sdev, "%s: Attach failed (%d)\n",
 			    scsi_dh->name, error);
 		module_put(scsi_dh->module);
 	} else
 		sdev->handler = scsi_dh;
 
-	return error;
+	return ret;
 }
 
 /*

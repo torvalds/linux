@@ -729,7 +729,7 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 
 	h = kzalloc(sizeof(*h) , GFP_KERNEL);
 	if (!h)
-		return -ENOMEM;
+		return SCSI_DH_NOMEM;
 	h->lun = UNINITIALIZED_LUN;
 	h->state = RDAC_STATE_ACTIVE;
 
@@ -755,7 +755,7 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 		    lun_state[(int)h->lun_state]);
 
 	sdev->handler_data = h;
-	return 0;
+	return SCSI_DH_OK;
 
 clean_ctlr:
 	spin_lock(&list_lock);
@@ -764,7 +764,7 @@ clean_ctlr:
 
 failed:
 	kfree(h);
-	return -EINVAL;
+	return err;
 }
 
 static void rdac_bus_detach( struct scsi_device *sdev )
