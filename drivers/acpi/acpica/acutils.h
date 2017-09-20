@@ -211,6 +211,8 @@ acpi_status acpi_ut_convert_decimal_string(char *string, u64 *return_value_ptr);
 
 acpi_status acpi_ut_convert_hex_string(char *string, u64 *return_value_ptr);
 
+char acpi_ut_remove_whitespace(char **string);
+
 char acpi_ut_remove_leading_zeros(char **string);
 
 u8 acpi_ut_detect_hex_prefix(char **string);

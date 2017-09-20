@@ -231,6 +231,31 @@ char acpi_ut_remove_leading_zeros(char **string)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ut_remove_whitespace
+ *
+ * PARAMETERS:  string                  - Pointer to input ASCII string
+ *
+ * RETURN:      Next character after any whitespace. This character may be
+ *              used by the caller to detect end-of-string.
+ *
+ * DESCRIPTION: Remove any leading whitespace in the input string. Return the
+ *              next character after the final ASCII zero to enable the caller
+ *              to check for the end of the string (NULL terminator).
+ *
+ ******************************************************************************/
+
+char acpi_ut_remove_whitespace(char **string)
+{
+
+	while (isspace((u8)**string)) {
+		*string += 1;
+	}
+
+	return (**string);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ut_detect_hex_prefix
  *
  * PARAMETERS:  string                  - Pointer to input ASCII string
