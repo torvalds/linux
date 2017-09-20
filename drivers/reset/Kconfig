@@ -77,7 +77,7 @@ config RESET_PISTACHIO
 
 config RESET_SOCFPGA
 	bool "SoCFPGA Reset Driver" if COMPILE_TEST
-	default ARCH_SOCFPGA
+	default ARCH_SOCFPGA || ARCH_STRATIX10
 	help
 	  This enables the reset controller driver for Altera SoCFPGAs.
 
