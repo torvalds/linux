@@ -298,7 +298,7 @@ static void armada_drm_crtc_finish_fb(struct armada_crtc *dcrtc,
 
 	if (force) {
 		/* Display is disabled, so just drop the old fb */
-		drm_framebuffer_unreference(fb);
+		drm_framebuffer_put(fb);
 		return;
 	}
 
@@ -321,7 +321,7 @@ static void armada_drm_crtc_finish_fb(struct armada_crtc *dcrtc,
 	 * the best.  The worst that will happen is the buffer gets
 	 * reused before it has finished being displayed.
 	 */
-	drm_framebuffer_unreference(fb);
+	drm_framebuffer_put(fb);
 }
 
 static void armada_drm_vblank_off(struct armada_crtc *dcrtc)
@@ -577,7 +577,7 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 	unsigned i;
 	bool interlaced;
 
-	drm_framebuffer_reference(crtc->primary->fb);
+	drm_framebuffer_get(crtc->primary->fb);
 
 	interlaced = !!(adj->flags & DRM_MODE_FLAG_INTERLACE);
 
@@ -718,7 +718,7 @@ static int armada_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 				   MAX_SCHEDULE_TIMEOUT);
 
 	/* Take a reference to the new fb as we're using it */
-	drm_framebuffer_reference(crtc->primary->fb);
+	drm_framebuffer_get(crtc->primary->fb);
 
 	/* Update the base in the CRTC */
 	armada_drm_crtc_update_regs(dcrtc, regs);
@@ -742,7 +742,7 @@ void armada_drm_crtc_plane_disable(struct armada_crtc *dcrtc,
 	 * primary plane.
 	 */
 	if (plane->fb)
-		drm_framebuffer_unreference(plane->fb);
+		drm_framebuffer_put(plane->fb);
 
 	/* Power down the Y/U/V FIFOs */
 	sram_para1 = CFG_PDWN16x66 | CFG_PDWN32x66;
@@ -1045,12 +1045,12 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 	 * Ensure that we hold a reference on the new framebuffer.
 	 * This has to match the behaviour in mode_set.
 	 */
-	drm_framebuffer_reference(fb);
+	drm_framebuffer_get(fb);
 
 	ret = armada_drm_crtc_queue_frame_work(dcrtc, work);
 	if (ret) {
 		/* Undo our reference above */
-		drm_framebuffer_unreference(fb);
+		drm_framebuffer_put(fb);
 		kfree(work);
 		return ret;
 	}
