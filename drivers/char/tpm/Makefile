@@ -6,8 +6,8 @@ obj-$(CONFIG_TCG_TPM) += tpm.o
 tpm-y := tpm-interface.o tpm-dev.o tpm-sysfs.o tpm-chip.o tpm2-cmd.o \
 	 tpm-dev-common.o tpmrm-dev.o tpm1_eventlog.o tpm2_eventlog.o \
          tpm2-space.o
-tpm-$(CONFIG_ACPI) += tpm_ppi.o tpm_acpi.o
-tpm-$(CONFIG_OF) += tpm_of.o
+tpm-$(CONFIG_ACPI) += tpm_ppi.o tpm_eventlog_acpi.o
+tpm-$(CONFIG_OF) += tpm_eventlog_of.o
 obj-$(CONFIG_TCG_TIS_CORE) += tpm_tis_core.o
 obj-$(CONFIG_TCG_TIS) += tpm_tis.o
 obj-$(CONFIG_TCG_TIS_SPI) += tpm_tis_spi.o
