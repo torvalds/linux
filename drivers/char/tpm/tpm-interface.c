@@ -30,9 +30,9 @@
 #include <linux/spinlock.h>
 #include <linux/freezer.h>
 #include <linux/pm_runtime.h>
+#include <linux/tpm_eventlog.h>
 
 #include "tpm.h"
-#include "tpm_eventlog.h"
 
 #define TPM_MAX_ORDINAL 243
 #define TSC_MAX_ORDINAL 12

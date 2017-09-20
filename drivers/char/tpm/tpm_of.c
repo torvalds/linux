@@ -17,9 +17,9 @@
 
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/tpm_eventlog.h>
 
 #include "tpm.h"
-#include "tpm_eventlog.h"
 
 int tpm_read_log_of(struct tpm_chip *chip)
 {

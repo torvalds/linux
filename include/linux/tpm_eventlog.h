@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-#ifndef __TPM_EVENTLOG_H__
-#define __TPM_EVENTLOG_H__
+#ifndef __LINUX_TPM_EVENTLOG_H__
+#define __LINUX_TPM_EVENTLOG_H__
 
 #include <crypto/hash_info.h>
 
@@ -105,6 +105,11 @@ struct tcg_event_field {
 	u8 event[0];
 } __packed;
 
+struct tpm2_digest {
+	u16 alg_id;
+	u8 digest[SHA512_DIGEST_SIZE];
+} __packed;
+
 struct tcg_pcr_event2 {
 	u32 pcr_idx;
 	u32 event_type;
@@ -112,27 +117,5 @@ struct tcg_pcr_event2 {
 	struct tpm2_digest digests[TPM2_ACTIVE_PCR_BANKS];
 	struct tcg_event_field event;
 } __packed;
-
-extern const struct seq_operations tpm2_binary_b_measurements_seqops;
-
-#if defined(CONFIG_ACPI)
-int tpm_read_log_acpi(struct tpm_chip *chip);
-#else
-static inline int tpm_read_log_acpi(struct tpm_chip *chip)
-{
-	return -ENODEV;
-}
-#endif
-#if defined(CONFIG_OF)
-int tpm_read_log_of(struct tpm_chip *chip);
-#else
-static inline int tpm_read_log_of(struct tpm_chip *chip)
-{
-	return -ENODEV;
-}
-#endif
-
-int tpm_bios_log_setup(struct tpm_chip *chip);
-void tpm_bios_log_teardown(struct tpm_chip *chip);
 
 #endif

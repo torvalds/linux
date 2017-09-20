@@ -26,8 +26,9 @@
 #include <linux/spinlock.h>
 #include <linux/freezer.h>
 #include <linux/major.h>
+#include <linux/tpm_eventlog.h>
+
 #include "tpm.h"
-#include "tpm_eventlog.h"
 
 DEFINE_IDR(dev_nums_idr);
 static DEFINE_MUTEX(idr_lock);
