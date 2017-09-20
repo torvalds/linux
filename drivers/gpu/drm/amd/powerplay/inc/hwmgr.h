@@ -62,10 +62,6 @@ struct vi_dpm_table {
 	struct vi_dpm_level dpm_level[1];
 };
 
-enum PP_Result {
-	PP_Result_TableImmediateExit = 0x13,
-};
-
 #define PCIE_PERF_REQ_REMOVE_REGISTRY   0
 #define PCIE_PERF_REQ_FORCE_LOWPOWER    1
 #define PCIE_PERF_REQ_GEN1         2
@@ -103,13 +99,6 @@ enum PHM_BackEnd_Magic {
 	PHM_Cz_Magic          = 0x67DCBA25,
 	PHM_Rv_Magic          = 0x20161121
 };
-
-
-#define PHM_PCIE_POWERGATING_TARGET_GFX            0
-#define PHM_PCIE_POWERGATING_TARGET_DDI            1
-#define PHM_PCIE_POWERGATING_TARGET_PLLCASCADE     2
-#define PHM_PCIE_POWERGATING_TARGET_PHY            3
-
 
 struct phm_set_power_state_input {
 	const struct pp_hw_power_state *pcurrent_state;
