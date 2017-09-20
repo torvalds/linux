@@ -46,7 +46,8 @@
  * @bringup:	Single callback bringup or teardown selector
  * @cb_state:	The state for a single callback (install/uninstall)
  * @result:	Result of the operation
- * @done:	Signal completion to the issuer of the task
+ * @done_up:	Signal completion to the issuer of the task for cpu-up
+ * @done_down:	Signal completion to the issuer of the task for cpu-down
  */
 struct cpuhp_cpu_state {
 	enum cpuhp_state	state;
@@ -61,7 +62,8 @@ struct cpuhp_cpu_state {
 	struct hlist_node	*last;
 	enum cpuhp_state	cb_state;
 	int			result;
-	struct completion	done;
+	struct completion	done_up;
+	struct completion	done_down;
 #endif
 };
 
@@ -128,14 +130,6 @@ static bool cpuhp_is_ap_state(enum cpuhp_state state)
 	 * purposes as that state is handled explicitly in cpu_down.
 	 */
 	return state > CPUHP_BRINGUP_CPU && state != CPUHP_TEARDOWN_CPU;
-}
-
-/*
- * The former STARTING/DYING states, ran with IRQs disabled and must not fail.
- */
-static bool cpuhp_is_atomic_state(enum cpuhp_state state)
-{
-	return CPUHP_AP_IDLE_DEAD <= state && state < CPUHP_AP_ONLINE;
 }
 
 static struct cpuhp_step *cpuhp_get_step(enum cpuhp_state state)
@@ -232,6 +226,26 @@ err:
 }
 
 #ifdef CONFIG_SMP
+static inline void wait_for_ap_thread(struct cpuhp_cpu_state *st, bool bringup)
+{
+	struct completion *done = bringup ? &st->done_up : &st->done_down;
+	wait_for_completion(done);
+}
+
+static inline void complete_ap_thread(struct cpuhp_cpu_state *st, bool bringup)
+{
+	struct completion *done = bringup ? &st->done_up : &st->done_down;
+	complete(done);
+}
+
+/*
+ * The former STARTING/DYING states, ran with IRQs disabled and must not fail.
+ */
+static bool cpuhp_is_atomic_state(enum cpuhp_state state)
+{
+	return CPUHP_AP_IDLE_DEAD <= state && state < CPUHP_AP_ONLINE;
+}
+
 /* Serializes the updates to cpu_online_mask, cpu_present_mask */
 static DEFINE_MUTEX(cpu_add_remove_lock);
 bool cpuhp_tasks_frozen;
@@ -368,7 +382,7 @@ static void __cpuhp_kick_ap(struct cpuhp_cpu_state *st)
 	smp_mb();
 	st->should_run = true;
 	wake_up_process(st->thread);
-	wait_for_completion(&st->done);
+	wait_for_ap_thread(st, st->bringup);
 }
 
 static int cpuhp_kick_ap(struct cpuhp_cpu_state *st, enum cpuhp_state target)
@@ -391,7 +405,7 @@ static int bringup_wait_for_ap(unsigned int cpu)
 	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
 
 	/* Wait for the CPU to reach CPUHP_AP_ONLINE_IDLE */
-	wait_for_completion(&st->done);
+	wait_for_ap_thread(st, true);
 	if (WARN_ON_ONCE((!cpu_online(cpu))))
 		return -ECANCELED;
 
@@ -464,7 +478,8 @@ static void cpuhp_create(unsigned int cpu)
 {
 	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
 
-	init_completion(&st->done);
+	init_completion(&st->done_up);
+	init_completion(&st->done_down);
 }
 
 static int cpuhp_should_run(unsigned int cpu)
@@ -557,7 +572,7 @@ next:
 	cpuhp_lock_release(bringup);
 
 	if (!st->should_run)
-		complete(&st->done);
+		complete_ap_thread(st, bringup);
 }
 
 /* Invoke a single callback on a remote cpu */
@@ -753,7 +768,7 @@ static int takedown_cpu(unsigned int cpu)
 	 *
 	 * Wait for the stop thread to go away.
 	 */
-	wait_for_completion(&st->done);
+	wait_for_ap_thread(st, false);
 	BUG_ON(st->state != CPUHP_AP_IDLE_DEAD);
 
 	/* Interrupts are moved away from the dying cpu, reenable alloc/free */
@@ -772,7 +787,7 @@ static void cpuhp_complete_idle_dead(void *arg)
 {
 	struct cpuhp_cpu_state *st = arg;
 
-	complete(&st->done);
+	complete_ap_thread(st, false);
 }
 
 void cpuhp_report_idle_dead(void)
@@ -939,7 +954,7 @@ void cpuhp_online_idle(enum cpuhp_state state)
 		return;
 
 	st->state = CPUHP_AP_ONLINE_IDLE;
-	complete(&st->done);
+	complete_ap_thread(st, true);
 }
 
 /* Requires cpu_add_remove_lock to be held */
