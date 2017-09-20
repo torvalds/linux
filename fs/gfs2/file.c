@@ -255,7 +255,7 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 			goto out;
 	}
 	if ((flags ^ new_flags) & GFS2_DIF_JDATA) {
-		if (flags & GFS2_DIF_JDATA)
+		if (new_flags & GFS2_DIF_JDATA)
 			gfs2_log_flush(sdp, ip->i_gl, NORMAL_FLUSH);
 		error = filemap_fdatawrite(inode->i_mapping);
 		if (error)
@@ -263,6 +263,8 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 		error = filemap_fdatawait(inode->i_mapping);
 		if (error)
 			goto out;
+		if (new_flags & GFS2_DIF_JDATA)
+			gfs2_ordered_del_inode(ip);
 	}
 	error = gfs2_trans_begin(sdp, RES_DINODE, 0);
 	if (error)
