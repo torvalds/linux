@@ -792,12 +792,19 @@ extern int hwmgr_handle_task(struct pp_instance *handle,
 extern int phm_wait_on_register(struct pp_hwmgr *hwmgr, uint32_t index,
 				uint32_t value, uint32_t mask);
 
-extern void phm_wait_on_indirect_register(struct pp_hwmgr *hwmgr,
+extern int phm_wait_on_indirect_register(struct pp_hwmgr *hwmgr,
 				uint32_t indirect_port,
 				uint32_t index,
 				uint32_t value,
 				uint32_t mask);
 
+extern int phm_wait_for_register_unequal(struct pp_hwmgr *hwmgr,
+					uint32_t index,
+					uint32_t value, uint32_t mask);
+extern int phm_wait_for_indirect_register_unequal(
+				struct pp_hwmgr *hwmgr,
+				uint32_t indirect_port, uint32_t index,
+				uint32_t value, uint32_t mask);
 
 
 extern bool phm_cf_want_uvd_power_gating(struct pp_hwmgr *hwmgr);
@@ -881,6 +888,5 @@ extern int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_t
 #define PHM_WAIT_INDIRECT_FIELD(hwmgr, port, reg, field, fieldval)	\
 	PHM_WAIT_INDIRECT_REGISTER(hwmgr, port, reg, (fieldval)	\
 			<< PHM_FIELD_SHIFT(reg, field), PHM_FIELD_MASK(reg, field))
-
 
 #endif /* _HWMGR_H_ */

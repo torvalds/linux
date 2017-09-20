@@ -487,11 +487,10 @@ int smu7_check_fw_load_finish(struct pp_hwmgr *hwmgr, uint32_t fw_type)
 	uint32_t fw_mask = smu7_get_mask_for_firmware_type(fw_type);
 	uint32_t ret;
 
-	ret = smum_wait_on_indirect_register(hwmgr, mmSMC_IND_INDEX_11,
+	ret = phm_wait_on_indirect_register(hwmgr, mmSMC_IND_INDEX_11,
 					smu_data->soft_regs_start + smum_get_offsetof(hwmgr,
 					SMU_SoftRegisters, UcodeLoadStatus),
 					fw_mask, fw_mask);
-
 	return ret;
 }
 

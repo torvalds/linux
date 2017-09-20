@@ -90,7 +90,7 @@ static uint32_t vega10_wait_for_response(struct pp_hwmgr *hwmgr)
 	reg = soc15_get_register_offset(MP1_HWID, 0,
 			mmMP1_SMN_C2PMSG_90_BASE_IDX, mmMP1_SMN_C2PMSG_90);
 
-	smum_wait_for_register_unequal(hwmgr, reg,
+	phm_wait_for_register_unequal(hwmgr, reg,
 			0, MP1_C2PMSG_90__CONTENT_MASK);
 
 	return cgs_read_register(hwmgr->device, reg);
