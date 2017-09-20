@@ -68,7 +68,7 @@ static int cz_send_msg_to_smc_async(struct pp_hwmgr *hwmgr, uint16_t msg)
 	if (hwmgr == NULL || hwmgr->device == NULL)
 		return -EINVAL;
 
-	result = SMUM_WAIT_FIELD_UNEQUAL(hwmgr,
+	result = PHM_WAIT_FIELD_UNEQUAL(hwmgr,
 					SMU_MP1_SRBM2P_RESP_0, CONTENT, 0);
 	if (result != 0) {
 		pr_err("cz_send_msg_to_smc_async (0x%04x) failed\n", msg);
@@ -90,7 +90,7 @@ static int cz_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 	if (result != 0)
 		return result;
 
-	return SMUM_WAIT_FIELD_UNEQUAL(hwmgr,
+	return PHM_WAIT_FIELD_UNEQUAL(hwmgr,
 					SMU_MP1_SRBM2P_RESP_0, CONTENT, 0);
 }
 

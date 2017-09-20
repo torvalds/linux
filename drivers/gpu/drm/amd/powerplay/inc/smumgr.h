@@ -163,20 +163,6 @@ extern bool smum_is_hw_avfs_present(struct pp_hwmgr *hwmgr);
 	    SMUM_WAIT_INDIRECT_REGISTER(hwmgr, port, reg, (fieldval) << SMUM_FIELD_SHIFT(reg, field), \
 			            SMUM_FIELD_MASK(reg, field) )
 
-#define SMUM_WAIT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr,         \
-							index, value, mask) \
-		smum_wait_for_register_unequal(hwmgr,            \
-					index, value, mask)
-
-#define SMUM_WAIT_REGISTER_UNEQUAL(hwmgr, reg, value, mask)		\
-	SMUM_WAIT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr,			\
-				mm##reg, value, mask)
-
-#define SMUM_WAIT_FIELD_UNEQUAL(hwmgr, reg, field, fieldval)		\
-	SMUM_WAIT_REGISTER_UNEQUAL(hwmgr, reg,				\
-		(fieldval) << SMUM_FIELD_SHIFT(reg, field),		\
-		SMUM_FIELD_MASK(reg, field))
-
 #define SMUM_GET_FIELD(value, reg, field)				\
 		(((value) & SMUM_FIELD_MASK(reg, field))		\
 		>> SMUM_FIELD_SHIFT(reg, field))

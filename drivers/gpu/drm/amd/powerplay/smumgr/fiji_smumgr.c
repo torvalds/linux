@@ -101,7 +101,7 @@ static int fiji_start_smu_in_protection_mode(struct pp_hwmgr *hwmgr)
 
 	cgs_write_register(hwmgr->device, mmSMC_MSG_ARG_0, 0x20000);
 	cgs_write_register(hwmgr->device, mmSMC_MESSAGE_0, PPSMC_MSG_Test);
-	SMUM_WAIT_FIELD_UNEQUAL(hwmgr, SMC_RESP_0, SMC_RESP, 0);
+	PHM_WAIT_FIELD_UNEQUAL(hwmgr, SMC_RESP_0, SMC_RESP, 0);
 
 	/* Wait for done bit to be set */
 	PHM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(hwmgr, SMC_IND,
