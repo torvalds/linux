@@ -397,6 +397,7 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 			kinfo->num_tqps / kinfo->num_tc);
 	vport->qs_offset = hdev->tm_info.num_tc * vport->vport_id;
 	vport->dwrr = 100;  /* 100 percent as init */
+	vport->alloc_rss_size = kinfo->rss_size;
 
 	for (i = 0; i < kinfo->num_tc; i++) {
 		if (hdev->hw_tc_map & BIT(i)) {

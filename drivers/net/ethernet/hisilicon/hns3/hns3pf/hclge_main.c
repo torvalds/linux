@@ -2606,6 +2606,7 @@ static int hclge_rss_init_hw(struct hclge_dev *hdev)
 	u16 tc_valid[HCLGE_MAX_TC_NUM];
 	u16 tc_size[HCLGE_MAX_TC_NUM];
 	u32 *rss_indir = NULL;
+	u16 rss_size = 0, roundup_size;
 	const u8 *key;
 	int i, ret, j;
 
@@ -2620,7 +2621,13 @@ static int hclge_rss_init_hw(struct hclge_dev *hdev)
 	for (j = 0; j < hdev->num_vmdq_vport + 1; j++) {
 		for (i = 0; i < HCLGE_RSS_IND_TBL_SIZE; i++) {
 			vport[j].rss_indirection_tbl[i] =
-				i % hdev->rss_size_max;
+				i % vport[j].alloc_rss_size;
+
+			/* vport 0 is for PF */
+			if (j != 0)
+				continue;
+
+			rss_size = vport[j].alloc_rss_size;
 			rss_indir[i] = vport[j].rss_indirection_tbl[i];
 		}
 	}
@@ -2637,42 +2644,31 @@ static int hclge_rss_init_hw(struct hclge_dev *hdev)
 	if (ret)
 		goto err;
 
-	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
-		if (hdev->hw_tc_map & BIT(i))
-			tc_valid[i] = 1;
-		else
-			tc_valid[i] = 0;
-
-		switch (hdev->rss_size_max) {
-		case HCLGE_RSS_TC_SIZE_0:
-			tc_size[i] = 0;
-			break;
-		case HCLGE_RSS_TC_SIZE_1:
-			tc_size[i] = 1;
-			break;
-		case HCLGE_RSS_TC_SIZE_2:
-			tc_size[i] = 2;
-			break;
-		case HCLGE_RSS_TC_SIZE_3:
-			tc_size[i] = 3;
-			break;
-		case HCLGE_RSS_TC_SIZE_4:
-			tc_size[i] = 4;
-			break;
-		case HCLGE_RSS_TC_SIZE_5:
-			tc_size[i] = 5;
-			break;
-		case HCLGE_RSS_TC_SIZE_6:
-			tc_size[i] = 6;
-			break;
-		case HCLGE_RSS_TC_SIZE_7:
-			tc_size[i] = 7;
-			break;
-		default:
-			break;
-		}
-		tc_offset[i] = hdev->rss_size_max * i;
+	/* Each TC have the same queue size, and tc_size set to hardware is
+	 * the log2 of roundup power of two of rss_size, the acutal queue
+	 * size is limited by indirection table.
+	 */
+	if (rss_size > HCLGE_RSS_TC_SIZE_7 || rss_size == 0) {
+		dev_err(&hdev->pdev->dev,
+			"Configure rss tc size failed, invalid TC_SIZE = %d\n",
+			rss_size);
+		return -EINVAL;
 	}
+
+	roundup_size = roundup_pow_of_two(rss_size);
+	roundup_size = ilog2(roundup_size);
+
+	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
+		tc_valid[i] = 0;
+
+		if (!(hdev->hw_tc_map & BIT(i)))
+			continue;
+
+		tc_valid[i] = 1;
+		tc_size[i] = roundup_size;
+		tc_offset[i] = rss_size * i;
+	}
+
 	ret = hclge_set_rss_tc_mode(hdev, tc_valid, tc_size, tc_offset);
 
 err:
@@ -4167,12 +4163,6 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		return ret;
 	}
 
-	ret = hclge_rss_init_hw(hdev);
-	if (ret) {
-		dev_err(&pdev->dev, "Rss init fail, ret =%d\n", ret);
-		return  ret;
-	}
-
 	ret = hclge_init_vlan_config(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "VLAN init fail, ret =%d\n", ret);
@@ -4182,6 +4172,12 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	ret = hclge_tm_schd_init(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "tm schd init fail, ret =%d\n", ret);
+		return ret;
+	}
+
+	ret = hclge_rss_init_hw(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Rss init fail, ret =%d\n", ret);
 		return ret;
 	}
 
