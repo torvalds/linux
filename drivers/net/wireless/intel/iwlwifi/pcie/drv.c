@@ -588,67 +588,26 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
 
 #ifdef CONFIG_ACPI
-static u64 splc_get_pwr_limit(struct iwl_trans *trans, union acpi_object *splc)
-{
-	union acpi_object *data_pkg, *dflt_pwr_limit;
-	int i;
-
-	/* We need at least two elements, one for the revision and one
-	 * for the data itself.  Also check that the revision is
-	 * supported (currently only revision 0).
-	*/
-	if (splc->type != ACPI_TYPE_PACKAGE ||
-	    splc->package.count < 2 ||
-	    splc->package.elements[0].type != ACPI_TYPE_INTEGER ||
-	    splc->package.elements[0].integer.value != 0) {
-		IWL_DEBUG_INFO(trans,
-			       "Unsupported structure returned by the SPLC method.  Ignoring.\n");
-		return 0;
-	}
-
-	/* loop through all the packages to find the one for WiFi */
-	for (i = 1; i < splc->package.count; i++) {
-		union acpi_object *domain;
-
-		data_pkg = &splc->package.elements[i];
-
-		/* Skip anything that is not a package with the right
-		 * amount of elements (i.e. at least 2 integers).
-		 */
-		if (data_pkg->type != ACPI_TYPE_PACKAGE ||
-		    data_pkg->package.count < 2 ||
-		    data_pkg->package.elements[0].type != ACPI_TYPE_INTEGER ||
-		    data_pkg->package.elements[1].type != ACPI_TYPE_INTEGER)
-			continue;
-
-		domain = &data_pkg->package.elements[0];
-		if (domain->integer.value == ACPI_WIFI_DOMAIN)
-			break;
-
-		data_pkg = NULL;
-	}
-
-	if (!data_pkg) {
-		IWL_DEBUG_INFO(trans,
-			       "No element for the WiFi domain returned by the SPLC method.\n");
-		return 0;
-	}
-
-	dflt_pwr_limit = &data_pkg->package.elements[1];
-	return dflt_pwr_limit->integer.value;
-}
 
 static void set_dflt_pwr_limit(struct iwl_trans *trans, struct pci_dev *pdev)
 {
-	union acpi_object *data;
+	union acpi_object *data, *wifi_pkg;
 
 	data = iwl_acpi_get_object(trans->dev, ACPI_SPLC_METHOD);
 	if (IS_ERR(data))
 		return;
 
-	trans->dflt_pwr_limit = splc_get_pwr_limit(trans, data);
+	wifi_pkg = iwl_acpi_get_wifi_pkg(trans->dev, data,
+					 ACPI_SPLC_WIFI_DATA_SIZE);
+	if (IS_ERR(wifi_pkg) ||
+	    wifi_pkg->package.elements[1].integer.value != ACPI_TYPE_INTEGER)
+		goto out;
+
+	trans->dflt_pwr_limit = wifi_pkg->package.elements[1].integer.value;
+
 	IWL_DEBUG_INFO(trans, "Default power limit set to %lld\n",
 		       trans->dflt_pwr_limit);
+out:
 	kfree(data);
 }
 
