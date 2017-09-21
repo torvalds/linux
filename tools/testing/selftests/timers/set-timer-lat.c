@@ -143,7 +143,8 @@ int setup_timer(int clock_id, int flags, int interval, timer_t *tm1)
 			printf("%-22s %s missing CAP_WAKE_ALARM?    : [UNSUPPORTED]\n",
 					clockstring(clock_id),
 					flags ? "ABSTIME":"RELTIME");
-			return 0;
+			/* Indicate timer isn't set, so caller doesn't wait */
+			return 1;
 		}
 		printf("%s - timer_create() failed\n", clockstring(clock_id));
 		return -1;
@@ -213,8 +214,9 @@ int do_timer(int clock_id, int flags)
 	int err;
 
 	err = setup_timer(clock_id, flags, interval, &tm1);
+	/* Unsupported case - return 0 to not fail the test */
 	if (err)
-		return err;
+		return err == 1 ? 0 : err;
 
 	while (alarmcount < 5)
 		sleep(1);
@@ -231,8 +233,9 @@ int do_timer_oneshot(int clock_id, int flags)
 	int err;
 
 	err = setup_timer(clock_id, flags, interval, &tm1);
+	/* Unsupported case - return 0 to not fail the test */
 	if (err)
-		return err;
+		return err == 1 ? 0 : err;
 
 	memset(&timeout, 0, sizeof(timeout));
 	timeout.tv_sec = 5;
