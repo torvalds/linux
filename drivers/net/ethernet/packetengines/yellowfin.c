@@ -632,10 +632,8 @@ static int yellowfin_open(struct net_device *dev)
 	}
 
 	/* Set the timer to check for link beat. */
-	init_timer(&yp->timer);
+	setup_timer(&yp->timer, yellowfin_timer, (unsigned long)dev);
 	yp->timer.expires = jiffies + 3*HZ;
-	yp->timer.data = (unsigned long)dev;
-	yp->timer.function = yellowfin_timer;				/* timer handler */
 	add_timer(&yp->timer);
 out:
 	return rc;
