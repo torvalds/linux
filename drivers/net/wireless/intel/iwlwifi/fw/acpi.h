@@ -63,8 +63,6 @@
 
 #include <linux/acpi.h>
 
-#ifdef CONFIG_ACPI
-
 #define ACPI_WRDS_METHOD	"WRDS"
 #define ACPI_EWRD_METHOD	"EWRD"
 #define ACPI_WGDS_METHOD	"WGDS"
@@ -73,12 +71,24 @@
 
 #define ACPI_WIFI_DOMAIN	(0x07)
 
-#define ACPI_WRDS_WIFI_DATA_SIZE	(IWL_MVM_SAR_TABLE_SIZE + 2)
-#define ACPI_EWRD_WIFI_DATA_SIZE	((IWL_MVM_SAR_PROFILE_NUM - 1) * \
-					 IWL_MVM_SAR_TABLE_SIZE + 3)
+#define ACPI_SAR_TABLE_SIZE		10
+#define ACPI_SAR_PROFILE_NUM		4
+
+#define ACPI_GEO_TABLE_SIZE		6
+#define ACPI_NUM_GEO_PROFILES		3
+#define ACPI_GEO_PER_CHAIN_SIZE		3
+
+#define ACPI_SAR_NUM_CHAIN_LIMITS	2
+#define ACPI_SAR_NUM_SUB_BANDS		5
+
+#define ACPI_WRDS_WIFI_DATA_SIZE	(ACPI_SAR_TABLE_SIZE + 2)
+#define ACPI_EWRD_WIFI_DATA_SIZE	((ACPI_SAR_PROFILE_NUM - 1) * \
+					 ACPI_SAR_TABLE_SIZE + 3)
 #define ACPI_WGDS_WIFI_DATA_SIZE	18
 #define ACPI_WGDS_NUM_BANDS		2
 #define ACPI_WGDS_TABLE_SIZE		3
+
+#ifdef CONFIG_ACPI
 
 void *iwl_acpi_get_object(struct device *dev, acpi_string method);
 

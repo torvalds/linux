@@ -588,7 +588,7 @@ static int iwl_mvm_sar_set_profile(struct iwl_mvm *mvm,
 
 	profile->enabled = enabled;
 
-	for (i = 0; i < IWL_MVM_SAR_TABLE_SIZE; i++) {
+	for (i = 0; i < ACPI_SAR_TABLE_SIZE; i++) {
 		if ((table[i].type != ACPI_TYPE_INTEGER) ||
 		    (table[i].integer.value > U8_MAX))
 			return -EINVAL;
@@ -732,7 +732,7 @@ static int iwl_mvm_sar_get_ewrd_table(struct iwl_mvm *mvm)
 			break;
 
 		/* go to the next table */
-		pos += IWL_MVM_SAR_TABLE_SIZE;
+		pos += ACPI_SAR_TABLE_SIZE;
 	}
 
 out_free:
@@ -757,8 +757,8 @@ static int iwl_mvm_sar_get_wgds_table(struct iwl_mvm *mvm)
 		goto out_free;
 	}
 
-	for (i = 0; i < IWL_NUM_GEO_PROFILES; i++) {
-		for (j = 0; j < IWL_MVM_GEO_TABLE_SIZE; j++) {
+	for (i = 0; i < ACPI_NUM_GEO_PROFILES; i++) {
+		for (j = 0; j < ACPI_GEO_TABLE_SIZE; j++) {
 			union acpi_object *entry;
 
 			entry = &wifi_pkg->package.elements[idx++];
@@ -783,25 +783,25 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 		.v3.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS),
 	};
 	int i, j, idx;
-	int profs[IWL_NUM_CHAIN_LIMITS] = { prof_a, prof_b };
+	int profs[ACPI_SAR_NUM_CHAIN_LIMITS] = { prof_a, prof_b };
 	int len = sizeof(cmd);
 
-	BUILD_BUG_ON(IWL_NUM_CHAIN_LIMITS < 2);
-	BUILD_BUG_ON(IWL_NUM_CHAIN_LIMITS * IWL_NUM_SUB_BANDS !=
-		     IWL_MVM_SAR_TABLE_SIZE);
+	BUILD_BUG_ON(ACPI_SAR_NUM_CHAIN_LIMITS < 2);
+	BUILD_BUG_ON(ACPI_SAR_NUM_CHAIN_LIMITS * ACPI_SAR_NUM_SUB_BANDS !=
+		     ACPI_SAR_TABLE_SIZE);
 
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TX_POWER_ACK))
 		len = sizeof(cmd.v3);
 
-	for (i = 0; i < IWL_NUM_CHAIN_LIMITS; i++) {
+	for (i = 0; i < ACPI_SAR_NUM_CHAIN_LIMITS; i++) {
 		struct iwl_mvm_sar_profile *prof;
 
 		/* don't allow SAR to be disabled (profile 0 means disable) */
 		if (profs[i] == 0)
 			return -EPERM;
 
-		/* we are off by one, so allow up to IWL_MVM_SAR_PROFILE_NUM */
-		if (profs[i] > IWL_MVM_SAR_PROFILE_NUM)
+		/* we are off by one, so allow up to ACPI_SAR_PROFILE_NUM */
+		if (profs[i] > ACPI_SAR_PROFILE_NUM)
 			return -EINVAL;
 
 		/* profiles go from 1 to 4, so decrement to access the array */
@@ -816,8 +816,8 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 		}
 
 		IWL_DEBUG_RADIO(mvm, "  Chain[%d]:\n", i);
-		for (j = 0; j < IWL_NUM_SUB_BANDS; j++) {
-			idx = (i * IWL_NUM_SUB_BANDS) + j;
+		for (j = 0; j < ACPI_SAR_NUM_SUB_BANDS; j++) {
+			idx = (i * ACPI_SAR_NUM_SUB_BANDS) + j;
 			cmd.v3.per_chain_restriction[i][j] =
 				cpu_to_le16(prof->table[idx]);
 			IWL_DEBUG_RADIO(mvm, "    Band[%d] = %d * .125dBm\n",
@@ -853,7 +853,7 @@ int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
 
 	resp = (void *)cmd.resp_pkt->data;
 	ret = le32_to_cpu(resp->profile_idx);
-	if (WARN_ON(ret > IWL_NUM_GEO_PROFILES)) {
+	if (WARN_ON(ret > ACPI_NUM_GEO_PROFILES)) {
 		ret = -EIO;
 		IWL_WARN(mvm, "Invalid geographic profile idx (%d)\n", ret);
 	}
@@ -881,10 +881,12 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 
 	IWL_DEBUG_RADIO(mvm, "Sending GEO_TX_POWER_LIMIT\n");
 
-	BUILD_BUG_ON(IWL_NUM_GEO_PROFILES * ACPI_WGDS_NUM_BANDS *
+	BUILD_BUG_ON(ACPI_NUM_GEO_PROFILES * ACPI_WGDS_NUM_BANDS *
 		     ACPI_WGDS_TABLE_SIZE !=  ACPI_WGDS_WIFI_DATA_SIZE);
 
-	for (i = 0; i < IWL_NUM_GEO_PROFILES; i++) {
+	BUILD_BUG_ON(ACPI_NUM_GEO_PROFILES > IWL_NUM_GEO_PROFILES);
+
+	for (i = 0; i < ACPI_NUM_GEO_PROFILES; i++) {
 		struct iwl_per_chain_offset *chain =
 			(struct iwl_per_chain_offset *)&cmd.table[i];
 
@@ -892,7 +894,7 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 			u8 *value;
 
 			value = &mvm->geo_profiles[i].values[j *
-				IWL_GEO_PER_CHAIN_SIZE];
+				ACPI_GEO_PER_CHAIN_SIZE];
 			chain[j].max_tx_power = cpu_to_le16(value[0]);
 			chain[j].chain_a = value[1];
 			chain[j].chain_b = value[2];
