@@ -1723,10 +1723,11 @@ enum dc_status dc_validate_global_state(
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	int i, j;
 
-	if (dc->res_pool->funcs->validate_global &&
-			dc->res_pool->funcs->validate_global(
-			dc, new_ctx) != DC_OK)
-		return false;
+	if (dc->res_pool->funcs->validate_global) {
+			result = dc->res_pool->funcs->validate_global(dc, new_ctx);
+			if (result != DC_OK)
+				return result;
+	}
 
 	for (i = 0; new_ctx && i < new_ctx->stream_count; i++) {
 		struct dc_stream_state *stream = new_ctx->streams[i];
