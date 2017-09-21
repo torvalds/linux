@@ -219,8 +219,11 @@
 
 &cpm_eth1 {
 	status = "okay";
+	/* Network PHY */
 	phy = <&phy0>;
 	phy-mode = "sgmii";
+	/* Generic PHY, providing serdes lanes */
+	phys = <&cpm_comphy0 1>;
 };
 
 &cpm_eth2 {
