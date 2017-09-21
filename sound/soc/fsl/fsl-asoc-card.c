@@ -639,6 +639,10 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 				devm_kasprintf(&pdev->dev, GFP_KERNEL,
 					       "ac97-codec.%u",
 					       (unsigned int)idx);
+		if (!priv->dai_link[0].codec_name) {
+			ret = -ENOMEM;
+			goto asrc_fail;
+		}
 	}
 
 	priv->dai_link[0].platform_of_node = cpu_np;
