@@ -208,7 +208,7 @@ again:
 	case SMC_ACTIVE:
 		smc_close_stream_wait(smc, timeout);
 		release_sock(sk);
-		cancel_work_sync(&conn->tx_work);
+		cancel_delayed_work_sync(&conn->tx_work);
 		lock_sock(sk);
 		if (sk->sk_state == SMC_ACTIVE) {
 			/* send close request */
@@ -234,7 +234,7 @@ again:
 		if (!smc_cdc_rxed_any_close(conn))
 			smc_close_stream_wait(smc, timeout);
 		release_sock(sk);
-		cancel_work_sync(&conn->tx_work);
+		cancel_delayed_work_sync(&conn->tx_work);
 		lock_sock(sk);
 		if (sk->sk_err != ECONNABORTED) {
 			/* confirm close from peer */
@@ -263,7 +263,9 @@ again:
 		/* peer sending PeerConnectionClosed will cause transition */
 		break;
 	case SMC_PROCESSABORT:
-		cancel_work_sync(&conn->tx_work);
+		release_sock(sk);
+		cancel_delayed_work_sync(&conn->tx_work);
+		lock_sock(sk);
 		smc_close_abort(conn);
 		sk->sk_state = SMC_CLOSED;
 		smc_close_wait_tx_pends(smc);
@@ -425,7 +427,7 @@ again:
 	case SMC_ACTIVE:
 		smc_close_stream_wait(smc, timeout);
 		release_sock(sk);
-		cancel_work_sync(&conn->tx_work);
+		cancel_delayed_work_sync(&conn->tx_work);
 		lock_sock(sk);
 		/* send close wr request */
 		rc = smc_close_wr(conn);
@@ -439,7 +441,7 @@ again:
 		if (!smc_cdc_rxed_any_close(conn))
 			smc_close_stream_wait(smc, timeout);
 		release_sock(sk);
-		cancel_work_sync(&conn->tx_work);
+		cancel_delayed_work_sync(&conn->tx_work);
 		lock_sock(sk);
 		/* confirm close from peer */
 		rc = smc_close_wr(conn);
