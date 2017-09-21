@@ -438,10 +438,8 @@ static int net_open(struct net_device *dev)
 
 	hardware_init(dev);
 
-	init_timer(&lp->timer);
+	setup_timer(&lp->timer, atp_timed_checker, (unsigned long)dev);
 	lp->timer.expires = jiffies + TIMED_CHECKER;
-	lp->timer.data = (unsigned long)dev;
-	lp->timer.function = atp_timed_checker;    /* timer handler */
 	add_timer(&lp->timer);
 
 	netif_start_queue(dev);
