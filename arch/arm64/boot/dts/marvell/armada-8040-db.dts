@@ -202,6 +202,11 @@
 	status = "okay";
 };
 
+&cpm_eth0 {
+	status = "okay";
+	phy-mode = "10gbase-kr";
+};
+
 &cpm_eth2 {
 	status = "okay";
 	phy = <&phy1>;
@@ -244,6 +249,11 @@
 
 &cps_ethernet {
 	status = "okay";
+};
+
+&cps_eth0 {
+	status = "okay";
+	phy-mode = "10gbase-kr";
 };
 
 &cps_eth1 {
