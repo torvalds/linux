@@ -204,7 +204,7 @@ struct vpu_task_info {
 };
 
 struct vpu_trans_info {
-	const int count;
+	const size_t count;
 	const char * const table;
 };
 

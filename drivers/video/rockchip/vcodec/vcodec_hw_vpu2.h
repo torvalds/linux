@@ -219,9 +219,9 @@ DEF_FMT_TRANS_TBL(vpu2_jpegd,
 );
 
 DEF_FMT_TRANS_TBL(vpu2_h264d,
-		  64, 63, 84, 85, 86, 87, 88, 89,
+		  61, 62, 63, 64, 84, 85, 86, 87, 88, 89,
 		  90, 91, 92, 93, 94, 95, 96, 97,
-		  98, 99, 61, 62
+		  98, 99,
 );
 
 DEF_FMT_TRANS_TBL(vpu2_vp6d,
@@ -238,7 +238,7 @@ DEF_FMT_TRANS_TBL(vpu2_vc1d,
 );
 
 DEF_FMT_TRANS_TBL(vpu2_default_dec,
-		  64, 63, 131, 148, 134, 135, 61, 62
+		  61, 62, 64, 63, 131, 148, 134, 135,
 );
 
 DEF_FMT_TRANS_TBL(vpu2_default_pp,

@@ -1010,7 +1010,7 @@ static int fill_scaling_list_pps(struct vpu_subdev_data *data,
 static int vcodec_bufid_to_iova(struct vpu_subdev_data *data,
 				struct vpu_session *session,
 				const u8 *tbl,
-				int size, struct vpu_reg *reg,
+				size_t size, struct vpu_reg *reg,
 				struct extra_info_for_iommu *ext_inf)
 {
 	struct vpu_service_info *pservice = data->pservice;
@@ -1018,7 +1018,7 @@ static int vcodec_bufid_to_iova(struct vpu_subdev_data *data,
 	enum FORMAT_TYPE type;
 	int offset = 0;
 	int ret = 0;
-	int i;
+	u32 i;
 
 	if (!tbl || size <= 0) {
 		dev_err(pservice->dev, "input arguments invalidate\n");
@@ -1156,7 +1156,7 @@ static int vcodec_reg_address_translate(struct vpu_subdev_data *data,
 	if (type < FMT_TYPE_BUTT) {
 		const struct vpu_trans_info *info = &reg->trans[type];
 		const u8 *tbl = info->table;
-		int size = info->count;
+		size_t size = info->count;
 
 		return vcodec_bufid_to_iova(data, session, tbl, size, reg,
 					    ext_inf);
@@ -1944,9 +1944,9 @@ static long compat_vpu_service_ioctl(struct file *file, unsigned int cmd,
 
 static int vpu_service_check_hw(struct vpu_subdev_data *data)
 {
-	int ret = -EINVAL;
-	u32 i = 0;
 	u32 hw_id = readl_relaxed(data->regs);
+	u32 i = 0;
+	int ret = -EINVAL;
 
 	hw_id = (hw_id >> 16) & 0xFFFF;
 	dev_dbg(data->dev, "checking hw id %x\n", hw_id);
