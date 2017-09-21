@@ -228,7 +228,6 @@ int do_timer_oneshot(int clock_id, int flags)
 	timer_t tm1;
 	const int interval = 0;
 	struct timeval timeout;
-	fd_set fds;
 	int err;
 
 	err = setup_timer(clock_id, flags, interval, &tm1);
@@ -237,9 +236,8 @@ int do_timer_oneshot(int clock_id, int flags)
 
 	memset(&timeout, 0, sizeof(timeout));
 	timeout.tv_sec = 5;
-	FD_ZERO(&fds);
 	do {
-		err = select(FD_SETSIZE, &fds, NULL, NULL, &timeout);
+		err = select(0, NULL, NULL, NULL, &timeout);
 	} while (err == -1 && errno == EINTR);
 
 	timer_delete(tm1);
