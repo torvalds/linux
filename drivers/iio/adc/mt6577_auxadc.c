@@ -305,6 +305,7 @@ static SIMPLE_DEV_PM_OPS(mt6577_auxadc_pm_ops,
 
 static const struct of_device_id mt6577_auxadc_of_match[] = {
 	{ .compatible = "mediatek,mt2701-auxadc", },
+	{ .compatible = "mediatek,mt2712-auxadc", },
 	{ .compatible = "mediatek,mt7622-auxadc", },
 	{ .compatible = "mediatek,mt8173-auxadc", },
 	{ }
