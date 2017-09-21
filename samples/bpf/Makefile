@@ -177,6 +177,11 @@ HOSTLOADLIBES_syscall_tp += -lelf
 LLC ?= llc
 CLANG ?= clang
 
+# Detect that we're cross compiling and use the cross compiler
+ifdef CROSS_COMPILE
+HOSTCC = $(CROSS_COMPILE)gcc
+endif
+
 # Trick to allow make to be run from this directory
 all:
 	$(MAKE) -C ../../ $(CURDIR)/
@@ -225,7 +230,7 @@ $(obj)/%.o: $(src)/%.c
 	$(CLANG) $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(EXTRA_CFLAGS) -I$(obj) \
 		-I$(srctree)/tools/testing/selftests/bpf/ \
 		-D__KERNEL__ -D__ASM_SYSREG_H -Wno-unused-value -Wno-pointer-sign \
-		-Wno-compare-distinct-pointer-types \
+		-D__TARGET_ARCH_$(ARCH) -Wno-compare-distinct-pointer-types \
 		-Wno-gnu-variable-sized-type-not-at-end \
 		-Wno-address-of-packed-member -Wno-tautological-compare \
 		-Wno-unknown-warning-option \
