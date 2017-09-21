@@ -373,7 +373,8 @@ void phy_ethtool_ksettings_get(struct phy_device *phydev,
 		cmd->base.port = PORT_BNC;
 	else
 		cmd->base.port = PORT_MII;
-
+	cmd->base.transceiver = phy_is_internal(phydev) ?
+				XCVR_INTERNAL : XCVR_EXTERNAL;
 	cmd->base.phy_address = phydev->mdio.addr;
 	cmd->base.autoneg = phydev->autoneg;
 	cmd->base.eth_tp_mdix_ctrl = phydev->mdix_ctrl;
