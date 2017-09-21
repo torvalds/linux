@@ -760,6 +760,7 @@ err_unlock:
 	drm_modeset_unlock_all(drm_dev);
 	if (ret)
 		dev_err(drm_dev->dev, "failed to show loader logo\n");
+	rockchip_free_loader_memory(drm_dev);
 }
 
 static const char *const loader_protect_clocks[] __initconst = {
