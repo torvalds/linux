@@ -944,22 +944,27 @@ static bool hdmi_mode_fixup(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct drm_connector *connector;
 	struct drm_display_mode *m;
+	struct drm_connector_list_iter conn_iter;
 	int mode_ok;
 
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (connector->encoder == encoder)
 			break;
 	}
+	if (connector)
+		drm_connector_get(connector);
+	drm_connector_list_iter_end(&conn_iter);
 
-	if (connector->encoder != encoder)
+	if (!connector)
 		return true;
 
 	mode_ok = hdmi_mode_valid(connector, adjusted_mode);
 
 	if (mode_ok == MODE_OK)
-		return true;
+		goto cleanup;
 
 	/*
 	 * Find the most suitable mode and copy it to adjusted_mode.
@@ -978,6 +983,9 @@ static bool hdmi_mode_fixup(struct drm_encoder *encoder,
 			break;
 		}
 	}
+
+cleanup:
+	drm_connector_put(connector);
 
 	return true;
 }
