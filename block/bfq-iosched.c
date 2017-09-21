@@ -3725,16 +3725,10 @@ void bfq_put_queue(struct bfq_queue *bfqq)
 	if (bfqq->ref)
 		return;
 
-	if (bfq_bfqq_sync(bfqq))
-		/*
-		 * The fact that this queue is being destroyed does not
-		 * invalidate the fact that this queue may have been
-		 * activated during the current burst. As a consequence,
-		 * although the queue does not exist anymore, and hence
-		 * needs to be removed from the burst list if there,
-		 * the burst size has not to be decremented.
-		 */
+	if (bfq_bfqq_sync(bfqq) && !hlist_unhashed(&bfqq->burst_list_node)) {
 		hlist_del_init(&bfqq->burst_list_node);
+		bfqq->bfqd->burst_size--;
+	}
 
 	kmem_cache_free(bfq_pool, bfqq);
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
