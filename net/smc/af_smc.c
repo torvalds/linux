@@ -282,6 +282,7 @@ int smc_netinfo_by_tcpsk(struct socket *clcsock,
 			 __be32 *subnet, u8 *prefix_len)
 {
 	struct dst_entry *dst = sk_dst_get(clcsock->sk);
+	struct in_device *in_dev;
 	struct sockaddr_in addr;
 	int rc = -ENOENT;
 	int len;
@@ -298,14 +299,17 @@ int smc_netinfo_by_tcpsk(struct socket *clcsock,
 	/* get address to which the internal TCP socket is bound */
 	kernel_getsockname(clcsock, (struct sockaddr *)&addr, &len);
 	/* analyze IPv4 specific data of net_device belonging to TCP socket */
-	for_ifa(dst->dev->ip_ptr) {
-		if (ifa->ifa_address != addr.sin_addr.s_addr)
+	rcu_read_lock();
+	in_dev = __in_dev_get_rcu(dst->dev);
+	for_ifa(in_dev) {
+		if (!inet_ifa_match(addr.sin_addr.s_addr, ifa))
 			continue;
 		*prefix_len = inet_mask_len(ifa->ifa_mask);
 		*subnet = ifa->ifa_address & ifa->ifa_mask;
 		rc = 0;
 		break;
-	} endfor_ifa(dst->dev->ip_ptr);
+	} endfor_ifa(in_dev);
+	rcu_read_unlock();
 
 out_rel:
 	dst_release(dst);
