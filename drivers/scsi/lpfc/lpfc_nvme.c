@@ -1938,14 +1938,13 @@ lpfc_new_nvme_buf(struct lpfc_vport *vport, int num_to_alloc)
 		 * pci bus space for an I/O. The DMA buffer includes the
 		 * number of SGE's necessary to support the sg_tablesize.
 		 */
-		lpfc_ncmd->data = dma_pool_alloc(phba->lpfc_sg_dma_buf_pool,
-						 GFP_KERNEL,
-						 &lpfc_ncmd->dma_handle);
+		lpfc_ncmd->data = dma_pool_zalloc(phba->lpfc_sg_dma_buf_pool,
+						  GFP_KERNEL,
+						  &lpfc_ncmd->dma_handle);
 		if (!lpfc_ncmd->data) {
 			kfree(lpfc_ncmd);
 			break;
 		}
-		memset(lpfc_ncmd->data, 0, phba->cfg_sg_dma_buf_size);
 
 		lxri = lpfc_sli4_next_xritag(phba);
 		if (lxri == NO_XRI) {
