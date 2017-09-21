@@ -364,7 +364,8 @@ static void pipe_ctx_to_e2e_pipe_params (
 	}
 
 
-	input->dest.vactive        = pipe->stream->timing.v_addressable;
+	input->dest.vactive        = pipe->stream->timing.v_addressable + pipe->stream->timing.v_border_top
+			+ pipe->stream->timing.v_border_bottom;
 
 	input->dest.recout_width   = pipe->plane_res.scl_data.recout.width;
 	input->dest.recout_height  = pipe->plane_res.scl_data.recout.height;
@@ -882,10 +883,11 @@ bool dcn_validate_bandwidth(
 
 		v->htotal[input_idx] = pipe->stream->timing.h_total;
 		v->vtotal[input_idx] = pipe->stream->timing.v_total;
+		v->vactive[input_idx] = pipe->stream->timing.v_addressable +
+				pipe->stream->timing.v_border_top + pipe->stream->timing.v_border_bottom;
 		v->v_sync_plus_back_porch[input_idx] = pipe->stream->timing.v_total
-				- pipe->stream->timing.v_addressable
+				- v->vactive[input_idx]
 				- pipe->stream->timing.v_front_porch;
-		v->vactive[input_idx] = pipe->stream->timing.v_addressable;
 		v->pixel_clock[input_idx] = pipe->stream->timing.pix_clk_khz / 1000.0f;
 
 		if (!pipe->plane_state) {
