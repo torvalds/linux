@@ -148,6 +148,30 @@ static int get_filter_steerq(struct net_device *dev,
 	return iq;
 }
 
+int cxgb4_get_free_ftid(struct net_device *dev, int family)
+{
+	struct adapter *adap = netdev2adap(dev);
+	struct tid_info *t = &adap->tids;
+	int ftid;
+
+	spin_lock_bh(&t->ftid_lock);
+	if (family == PF_INET) {
+		ftid = find_first_zero_bit(t->ftid_bmap, t->nftids);
+		if (ftid >= t->nftids)
+			ftid = -1;
+	} else {
+		ftid = bitmap_find_free_region(t->ftid_bmap, t->nftids, 2);
+		if (ftid < 0)
+			goto out_unlock;
+
+		/* this is only a lookup, keep the found region unallocated */
+		bitmap_release_region(t->ftid_bmap, ftid, 2);
+	}
+out_unlock:
+	spin_unlock_bh(&t->ftid_lock);
+	return ftid;
+}
+
 static int cxgb4_set_ftid(struct tid_info *t, int fidx, int family)
 {
 	spin_lock_bh(&t->ftid_lock);

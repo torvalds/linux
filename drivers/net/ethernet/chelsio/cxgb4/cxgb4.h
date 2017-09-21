@@ -905,6 +905,9 @@ struct adapter {
 	/* TC u32 offload */
 	struct cxgb4_tc_u32_table *tc_u32;
 	struct chcr_stats_debug chcr_stats;
+
+	/* TC flower offload */
+	DECLARE_HASHTABLE(flower_anymatch_tbl, 9);
 };
 
 /* Support for "sched-class" command to allow a TX Scheduling Class to be
