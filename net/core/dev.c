@@ -7989,7 +7989,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 		unsigned int txqs, unsigned int rxqs)
 {
 	struct net_device *dev;
-	size_t alloc_size;
+	unsigned int alloc_size;
 	struct net_device *p;
 
 	BUG_ON(strlen(name) >= sizeof(dev->name));
