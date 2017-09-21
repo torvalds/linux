@@ -846,11 +846,6 @@ static int qtnf_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		return -EINVAL;
 	}
 
-	if (cfg80211_chandef_identical(&params->chandef, &mac->chandef)) {
-		pr_err("%s: switch request to the same channel\n", dev->name);
-		return -EALREADY;
-	}
-
 	ret = qtnf_cmd_send_chan_switch(mac, params);
 	if (ret)
 		pr_warn("%s: failed to switch to channel (%u)\n",
