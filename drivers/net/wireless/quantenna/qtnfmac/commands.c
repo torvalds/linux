@@ -2055,8 +2055,10 @@ int qtnf_cmd_send_connect(struct qtnf_vif *vif,
 
 	ether_addr_copy(cmd->bssid, bss_cfg->bssid);
 
-	if (vif->mac->chandef.chan)
-		cmd->channel = cpu_to_le16(vif->mac->chandef.chan->hw_value);
+	if (sme->channel)
+		cmd->channel = cpu_to_le16(sme->channel->hw_value);
+	else
+		cmd->channel = 0;
 
 	cmd->bg_scan_period = cpu_to_le16(bss_cfg->bg_scan_period);
 

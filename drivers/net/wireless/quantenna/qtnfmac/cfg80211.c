@@ -613,8 +613,6 @@ qtnf_connect(struct wiphy *wiphy, struct net_device *dev,
 	     struct cfg80211_connect_params *sme)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
-	struct qtnf_wmac *mac = wiphy_priv(wiphy);
-	struct cfg80211_chan_def chandef;
 	struct qtnf_bss_config *bss_cfg;
 	int ret;
 
@@ -626,18 +624,6 @@ qtnf_connect(struct wiphy *wiphy, struct net_device *dev,
 
 	bss_cfg = &vif->bss_cfg;
 	memset(bss_cfg, 0, sizeof(*bss_cfg));
-
-	if (sme->channel) {
-		/* FIXME: need to set proper nl80211_channel_type value */
-		cfg80211_chandef_create(&chandef, sme->channel,
-					NL80211_CHAN_HT20);
-		/* fall-back to minimal safe chandef description */
-		if (!cfg80211_chandef_valid(&chandef))
-			cfg80211_chandef_create(&chandef, sme->channel,
-						NL80211_CHAN_HT20);
-
-		memcpy(&mac->chandef, &chandef, sizeof(mac->chandef));
-	}
 
 	bss_cfg->ssid_len = sme->ssid_len;
 	memcpy(&bss_cfg->ssid, sme->ssid, bss_cfg->ssid_len);
@@ -663,6 +649,7 @@ qtnf_connect(struct wiphy *wiphy, struct net_device *dev,
 		bss_cfg->connect_flags |= QLINK_STA_CONNECT_USE_RRM;
 
 	memcpy(&bss_cfg->crypto, &sme->crypto, sizeof(bss_cfg->crypto));
+
 	if (sme->bssid)
 		ether_addr_copy(bss_cfg->bssid, sme->bssid);
 	else
