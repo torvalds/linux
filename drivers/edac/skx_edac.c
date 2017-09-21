@@ -464,8 +464,12 @@ static int skx_register_mci(struct skx_imc *imc)
 	pvt = mci->pvt_info;
 	pvt->imc = imc;
 
-	mci->ctl_name = kasprintf(GFP_KERNEL, "Skylake Socket#%d IMC#%d",
-				  imc->node_id, imc->lmc);
+	mci->ctl_name = kasprintf(GFP_KERNEL, "Skylake Socket#%d IMC#%d", imc->node_id, imc->lmc);
+	if (!mci->ctl_name) {
+		rc = -ENOMEM;
+		goto fail0;
+	}
+
 	mci->mtype_cap = MEM_FLAG_DDR4;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE;
 	mci->edac_cap = EDAC_FLAG_NONE;
@@ -491,6 +495,7 @@ static int skx_register_mci(struct skx_imc *imc)
 
 fail:
 	kfree(mci->ctl_name);
+fail0:
 	edac_mc_free(mci);
 	imc->mci = NULL;
 	return rc;

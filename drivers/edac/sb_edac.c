@@ -3287,6 +3287,11 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		break;
 	}
 
+	if (!mci->ctl_name) {
+		rc = -ENOMEM;
+		goto fail0;
+	}
+
 	/* Get dimm basic config and the memory layout */
 	rc = get_dimm_config(mci);
 	if (rc < 0) {
