@@ -49,6 +49,7 @@
 #include <asm/io.h>
 #include <asm/setup.h>
 #include <asm/unwind.h>
+#include <asm/smp.h>
 
 static char __initdata command_line[COMMAND_LINE_SIZE];
 
@@ -116,7 +117,6 @@ void __init dma_ops_init(void)
 }
 #endif
 
-extern int init_per_cpu(int cpuid);
 extern void collect_boot_cpu_data(void);
 
 void __init setup_arch(char **cmdline_p)
