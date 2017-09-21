@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /* \file ssi_hash.h
-   ARM CryptoCell Hash Crypto API
+ * ARM CryptoCell Hash Crypto API
  */
 
 #ifndef __SSI_HASH_H__
@@ -39,6 +39,8 @@
 #define XCBC_MAC_K2_OFFSET 16
 #define XCBC_MAC_K3_OFFSET 32
 
+#define CC_EXPORT_MAGIC 0xC2EE1070U
+
 // this struct was taken from drivers/crypto/nx/nx-aes-xcbc.c and it is used for xcbc/cmac statesize
 struct aeshash_state {
 	u8 state[AES_BLOCK_SIZE];
@@ -48,27 +50,27 @@ struct aeshash_state {
 
 /* ahash state */
 struct ahash_req_ctx {
-	uint8_t* buff0;
-	uint8_t* buff1;
-	uint8_t* digest_result_buff;
+	u8 *buff0;
+	u8 *buff1;
+	u8 *digest_result_buff;
 	struct async_gen_req_ctx gen_ctx;
 	enum ssi_req_dma_buf_type data_dma_buf_type;
-	uint8_t *digest_buff;
-	uint8_t *opad_digest_buff;
-	uint8_t *digest_bytes_len;
+	u8 *digest_buff;
+	u8 *opad_digest_buff;
+	u8 *digest_bytes_len;
 	dma_addr_t opad_digest_dma_addr;
 	dma_addr_t digest_buff_dma_addr;
 	dma_addr_t digest_bytes_len_dma_addr;
 	dma_addr_t digest_result_dma_addr;
-	uint32_t buff0_cnt;
-	uint32_t buff1_cnt;
-	uint32_t buff_index;
-	uint32_t xcbc_count; /* count xcbc update operatations */
+	u32 buff0_cnt;
+	u32 buff1_cnt;
+	u32 buff_index;
+	u32 xcbc_count; /* count xcbc update operatations */
 	struct scatterlist buff_sg[2];
 	struct scatterlist *curr_sg;
-	uint32_t in_nents;
-	uint32_t mlli_nents;
-	struct mlli_params mlli_params;	
+	u32 in_nents;
+	u32 mlli_nents;
+	struct mlli_params mlli_params;
 };
 
 int ssi_hash_alloc(struct ssi_drvdata *drvdata);
@@ -77,25 +79,25 @@ int ssi_hash_free(struct ssi_drvdata *drvdata);
 
 /*!
  * Gets the initial digest length
- * 
- * \param drvdata 
+ *
+ * \param drvdata
  * \param mode The Hash mode. Supported modes: MD5/SHA1/SHA224/SHA256/SHA384/SHA512
- * 
- * \return uint32_t returns the address of the initial digest length in SRAM
+ *
+ * \return u32 returns the address of the initial digest length in SRAM
  */
 ssi_sram_addr_t
-ssi_ahash_get_initial_digest_len_sram_addr(void *drvdata, uint32_t mode);
+ssi_ahash_get_initial_digest_len_sram_addr(void *drvdata, u32 mode);
 
 /*!
- * Gets the address of the initial digest in SRAM 
+ * Gets the address of the initial digest in SRAM
  * according to the given hash mode
- * 
- * \param drvdata 
+ *
+ * \param drvdata
  * \param mode The Hash mode. Supported modes: MD5/SHA1/SHA224/SHA256/SHA384/SHA512
- * 
- * \return uint32_t The address of the inital digest in SRAM
+ *
+ * \return u32 The address of the inital digest in SRAM
  */
-ssi_sram_addr_t ssi_ahash_get_larval_digest_sram_addr(void *drvdata, uint32_t mode);
+ssi_sram_addr_t ssi_ahash_get_larval_digest_sram_addr(void *drvdata, u32 mode);
 
 #endif /*__SSI_HASH_H__*/
 

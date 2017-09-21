@@ -18,6 +18,7 @@ LIST_DEVS=FALSE
 
 DEBUGFS=${DEBUGFS-/sys/kernel/debug}
 
+DB_BITMASK=0x7FFF
 PERF_RUN_ORDER=32
 MAX_MW_SIZE=0
 RUN_DMA_TESTS=
@@ -38,6 +39,7 @@ function show_help()
 	echo "be highly recommended."
 	echo
 	echo "Options:"
+	echo "  -b BITMASK      doorbell clear bitmask for ntb_tool"
 	echo "  -C              don't cleanup ntb modules on exit"
 	echo "  -d              run dma tests"
 	echo "  -h              show this help message"
@@ -52,8 +54,9 @@ function show_help()
 function parse_args()
 {
 	OPTIND=0
-	while getopts "Cdhlm:r:p:w:" opt; do
+	while getopts "b:Cdhlm:r:p:w:" opt; do
 		case "$opt" in
+		b)  DB_BITMASK=${OPTARG} ;;
 		C)  DONT_CLEANUP=1 ;;
 		d)  RUN_DMA_TESTS=1 ;;
 		h)  show_help; exit 0 ;;
@@ -85,6 +88,10 @@ set -e
 function _modprobe()
 {
         modprobe "$@"
+
+	if [[ "$REMOTE_HOST" != "" ]]; then
+		ssh "$REMOTE_HOST" modprobe "$@"
+	fi
 }
 
 function split_remote()
@@ -154,7 +161,7 @@ function doorbell_test()
 
 	echo "Running db tests on: $(basename $LOC) / $(basename $REM)"
 
-	write_file "c 0xFFFFFFFF" "$REM/db"
+	write_file "c $DB_BITMASK" "$REM/db"
 
 	for ((i=1; i <= 8; i++)); do
 		let DB=$(read_file "$REM/db") || true
@@ -325,6 +332,10 @@ function ntb_tool_tests()
 
 	link_test $LOCAL_TOOL $REMOTE_TOOL
 	link_test $REMOTE_TOOL $LOCAL_TOOL
+
+	#Ensure the link is up on both sides before continuing
+	write_file Y $LOCAL_TOOL/link_event
+	write_file Y $REMOTE_TOOL/link_event
 
 	for PEER_TRANS in $(ls $LOCAL_TOOL/peer_trans*); do
 		PT=$(basename $PEER_TRANS)

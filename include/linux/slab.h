@@ -471,7 +471,8 @@ static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
  *
  * %__GFP_NOWARN - If allocation fails, don't issue any warnings.
  *
- * %__GFP_REPEAT - If allocation fails initially, try once more before failing.
+ * %__GFP_RETRY_MAYFAIL - Try really hard to succeed the allocation but fail
+ *   eventually.
  *
  * There are other flags available as well, but these are not intended
  * for general use, and so are not documented here. For a full list of

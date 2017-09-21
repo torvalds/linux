@@ -34,7 +34,7 @@ static char __initdata command_line[COMMAND_LINE_SIZE] = { 0 };
 static void __init add_arg(char *arg)
 {
 	if (strlen(command_line) + strlen(arg) + 1 > COMMAND_LINE_SIZE) {
-		printf("add_arg: Too many command line arguments!\n");
+		os_warn("add_arg: Too many command line arguments!\n");
 		exit(1);
 	}
 	if (strlen(command_line) > 0)
@@ -120,6 +120,7 @@ static const char *usage_string =
 
 static int __init uml_version_setup(char *line, int *add)
 {
+	/* Explicitly use printf() to show version in stdout */
 	printf("%s\n", init_utsname()->release);
 	exit(0);
 
@@ -148,8 +149,8 @@ __uml_setup("root=", uml_root_setup,
 
 static int __init no_skas_debug_setup(char *line, int *add)
 {
-	printf("'debug' is not necessary to gdb UML in skas mode - run \n");
-	printf("'gdb linux'\n");
+	os_warn("'debug' is not necessary to gdb UML in skas mode - run\n");
+	os_warn("'gdb linux'\n");
 
 	return 0;
 }
@@ -165,6 +166,7 @@ static int __init Usage(char *line, int *add)
 
 	printf(usage_string, init_utsname()->release);
 	p = &__uml_help_start;
+	/* Explicitly use printf() to show help in stdout */
 	while (p < &__uml_help_end) {
 		printf("%s", *p);
 		p++;
@@ -283,8 +285,8 @@ int __init linux_main(int argc, char **argv)
 
 	diff = UML_ROUND_UP(brk_start) - UML_ROUND_UP(&_end);
 	if (diff > 1024 * 1024) {
-		printf("Adding %ld bytes to physical memory to account for "
-		       "exec-shield gap\n", diff);
+		os_info("Adding %ld bytes to physical memory to account for "
+			"exec-shield gap\n", diff);
 		physmem_size += UML_ROUND_UP(brk_start) - UML_ROUND_UP(&_end);
 	}
 
@@ -324,8 +326,8 @@ int __init linux_main(int argc, char **argv)
 	end_vm = start_vm + virtmem_size;
 
 	if (virtmem_size < physmem_size)
-		printf("Kernel virtual memory size shrunk to %lu bytes\n",
-		       virtmem_size);
+		os_info("Kernel virtual memory size shrunk to %lu bytes\n",
+			virtmem_size);
 
 	os_flush_stdout();
 

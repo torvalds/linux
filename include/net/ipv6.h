@@ -16,6 +16,7 @@
 #include <linux/ipv6.h>
 #include <linux/hardirq.h>
 #include <linux/jhash.h>
+#include <linux/refcount.h>
 #include <net/if_inet6.h>
 #include <net/ndisc.h>
 #include <net/flow.h>
@@ -203,7 +204,7 @@ extern rwlock_t ip6_ra_lock;
  */
 
 struct ipv6_txoptions {
-	atomic_t		refcnt;
+	refcount_t		refcnt;
 	/* Length of this structure */
 	int			tot_len;
 
@@ -265,7 +266,7 @@ static inline struct ipv6_txoptions *txopt_get(const struct ipv6_pinfo *np)
 	rcu_read_lock();
 	opt = rcu_dereference(np->opt);
 	if (opt) {
-		if (!atomic_inc_not_zero(&opt->refcnt))
+		if (!refcount_inc_not_zero(&opt->refcnt))
 			opt = NULL;
 		else
 			opt = rcu_pointer_handoff(opt);
@@ -276,7 +277,7 @@ static inline struct ipv6_txoptions *txopt_get(const struct ipv6_pinfo *np)
 
 static inline void txopt_put(struct ipv6_txoptions *opt)
 {
-	if (opt && atomic_dec_and_test(&opt->refcnt))
+	if (opt && refcount_dec_and_test(&opt->refcnt))
 		kfree_rcu(opt, rcu);
 }
 

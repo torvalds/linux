@@ -318,12 +318,13 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 
 	/* init process apertures*/
 	process->is_32bit_user_mode = in_compat_syscall();
-	if (kfd_init_apertures(process) != 0)
-		goto err_init_apretures;
+	err = kfd_init_apertures(process);
+	if (err != 0)
+		goto err_init_apertures;
 
 	return process;
 
-err_init_apretures:
+err_init_apertures:
 	pqm_uninit(&process->pqm);
 err_process_pqm_init:
 	hash_del_rcu(&process->kfd_processes);

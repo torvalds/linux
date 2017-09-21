@@ -12,6 +12,9 @@
 #ifndef _LINUX_NVMEM_PROVIDER_H
 #define _LINUX_NVMEM_PROVIDER_H
 
+#include <linux/err.h>
+#include <linux/errno.h>
+
 struct nvmem_device;
 struct nvmem_cell_info;
 typedef int (*nvmem_reg_read_t)(void *priv, unsigned int offset,

@@ -146,6 +146,20 @@ config PINCTRL_FALCON
 	depends on SOC_FALCON
 	depends on PINCTRL_LANTIQ
 
+config PINCTRL_MCP23S08
+	tristate "Microchip MCP23xxx I/O expander"
+	depends on SPI_MASTER || I2C
+	depends on I2C || I2C=n
+	select GPIOLIB_IRQCHIP
+	select REGMAP_I2C if I2C
+	select REGMAP_SPI if SPI_MASTER
+	select GENERIC_PINCONF
+	help
+	  SPI/I2C driver for Microchip MCP23S08/MCP23S17/MCP23008/MCP23017
+	  I/O expanders.
+	  This provides a GPIO interface supporting inputs and outputs.
+	  The I2C versions of the chips can be used as interrupt-controller.
+
 config PINCTRL_MESON
 	bool
 	depends on OF
@@ -173,6 +187,17 @@ config PINCTRL_ROCKCHIP
 	select GENERIC_PINCONF
 	select GENERIC_IRQ_CHIP
 	select MFD_SYSCON
+
+config PINCTRL_RZA1
+	bool "Renesas RZ/A1 gpio and pinctrl driver"
+	depends on OF
+	depends on ARCH_R7S72100 || COMPILE_TEST
+	select GPIOLIB
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	help
+	  This selects pinctrl driver for Renesas RZ/A1 platforms.
 
 config PINCTRL_SINGLE
 	tristate "One-register-per-pin type device tree based pinctrl driver"
@@ -296,6 +321,16 @@ config PINCTRL_ZYNQ
 	help
 	  This selects the pinctrl driver for Xilinx Zynq.
 
+config PINCTRL_INGENIC
+	bool "Pinctrl driver for the Ingenic JZ47xx SoCs"
+	default y
+	depends on OF
+	depends on MACH_INGENIC || COMPILE_TEST
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select REGMAP_MMIO
+
 source "drivers/pinctrl/aspeed/Kconfig"
 source "drivers/pinctrl/bcm/Kconfig"
 source "drivers/pinctrl/berlin/Kconfig"
@@ -315,6 +350,7 @@ source "drivers/pinctrl/ti/Kconfig"
 source "drivers/pinctrl/uniphier/Kconfig"
 source "drivers/pinctrl/vt8500/Kconfig"
 source "drivers/pinctrl/mediatek/Kconfig"
+source "drivers/pinctrl/zte/Kconfig"
 
 config PINCTRL_XWAY
 	bool

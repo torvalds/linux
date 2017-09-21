@@ -44,7 +44,7 @@
 #include <linux/regulator/machine.h>
 
 #include <linux/i2c.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 
 /* Register descriptions for audio */
 #include <linux/mfd/twl4030-audio.h>
@@ -173,7 +173,7 @@ static struct twl_private *twl_priv;
 static struct twl_mapping twl4030_map[] = {
 	/*
 	 * NOTE:  don't change this table without updating the
-	 * <linux/i2c/twl.h> defines for TWL4030_MODULE_*
+	 * <linux/mfd/twl.h> defines for TWL4030_MODULE_*
 	 * so they continue to match the order in this table.
 	 */
 
@@ -344,7 +344,7 @@ static const struct regmap_config twl4030_regmap_config[4] = {
 static struct twl_mapping twl6030_map[] = {
 	/*
 	 * NOTE:  don't change this table without updating the
-	 * <linux/i2c/twl.h> defines for TWL4030_MODULE_*
+	 * <linux/mfd/twl.h> defines for TWL4030_MODULE_*
 	 * so they continue to match the order in this table.
 	 */
 

@@ -658,10 +658,6 @@ struct fc_function_template {
 	int	(*vport_disable)(struct fc_vport *, bool);
 	int  	(*vport_delete)(struct fc_vport *);
 
-	/* target-mode drivers' functions */
-	int     (* tsk_mgmt_response)(struct Scsi_Host *, u64, u64, int);
-	int     (* it_nexus_response)(struct Scsi_Host *, u64, int);
-
 	/* bsg support */
 	int	(*bsg_request)(struct bsg_job *);
 	int	(*bsg_timeout)(struct bsg_job *);

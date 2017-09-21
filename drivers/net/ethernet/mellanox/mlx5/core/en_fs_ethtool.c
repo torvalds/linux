@@ -276,7 +276,7 @@ static void add_rule_to_list(struct mlx5e_priv *priv,
 
 static bool outer_header_zero(u32 *match_criteria)
 {
-	int size = MLX5_ST_SZ_BYTES(fte_match_param);
+	int size = MLX5_FLD_SZ_BYTES(fte_match_param, outer_headers);
 	char *outer_headers_c = MLX5_ADDR_OF(fte_match_param, match_criteria,
 					     outer_headers);
 
@@ -296,7 +296,7 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 	struct mlx5_flow_handle *rule;
 	int err = 0;
 
-	spec = mlx5_vzalloc(sizeof(*spec));
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return ERR_PTR(-ENOMEM);
 	err = set_flow_attrs(spec->match_criteria, spec->match_value,
@@ -320,7 +320,7 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 
 	spec->match_criteria_enable = (!outer_header_zero(spec->match_criteria));
 	flow_act.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG;
-	rule = mlx5_add_flow_rules(ft, spec, &flow_act, dst, 1);
+	rule = mlx5_add_flow_rules(ft, spec, &flow_act, dst, dst ? 1 : 0);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		netdev_err(priv->netdev, "%s: failed to add ethtool steering rule: %d\n",

@@ -1119,7 +1119,7 @@ static ssize_t bin_uuid(struct file *file,
 	/* Only supports reads */
 	if (oldval && oldlen) {
 		char buf[UUID_STRING_LEN + 1];
-		uuid_be uuid;
+		uuid_t uuid;
 
 		result = kernel_read(file, 0, buf, sizeof(buf) - 1);
 		if (result < 0)
@@ -1128,7 +1128,7 @@ static ssize_t bin_uuid(struct file *file,
 		buf[result] = '\0';
 
 		result = -EIO;
-		if (uuid_be_to_bin(buf, &uuid))
+		if (uuid_parse(buf, &uuid))
 			goto out;
 
 		if (oldlen > 16)
@@ -1346,7 +1346,7 @@ static void deprecated_sysctl_warning(const int *name, int nlen)
 	 * CTL_KERN/KERN_VERSION is used by older glibc and cannot
 	 * ever go away.
 	 */
-	if (name[0] == CTL_KERN && name[1] == KERN_VERSION)
+	if (nlen >= 2 && name[0] == CTL_KERN && name[1] == KERN_VERSION)
 		return;
 
 	if (printk_ratelimit()) {

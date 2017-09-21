@@ -623,22 +623,11 @@ static inline int cma_validate_port(struct ib_device *device, u8 port,
 	if ((dev_type != ARPHRD_INFINIBAND) && rdma_protocol_ib(device, port))
 		return ret;
 
-	if (dev_type == ARPHRD_ETHER && rdma_protocol_roce(device, port)) {
+	if (dev_type == ARPHRD_ETHER && rdma_protocol_roce(device, port))
 		ndev = dev_get_by_index(&init_net, bound_if_index);
-		if (ndev && ndev->flags & IFF_LOOPBACK) {
-			pr_info("detected loopback device\n");
-			dev_put(ndev);
-
-			if (!device->get_netdev)
-				return -EOPNOTSUPP;
-
-			ndev = device->get_netdev(device, port);
-			if (!ndev)
-				return -ENODEV;
-		}
-	} else {
+	else
 		gid_type = IB_GID_TYPE_IB;
-	}
+
 
 	ret = ib_find_cached_gid_by_port(device, gid, gid_type, port,
 					 ndev, NULL);
@@ -1044,6 +1033,8 @@ int rdma_init_qp_attr(struct rdma_cm_id *id, struct ib_qp_attr *qp_attr,
 		} else
 			ret = iw_cm_init_qp_attr(id_priv->cm_id.iw, qp_attr,
 						 qp_attr_mask);
+		qp_attr->port_num = id_priv->id.port_num;
+		*qp_attr_mask |= IB_QP_PORT;
 	} else
 		ret = -ENOSYS;
 
@@ -2567,21 +2558,6 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 		if (!ndev) {
 			ret = -ENODEV;
 			goto err2;
-		}
-
-		if (ndev->flags & IFF_LOOPBACK) {
-			dev_put(ndev);
-			if (!id_priv->id.device->get_netdev) {
-				ret = -EOPNOTSUPP;
-				goto err2;
-			}
-
-			ndev = id_priv->id.device->get_netdev(id_priv->id.device,
-							      id_priv->id.port_num);
-			if (!ndev) {
-				ret = -ENODEV;
-				goto err2;
-			}
 		}
 
 		supported_gids = roce_gid_type_mask_support(id_priv->id.device,

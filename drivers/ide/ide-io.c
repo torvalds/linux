@@ -54,7 +54,7 @@
 #include <linux/uaccess.h>
 #include <asm/io.h>
 
-int ide_end_rq(ide_drive_t *drive, struct request *rq, int error,
+int ide_end_rq(ide_drive_t *drive, struct request *rq, blk_status_t error,
 	       unsigned int nr_bytes)
 {
 	/*
@@ -112,7 +112,7 @@ void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 	}
 }
 
-int ide_complete_rq(ide_drive_t *drive, int error, unsigned int nr_bytes)
+int ide_complete_rq(ide_drive_t *drive, blk_status_t error, unsigned int nr_bytes)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = hwif->rq;
@@ -122,7 +122,7 @@ int ide_complete_rq(ide_drive_t *drive, int error, unsigned int nr_bytes)
 	 * if failfast is set on a request, override number of sectors
 	 * and complete the whole request right now
 	 */
-	if (blk_noretry_request(rq) && error <= 0)
+	if (blk_noretry_request(rq) && error)
 		nr_bytes = blk_rq_sectors(rq) << 9;
 
 	rc = ide_end_rq(drive, rq, error, nr_bytes);
@@ -149,7 +149,7 @@ void ide_kill_rq(ide_drive_t *drive, struct request *rq)
 			scsi_req(rq)->result = -EIO;
 	}
 
-	ide_complete_rq(drive, -EIO, blk_rq_bytes(rq));
+	ide_complete_rq(drive, BLK_STS_IOERR, blk_rq_bytes(rq));
 }
 
 static void ide_tf_set_specify_cmd(ide_drive_t *drive, struct ide_taskfile *tf)
@@ -272,7 +272,7 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
  	printk("%s: DRIVE_CMD (null)\n", drive->name);
 #endif
 	scsi_req(rq)->result = 0;
-	ide_complete_rq(drive, 0, blk_rq_bytes(rq));
+	ide_complete_rq(drive, BLK_STS_OK, blk_rq_bytes(rq));
 
  	return ide_stopped;
 }

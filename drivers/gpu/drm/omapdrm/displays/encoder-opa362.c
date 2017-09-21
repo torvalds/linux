@@ -157,14 +157,6 @@ static int opa362_check_timings(struct omap_dss_device *dssdev,
 	return in->ops.atv->check_timings(in, vm);
 }
 
-static void opa362_set_type(struct omap_dss_device *dssdev,
-		enum omap_dss_venc_type type)
-{
-	/* we can only drive a COMPOSITE output */
-	WARN_ON(type != OMAP_DSS_VENC_TYPE_COMPOSITE);
-
-}
-
 static const struct omapdss_atv_ops opa362_atv_ops = {
 	.connect	= opa362_connect,
 	.disconnect	= opa362_disconnect,
@@ -175,8 +167,6 @@ static const struct omapdss_atv_ops opa362_atv_ops = {
 	.check_timings	= opa362_check_timings,
 	.set_timings	= opa362_set_timings,
 	.get_timings	= opa362_get_timings,
-
-	.set_type	= opa362_set_type,
 };
 
 static int opa362_probe(struct platform_device *pdev)

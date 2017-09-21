@@ -16,6 +16,9 @@ Required properties:
     (See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
     for further information relating to interrupt properties)
 
+ - cirrus,boost-ind-nanohenry: Inductor value for boost converter. The value is
+    in nH and they can be values of 1000nH, 1200nH, 1500nH, and 2200nH.
+
 Optional properties:
   - reset-gpios : gpio used to reset the amplifier
 

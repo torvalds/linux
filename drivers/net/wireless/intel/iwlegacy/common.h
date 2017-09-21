@@ -45,6 +45,7 @@ struct il_tx_queue;
 
 #define IL_ERR(f, a...) dev_err(&il->pci_dev->dev, f, ## a)
 #define IL_WARN(f, a...) dev_warn(&il->pci_dev->dev, f, ## a)
+#define IL_WARN_ONCE(f, a...) dev_warn_once(&il->pci_dev->dev, f, ## a)
 #define IL_INFO(f, a...) dev_info(&il->pci_dev->dev, f, ## a)
 
 #define RX_QUEUE_SIZE                         256

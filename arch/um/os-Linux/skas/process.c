@@ -108,7 +108,7 @@ static void get_skas_faultinfo(int pid, struct faultinfo *fi)
 	wait_stub_done(pid);
 
 	/*
-	 * faultinfo is prepared by the stub-segv-handler at start of
+	 * faultinfo is prepared by the stub_segv_handler at start of
 	 * the stub stack page. We just have to copy it.
 	 */
 	memcpy(fi, (void *)current_stub_stack(), sizeof(*fi));
@@ -175,6 +175,21 @@ static void handle_trap(int pid, struct uml_pt_regs *regs,
 
 extern char __syscall_stub_start[];
 
+/**
+ * userspace_tramp() - userspace trampoline
+ * @stack:	pointer to the new userspace stack page, can be NULL, if? FIXME:
+ *
+ * The userspace trampoline is used to setup a new userspace process in start_userspace() after it was clone()'ed.
+ * This function will run on a temporary stack page.
+ * It ptrace()'es itself, then
+ * Two pages are mapped into the userspace address space:
+ * - STUB_CODE (with EXEC), which contains the skas stub code
+ * - STUB_DATA (with R/W), which contains a data page that is used to transfer certain data between the UML userspace process and the UML kernel.
+ * Also for the userspace process a SIGSEGV handler is installed to catch pagefaults in the userspace process.
+ * And last the process stops itself to give control to the UML kernel for this userspace process.
+ *
+ * Return: Always zero, otherwise the current userspace process is ended with non null exit() call
+ */
 static int userspace_tramp(void *stack)
 {
 	void *addr;
@@ -236,12 +251,24 @@ static int userspace_tramp(void *stack)
 
 int userspace_pid[NR_CPUS];
 
+/**
+ * start_userspace() - prepare a new userspace process
+ * @stub_stack:	pointer to the stub stack. Can be NULL, if? FIXME:
+ *
+ * Setups a new temporary stack page that is used while userspace_tramp() runs
+ * Clones the kernel process into a new userspace process, with FDs only.
+ *
+ * Return: When positive: the process id of the new userspace process,
+ *         when negative: an error number.
+ * FIXME: can PIDs become negative?!
+ */
 int start_userspace(unsigned long stub_stack)
 {
 	void *stack;
 	unsigned long sp;
 	int pid, status, n, flags, err;
 
+	/* setup a temporary stack page */
 	stack = mmap(NULL, UM_KERN_PAGE_SIZE,
 		     PROT_READ | PROT_WRITE | PROT_EXEC,
 		     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -252,10 +279,12 @@ int start_userspace(unsigned long stub_stack)
 		return err;
 	}
 
+	/* set stack pointer to the end of the stack page, so it can grow downwards */
 	sp = (unsigned long) stack + UM_KERN_PAGE_SIZE - sizeof(void *);
 
 	flags = CLONE_FILES | SIGCHLD;
 
+	/* clone into new userspace process */
 	pid = clone(userspace_tramp, (void *) sp, flags, (void *) stub_stack);
 	if (pid < 0) {
 		err = -errno;
@@ -323,11 +352,17 @@ void userspace(struct uml_pt_regs *regs)
 		 * fail.  In this case, there is nothing to do but
 		 * just kill the process.
 		 */
-		if (ptrace(PTRACE_SETREGS, pid, 0, regs->gp))
+		if (ptrace(PTRACE_SETREGS, pid, 0, regs->gp)) {
+			printk(UM_KERN_ERR "userspace - ptrace set regs "
+			       "failed, errno = %d\n", errno);
 			fatal_sigsegv();
+		}
 
-		if (put_fp_registers(pid, regs->fp))
+		if (put_fp_registers(pid, regs->fp)) {
+			printk(UM_KERN_ERR "userspace - ptrace set fp regs "
+			       "failed, errno = %d\n", errno);
 			fatal_sigsegv();
+		}
 
 		/* Now we set local_using_sysemu to be used for one loop */
 		local_using_sysemu = get_using_sysemu();

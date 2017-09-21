@@ -54,8 +54,10 @@ config USB_AUDIO
 	depends on SND
 	select USB_LIBCOMPOSITE
 	select SND_PCM
-	select USB_F_UAC1 if GADGET_UAC1
+	select USB_F_UAC1 if (GADGET_UAC1 && !GADGET_UAC1_LEGACY)
+	select USB_F_UAC1_LEGACY if (GADGET_UAC1 && GADGET_UAC1_LEGACY)
 	select USB_F_UAC2 if !GADGET_UAC1
+	select USB_U_AUDIO if (USB_F_UAC2 || USB_F_UAC1)
 	help
 	  This Gadget Audio driver is compatible with USB Audio Class
 	  specification 2.0. It implements 1 AudioControl interface,
@@ -73,10 +75,17 @@ config USB_AUDIO
 	  dynamically linked module called "g_audio".
 
 config GADGET_UAC1
-	bool "UAC 1.0 (Legacy)"
+	bool "UAC 1.0"
 	depends on USB_AUDIO
 	help
-	  If you instead want older UAC Spec-1.0 driver that also has audio
+	  If you instead want older USB Audio Class specification 1.0 support
+	  with similar driver capabilities.
+
+config GADGET_UAC1_LEGACY
+	bool "UAC 1.0 (Legacy)"
+	depends on GADGET_UAC1
+	help
+	  If you instead want legacy UAC Spec-1.0 driver that also has audio
 	  paths hardwired to the Audio codec chip on-board and doesn't work
 	  without one.
 

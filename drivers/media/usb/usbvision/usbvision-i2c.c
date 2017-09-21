@@ -311,10 +311,13 @@ usbvision_i2c_read_max4(struct usb_usbvision *usbvision, unsigned char addr,
 	switch (len) {
 	case 4:
 		buf[3] = usbvision_read_reg(usbvision, USBVISION_SER_DAT4);
+		/* fall through */
 	case 3:
 		buf[2] = usbvision_read_reg(usbvision, USBVISION_SER_DAT3);
+		/* fall through */
 	case 2:
 		buf[1] = usbvision_read_reg(usbvision, USBVISION_SER_DAT2);
+		/* fall through */
 	case 1:
 		buf[0] = usbvision_read_reg(usbvision, USBVISION_SER_DAT1);
 		break;

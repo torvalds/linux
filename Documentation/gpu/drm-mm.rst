@@ -484,3 +484,15 @@ DRM Cache Handling
 
 .. kernel-doc:: drivers/gpu/drm/drm_cache.c
    :export:
+
+DRM Sync Objects
+===========================
+
+.. kernel-doc:: drivers/gpu/drm/drm_syncobj.c
+   :doc: Overview
+
+.. kernel-doc:: include/drm/drm_syncobj.h
+   :export:
+
+.. kernel-doc:: drivers/gpu/drm/drm_syncobj.c
+   :export:

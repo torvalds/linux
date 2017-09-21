@@ -70,6 +70,7 @@
 #define LSB_PUBLIC_MASK_HI_OFFSET	0x1C
 #define LSB_PRIVATE_MASK_LO_OFFSET	0x20
 #define LSB_PRIVATE_MASK_HI_OFFSET	0x24
+#define CMD5_PSP_CCP_VERSION		0x100
 
 #define CMD5_Q_CONTROL_BASE		0x0000
 #define CMD5_Q_TAIL_LO_BASE		0x0004
@@ -322,6 +323,16 @@ struct ccp_cmd_queue {
 	/* Interrupt wait queue */
 	wait_queue_head_t int_queue;
 	unsigned int int_rcvd;
+
+	/* Per-queue Statistics */
+	unsigned long total_ops;
+	unsigned long total_aes_ops;
+	unsigned long total_xts_aes_ops;
+	unsigned long total_3des_ops;
+	unsigned long total_sha_ops;
+	unsigned long total_rsa_ops;
+	unsigned long total_pt_ops;
+	unsigned long total_ecc_ops;
 } ____cacheline_aligned;
 
 struct ccp_device {
@@ -419,6 +430,12 @@ struct ccp_device {
 
 	/* DMA caching attribute support */
 	unsigned int axcache;
+
+	/* Device Statistics */
+	unsigned long total_interrupts;
+
+	/* DebugFS info */
+	struct dentry *debugfs_instance;
 };
 
 enum ccp_memtype {
@@ -631,6 +648,9 @@ int ccp_register_rng(struct ccp_device *ccp);
 void ccp_unregister_rng(struct ccp_device *ccp);
 int ccp_dmaengine_register(struct ccp_device *ccp);
 void ccp_dmaengine_unregister(struct ccp_device *ccp);
+
+void ccp5_debugfs_setup(struct ccp_device *ccp);
+void ccp5_debugfs_destroy(void);
 
 /* Structure for computation functions that are device-specific */
 struct ccp_actions {

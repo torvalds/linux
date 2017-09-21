@@ -503,7 +503,7 @@ static int __init reserve_crashkernel_low(void)
 			return 0;
 	}
 
-	low_base = memblock_find_in_range(low_size, 1ULL << 32, low_size, CRASH_ALIGN);
+	low_base = memblock_find_in_range(0, 1ULL << 32, low_size, CRASH_ALIGN);
 	if (!low_base) {
 		pr_err("Cannot reserve %ldMB crashkernel low memory, please try smaller size.\n",
 		       (unsigned long)(low_size >> 20));
@@ -1074,6 +1074,13 @@ void __init setup_arch(char **cmdline_p)
 		max_pfn = e820__end_of_ram_pfn();
 
 	max_possible_pfn = max_pfn;
+
+	/*
+	 * This call is required when the CPU does not support PAT. If
+	 * mtrr_bp_init() invoked it already via pat_init() the call has no
+	 * effect.
+	 */
+	init_cache_modes();
 
 	/*
 	 * Define random base addresses for memory sections after max_pfn is

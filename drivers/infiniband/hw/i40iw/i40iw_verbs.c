@@ -426,9 +426,13 @@ void i40iw_free_qp_resources(struct i40iw_device *iwdev,
 			     struct i40iw_qp *iwqp,
 			     u32 qp_num)
 {
+	struct i40iw_pbl *iwpbl = &iwqp->iwpbl;
+
 	i40iw_dealloc_push_page(iwdev, &iwqp->sc_qp);
 	if (qp_num)
 		i40iw_free_resource(iwdev, iwdev->allocated_qps, qp_num);
+	if (iwpbl->pbl_allocated)
+		i40iw_free_pble(iwdev->pble_rsrc, &iwpbl->pble_alloc);
 	i40iw_free_dma_mem(iwdev->sc_dev.hw, &iwqp->q2_ctx_mem);
 	i40iw_free_dma_mem(iwdev->sc_dev.hw, &iwqp->kqp.dma_mem);
 	kfree(iwqp->kqp.wrid_mem);
@@ -483,7 +487,7 @@ static int i40iw_setup_virt_qp(struct i40iw_device *iwdev,
 			       struct i40iw_qp *iwqp,
 			       struct i40iw_qp_init_info *init_info)
 {
-	struct i40iw_pbl *iwpbl = iwqp->iwpbl;
+	struct i40iw_pbl *iwpbl = &iwqp->iwpbl;
 	struct i40iw_qp_mr *qpmr = &iwpbl->qp_mr;
 
 	iwqp->page = qpmr->sq_page;
@@ -688,19 +692,22 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 			ucontext = to_ucontext(ibpd->uobject->context);
 
 			if (req.user_wqe_buffers) {
+				struct i40iw_pbl *iwpbl;
+
 				spin_lock_irqsave(
 				    &ucontext->qp_reg_mem_list_lock, flags);
-				iwqp->iwpbl = i40iw_get_pbl(
+				iwpbl = i40iw_get_pbl(
 				    (unsigned long)req.user_wqe_buffers,
 				    &ucontext->qp_reg_mem_list);
 				spin_unlock_irqrestore(
 				    &ucontext->qp_reg_mem_list_lock, flags);
 
-				if (!iwqp->iwpbl) {
+				if (!iwpbl) {
 					err_code = -ENODATA;
 					i40iw_pr_err("no pbl info\n");
 					goto error;
 				}
+				memcpy(&iwqp->iwpbl, iwpbl, sizeof(iwqp->iwpbl));
 			}
 		}
 		err_code = i40iw_setup_virt_qp(iwdev, iwqp, &init_info);
@@ -1161,8 +1168,10 @@ static struct ib_cq *i40iw_create_cq(struct ib_device *ibdev,
 		memset(&req, 0, sizeof(req));
 		iwcq->user_mode = true;
 		ucontext = to_ucontext(context);
-		if (ib_copy_from_udata(&req, udata, sizeof(struct i40iw_create_cq_req)))
+		if (ib_copy_from_udata(&req, udata, sizeof(struct i40iw_create_cq_req))) {
+			err_code = -EFAULT;
 			goto cq_free_resources;
+		}
 
 		spin_lock_irqsave(&ucontext->cq_reg_mem_list_lock, flags);
 		iwpbl = i40iw_get_pbl((unsigned long)req.user_cq_buffer,
@@ -2063,7 +2072,7 @@ static int i40iw_dereg_mr(struct ib_mr *ib_mr)
 			ucontext = to_ucontext(ibpd->uobject->context);
 			i40iw_del_memlist(iwmr, ucontext);
 		}
-		if (iwpbl->pbl_allocated)
+		if (iwpbl->pbl_allocated && iwmr->type != IW_MEMREG_TYPE_QP)
 			i40iw_free_pble(iwdev->pble_rsrc, palloc);
 		kfree(iwmr);
 		return 0;

@@ -120,8 +120,8 @@ static void *vb2_dma_sg_alloc(struct device *dev, unsigned long dma_attrs,
 	buf->num_pages = size >> PAGE_SHIFT;
 	buf->dma_sgt = &buf->sg_table;
 
-	buf->pages = kzalloc(buf->num_pages * sizeof(struct page *),
-			     GFP_KERNEL);
+	buf->pages = kvmalloc_array(buf->num_pages, sizeof(struct page *),
+				    GFP_KERNEL | __GFP_ZERO);
 	if (!buf->pages)
 		goto fail_pages_array_alloc;
 
@@ -165,7 +165,7 @@ fail_table_alloc:
 	while (num_pages--)
 		__free_page(buf->pages[num_pages]);
 fail_pages_alloc:
-	kfree(buf->pages);
+	kvfree(buf->pages);
 fail_pages_array_alloc:
 	kfree(buf);
 	return ERR_PTR(-ENOMEM);
@@ -187,7 +187,7 @@ static void vb2_dma_sg_put(void *buf_priv)
 		sg_free_table(buf->dma_sgt);
 		while (--i >= 0)
 			__free_page(buf->pages[i]);
-		kfree(buf->pages);
+		kvfree(buf->pages);
 		put_device(buf->dev);
 		kfree(buf);
 	}

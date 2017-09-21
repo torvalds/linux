@@ -1,6 +1,6 @@
 /*
  *  QLogic FCoE Offload Driver
- *  Copyright (c) 2016 Cavium Inc.
+ *  Copyright (c) 2016-2017 Cavium Inc.
  *
  *  This software is available under the terms of the GNU General Public License
  *  (GPL) Version 2, available from the file COPYING in the main directory of
@@ -528,7 +528,8 @@ struct fip_vlan {
 #define QEDF_WRITE                    (1 << 0)
 #define MAX_FIBRE_LUNS			0xffffffff
 
-#define QEDF_MAX_NUM_CQS		8
+#define MIN_NUM_CPUS_MSIX(x)	min_t(u32, x->dev_info.num_cqs, \
+					num_online_cpus())
 
 /*
  * PCI function probe defines

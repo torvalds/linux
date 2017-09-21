@@ -98,6 +98,50 @@ use_zero_pages   - specifies whether empty pages (i.e. allocated pages
                    it is only effective for pages merged after the change.
                    Default: 0 (normal KSM behaviour as in earlier releases)
 
+max_page_sharing - Maximum sharing allowed for each KSM page. This
+                   enforces a deduplication limit to avoid the virtual
+                   memory rmap lists to grow too large. The minimum
+                   value is 2 as a newly created KSM page will have at
+                   least two sharers. The rmap walk has O(N)
+                   complexity where N is the number of rmap_items
+                   (i.e. virtual mappings) that are sharing the page,
+                   which is in turn capped by max_page_sharing. So
+                   this effectively spread the the linear O(N)
+                   computational complexity from rmap walk context
+                   over different KSM pages. The ksmd walk over the
+                   stable_node "chains" is also O(N), but N is the
+                   number of stable_node "dups", not the number of
+                   rmap_items, so it has not a significant impact on
+                   ksmd performance. In practice the best stable_node
+                   "dup" candidate will be kept and found at the head
+                   of the "dups" list. The higher this value the
+                   faster KSM will merge the memory (because there
+                   will be fewer stable_node dups queued into the
+                   stable_node chain->hlist to check for pruning) and
+                   the higher the deduplication factor will be, but
+                   the slowest the worst case rmap walk could be for
+                   any given KSM page. Slowing down the rmap_walk
+                   means there will be higher latency for certain
+                   virtual memory operations happening during
+                   swapping, compaction, NUMA balancing and page
+                   migration, in turn decreasing responsiveness for
+                   the caller of those virtual memory operations. The
+                   scheduler latency of other tasks not involved with
+                   the VM operations doing the rmap walk is not
+                   affected by this parameter as the rmap walks are
+                   always schedule friendly themselves.
+
+stable_node_chains_prune_millisecs - How frequently to walk the whole
+                   list of stable_node "dups" linked in the
+                   stable_node "chains" in order to prune stale
+                   stable_nodes. Smaller milllisecs values will free
+                   up the KSM metadata with lower latency, but they
+                   will make ksmd use more CPU during the scan. This
+                   only applies to the stable_node chains so it's a
+                   noop if not a single KSM page hit the
+                   max_page_sharing yet (there would be no stable_node
+                   chains in such case).
+
 The effectiveness of KSM and MADV_MERGEABLE is shown in /sys/kernel/mm/ksm/:
 
 pages_shared     - how many shared pages are being used
@@ -106,10 +150,29 @@ pages_unshared   - how many pages unique but repeatedly checked for merging
 pages_volatile   - how many pages changing too fast to be placed in a tree
 full_scans       - how many times all mergeable areas have been scanned
 
+stable_node_chains - number of stable node chains allocated, this is
+		     effectively the number of KSM pages that hit the
+		     max_page_sharing limit
+stable_node_dups   - number of stable node dups queued into the
+		     stable_node chains
+
 A high ratio of pages_sharing to pages_shared indicates good sharing, but
 a high ratio of pages_unshared to pages_sharing indicates wasted effort.
 pages_volatile embraces several different kinds of activity, but a high
 proportion there would also indicate poor use of madvise MADV_MERGEABLE.
+
+The maximum possible page_sharing/page_shared ratio is limited by the
+max_page_sharing tunable. To increase the ratio max_page_sharing must
+be increased accordingly.
+
+The stable_node_dups/stable_node_chains ratio is also affected by the
+max_page_sharing tunable, and an high ratio may indicate fragmentation
+in the stable_node dups, which could be solved by introducing
+fragmentation algorithms in ksmd which would refile rmap_items from
+one stable_node dup to another stable_node dup, in order to freeup
+stable_node "dups" with few rmap_items in them, but that may increase
+the ksmd CPU usage and possibly slowdown the readonly computations on
+the KSM pages of the applications.
 
 Izik Eidus,
 Hugh Dickins, 17 Nov 2009

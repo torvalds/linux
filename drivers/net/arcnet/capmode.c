@@ -101,7 +101,7 @@ static int build_header(struct sk_buff *skb,
 			uint8_t daddr)
 {
 	int hdr_size = ARC_HDR_SIZE;
-	struct archdr *pkt = (struct archdr *)skb_push(skb, hdr_size);
+	struct archdr *pkt = skb_push(skb, hdr_size);
 
 	arc_printk(D_PROTO, dev, "Preparing header for cap packet %x.\n",
 		   *((int *)&pkt->soft.cap.cookie[0]));

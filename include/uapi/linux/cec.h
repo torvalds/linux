@@ -336,6 +336,8 @@ static inline int cec_is_unconfigured(__u16 log_addr_mask)
 #define CEC_CAP_RC		(1 << 4)
 /* Hardware can monitor all messages, not just directed and broadcast. */
 #define CEC_CAP_MONITOR_ALL	(1 << 5)
+/* Hardware can use CEC only if the HDMI HPD pin is high. */
+#define CEC_CAP_NEEDS_HPD	(1 << 6)
 
 /**
  * struct cec_caps - CEC capabilities structure.

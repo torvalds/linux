@@ -182,7 +182,8 @@ void __kprobes kprobes_remove_breakpoint(void *addr, unsigned int insn)
 		.addr = addr,
 		.insn = insn,
 	};
-	stop_machine(__kprobes_remove_breakpoint, &p, cpu_online_mask);
+	stop_machine_cpuslocked(__kprobes_remove_breakpoint, &p,
+				cpu_online_mask);
 }
 
 void __kprobes arch_disarm_kprobe(struct kprobe *p)

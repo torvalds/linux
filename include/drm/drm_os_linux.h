@@ -6,19 +6,7 @@
 #include <linux/interrupt.h>	/* For task queue support */
 #include <linux/sched/signal.h>
 #include <linux/delay.h>
-
-#ifndef readq
-static inline u64 readq(void __iomem *reg)
-{
-	return ((u64) readl(reg)) | (((u64) readl(reg + 4UL)) << 32);
-}
-
-static inline void writeq(u64 val, void __iomem *reg)
-{
-	writel(val & 0xffffffff, reg);
-	writel(val >> 32, reg + 0x4UL);
-}
-#endif
+#include <linux/io-64-nonatomic-lo-hi.h>
 
 /** Current process ID */
 #define DRM_CURRENTPID			task_pid_nr(current)

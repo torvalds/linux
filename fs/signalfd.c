@@ -43,7 +43,7 @@ void signalfd_cleanup(struct sighand_struct *sighand)
 	if (likely(!waitqueue_active(wqh)))
 		return;
 
-	/* wait_queue_t->func(POLLFREE) should do remove_wait_queue() */
+	/* wait_queue_entry_t->func(POLLFREE) should do remove_wait_queue() */
 	wake_up_poll(wqh, POLLHUP | POLLFREE);
 }
 

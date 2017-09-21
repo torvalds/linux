@@ -43,6 +43,9 @@ static inline bool sst_acpi_find_package_from_hid(const u8 hid[ACPI_ID_LEN],
 /* acpi match */
 struct sst_acpi_mach *sst_acpi_find_machine(struct sst_acpi_mach *machines);
 
+/* acpi check hid */
+bool sst_acpi_check_hid(const u8 hid[ACPI_ID_LEN]);
+
 /* Descriptor for SST ASoC machine driver */
 struct sst_acpi_mach {
 	/* ACPI ID for the matching machine driver. Audio codec for instance */
@@ -55,5 +58,25 @@ struct sst_acpi_mach {
 	/* board name */
 	const char *board;
 	struct sst_acpi_mach * (*machine_quirk)(void *arg);
+	const void *quirk_data;
 	void *pdata;
 };
+
+#define SST_ACPI_MAX_CODECS 3
+
+/**
+ * struct sst_codecs: Structure to hold secondary codec information apart from
+ * the matched one, this data will be passed to the quirk function to match
+ * with the ACPI detected devices
+ *
+ * @num_codecs: number of secondary codecs used in the platform
+ * @codecs: holds the codec IDs
+ *
+ */
+struct sst_codecs {
+	int num_codecs;
+	u8 codecs[SST_ACPI_MAX_CODECS][ACPI_ID_LEN];
+};
+
+/* check all codecs */
+struct sst_acpi_mach *sst_acpi_codec_list(void *arg);

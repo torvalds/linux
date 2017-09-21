@@ -12,11 +12,12 @@
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/memblock.h>
-#include <asm/ppc-opcode.h>
 
+#include <asm/ppc-opcode.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
-
+#include <asm/trace.h>
+#include <asm/cputhreads.h>
 
 #define RIC_FLUSH_TLB 0
 #define RIC_FLUSH_PWC 1
@@ -35,6 +36,7 @@ static inline void __tlbiel_pid(unsigned long pid, int set,
 
 	asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
+	trace_tlbie(0, 1, rb, rs, ric, prs, r);
 }
 
 /*
@@ -87,6 +89,7 @@ static inline void _tlbie_pid(unsigned long pid, unsigned long ric)
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+	trace_tlbie(0, 0, rb, rs, ric, prs, r);
 }
 
 static inline void _tlbiel_va(unsigned long va, unsigned long pid,
@@ -104,6 +107,7 @@ static inline void _tlbiel_va(unsigned long va, unsigned long pid,
 	asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("ptesync": : :"memory");
+	trace_tlbie(0, 1, rb, rs, ric, prs, r);
 }
 
 static inline void _tlbie_va(unsigned long va, unsigned long pid,
@@ -121,6 +125,7 @@ static inline void _tlbie_va(unsigned long va, unsigned long pid,
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+	trace_tlbie(0, 0, rb, rs, ric, prs, r);
 }
 
 /*
@@ -377,6 +382,7 @@ void radix__flush_tlb_lpid_va(unsigned long lpid, unsigned long gpa,
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+	trace_tlbie(lpid, 0, rb, rs, ric, prs, r);
 }
 EXPORT_SYMBOL(radix__flush_tlb_lpid_va);
 
@@ -394,6 +400,7 @@ void radix__flush_tlb_lpid(unsigned long lpid)
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+	trace_tlbie(lpid, 0, rb, rs, ric, prs, r);
 }
 EXPORT_SYMBOL(radix__flush_tlb_lpid);
 
@@ -420,12 +427,14 @@ void radix__flush_tlb_all(void)
 	 */
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(1), "i"(ric), "r"(rs) : "memory");
+	trace_tlbie(0, 0, rb, rs, ric, prs, r);
 	/*
 	 * now flush host entires by passing PRS = 0 and LPID == 0
 	 */
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(0) : "memory");
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+	trace_tlbie(0, 0, rb, 0, ric, prs, r);
 }
 
 void radix__flush_tlb_pte_p9_dd1(unsigned long old_pte, struct mm_struct *mm,
@@ -445,3 +454,44 @@ void radix__flush_tlb_pte_p9_dd1(unsigned long old_pte, struct mm_struct *mm,
 	else
 		radix__flush_tlb_page_psize(mm, address, mmu_virtual_psize);
 }
+
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+extern void radix_kvm_prefetch_workaround(struct mm_struct *mm)
+{
+	unsigned int pid = mm->context.id;
+
+	if (unlikely(pid == MMU_NO_CONTEXT))
+		return;
+
+	/*
+	 * If this context hasn't run on that CPU before and KVM is
+	 * around, there's a slim chance that the guest on another
+	 * CPU just brought in obsolete translation into the TLB of
+	 * this CPU due to a bad prefetch using the guest PID on
+	 * the way into the hypervisor.
+	 *
+	 * We work around this here. If KVM is possible, we check if
+	 * any sibling thread is in KVM. If it is, the window may exist
+	 * and thus we flush that PID from the core.
+	 *
+	 * A potential future improvement would be to mark which PIDs
+	 * have never been used on the system and avoid it if the PID
+	 * is new and the process has no other cpumask bit set.
+	 */
+	if (cpu_has_feature(CPU_FTR_HVMODE) && radix_enabled()) {
+		int cpu = smp_processor_id();
+		int sib = cpu_first_thread_sibling(cpu);
+		bool flush = false;
+
+		for (; sib <= cpu_last_thread_sibling(cpu) && !flush; sib++) {
+			if (sib == cpu)
+				continue;
+			if (paca[sib].kvm_hstate.kvm_vcpu)
+				flush = true;
+		}
+		if (flush)
+			_tlbiel_pid(pid, RIC_FLUSH_ALL);
+	}
+}
+EXPORT_SYMBOL_GPL(radix_kvm_prefetch_workaround);
+#endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */

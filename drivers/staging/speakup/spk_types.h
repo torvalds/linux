@@ -152,6 +152,9 @@ struct spk_io_ops {
 	int (*synth_out)(struct spk_synth *synth, const char ch);
 	void (*send_xchar)(char ch);
 	void (*tiocmset)(unsigned int set, unsigned int clear);
+	unsigned char (*synth_in)(void);
+	unsigned char (*synth_in_nowait)(void);
+	void (*flush_buffer)(void);
 };
 
 struct spk_synth {
@@ -166,6 +169,7 @@ struct spk_synth {
 	int jiffies;
 	int full;
 	int ser;
+	char *dev_name;
 	short flags;
 	short startup;
 	const int checkval; /* for validating a proper synth module */
@@ -182,7 +186,7 @@ struct spk_synth {
 	int (*is_alive)(struct spk_synth *synth);
 	int (*synth_adjust)(struct st_var_header *var);
 	void (*read_buff_add)(u_char);
-	unsigned char (*get_index)(void);
+	unsigned char (*get_index)(struct spk_synth *synth);
 	struct synth_indexing indexing;
 	int alive;
 	struct attribute_group attributes;

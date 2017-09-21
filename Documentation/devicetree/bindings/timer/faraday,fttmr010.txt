@@ -7,7 +7,11 @@ Required properties:
 
 - compatible : Must be one of
   "faraday,fttmr010"
-  "cortina,gemini-timer"
+  "cortina,gemini-timer", "faraday,fttmr010"
+  "moxa,moxart-timer", "faraday,fttmr010"
+  "aspeed,ast2400-timer"
+  "aspeed,ast2500-timer"
+
 - reg : Should contain registers location and length
 - interrupts : Should contain the three timer interrupts usually with
   flags for falling edge

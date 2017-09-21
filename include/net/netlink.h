@@ -98,8 +98,8 @@
  *   nla_put_u8(skb, type, value)	add u8 attribute to skb
  *   nla_put_u16(skb, type, value)	add u16 attribute to skb
  *   nla_put_u32(skb, type, value)	add u32 attribute to skb
- *   nla_put_u64_64bits(skb, type,
- *			value, padattr)	add u64 attribute to skb
+ *   nla_put_u64_64bit(skb, type,
+ *                     value, padattr)	add u64 attribute to skb
  *   nla_put_s8(skb, type, value)	add s8 attribute to skb
  *   nla_put_s16(skb, type, value)	add s16 attribute to skb
  *   nla_put_s32(skb, type, value)	add s32 attribute to skb

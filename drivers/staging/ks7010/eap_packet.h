@@ -18,7 +18,7 @@ struct ether_hdr {
 	unsigned char h_source_snap;
 	unsigned char h_command;
 	unsigned char h_vendor_id[3];
-	unsigned short h_proto;	/* packet type ID field */
+	__be16 h_proto;	/* packet type ID field */
 #define ETHER_PROTOCOL_TYPE_EAP		0x888e
 #define ETHER_PROTOCOL_TYPE_IP		0x0800
 #define ETHER_PROTOCOL_TYPE_ARP		0x0806
@@ -91,7 +91,7 @@ struct ieee802_1x_eapol_key {
 
 struct wpa_eapol_key {
 	unsigned char type;
-	unsigned short key_info;
+	__be16 key_info;
 	unsigned short key_length;
 	unsigned char replay_counter[WPA_REPLAY_COUNTER_LEN];
 	unsigned char key_nonce[WPA_NONCE_LEN];

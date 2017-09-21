@@ -1128,6 +1128,11 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 		}
 		/* Each SGE entry = 1 WQE size16 */
 		wqe_size16 = wqe->num_sge;
+		/* HW requires wqe size has room for atleast one SGE even if
+		 * none was supplied by ULP
+		 */
+		if (!wqe->num_sge)
+			wqe_size16++;
 	}
 
 	/* Specifics */
@@ -1364,6 +1369,11 @@ int bnxt_qplib_post_recv(struct bnxt_qplib_qp *qp,
 	rqe->flags = wqe->flags;
 	rqe->wqe_size = wqe->num_sge +
 			((offsetof(typeof(*rqe), data) + 15) >> 4);
+	/* HW requires wqe size has room for atleast one SGE even if none
+	 * was supplied by ULP
+	 */
+	if (!wqe->num_sge)
+		rqe->wqe_size++;
 
 	/* Supply the rqe->wr_id index to the wr_id_tbl for now */
 	rqe->wr_id[0] = cpu_to_le32(sw_prod);
@@ -1882,6 +1892,25 @@ flush_rq:
 		if (!rc)
 			rq->flush_in_progress = false;
 	}
+	return rc;
+}
+
+bool bnxt_qplib_is_cq_empty(struct bnxt_qplib_cq *cq)
+{
+	struct cq_base *hw_cqe, **hw_cqe_ptr;
+	unsigned long flags;
+	u32 sw_cons, raw_cons;
+	bool rc = true;
+
+	spin_lock_irqsave(&cq->hwq.lock, flags);
+	raw_cons = cq->hwq.cons;
+	sw_cons = HWQ_CMP(raw_cons, &cq->hwq);
+	hw_cqe_ptr = (struct cq_base **)cq->hwq.pbl_ptr;
+	hw_cqe = &hw_cqe_ptr[CQE_PG(sw_cons)][CQE_IDX(sw_cons)];
+
+	 /* Check for Valid bit. If the CQE is valid, return false */
+	rc = !CQE_CMP_VALID(hw_cqe, raw_cons, cq->hwq.max_elements);
+	spin_unlock_irqrestore(&cq->hwq.lock, flags);
 	return rc;
 }
 

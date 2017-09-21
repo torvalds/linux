@@ -1,6 +1,6 @@
 /*
  *  QLogic FCoE Offload Driver
- *  Copyright (c) 2016 Cavium Inc.
+ *  Copyright (c) 2016-2017 Cavium Inc.
  *
  *  This software is available under the terms of the GNU General Public License
  *  (GPL) Version 2, available from the file COPYING in the main directory of
@@ -1041,10 +1041,13 @@ static void qedf_parse_fcp_rsp(struct qedf_ioreq *io_req,
 		fcp_sns_len = SCSI_SENSE_BUFFERSIZE;
 	}
 
-	memset(sc_cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
-	if (fcp_sns_len)
-		memcpy(sc_cmd->sense_buffer, sense_data,
-		    fcp_sns_len);
+	/* The sense buffer can be NULL for TMF commands */
+	if (sc_cmd->sense_buffer) {
+		memset(sc_cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
+		if (fcp_sns_len)
+			memcpy(sc_cmd->sense_buffer, sense_data,
+			    fcp_sns_len);
+	}
 }
 
 static void qedf_unmap_sg_list(struct qedf_ctx *qedf, struct qedf_ioreq *io_req)
@@ -1476,8 +1479,8 @@ int qedf_initiate_abts(struct qedf_ioreq *io_req, bool return_scsi_cmd_on_abts)
 {
 	struct fc_lport *lport;
 	struct qedf_rport *fcport = io_req->fcport;
-	struct fc_rport_priv *rdata = fcport->rdata;
-	struct qedf_ctx *qedf = fcport->qedf;
+	struct fc_rport_priv *rdata;
+	struct qedf_ctx *qedf;
 	u16 xid;
 	u32 r_a_tov = 0;
 	int rc = 0;
@@ -1485,14 +1488,17 @@ int qedf_initiate_abts(struct qedf_ioreq *io_req, bool return_scsi_cmd_on_abts)
 	struct fcoe_wqe *sqe;
 	u16 sqe_idx;
 
-	r_a_tov = rdata->r_a_tov;
-	lport = qedf->lport;
-
+	/* Sanity check qedf_rport before dereferencing any pointers */
 	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
-		QEDF_ERR(&(qedf->dbg_ctx), "tgt not offloaded\n");
+		QEDF_ERR(NULL, "tgt not offloaded\n");
 		rc = 1;
 		goto abts_err;
 	}
+
+	rdata = fcport->rdata;
+	r_a_tov = rdata->r_a_tov;
+	qedf = fcport->qedf;
+	lport = qedf->lport;
 
 	if (lport->state != LPORT_ST_READY || !(lport->link_up)) {
 		QEDF_ERR(&(qedf->dbg_ctx), "link is not ready\n");
@@ -1729,6 +1735,13 @@ int qedf_initiate_cleanup(struct qedf_ioreq *io_req,
 		return SUCCESS;
 	}
 
+	/* Sanity check qedf_rport before dereferencing any pointers */
+	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
+		QEDF_ERR(NULL, "tgt not offloaded\n");
+		rc = 1;
+		return SUCCESS;
+	}
+
 	qedf = fcport->qedf;
 	if (!qedf) {
 		QEDF_ERR(NULL, "qedf is NULL.\n");
@@ -1837,7 +1850,7 @@ static int qedf_execute_tmf(struct qedf_rport *fcport, struct scsi_cmnd *sc_cmd,
 		return FAILED;
 	}
 
-	if (!(test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags))) {
+	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
 		QEDF_ERR(&(qedf->dbg_ctx), "fcport not offloaded\n");
 		rc = FAILED;
 		return FAILED;

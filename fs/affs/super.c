@@ -20,9 +20,11 @@
 #include <linux/slab.h>
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
+#include <linux/seq_file.h>
 #include "affs.h"
 
 static int affs_statfs(struct dentry *dentry, struct kstatfs *buf);
+static int affs_show_options(struct seq_file *m, struct dentry *root);
 static int affs_remount (struct super_block *sb, int *flags, char *data);
 
 static void
@@ -159,7 +161,7 @@ static const struct super_operations affs_sops = {
 	.sync_fs	= affs_sync_fs,
 	.statfs		= affs_statfs,
 	.remount_fs	= affs_remount,
-	.show_options	= generic_show_options,
+	.show_options	= affs_show_options,
 };
 
 enum {
@@ -293,6 +295,40 @@ parse_options(char *options, kuid_t *uid, kgid_t *gid, int *mode, int *reserved,
 	return 1;
 }
 
+static int affs_show_options(struct seq_file *m, struct dentry *root)
+{
+	struct super_block *sb = root->d_sb;
+	struct affs_sb_info *sbi = AFFS_SB(sb);
+
+	if (sb->s_blocksize)
+		seq_printf(m, ",bs=%lu", sb->s_blocksize);
+	if (affs_test_opt(sbi->s_flags, SF_SETMODE))
+		seq_printf(m, ",mode=%o", sbi->s_mode);
+	if (affs_test_opt(sbi->s_flags, SF_MUFS))
+		seq_puts(m, ",mufs");
+	if (affs_test_opt(sbi->s_flags, SF_NO_TRUNCATE))
+		seq_puts(m, ",nofilenametruncate");
+	if (affs_test_opt(sbi->s_flags, SF_PREFIX))
+		seq_printf(m, ",prefix=%s", sbi->s_prefix);
+	if (affs_test_opt(sbi->s_flags, SF_IMMUTABLE))
+		seq_puts(m, ",protect");
+	if (sbi->s_reserved != 2)
+		seq_printf(m, ",reserved=%u", sbi->s_reserved);
+	if (sbi->s_root_block != (sbi->s_reserved + sbi->s_partition_size - 1) / 2)
+		seq_printf(m, ",root=%u", sbi->s_root_block);
+	if (affs_test_opt(sbi->s_flags, SF_SETGID))
+		seq_printf(m, ",setgid=%u",
+			   from_kgid_munged(&init_user_ns, sbi->s_gid));
+	if (affs_test_opt(sbi->s_flags, SF_SETUID))
+		seq_printf(m, ",setuid=%u",
+			   from_kuid_munged(&init_user_ns, sbi->s_uid));
+	if (affs_test_opt(sbi->s_flags, SF_VERBOSE))
+		seq_puts(m, ",verbose");
+	if (sbi->s_volume[0])
+		seq_printf(m, ",volume=%s", sbi->s_volume);
+	return 0;
+}
+
 /* This function definitely needs to be split up. Some fine day I'll
  * hopefully have the guts to do so. Until then: sorry for the mess.
  */
@@ -315,8 +351,6 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	int			 tmp_flags;	/* fix remount prototype... */
 	u8			 sig[4];
 	int			 ret;
-
-	save_mount_options(sb, data);
 
 	pr_debug("read_super(%s)\n", data ? (const char *)data : "no options");
 
@@ -548,8 +582,6 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	}
 
 	flush_delayed_work(&sbi->sb_work);
-	if (new_opts)
-		replace_mount_options(sb, new_opts);
 
 	sbi->s_flags = mount_flags;
 	sbi->s_mode  = mode;

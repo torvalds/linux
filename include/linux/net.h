@@ -37,7 +37,7 @@ struct net;
 
 /* Historically, SOCKWQ_ASYNC_NOSPACE & SOCKWQ_ASYNC_WAITDATA were located
  * in sock->flags, but moved into sk->sk_wq->flags to be RCU protected.
- * Eventually all flags will be in sk->sk_wq_flags.
+ * Eventually all flags will be in sk->sk_wq->flags.
  */
 #define SOCKWQ_ASYNC_NOSPACE	0
 #define SOCKWQ_ASYNC_WAITDATA	1
@@ -274,6 +274,8 @@ do {									\
 
 #define net_get_random_once(buf, nbytes)			\
 	get_random_once((buf), (nbytes))
+#define net_get_random_once_wait(buf, nbytes)			\
+	get_random_once_wait((buf), (nbytes))
 
 int kernel_sendmsg(struct socket *sock, struct msghdr *msg, struct kvec *vec,
 		   size_t num, size_t len);

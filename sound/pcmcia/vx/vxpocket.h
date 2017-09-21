@@ -43,6 +43,8 @@ struct snd_vxpocket {
 	struct pcmcia_device	*p_dev;
 };
 
+#define to_vxpocket(x)	container_of(x, struct snd_vxpocket, core)
+
 extern struct snd_vx_ops snd_vxpocket_ops;
 
 void vx_set_mic_boost(struct vx_core *chip, int boost);

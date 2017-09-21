@@ -28,7 +28,6 @@
 #include <linux/reset.h>
 #include <linux/gpio/consumer.h>
 #include <net/dsa.h>
-#include <net/switchdev.h>
 
 #include "mt7530.h"
 
@@ -626,6 +625,44 @@ static void mt7530_adjust_link(struct dsa_switch *ds, int port,
 		 * all finished.
 		 */
 		mt7623_pad_clk_setup(ds);
+	} else {
+		u16 lcl_adv = 0, rmt_adv = 0;
+		u8 flowctrl;
+		u32 mcr = PMCR_USERP_LINK | PMCR_FORCE_MODE;
+
+		switch (phydev->speed) {
+		case SPEED_1000:
+			mcr |= PMCR_FORCE_SPEED_1000;
+			break;
+		case SPEED_100:
+			mcr |= PMCR_FORCE_SPEED_100;
+			break;
+		};
+
+		if (phydev->link)
+			mcr |= PMCR_FORCE_LNK;
+
+		if (phydev->duplex) {
+			mcr |= PMCR_FORCE_FDX;
+
+			if (phydev->pause)
+				rmt_adv = LPA_PAUSE_CAP;
+			if (phydev->asym_pause)
+				rmt_adv |= LPA_PAUSE_ASYM;
+
+			if (phydev->advertising & ADVERTISED_Pause)
+				lcl_adv |= ADVERTISE_PAUSE_CAP;
+			if (phydev->advertising & ADVERTISED_Asym_Pause)
+				lcl_adv |= ADVERTISE_PAUSE_ASYM;
+
+			flowctrl = mii_resolve_flowctrl_fdx(lcl_adv, rmt_adv);
+
+			if (flowctrl & FLOW_CTRL_TX)
+				mcr |= PMCR_TX_FC_EN;
+			if (flowctrl & FLOW_CTRL_RX)
+				mcr |= PMCR_RX_FC_EN;
+		}
+		mt7530_write(priv, MT7530_PMCR_P(port), mcr);
 	}
 }
 
@@ -854,7 +891,7 @@ mt7530_port_fdb_del(struct dsa_switch *ds, int port,
 static int
 mt7530_port_fdb_dump(struct dsa_switch *ds, int port,
 		     struct switchdev_obj_port_fdb *fdb,
-		     int (*cb)(struct switchdev_obj *obj))
+		     switchdev_obj_dump_cb_t *cb)
 {
 	struct mt7530_priv *priv = ds->priv;
 	struct mt7530_fdb _fdb = { 0 };
@@ -913,11 +950,11 @@ mt7530_setup(struct dsa_switch *ds)
 	struct device_node *dn;
 	struct mt7530_dummy_poll p;
 
-	/* The parent node of master_netdev which holds the common system
+	/* The parent node of cpu_dp->netdev which holds the common system
 	 * controller also is the container for two GMACs nodes representing
 	 * as two netdev instances.
 	 */
-	dn = ds->master_netdev->dev.of_node->parent;
+	dn = ds->dst->cpu_dp->netdev->dev.of_node->parent;
 	priv->ethernet = syscon_node_to_regmap(dn);
 	if (IS_ERR(priv->ethernet))
 		return PTR_ERR(priv->ethernet);
@@ -1081,7 +1118,7 @@ mt7530_probe(struct mdio_device *mdiodev)
 	mutex_init(&priv->reg_mutex);
 	dev_set_drvdata(&mdiodev->dev, priv);
 
-	return dsa_register_switch(priv->ds, &mdiodev->dev);
+	return dsa_register_switch(priv->ds);
 }
 
 static void

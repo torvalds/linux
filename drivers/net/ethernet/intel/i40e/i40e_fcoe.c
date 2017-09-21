@@ -762,7 +762,7 @@ int i40e_fcoe_handle_offload(struct i40e_ring *rx_ring,
 		    (fh->fh_r_ctl == FC_RCTL_DD_SOL_DATA)) {
 			struct fcoe_crc_eof *crc = NULL;
 
-			crc = (struct fcoe_crc_eof *)skb_put(skb, sizeof(*crc));
+			crc = skb_put(skb, sizeof(*crc));
 			crc->fcoe_eof = FC_EOF_T;
 		} else {
 			/* otherwise, drop the header only frame */

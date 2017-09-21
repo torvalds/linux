@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2017        Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2017        Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -99,8 +101,8 @@ enum iwl_bt_coex_enabled_modules {
 
 /**
  * struct iwl_bt_coex_cmd - bt coex configuration command
- * @mode: enum %iwl_bt_coex_mode
- * @enabled_modules: enum %iwl_bt_coex_enabled_modules
+ * @mode: &enum iwl_bt_coex_mode
+ * @enabled_modules: &enum iwl_bt_coex_enabled_modules
  *
  * The structure is used for the BT_COEX command.
  */
@@ -132,10 +134,10 @@ struct iwl_bt_coex_reduced_txp_update_cmd {
 
 /**
  * struct iwl_bt_coex_ci_cmd - bt coex channel inhibition command
- * @bt_primary_ci:
- * @primary_ch_phy_id:
- * @bt_secondary_ci:
- * @secondary_ch_phy_id:
+ * @bt_primary_ci: primary channel inhibition bitmap
+ * @primary_ch_phy_id: primary channel PHY ID
+ * @bt_secondary_ci: secondary channel inhibition bitmap
+ * @secondary_ch_phy_id: secondary channel PHY ID
  *
  * Used for BT_COEX_CI command
  */
@@ -234,10 +236,11 @@ enum iwl_bt_ci_compliance {
  * @mbox_msg: message from BT to WiFi
  * @msg_idx: the index of the message
  * @bt_ci_compliance: enum %iwl_bt_ci_compliance
- * @primary_ch_lut: LUT used for primary channel enum %iwl_bt_coex_lut_type
- * @secondary_ch_lut: LUT used for secondary channel enume %iwl_bt_coex_lut_type
- * @bt_activity_grading: the activity of BT enum %iwl_bt_activity_grading
+ * @primary_ch_lut: LUT used for primary channel &enum iwl_bt_coex_lut_type
+ * @secondary_ch_lut: LUT used for secondary channel &enum iwl_bt_coex_lut_type
+ * @bt_activity_grading: the activity of BT &enum iwl_bt_activity_grading
  * @ttc_rrc_status: is TTC or RRC enabled - one bit per PHY
+ * @reserved: reserved
  */
 struct iwl_bt_coex_profile_notif {
 	__le32 mbox_msg[4];

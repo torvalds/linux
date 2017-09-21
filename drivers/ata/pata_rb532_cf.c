@@ -148,8 +148,6 @@ static int rb532_pata_driver_probe(struct platform_device *pdev)
 	if (!ah)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, ah);
-
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;

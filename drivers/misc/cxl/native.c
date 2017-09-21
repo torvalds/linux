@@ -586,17 +586,17 @@ err:
 #define set_endian(sr) ((sr) &= ~(CXL_PSL_SR_An_LE))
 #endif
 
-static u64 calculate_sr(struct cxl_context *ctx)
+u64 cxl_calculate_sr(bool master, bool kernel, bool real_mode, bool p9)
 {
 	u64 sr = 0;
 
 	set_endian(sr);
-	if (ctx->master)
+	if (master)
 		sr |= CXL_PSL_SR_An_MP;
 	if (mfspr(SPRN_LPCR) & LPCR_TC)
 		sr |= CXL_PSL_SR_An_TC;
-	if (ctx->kernel) {
-		if (!ctx->real_mode)
+	if (kernel) {
+		if (!real_mode)
 			sr |= CXL_PSL_SR_An_R;
 		sr |= (mfmsr() & MSR_SF) | CXL_PSL_SR_An_HV;
 	} else {
@@ -608,13 +608,19 @@ static u64 calculate_sr(struct cxl_context *ctx)
 		if (!test_tsk_thread_flag(current, TIF_32BIT))
 			sr |= CXL_PSL_SR_An_SF;
 	}
-	if (cxl_is_power9()) {
+	if (p9) {
 		if (radix_enabled())
 			sr |= CXL_PSL_SR_An_XLAT_ror;
 		else
 			sr |= CXL_PSL_SR_An_XLAT_hpt;
 	}
 	return sr;
+}
+
+static u64 calculate_sr(struct cxl_context *ctx)
+{
+	return cxl_calculate_sr(ctx->master, ctx->kernel, ctx->real_mode,
+				cxl_is_power9());
 }
 
 static void update_ivtes_directed(struct cxl_context *ctx)

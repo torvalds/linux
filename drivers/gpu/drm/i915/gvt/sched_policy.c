@@ -202,11 +202,6 @@ static void tbs_sched_func(struct gvt_sched_data *sched_data)
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
 	struct vgpu_sched_data *vgpu_data;
 	struct intel_vgpu *vgpu = NULL;
-	static uint64_t timer_check;
-
-	if (!(timer_check++ % GVT_TS_BALANCE_PERIOD_MS))
-		gvt_balance_timeslice(sched_data);
-
 	/* no active vgpu or has already had a target */
 	if (list_empty(&sched_data->lru_runq_head) || scheduler->next_vgpu)
 		goto out;
@@ -231,9 +226,19 @@ out:
 void intel_gvt_schedule(struct intel_gvt *gvt)
 {
 	struct gvt_sched_data *sched_data = gvt->scheduler.sched_data;
+	static uint64_t timer_check;
 
 	mutex_lock(&gvt->lock);
+
+	if (test_and_clear_bit(INTEL_GVT_REQUEST_SCHED,
+				(void *)&gvt->service_request)) {
+		if (!(timer_check++ % GVT_TS_BALANCE_PERIOD_MS))
+			gvt_balance_timeslice(sched_data);
+	}
+	clear_bit(INTEL_GVT_REQUEST_EVENT_SCHED, (void *)&gvt->service_request);
+
 	tbs_sched_func(sched_data);
+
 	mutex_unlock(&gvt->lock);
 }
 
@@ -303,8 +308,20 @@ static int tbs_sched_init_vgpu(struct intel_vgpu *vgpu)
 
 static void tbs_sched_clean_vgpu(struct intel_vgpu *vgpu)
 {
+	struct intel_gvt_workload_scheduler *scheduler = &vgpu->gvt->scheduler;
+	int ring_id;
+
 	kfree(vgpu->sched_data);
 	vgpu->sched_data = NULL;
+
+	spin_lock_bh(&scheduler->mmio_context_lock);
+	for (ring_id = 0; ring_id < I915_NUM_ENGINES; ring_id++) {
+		if (scheduler->engine_owner[ring_id] == vgpu) {
+			intel_gvt_switch_mmio(vgpu, NULL, ring_id);
+			scheduler->engine_owner[ring_id] = NULL;
+		}
+	}
+	spin_unlock_bh(&scheduler->mmio_context_lock);
 }
 
 static void tbs_sched_start_schedule(struct intel_vgpu *vgpu)

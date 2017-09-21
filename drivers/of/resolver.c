@@ -20,34 +20,10 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 
+#include "of_private.h"
+
 /* illegal phandle value (set when unresolved) */
 #define OF_PHANDLE_ILLEGAL	0xdeadbeef
-
-/**
- * Find a node with the give full name by recursively following any of
- * the child node links.
- */
-static struct device_node *find_node_by_full_name(struct device_node *node,
-		const char *full_name)
-{
-	struct device_node *child, *found;
-
-	if (!node)
-		return NULL;
-
-	if (!of_node_cmp(node->full_name, full_name))
-		return of_node_get(node);
-
-	for_each_child_of_node(node, child) {
-		found = find_node_by_full_name(child, full_name);
-		if (found != NULL) {
-			of_node_put(child);
-			return found;
-		}
-	}
-
-	return NULL;
-}
 
 static phandle live_tree_max_phandle(void)
 {
@@ -138,7 +114,7 @@ static int update_usages_of_a_phandle_reference(struct device_node *overlay,
 		if (err)
 			goto err_fail;
 
-		refnode = find_node_by_full_name(overlay, node_path);
+		refnode = __of_find_node_by_full_path(of_node_get(overlay), node_path);
 		if (!refnode)
 			continue;
 
@@ -165,8 +141,8 @@ err_fail:
 static int node_name_cmp(const struct device_node *dn1,
 		const struct device_node *dn2)
 {
-	const char *n1 = strrchr(dn1->full_name, '/') ? : "/";
-	const char *n2 = strrchr(dn2->full_name, '/') ? : "/";
+	const char *n1 = kbasename(dn1->full_name);
+	const char *n2 = kbasename(dn2->full_name);
 
 	return of_node_cmp(n1, n2);
 }

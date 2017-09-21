@@ -754,7 +754,7 @@ static struct sk_buff *gelic_put_vlan_tag(struct sk_buff *skb,
 			return NULL;
 		dev_kfree_skb_any(sk_tmp);
 	}
-	veth = (struct vlan_ethhdr *)skb_push(skb, VLAN_HLEN);
+	veth = skb_push(skb, VLAN_HLEN);
 
 	/* Move the mac addresses to the top of buffer */
 	memmove(skb->data, skb->data + VLAN_HLEN, 2 * ETH_ALEN);

@@ -54,21 +54,21 @@ struct sched_param {
  * available in the scheduling class file or in Documentation/.
  */
 struct sched_attr {
-	u32 size;
+	__u32 size;
 
-	u32 sched_policy;
-	u64 sched_flags;
+	__u32 sched_policy;
+	__u64 sched_flags;
 
 	/* SCHED_NORMAL, SCHED_BATCH */
-	s32 sched_nice;
+	__s32 sched_nice;
 
 	/* SCHED_FIFO, SCHED_RR */
-	u32 sched_priority;
+	__u32 sched_priority;
 
 	/* SCHED_DEADLINE */
-	u64 sched_runtime;
-	u64 sched_deadline;
-	u64 sched_period;
+	__u64 sched_runtime;
+	__u64 sched_deadline;
+	__u64 sched_period;
 };
 
 #endif /* _UAPI_LINUX_SCHED_TYPES_H */

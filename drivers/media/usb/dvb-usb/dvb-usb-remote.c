@@ -131,6 +131,11 @@ static void legacy_dvb_usb_read_remote_control(struct work_struct *work)
 		case REMOTE_KEY_PRESSED:
 			deb_rc("key pressed\n");
 			d->last_event = event;
+			input_event(d->input_dev, EV_KEY, event, 1);
+			input_sync(d->input_dev);
+			input_event(d->input_dev, EV_KEY, d->last_event, 0);
+			input_sync(d->input_dev);
+			break;
 		case REMOTE_KEY_REPEAT:
 			deb_rc("key repeated\n");
 			input_event(d->input_dev, EV_KEY, event, 1);

@@ -653,16 +653,13 @@ static int dwc3_ep_trb_ring_show(struct seq_file *s, void *unused)
 		goto out;
 	}
 
-	seq_printf(s, "enqueue pointer %d\n", dep->trb_enqueue);
-	seq_printf(s, "dequeue pointer %d\n", dep->trb_dequeue);
-	seq_printf(s, "\n--------------------------------------------------\n\n");
 	seq_printf(s, "buffer_addr,size,type,ioc,isp_imi,csp,chn,lst,hwo\n");
 
 	for (i = 0; i < DWC3_TRB_NUM; i++) {
 		struct dwc3_trb *trb = &dep->trb_pool[i];
 		unsigned int type = DWC3_TRBCTL_TYPE(trb->ctrl);
 
-		seq_printf(s, "%08x%08x,%d,%s,%d,%d,%d,%d,%d,%d\n",
+		seq_printf(s, "%08x%08x,%d,%s,%d,%d,%d,%d,%d,%d       %c%c\n",
 				trb->bph, trb->bpl, trb->size,
 				dwc3_trb_type_string(type),
 				!!(trb->ctrl & DWC3_TRB_CTRL_IOC),
@@ -670,7 +667,9 @@ static int dwc3_ep_trb_ring_show(struct seq_file *s, void *unused)
 				!!(trb->ctrl & DWC3_TRB_CTRL_CSP),
 				!!(trb->ctrl & DWC3_TRB_CTRL_CHN),
 				!!(trb->ctrl & DWC3_TRB_CTRL_LST),
-				!!(trb->ctrl & DWC3_TRB_CTRL_HWO));
+				!!(trb->ctrl & DWC3_TRB_CTRL_HWO),
+				dep->trb_enqueue == i ? 'E' : ' ',
+				dep->trb_dequeue == i ? 'D' : ' ');
 	}
 
 out:

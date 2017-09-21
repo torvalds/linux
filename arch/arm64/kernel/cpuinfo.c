@@ -227,7 +227,7 @@ static struct attribute *cpuregs_id_attrs[] = {
 	NULL
 };
 
-static struct attribute_group cpuregs_attr_group = {
+static const struct attribute_group cpuregs_attr_group = {
 	.attrs = cpuregs_id_attrs,
 	.name = "identification"
 };

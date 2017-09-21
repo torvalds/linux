@@ -1517,14 +1517,16 @@ static void
 call_start(struct rpc_task *task)
 {
 	struct rpc_clnt	*clnt = task->tk_client;
+	int idx = task->tk_msg.rpc_proc->p_statidx;
 
 	dprintk("RPC: %5u call_start %s%d proc %s (%s)\n", task->tk_pid,
 			clnt->cl_program->name, clnt->cl_vers,
 			rpc_proc_name(task),
 			(RPC_IS_ASYNC(task) ? "async" : "sync"));
 
-	/* Increment call count */
-	task->tk_msg.rpc_proc->p_count++;
+	/* Increment call count (version might not be valid for ping) */
+	if (clnt->cl_program->version[clnt->cl_vers])
+		clnt->cl_program->version[clnt->cl_vers]->counts[idx]++;
 	clnt->cl_stats->rpccnt++;
 	task->tk_action = call_reserve;
 }
@@ -1672,7 +1674,7 @@ call_allocate(struct rpc_task *task)
 	unsigned int slack = task->tk_rqstp->rq_cred->cr_auth->au_cslack;
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = req->rq_xprt;
-	struct rpc_procinfo *proc = task->tk_msg.rpc_proc;
+	const struct rpc_procinfo *proc = task->tk_msg.rpc_proc;
 	int status;
 
 	dprint_status(task);
@@ -2476,16 +2478,18 @@ out_overflow:
 	goto out_garbage;
 }
 
-static void rpcproc_encode_null(void *rqstp, struct xdr_stream *xdr, void *obj)
+static void rpcproc_encode_null(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
+		const void *obj)
 {
 }
 
-static int rpcproc_decode_null(void *rqstp, struct xdr_stream *xdr, void *obj)
+static int rpcproc_decode_null(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
+		void *obj)
 {
 	return 0;
 }
 
-static struct rpc_procinfo rpcproc_null = {
+static const struct rpc_procinfo rpcproc_null = {
 	.p_encode = rpcproc_encode_null,
 	.p_decode = rpcproc_decode_null,
 };

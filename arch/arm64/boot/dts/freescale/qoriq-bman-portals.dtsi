@@ -1,0 +1,71 @@
+/*
+ * QorIQ BMan Portals device tree
+ *
+ * Copyright 2011-2016 Freescale Semiconductor Inc.
+ *
+ * SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+ */
+
+&bportals {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "simple-bus";
+
+	bman-portal@0 {
+		/*
+		 * bootloader fix-ups are expected to provide the
+		 * "fsl,bman-portal-<hardware revision>" compatible
+		 */
+		compatible = "fsl,bman-portal";
+		reg = <0x0 0x4000>, <0x4000000 0x4000>;
+		interrupts = <GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	bman-portal@10000 {
+		compatible = "fsl,bman-portal";
+		reg = <0x10000 0x4000>, <0x4010000 0x4000>;
+		interrupts = <GIC_SPI 175 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	bman-portal@20000 {
+		compatible = "fsl,bman-portal";
+		reg = <0x20000 0x4000>, <0x4020000 0x4000>;
+		interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	bman-portal@30000 {
+		compatible = "fsl,bman-portal";
+		reg = <0x30000 0x4000>, <0x4030000 0x4000>;
+		interrupts = <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	bman-portal@40000 {
+		compatible = "fsl,bman-portal";
+		reg = <0x40000 0x4000>, <0x4040000 0x4000>;
+		interrupts = <GIC_SPI 181 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	bman-portal@50000 {
+		compatible = "fsl,bman-portal";
+		reg = <0x50000 0x4000>, <0x4050000 0x4000>;
+		interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	bman-portal@60000 {
+		compatible = "fsl,bman-portal";
+		reg = <0x60000 0x4000>, <0x4060000 0x4000>;
+		interrupts = <GIC_SPI 185 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	bman-portal@70000 {
+		compatible = "fsl,bman-portal";
+		reg = <0x70000 0x4000>, <0x4070000 0x4000>;
+		interrupts = <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	bman-portal@80000 {
+		compatible = "fsl,bman-portal";
+		reg = <0x80000 0x4000>, <0x4080000 0x4000>;
+		interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>;
+	};
+};

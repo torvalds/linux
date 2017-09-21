@@ -24,7 +24,7 @@
  *
  *
  * libata documentation is available via 'make {ps|pdf}docs',
- * as Documentation/DocBook/libata.*
+ * as Documentation/driver-api/libata.rst
  *
  * AHCI hardware documentation:
  * http://www.intel.com/technology/serialata/pdf/rev1_0.pdf
@@ -248,6 +248,9 @@ enum {
 	AHCI_HFLAG_MULTI_MSI		= 0,
 #endif
 	AHCI_HFLAG_WAKE_BEFORE_STOP	= (1 << 22), /* wake before DMA stop */
+	AHCI_HFLAG_YES_ALPM		= (1 << 23), /* force ALPM cap on */
+	AHCI_HFLAG_NO_WRITE_TO_RO	= (1 << 24), /* don't write to read
+							only registers */
 
 	/* ap->flags bits */
 

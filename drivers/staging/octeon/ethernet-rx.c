@@ -287,8 +287,7 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 					else
 						ptr += 6;
 				}
-				memcpy(skb_put(skb, work->word1.len), ptr,
-				       work->word1.len);
+				skb_put_data(skb, ptr, work->word1.len);
 				/* No packet buffers to free */
 			} else {
 				int segments = work->word2.s.bufs;
@@ -323,10 +322,9 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 					if (segment_size > len)
 						segment_size = len;
 					/* Copy the data into the packet */
-					memcpy(skb_put(skb, segment_size),
-					       cvmx_phys_to_ptr(
-					       segment_ptr.s.addr),
-					       segment_size);
+					skb_put_data(skb,
+						     cvmx_phys_to_ptr(segment_ptr.s.addr),
+						     segment_size);
 					len -= segment_size;
 					segment_ptr = next_ptr;
 				}

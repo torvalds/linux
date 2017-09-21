@@ -19,7 +19,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 
-#ifdef CONFIG_HARDLOCKUP_DETECTOR
+#ifdef CONFIG_HARDLOCKUP_DETECTOR_PERF
 u64 hw_nmi_get_sample_period(int watchdog_thresh)
 {
 	return (u64)(cpu_khz) * 1000 * watchdog_thresh;

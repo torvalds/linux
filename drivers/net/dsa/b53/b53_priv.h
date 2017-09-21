@@ -395,7 +395,7 @@ int b53_vlan_del(struct dsa_switch *ds, int port,
 		 const struct switchdev_obj_port_vlan *vlan);
 int b53_vlan_dump(struct dsa_switch *ds, int port,
 		  struct switchdev_obj_port_vlan *vlan,
-		  int (*cb)(struct switchdev_obj *obj));
+		  switchdev_obj_dump_cb_t *cb);
 int b53_fdb_prepare(struct dsa_switch *ds, int port,
 		    const struct switchdev_obj_port_fdb *fdb,
 		    struct switchdev_trans *trans);
@@ -406,7 +406,7 @@ int b53_fdb_del(struct dsa_switch *ds, int port,
 		const struct switchdev_obj_port_fdb *fdb);
 int b53_fdb_dump(struct dsa_switch *ds, int port,
 		 struct switchdev_obj_port_fdb *fdb,
-		 int (*cb)(struct switchdev_obj *obj));
+		 switchdev_obj_dump_cb_t *cb);
 int b53_mirror_add(struct dsa_switch *ds, int port,
 		   struct dsa_mall_mirror_tc_entry *mirror, bool ingress);
 void b53_mirror_del(struct dsa_switch *ds, int port,

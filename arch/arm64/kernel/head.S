@@ -354,7 +354,6 @@ __primary_switched:
 	tst	x23, ~(MIN_KIMG_ALIGN - 1)	// already running randomized?
 	b.ne	0f
 	mov	x0, x21				// pass FDT address in x0
-	mov	x1, x23				// pass modulo offset in x1
 	bl	kaslr_early_init		// parse FDT for KASLR options
 	cbz	x0, 0f				// KASLR disabled? just proceed
 	orr	x23, x23, x0			// record KASLR offset

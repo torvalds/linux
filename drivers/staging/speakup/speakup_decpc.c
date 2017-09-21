@@ -84,7 +84,7 @@
 #define	CTRL_last_index		0x0b00	/* get last index spoken */
 #define	CTRL_io_priority	0x0c00	/* change i/o priority */
 #define	CTRL_free_mem		0x0d00	/* get free paragraphs on module */
-#define	CTRL_get_lang		0x0e00	/* return bit mask of loaded languages */
+#define	CTRL_get_lang		0x0e00	/* return bitmask of loaded languages */
 #define	CMD_test		0x2000	/* self-test request */
 #define	TEST_mask		0x0F00	/* isolate test field */
 #define	TEST_null		0x0000	/* no test requested */

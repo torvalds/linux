@@ -239,6 +239,63 @@ static void __init of_unittest_check_tree_linkage(void)
 	pr_debug("allnodes list size (%i); sibling lists size (%i)\n", allnode_count, child_count);
 }
 
+static void __init of_unittest_printf_one(struct device_node *np, const char *fmt,
+					  const char *expected)
+{
+	unsigned char buf[strlen(expected)+10];
+	int size, i;
+
+	/* Baseline; check conversion with a large size limit */
+	memset(buf, 0xff, sizeof(buf));
+	size = snprintf(buf, sizeof(buf) - 2, fmt, np);
+
+	/* use strcmp() instead of strncmp() here to be absolutely sure strings match */
+	unittest((strcmp(buf, expected) == 0) && (buf[size+1] == 0xff),
+		"sprintf failed; fmt='%s' expected='%s' rslt='%s'\n",
+		fmt, expected, buf);
+
+	/* Make sure length limits work */
+	size++;
+	for (i = 0; i < 2; i++, size--) {
+		/* Clear the buffer, and make sure it works correctly still */
+		memset(buf, 0xff, sizeof(buf));
+		snprintf(buf, size+1, fmt, np);
+		unittest(strncmp(buf, expected, size) == 0 && (buf[size+1] == 0xff),
+			"snprintf failed; size=%i fmt='%s' expected='%s' rslt='%s'\n",
+			size, fmt, expected, buf);
+	}
+}
+
+static void __init of_unittest_printf(void)
+{
+	struct device_node *np;
+	const char *full_name = "/testcase-data/platform-tests/test-device@1/dev@100";
+	char phandle_str[16] = "";
+
+	np = of_find_node_by_path(full_name);
+	if (!np) {
+		unittest(np, "testcase data missing\n");
+		return;
+	}
+
+	num_to_str(phandle_str, sizeof(phandle_str), np->phandle);
+
+	of_unittest_printf_one(np, "%pOF",  full_name);
+	of_unittest_printf_one(np, "%pOFf", full_name);
+	of_unittest_printf_one(np, "%pOFp", phandle_str);
+	of_unittest_printf_one(np, "%pOFP", "dev@100");
+	of_unittest_printf_one(np, "ABC %pOFP ABC", "ABC dev@100 ABC");
+	of_unittest_printf_one(np, "%10pOFP", "   dev@100");
+	of_unittest_printf_one(np, "%-10pOFP", "dev@100   ");
+	of_unittest_printf_one(of_root, "%pOFP", "/");
+	of_unittest_printf_one(np, "%pOFF", "----");
+	of_unittest_printf_one(np, "%pOFPF", "dev@100:----");
+	of_unittest_printf_one(np, "%pOFPFPc", "dev@100:----:dev@100:test-sub-device");
+	of_unittest_printf_one(np, "%pOFc", "test-sub-device");
+	of_unittest_printf_one(np, "%pOFC",
+			"\"test-sub-device\",\"test-compat2\",\"test-compat3\"");
+}
+
 struct node_hash {
 	struct hlist_node node;
 	struct device_node *np;
@@ -2269,6 +2326,7 @@ static int __init of_unittest(void)
 	of_unittest_find_node_by_name();
 	of_unittest_dynamic();
 	of_unittest_parse_phandle_with_args();
+	of_unittest_printf();
 	of_unittest_property_string();
 	of_unittest_property_copy();
 	of_unittest_changeset();

@@ -96,6 +96,8 @@
 #define WACOM_DEVICETYPE_WL_MONITOR     0x0008
 #define WACOM_DEVICETYPE_DIRECT         0x0010
 
+#define WACOM_POWER_SUPPLY_STATUS_AUTO  -1
+
 #define WACOM_HID_UP_WACOMDIGITIZER     0xff0d0000
 #define WACOM_HID_SP_PAD                0x00040000
 #define WACOM_HID_SP_BUTTON             0x00090000
@@ -150,6 +152,10 @@
 #define WACOM_HID_WT_CONTACTMAX         (WACOM_HID_UP_WACOMTOUCH | 0x55)
 #define WACOM_HID_WT_X                  (WACOM_HID_UP_WACOMTOUCH | 0x130)
 #define WACOM_HID_WT_Y                  (WACOM_HID_UP_WACOMTOUCH | 0x131)
+
+#define WACOM_BATTERY_USAGE(f)	(((f)->hid == HID_DG_BATTERYSTRENGTH) || \
+				 ((f)->hid == WACOM_HID_WD_BATTERY_CHARGING) || \
+				 ((f)->hid == WACOM_HID_WD_BATTERY_LEVEL))
 
 #define WACOM_PAD_FIELD(f)	(((f)->physical == HID_DG_TABLETFUNCTIONKEY) || \
 				 ((f)->physical == WACOM_HID_WD_DIGITIZERFNKEYS) || \
@@ -297,6 +303,7 @@ struct hid_data {
 	int last_slot_field;
 	int num_expected;
 	int num_received;
+	int bat_status;
 	int battery_capacity;
 	int bat_charging;
 	int bat_connected;

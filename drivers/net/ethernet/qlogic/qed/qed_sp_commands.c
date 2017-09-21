@@ -185,22 +185,20 @@ static void qed_set_tunn_ports(struct qed_tunnel_info *p_tun,
 }
 
 static void
-__qed_set_ramrod_tunnel_param(u8 *p_tunn_cls, u8 *p_enable_tx_clas,
+__qed_set_ramrod_tunnel_param(u8 *p_tunn_cls,
 			      struct qed_tunn_update_type *tun_type)
 {
 	*p_tunn_cls = tun_type->tun_cls;
-
-	if (tun_type->b_mode_enabled)
-		*p_enable_tx_clas = 1;
 }
 
 static void
-qed_set_ramrod_tunnel_param(u8 *p_tunn_cls, u8 *p_enable_tx_clas,
+qed_set_ramrod_tunnel_param(u8 *p_tunn_cls,
 			    struct qed_tunn_update_type *tun_type,
-			    u8 *p_update_port, __le16 *p_port,
+			    u8 *p_update_port,
+			    __le16 *p_port,
 			    struct qed_tunn_update_udp_port *p_udp_port)
 {
-	__qed_set_ramrod_tunnel_param(p_tunn_cls, p_enable_tx_clas, tun_type);
+	__qed_set_ramrod_tunnel_param(p_tunn_cls, tun_type);
 	if (p_udp_port->b_update_port) {
 		*p_update_port = 1;
 		*p_port = cpu_to_le16(p_udp_port->port);
@@ -219,33 +217,27 @@ qed_tunn_set_pf_update_params(struct qed_hwfn *p_hwfn,
 	qed_set_tunn_ports(p_tun, p_src);
 
 	qed_set_ramrod_tunnel_param(&p_tunn_cfg->tunnel_clss_vxlan,
-				    &p_tunn_cfg->tx_enable_vxlan,
 				    &p_tun->vxlan,
 				    &p_tunn_cfg->set_vxlan_udp_port_flg,
 				    &p_tunn_cfg->vxlan_udp_port,
 				    &p_tun->vxlan_port);
 
 	qed_set_ramrod_tunnel_param(&p_tunn_cfg->tunnel_clss_l2geneve,
-				    &p_tunn_cfg->tx_enable_l2geneve,
 				    &p_tun->l2_geneve,
 				    &p_tunn_cfg->set_geneve_udp_port_flg,
 				    &p_tunn_cfg->geneve_udp_port,
 				    &p_tun->geneve_port);
 
 	__qed_set_ramrod_tunnel_param(&p_tunn_cfg->tunnel_clss_ipgeneve,
-				      &p_tunn_cfg->tx_enable_ipgeneve,
 				      &p_tun->ip_geneve);
 
 	__qed_set_ramrod_tunnel_param(&p_tunn_cfg->tunnel_clss_l2gre,
-				      &p_tunn_cfg->tx_enable_l2gre,
 				      &p_tun->l2_gre);
 
 	__qed_set_ramrod_tunnel_param(&p_tunn_cfg->tunnel_clss_ipgre,
-				      &p_tunn_cfg->tx_enable_ipgre,
 				      &p_tun->ip_gre);
 
 	p_tunn_cfg->update_rx_pf_clss = p_tun->b_update_rx_cls;
-	p_tunn_cfg->update_tx_pf_clss = p_tun->b_update_tx_cls;
 }
 
 static void qed_set_hw_tunn_mode(struct qed_hwfn *p_hwfn,
@@ -261,17 +253,18 @@ static void qed_set_hw_tunn_mode(struct qed_hwfn *p_hwfn,
 }
 
 static void qed_set_hw_tunn_mode_port(struct qed_hwfn *p_hwfn,
+				      struct qed_ptt *p_ptt,
 				      struct qed_tunnel_info *p_tunn)
 {
 	if (p_tunn->vxlan_port.b_update_port)
-		qed_set_vxlan_dest_port(p_hwfn, p_hwfn->p_main_ptt,
+		qed_set_vxlan_dest_port(p_hwfn, p_ptt,
 					p_tunn->vxlan_port.port);
 
 	if (p_tunn->geneve_port.b_update_port)
-		qed_set_geneve_dest_port(p_hwfn, p_hwfn->p_main_ptt,
+		qed_set_geneve_dest_port(p_hwfn, p_ptt,
 					 p_tunn->geneve_port.port);
 
-	qed_set_hw_tunn_mode(p_hwfn, p_hwfn->p_main_ptt, p_tunn);
+	qed_set_hw_tunn_mode(p_hwfn, p_ptt, p_tunn);
 }
 
 static void
@@ -289,33 +282,29 @@ qed_tunn_set_pf_start_params(struct qed_hwfn *p_hwfn,
 	qed_set_tunn_ports(p_tun, p_src);
 
 	qed_set_ramrod_tunnel_param(&p_tunn_cfg->tunnel_clss_vxlan,
-				    &p_tunn_cfg->tx_enable_vxlan,
 				    &p_tun->vxlan,
 				    &p_tunn_cfg->set_vxlan_udp_port_flg,
 				    &p_tunn_cfg->vxlan_udp_port,
 				    &p_tun->vxlan_port);
 
 	qed_set_ramrod_tunnel_param(&p_tunn_cfg->tunnel_clss_l2geneve,
-				    &p_tunn_cfg->tx_enable_l2geneve,
 				    &p_tun->l2_geneve,
 				    &p_tunn_cfg->set_geneve_udp_port_flg,
 				    &p_tunn_cfg->geneve_udp_port,
 				    &p_tun->geneve_port);
 
 	__qed_set_ramrod_tunnel_param(&p_tunn_cfg->tunnel_clss_ipgeneve,
-				      &p_tunn_cfg->tx_enable_ipgeneve,
 				      &p_tun->ip_geneve);
 
 	__qed_set_ramrod_tunnel_param(&p_tunn_cfg->tunnel_clss_l2gre,
-				      &p_tunn_cfg->tx_enable_l2gre,
 				      &p_tun->l2_gre);
 
 	__qed_set_ramrod_tunnel_param(&p_tunn_cfg->tunnel_clss_ipgre,
-				      &p_tunn_cfg->tx_enable_ipgre,
 				      &p_tun->ip_gre);
 }
 
 int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
+		    struct qed_ptt *p_ptt,
 		    struct qed_tunnel_info *p_tunn,
 		    enum qed_mf_mode mode, bool allow_npar_tx_switch)
 {
@@ -412,7 +401,8 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 	rc = qed_spq_post(p_hwfn, p_ent, NULL);
 
 	if (p_tunn)
-		qed_set_hw_tunn_mode_port(p_hwfn, &p_hwfn->cdev->tunnel);
+		qed_set_hw_tunn_mode_port(p_hwfn, p_ptt,
+					  &p_hwfn->cdev->tunnel);
 
 	return rc;
 }
@@ -443,6 +433,7 @@ int qed_sp_pf_update(struct qed_hwfn *p_hwfn)
 
 /* Set pf update ramrod command params */
 int qed_sp_pf_update_tunn_cfg(struct qed_hwfn *p_hwfn,
+			      struct qed_ptt *p_ptt,
 			      struct qed_tunnel_info *p_tunn,
 			      enum spq_mode comp_mode,
 			      struct qed_spq_comp_cb *p_comp_data)
@@ -477,7 +468,7 @@ int qed_sp_pf_update_tunn_cfg(struct qed_hwfn *p_hwfn,
 	if (rc)
 		return rc;
 
-	qed_set_hw_tunn_mode_port(p_hwfn, &p_hwfn->cdev->tunnel);
+	qed_set_hw_tunn_mode_port(p_hwfn, p_ptt, &p_hwfn->cdev->tunnel);
 
 	return rc;
 }
@@ -520,6 +511,30 @@ int qed_sp_heartbeat_ramrod(struct qed_hwfn *p_hwfn)
 				 &init_data);
 	if (rc)
 		return rc;
+
+	return qed_spq_post(p_hwfn, p_ent, NULL);
+}
+
+int qed_sp_pf_update_stag(struct qed_hwfn *p_hwfn)
+{
+	struct qed_spq_entry *p_ent = NULL;
+	struct qed_sp_init_data init_data;
+	int rc = -EINVAL;
+
+	/* Get SPQ entry */
+	memset(&init_data, 0, sizeof(init_data));
+	init_data.cid = qed_spq_get_cid(p_hwfn);
+	init_data.opaque_fid = p_hwfn->hw_info.opaque_fid;
+	init_data.comp_mode = QED_SPQ_MODE_CB;
+
+	rc = qed_sp_init_request(p_hwfn, &p_ent,
+				 COMMON_RAMROD_PF_UPDATE, PROTOCOLID_COMMON,
+				 &init_data);
+	if (rc)
+		return rc;
+
+	p_ent->ramrod.pf_update.update_mf_vlan_flag = true;
+	p_ent->ramrod.pf_update.mf_vlan = cpu_to_le16(p_hwfn->hw_info.ovlan);
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }

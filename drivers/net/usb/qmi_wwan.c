@@ -101,7 +101,7 @@ static netdev_tx_t qmimux_start_xmit(struct sk_buff *skb, struct net_device *dev
 	unsigned int len = skb->len;
 	struct qmimux_hdr *hdr;
 
-	hdr = (struct qmimux_hdr *)skb_push(skb, sizeof(struct qmimux_hdr));
+	hdr = skb_push(skb, sizeof(struct qmimux_hdr));
 	hdr->pad = 0;
 	hdr->mux_id = priv->mux_id;
 	hdr->pkt_len = cpu_to_be16(len);
@@ -188,7 +188,7 @@ static int qmimux_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			goto skip;
 		}
 
-		memcpy(skb_put(skbn, len), skb->data + offset, len);
+		skb_put_data(skbn, skb->data + offset, len);
 		if (netif_rx(skbn) != NET_RX_SUCCESS)
 			return 0;
 
@@ -1175,6 +1175,7 @@ static const struct usb_device_id products[] = {
 	{QMI_FIXED_INTF(0x19d2, 0x1428, 2)},	/* Telewell TW-LTE 4G v2 */
 	{QMI_FIXED_INTF(0x19d2, 0x2002, 4)},	/* ZTE (Vodafone) K3765-Z */
 	{QMI_FIXED_INTF(0x2001, 0x7e19, 4)},	/* D-Link DWM-221 B1 */
+	{QMI_FIXED_INTF(0x2001, 0x7e35, 4)},	/* D-Link DWM-222 */
 	{QMI_FIXED_INTF(0x0f3d, 0x68a2, 8)},    /* Sierra Wireless MC7700 */
 	{QMI_FIXED_INTF(0x114f, 0x68a2, 8)},    /* Sierra Wireless MC7750 */
 	{QMI_FIXED_INTF(0x1199, 0x68a2, 8)},	/* Sierra Wireless MC7710 in QMI mode */
@@ -1340,10 +1341,14 @@ static int qmi_wwan_probe(struct usb_interface *intf,
 static void qmi_wwan_disconnect(struct usb_interface *intf)
 {
 	struct usbnet *dev = usb_get_intfdata(intf);
-	struct qmi_wwan_state *info = (void *)&dev->data;
+	struct qmi_wwan_state *info;
 	struct list_head *iter;
 	struct net_device *ldev;
 
+	/* called twice if separate control and data intf */
+	if (!dev)
+		return;
+	info = (void *)&dev->data;
 	if (info->flags & QMI_WWAN_FLAG_MUX) {
 		if (!rtnl_trylock()) {
 			restart_syscall();

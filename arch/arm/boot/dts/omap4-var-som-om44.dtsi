@@ -241,7 +241,7 @@
 	};
 
 	eeprom@50 {
-		compatible = "microchip,24c32";
+		compatible = "microchip,24c32", "atmel,24c32";
 		reg = <0x50>;
 	};
 };

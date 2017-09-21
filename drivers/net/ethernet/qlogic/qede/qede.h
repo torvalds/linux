@@ -40,6 +40,7 @@
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/bpf.h>
+#include <linux/qed/qede_rdma.h>
 #include <linux/io.h>
 #ifdef CONFIG_RFS_ACCEL
 #include <linux/cpu_rmap.h>
@@ -153,8 +154,8 @@ struct qede_vlan {
 struct qede_rdma_dev {
 	struct qedr_dev *qedr_dev;
 	struct list_head entry;
-	struct list_head roce_event_list;
-	struct workqueue_struct *roce_wq;
+	struct list_head rdma_event_list;
+	struct workqueue_struct *rdma_wq;
 };
 
 struct qede_ptp;
@@ -197,7 +198,6 @@ struct qede_dev {
 #define QEDE_TSS_COUNT(edev)	((edev)->num_queues - (edev)->fp_num_rx)
 
 	struct qed_int_info		int_info;
-	unsigned char			primary_mac[ETH_ALEN];
 
 	/* Smaller private varaiant of the RTNL lock */
 	struct mutex			qede_lock;

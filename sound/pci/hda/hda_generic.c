@@ -948,6 +948,8 @@ static void resume_path_from_idx(struct hda_codec *codec, int path_idx)
 
 static int hda_gen_mixer_mute_put(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol);
+static int hda_gen_bind_mute_get(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol);
 static int hda_gen_bind_mute_put(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol);
 
@@ -970,7 +972,7 @@ static const struct snd_kcontrol_new control_templates[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.info = snd_hda_mixer_amp_switch_info,
-		.get = snd_hda_mixer_bind_switch_get,
+		.get = hda_gen_bind_mute_get,
 		.put = hda_gen_bind_mute_put, /* replaced */
 		.private_value = HDA_COMPOSE_AMP_VAL(0, 3, 0, 0),
 	},
@@ -1101,11 +1103,51 @@ static int hda_gen_mixer_mute_put(struct snd_kcontrol *kcontrol,
 	return snd_hda_mixer_amp_switch_put(kcontrol, ucontrol);
 }
 
+/*
+ * Bound mute controls
+ */
+#define AMP_VAL_IDX_SHIFT	19
+#define AMP_VAL_IDX_MASK	(0x0f<<19)
+
+static int hda_gen_bind_mute_get(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	unsigned long pval;
+	int err;
+
+	mutex_lock(&codec->control_mutex);
+	pval = kcontrol->private_value;
+	kcontrol->private_value = pval & ~AMP_VAL_IDX_MASK; /* index 0 */
+	err = snd_hda_mixer_amp_switch_get(kcontrol, ucontrol);
+	kcontrol->private_value = pval;
+	mutex_unlock(&codec->control_mutex);
+	return err;
+}
+
 static int hda_gen_bind_mute_put(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	unsigned long pval;
+	int i, indices, err = 0, change = 0;
+
 	sync_auto_mute_bits(kcontrol, ucontrol);
-	return snd_hda_mixer_bind_switch_put(kcontrol, ucontrol);
+
+	mutex_lock(&codec->control_mutex);
+	pval = kcontrol->private_value;
+	indices = (pval & AMP_VAL_IDX_MASK) >> AMP_VAL_IDX_SHIFT;
+	for (i = 0; i < indices; i++) {
+		kcontrol->private_value = (pval & ~AMP_VAL_IDX_MASK) |
+			(i << AMP_VAL_IDX_SHIFT);
+		err = snd_hda_mixer_amp_switch_put(kcontrol, ucontrol);
+		if (err < 0)
+			break;
+		change |= err;
+	}
+	kcontrol->private_value = pval;
+	mutex_unlock(&codec->control_mutex);
+	return err < 0 ? err : change;
 }
 
 /* any ctl assigned to the path with the given index? */

@@ -46,7 +46,8 @@ struct nsp_identify {
 	__le16 primary;
 	__le16 secondary;
 	__le16 nsp;
-	__le16 reserved;
+	u8 reserved[6];
+	__le64 sensor_mask;
 };
 
 struct nfp_nsp_identify *__nfp_nsp_identify(struct nfp_nsp *nsp)
@@ -82,8 +83,52 @@ struct nfp_nsp_identify *__nfp_nsp_identify(struct nfp_nsp *nsp)
 	nspi->primary = le16_to_cpu(ni->primary);
 	nspi->secondary = le16_to_cpu(ni->secondary);
 	nspi->nsp = le16_to_cpu(ni->nsp);
+	nspi->sensor_mask = le64_to_cpu(ni->sensor_mask);
 
 exit_free:
 	kfree(ni);
 	return nspi;
+}
+
+struct nfp_sensors {
+	__le32 chip_temp;
+	__le32 assembly_power;
+	__le32 assembly_12v_power;
+	__le32 assembly_3v3_power;
+};
+
+int nfp_hwmon_read_sensor(struct nfp_cpp *cpp, enum nfp_nsp_sensor_id id,
+			  long *val)
+{
+	struct nfp_sensors s;
+	struct nfp_nsp *nsp;
+	int ret;
+
+	nsp = nfp_nsp_open(cpp);
+	if (IS_ERR(nsp))
+		return PTR_ERR(nsp);
+
+	ret = nfp_nsp_read_sensors(nsp, BIT(id), &s, sizeof(s));
+	nfp_nsp_close(nsp);
+
+	if (ret < 0)
+		return ret;
+
+	switch (id) {
+	case NFP_SENSOR_CHIP_TEMPERATURE:
+		*val = le32_to_cpu(s.chip_temp);
+		break;
+	case NFP_SENSOR_ASSEMBLY_POWER:
+		*val = le32_to_cpu(s.assembly_power);
+		break;
+	case NFP_SENSOR_ASSEMBLY_12V_POWER:
+		*val = le32_to_cpu(s.assembly_12v_power);
+		break;
+	case NFP_SENSOR_ASSEMBLY_3V3_POWER:
+		*val = le32_to_cpu(s.assembly_3v3_power);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
 }

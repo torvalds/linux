@@ -5,6 +5,7 @@
 #include <subcmd/pager.h>
 #include "../ui/ui.h"
 
+#include <linux/compiler.h>
 #include <linux/string.h>
 
 #define CMD_EXEC_PATH "--exec-path"
@@ -24,6 +25,6 @@ static inline int is_absolute_path(const char *path)
 	return path[0] == '/';
 }
 
-char *mkpath(const char *fmt, ...) __attribute__((format (printf, 1, 2)));
+char *mkpath(const char *fmt, ...) __printf(1, 2);
 
 #endif /* __PERF_CACHE_H */

@@ -1065,7 +1065,7 @@ irnet_data_indication(void *	instance,
   if(p[0] & 1)
     {
       /* protocol is compressed */
-      skb_push(skb, 1)[0] = 0;
+      *(u8 *)skb_push(skb, 1) = 0;
     }
   else
     if(skb->len < 2)

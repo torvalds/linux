@@ -55,7 +55,7 @@ intel_create_plane_state(struct drm_plane *plane)
 		return NULL;
 
 	state->base.plane = plane;
-	state->base.rotation = DRM_ROTATE_0;
+	state->base.rotation = DRM_MODE_ROTATE_0;
 	state->ckey.flags = I915_SET_COLORKEY_NONE;
 
 	return state;
@@ -102,23 +102,7 @@ void
 intel_plane_destroy_state(struct drm_plane *plane,
 			  struct drm_plane_state *state)
 {
-	struct i915_vma *vma;
-
-	vma = fetch_and_zero(&to_intel_plane_state(state)->vma);
-
-	/*
-	 * FIXME: Normally intel_cleanup_plane_fb handles destruction of vma.
-	 * We currently don't clear all planes during driver unload, so we have
-	 * to be able to unpin vma here for now.
-	 *
-	 * Normally this can only happen during unload when kmscon is disabled
-	 * and userspace doesn't attempt to set a framebuffer at all.
-	 */
-	if (vma) {
-		mutex_lock(&plane->dev->struct_mutex);
-		intel_unpin_fb_vma(vma);
-		mutex_unlock(&plane->dev->struct_mutex);
-	}
+	WARN_ON(to_intel_plane_state(state)->vma);
 
 	drm_atomic_helper_plane_destroy_state(plane, state);
 }
@@ -178,14 +162,14 @@ int intel_plane_atomic_check_with_state(struct intel_crtc_state *crtc_state,
 
 	/* CHV ignores the mirror bit when the rotate bit is set :( */
 	if (IS_CHERRYVIEW(dev_priv) &&
-	    state->rotation & DRM_ROTATE_180 &&
-	    state->rotation & DRM_REFLECT_X) {
+	    state->rotation & DRM_MODE_ROTATE_180 &&
+	    state->rotation & DRM_MODE_REFLECT_X) {
 		DRM_DEBUG_KMS("Cannot rotate and reflect at the same time\n");
 		return -EINVAL;
 	}
 
 	intel_state->base.visible = false;
-	ret = intel_plane->check_plane(plane, crtc_state, intel_state);
+	ret = intel_plane->check_plane(intel_plane, crtc_state, intel_state);
 	if (ret)
 		return ret;
 
@@ -235,14 +219,14 @@ static void intel_plane_atomic_update(struct drm_plane *plane,
 		trace_intel_update_plane(plane,
 					 to_intel_crtc(crtc));
 
-		intel_plane->update_plane(plane,
+		intel_plane->update_plane(intel_plane,
 					  to_intel_crtc_state(crtc->state),
 					  intel_state);
 	} else {
 		trace_intel_disable_plane(plane,
 					  to_intel_crtc(crtc));
 
-		intel_plane->disable_plane(plane, crtc);
+		intel_plane->disable_plane(intel_plane, to_intel_crtc(crtc));
 	}
 }
 

@@ -2178,6 +2178,12 @@ static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 	if (!q)
 		return -ENXIO;
 
+	if (!blk_queue_scsi_passthrough(q)) {
+		WARN_ONCE(true,
+			  "Attempt read CDDA info through a non-SCSI queue\n");
+		return -EINVAL;
+	}
+
 	cdi->last_sense = 0;
 
 	while (nframes) {
@@ -2195,7 +2201,6 @@ static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 			break;
 		}
 		req = scsi_req(rq);
-		scsi_req_init(rq);
 
 		ret = blk_rq_map_user(q, rq, NULL, ubuf, len, GFP_KERNEL);
 		if (ret) {

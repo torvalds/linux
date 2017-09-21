@@ -31,7 +31,7 @@ you probably needn't concern yourself with isdn4k-utils.
 ====================== ===============  ========================================
 GNU C                  3.2              gcc --version
 GNU make               3.81             make --version
-binutils               2.12             ld -v
+binutils               2.20             ld -v
 util-linux             2.10o            fdformat --version
 module-init-tools      0.9.10           depmod -V
 e2fsprogs              1.41.4           e2fsck -V
@@ -75,10 +75,9 @@ You will need GNU make 3.81 or later to build the kernel.
 Binutils
 --------
 
-Linux on IA-32 has recently switched from using ``as86`` to using ``gas`` for
-assembling the 16-bit boot code, removing the need for ``as86`` to compile
-your kernel.  This change does, however, mean that you need a recent
-release of binutils.
+The build system has, as of 4.13, switched to using thin archives (`ar T`)
+rather than incremental linking (`ld -r`) for built-in.o intermediate steps.
+This requires binutils 2.20 or newer.
 
 Perl
 ----
@@ -116,12 +115,11 @@ DevFS has been obsoleted in favour of udev
 
 Linux documentation for functions is transitioning to inline
 documentation via specially-formatted comments near their
-definitions in the source.  These comments can be combined with the
-SGML templates in the Documentation/DocBook directory to make DocBook
-files, which can then be converted by DocBook stylesheets to PostScript,
-HTML, PDF files, and several other formats.  In order to convert from
-DocBook format to a format of your choice, you'll need to install Jade as
-well as the desired DocBook stylesheets.
+definitions in the source.  These comments can be combined with ReST
+files the Documentation/ directory to make enriched documentation, which can
+then be converted to PostScript, HTML, LaTex, ePUB and PDF files.
+In order to convert from ReST format to a format of your choice, you'll need
+Sphinx.
 
 Util-linux
 ----------
@@ -323,12 +321,6 @@ PDF outputs, it is recommended to use version 1.4.6.
   functionalities required for ``XeLaTex`` to work. For PDF output you'll also
   need ``convert(1)`` from ImageMagick (https://www.imagemagick.org).
 
-Other tools
------------
-
-In order to produce documentation from DocBook, you'll also need ``xmlto``.
-Please notice, however, that we're currently migrating all documents to use
-``Sphinx``.
 
 Getting updated software
 ========================
@@ -409,15 +401,6 @@ Quota-tools
 
 - <http://sourceforge.net/projects/linuxquota/>
 
-DocBook Stylesheets
--------------------
-
-- <http://sourceforge.net/projects/docbook/files/docbook-dsssl/>
-
-XMLTO XSLT Frontend
--------------------
-
-- <http://cyberelk.net/tim/xmlto/>
 
 Intel P6 microcode
 ------------------

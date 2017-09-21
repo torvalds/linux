@@ -89,11 +89,9 @@ bool compute_ecdh_secret(const u8 public_key[64], const u8 private_key[32],
 	p.curve_id = ECC_CURVE_NIST_P256;
 	buf_len = crypto_ecdh_key_len(&p);
 	buf = kmalloc(buf_len, GFP_KERNEL);
-	if (!buf) {
-		pr_err("alg: kpp: Failed to allocate %d bytes for buf\n",
-		       buf_len);
+	if (!buf)
 		goto free_req;
-	}
+
 	crypto_ecdh_encode_key(buf, buf_len, &p);
 
 	/* Set A private Key */
@@ -170,11 +168,8 @@ bool generate_ecdh_keys(u8 public_key[64], u8 private_key[32])
 	p.key_size = 32;
 	buf_len = crypto_ecdh_key_len(&p);
 	buf = kmalloc(buf_len, GFP_KERNEL);
-	if (!buf) {
-		pr_err("alg: kpp: Failed to allocate %d bytes for buf\n",
-		       buf_len);
+	if (!buf)
 		goto free_req;
-	}
 
 	do {
 		if (tries++ >= max_tries)

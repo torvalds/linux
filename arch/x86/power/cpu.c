@@ -129,7 +129,7 @@ static void __save_processor_state(struct saved_context *ctxt)
 	 */
 	ctxt->cr0 = read_cr0();
 	ctxt->cr2 = read_cr2();
-	ctxt->cr3 = read_cr3();
+	ctxt->cr3 = __read_cr3();
 	ctxt->cr4 = __read_cr4();
 #ifdef CONFIG_X86_64
 	ctxt->cr8 = read_cr8();

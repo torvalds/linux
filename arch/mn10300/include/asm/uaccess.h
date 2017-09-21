@@ -290,9 +290,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 }
 
 extern long strncpy_from_user(char *dst, const char __user *src, long count);
-extern long __strncpy_from_user(char *dst, const char __user *src, long count);
 extern long strnlen_user(const char __user *str, long n);
-#define strlen_user(str) strnlen_user(str, ~0UL >> 1)
 extern unsigned long clear_user(void __user *mem, unsigned long len);
 extern unsigned long __clear_user(void __user *mem, unsigned long len);
 

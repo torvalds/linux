@@ -36,7 +36,7 @@ struct nvmf_host {
 	struct kref		ref;
 	struct list_head	list;
 	char			nqn[NVMF_NQN_SIZE];
-	uuid_be			id;
+	uuid_t			id;
 };
 
 /**
@@ -56,6 +56,7 @@ enum {
 	NVMF_OPT_RECONNECT_DELAY = 1 << 9,
 	NVMF_OPT_HOST_TRADDR	= 1 << 10,
 	NVMF_OPT_CTRL_LOSS_TMO	= 1 << 11,
+	NVMF_OPT_HOST_ID	= 1 << 12,
 };
 
 /**
@@ -80,7 +81,6 @@ enum {
  * @discovery_nqn: indicates if the subsysnqn is the well-known discovery NQN.
  * @kato:	Keep-alive timeout.
  * @host:	Virtual NVMe host, contains the NQN and Host ID.
- * @nr_reconnects: number of reconnect attempted since the last ctrl failure
  * @max_reconnects: maximum number of allowed reconnect attempts before removing
  *              the controller, (-1) means reconnect forever, zero means remove
  *              immediately;
@@ -98,7 +98,6 @@ struct nvmf_ctrl_options {
 	bool			discovery_nqn;
 	unsigned int		kato;
 	struct nvmf_host	*host;
-	int			nr_reconnects;
 	int			max_reconnects;
 };
 
@@ -140,7 +139,6 @@ int nvmf_connect_io_queue(struct nvme_ctrl *ctrl, u16 qid);
 int nvmf_register_transport(struct nvmf_transport_ops *ops);
 void nvmf_unregister_transport(struct nvmf_transport_ops *ops);
 void nvmf_free_options(struct nvmf_ctrl_options *opts);
-const char *nvmf_get_subsysnqn(struct nvme_ctrl *ctrl);
 int nvmf_get_address(struct nvme_ctrl *ctrl, char *buf, int size);
 bool nvmf_should_reconnect(struct nvme_ctrl *ctrl);
 

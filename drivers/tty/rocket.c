@@ -947,18 +947,6 @@ static int rp_open(struct tty_struct *tty, struct file *filp)
 
 		tty_port_set_initialized(&info->port, 1);
 
-		/*
-		 * Set up the tty->alt_speed kludge
-		 */
-		if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_HI)
-			tty->alt_speed = 57600;
-		if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_VHI)
-			tty->alt_speed = 115200;
-		if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_SHI)
-			tty->alt_speed = 230400;
-		if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_WARP)
-			tty->alt_speed = 460800;
-
 		configure_r_port(tty, info, NULL);
 		if (C_BAUD(tty)) {
 			sSetDTR(cp);
@@ -1219,23 +1207,20 @@ static int set_config(struct tty_struct *tty, struct r_port *info,
 			return -EPERM;
 		}
 		info->flags = ((info->flags & ~ROCKET_USR_MASK) | (new_serial.flags & ROCKET_USR_MASK));
-		configure_r_port(tty, info, NULL);
 		mutex_unlock(&info->port.mutex);
 		return 0;
+	}
+
+	if ((new_serial.flags ^ info->flags) & ROCKET_SPD_MASK) {
+		/* warn about deprecation, unless clearing */
+		if (new_serial.flags & ROCKET_SPD_MASK)
+			dev_warn_ratelimited(tty->dev, "use of SPD flags is deprecated\n");
 	}
 
 	info->flags = ((info->flags & ~ROCKET_FLAGS) | (new_serial.flags & ROCKET_FLAGS));
 	info->port.close_delay = new_serial.close_delay;
 	info->port.closing_wait = new_serial.closing_wait;
 
-	if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_HI)
-		tty->alt_speed = 57600;
-	if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_VHI)
-		tty->alt_speed = 115200;
-	if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_SHI)
-		tty->alt_speed = 230400;
-	if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_WARP)
-		tty->alt_speed = 460800;
 	mutex_unlock(&info->port.mutex);
 
 	configure_r_port(tty, info, NULL);

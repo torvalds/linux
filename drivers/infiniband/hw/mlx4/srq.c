@@ -135,14 +135,14 @@ struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
 		if (err)
 			goto err_mtt;
 	} else {
-		err = mlx4_db_alloc(dev->dev, &srq->db, 0, GFP_KERNEL);
+		err = mlx4_db_alloc(dev->dev, &srq->db, 0);
 		if (err)
 			goto err_srq;
 
 		*srq->db.db = 0;
 
-		if (mlx4_buf_alloc(dev->dev, buf_size, PAGE_SIZE * 2, &srq->buf,
-				   GFP_KERNEL)) {
+		if (mlx4_buf_alloc(dev->dev, buf_size, PAGE_SIZE * 2,
+				   &srq->buf)) {
 			err = -ENOMEM;
 			goto err_db;
 		}
@@ -167,7 +167,7 @@ struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
 		if (err)
 			goto err_buf;
 
-		err = mlx4_buf_write_mtt(dev->dev, &srq->mtt, &srq->buf, GFP_KERNEL);
+		err = mlx4_buf_write_mtt(dev->dev, &srq->mtt, &srq->buf);
 		if (err)
 			goto err_mtt;
 

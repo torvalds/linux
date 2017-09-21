@@ -74,6 +74,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 {
 	struct zpci_dev *zdev = get_zdev_by_fid(ccdf->fid);
 	struct pci_dev *pdev = NULL;
+	enum zpci_state state;
 	int ret;
 
 	if (zdev)
@@ -108,6 +109,8 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 			clp_add_pci_device(ccdf->fid, ccdf->fh, 0);
 		break;
 	case 0x0303: /* Deconfiguration requested */
+		if (!zdev)
+			break;
 		if (pdev)
 			pci_stop_and_remove_bus_device_locked(pdev);
 
@@ -121,7 +124,9 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 			zdev->state = ZPCI_FN_STATE_STANDBY;
 
 		break;
-	case 0x0304: /* Configured -> Standby */
+	case 0x0304: /* Configured -> Standby|Reserved */
+		if (!zdev)
+			break;
 		if (pdev) {
 			/* Give the driver a hint that the function is
 			 * already unusable. */
@@ -132,6 +137,10 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 		zdev->fh = ccdf->fh;
 		zpci_disable_device(zdev);
 		zdev->state = ZPCI_FN_STATE_STANDBY;
+		if (!clp_get_state(ccdf->fid, &state) &&
+		    state == ZPCI_FN_STATE_RESERVED) {
+			zpci_remove_device(zdev);
+		}
 		break;
 	case 0x0306: /* 0x308 or 0x302 for multiple devices */
 		clp_rescan_pci_devices();
@@ -139,8 +148,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 	case 0x0308: /* Standby -> Reserved */
 		if (!zdev)
 			break;
-		pci_stop_root_bus(zdev->bus);
-		pci_remove_root_bus(zdev->bus);
+		zpci_remove_device(zdev);
 		break;
 	default:
 		break;

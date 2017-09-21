@@ -1577,7 +1577,7 @@ static void ql_process_mac_rx_page(struct ql_adapter *qdev,
 		rx_ring->rx_dropped++;
 		goto err_out;
 	}
-	memcpy(skb_put(skb, hlen), addr, hlen);
+	skb_put_data(skb, addr, hlen);
 	netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
 		     "%d bytes of headers and data in large. Chain page to new skb and pull tail.\n",
 		     length);
@@ -1654,7 +1654,7 @@ static void ql_process_mac_rx_skb(struct ql_adapter *qdev,
 				    dma_unmap_len(sbq_desc, maplen),
 				    PCI_DMA_FROMDEVICE);
 
-	memcpy(skb_put(new_skb, length), skb->data, length);
+	skb_put_data(new_skb, skb->data, length);
 
 	pci_dma_sync_single_for_device(qdev->pdev,
 				       dma_unmap_addr(sbq_desc, mapaddr),
@@ -1817,8 +1817,7 @@ static struct sk_buff *ql_build_rx_skb(struct ql_adapter *qdev,
 						    dma_unmap_len
 						    (sbq_desc, maplen),
 						    PCI_DMA_FROMDEVICE);
-			memcpy(skb_put(skb, length),
-			       sbq_desc->p.skb->data, length);
+			skb_put_data(skb, sbq_desc->p.skb->data, length);
 			pci_dma_sync_single_for_device(qdev->pdev,
 						       dma_unmap_addr
 						       (sbq_desc,

@@ -378,7 +378,7 @@ retry:
 			goto fail;
 		}
 
-		plane_state->rotation = DRM_ROTATE_0;
+		plane_state->rotation = DRM_MODE_ROTATE_0;
 
 		plane->old_fb = plane->fb;
 		plane_mask |= 1 << drm_plane_index(plane);
@@ -431,7 +431,7 @@ static int restore_fbdev_mode_legacy(struct drm_fb_helper *fb_helper)
 		if (plane->rotation_property)
 			drm_mode_plane_set_obj_prop(plane,
 						    plane->rotation_property,
-						    DRM_ROTATE_0);
+						    DRM_MODE_ROTATE_0);
 	}
 
 	for (i = 0; i < fb_helper->crtc_count; i++) {

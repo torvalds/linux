@@ -1010,6 +1010,7 @@ static inline void cxl_debugfs_add_afu_regs_psl8(struct cxl_afu *afu, struct den
 
 void cxl_handle_fault(struct work_struct *work);
 void cxl_prefault(struct cxl_context *ctx, u64 wed);
+int cxl_handle_mm_fault(struct mm_struct *mm, u64 dsisr, u64 dar);
 
 struct cxl *get_cxl_adapter(int num);
 int cxl_alloc_sst(struct cxl_context *ctx);
@@ -1061,6 +1062,11 @@ int cxl_afu_slbia(struct cxl_afu *afu);
 int cxl_data_cache_flush(struct cxl *adapter);
 int cxl_afu_disable(struct cxl_afu *afu);
 int cxl_psl_purge(struct cxl_afu *afu);
+int cxl_calc_capp_routing(struct pci_dev *dev, u64 *chipid,
+			  u32 *phb_index, u64 *capp_unit_id);
+int cxl_slot_is_switched(struct pci_dev *dev);
+int cxl_get_xsl9_dsnctl(u64 capp_unit_id, u64 *reg);
+u64 cxl_calculate_sr(bool master, bool kernel, bool real_mode, bool p9);
 
 void cxl_native_irq_dump_regs_psl9(struct cxl_context *ctx);
 void cxl_native_irq_dump_regs_psl8(struct cxl_context *ctx);

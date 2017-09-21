@@ -625,6 +625,10 @@ struct ec_params_get_cmd_versions {
 	uint8_t cmd;      /* Command to check */
 } __packed;
 
+struct ec_params_get_cmd_versions_v1 {
+	uint16_t cmd;     /* Command to check */
+} __packed;
+
 struct ec_response_get_cmd_versions {
 	/*
 	 * Mask of supported versions; use EC_VER_MASK() to compare with a
@@ -1158,13 +1162,20 @@ struct lightbar_params_v1 {
 	struct rgb_s color[8];			/* 0-3 are Google colors */
 } __packed;
 
+/* Lightbar program */
+#define EC_LB_PROG_LEN 192
+struct lightbar_program {
+	uint8_t size;
+	uint8_t data[EC_LB_PROG_LEN];
+};
+
 struct ec_params_lightbar {
 	uint8_t cmd;		      /* Command (see enum lightbar_command) */
 	union {
 		struct {
 			/* no args */
 		} dump, off, on, init, get_seq, get_params_v0, get_params_v1,
-			version, get_brightness, get_demo;
+			version, get_brightness, get_demo, suspend, resume;
 
 		struct {
 			uint8_t num;
@@ -1182,8 +1193,13 @@ struct ec_params_lightbar {
 			uint8_t led;
 		} get_rgb;
 
+		struct {
+			uint8_t enable;
+		} manual_suspend_ctrl;
+
 		struct lightbar_params_v0 set_params_v0;
 		struct lightbar_params_v1 set_params_v1;
+		struct lightbar_program set_program;
 	};
 } __packed;
 
@@ -1216,7 +1232,8 @@ struct ec_response_lightbar {
 		struct {
 			/* no return params */
 		} off, on, init, set_brightness, seq, reg, set_rgb,
-			demo, set_params_v0, set_params_v1;
+			demo, set_params_v0, set_params_v1,
+			set_program, manual_suspend_ctrl, suspend, resume;
 	};
 } __packed;
 
@@ -1240,6 +1257,10 @@ enum lightbar_command {
 	LIGHTBAR_CMD_GET_DEMO = 15,
 	LIGHTBAR_CMD_GET_PARAMS_V1 = 16,
 	LIGHTBAR_CMD_SET_PARAMS_V1 = 17,
+	LIGHTBAR_CMD_SET_PROGRAM = 18,
+	LIGHTBAR_CMD_MANUAL_SUSPEND_CTRL = 19,
+	LIGHTBAR_CMD_SUSPEND = 20,
+	LIGHTBAR_CMD_RESUME = 21,
 	LIGHTBAR_NUM_CMDS
 };
 
@@ -2285,12 +2306,27 @@ struct ec_params_charge_control {
 #define EC_CMD_CONSOLE_SNAPSHOT 0x97
 
 /*
- * Read next chunk of data from saved snapshot.
+ * Read data from the saved snapshot. If the subcmd parameter is
+ * CONSOLE_READ_NEXT, this will return data starting from the beginning of
+ * the latest snapshot. If it is CONSOLE_READ_RECENT, it will start from the
+ * end of the previous snapshot.
+ *
+ * The params are only looked at in version >= 1 of this command. Prior
+ * versions will just default to CONSOLE_READ_NEXT behavior.
  *
  * Response is null-terminated string.  Empty string, if there is no more
  * remaining output.
  */
 #define EC_CMD_CONSOLE_READ 0x98
+
+enum ec_console_read_subcmd {
+	CONSOLE_READ_NEXT = 0,
+	CONSOLE_READ_RECENT
+};
+
+struct ec_params_console_read_v1 {
+	uint8_t subcmd; /* enum ec_console_read_subcmd */
+} __packed;
 
 /*****************************************************************************/
 

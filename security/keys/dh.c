@@ -266,6 +266,11 @@ long __keyctl_dh_compute(struct keyctl_dh_params __user *params,
 	if (kdfcopy) {
 		char *hashname;
 
+		if (memchr_inv(kdfcopy->__spare, 0, sizeof(kdfcopy->__spare))) {
+			ret = -EINVAL;
+			goto out1;
+		}
+
 		if (buflen > KEYCTL_KDF_MAX_OUTPUT_LEN ||
 		    kdfcopy->otherinfolen > KEYCTL_KDF_MAX_OI_LEN) {
 			ret = -EMSGSIZE;

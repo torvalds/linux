@@ -20,7 +20,7 @@
 #include <linux/gpio.h>
 #include <linux/slab.h>
 
-#include <linux/i2c/adp5588.h>
+#include <linux/platform_data/adp5588.h>
 
 /* Key Event Register xy */
 #define KEY_EV_PRESSED		(1 << 7)

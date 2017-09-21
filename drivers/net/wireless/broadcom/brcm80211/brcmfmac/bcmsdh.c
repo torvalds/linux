@@ -108,12 +108,14 @@ int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev)
 	int ret = 0;
 	u8 data;
 	u32 addr, gpiocontrol;
-	unsigned long flags;
 
 	pdata = &sdiodev->settings->bus.sdio;
 	if (pdata->oob_irq_supported) {
 		brcmf_dbg(SDIO, "Enter, register OOB IRQ %d\n",
 			  pdata->oob_irq_nr);
+		spin_lock_init(&sdiodev->irq_en_lock);
+		sdiodev->irq_en = true;
+
 		ret = request_irq(pdata->oob_irq_nr, brcmf_sdiod_oob_irqhandler,
 				  pdata->oob_irq_flags, "brcmf_oob_intr",
 				  &sdiodev->func[1]->dev);
@@ -122,10 +124,6 @@ int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev)
 			return ret;
 		}
 		sdiodev->oob_irq_requested = true;
-		spin_lock_init(&sdiodev->irq_en_lock);
-		spin_lock_irqsave(&sdiodev->irq_en_lock, flags);
-		sdiodev->irq_en = true;
-		spin_unlock_irqrestore(&sdiodev->irq_en_lock, flags);
 
 		ret = enable_irq_wake(pdata->oob_irq_nr);
 		if (ret != 0) {
@@ -706,7 +704,7 @@ done:
 int brcmf_sdiod_recv_chain(struct brcmf_sdio_dev *sdiodev,
 			   struct sk_buff_head *pktq, uint totlen)
 {
-	struct sk_buff *glom_skb;
+	struct sk_buff *glom_skb = NULL;
 	struct sk_buff *skb;
 	u32 addr = sdiodev->sbwad;
 	int err = 0;
@@ -727,10 +725,8 @@ int brcmf_sdiod_recv_chain(struct brcmf_sdio_dev *sdiodev,
 			return -ENOMEM;
 		err = brcmf_sdiod_buffrw(sdiodev, SDIO_FUNC_2, false, addr,
 					 glom_skb);
-		if (err) {
-			brcmu_pkt_buf_free_skb(glom_skb);
+		if (err)
 			goto done;
-		}
 
 		skb_queue_walk(pktq, skb) {
 			memcpy(skb->data, glom_skb->data, skb->len);
@@ -741,6 +737,7 @@ int brcmf_sdiod_recv_chain(struct brcmf_sdio_dev *sdiodev,
 					    pktq);
 
 done:
+	brcmu_pkt_buf_free_skb(glom_skb);
 	return err;
 }
 

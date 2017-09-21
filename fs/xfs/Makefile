@@ -98,8 +98,7 @@ xfs-y				+= xfs_aops.o \
 				   xfs_sysfs.o \
 				   xfs_trans.o \
 				   xfs_xattr.o \
-				   kmem.o \
-				   uuid.o
+				   kmem.o
 
 # low-level transaction/log code
 xfs-y				+= xfs_log.o \

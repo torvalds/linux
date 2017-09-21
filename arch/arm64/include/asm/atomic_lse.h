@@ -435,7 +435,7 @@ static inline long atomic64_dec_if_positive(atomic64_t *v)
 	"	sub	x30, x30, %[ret]\n"
 	"	cbnz	x30, 1b\n"
 	"2:")
-	: [ret] "+&r" (x0), [v] "+Q" (v->counter)
+	: [ret] "+r" (x0), [v] "+Q" (v->counter)
 	:
 	: __LL_SC_CLOBBERS, "cc", "memory");
 

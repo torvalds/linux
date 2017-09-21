@@ -514,7 +514,7 @@ static struct snd_kcontrol_new snd_pmac_awacs_amp_vol[] = {
 	},
 };
 
-static struct snd_kcontrol_new snd_pmac_awacs_amp_hp_sw = {
+static const struct snd_kcontrol_new snd_pmac_awacs_amp_hp_sw = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Headphone Playback Switch",
 	.info = snd_pmac_boolean_stereo_info,
@@ -523,7 +523,7 @@ static struct snd_kcontrol_new snd_pmac_awacs_amp_hp_sw = {
 	.private_value = AMP_CH_HD,
 };
 
-static struct snd_kcontrol_new snd_pmac_awacs_amp_spk_sw = {
+static const struct snd_kcontrol_new snd_pmac_awacs_amp_spk_sw = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Speaker Playback Switch",
 	.info = snd_pmac_boolean_stereo_info,

@@ -303,12 +303,8 @@ static int seg6_genl_dumphmac_done(struct netlink_callback *cb)
 static int seg6_genl_dumphmac(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct rhashtable_iter *iter = (struct rhashtable_iter *)cb->args[0];
-	struct net *net = sock_net(skb->sk);
-	struct seg6_pernet_data *sdata;
 	struct seg6_hmac_info *hinfo;
 	int ret;
-
-	sdata = seg6_pernet(net);
 
 	ret = rhashtable_walk_start(iter);
 	if (ret && ret != -EAGAIN)

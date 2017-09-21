@@ -114,7 +114,7 @@ The Slab Cache
 User Space Memory Access
 ------------------------
 
-.. kernel-doc:: arch/x86/include/asm/uaccess_32.h
+.. kernel-doc:: arch/x86/include/asm/uaccess.h
    :internal:
 
 .. kernel-doc:: arch/x86/lib/usercopy_32.c

@@ -133,19 +133,19 @@ struct juli_spec {
 /*
  * Initial setup of the conversion array GPIO <-> rate
  */
-static unsigned int juli_rates[] = {
+static const unsigned int juli_rates[] = {
 	16000, 22050, 24000, 32000,
 	44100, 48000, 64000, 88200,
 	96000, 176400, 192000,
 };
 
-static unsigned int gpio_vals[] = {
+static const unsigned int gpio_vals[] = {
 	GPIO_RATE_16000, GPIO_RATE_22050, GPIO_RATE_24000, GPIO_RATE_32000,
 	GPIO_RATE_44100, GPIO_RATE_48000, GPIO_RATE_64000, GPIO_RATE_88200,
 	GPIO_RATE_96000, GPIO_RATE_176400, GPIO_RATE_192000,
 };
 
-static struct snd_pcm_hw_constraint_list juli_rates_info = {
+static const struct snd_pcm_hw_constraint_list juli_rates_info = {
 	.count = ARRAY_SIZE(juli_rates),
 	.list = juli_rates,
 	.mask = 0,

@@ -368,7 +368,7 @@ struct i5400_error_info {
 
 	/* These registers are input ONLY if there was a Non-Rec Error */
 	u16 nrecmema;		/* Non-Recoverable Mem log A */
-	u16 nrecmemb;		/* Non-Recoverable Mem log B */
+	u32 nrecmemb;		/* Non-Recoverable Mem log B */
 
 };
 
@@ -458,7 +458,7 @@ static void i5400_get_error_info(struct mem_ctl_info *mci,
 				NERR_FAT_FBD, &info->nerr_fat_fbd);
 		pci_read_config_word(pvt->branchmap_werrors,
 				NRECMEMA, &info->nrecmema);
-		pci_read_config_word(pvt->branchmap_werrors,
+		pci_read_config_dword(pvt->branchmap_werrors,
 				NRECMEMB, &info->nrecmemb);
 
 		/* Clear the error bits, by writing them back */

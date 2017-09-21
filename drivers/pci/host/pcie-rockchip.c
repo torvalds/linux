@@ -139,6 +139,7 @@
 		 PCIE_CORE_INT_CT | PCIE_CORE_INT_UTC | \
 		 PCIE_CORE_INT_MMVC)
 
+#define PCIE_RC_CONFIG_NORMAL_BASE	0x800000
 #define PCIE_RC_CONFIG_BASE		0xa00000
 #define PCIE_RC_CONFIG_RID_CCR		(PCIE_RC_CONFIG_BASE + 0x08)
 #define   PCIE_RC_CONFIG_SCC_SHIFT		16
@@ -146,6 +147,9 @@
 #define   PCIE_RC_CONFIG_DCR_CSPL_SHIFT		18
 #define   PCIE_RC_CONFIG_DCR_CSPL_LIMIT		0xff
 #define   PCIE_RC_CONFIG_DCR_CPLS_SHIFT		26
+#define PCIE_RC_CONFIG_DCSR		(PCIE_RC_CONFIG_BASE + 0xc8)
+#define   PCIE_RC_CONFIG_DCSR_MPS_MASK		GENMASK(7, 5)
+#define   PCIE_RC_CONFIG_DCSR_MPS_256		(0x1 << 5)
 #define PCIE_RC_CONFIG_LINK_CAP		(PCIE_RC_CONFIG_BASE + 0xcc)
 #define   PCIE_RC_CONFIG_LINK_CAP_L0S		BIT(10)
 #define PCIE_RC_CONFIG_LCS		(PCIE_RC_CONFIG_BASE + 0xd0)
@@ -175,6 +179,8 @@
 #define IB_ROOT_PORT_REG_SIZE_SHIFT		3
 #define AXI_WRAPPER_IO_WRITE			0x6
 #define AXI_WRAPPER_MEM_WRITE			0x2
+#define AXI_WRAPPER_TYPE0_CFG			0xa
+#define AXI_WRAPPER_TYPE1_CFG			0xb
 #define AXI_WRAPPER_NOR_MSG			0xc
 
 #define MAX_AXI_IB_ROOTPORT_REGION_NUM		3
@@ -198,6 +204,7 @@
 #define RC_REGION_0_ADDR_TRANS_H		0x00000000
 #define RC_REGION_0_ADDR_TRANS_L		0x00000000
 #define RC_REGION_0_PASS_BITS			(25 - 1)
+#define RC_REGION_0_TYPE_MASK			GENMASK(3, 0)
 #define MAX_AXI_WRAPPER_REGION_NUM		33
 
 struct rockchip_pcie {
@@ -295,7 +302,9 @@ static int rockchip_pcie_valid_device(struct rockchip_pcie *rockchip,
 static int rockchip_pcie_rd_own_conf(struct rockchip_pcie *rockchip,
 				     int where, int size, u32 *val)
 {
-	void __iomem *addr = rockchip->apb_base + PCIE_RC_CONFIG_BASE + where;
+	void __iomem *addr;
+
+	addr = rockchip->apb_base + PCIE_RC_CONFIG_NORMAL_BASE + where;
 
 	if (!IS_ALIGNED((uintptr_t)addr, size)) {
 		*val = 0;
@@ -319,11 +328,13 @@ static int rockchip_pcie_wr_own_conf(struct rockchip_pcie *rockchip,
 				     int where, int size, u32 val)
 {
 	u32 mask, tmp, offset;
+	void __iomem *addr;
 
 	offset = where & ~0x3;
+	addr = rockchip->apb_base + PCIE_RC_CONFIG_NORMAL_BASE + offset;
 
 	if (size == 4) {
-		writel(val, rockchip->apb_base + PCIE_RC_CONFIG_BASE + offset);
+		writel(val, addr);
 		return PCIBIOS_SUCCESSFUL;
 	}
 
@@ -334,11 +345,31 @@ static int rockchip_pcie_wr_own_conf(struct rockchip_pcie *rockchip,
 	 * corrupt RW1C bits in adjacent registers.  But the hardware
 	 * doesn't support smaller writes.
 	 */
-	tmp = readl(rockchip->apb_base + PCIE_RC_CONFIG_BASE + offset) & mask;
+	tmp = readl(addr) & mask;
 	tmp |= val << ((where & 0x3) * 8);
-	writel(tmp, rockchip->apb_base + PCIE_RC_CONFIG_BASE + offset);
+	writel(tmp, addr);
 
 	return PCIBIOS_SUCCESSFUL;
+}
+
+static void rockchip_pcie_cfg_configuration_accesses(
+		struct rockchip_pcie *rockchip, u32 type)
+{
+	u32 ob_desc_0;
+
+	/* Configuration Accesses for region 0 */
+	rockchip_pcie_write(rockchip, 0x0, PCIE_RC_BAR_CONF);
+
+	rockchip_pcie_write(rockchip,
+			    (RC_REGION_0_ADDR_TRANS_L + RC_REGION_0_PASS_BITS),
+			    PCIE_CORE_OB_REGION_ADDR0);
+	rockchip_pcie_write(rockchip, RC_REGION_0_ADDR_TRANS_H,
+			    PCIE_CORE_OB_REGION_ADDR1);
+	ob_desc_0 = rockchip_pcie_read(rockchip, PCIE_CORE_OB_REGION_DESC0);
+	ob_desc_0 &= ~(RC_REGION_0_TYPE_MASK);
+	ob_desc_0 |= (type | (0x1 << 23));
+	rockchip_pcie_write(rockchip, ob_desc_0, PCIE_CORE_OB_REGION_DESC0);
+	rockchip_pcie_write(rockchip, 0x0, PCIE_CORE_OB_REGION_DESC1);
 }
 
 static int rockchip_pcie_rd_other_conf(struct rockchip_pcie *rockchip,
@@ -354,6 +385,13 @@ static int rockchip_pcie_rd_other_conf(struct rockchip_pcie *rockchip,
 		*val = 0;
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 	}
+
+	if (bus->parent->number == rockchip->root_bus_nr)
+		rockchip_pcie_cfg_configuration_accesses(rockchip,
+						AXI_WRAPPER_TYPE0_CFG);
+	else
+		rockchip_pcie_cfg_configuration_accesses(rockchip,
+						AXI_WRAPPER_TYPE1_CFG);
 
 	if (size == 4) {
 		*val = readl(rockchip->reg_base + busdev);
@@ -378,6 +416,13 @@ static int rockchip_pcie_wr_other_conf(struct rockchip_pcie *rockchip,
 				PCI_FUNC(devfn), where);
 	if (!IS_ALIGNED(busdev, size))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
+
+	if (bus->parent->number == rockchip->root_bus_nr)
+		rockchip_pcie_cfg_configuration_accesses(rockchip,
+						AXI_WRAPPER_TYPE0_CFG);
+	else
+		rockchip_pcie_cfg_configuration_accesses(rockchip,
+						AXI_WRAPPER_TYPE1_CFG);
 
 	if (size == 4)
 		writel(val, rockchip->reg_base + busdev);
@@ -664,15 +709,10 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 		rockchip_pcie_write(rockchip, status, PCIE_RC_CONFIG_LINK_CAP);
 	}
 
-	rockchip_pcie_write(rockchip, 0x0, PCIE_RC_BAR_CONF);
-
-	rockchip_pcie_write(rockchip,
-			    (RC_REGION_0_ADDR_TRANS_L + RC_REGION_0_PASS_BITS),
-			    PCIE_CORE_OB_REGION_ADDR0);
-	rockchip_pcie_write(rockchip, RC_REGION_0_ADDR_TRANS_H,
-			    PCIE_CORE_OB_REGION_ADDR1);
-	rockchip_pcie_write(rockchip, 0x0080000a, PCIE_CORE_OB_REGION_DESC0);
-	rockchip_pcie_write(rockchip, 0x0, PCIE_CORE_OB_REGION_DESC1);
+	status = rockchip_pcie_read(rockchip, PCIE_RC_CONFIG_DCSR);
+	status &= ~PCIE_RC_CONFIG_DCSR_MPS_MASK;
+	status |= PCIE_RC_CONFIG_DCSR_MPS_256;
+	rockchip_pcie_write(rockchip, status, PCIE_RC_CONFIG_DCSR);
 
 	return 0;
 }
@@ -1156,12 +1196,15 @@ static int rockchip_pcie_prog_ib_atu(struct rockchip_pcie *rockchip,
 	return 0;
 }
 
-static int rockchip_cfg_atu(struct rockchip_pcie *rockchip)
+static int rockchip_pcie_cfg_atu(struct rockchip_pcie *rockchip)
 {
 	struct device *dev = rockchip->dev;
 	int offset;
 	int err;
 	int reg_no;
+
+	rockchip_pcie_cfg_configuration_accesses(rockchip,
+						 AXI_WRAPPER_TYPE0_CFG);
 
 	for (reg_no = 0; reg_no < (rockchip->mem_size >> 20); reg_no++) {
 		err = rockchip_pcie_prog_ob_atu(rockchip, reg_no + 1,
@@ -1251,6 +1294,9 @@ static int __maybe_unused rockchip_pcie_suspend_noirq(struct device *dev)
 	clk_disable_unprepare(rockchip->aclk_perf_pcie);
 	clk_disable_unprepare(rockchip->aclk_pcie);
 
+	if (!IS_ERR(rockchip->vpcie0v9))
+		regulator_disable(rockchip->vpcie0v9);
+
 	return ret;
 }
 
@@ -1259,24 +1305,54 @@ static int __maybe_unused rockchip_pcie_resume_noirq(struct device *dev)
 	struct rockchip_pcie *rockchip = dev_get_drvdata(dev);
 	int err;
 
-	clk_prepare_enable(rockchip->clk_pcie_pm);
-	clk_prepare_enable(rockchip->hclk_pcie);
-	clk_prepare_enable(rockchip->aclk_perf_pcie);
-	clk_prepare_enable(rockchip->aclk_pcie);
+	if (!IS_ERR(rockchip->vpcie0v9)) {
+		err = regulator_enable(rockchip->vpcie0v9);
+		if (err) {
+			dev_err(dev, "fail to enable vpcie0v9 regulator\n");
+			return err;
+		}
+	}
+
+	err = clk_prepare_enable(rockchip->clk_pcie_pm);
+	if (err)
+		goto err_pcie_pm;
+
+	err = clk_prepare_enable(rockchip->hclk_pcie);
+	if (err)
+		goto err_hclk_pcie;
+
+	err = clk_prepare_enable(rockchip->aclk_perf_pcie);
+	if (err)
+		goto err_aclk_perf_pcie;
+
+	err = clk_prepare_enable(rockchip->aclk_pcie);
+	if (err)
+		goto err_aclk_pcie;
 
 	err = rockchip_pcie_init_port(rockchip);
 	if (err)
-		return err;
+		goto err_pcie_resume;
 
-	err = rockchip_cfg_atu(rockchip);
+	err = rockchip_pcie_cfg_atu(rockchip);
 	if (err)
-		return err;
+		goto err_pcie_resume;
 
 	/* Need this to enter L1 again */
 	rockchip_pcie_update_txcredit_mui(rockchip);
 	rockchip_pcie_enable_interrupts(rockchip);
 
 	return 0;
+
+err_pcie_resume:
+	clk_disable_unprepare(rockchip->aclk_pcie);
+err_aclk_pcie:
+	clk_disable_unprepare(rockchip->aclk_perf_pcie);
+err_aclk_perf_pcie:
+	clk_disable_unprepare(rockchip->hclk_pcie);
+err_hclk_pcie:
+	clk_disable_unprepare(rockchip->clk_pcie_pm);
+err_pcie_pm:
+	return err;
 }
 
 static int rockchip_pcie_probe(struct platform_device *pdev)
@@ -1284,6 +1360,7 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 	struct rockchip_pcie *rockchip;
 	struct device *dev = &pdev->dev;
 	struct pci_bus *bus, *child;
+	struct pci_host_bridge *bridge;
 	struct resource_entry *win;
 	resource_size_t io_base;
 	struct resource	*mem;
@@ -1295,9 +1372,11 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 	if (!dev->of_node)
 		return -ENODEV;
 
-	rockchip = devm_kzalloc(dev, sizeof(*rockchip), GFP_KERNEL);
-	if (!rockchip)
+	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*rockchip));
+	if (!bridge)
 		return -ENOMEM;
+
+	rockchip = pci_host_bridge_priv(bridge);
 
 	platform_set_drvdata(pdev, rockchip);
 	rockchip->dev = dev;
@@ -1385,22 +1464,30 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 		}
 	}
 
-	err = rockchip_cfg_atu(rockchip);
+	err = rockchip_pcie_cfg_atu(rockchip);
 	if (err)
 		goto err_free_res;
 
-	rockchip->msg_region = devm_ioremap(rockchip->dev,
-					    rockchip->msg_bus_addr, SZ_1M);
+	rockchip->msg_region = devm_ioremap(dev, rockchip->msg_bus_addr, SZ_1M);
 	if (!rockchip->msg_region) {
 		err = -ENOMEM;
 		goto err_free_res;
 	}
 
-	bus = pci_scan_root_bus(&pdev->dev, 0, &rockchip_pcie_ops, rockchip, &res);
-	if (!bus) {
-		err = -ENOMEM;
+	list_splice_init(&res, &bridge->windows);
+	bridge->dev.parent = dev;
+	bridge->sysdata = rockchip;
+	bridge->busnr = 0;
+	bridge->ops = &rockchip_pcie_ops;
+	bridge->map_irq = of_irq_parse_and_map_pci;
+	bridge->swizzle_irq = pci_common_swizzle;
+
+	err = pci_scan_root_bus_bridge(bridge);
+	if (err < 0)
 		goto err_free_res;
-	}
+
+	bus = bridge->bus;
+
 	rockchip->root_bus = bus;
 
 	pci_bus_size_bridges(bus);

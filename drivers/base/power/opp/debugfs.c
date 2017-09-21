@@ -40,11 +40,10 @@ static bool opp_debug_create_supplies(struct dev_pm_opp *opp,
 				      struct dentry *pdentry)
 {
 	struct dentry *d;
-	int i = 0;
+	int i;
 	char *name;
 
-	/* Always create at least supply-0 directory */
-	do {
+	for (i = 0; i < opp_table->regulator_count; i++) {
 		name = kasprintf(GFP_KERNEL, "supply-%d", i);
 
 		/* Create per-opp directory */
@@ -70,7 +69,7 @@ static bool opp_debug_create_supplies(struct dev_pm_opp *opp,
 		if (!debugfs_create_ulong("u_amp", S_IRUGO, d,
 					  &opp->supplies[i].u_amp))
 			return false;
-	} while (++i < opp_table->regulator_count);
+	}
 
 	return true;
 }

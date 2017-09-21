@@ -81,14 +81,7 @@ static void lower_barrier(struct r1conf *conf, sector_t sector_nr);
 #define raid1_log(md, fmt, args...)				\
 	do { if ((md)->queue) blk_add_trace_msg((md)->queue, "raid1 " fmt, ##args); } while (0)
 
-/*
- * 'strct resync_pages' stores actual pages used for doing the resync
- *  IO, and it is per-bio, so make .bi_private points to it.
- */
-static inline struct resync_pages *get_resync_pages(struct bio *bio)
-{
-	return bio->bi_private;
-}
+#include "raid1-10.c"
 
 /*
  * for resync bio, r1bio pointer can be retrieved from the per-bio
@@ -170,7 +163,6 @@ static void * r1buf_pool_alloc(gfp_t gfp_flags, void *data)
 			resync_get_all_pages(rp);
 		}
 
-		rp->idx = 0;
 		rp->raid_bio = r1_bio;
 		bio->bi_private = rp;
 	}
@@ -277,7 +269,7 @@ static void call_bio_endio(struct r1bio *r1_bio)
 	struct r1conf *conf = r1_bio->mddev->private;
 
 	if (!test_bit(R1BIO_Uptodate, &r1_bio->state))
-		bio->bi_error = -EIO;
+		bio->bi_status = BLK_STS_IOERR;
 
 	bio_endio(bio);
 	/*
@@ -335,7 +327,7 @@ static int find_bio_disk(struct r1bio *r1_bio, struct bio *bio)
 
 static void raid1_end_read_request(struct bio *bio)
 {
-	int uptodate = !bio->bi_error;
+	int uptodate = !bio->bi_status;
 	struct r1bio *r1_bio = bio->bi_private;
 	struct r1conf *conf = r1_bio->mddev->private;
 	struct md_rdev *rdev = conf->mirrors[r1_bio->read_disk].rdev;
@@ -426,12 +418,12 @@ static void raid1_end_write_request(struct bio *bio)
 	struct md_rdev *rdev = conf->mirrors[mirror].rdev;
 	bool discard_error;
 
-	discard_error = bio->bi_error && bio_op(bio) == REQ_OP_DISCARD;
+	discard_error = bio->bi_status && bio_op(bio) == REQ_OP_DISCARD;
 
 	/*
 	 * 'one mirror IO has finished' event handler:
 	 */
-	if (bio->bi_error && !discard_error) {
+	if (bio->bi_status && !discard_error) {
 		set_bit(WriteErrorSeen,	&rdev->flags);
 		if (!test_and_set_bit(WantReplacement, &rdev->flags))
 			set_bit(MD_RECOVERY_NEEDED, &
@@ -492,10 +484,6 @@ static void raid1_end_write_request(struct bio *bio)
 	}
 
 	if (behind) {
-		/* we release behind master bio when all write are done */
-		if (r1_bio->behind_master_bio == bio)
-			to_put = NULL;
-
 		if (test_bit(WriteMostly, &rdev->flags))
 			atomic_dec(&r1_bio->behind_remaining);
 
@@ -802,8 +790,7 @@ static void flush_bio_list(struct r1conf *conf, struct bio *bio)
 		bio->bi_next = NULL;
 		bio->bi_bdev = rdev->bdev;
 		if (test_bit(Faulty, &rdev->flags)) {
-			bio->bi_error = -EIO;
-			bio_endio(bio);
+			bio_io_error(bio);
 		} else if (unlikely((bio_op(bio) == REQ_OP_DISCARD) &&
 				    !blk_queue_discard(bdev_get_queue(bio->bi_bdev))))
 			/* Just ignore it */
@@ -1088,7 +1075,7 @@ static void unfreeze_array(struct r1conf *conf)
 	wake_up(&conf->wait_barrier);
 }
 
-static struct bio *alloc_behind_master_bio(struct r1bio *r1_bio,
+static void alloc_behind_master_bio(struct r1bio *r1_bio,
 					   struct bio *bio)
 {
 	int size = bio->bi_iter.bi_size;
@@ -1098,11 +1085,13 @@ static struct bio *alloc_behind_master_bio(struct r1bio *r1_bio,
 
 	behind_bio = bio_alloc_mddev(GFP_NOIO, vcnt, r1_bio->mddev);
 	if (!behind_bio)
-		goto fail;
+		return;
 
 	/* discard op, we don't support writezero/writesame yet */
-	if (!bio_has_data(bio))
+	if (!bio_has_data(bio)) {
+		behind_bio->bi_iter.bi_size = size;
 		goto skip_copy;
+	}
 
 	while (i < vcnt && size) {
 		struct page *page;
@@ -1123,14 +1112,13 @@ skip_copy:
 	r1_bio->behind_master_bio = behind_bio;;
 	set_bit(R1BIO_BehindIO, &r1_bio->state);
 
-	return behind_bio;
+	return;
 
 free_pages:
 	pr_debug("%dB behind alloc failed, doing sync I/O\n",
 		 bio->bi_iter.bi_size);
 	bio_free_pages(behind_bio);
-fail:
-	return behind_bio;
+	bio_put(behind_bio);
 }
 
 struct raid1_plug_cb {
@@ -1321,7 +1309,6 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 	 * Continue immediately if no resync is active currently.
 	 */
 
-	md_write_start(mddev, bio); /* wait on superblock update early */
 
 	if ((bio_end_sector(bio) > mddev->suspend_lo &&
 	    bio->bi_iter.bi_sector < mddev->suspend_hi) ||
@@ -1335,7 +1322,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 		 */
 		DEFINE_WAIT(w);
 		for (;;) {
-			flush_signals(current);
+			sigset_t full, old;
 			prepare_to_wait(&conf->wait_barrier,
 					&w, TASK_INTERRUPTIBLE);
 			if (bio_end_sector(bio) <= mddev->suspend_lo ||
@@ -1345,7 +1332,10 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 				     bio->bi_iter.bi_sector,
 				     bio_end_sector(bio))))
 				break;
+			sigfillset(&full);
+			sigprocmask(SIG_BLOCK, &full, &old);
 			schedule();
+			sigprocmask(SIG_SETMASK, &old, NULL);
 		}
 		finish_wait(&conf->wait_barrier, &w);
 	}
@@ -1481,7 +1471,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 			    (atomic_read(&bitmap->behind_writes)
 			     < mddev->bitmap_info.max_write_behind) &&
 			    !waitqueue_active(&bitmap->behind_wait)) {
-				mbio = alloc_behind_master_bio(r1_bio, bio);
+				alloc_behind_master_bio(r1_bio, bio);
 			}
 
 			bitmap_startwrite(bitmap, r1_bio->sector,
@@ -1491,14 +1481,11 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 			first_clone = 0;
 		}
 
-		if (!mbio) {
-			if (r1_bio->behind_master_bio)
-				mbio = bio_clone_fast(r1_bio->behind_master_bio,
-						      GFP_NOIO,
-						      mddev->bio_set);
-			else
-				mbio = bio_clone_fast(bio, GFP_NOIO, mddev->bio_set);
-		}
+		if (r1_bio->behind_master_bio)
+			mbio = bio_clone_fast(r1_bio->behind_master_bio,
+					      GFP_NOIO, mddev->bio_set);
+		else
+			mbio = bio_clone_fast(bio, GFP_NOIO, mddev->bio_set);
 
 		if (r1_bio->behind_master_bio) {
 			if (test_bit(WriteMostly, &conf->mirrors[i].rdev->flags))
@@ -1550,13 +1537,13 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 	wake_up(&conf->wait_barrier);
 }
 
-static void raid1_make_request(struct mddev *mddev, struct bio *bio)
+static bool raid1_make_request(struct mddev *mddev, struct bio *bio)
 {
 	sector_t sectors;
 
 	if (unlikely(bio->bi_opf & REQ_PREFLUSH)) {
 		md_flush_request(mddev, bio);
-		return;
+		return true;
 	}
 
 	/*
@@ -1571,8 +1558,12 @@ static void raid1_make_request(struct mddev *mddev, struct bio *bio)
 
 	if (bio_data_dir(bio) == READ)
 		raid1_read_request(mddev, bio, sectors, NULL);
-	else
+	else {
+		if (!md_write_start(mddev,bio))
+			return false;
 		raid1_write_request(mddev, bio, sectors);
+	}
+	return true;
 }
 
 static void raid1_status(struct seq_file *seq, struct mddev *mddev)
@@ -1856,7 +1847,7 @@ static void end_sync_read(struct bio *bio)
 	 * or re-read if the read failed.
 	 * We don't do much here, just schedule handling by raid1d
 	 */
-	if (!bio->bi_error)
+	if (!bio->bi_status)
 		set_bit(R1BIO_Uptodate, &r1_bio->state);
 
 	if (atomic_dec_and_test(&r1_bio->remaining))
@@ -1865,7 +1856,7 @@ static void end_sync_read(struct bio *bio)
 
 static void end_sync_write(struct bio *bio)
 {
-	int uptodate = !bio->bi_error;
+	int uptodate = !bio->bi_status;
 	struct r1bio *r1_bio = get_resync_r1bio(bio);
 	struct mddev *mddev = r1_bio->mddev;
 	struct r1conf *conf = mddev->private;
@@ -2058,7 +2049,7 @@ static int fix_sync_read_error(struct r1bio *r1_bio)
 		idx ++;
 	}
 	set_bit(R1BIO_Uptodate, &r1_bio->state);
-	bio->bi_error = 0;
+	bio->bi_status = 0;
 	return 1;
 }
 
@@ -2080,20 +2071,15 @@ static void process_checks(struct r1bio *r1_bio)
 	/* Fix variable parts of all bios */
 	vcnt = (r1_bio->sectors + PAGE_SIZE / 512 - 1) >> (PAGE_SHIFT - 9);
 	for (i = 0; i < conf->raid_disks * 2; i++) {
-		int j;
-		int size;
-		int error;
-		struct bio_vec *bi;
+		blk_status_t status;
 		struct bio *b = r1_bio->bios[i];
 		struct resync_pages *rp = get_resync_pages(b);
 		if (b->bi_end_io != end_sync_read)
 			continue;
 		/* fixup the bio for reuse, but preserve errno */
-		error = b->bi_error;
+		status = b->bi_status;
 		bio_reset(b);
-		b->bi_error = error;
-		b->bi_vcnt = vcnt;
-		b->bi_iter.bi_size = r1_bio->sectors << 9;
+		b->bi_status = status;
 		b->bi_iter.bi_sector = r1_bio->sector +
 			conf->mirrors[i].rdev->data_offset;
 		b->bi_bdev = conf->mirrors[i].rdev->bdev;
@@ -2101,19 +2087,12 @@ static void process_checks(struct r1bio *r1_bio)
 		rp->raid_bio = r1_bio;
 		b->bi_private = rp;
 
-		size = b->bi_iter.bi_size;
-		bio_for_each_segment_all(bi, b, j) {
-			bi->bv_offset = 0;
-			if (size > PAGE_SIZE)
-				bi->bv_len = PAGE_SIZE;
-			else
-				bi->bv_len = size;
-			size -= PAGE_SIZE;
-		}
+		/* initialize bvec table again */
+		md_bio_reset_resync_pages(b, rp, r1_bio->sectors << 9);
 	}
 	for (primary = 0; primary < conf->raid_disks * 2; primary++)
 		if (r1_bio->bios[primary]->bi_end_io == end_sync_read &&
-		    !r1_bio->bios[primary]->bi_error) {
+		    !r1_bio->bios[primary]->bi_status) {
 			r1_bio->bios[primary]->bi_end_io = NULL;
 			rdev_dec_pending(conf->mirrors[primary].rdev, mddev);
 			break;
@@ -2123,7 +2102,7 @@ static void process_checks(struct r1bio *r1_bio)
 		int j;
 		struct bio *pbio = r1_bio->bios[primary];
 		struct bio *sbio = r1_bio->bios[i];
-		int error = sbio->bi_error;
+		blk_status_t status = sbio->bi_status;
 		struct page **ppages = get_resync_pages(pbio)->pages;
 		struct page **spages = get_resync_pages(sbio)->pages;
 		struct bio_vec *bi;
@@ -2132,12 +2111,12 @@ static void process_checks(struct r1bio *r1_bio)
 		if (sbio->bi_end_io != end_sync_read)
 			continue;
 		/* Now we can 'fixup' the error value */
-		sbio->bi_error = 0;
+		sbio->bi_status = 0;
 
 		bio_for_each_segment_all(bi, sbio, j)
 			page_len[j] = bi->bv_len;
 
-		if (!error) {
+		if (!status) {
 			for (j = vcnt; j-- ; ) {
 				if (memcmp(page_address(ppages[j]),
 					   page_address(spages[j]),
@@ -2149,7 +2128,7 @@ static void process_checks(struct r1bio *r1_bio)
 		if (j >= 0)
 			atomic64_add(r1_bio->sectors, &mddev->resync_mismatches);
 		if (j < 0 || (test_bit(MD_RECOVERY_CHECK, &mddev->recovery)
-			      && !error)) {
+			      && !status)) {
 			/* No need to write to this device. */
 			sbio->bi_end_io = NULL;
 			rdev_dec_pending(conf->mirrors[i].rdev, mddev);
@@ -2165,9 +2144,7 @@ static void sync_request_write(struct mddev *mddev, struct r1bio *r1_bio)
 	struct r1conf *conf = mddev->private;
 	int i;
 	int disks = conf->raid_disks * 2;
-	struct bio *bio, *wbio;
-
-	bio = r1_bio->bios[r1_bio->read_disk];
+	struct bio *wbio;
 
 	if (!test_bit(R1BIO_Uptodate, &r1_bio->state))
 		/* ouch - failed to read all of that. */
@@ -2362,8 +2339,6 @@ static int narrow_write_error(struct r1bio *r1_bio, int i)
 			wbio = bio_clone_fast(r1_bio->behind_master_bio,
 					      GFP_NOIO,
 					      mddev->bio_set);
-			/* We really need a _all clone */
-			wbio->bi_iter = (struct bvec_iter){ 0 };
 		} else {
 			wbio = bio_clone_fast(r1_bio->master_bio, GFP_NOIO,
 					      mddev->bio_set);
@@ -2400,11 +2375,11 @@ static void handle_sync_write_finished(struct r1conf *conf, struct r1bio *r1_bio
 		struct bio *bio = r1_bio->bios[m];
 		if (bio->bi_end_io == NULL)
 			continue;
-		if (!bio->bi_error &&
+		if (!bio->bi_status &&
 		    test_bit(R1BIO_MadeGood, &r1_bio->state)) {
 			rdev_clear_badblocks(rdev, r1_bio->sector, s, 0);
 		}
-		if (bio->bi_error &&
+		if (bio->bi_status &&
 		    test_bit(R1BIO_WriteError, &r1_bio->state)) {
 			if (!rdev_set_badblocks(rdev, r1_bio->sector, s, 0))
 				md_error(conf->mddev, rdev);
@@ -2615,6 +2590,7 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 	int good_sectors = RESYNC_SECTORS;
 	int min_bad = 0; /* number of sectors that are bad in all devices */
 	int idx = sector_to_idx(sector_nr);
+	int page_idx = 0;
 
 	if (!conf->r1buf_pool)
 		if (init_resync(conf))
@@ -2842,7 +2818,7 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 			bio = r1_bio->bios[i];
 			rp = get_resync_pages(bio);
 			if (bio->bi_end_io) {
-				page = resync_fetch_page(rp, rp->idx++);
+				page = resync_fetch_page(rp, page_idx);
 
 				/*
 				 * won't fail because the vec table is big
@@ -2854,7 +2830,7 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 		nr_sectors += len>>9;
 		sector_nr += len>>9;
 		sync_blocks -= (len>>9);
-	} while (get_resync_pages(r1_bio->bios[disk]->bi_private)->idx < RESYNC_PAGES);
+	} while (++page_idx < RESYNC_PAGES);
 
 	r1_bio->sectors = nr_sectors;
 
@@ -2955,7 +2931,7 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 	if (!conf->r1bio_pool)
 		goto abort;
 
-	conf->bio_split = bioset_create(BIO_POOL_SIZE, 0);
+	conf->bio_split = bioset_create(BIO_POOL_SIZE, 0, 0);
 	if (!conf->bio_split)
 		goto abort;
 

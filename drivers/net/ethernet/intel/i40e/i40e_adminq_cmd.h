@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2016 Intel Corporation.
+ * Copyright(c) 2013 - 2017 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -531,7 +531,7 @@ struct i40e_aqc_mac_address_read {
 #define I40E_AQC_PORT_ADDR_VALID	0x40
 #define I40E_AQC_WOL_ADDR_VALID		0x80
 #define I40E_AQC_MC_MAG_EN_VALID	0x100
-#define I40E_AQC_ADDR_VALID_MASK	0x1F0
+#define I40E_AQC_ADDR_VALID_MASK	0x3F0
 	u8	reserved[6];
 	__le32	addr_high;
 	__le32	addr_low;

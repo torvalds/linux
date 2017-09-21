@@ -1,6 +1,7 @@
 #ifndef _PROBE_EVENT_H
 #define _PROBE_EVENT_H
 
+#include <linux/compiler.h>
 #include <stdbool.h>
 #include "intlist.h"
 
@@ -171,8 +172,7 @@ void arch__fix_tev_from_maps(struct perf_probe_event *pev,
 			     struct symbol *sym);
 
 /* If there is no space to write, returns -E2BIG. */
-int e_snprintf(char *str, size_t size, const char *format, ...)
-	__attribute__((format(printf, 3, 4)));
+int e_snprintf(char *str, size_t size, const char *format, ...) __printf(3, 4);
 
 /* Maximum index number of event-name postfix */
 #define MAX_EVENT_INDEX	1024

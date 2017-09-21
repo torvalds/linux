@@ -87,6 +87,7 @@ static inline bool pte_xchg(pte_t *ptep, pte_t old, pte_t new)
 	unsigned long *p = (unsigned long *)ptep;
 	__be64 prev;
 
+	/* See comment in switch_mm_irqs_off() */
 	prev = (__force __be64)__cmpxchg_u64(p, (__force unsigned long)pte_raw(old),
 					     (__force unsigned long)pte_raw(new));
 

@@ -27,7 +27,7 @@
 		reg = <0x0 0x80000000 0x0 0x80000000>;
 	};
 
-	pcie-controller@01003000 {
+	pcie@1003000 {
 		status = "okay";
 
 		avddio-pex-supply = <&vdd_1v05_run>;

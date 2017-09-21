@@ -127,6 +127,29 @@ static int ceph_lock_wait_for_completion(struct ceph_mds_client *mdsc,
 	dout("ceph_lock_wait_for_completion: request %llu was interrupted\n",
 	     req->r_tid);
 
+	mutex_lock(&mdsc->mutex);
+	if (test_bit(CEPH_MDS_R_GOT_RESULT, &req->r_req_flags)) {
+		err = 0;
+	} else {
+		/*
+		 * ensure we aren't running concurrently with
+		 * ceph_fill_trace or ceph_readdir_prepopulate, which
+		 * rely on locks (dir mutex) held by our caller.
+		 */
+		mutex_lock(&req->r_fill_mutex);
+		req->r_err = err;
+		set_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags);
+		mutex_unlock(&req->r_fill_mutex);
+
+		if (!req->r_session) {
+			// haven't sent the request
+			err = 0;
+		}
+	}
+	mutex_unlock(&mdsc->mutex);
+	if (!err)
+		return 0;
+
 	intr_req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_SETFILELOCK,
 					    USE_AUTH_MDS);
 	if (IS_ERR(intr_req))
@@ -146,7 +169,7 @@ static int ceph_lock_wait_for_completion(struct ceph_mds_client *mdsc,
 	if (err && err != -ERESTARTSYS)
 		return err;
 
-	wait_for_completion(&req->r_completion);
+	wait_for_completion_killable(&req->r_safe_completion);
 	return 0;
 }
 

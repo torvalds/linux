@@ -1,0 +1,37 @@
+Texas Instruments TI-SCI Clocks
+===============================
+
+All clocks on Texas Instruments' SoCs that contain a System Controller,
+are only controlled by this entity. Communication between a host processor
+running an OS and the System Controller happens through a protocol known
+as TI-SCI[1]. This clock implementation plugs into the common clock
+framework and makes use of the TI-SCI protocol on clock API requests.
+
+[1] Documentation/devicetree/bindings/arm/keystone/ti,sci.txt
+
+Required properties:
+-------------------
+- compatible: Must be "ti,k2g-sci-clk"
+- #clock-cells: Shall be 2.
+  In clock consumers, this cell represents the device ID and clock ID
+  exposed by the PM firmware. The assignments can be found in the header
+  files <dt-bindings/genpd/<soc>.h> (which covers the device IDs) and
+  <dt-bindings/clock/<soc>.h> (which covers the clock IDs), where <soc>
+  is the SoC involved, for example 'k2g'.
+
+Examples:
+--------
+
+pmmc: pmmc {
+	compatible = "ti,k2g-sci";
+
+	k2g_clks: clocks {
+		compatible = "ti,k2g-sci-clk";
+		#clock-cells = <2>;
+	};
+};
+
+uart0: serial@2530c00 {
+	compatible = "ns16550a";
+	clocks = <&k2g_clks 0x2c 0>;
+};

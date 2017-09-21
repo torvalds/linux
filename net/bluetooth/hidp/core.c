@@ -36,6 +36,7 @@
 #define VERSION "1.2"
 
 static DECLARE_RWSEM(hidp_session_sem);
+static DECLARE_WAIT_QUEUE_HEAD(hidp_session_wq);
 static LIST_HEAD(hidp_session_list);
 
 static unsigned char hidp_keycode[256] = {
@@ -112,9 +113,9 @@ static int hidp_send_message(struct hidp_session *session, struct socket *sock,
 		return -ENOMEM;
 	}
 
-	*skb_put(skb, 1) = hdr;
+	skb_put_u8(skb, hdr);
 	if (data && size > 0)
-		memcpy(skb_put(skb, size), data, size);
+		skb_put_data(skb, data, size);
 
 	skb_queue_tail(transmit, skb);
 	wake_up_interruptible(sk_sleep(sk));
@@ -1068,12 +1069,12 @@ static int hidp_session_start_sync(struct hidp_session *session)
  * Wake up session thread and notify it to stop. This is asynchronous and
  * returns immediately. Call this whenever a runtime error occurs and you want
  * the session to stop.
- * Note: wake_up_process() performs any necessary memory-barriers for us.
+ * Note: wake_up_interruptible() performs any necessary memory-barriers for us.
  */
 static void hidp_session_terminate(struct hidp_session *session)
 {
 	atomic_inc(&session->terminate);
-	wake_up_process(session->task);
+	wake_up_interruptible(&hidp_session_wq);
 }
 
 /*
@@ -1180,7 +1181,9 @@ static void hidp_session_run(struct hidp_session *session)
 	struct sock *ctrl_sk = session->ctrl_sock->sk;
 	struct sock *intr_sk = session->intr_sock->sk;
 	struct sk_buff *skb;
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 
+	add_wait_queue(&hidp_session_wq, &wait);
 	for (;;) {
 		/*
 		 * This thread can be woken up two ways:
@@ -1188,12 +1191,10 @@ static void hidp_session_run(struct hidp_session *session)
 		 *    session->terminate flag and wakes this thread up.
 		 *  - Via modifying the socket state of ctrl/intr_sock. This
 		 *    thread is woken up by ->sk_state_changed().
-		 *
-		 * Note: set_current_state() performs any necessary
-		 * memory-barriers for us.
 		 */
-		set_current_state(TASK_INTERRUPTIBLE);
 
+		/* Ensure session->terminate is updated */
+		smp_mb__before_atomic();
 		if (atomic_read(&session->terminate))
 			break;
 
@@ -1227,11 +1228,22 @@ static void hidp_session_run(struct hidp_session *session)
 		hidp_process_transmit(session, &session->ctrl_transmit,
 				      session->ctrl_sock);
 
-		schedule();
+		wait_woken(&wait, TASK_INTERRUPTIBLE, MAX_SCHEDULE_TIMEOUT);
 	}
+	remove_wait_queue(&hidp_session_wq, &wait);
 
 	atomic_inc(&session->terminate);
-	set_current_state(TASK_RUNNING);
+
+	/* Ensure session->terminate is updated */
+	smp_mb__after_atomic();
+}
+
+static int hidp_session_wake_function(wait_queue_entry_t *wait,
+				      unsigned int mode,
+				      int sync, void *key)
+{
+	wake_up_interruptible(&hidp_session_wq);
+	return false;
 }
 
 /*
@@ -1244,7 +1256,8 @@ static void hidp_session_run(struct hidp_session *session)
 static int hidp_session_thread(void *arg)
 {
 	struct hidp_session *session = arg;
-	wait_queue_t ctrl_wait, intr_wait;
+	DEFINE_WAIT_FUNC(ctrl_wait, hidp_session_wake_function);
+	DEFINE_WAIT_FUNC(intr_wait, hidp_session_wake_function);
 
 	BT_DBG("session %p", session);
 
@@ -1254,8 +1267,6 @@ static int hidp_session_thread(void *arg)
 	set_user_nice(current, -15);
 	hidp_set_timer(session);
 
-	init_waitqueue_entry(&ctrl_wait, current);
-	init_waitqueue_entry(&intr_wait, current);
 	add_wait_queue(sk_sleep(session->ctrl_sock->sk), &ctrl_wait);
 	add_wait_queue(sk_sleep(session->intr_sock->sk), &intr_wait);
 	/* This memory barrier is paired with wq_has_sleeper(). See

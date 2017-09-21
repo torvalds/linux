@@ -39,7 +39,6 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <drm/drm_cache.h>
-#include <drm/drm_mem_util.h>
 #include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
@@ -53,14 +52,16 @@
  */
 static void ttm_tt_alloc_page_directory(struct ttm_tt *ttm)
 {
-	ttm->pages = drm_calloc_large(ttm->num_pages, sizeof(void*));
+	ttm->pages = kvmalloc_array(ttm->num_pages, sizeof(void*),
+			GFP_KERNEL | __GFP_ZERO);
 }
 
 static void ttm_dma_tt_alloc_page_directory(struct ttm_dma_tt *ttm)
 {
-	ttm->ttm.pages = drm_calloc_large(ttm->ttm.num_pages,
+	ttm->ttm.pages = kvmalloc_array(ttm->ttm.num_pages,
 					  sizeof(*ttm->ttm.pages) +
-					  sizeof(*ttm->dma_address));
+					  sizeof(*ttm->dma_address),
+					  GFP_KERNEL | __GFP_ZERO);
 	ttm->dma_address = (void *) (ttm->ttm.pages + ttm->ttm.num_pages);
 }
 
@@ -208,7 +209,7 @@ EXPORT_SYMBOL(ttm_tt_init);
 
 void ttm_tt_fini(struct ttm_tt *ttm)
 {
-	drm_free_large(ttm->pages);
+	kvfree(ttm->pages);
 	ttm->pages = NULL;
 }
 EXPORT_SYMBOL(ttm_tt_fini);
@@ -243,7 +244,7 @@ void ttm_dma_tt_fini(struct ttm_dma_tt *ttm_dma)
 {
 	struct ttm_tt *ttm = &ttm_dma->ttm;
 
-	drm_free_large(ttm->pages);
+	kvfree(ttm->pages);
 	ttm->pages = NULL;
 	ttm_dma->dma_address = NULL;
 }

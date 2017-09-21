@@ -2506,7 +2506,6 @@ static void __configure_capture_pp_input(struct atomisp_sub_device *asd,
 	struct ia_css_pipe_extra_config *pipe_extra_configs =
 		&stream_env->pipe_extra_configs[pipe_id];
 	unsigned int hor_ds_factor = 0, ver_ds_factor = 0;
-#define CEIL_DIV(a, b)       ((b) ? ((a) + (b) - 1) / (b) : 0)
 
 	if (width == 0 && height == 0)
 		return;

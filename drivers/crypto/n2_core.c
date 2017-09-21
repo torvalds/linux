@@ -2169,7 +2169,7 @@ static int n2_mau_remove(struct platform_device *dev)
 	return 0;
 }
 
-static struct of_device_id n2_crypto_match[] = {
+static const struct of_device_id n2_crypto_match[] = {
 	{
 		.name = "n2cp",
 		.compatible = "SUNW,n2-cwq",
@@ -2196,7 +2196,7 @@ static struct platform_driver n2_crypto_driver = {
 	.remove		=	n2_crypto_remove,
 };
 
-static struct of_device_id n2_mau_match[] = {
+static const struct of_device_id n2_mau_match[] = {
 	{
 		.name = "ncp",
 		.compatible = "SUNW,n2-mau",

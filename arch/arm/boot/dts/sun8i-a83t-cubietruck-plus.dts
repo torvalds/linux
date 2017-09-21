@@ -45,6 +45,8 @@
 /dts-v1/;
 #include "sun8i-a83t.dtsi"
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "Cubietech Cubietruck Plus";
 	compatible = "cubietech,cubietruck-plus", "allwinner,sun8i-a83t";
@@ -56,10 +58,56 @@
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		blue {
+			label = "cubietruck-plus:blue:usr";
+			gpios = <&pio 3 25 GPIO_ACTIVE_HIGH>; /* PD25 */
+		};
+
+		orange {
+			label = "cubietruck-plus:orange:usr";
+			gpios = <&pio 3 26 GPIO_ACTIVE_HIGH>; /* PD26 */
+		};
+
+		white {
+			label = "cubietruck-plus:white:usr";
+			gpios = <&pio 3 27 GPIO_ACTIVE_HIGH>; /* PD27 */
+		};
+
+		green {
+			label = "cubietruck-plus:green:usr";
+			gpios = <&pio 4 4 GPIO_ACTIVE_HIGH>; /* PE4 */
+		};
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "On-board SPDIF";
+
+		simple-audio-card,cpu {
+			sound-dai = <&spdif>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&spdif_out>;
+		};
+	};
+
+	spdif_out: spdif-out {
+		#sound-dai-cells = <0>;
+		compatible = "linux,spdif-dit";
+	};
+};
+
+&spdif {
+	status = "okay";
 };
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_b>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };

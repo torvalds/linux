@@ -31,6 +31,7 @@ static const struct of_device_id machines[] __initconst = {
 	{ .compatible = "arm,integrator-ap", },
 	{ .compatible = "arm,integrator-cp", },
 
+	{ .compatible = "hisilicon,hi3660", },
 	{ .compatible = "hisilicon,hi6220", },
 
 	{ .compatible = "fsl,imx27", },

@@ -103,7 +103,7 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 			goto err2;
 	}
 
-	if (buffer->sg_table == NULL) {
+	if (!buffer->sg_table) {
 		WARN_ONCE(1, "This heap needs to set the sgtable");
 		ret = -EINVAL;
 		goto err1;
@@ -115,7 +115,6 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 
 	buffer->dev = dev;
 	buffer->size = len;
-	INIT_LIST_HEAD(&buffer->vmas);
 	INIT_LIST_HEAD(&buffer->attachments);
 	mutex_init(&buffer->lock);
 	mutex_lock(&dev->buffer_lock);
@@ -135,7 +134,6 @@ void ion_buffer_destroy(struct ion_buffer *buffer)
 	if (WARN_ON(buffer->kmap_cnt > 0))
 		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
 	buffer->heap->ops->free(buffer);
-	vfree(buffer->pages);
 	kfree(buffer);
 }
 
@@ -163,7 +161,7 @@ static void *ion_buffer_kmap_get(struct ion_buffer *buffer)
 		return buffer->vaddr;
 	}
 	vaddr = buffer->heap->ops->map_kernel(buffer->heap, buffer);
-	if (WARN_ONCE(vaddr == NULL,
+	if (WARN_ONCE(!vaddr,
 		      "heap->ops->map_kernel should return ERR_PTR on error"))
 		return ERR_PTR(-EINVAL);
 	if (IS_ERR(vaddr))
@@ -221,7 +219,7 @@ struct ion_dma_buf_attachment {
 };
 
 static int ion_dma_buf_attach(struct dma_buf *dmabuf, struct device *dev,
-				struct dma_buf_attachment *attachment)
+			      struct dma_buf_attachment *attachment)
 {
 	struct ion_dma_buf_attachment *a;
 	struct sg_table *table;
@@ -264,26 +262,19 @@ static void ion_dma_buf_detatch(struct dma_buf *dmabuf,
 	kfree(a);
 }
 
-
 static struct sg_table *ion_map_dma_buf(struct dma_buf_attachment *attachment,
 					enum dma_data_direction direction)
 {
 	struct ion_dma_buf_attachment *a = attachment->priv;
 	struct sg_table *table;
-	int ret;
 
 	table = a->table;
 
 	if (!dma_map_sg(attachment->dev, table->sgl, table->nents,
-			direction)){
-		ret = -ENOMEM;
-		goto err;
-	}
-	return table;
+			direction))
+		return ERR_PTR(-ENOMEM);
 
-err:
-	free_duped_table(table);
-	return ERR_PTR(ret);
+	return table;
 }
 
 static void ion_unmap_dma_buf(struct dma_buf_attachment *attachment,
@@ -354,11 +345,10 @@ static int ion_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 		mutex_unlock(&buffer->lock);
 	}
 
-
 	mutex_lock(&buffer->lock);
 	list_for_each_entry(a, &buffer->attachments, list) {
 		dma_sync_sg_for_cpu(a->dev, a->table->sgl, a->table->nents,
-					DMA_BIDIRECTIONAL);
+				    DMA_BIDIRECTIONAL);
 	}
 	mutex_unlock(&buffer->lock);
 
@@ -380,7 +370,7 @@ static int ion_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 	mutex_lock(&buffer->lock);
 	list_for_each_entry(a, &buffer->attachments, list) {
 		dma_sync_sg_for_device(a->dev, a->table->sgl, a->table->nents,
-					DMA_BIDIRECTIONAL);
+				       DMA_BIDIRECTIONAL);
 	}
 	mutex_unlock(&buffer->lock);
 
@@ -435,7 +425,7 @@ int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
 	}
 	up_read(&dev->lock);
 
-	if (buffer == NULL)
+	if (!buffer)
 		return -ENODEV;
 
 	if (IS_ERR(buffer))
@@ -596,7 +586,7 @@ void ion_device_add_heap(struct ion_heap *heap)
 }
 EXPORT_SYMBOL(ion_device_add_heap);
 
-int ion_device_create(void)
+static int ion_device_create(void)
 {
 	struct ion_device *idev;
 	int ret;

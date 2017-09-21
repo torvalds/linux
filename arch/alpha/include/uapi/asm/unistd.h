@@ -475,5 +475,19 @@
 #define __NR_getrandom			511
 #define __NR_memfd_create		512
 #define __NR_execveat			513
+#define __NR_seccomp			514
+#define __NR_bpf			515
+#define __NR_userfaultfd		516
+#define __NR_membarrier			517
+#define __NR_mlock2			518
+#define __NR_copy_file_range		519
+#define __NR_preadv2			520
+#define __NR_pwritev2			521
+#define __NR_statx			522
+
+/* Alpha doesn't have protection keys. */
+#define __IGNORE_pkey_mprotect
+#define __IGNORE_pkey_alloc
+#define __IGNORE_pkey_free
 
 #endif /* _UAPI_ALPHA_UNISTD_H */

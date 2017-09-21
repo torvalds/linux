@@ -1036,7 +1036,7 @@ static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
 		goto out_idle;
 	}
 	if (req->ie_len)
-		memcpy(skb_put(skb, req->ie_len), req->ie, req->ie_len);
+		skb_put_data(skb, req->ie, req->ie_len);
 
 	ret = wl1251_cmd_template_set(wl, CMD_PROBE_REQ, skb->data,
 				      skb->len);
@@ -1571,6 +1571,7 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 
 	wl->state = WL1251_STATE_OFF;
 	mutex_init(&wl->mutex);
+	spin_lock_init(&wl->wl_lock);
 
 	wl->tx_mgmt_frm_rate = DEFAULT_HW_GEN_TX_RATE;
 	wl->tx_mgmt_frm_mod = DEFAULT_HW_GEN_MODULATION_TYPE;

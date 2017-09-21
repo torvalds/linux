@@ -255,6 +255,7 @@ struct i915_address_space {
 	struct drm_i915_file_private *file;
 	struct list_head global_link;
 	u64 total;		/* size addr space maps (ex. 2GB for ggtt) */
+	u64 reserved;		/* size addr space reserved */
 
 	bool closed;
 
@@ -588,6 +589,7 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 #define PIN_MAPPABLE		BIT(1)
 #define PIN_ZONE_4G		BIT(2)
 #define PIN_NONFAULT		BIT(3)
+#define PIN_NOEVICT		BIT(4)
 
 #define PIN_MBZ			BIT(5) /* I915_VMA_PIN_OVERFLOW */
 #define PIN_GLOBAL		BIT(6) /* I915_VMA_GLOBAL_BIND */

@@ -323,7 +323,7 @@ static int snd_pcsp_playback_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_pcm_ops snd_pcsp_playback_ops = {
+static const struct snd_pcm_ops snd_pcsp_playback_ops = {
 	.open = snd_pcsp_playback_open,
 	.close = snd_pcsp_playback_close,
 	.ioctl = snd_pcm_lib_ioctl,

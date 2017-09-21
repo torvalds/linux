@@ -56,6 +56,19 @@ static inline void ppc_msgsync(void)
 				: : "i" (CPU_FTR_HVMODE|CPU_FTR_ARCH_300));
 }
 
+static inline void _ppc_msgclr(u32 msg)
+{
+	__asm__ __volatile__ (ASM_FTR_IFSET(PPC_MSGCLR(%1), PPC_MSGCLRP(%1), %0)
+				: : "i" (CPU_FTR_HVMODE), "r" (msg));
+}
+
+static inline void ppc_msgclr(enum ppc_dbell type)
+{
+	u32 msg = PPC_DBELL_TYPE(type);
+
+	_ppc_msgclr(msg);
+}
+
 #else /* CONFIG_PPC_BOOK3S */
 
 #define PPC_DBELL_MSGTYPE		PPC_DBELL

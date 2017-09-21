@@ -388,6 +388,13 @@ config HID_ICADE
 	To compile this driver as a module, choose M here: the
 	module will be called hid-icade.
 
+config HID_ITE
+	tristate "ITE devices"
+	depends on HID
+	default !EXPERT
+	---help---
+	Support for ITE devices not fully compliant with HID standard.
+
 config HID_TWINHAN
 	tristate "Twinhan IR remote control"
 	depends on HID
@@ -740,6 +747,14 @@ config HID_PRIMAX
 	---help---
 	Support for Primax devices that are not fully compliant with the
 	HID standard.
+
+config HID_RETRODE
+	tristate "Retrode"
+	depends on USB_HID
+	---help---
+	Support for
+
+	  * Retrode 2 cartridge and controller adapter
 
 config HID_ROCCAT
 	tristate "Roccat device support"

@@ -862,6 +862,20 @@ static inline int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
 		return -EINVAL;
 	}
 }
+
+static inline int cpufreq_table_count_valid_entries(const struct cpufreq_policy *policy)
+{
+	struct cpufreq_frequency_table *pos;
+	int count = 0;
+
+	if (unlikely(!policy->freq_table))
+		return 0;
+
+	cpufreq_for_each_valid_entry(pos, policy->freq_table)
+		count++;
+
+	return count;
+}
 #else
 static inline int cpufreq_boost_trigger_state(int state)
 {
@@ -882,6 +896,8 @@ static inline bool policy_has_boost_freq(struct cpufreq_policy *policy)
 	return false;
 }
 #endif
+
+extern unsigned int arch_freq_get_on_cpu(int cpu);
 
 /* the following are really really optional */
 extern struct freq_attr cpufreq_freq_attr_scaling_available_freqs;

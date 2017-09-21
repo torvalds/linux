@@ -67,8 +67,6 @@ struct mmu_rb_handler {
 
 static unsigned long mmu_node_start(struct mmu_rb_node *);
 static unsigned long mmu_node_last(struct mmu_rb_node *);
-static inline void mmu_notifier_page(struct mmu_notifier *, struct mm_struct *,
-				     unsigned long);
 static inline void mmu_notifier_range_start(struct mmu_notifier *,
 					    struct mm_struct *,
 					    unsigned long, unsigned long);
@@ -82,7 +80,6 @@ static void do_remove(struct mmu_rb_handler *handler,
 static void handle_remove(struct work_struct *work);
 
 static const struct mmu_notifier_ops mn_opts = {
-	.invalidate_page = mmu_notifier_page,
 	.invalidate_range_start = mmu_notifier_range_start,
 };
 
@@ -283,12 +280,6 @@ void hfi1_mmu_rb_remove(struct mmu_rb_handler *handler,
 	spin_unlock_irqrestore(&handler->lock, flags);
 
 	handler->ops->remove(handler->ops_arg, node);
-}
-
-static inline void mmu_notifier_page(struct mmu_notifier *mn,
-				     struct mm_struct *mm, unsigned long addr)
-{
-	mmu_notifier_mem_invalidate(mn, mm, addr, addr + PAGE_SIZE);
 }
 
 static inline void mmu_notifier_range_start(struct mmu_notifier *mn,

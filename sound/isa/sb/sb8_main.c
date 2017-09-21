@@ -46,19 +46,19 @@ MODULE_LICENSE("GPL");
 #define SB8_DEN(v)	((SB8_CLOCK + (v) / 2) / (v))
 #define SB8_RATE(v)	(SB8_CLOCK / SB8_DEN(v))
 
-static struct snd_ratnum clock = {
+static const struct snd_ratnum clock = {
 	.num = SB8_CLOCK,
 	.den_min = 1,
 	.den_max = 256,
 	.den_step = 1,
 };
 
-static struct snd_pcm_hw_constraint_ratnums hw_constraints_clock = {
+static const struct snd_pcm_hw_constraint_ratnums hw_constraints_clock = {
 	.nrats = 1,
 	.rats = &clock,
 };
 
-static struct snd_ratnum stereo_clocks[] = {
+static const struct snd_ratnum stereo_clocks[] = {
 	{
 		.num = SB8_CLOCK,
 		.den_min = SB8_DEN(22050),

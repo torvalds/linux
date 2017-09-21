@@ -1047,13 +1047,15 @@ out:
 	return ret;
 }
 
-static struct rpc_rqst *xprt_dynamic_alloc_slot(struct rpc_xprt *xprt, gfp_t gfp_flags)
+static struct rpc_rqst *xprt_dynamic_alloc_slot(struct rpc_xprt *xprt)
 {
 	struct rpc_rqst *req = ERR_PTR(-EAGAIN);
 
 	if (!atomic_add_unless(&xprt->num_reqs, 1, xprt->max_reqs))
 		goto out;
-	req = kzalloc(sizeof(struct rpc_rqst), gfp_flags);
+	spin_unlock(&xprt->reserve_lock);
+	req = kzalloc(sizeof(struct rpc_rqst), GFP_NOFS);
+	spin_lock(&xprt->reserve_lock);
 	if (req != NULL)
 		goto out;
 	atomic_dec(&xprt->num_reqs);
@@ -1081,7 +1083,7 @@ void xprt_alloc_slot(struct rpc_xprt *xprt, struct rpc_task *task)
 		list_del(&req->rq_list);
 		goto out_init_req;
 	}
-	req = xprt_dynamic_alloc_slot(xprt, GFP_NOWAIT|__GFP_NOWARN);
+	req = xprt_dynamic_alloc_slot(xprt);
 	if (!IS_ERR(req))
 		goto out_init_req;
 	switch (PTR_ERR(req)) {

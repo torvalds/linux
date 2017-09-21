@@ -591,11 +591,11 @@ void ptep_zap_key(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 	unsigned long ptev;
 	pgste_t pgste;
 
-	/* Clear storage key */
+	/* Clear storage key ACC and F, but set R/C */
 	preempt_disable();
 	pgste = pgste_get_lock(ptep);
-	pgste_val(pgste) &= ~(PGSTE_ACC_BITS | PGSTE_FP_BIT |
-			      PGSTE_GR_BIT | PGSTE_GC_BIT);
+	pgste_val(pgste) &= ~(PGSTE_ACC_BITS | PGSTE_FP_BIT);
+	pgste_val(pgste) |= PGSTE_GR_BIT | PGSTE_GC_BIT;
 	ptev = pte_val(*ptep);
 	if (!(ptev & _PAGE_INVALID) && (ptev & _PAGE_WRITE))
 		page_set_storage_key(ptev & PAGE_MASK, PAGE_DEFAULT_KEY, 1);
@@ -610,6 +610,7 @@ bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long addr)
 {
 	spinlock_t *ptl;
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 	pgste_t pgste;
@@ -618,7 +619,10 @@ bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long addr)
 	bool dirty;
 
 	pgd = pgd_offset(mm, addr);
-	pud = pud_alloc(mm, pgd, addr);
+	p4d = p4d_alloc(mm, pgd, addr);
+	if (!p4d)
+		return false;
+	pud = pud_alloc(mm, p4d, addr);
 	if (!pud)
 		return false;
 	pmd = pmd_alloc(mm, pud, addr);

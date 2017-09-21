@@ -549,7 +549,7 @@ static void journal_write_endio(struct bio *bio)
 {
 	struct journal_write *w = bio->bi_private;
 
-	cache_set_err_on(bio->bi_error, w->c, "journal io error");
+	cache_set_err_on(bio->bi_status, w->c, "journal io error");
 	closure_put(&w->c->journal.io);
 }
 

@@ -1383,6 +1383,10 @@ static int kcm_attach(struct socket *sock, struct socket *csock,
 	if (!csk)
 		return -EINVAL;
 
+	/* We must prevent loops or risk deadlock ! */
+	if (csk->sk_family == PF_KCM)
+		return -EOPNOTSUPP;
+
 	psock = kmem_cache_zalloc(kcm_psockp, GFP_KERNEL);
 	if (!psock)
 		return -ENOMEM;
@@ -1985,7 +1989,7 @@ static int kcm_create(struct net *net, struct socket *sock,
 	return 0;
 }
 
-static struct net_proto_family kcm_family_ops = {
+static const struct net_proto_family kcm_family_ops = {
 	.family = PF_KCM,
 	.create = kcm_create,
 	.owner  = THIS_MODULE,

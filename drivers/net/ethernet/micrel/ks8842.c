@@ -669,7 +669,7 @@ static void ks8842_rx_frame(struct net_device *netdev,
 			ks8842_update_rx_counters(netdev, status, len);
 
 			if (adapter->conf_flags & KS884X_16BIT) {
-				u16 *data16 = (u16 *)skb_put(skb, len);
+				u16 *data16 = skb_put(skb, len);
 				ks8842_select_bank(adapter, 17);
 				while (len > 0) {
 					*data16++ = ioread16(adapter->hw_addr +
@@ -679,7 +679,7 @@ static void ks8842_rx_frame(struct net_device *netdev,
 					len -= sizeof(u32);
 				}
 			} else {
-				u32 *data = (u32 *)skb_put(skb, len);
+				u32 *data = skb_put(skb, len);
 
 				ks8842_select_bank(adapter, 17);
 				while (len > 0) {

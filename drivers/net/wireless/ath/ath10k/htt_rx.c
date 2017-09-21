@@ -829,6 +829,19 @@ static void ath10k_htt_rx_h_signal(struct ath10k *ar,
 				   struct ieee80211_rx_status *status,
 				   struct htt_rx_desc *rxd)
 {
+	int i;
+
+	for (i = 0; i < IEEE80211_MAX_CHAINS ; i++) {
+		status->chains &= ~BIT(i);
+
+		if (rxd->ppdu_start.rssi_chains[i].pri20_mhz != 0x80) {
+			status->chain_signal[i] = ATH10K_DEFAULT_NOISE_FLOOR +
+				rxd->ppdu_start.rssi_chains[i].pri20_mhz;
+
+			status->chains |= BIT(i);
+		}
+	}
+
 	/* FIXME: Get real NF */
 	status->signal = ATH10K_DEFAULT_NOISE_FLOOR +
 			 rxd->ppdu_start.rssi_comb;
@@ -2229,9 +2242,15 @@ ath10k_update_per_peer_tx_stats(struct ath10k *ar,
 	txrate.mcs = ATH10K_HW_MCS_RATE(peer_stats->ratecode);
 	sgi = ATH10K_HW_GI(peer_stats->flags);
 
-	if (((txrate.flags == WMI_RATE_PREAMBLE_HT) ||
-	     (txrate.flags == WMI_RATE_PREAMBLE_VHT)) && txrate.mcs > 9) {
-		ath10k_warn(ar, "Invalid mcs %hhd peer stats", txrate.mcs);
+	if (txrate.flags == WMI_RATE_PREAMBLE_VHT && txrate.mcs > 9) {
+		ath10k_warn(ar, "Invalid VHT mcs %hhd peer stats",  txrate.mcs);
+		return;
+	}
+
+	if (txrate.flags == WMI_RATE_PREAMBLE_HT &&
+	    (txrate.mcs > 7 || txrate.nss < 1)) {
+		ath10k_warn(ar, "Invalid HT mcs %hhd nss %hhd peer stats",
+			    txrate.mcs, txrate.nss);
 		return;
 	}
 
@@ -2254,7 +2273,7 @@ ath10k_update_per_peer_tx_stats(struct ath10k *ar,
 		arsta->txrate.legacy = rate;
 	} else if (txrate.flags == WMI_RATE_PREAMBLE_HT) {
 		arsta->txrate.flags = RATE_INFO_FLAGS_MCS;
-		arsta->txrate.mcs = txrate.mcs;
+		arsta->txrate.mcs = txrate.mcs + 8 * (txrate.nss - 1);
 	} else {
 		arsta->txrate.flags = RATE_INFO_FLAGS_VHT_MCS;
 		arsta->txrate.mcs = txrate.mcs;

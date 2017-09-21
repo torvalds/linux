@@ -1,7 +1,8 @@
 /*
  * Device Tree file for Freescale LS2080A QDS Board.
  *
- * Copyright (C) 2016-17, Freescale Semiconductor
+ * Copyright 2016 Freescale Semiconductor, Inc.
+ * Copyright 2017 NXP
  *
  * Abhimanyu Saini <abhimanyu.saini@nxp.com>
  *
@@ -45,6 +46,7 @@
  */
 
 &esdhc {
+	mmc-hs200-1_8v;
 	status = "okay";
 };
 

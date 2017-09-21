@@ -439,14 +439,15 @@ static int smsm_get_size_info(struct qcom_smsm *smsm)
 	} *info;
 
 	info = qcom_smem_get(QCOM_SMEM_HOST_ANY, SMEM_SMSM_SIZE_INFO, &size);
-	if (PTR_ERR(info) == -ENOENT || size != sizeof(*info)) {
+	if (IS_ERR(info) && PTR_ERR(info) != -ENOENT) {
+		if (PTR_ERR(info) != -EPROBE_DEFER)
+			dev_err(smsm->dev, "unable to retrieve smsm size info\n");
+		return PTR_ERR(info);
+	} else if (IS_ERR(info) || size != sizeof(*info)) {
 		dev_warn(smsm->dev, "no smsm size info, using defaults\n");
 		smsm->num_entries = SMSM_DEFAULT_NUM_ENTRIES;
 		smsm->num_hosts = SMSM_DEFAULT_NUM_HOSTS;
 		return 0;
-	} else if (IS_ERR(info)) {
-		dev_err(smsm->dev, "unable to retrieve smsm size info\n");
-		return PTR_ERR(info);
 	}
 
 	smsm->num_entries = info->num_entries;

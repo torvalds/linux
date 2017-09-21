@@ -239,7 +239,7 @@ int snd_mixart_send_msg(struct mixart_mgr *mgr, struct mixart_msg *request, int 
 	struct mixart_msg resp;
 	u32 msg_frame = 0; /* set to 0, so it's no notification to wait for, but the answer */
 	int err;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	long timeout;
 
 	init_waitqueue_entry(&wait, current);
@@ -284,7 +284,7 @@ int snd_mixart_send_msg_wait_notif(struct mixart_mgr *mgr,
 				   struct mixart_msg *request, u32 notif_event)
 {
 	int err;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	long timeout;
 
 	if (snd_BUG_ON(!notif_event))

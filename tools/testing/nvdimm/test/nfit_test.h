@@ -13,6 +13,7 @@
 #ifndef __NFIT_TEST_H__
 #define __NFIT_TEST_H__
 #include <linux/list.h>
+#include <linux/uuid.h>
 #include <linux/ioport.h>
 #include <linux/spinlock_types.h>
 
@@ -36,7 +37,8 @@ typedef void *acpi_handle;
 
 typedef struct nfit_test_resource *(*nfit_test_lookup_fn)(resource_size_t);
 typedef union acpi_object *(*nfit_test_evaluate_dsm_fn)(acpi_handle handle,
-		const u8 *uuid, u64 rev, u64 func, union acpi_object *argv4);
+		 const guid_t *guid, u64 rev, u64 func,
+		 union acpi_object *argv4);
 void __iomem *__wrap_ioremap_nocache(resource_size_t offset,
 		unsigned long size);
 void __wrap_iounmap(volatile void __iomem *addr);

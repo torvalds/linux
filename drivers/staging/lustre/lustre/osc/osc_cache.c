@@ -472,7 +472,7 @@ static void osc_extent_insert(struct osc_object *obj, struct osc_extent *ext)
 		else if (ext->oe_start > tmp->oe_end)
 			n = &(*n)->rb_right;
 		else
-			EASSERTF(0, tmp, EXTSTR"\n", EXTPARA(ext));
+			EASSERTF(0, tmp, EXTSTR "\n", EXTPARA(ext));
 	}
 	rb_link_node(&ext->oe_node, parent, n);
 	rb_insert_color(&ext->oe_node, &obj->oo_root);
@@ -690,7 +690,7 @@ static struct osc_extent *osc_extent_find(const struct lu_env *env,
 	/* grants has been allocated by caller */
 	LASSERTF(*grants >= chunksize + cli->cl_extent_tax,
 		 "%u/%u/%u.\n", *grants, chunksize, cli->cl_extent_tax);
-	LASSERTF((max_end - cur->oe_start) < max_pages, EXTSTR"\n",
+	LASSERTF((max_end - cur->oe_start) < max_pages, EXTSTR "\n",
 		 EXTPARA(cur));
 
 restart:
@@ -709,7 +709,7 @@ restart:
 		/* if covering by different locks, no chance to match */
 		if (olck->ols_dlmlock != ext->oe_dlmlock) {
 			EASSERTF(!overlapped(ext, cur), ext,
-				 EXTSTR"\n", EXTPARA(cur));
+				 EXTSTR "\n", EXTPARA(cur));
 
 			ext = next_extent(ext);
 			continue;
@@ -732,7 +732,7 @@ restart:
 			 */
 			EASSERTF((ext->oe_start <= cur->oe_start &&
 				  ext->oe_end >= cur->oe_end),
-				 ext, EXTSTR"\n", EXTPARA(cur));
+				 ext, EXTSTR "\n", EXTPARA(cur));
 
 			if (ext->oe_state > OES_CACHE || ext->oe_fsync_wait) {
 				/* for simplicity, we wait for this extent to
@@ -1406,9 +1406,8 @@ static void osc_release_write_grant(struct client_obd *cli,
 				    struct brw_page *pga)
 {
 	assert_spin_locked(&cli->cl_loi_list_lock);
-	if (!(pga->flag & OBD_BRW_FROM_GRANT)) {
+	if (!(pga->flag & OBD_BRW_FROM_GRANT))
 		return;
-	}
 
 	pga->flag &= ~OBD_BRW_FROM_GRANT;
 	atomic_long_dec(&obd_dirty_pages);
@@ -1890,10 +1889,10 @@ struct extent_rpc_data {
 	unsigned int		erd_max_chunks;
 };
 
-static inline unsigned osc_extent_chunks(const struct osc_extent *ext)
+static inline unsigned int osc_extent_chunks(const struct osc_extent *ext)
 {
 	struct client_obd *cli = osc_cli(ext->oe_obj);
-	unsigned ppc_bits = cli->cl_chunkbits - PAGE_SHIFT;
+	unsigned int ppc_bits = cli->cl_chunkbits - PAGE_SHIFT;
 
 	return (ext->oe_end >> ppc_bits) - (ext->oe_start >> ppc_bits) + 1;
 }
@@ -1951,7 +1950,7 @@ static int try_to_add_extent_for_io(struct client_obd *cli,
 	return 1;
 }
 
-static inline unsigned osc_max_write_chunks(const struct client_obd *cli)
+static inline unsigned int osc_max_write_chunks(const struct client_obd *cli)
 {
 	/*
 	 * LU-8135:

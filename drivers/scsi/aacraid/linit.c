@@ -405,16 +405,22 @@ static int aac_slave_configure(struct scsi_device *sdev)
 	int chn, tid;
 	unsigned int depth = 0;
 	unsigned int set_timeout = 0;
+	bool set_qd_dev_type = false;
+	u8 devtype = 0;
 
 	chn = aac_logical_to_phys(sdev_channel(sdev));
 	tid = sdev_id(sdev);
-	if (chn < AAC_MAX_BUSES && tid < AAC_MAX_TARGETS &&
-		aac->hba_map[chn][tid].devtype == AAC_DEVTYPE_NATIVE_RAW) {
-		depth = aac->hba_map[chn][tid].qd_limit;
+	if (chn < AAC_MAX_BUSES && tid < AAC_MAX_TARGETS && aac->sa_firmware) {
+		devtype = aac->hba_map[chn][tid].devtype;
+
+		if (devtype == AAC_DEVTYPE_NATIVE_RAW)
+			depth = aac->hba_map[chn][tid].qd_limit;
+		else if (devtype == AAC_DEVTYPE_ARC_RAW)
+			set_qd_dev_type = true;
+
 		set_timeout = 1;
 		goto common_config;
 	}
-
 
 	if (aac->jbod && (sdev->type == TYPE_DISK))
 		sdev->removable = 1;
@@ -466,9 +472,26 @@ static int aac_slave_configure(struct scsi_device *sdev)
 			++num_lsu;
 
 		depth = (host->can_queue - num_one) / num_lsu;
+
+		if (sdev_channel(sdev) != NATIVE_CHANNEL)
+			goto common_config;
+
+		set_qd_dev_type = true;
+
 	}
 
 common_config:
+
+	/*
+	 * Check if SATA drive
+	 */
+	if (set_qd_dev_type) {
+		if (strncmp(sdev->vendor, "ATA", 3) == 0)
+			depth = 32;
+		else
+			depth = 64;
+	}
+
 	/*
 	 * Firmware has an individual device recovery time typically
 	 * of 35 seconds, give us a margin.
@@ -601,6 +624,56 @@ static int aac_ioctl(struct scsi_device *sdev, int cmd, void __user * arg)
 	return aac_do_ioctl(dev, cmd, arg);
 }
 
+static int get_num_of_incomplete_fibs(struct aac_dev *aac)
+{
+
+	unsigned long flags;
+	struct scsi_device *sdev = NULL;
+	struct Scsi_Host *shost = aac->scsi_host_ptr;
+	struct scsi_cmnd *scmnd = NULL;
+	struct device *ctrl_dev;
+
+	int mlcnt  = 0;
+	int llcnt  = 0;
+	int ehcnt  = 0;
+	int fwcnt  = 0;
+	int krlcnt = 0;
+
+	__shost_for_each_device(sdev, shost) {
+		spin_lock_irqsave(&sdev->list_lock, flags);
+		list_for_each_entry(scmnd, &sdev->cmd_list, list) {
+			switch (scmnd->SCp.phase) {
+			case AAC_OWNER_FIRMWARE:
+				fwcnt++;
+				break;
+			case AAC_OWNER_ERROR_HANDLER:
+				ehcnt++;
+				break;
+			case AAC_OWNER_LOWLEVEL:
+				llcnt++;
+				break;
+			case AAC_OWNER_MIDLEVEL:
+				mlcnt++;
+				break;
+			default:
+				krlcnt++;
+				break;
+			}
+		}
+		spin_unlock_irqrestore(&sdev->list_lock, flags);
+	}
+
+	ctrl_dev = &aac->pdev->dev;
+
+	dev_info(ctrl_dev, "outstanding cmd: midlevel-%d\n", mlcnt);
+	dev_info(ctrl_dev, "outstanding cmd: lowlevel-%d\n", llcnt);
+	dev_info(ctrl_dev, "outstanding cmd: error handler-%d\n", ehcnt);
+	dev_info(ctrl_dev, "outstanding cmd: firmware-%d\n", fwcnt);
+	dev_info(ctrl_dev, "outstanding cmd: kernel-%d\n", krlcnt);
+
+	return mlcnt + llcnt + ehcnt + fwcnt;
+}
+
 static int aac_eh_abort(struct scsi_cmnd* cmd)
 {
 	struct scsi_device * dev = cmd->device;
@@ -661,8 +734,8 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 				  (fib_callback) aac_hba_callback,
 				  (void *) cmd);
 
-		/* Wait up to 2 minutes for completion */
-		for (count = 0; count < 120; ++count) {
+		/* Wait up to 15 secs for completion */
+		for (count = 0; count < 15; ++count) {
 			if (cmd->SCp.sent_command) {
 				ret = SUCCESS;
 				break;
@@ -754,6 +827,12 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 	int count;
 	u32 bus, cid;
 	int ret = FAILED;
+	int status = 0;
+	__le32 supported_options2 = 0;
+	bool is_mu_reset;
+	bool is_ignore_reset;
+	bool is_doorbell_reset;
+
 
 	bus = aac_logical_to_phys(scmd_channel(cmd));
 	cid = scmd_id(cmd);
@@ -817,8 +896,8 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 				  (fib_callback) aac_hba_callback,
 				  (void *) cmd);
 
-		/* Wait up to 2 minutes for completion */
-		for (count = 0; count < 120; ++count) {
+		/* Wait up to 15 seconds for completion */
+		for (count = 0; count < 15; ++count) {
 			if (cmd->SCp.sent_command) {
 				ret = SUCCESS;
 				break;
@@ -826,12 +905,10 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 			msleep(1000);
 		}
 
-		if (ret != SUCCESS)
-			pr_err("%s: Host adapter reset request timed out\n",
-			AAC_DRIVERNAME);
+		if (ret == SUCCESS)
+			goto out;
+
 	} else {
-		struct scsi_cmnd *command;
-		unsigned long flags;
 
 		/* Mark the assoc. FIB to not complete, eh handler does this */
 		for (count = 0;
@@ -846,68 +923,42 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 				cmd->SCp.phase = AAC_OWNER_ERROR_HANDLER;
 			}
 		}
-
-		pr_err("%s: Host adapter reset request. SCSI hang ?\n",
-					AAC_DRIVERNAME);
-
-		count = aac_check_health(aac);
-		if (count)
-			return count;
-		/*
-		 * Wait for all commands to complete to this specific
-		 * target (block maximum 60 seconds).
-		 */
-		for (count = 60; count; --count) {
-			int active = aac->in_reset;
-
-			if (active == 0)
-			__shost_for_each_device(dev, host) {
-				spin_lock_irqsave(&dev->list_lock, flags);
-				list_for_each_entry(command, &dev->cmd_list,
-					list) {
-					if ((command != cmd) &&
-					(command->SCp.phase ==
-					AAC_OWNER_FIRMWARE)) {
-						active++;
-						break;
-					}
-				}
-				spin_unlock_irqrestore(&dev->list_lock, flags);
-				if (active)
-					break;
-
-			}
-			/*
-			 * We can exit If all the commands are complete
-			 */
-			if (active == 0)
-				return SUCCESS;
-			ssleep(1);
-		}
-		pr_err("%s: SCSI bus appears hung\n", AAC_DRIVERNAME);
-
-		/*
-		 * This adapter needs a blind reset, only do so for
-		 * Adapters that support a register, instead of a commanded,
-		 * reset.
-		 */
-		if (((aac->supplement_adapter_info.supported_options2 &
-			  AAC_OPTION_MU_RESET) ||
-			  (aac->supplement_adapter_info.supported_options2 &
-			  AAC_OPTION_DOORBELL_RESET)) &&
-			  aac_check_reset &&
-			  ((aac_check_reset != 1) ||
-			   !(aac->supplement_adapter_info.supported_options2 &
-			    AAC_OPTION_IGNORE_RESET))) {
-			/* Bypass wait for command quiesce */
-			aac_reset_adapter(aac, 2, IOP_HWSOFT_RESET);
-		}
-		ret = SUCCESS;
 	}
+
+	pr_err("%s: Host adapter reset request. SCSI hang ?\n", AAC_DRIVERNAME);
+
 	/*
-	 * Cause an immediate retry of the command with a ten second delay
-	 * after successful tur
+	 * Check the health of the controller
 	 */
+	status = aac_adapter_check_health(aac);
+	if (status)
+		dev_err(&aac->pdev->dev, "Adapter health - %d\n", status);
+
+	count = get_num_of_incomplete_fibs(aac);
+	if (count == 0)
+		return SUCCESS;
+
+	/*
+	 * Check if reset is supported by the firmware
+	 */
+	supported_options2 = aac->supplement_adapter_info.supported_options2;
+	is_mu_reset = supported_options2 & AAC_OPTION_MU_RESET;
+	is_doorbell_reset = supported_options2 & AAC_OPTION_DOORBELL_RESET;
+	is_ignore_reset = supported_options2 & AAC_OPTION_IGNORE_RESET;
+	/*
+	 * This adapter needs a blind reset, only do so for
+	 * Adapters that support a register, instead of a commanded,
+	 * reset.
+	 */
+	if ((is_mu_reset || is_doorbell_reset)
+	 && aac_check_reset
+	 && (aac_check_reset != -1 || !is_ignore_reset)) {
+		/* Bypass wait for command quiesce */
+		aac_reset_adapter(aac, 2, IOP_HWSOFT_RESET);
+	}
+	ret = SUCCESS;
+
+out:
 	return ret;
 }
 
@@ -1365,10 +1416,7 @@ static void __aac_shutdown(struct aac_dev * aac)
 		kthread_stop(aac->thread);
 	}
 	aac_adapter_disable_int(aac);
-	if (aac->pdev->device == PMC_DEVICE_S6 ||
-	    aac->pdev->device == PMC_DEVICE_S7 ||
-	    aac->pdev->device == PMC_DEVICE_S8 ||
-	    aac->pdev->device == PMC_DEVICE_S9) {
+	if (aac_is_src(aac)) {
 		if (aac->max_msix > 1) {
 			for (i = 0; i < aac->max_msix; i++) {
 				free_irq(pci_irq_vector(aac->pdev, i),
@@ -1403,6 +1451,7 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	int error = -ENODEV;
 	int unique_id = 0;
 	u64 dmamask;
+	int mask_bits = 0;
 	extern int aac_sync_mode;
 
 	/*
@@ -1426,18 +1475,32 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out;
 	error = -ENODEV;
 
+	if (!(aac_drivers[index].quirks & AAC_QUIRK_SRC)) {
+		error = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		if (error) {
+			dev_err(&pdev->dev, "PCI 32 BIT dma mask set failed");
+			goto out_disable_pdev;
+		}
+	}
+
 	/*
 	 * If the quirk31 bit is set, the adapter needs adapter
 	 * to driver communication memory to be allocated below 2gig
 	 */
-	if (aac_drivers[index].quirks & AAC_QUIRK_31BIT)
+	if (aac_drivers[index].quirks & AAC_QUIRK_31BIT) {
 		dmamask = DMA_BIT_MASK(31);
-	else
+		mask_bits = 31;
+	} else {
 		dmamask = DMA_BIT_MASK(32);
+		mask_bits = 32;
+	}
 
-	if (pci_set_dma_mask(pdev, dmamask) ||
-			pci_set_consistent_dma_mask(pdev, dmamask))
+	error = pci_set_consistent_dma_mask(pdev, dmamask);
+	if (error) {
+		dev_err(&pdev->dev, "PCI %d B consistent dma mask set failed\n"
+				, mask_bits);
 		goto out_disable_pdev;
+	}
 
 	pci_set_master(pdev);
 
@@ -1500,15 +1563,6 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		aac->thread = NULL;
 		goto out_deinit;
 	}
-
-	/*
-	 * If we had set a smaller DMA mask earlier, set it to 4gig
-	 * now since the adapter can dma data to at least a 4gig
-	 * address space.
-	 */
-	if (aac_drivers[index].quirks & AAC_QUIRK_31BIT)
-		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)))
-			goto out_deinit;
 
 	aac->maximum_num_channels = aac_drivers[index].channels;
 	error = aac_get_adapter_info(aac);
@@ -1627,9 +1681,7 @@ static int aac_acquire_resources(struct aac_dev *dev)
 	aac_adapter_enable_int(dev);
 
 
-	if ((dev->pdev->device == PMC_DEVICE_S7 ||
-	     dev->pdev->device == PMC_DEVICE_S8 ||
-	     dev->pdev->device == PMC_DEVICE_S9))
+	if (aac_is_src(dev))
 		aac_define_int_mode(dev);
 
 	if (dev->msi_enabled)

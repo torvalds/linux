@@ -1158,17 +1158,9 @@ static int dss_bind(struct device *dev)
 		return r;
 
 	dss_mem = platform_get_resource(dss.pdev, IORESOURCE_MEM, 0);
-	if (!dss_mem) {
-		DSSERR("can't get IORESOURCE_MEM DSS\n");
-		return -EINVAL;
-	}
-
-	dss.base = devm_ioremap(&pdev->dev, dss_mem->start,
-				resource_size(dss_mem));
-	if (!dss.base) {
-		DSSERR("can't ioremap DSS\n");
-		return -ENOMEM;
-	}
+	dss.base = devm_ioremap_resource(&pdev->dev, dss_mem);
+	if (IS_ERR(dss.base))
+		return PTR_ERR(dss.base);
 
 	r = dss_get_clocks();
 	if (r)

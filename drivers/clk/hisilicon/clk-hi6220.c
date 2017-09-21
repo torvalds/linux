@@ -285,3 +285,25 @@ static void __init hi6220_clk_power_init(struct device_node *np)
 				ARRAY_SIZE(hi6220_div_clks_power), clk_data);
 }
 CLK_OF_DECLARE(hi6220_clk_power, "hisilicon,hi6220-pmctrl", hi6220_clk_power_init);
+
+/* clocks in acpu */
+static const struct hisi_gate_clock hi6220_acpu_sc_gate_sep_clks[] = {
+	{ HI6220_ACPU_SFT_AT_S, "sft_at_s", "cs_atb",
+	  CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0xc, 11, 0, },
+};
+
+static void __init hi6220_clk_acpu_init(struct device_node *np)
+{
+	struct hisi_clock_data *clk_data;
+	int nr = ARRAY_SIZE(hi6220_acpu_sc_gate_sep_clks);
+
+	clk_data = hisi_clk_init(np, nr);
+	if (!clk_data)
+		return;
+
+	hisi_clk_register_gate_sep(hi6220_acpu_sc_gate_sep_clks,
+				   ARRAY_SIZE(hi6220_acpu_sc_gate_sep_clks),
+				   clk_data);
+}
+
+CLK_OF_DECLARE(hi6220_clk_acpu, "hisilicon,hi6220-acpu-sctrl", hi6220_clk_acpu_init);

@@ -5,7 +5,7 @@ with HDMI output and the HVS (Hardware Video Scaler) for compositing
 display planes.
 
 Required properties for VC4:
-- compatible:	Should be "brcm,bcm2835-vc4"
+- compatible:	Should be "brcm,bcm2835-vc4" or "brcm,cygnus-vc4"
 
 Required properties for Pixel Valve:
 - compatible:	Should be one of "brcm,bcm2835-pixelvalve0",
@@ -54,10 +54,13 @@ Required properties for VEC:
 		  See bindings/interrupt-controller/brcm,bcm2835-armctrl-ic.txt
 
 Required properties for V3D:
-- compatible:	Should be "brcm,bcm2835-v3d"
+- compatible:	Should be "brcm,bcm2835-v3d" or "brcm,cygnus-v3d"
 - reg:		Physical base address and length of the V3D's registers
 - interrupts:	The interrupt number
 		  See bindings/interrupt-controller/brcm,bcm2835-armctrl-ic.txt
+
+Optional properties for V3D:
+- clocks:	The clock the unit runs on
 
 Required properties for DSI:
 - compatible:	Should be "brcm,bcm2835-dsi0" or "brcm,bcm2835-dsi1"

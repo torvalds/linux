@@ -69,7 +69,6 @@ obj-$(CONFIG_ARCH_OMAP2)		+= sdrc2xxx.o
 
 # OPP table initialization
 ifeq ($(CONFIG_PM_OPP),y)
-obj-y					+= opp.o
 obj-$(CONFIG_ARCH_OMAP3)		+= opp3xxx_data.o
 obj-$(CONFIG_ARCH_OMAP4)		+= opp4xxx_data.o
 endif
@@ -219,9 +218,6 @@ obj-$(CONFIG_SOC_TI81XX)		+= omap_hwmod_81xx_data.o
 obj-$(CONFIG_ARCH_OMAP4)		+= omap_hwmod_44xx_data.o
 obj-$(CONFIG_SOC_OMAP5)			+= omap_hwmod_54xx_data.o
 obj-$(CONFIG_SOC_DRA7XX)		+= omap_hwmod_7xx_data.o
-
-# EMU peripherals
-obj-$(CONFIG_HW_PERF_EVENTS)		+= pmu.o
 
 # OMAP2420 MSDI controller integration support ("MMC")
 obj-$(CONFIG_SOC_OMAP2420)		+= msdi.o

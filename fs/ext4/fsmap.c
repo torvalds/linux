@@ -480,6 +480,7 @@ static int ext4_getfsmap_datadev(struct super_block *sb,
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	ext4_fsblk_t start_fsb;
 	ext4_fsblk_t end_fsb;
+	ext4_fsblk_t bofs;
 	ext4_fsblk_t eofs;
 	ext4_group_t start_ag;
 	ext4_group_t end_ag;
@@ -487,9 +488,12 @@ static int ext4_getfsmap_datadev(struct super_block *sb,
 	ext4_grpblk_t last_cluster;
 	int error = 0;
 
+	bofs = le32_to_cpu(sbi->s_es->s_first_data_block);
 	eofs = ext4_blocks_count(sbi->s_es);
 	if (keys[0].fmr_physical >= eofs)
 		return 0;
+	else if (keys[0].fmr_physical < bofs)
+		keys[0].fmr_physical = bofs;
 	if (keys[1].fmr_physical >= eofs)
 		keys[1].fmr_physical = eofs - 1;
 	start_fsb = keys[0].fmr_physical;

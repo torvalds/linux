@@ -113,6 +113,7 @@ static void process_ir_data(struct iguanair *ir, unsigned len)
 			break;
 		case CMD_TX_OVERFLOW:
 			ir->tx_overflow = true;
+			/* fall through */
 		case CMD_RECEIVER_OFF:
 		case CMD_RECEIVER_ON:
 		case CMD_SEND:

@@ -756,6 +756,9 @@ ssize_t __ceph_getxattr(struct inode *inode, const char *name, void *value,
 	/* let's see if a virtual xattr was requested */
 	vxattr = ceph_match_vxattr(inode, name);
 	if (vxattr) {
+		err = ceph_do_getattr(inode, 0, true);
+		if (err)
+			return err;
 		err = -ENODATA;
 		if (!(vxattr->exists_cb && !vxattr->exists_cb(ci)))
 			err = vxattr->getxattr_cb(ci, value, size);

@@ -647,18 +647,17 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 		   qp->pid);
 }
 
-void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp,
-		    gfp_t gfp)
+void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv;
 
-	priv = kzalloc_node(sizeof(*priv), gfp, rdi->dparms.node);
+	priv = kzalloc_node(sizeof(*priv), GFP_KERNEL, rdi->dparms.node);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 
 	priv->owner = qp;
 
-	priv->s_ahg = kzalloc_node(sizeof(*priv->s_ahg), gfp,
+	priv->s_ahg = kzalloc_node(sizeof(*priv->s_ahg), GFP_KERNEL,
 				   rdi->dparms.node);
 	if (!priv->s_ahg) {
 		kfree(priv);

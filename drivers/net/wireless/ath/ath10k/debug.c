@@ -625,17 +625,21 @@ static ssize_t ath10k_write_simulate_fw_crash(struct file *file,
 					      size_t count, loff_t *ppos)
 {
 	struct ath10k *ar = file->private_data;
-	char buf[32];
+	char buf[32] = {0};
+	ssize_t rc;
 	int ret;
 
-	simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	/* filter partial writes and invalid commands */
+	if (*ppos != 0 || count >= sizeof(buf) || count == 0)
+		return -EINVAL;
 
-	/* make sure that buf is null terminated */
-	buf[sizeof(buf) - 1] = 0;
+	rc = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (rc < 0)
+		return rc;
 
 	/* drop the possible '\n' from the end */
-	if (buf[count - 1] == '\n')
-		buf[count - 1] = 0;
+	if (buf[*ppos - 1] == '\n')
+		buf[*ppos - 1] = '\0';
 
 	mutex_lock(&ar->conf_mutex);
 

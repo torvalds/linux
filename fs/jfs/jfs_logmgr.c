@@ -2205,7 +2205,7 @@ static void lbmIODone(struct bio *bio)
 
 	bp->l_flag |= lbmDONE;
 
-	if (bio->bi_error) {
+	if (bio->bi_status) {
 		bp->l_flag |= lbmERROR;
 
 		jfs_err("lbmIODone: I/O error in JFS log");

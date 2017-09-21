@@ -150,7 +150,7 @@ struct kmemleak_scan_area {
  */
 struct kmemleak_object {
 	spinlock_t lock;
-	unsigned long flags;		/* object status flags */
+	unsigned int flags;		/* object status flags */
 	struct list_head object_list;
 	struct list_head gray_list;
 	struct rb_node rb_node;
@@ -159,6 +159,8 @@ struct kmemleak_object {
 	atomic_t use_count;
 	unsigned long pointer;
 	size_t size;
+	/* pass surplus references to this pointer */
+	unsigned long excess_ref;
 	/* minimum number of a pointers found before it is considered leak */
 	int min_count;
 	/* the total number of pointers found pointing to this object */
@@ -253,7 +255,8 @@ enum {
 	KMEMLEAK_NOT_LEAK,
 	KMEMLEAK_IGNORE,
 	KMEMLEAK_SCAN_AREA,
-	KMEMLEAK_NO_SCAN
+	KMEMLEAK_NO_SCAN,
+	KMEMLEAK_SET_EXCESS_REF
 };
 
 /*
@@ -262,9 +265,12 @@ enum {
  */
 struct early_log {
 	int op_type;			/* kmemleak operation type */
-	const void *ptr;		/* allocated/freed memory block */
-	size_t size;			/* memory block size */
 	int min_count;			/* minimum reference count */
+	const void *ptr;		/* allocated/freed memory block */
+	union {
+		size_t size;		/* memory block size */
+		unsigned long excess_ref; /* surplus reference passing */
+	};
 	unsigned long trace[MAX_TRACE];	/* stack trace */
 	unsigned int trace_len;		/* stack trace length */
 };
@@ -393,7 +399,7 @@ static void dump_object_info(struct kmemleak_object *object)
 		  object->comm, object->pid, object->jiffies);
 	pr_notice("  min_count = %d\n", object->min_count);
 	pr_notice("  count = %d\n", object->count);
-	pr_notice("  flags = 0x%lx\n", object->flags);
+	pr_notice("  flags = 0x%x\n", object->flags);
 	pr_notice("  checksum = %u\n", object->checksum);
 	pr_notice("  backtrace:\n");
 	print_stack_trace(&trace, 4);
@@ -562,6 +568,7 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
 	object->flags = OBJECT_ALLOCATED;
 	object->pointer = ptr;
 	object->size = size;
+	object->excess_ref = 0;
 	object->min_count = min_count;
 	object->count = 0;			/* white color initially */
 	object->jiffies = jiffies;
@@ -795,6 +802,30 @@ out:
 }
 
 /*
+ * Any surplus references (object already gray) to 'ptr' are passed to
+ * 'excess_ref'. This is used in the vmalloc() case where a pointer to
+ * vm_struct may be used as an alternative reference to the vmalloc'ed object
+ * (see free_thread_stack()).
+ */
+static void object_set_excess_ref(unsigned long ptr, unsigned long excess_ref)
+{
+	unsigned long flags;
+	struct kmemleak_object *object;
+
+	object = find_and_get_object(ptr, 0);
+	if (!object) {
+		kmemleak_warn("Setting excess_ref on unknown object at 0x%08lx\n",
+			      ptr);
+		return;
+	}
+
+	spin_lock_irqsave(&object->lock, flags);
+	object->excess_ref = excess_ref;
+	spin_unlock_irqrestore(&object->lock, flags);
+	put_object(object);
+}
+
+/*
  * Set the OBJECT_NO_SCAN flag for the object corresponding to the give
  * pointer. Such object will not be scanned by kmemleak but references to it
  * are searched.
@@ -908,7 +939,7 @@ static void early_alloc_percpu(struct early_log *log)
  * @gfp:	kmalloc() flags used for kmemleak internal memory allocations
  *
  * This function is called from the kernel allocators when a new object
- * (memory block) is allocated (kmem_cache_alloc, kmalloc, vmalloc etc.).
+ * (memory block) is allocated (kmem_cache_alloc, kmalloc etc.).
  */
 void __ref kmemleak_alloc(const void *ptr, size_t size, int min_count,
 			  gfp_t gfp)
@@ -950,6 +981,36 @@ void __ref kmemleak_alloc_percpu(const void __percpu *ptr, size_t size,
 		log_early(KMEMLEAK_ALLOC_PERCPU, ptr, size, 0);
 }
 EXPORT_SYMBOL_GPL(kmemleak_alloc_percpu);
+
+/**
+ * kmemleak_vmalloc - register a newly vmalloc'ed object
+ * @area:	pointer to vm_struct
+ * @size:	size of the object
+ * @gfp:	__vmalloc() flags used for kmemleak internal memory allocations
+ *
+ * This function is called from the vmalloc() kernel allocator when a new
+ * object (memory block) is allocated.
+ */
+void __ref kmemleak_vmalloc(const struct vm_struct *area, size_t size, gfp_t gfp)
+{
+	pr_debug("%s(0x%p, %zu)\n", __func__, area, size);
+
+	/*
+	 * A min_count = 2 is needed because vm_struct contains a reference to
+	 * the virtual address of the vmalloc'ed block.
+	 */
+	if (kmemleak_enabled) {
+		create_object((unsigned long)area->addr, size, 2, gfp);
+		object_set_excess_ref((unsigned long)area,
+				      (unsigned long)area->addr);
+	} else if (kmemleak_early_log) {
+		log_early(KMEMLEAK_ALLOC, area->addr, size, 2);
+		/* reusing early_log.size for storing area->addr */
+		log_early(KMEMLEAK_SET_EXCESS_REF,
+			  area, (unsigned long)area->addr, 0);
+	}
+}
+EXPORT_SYMBOL_GPL(kmemleak_vmalloc);
 
 /**
  * kmemleak_free - unregister a previously registered object
@@ -1188,6 +1249,30 @@ static bool update_checksum(struct kmemleak_object *object)
 }
 
 /*
+ * Update an object's references. object->lock must be held by the caller.
+ */
+static void update_refs(struct kmemleak_object *object)
+{
+	if (!color_white(object)) {
+		/* non-orphan, ignored or new */
+		return;
+	}
+
+	/*
+	 * Increase the object's reference count (number of pointers to the
+	 * memory block). If this count reaches the required minimum, the
+	 * object's color will become gray and it will be added to the
+	 * gray_list.
+	 */
+	object->count++;
+	if (color_gray(object)) {
+		/* put_object() called when removing from gray_list */
+		WARN_ON(!get_object(object));
+		list_add_tail(&object->gray_list, &gray_list);
+	}
+}
+
+/*
  * Memory scanning is a long process and it needs to be interruptable. This
  * function checks whether such interrupt condition occurred.
  */
@@ -1224,6 +1309,7 @@ static void scan_block(void *_start, void *_end,
 	for (ptr = start; ptr < end; ptr++) {
 		struct kmemleak_object *object;
 		unsigned long pointer;
+		unsigned long excess_ref;
 
 		if (scan_should_stop())
 			break;
@@ -1259,25 +1345,27 @@ static void scan_block(void *_start, void *_end,
 		 * enclosed by scan_mutex.
 		 */
 		spin_lock_nested(&object->lock, SINGLE_DEPTH_NESTING);
-		if (!color_white(object)) {
-			/* non-orphan, ignored or new */
-			spin_unlock(&object->lock);
-			continue;
-		}
-
-		/*
-		 * Increase the object's reference count (number of pointers
-		 * to the memory block). If this count reaches the required
-		 * minimum, the object's color will become gray and it will be
-		 * added to the gray_list.
-		 */
-		object->count++;
+		/* only pass surplus references (object already gray) */
 		if (color_gray(object)) {
-			/* put_object() called when removing from gray_list */
-			WARN_ON(!get_object(object));
-			list_add_tail(&object->gray_list, &gray_list);
+			excess_ref = object->excess_ref;
+			/* no need for update_refs() if object already gray */
+		} else {
+			excess_ref = 0;
+			update_refs(object);
 		}
 		spin_unlock(&object->lock);
+
+		if (excess_ref) {
+			object = lookup_object(excess_ref, 0);
+			if (!object)
+				continue;
+			if (object == scanned)
+				/* circular reference, ignore */
+				continue;
+			spin_lock_nested(&object->lock, SINGLE_DEPTH_NESTING);
+			update_refs(object);
+			spin_unlock(&object->lock);
+		}
 	}
 	read_unlock_irqrestore(&kmemleak_lock, flags);
 }
@@ -1979,6 +2067,10 @@ void __init kmemleak_init(void)
 			break;
 		case KMEMLEAK_NO_SCAN:
 			kmemleak_no_scan(log->ptr);
+			break;
+		case KMEMLEAK_SET_EXCESS_REF:
+			object_set_excess_ref((unsigned long)log->ptr,
+					      log->excess_ref);
 			break;
 		default:
 			kmemleak_warn("Unknown early log operation: %d\n",

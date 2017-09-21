@@ -609,8 +609,7 @@ static int bcm_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			dev_kfree_skb(skb);
 			skb = nskb;
 		}
-		data = skb_put(skb, needed);
-		memset(data, 0, needed);
+		data = skb_put_zero(skb, needed);
 	}
 
 	/* point to the next available desc */
@@ -1453,7 +1452,10 @@ static int bcm_enet_get_link_ksettings(struct net_device *dev,
 	if (priv->has_phy) {
 		if (!dev->phydev)
 			return -ENODEV;
-		return phy_ethtool_ksettings_get(dev->phydev, cmd);
+
+		phy_ethtool_ksettings_get(dev->phydev, cmd);
+
+		return 0;
 	} else {
 		cmd->base.autoneg = 0;
 		cmd->base.speed = (priv->force_speed_100) ?

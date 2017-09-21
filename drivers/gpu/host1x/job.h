@@ -27,20 +27,6 @@ struct host1x_job_gather {
 	bool handled;
 };
 
-struct host1x_cmdbuf {
-	u32 handle;
-	u32 offset;
-	u32 words;
-	u32 pad;
-};
-
-struct host1x_waitchk {
-	struct host1x_bo *bo;
-	u32 offset;
-	u32 syncpt_id;
-	u32 thresh;
-};
-
 struct host1x_job_unpin_data {
 	struct host1x_bo *bo;
 	struct sg_table *sgt;

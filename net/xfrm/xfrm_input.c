@@ -116,7 +116,7 @@ struct sec_path *secpath_dup(struct sec_path *src)
 		for (i = 0; i < sp->len; i++)
 			xfrm_state_hold(sp->xvec[i]);
 	}
-	atomic_set(&sp->refcnt, 1);
+	refcount_set(&sp->refcnt, 1);
 	return sp;
 }
 EXPORT_SYMBOL(secpath_dup);
@@ -126,7 +126,7 @@ int secpath_set(struct sk_buff *skb)
 	struct sec_path *sp;
 
 	/* Allocate new secpath or COW existing one. */
-	if (!skb->sp || atomic_read(&skb->sp->refcnt) != 1) {
+	if (!skb->sp || refcount_read(&skb->sp->refcnt) != 1) {
 		sp = secpath_dup(skb->sp);
 		if (!sp)
 			return -ENOMEM;

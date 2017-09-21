@@ -34,28 +34,7 @@
 #include <linux/pci_ids.h>
 #include <linux/pci.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Evgeniy Polyakov <zbr@ioremap.net>");
-MODULE_DESCRIPTION("Driver for transport(Dallas 1-wire protocol) over VGA DDC(matrox gpio).");
-
-static struct pci_device_id matrox_w1_tbl[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_MATROX, PCI_DEVICE_ID_MATROX_G400) },
-	{ },
-};
-MODULE_DEVICE_TABLE(pci, matrox_w1_tbl);
-
-static int matrox_w1_probe(struct pci_dev *, const struct pci_device_id *);
-static void matrox_w1_remove(struct pci_dev *);
-
-static struct pci_driver matrox_w1_pci_driver = {
-	.name = "matrox_w1",
-	.id_table = matrox_w1_tbl,
-	.probe = matrox_w1_probe,
-	.remove = matrox_w1_remove,
-};
+#include <linux/w1.h>
 
 /*
  * Matrox G400 DDC registers.
@@ -87,9 +66,6 @@ struct matrox_device
 
 	struct w1_bus_master *bus_master;
 };
-
-static u8 matrox_w1_read_ddc_bit(void *);
-static void matrox_w1_write_ddc_bit(void *, u8);
 
 /*
  * These functions read and write DDC Data bit.
@@ -226,4 +202,21 @@ static void matrox_w1_remove(struct pci_dev *pdev)
 	}
 	kfree(dev);
 }
+
+static struct pci_device_id matrox_w1_tbl[] = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_MATROX, PCI_DEVICE_ID_MATROX_G400) },
+	{ },
+};
+MODULE_DEVICE_TABLE(pci, matrox_w1_tbl);
+
+static struct pci_driver matrox_w1_pci_driver = {
+	.name = "matrox_w1",
+	.id_table = matrox_w1_tbl,
+	.probe = matrox_w1_probe,
+	.remove = matrox_w1_remove,
+};
 module_pci_driver(matrox_w1_pci_driver);
+
+MODULE_AUTHOR("Evgeniy Polyakov <zbr@ioremap.net>");
+MODULE_DESCRIPTION("Driver for transport(Dallas 1-wire protocol) over VGA DDC(matrox gpio).");
+MODULE_LICENSE("GPL");

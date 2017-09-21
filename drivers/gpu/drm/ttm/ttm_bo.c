@@ -1353,7 +1353,6 @@ int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 		       mem_type);
 		return ret;
 	}
-	dma_fence_put(man->move);
 
 	man->use_type = false;
 	man->has_type = false;
@@ -1368,6 +1367,9 @@ int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 
 		ret = (*man->func->takedown)(man);
 	}
+
+	dma_fence_put(man->move);
+	man->move = NULL;
 
 	return ret;
 }

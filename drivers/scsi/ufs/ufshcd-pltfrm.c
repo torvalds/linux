@@ -58,8 +58,6 @@ static int ufshcd_parse_clock_info(struct ufs_hba *hba)
 	if (!np)
 		goto out;
 
-	INIT_LIST_HEAD(&hba->clk_list_head);
-
 	cnt = of_property_count_strings(np, "clock-names");
 	if (!cnt || (cnt == -EINVAL)) {
 		dev_info(dev, "%s: Unable to find clocks, assuming enabled\n",

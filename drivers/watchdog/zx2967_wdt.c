@@ -154,7 +154,7 @@ static const struct watchdog_info zx2967_wdt_ident = {
 	.identity         =	"zx2967 watchdog",
 };
 
-static struct watchdog_ops zx2967_wdt_ops = {
+static const struct watchdog_ops zx2967_wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = zx2967_wdt_start,
 	.stop = zx2967_wdt_stop,

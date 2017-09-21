@@ -42,6 +42,7 @@
 #define MV_XOR_V2_DMA_IMSG_THRD_OFF			0x018
 #define   MV_XOR_V2_DMA_IMSG_THRD_MASK			0x7FFF
 #define   MV_XOR_V2_DMA_IMSG_THRD_SHIFT			0x0
+#define   MV_XOR_V2_DMA_IMSG_TIMER_EN			BIT(18)
 #define MV_XOR_V2_DMA_DESQ_AWATTR_OFF			0x01C
   /* Same flags as MV_XOR_V2_DMA_DESQ_ARATTR_OFF */
 #define MV_XOR_V2_DMA_DESQ_ALLOC_OFF			0x04C
@@ -55,6 +56,9 @@
 #define MV_XOR_V2_DMA_DESQ_STOP_OFF			0x800
 #define MV_XOR_V2_DMA_DESQ_DEALLOC_OFF			0x804
 #define MV_XOR_V2_DMA_DESQ_ADD_OFF			0x808
+#define MV_XOR_V2_DMA_IMSG_TMOT				0x810
+#define   MV_XOR_V2_DMA_IMSG_TIMER_THRD_MASK		0x1FFF
+#define   MV_XOR_V2_DMA_IMSG_TIMER_THRD_SHIFT		0
 
 /* XOR Global registers */
 #define MV_XOR_V2_GLOB_BW_CTRL				0x4
@@ -89,6 +93,13 @@
  * sufficient to reach a good level of performance.
  */
 #define MV_XOR_V2_DESC_NUM				1024
+
+/*
+ * Threshold values for descriptors and timeout, determined by
+ * experimentation as giving a good level of performance.
+ */
+#define MV_XOR_V2_DONE_IMSG_THRD  0x14
+#define MV_XOR_V2_TIMER_THRD      0xB0
 
 /**
  * struct mv_xor_v2_descriptor - DMA HW descriptor
@@ -244,6 +255,29 @@ static int mv_xor_v2_set_desc_size(struct mv_xor_v2_device *xor_dev)
 	       xor_dev->dma_base + MV_XOR_V2_DMA_DESQ_CTRL_OFF);
 
 	return MV_XOR_V2_EXT_DESC_SIZE;
+}
+
+/*
+ * Set the IMSG threshold
+ */
+static inline
+void mv_xor_v2_enable_imsg_thrd(struct mv_xor_v2_device *xor_dev)
+{
+	u32 reg;
+
+	/* Configure threshold of number of descriptors, and enable timer */
+	reg = readl(xor_dev->dma_base + MV_XOR_V2_DMA_IMSG_THRD_OFF);
+	reg &= (~MV_XOR_V2_DMA_IMSG_THRD_MASK << MV_XOR_V2_DMA_IMSG_THRD_SHIFT);
+	reg |= (MV_XOR_V2_DONE_IMSG_THRD << MV_XOR_V2_DMA_IMSG_THRD_SHIFT);
+	reg |= MV_XOR_V2_DMA_IMSG_TIMER_EN;
+	writel(reg, xor_dev->dma_base + MV_XOR_V2_DMA_IMSG_THRD_OFF);
+
+	/* Configure Timer Threshold */
+	reg = readl(xor_dev->dma_base + MV_XOR_V2_DMA_IMSG_TMOT);
+	reg &= (~MV_XOR_V2_DMA_IMSG_TIMER_THRD_MASK <<
+		MV_XOR_V2_DMA_IMSG_TIMER_THRD_SHIFT);
+	reg |= (MV_XOR_V2_TIMER_THRD << MV_XOR_V2_DMA_IMSG_TIMER_THRD_SHIFT);
+	writel(reg, xor_dev->dma_base + MV_XOR_V2_DMA_IMSG_TMOT);
 }
 
 static irqreturn_t mv_xor_v2_interrupt_handler(int irq, void *data)
@@ -501,9 +535,6 @@ static void mv_xor_v2_issue_pending(struct dma_chan *chan)
 	mv_xor_v2_add_desc_to_desq(xor_dev, xor_dev->npendings);
 	xor_dev->npendings = 0;
 
-	/* Activate the channel */
-	writel(0, xor_dev->dma_base + MV_XOR_V2_DMA_DESQ_STOP_OFF);
-
 	spin_unlock_bh(&xor_dev->lock);
 }
 
@@ -665,6 +696,27 @@ static int mv_xor_v2_descq_init(struct mv_xor_v2_device *xor_dev)
 	return 0;
 }
 
+static int mv_xor_v2_suspend(struct platform_device *dev, pm_message_t state)
+{
+	struct mv_xor_v2_device *xor_dev = platform_get_drvdata(dev);
+
+	/* Set this bit to disable to stop the XOR unit. */
+	writel(0x1, xor_dev->dma_base + MV_XOR_V2_DMA_DESQ_STOP_OFF);
+
+	return 0;
+}
+
+static int mv_xor_v2_resume(struct platform_device *dev)
+{
+	struct mv_xor_v2_device *xor_dev = platform_get_drvdata(dev);
+
+	mv_xor_v2_set_desc_size(xor_dev);
+	mv_xor_v2_enable_imsg_thrd(xor_dev);
+	mv_xor_v2_descq_init(xor_dev);
+
+	return 0;
+}
+
 static int mv_xor_v2_probe(struct platform_device *pdev)
 {
 	struct mv_xor_v2_device *xor_dev;
@@ -795,6 +847,8 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 	list_add_tail(&xor_dev->dmachan.device_node,
 		      &dma_dev->channels);
 
+	mv_xor_v2_enable_imsg_thrd(xor_dev);
+
 	mv_xor_v2_descq_init(xor_dev);
 
 	ret = dma_async_device_register(dma_dev);
@@ -844,6 +898,8 @@ MODULE_DEVICE_TABLE(of, mv_xor_v2_dt_ids);
 
 static struct platform_driver mv_xor_v2_driver = {
 	.probe		= mv_xor_v2_probe,
+	.suspend	= mv_xor_v2_suspend,
+	.resume		= mv_xor_v2_resume,
 	.remove		= mv_xor_v2_remove,
 	.driver		= {
 		.name	= "mv_xor_v2",

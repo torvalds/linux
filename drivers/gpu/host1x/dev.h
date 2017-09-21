@@ -129,10 +129,8 @@ struct host1x {
 	struct host1x_syncpt *nop_sp;
 
 	struct mutex syncpt_mutex;
-	struct mutex chlist_mutex;
-	struct host1x_channel chlist;
-	unsigned long allocated_channels;
-	unsigned int num_allocated_channels;
+
+	struct host1x_channel_list channel_list;
 
 	struct dentry *debugfs;
 

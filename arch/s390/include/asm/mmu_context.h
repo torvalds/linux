@@ -25,7 +25,9 @@ static inline int init_new_context(struct task_struct *tsk,
 	mm->context.gmap_asce = 0;
 	mm->context.flush_mm = 0;
 #ifdef CONFIG_PGSTE
-	mm->context.alloc_pgste = page_table_allocate_pgste;
+	mm->context.alloc_pgste = page_table_allocate_pgste ||
+		test_thread_flag(TIF_PGSTE) ||
+		current->mm->context.alloc_pgste;
 	mm->context.has_pgste = 0;
 	mm->context.use_skey = 0;
 	mm->context.use_cmma = 0;
@@ -41,6 +43,11 @@ static inline int init_new_context(struct task_struct *tsk,
 		mm->context.asce_limit = STACK_TOP_MAX;
 		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
 				   _ASCE_USER_BITS | _ASCE_TYPE_REGION3;
+		break;
+	case -PAGE_SIZE:
+		/* forked 5-level task, set new asce with new_mm->pgd */
+		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+			_ASCE_USER_BITS | _ASCE_TYPE_REGION1;
 		break;
 	case 1UL << 53:
 		/* forked 4-level task, set new asce with new mm->pgd */

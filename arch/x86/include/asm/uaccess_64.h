@@ -171,12 +171,23 @@ unsigned long raw_copy_in_user(void __user *dst, const void __user *src, unsigne
 extern long __copy_user_nocache(void *dst, const void __user *src,
 				unsigned size, int zerorest);
 
+extern long __copy_user_flushcache(void *dst, const void __user *src, unsigned size);
+extern void memcpy_page_flushcache(char *to, struct page *page, size_t offset,
+			   size_t len);
+
 static inline int
 __copy_from_user_inatomic_nocache(void *dst, const void __user *src,
 				  unsigned size)
 {
 	kasan_check_write(dst, size);
 	return __copy_user_nocache(dst, src, size, 0);
+}
+
+static inline int
+__copy_from_user_flushcache(void *dst, const void __user *src, unsigned size)
+{
+	kasan_check_write(dst, size);
+	return __copy_user_flushcache(dst, src, size);
 }
 
 unsigned long

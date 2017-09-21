@@ -1136,31 +1136,31 @@ static struct snd_pcm_hardware snd_intel8x0_stream =
 	.fifo_size =		0,
 };
 
-static unsigned int channels4[] = {
+static const unsigned int channels4[] = {
 	2, 4,
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_channels4 = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_channels4 = {
 	.count = ARRAY_SIZE(channels4),
 	.list = channels4,
 	.mask = 0,
 };
 
-static unsigned int channels6[] = {
+static const unsigned int channels6[] = {
 	2, 4, 6,
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_channels6 = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_channels6 = {
 	.count = ARRAY_SIZE(channels6),
 	.list = channels6,
 	.mask = 0,
 };
 
-static unsigned int channels8[] = {
+static const unsigned int channels8[] = {
 	2, 4, 6, 8,
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_channels8 = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_channels8 = {
 	.count = ARRAY_SIZE(channels8),
 	.list = channels8,
 	.mask = 0,

@@ -51,7 +51,7 @@ MODULE_DESCRIPTION("Pulse Eight HDMI CEC driver");
 MODULE_LICENSE("GPL");
 
 static int debug;
-static int persistent_config = 1;
+static int persistent_config;
 module_param(debug, int, 0644);
 module_param(persistent_config, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (0-1)");
@@ -148,18 +148,15 @@ static void pulse8_irq_work_handler(struct work_struct *work)
 		cec_received_msg(pulse8->adap, &pulse8->rx_msg);
 		break;
 	case MSGCODE_TRANSMIT_SUCCEEDED:
-		cec_transmit_done(pulse8->adap, CEC_TX_STATUS_OK,
-				  0, 0, 0, 0);
+		cec_transmit_attempt_done(pulse8->adap, CEC_TX_STATUS_OK);
 		break;
 	case MSGCODE_TRANSMIT_FAILED_ACK:
-		cec_transmit_done(pulse8->adap, CEC_TX_STATUS_NACK,
-				  0, 1, 0, 0);
+		cec_transmit_attempt_done(pulse8->adap, CEC_TX_STATUS_NACK);
 		break;
 	case MSGCODE_TRANSMIT_FAILED_LINE:
 	case MSGCODE_TRANSMIT_FAILED_TIMEOUT_DATA:
 	case MSGCODE_TRANSMIT_FAILED_TIMEOUT_LINE:
-		cec_transmit_done(pulse8->adap, CEC_TX_STATUS_ERROR,
-				  0, 0, 0, 1);
+		cec_transmit_attempt_done(pulse8->adap, CEC_TX_STATUS_ERROR);
 		break;
 	}
 }

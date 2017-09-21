@@ -24,8 +24,10 @@
 #ifndef __DRM_PANEL_H__
 #define __DRM_PANEL_H__
 
+#include <linux/errno.h>
 #include <linux/list.h>
 
+struct device_node;
 struct drm_connector;
 struct drm_device;
 struct drm_panel;

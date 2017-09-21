@@ -28,7 +28,6 @@
 #include <linux/if_bridge.h>
 #include <linux/brcmphy.h>
 #include <linux/etherdevice.h>
-#include <net/switchdev.h>
 #include <linux/platform_data/b53.h>
 
 #include "bcm_sf2.h"
@@ -228,7 +227,7 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 			      struct phy_device *phy)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	s8 cpu_port = ds->dst[ds->index].cpu_port;
+	s8 cpu_port = ds->dst->cpu_dp->index;
 	unsigned int i;
 	u32 reg;
 
@@ -499,10 +498,8 @@ static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
 				   struct device_node *dn)
 {
 	struct device_node *port;
-	const char *phy_mode_str;
 	int mode;
 	unsigned int port_num;
-	int ret;
 
 	priv->moca_port = -1;
 
@@ -516,15 +513,11 @@ static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
 		 * time
 		 */
 		mode = of_get_phy_mode(port);
-		if (mode < 0) {
-			ret = of_property_read_string(port, "phy-mode",
-						      &phy_mode_str);
-			if (ret < 0)
-				continue;
+		if (mode < 0)
+			continue;
 
-			if (!strcasecmp(phy_mode_str, "internal"))
-				priv->int_phy_mask |= 1 << port_num;
-		}
+		if (mode == PHY_INTERFACE_MODE_INTERNAL)
+			priv->int_phy_mask |= 1 << port_num;
 
 		if (mode == PHY_INTERFACE_MODE_MOCA)
 			priv->moca_port = port_num;
@@ -807,7 +800,7 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
 			       struct ethtool_wolinfo *wol)
 {
-	struct net_device *p = ds->dst[ds->index].master_netdev;
+	struct net_device *p = ds->dst[ds->index].cpu_dp->netdev;
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	struct ethtool_wolinfo pwol;
 
@@ -830,9 +823,9 @@ static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
 static int bcm_sf2_sw_set_wol(struct dsa_switch *ds, int port,
 			      struct ethtool_wolinfo *wol)
 {
-	struct net_device *p = ds->dst[ds->index].master_netdev;
+	struct net_device *p = ds->dst[ds->index].cpu_dp->netdev;
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	s8 cpu_port = ds->dst[ds->index].cpu_port;
+	s8 cpu_port = ds->dst->cpu_dp->index;
 	struct ethtool_wolinfo pwol;
 
 	p->ethtool_ops->get_wol(p, &pwol);
@@ -1055,6 +1048,7 @@ struct bcm_sf2_of_data {
 	u32 type;
 	const u16 *reg_offsets;
 	unsigned int core_reg_align;
+	unsigned int num_cfp_rules;
 };
 
 /* Register offsets for the SWITCH_REG_* block */
@@ -1078,6 +1072,7 @@ static const struct bcm_sf2_of_data bcm_sf2_7445_data = {
 	.type		= BCM7445_DEVICE_ID,
 	.core_reg_align	= 0,
 	.reg_offsets	= bcm_sf2_7445_reg_offsets,
+	.num_cfp_rules	= 256,
 };
 
 static const u16 bcm_sf2_7278_reg_offsets[] = {
@@ -1100,6 +1095,7 @@ static const struct bcm_sf2_of_data bcm_sf2_7278_data = {
 	.type		= BCM7278_DEVICE_ID,
 	.core_reg_align	= 1,
 	.reg_offsets	= bcm_sf2_7278_reg_offsets,
+	.num_cfp_rules	= 128,
 };
 
 static const struct of_device_id bcm_sf2_of_match[] = {
@@ -1156,6 +1152,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	priv->type = data->type;
 	priv->reg_offsets = data->reg_offsets;
 	priv->core_reg_align = data->core_reg_align;
+	priv->num_cfp_rules = data->num_cfp_rules;
 
 	/* Auto-detection using standard registers will not work, so
 	 * provide an indication of what kind of device we are for

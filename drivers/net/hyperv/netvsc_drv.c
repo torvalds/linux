@@ -37,6 +37,8 @@
 #include <net/route.h>
 #include <net/sock.h>
 #include <net/pkt_sched.h>
+#include <net/checksum.h>
+#include <net/ip6_checksum.h>
 
 #include "hyperv_net.h"
 
@@ -66,7 +68,8 @@ static void netvsc_set_multicast_list(struct net_device *net)
 
 static int netvsc_open(struct net_device *net)
 {
-	struct netvsc_device *nvdev = net_device_to_netvsc_device(net);
+	struct net_device_context *ndev_ctx = netdev_priv(net);
+	struct netvsc_device *nvdev = ndev_ctx->nvdev;
 	struct rndis_device *rdev;
 	int ret = 0;
 
@@ -82,7 +85,7 @@ static int netvsc_open(struct net_device *net)
 	netif_tx_wake_all_queues(net);
 
 	rdev = nvdev->extension;
-	if (!rdev->link_state)
+	if (!rdev->link_state && !ndev_ctx->datapath)
 		netif_carrier_on(net);
 
 	return ret;
@@ -93,7 +96,7 @@ static int netvsc_close(struct net_device *net)
 	struct net_device_context *net_device_ctx = netdev_priv(net);
 	struct netvsc_device *nvdev = rtnl_dereference(net_device_ctx->nvdev);
 	int ret;
-	u32 aread, awrite, i, msec = 10, retry = 0, retry_max = 20;
+	u32 aread, i, msec = 10, retry = 0, retry_max = 20;
 	struct vmbus_channel *chn;
 
 	netif_tx_disable(net);
@@ -112,15 +115,11 @@ static int netvsc_close(struct net_device *net)
 			if (!chn)
 				continue;
 
-			hv_get_ringbuffer_availbytes(&chn->inbound, &aread,
-						     &awrite);
-
+			aread = hv_get_bytes_to_read(&chn->inbound);
 			if (aread)
 				break;
 
-			hv_get_ringbuffer_availbytes(&chn->outbound, &aread,
-						     &awrite);
-
+			aread = hv_get_bytes_to_read(&chn->outbound);
 			if (aread)
 				break;
 		}
@@ -618,7 +617,7 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 	 * Copy to skb. This copy is needed here since the memory pointed by
 	 * hv_netvsc_packet cannot be deallocated
 	 */
-	memcpy(skb_put(skb, buflen), data, buflen);
+	skb_put_data(skb, data, buflen);
 
 	skb->protocol = eth_type_trans(skb, net);
 
@@ -1270,7 +1269,12 @@ static void netvsc_link_change(struct work_struct *w)
 	bool notify = false, reschedule = false;
 	unsigned long flags, next_reconfig, delay;
 
-	rtnl_lock();
+	/* if changes are happening, comeback later */
+	if (!rtnl_trylock()) {
+		schedule_delayed_work(&ndev_ctx->dwork, LINKCHANGE_INT);
+		return;
+	}
+
 	net_device = rtnl_dereference(ndev_ctx->nvdev);
 	if (!net_device)
 		goto out_unlock;
@@ -1309,7 +1313,8 @@ static void netvsc_link_change(struct work_struct *w)
 	case RNDIS_STATUS_MEDIA_CONNECT:
 		if (rdev->link_state) {
 			rdev->link_state = false;
-			netif_carrier_on(net);
+			if (!ndev_ctx->datapath)
+				netif_carrier_on(net);
 			netif_tx_wake_all_queues(net);
 		} else {
 			notify = true;

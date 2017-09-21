@@ -297,6 +297,14 @@ static const struct of_device_id emac_sgmii_dt_match[] = {
 	{}
 };
 
+/* Dummy function for systems without an internal PHY. This avoids having
+ * to check for NULL pointers before calling the functions.
+ */
+static int emac_sgmii_dummy(struct emac_adapter *adpt)
+{
+	return 0;
+}
+
 int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 {
 	struct platform_device *sgmii_pdev = NULL;
@@ -311,8 +319,19 @@ int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 					emac_sgmii_acpi_match);
 
 		if (!dev) {
-			dev_err(&pdev->dev, "cannot find internal phy node\n");
-			return -ENODEV;
+			dev_warn(&pdev->dev, "cannot find internal phy node\n");
+			/* There is typically no internal PHY on emulation
+			 * systems, so if we can't find the node, assume
+			 * we are on an emulation system and stub-out
+			 * support for the internal PHY.  These systems only
+			 * use ACPI.
+			 */
+			phy->open = emac_sgmii_dummy;
+			phy->close = emac_sgmii_dummy;
+			phy->link_up = emac_sgmii_dummy;
+			phy->link_down = emac_sgmii_dummy;
+
+			return 0;
 		}
 
 		sgmii_pdev = to_platform_device(dev);

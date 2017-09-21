@@ -4,8 +4,7 @@
 # No binaries, but make sure arg-less "make" doesn't trigger "run_tests".
 all:
 
-TEST_PROGS := run_numerictests run_stringtests
-TEST_FILES := common_tests
+TEST_PROGS := sysctl.sh
 
 include ../lib.mk
 

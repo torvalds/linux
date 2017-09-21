@@ -5,6 +5,10 @@ config DRM_ROCKCHIP
 	select DRM_KMS_HELPER
 	select DRM_PANEL
 	select VIDEOMODE_HELPERS
+	select DRM_ANALOGIX_DP if ROCKCHIP_ANALOGIX_DP
+	select DRM_DW_HDMI if ROCKCHIP_DW_HDMI
+	select DRM_MIPI_DSI if ROCKCHIP_DW_MIPI_DSI
+	select SND_SOC_HDMI_CODEC if ROCKCHIP_CDN_DP && SND_SOC
 	help
 	  Choose this option if you have a Rockchip soc chipset.
 	  This driver provides kernel mode setting and buffer
@@ -12,10 +16,10 @@ config DRM_ROCKCHIP
 	  2D or 3D acceleration; acceleration is performed by other
 	  IP found on the SoC.
 
+if DRM_ROCKCHIP
+
 config ROCKCHIP_ANALOGIX_DP
 	bool "Rockchip specific extensions for Analogix DP driver"
-	depends on DRM_ROCKCHIP
-	select DRM_ANALOGIX_DP
 	help
 	  This selects support for Rockchip SoC specific extensions
 	  for the Analogix Core DP driver. If you want to enable DP
@@ -23,9 +27,7 @@ config ROCKCHIP_ANALOGIX_DP
 
 config ROCKCHIP_CDN_DP
         bool "Rockchip cdn DP"
-        depends on DRM_ROCKCHIP
-	depends on EXTCON
-	select SND_SOC_HDMI_CODEC if SND_SOC
+	depends on EXTCON=y || (EXTCON=m && DRM_ROCKCHIP=m)
         help
 	  This selects support for Rockchip SoC specific extensions
 	  for the cdn DP driver. If you want to enable Dp on
@@ -34,8 +36,6 @@ config ROCKCHIP_CDN_DP
 
 config ROCKCHIP_DW_HDMI
         bool "Rockchip specific extensions for Synopsys DW HDMI"
-        depends on DRM_ROCKCHIP
-        select DRM_DW_HDMI
         help
 	  This selects support for Rockchip SoC specific extensions
 	  for the Synopsys DesignWare HDMI driver. If you want to
@@ -44,8 +44,6 @@ config ROCKCHIP_DW_HDMI
 
 config ROCKCHIP_DW_MIPI_DSI
 	bool "Rockchip specific extensions for Synopsys DW MIPI DSI"
-	depends on DRM_ROCKCHIP
-	select DRM_MIPI_DSI
 	help
 	 This selects support for Rockchip SoC specific extensions
 	 for the Synopsys DesignWare HDMI driver. If you want to
@@ -54,8 +52,9 @@ config ROCKCHIP_DW_MIPI_DSI
 
 config ROCKCHIP_INNO_HDMI
 	bool "Rockchip specific extensions for Innosilicon HDMI"
-	depends on DRM_ROCKCHIP
 	help
 	  This selects support for Rockchip SoC specific extensions
 	  for the Innosilicon HDMI driver. If you want to enable
 	  HDMI on RK3036 based SoC, you should select this option.
+
+endif

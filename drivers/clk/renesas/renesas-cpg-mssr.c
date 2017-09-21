@@ -257,7 +257,7 @@ static void __init cpg_mssr_register_core_clk(const struct cpg_core_clk *core,
 					      const struct cpg_mssr_info *info,
 					      struct cpg_mssr_priv *priv)
 {
-	struct clk *clk = NULL, *parent;
+	struct clk *clk = ERR_PTR(-ENOTSUPP), *parent;
 	struct device *dev = priv->dev;
 	unsigned int id = core->id, div = core->div;
 	const char *parent_name;
@@ -477,7 +477,7 @@ fail_put:
 
 void cpg_mssr_detach_dev(struct generic_pm_domain *unused, struct device *dev)
 {
-	if (!list_empty(&dev->power.subsys_data->clock_list))
+	if (!pm_clk_no_clocks(dev))
 		pm_clk_destroy(dev);
 }
 
@@ -627,25 +627,54 @@ static inline int cpg_mssr_reset_controller_register(struct cpg_mssr_priv *priv)
 
 
 static const struct of_device_id cpg_mssr_match[] = {
-#ifdef CONFIG_ARCH_R8A7743
+#ifdef CONFIG_CLK_R8A7743
 	{
 		.compatible = "renesas,r8a7743-cpg-mssr",
 		.data = &r8a7743_cpg_mssr_info,
 	},
 #endif
-#ifdef CONFIG_ARCH_R8A7745
+#ifdef CONFIG_CLK_R8A7745
 	{
 		.compatible = "renesas,r8a7745-cpg-mssr",
 		.data = &r8a7745_cpg_mssr_info,
 	},
 #endif
-#ifdef CONFIG_ARCH_R8A7795
+#ifdef CONFIG_CLK_R8A7790
+	{
+		.compatible = "renesas,r8a7790-cpg-mssr",
+		.data = &r8a7790_cpg_mssr_info,
+	},
+#endif
+#ifdef CONFIG_CLK_R8A7791
+	{
+		.compatible = "renesas,r8a7791-cpg-mssr",
+		.data = &r8a7791_cpg_mssr_info,
+	},
+	/* R-Car M2-N is (almost) identical to R-Car M2-W w.r.t. clocks. */
+	{
+		.compatible = "renesas,r8a7793-cpg-mssr",
+		.data = &r8a7791_cpg_mssr_info,
+	},
+#endif
+#ifdef CONFIG_CLK_R8A7792
+	{
+		.compatible = "renesas,r8a7792-cpg-mssr",
+		.data = &r8a7792_cpg_mssr_info,
+	},
+#endif
+#ifdef CONFIG_CLK_R8A7794
+	{
+		.compatible = "renesas,r8a7794-cpg-mssr",
+		.data = &r8a7794_cpg_mssr_info,
+	},
+#endif
+#ifdef CONFIG_CLK_R8A7795
 	{
 		.compatible = "renesas,r8a7795-cpg-mssr",
 		.data = &r8a7795_cpg_mssr_info,
 	},
 #endif
-#ifdef CONFIG_ARCH_R8A7796
+#ifdef CONFIG_CLK_R8A7796
 	{
 		.compatible = "renesas,r8a7796-cpg-mssr",
 		.data = &r8a7796_cpg_mssr_info,
@@ -670,7 +699,7 @@ static int __init cpg_mssr_probe(struct platform_device *pdev)
 	struct clk **clks;
 	int error;
 
-	info = of_match_node(cpg_mssr_match, np)->data;
+	info = of_device_get_match_data(dev);
 	if (info->init) {
 		error = info->init(dev);
 		if (error)

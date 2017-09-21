@@ -731,12 +731,10 @@ static int pcnet32_get_link_ksettings(struct net_device *dev,
 {
 	struct pcnet32_private *lp = netdev_priv(dev);
 	unsigned long flags;
-	int r = -EOPNOTSUPP;
 
 	spin_lock_irqsave(&lp->lock, flags);
 	if (lp->mii) {
 		mii_ethtool_get_link_ksettings(&lp->mii_if, cmd);
-		r = 0;
 	} else if (lp->chip_version == PCNET32_79C970A) {
 		if (lp->autoneg) {
 			cmd->base.autoneg = AUTONEG_ENABLE;
@@ -753,10 +751,9 @@ static int pcnet32_get_link_ksettings(struct net_device *dev,
 		ethtool_convert_legacy_u32_to_link_mode(
 						cmd->link_modes.supported,
 						SUPPORTED_TP | SUPPORTED_AUI);
-		r = 0;
 	}
 	spin_unlock_irqrestore(&lp->lock, flags);
-	return r;
+	return 0;
 }
 
 static int pcnet32_set_link_ksettings(struct net_device *dev,

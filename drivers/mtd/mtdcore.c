@@ -991,7 +991,7 @@ EXPORT_SYMBOL_GPL(mtd_point);
 /* We probably shouldn't allow XIP if the unpoint isn't a NULL */
 int mtd_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
-	if (!mtd->_point)
+	if (!mtd->_unpoint)
 		return -EOPNOTSUPP;
 	if (from < 0 || from >= mtd->size || len > mtd->size - from)
 		return -EINVAL;

@@ -47,15 +47,11 @@ static int st_accel_spi_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id st_accel_id_table[] = {
-	{ LSM303DLH_ACCEL_DEV_NAME },
-	{ LSM303DLHC_ACCEL_DEV_NAME },
 	{ LIS3DH_ACCEL_DEV_NAME },
 	{ LSM330D_ACCEL_DEV_NAME },
 	{ LSM330DL_ACCEL_DEV_NAME },
 	{ LSM330DLC_ACCEL_DEV_NAME },
 	{ LIS331DLH_ACCEL_DEV_NAME },
-	{ LSM303DL_ACCEL_DEV_NAME },
-	{ LSM303DLM_ACCEL_DEV_NAME },
 	{ LSM330_ACCEL_DEV_NAME },
 	{ LSM303AGR_ACCEL_DEV_NAME },
 	{ LIS2DH12_ACCEL_DEV_NAME },

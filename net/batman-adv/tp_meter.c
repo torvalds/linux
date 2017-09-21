@@ -27,6 +27,7 @@
 #include <linux/etherdevice.h>
 #include <linux/fs.h>
 #include <linux/if_ether.h>
+#include <linux/init.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/kref.h>
@@ -594,7 +595,7 @@ static int batadv_tp_send_msg(struct batadv_tp_vars *tp_vars, const u8 *src,
 		return BATADV_TP_REASON_MEMORY_ERROR;
 
 	skb_reserve(skb, ETH_HLEN);
-	icmp = (struct batadv_icmp_tp_packet *)skb_put(skb, sizeof(*icmp));
+	icmp = skb_put(skb, sizeof(*icmp));
 
 	/* fill the icmp header */
 	ether_addr_copy(icmp->dst, orig_node->orig);
@@ -611,7 +612,7 @@ static int batadv_tp_send_msg(struct batadv_tp_vars *tp_vars, const u8 *src,
 	icmp->timestamp = htonl(timestamp);
 
 	data_len = len - sizeof(*icmp);
-	data = (u8 *)skb_put(skb, data_len);
+	data = skb_put(skb, data_len);
 	batadv_tp_fill_prerandom(tp_vars, data, data_len);
 
 	r = batadv_send_skb_to_orig(skb, orig_node, NULL);
@@ -1189,7 +1190,7 @@ static int batadv_tp_send_ack(struct batadv_priv *bat_priv, const u8 *dst,
 	}
 
 	skb_reserve(skb, ETH_HLEN);
-	icmp = (struct batadv_icmp_tp_packet *)skb_put(skb, sizeof(*icmp));
+	icmp = skb_put(skb, sizeof(*icmp));
 	icmp->packet_type = BATADV_ICMP;
 	icmp->version = BATADV_COMPAT_VERSION;
 	icmp->ttl = BATADV_TTL;
@@ -1497,7 +1498,7 @@ void batadv_tp_meter_recv(struct batadv_priv *bat_priv, struct sk_buff *skb)
 /**
  * batadv_tp_meter_init - initialize global tp_meter structures
  */
-void batadv_tp_meter_init(void)
+void __init batadv_tp_meter_init(void)
 {
 	get_random_bytes(batadv_tp_prerandom, sizeof(batadv_tp_prerandom));
 }

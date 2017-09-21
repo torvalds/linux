@@ -467,6 +467,12 @@ static irqreturn_t wil6210_thread_irq(int irq, void *cookie)
 
 	wil6210_unmask_irq_pseudo(wil);
 
+	if (wil->suspend_resp_rcvd) {
+		wil_dbg_irq(wil, "set suspend_resp_comp to true\n");
+		wil->suspend_resp_comp = true;
+		wake_up_interruptible(&wil->wq);
+	}
+
 	return IRQ_HANDLED;
 }
 

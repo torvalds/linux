@@ -112,6 +112,15 @@ config EFI_CAPSULE_LOADER
 
 	  Most users should say N.
 
+config EFI_CAPSULE_QUIRK_QUARK_CSH
+	boolean "Add support for Quark capsules with non-standard headers"
+	depends on X86 && !64BIT
+	select EFI_CAPSULE_LOADER
+	default y
+	help
+	  Add support for processing Quark X1000 EFI capsules, whose header
+	  layout deviates from the layout mandated by the UEFI specification.
+
 config EFI_TEST
 	tristate "EFI Runtime Service Tests Support"
 	depends on EFI

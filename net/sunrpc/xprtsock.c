@@ -1624,6 +1624,8 @@ static void xs_tcp_state_change(struct sock *sk)
 		if (test_and_clear_bit(XPRT_SOCK_CONNECTING,
 					&transport->sock_state))
 			xprt_clear_connecting(xprt);
+		if (sk->sk_err)
+			xprt_wake_pending_tasks(xprt, -sk->sk_err);
 		xs_sock_mark_closed(xprt);
 	}
  out:

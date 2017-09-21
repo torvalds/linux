@@ -158,7 +158,9 @@ int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 addr);
 int symbol__alloc_hist(struct symbol *sym);
 void symbol__annotate_zero_histograms(struct symbol *sym);
 
-int symbol__disassemble(struct symbol *sym, struct map *map, const char *arch_name, size_t privsize);
+int symbol__disassemble(struct symbol *sym, struct map *map,
+			const char *arch_name, size_t privsize,
+			struct arch **parch);
 
 enum symbol_disassemble_errno {
 	SYMBOL_ANNOTATE_ERRNO__SUCCESS		= 0,

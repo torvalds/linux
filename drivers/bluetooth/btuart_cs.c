@@ -233,7 +233,7 @@ static void btuart_receive(struct btuart_info *info)
 
 		} else {
 
-			*skb_put(info->rx_skb, 1) = inb(iobase + UART_RX);
+			skb_put_u8(info->rx_skb, inb(iobase + UART_RX));
 			info->rx_count--;
 
 			if (info->rx_count == 0) {

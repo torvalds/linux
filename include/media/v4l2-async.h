@@ -31,7 +31,7 @@ struct v4l2_async_notifier;
  * 	v4l2_async_subdev.match ops
  * @V4L2_ASYNC_MATCH_DEVNAME: Match will use the device name
  * @V4L2_ASYNC_MATCH_I2C: Match will check for I2C adapter ID and address
- * @V4L2_ASYNC_MATCH_OF: Match will use OF node
+ * @V4L2_ASYNC_MATCH_FWNODE: Match will use firmware node
  *
  * This enum is used by the asyncrhronous sub-device logic to define the
  * algorithm that will be used to match an asynchronous device.
@@ -40,7 +40,7 @@ enum v4l2_async_match_type {
 	V4L2_ASYNC_MATCH_CUSTOM,
 	V4L2_ASYNC_MATCH_DEVNAME,
 	V4L2_ASYNC_MATCH_I2C,
-	V4L2_ASYNC_MATCH_OF,
+	V4L2_ASYNC_MATCH_FWNODE,
 };
 
 /**
@@ -55,8 +55,8 @@ struct v4l2_async_subdev {
 	enum v4l2_async_match_type match_type;
 	union {
 		struct {
-			const struct device_node *node;
-		} of;
+			struct fwnode_handle *fwnode;
+		} fwnode;
 		struct {
 			const char *name;
 		} device_name;

@@ -24,7 +24,7 @@
 #include <linux/firmware.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_audio.h"
@@ -4580,23 +4580,24 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 	/* init the pipes */
 	mutex_lock(&rdev->srbm_mutex);
 
-	eop_gpu_addr = rdev->mec.hpd_eop_gpu_addr;
+	for (i = 0; i < rdev->mec.num_pipe; ++i) {
+		cik_srbm_select(rdev, 0, i, 0, 0);
 
-	cik_srbm_select(rdev, 0, 0, 0, 0);
+		eop_gpu_addr = rdev->mec.hpd_eop_gpu_addr + (i * MEC_HPD_SIZE * 2) ;
+		/* write the EOP addr */
+		WREG32(CP_HPD_EOP_BASE_ADDR, eop_gpu_addr >> 8);
+		WREG32(CP_HPD_EOP_BASE_ADDR_HI, upper_32_bits(eop_gpu_addr) >> 8);
 
-	/* write the EOP addr */
-	WREG32(CP_HPD_EOP_BASE_ADDR, eop_gpu_addr >> 8);
-	WREG32(CP_HPD_EOP_BASE_ADDR_HI, upper_32_bits(eop_gpu_addr) >> 8);
+		/* set the VMID assigned */
+		WREG32(CP_HPD_EOP_VMID, 0);
 
-	/* set the VMID assigned */
-	WREG32(CP_HPD_EOP_VMID, 0);
+		/* set the EOP size, register value is 2^(EOP_SIZE+1) dwords */
+		tmp = RREG32(CP_HPD_EOP_CONTROL);
+		tmp &= ~EOP_SIZE_MASK;
+		tmp |= order_base_2(MEC_HPD_SIZE / 8);
+		WREG32(CP_HPD_EOP_CONTROL, tmp);
 
-	/* set the EOP size, register value is 2^(EOP_SIZE+1) dwords */
-	tmp = RREG32(CP_HPD_EOP_CONTROL);
-	tmp &= ~EOP_SIZE_MASK;
-	tmp |= order_base_2(MEC_HPD_SIZE / 8);
-	WREG32(CP_HPD_EOP_CONTROL, tmp);
-
+	}
 	mutex_unlock(&rdev->srbm_mutex);
 
 	/* init the queues.  Just two for now. */

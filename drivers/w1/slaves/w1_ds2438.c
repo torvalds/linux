@@ -13,8 +13,9 @@
 #include <linux/types.h>
 #include <linux/delay.h>
 
-#include "../w1.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
+
+#define W1_FAMILY_DS2438		0x26
 
 #define W1_DS2438_RETRIES		3
 

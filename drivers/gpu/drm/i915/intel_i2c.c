@@ -68,11 +68,20 @@ static const struct gmbus_pin gmbus_pins_bxt[] = {
 	[GMBUS_PIN_3_BXT] = { "misc", GPIOD },
 };
 
+static const struct gmbus_pin gmbus_pins_cnp[] = {
+	[GMBUS_PIN_1_BXT] = { "dpb", GPIOB },
+	[GMBUS_PIN_2_BXT] = { "dpc", GPIOC },
+	[GMBUS_PIN_3_BXT] = { "misc", GPIOD },
+	[GMBUS_PIN_4_CNP] = { "dpd", GPIOE },
+};
+
 /* pin is expected to be valid */
 static const struct gmbus_pin *get_gmbus_pin(struct drm_i915_private *dev_priv,
 					     unsigned int pin)
 {
-	if (IS_GEN9_LP(dev_priv))
+	if (HAS_PCH_CNP(dev_priv))
+		return &gmbus_pins_cnp[pin];
+	else if (IS_GEN9_LP(dev_priv))
 		return &gmbus_pins_bxt[pin];
 	else if (IS_GEN9_BC(dev_priv))
 		return &gmbus_pins_skl[pin];
@@ -87,7 +96,9 @@ bool intel_gmbus_is_valid_pin(struct drm_i915_private *dev_priv,
 {
 	unsigned int size;
 
-	if (IS_GEN9_LP(dev_priv))
+	if (HAS_PCH_CNP(dev_priv))
+		size = ARRAY_SIZE(gmbus_pins_cnp);
+	else if (IS_GEN9_LP(dev_priv))
 		size = ARRAY_SIZE(gmbus_pins_bxt);
 	else if (IS_GEN9_BC(dev_priv))
 		size = ARRAY_SIZE(gmbus_pins_skl);

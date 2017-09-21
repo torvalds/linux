@@ -133,7 +133,7 @@ void irlap_send_snrm_frame(struct irlap_cb *self, struct qos_info *qos)
 	if (!tx_skb)
 		return;
 
-	frame = (struct snrm_frame *) skb_put(tx_skb, 2);
+	frame = skb_put(tx_skb, 2);
 
 	/* Insert connection address field */
 	if (qos)
@@ -228,7 +228,7 @@ void irlap_send_ua_response_frame(struct irlap_cb *self, struct qos_info *qos)
 	if (!tx_skb)
 		return;
 
-	frame = (struct ua_frame *) skb_put(tx_skb, 10);
+	frame = skb_put(tx_skb, 10);
 
 	/* Build UA response */
 	frame->caddr = self->caddr;
@@ -268,7 +268,7 @@ void irlap_send_dm_frame( struct irlap_cb *self)
 	if (!tx_skb)
 		return;
 
-	frame = (struct dm_frame *)skb_put(tx_skb, 2);
+	frame = skb_put(tx_skb, 2);
 
 	if (self->state == LAP_NDM)
 		frame->caddr = CBROADCAST;
@@ -298,7 +298,7 @@ void irlap_send_disc_frame(struct irlap_cb *self)
 	if (!tx_skb)
 		return;
 
-	frame = (struct disc_frame *)skb_put(tx_skb, 2);
+	frame = skb_put(tx_skb, 2);
 
 	frame->caddr = self->caddr | CMD_FRAME;
 	frame->control = DISC_CMD | PF_BIT;
@@ -392,8 +392,7 @@ void irlap_send_discovery_xid_frame(struct irlap_cb *self, int S, __u8 s,
 		info[0] = discovery->data.charset;
 
 		len = IRDA_MIN(discovery->name_len, skb_tailroom(tx_skb));
-		info = skb_put(tx_skb, len);
-		memcpy(info, discovery->data.info, len);
+		skb_put_data(tx_skb, discovery->data.info, len);
 	}
 	irlap_queue_xmit(self, tx_skb);
 }
@@ -588,7 +587,7 @@ void irlap_send_rr_frame(struct irlap_cb *self, int command)
 	if (!tx_skb)
 		return;
 
-	frame = (struct rr_frame *)skb_put(tx_skb, 2);
+	frame = skb_put(tx_skb, 2);
 
 	frame->caddr = self->caddr;
 	frame->caddr |= (command) ? CMD_FRAME : 0;
@@ -613,7 +612,7 @@ void irlap_send_rd_frame(struct irlap_cb *self)
 	if (!tx_skb)
 		return;
 
-	frame = (struct rd_frame *)skb_put(tx_skb, 2);
+	frame = skb_put(tx_skb, 2);
 
 	frame->caddr = self->caddr;
 	frame->control = RD_RSP | PF_BIT;
@@ -1195,7 +1194,6 @@ void irlap_send_test_frame(struct irlap_cb *self, __u8 caddr, __u32 daddr,
 {
 	struct sk_buff *tx_skb;
 	struct test_frame *frame;
-	__u8 *info;
 
 	tx_skb = alloc_skb(cmd->len + sizeof(struct test_frame), GFP_ATOMIC);
 	if (!tx_skb)
@@ -1203,21 +1201,19 @@ void irlap_send_test_frame(struct irlap_cb *self, __u8 caddr, __u32 daddr,
 
 	/* Broadcast frames must include saddr and daddr fields */
 	if (caddr == CBROADCAST) {
-		frame = (struct test_frame *)
-			skb_put(tx_skb, sizeof(struct test_frame));
+		frame = skb_put(tx_skb, sizeof(struct test_frame));
 
 		/* Insert the swapped addresses */
 		frame->saddr = cpu_to_le32(self->saddr);
 		frame->daddr = cpu_to_le32(daddr);
 	} else
-		frame = (struct test_frame *) skb_put(tx_skb, LAP_ADDR_HEADER + LAP_CTRL_HEADER);
+		frame = skb_put(tx_skb, LAP_ADDR_HEADER + LAP_CTRL_HEADER);
 
 	frame->caddr = caddr;
 	frame->control = TEST_RSP | PF_BIT;
 
 	/* Copy info */
-	info = skb_put(tx_skb, cmd->len);
-	memcpy(info, cmd->data, cmd->len);
+	skb_put_data(tx_skb, cmd->data, cmd->len);
 
 	/* Return to sender */
 	irlap_wait_min_turn_around(self, &self->qos_tx);

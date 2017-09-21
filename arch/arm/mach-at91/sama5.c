@@ -34,7 +34,6 @@ DT_MACHINE_START(sama5_dt, "Atmel SAMA5")
 MACHINE_END
 
 static const char *const sama5_alt_dt_board_compat[] __initconst = {
-	"atmel,sama5d2",
 	"atmel,sama5d4",
 	NULL
 };
@@ -43,5 +42,23 @@ DT_MACHINE_START(sama5_alt_dt, "Atmel SAMA5")
 	/* Maintainer: Atmel */
 	.init_machine	= sama5_dt_device_init,
 	.dt_compat	= sama5_alt_dt_board_compat,
+	.l2c_aux_mask	= ~0UL,
+MACHINE_END
+
+static void __init sama5d2_init(void)
+{
+	of_platform_default_populate(NULL, NULL, NULL);
+	sama5d2_pm_init();
+}
+
+static const char *const sama5d2_compat[] __initconst = {
+	"atmel,sama5d2",
+	NULL
+};
+
+DT_MACHINE_START(sama5d2, "Atmel SAMA5")
+	/* Maintainer: Atmel */
+	.init_machine	= sama5d2_init,
+	.dt_compat	= sama5d2_compat,
 	.l2c_aux_mask	= ~0UL,
 MACHINE_END

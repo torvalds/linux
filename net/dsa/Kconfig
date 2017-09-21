@@ -25,16 +25,19 @@ config NET_DSA_TAG_DSA
 config NET_DSA_TAG_EDSA
 	bool
 
-config NET_DSA_TAG_TRAILER
+config NET_DSA_TAG_KSZ
 	bool
 
-config NET_DSA_TAG_QCA
+config NET_DSA_TAG_LAN9303
 	bool
 
 config NET_DSA_TAG_MTK
 	bool
 
-config NET_DSA_TAG_LAN9303
+config NET_DSA_TAG_TRAILER
+	bool
+
+config NET_DSA_TAG_QCA
 	bool
 
 endif

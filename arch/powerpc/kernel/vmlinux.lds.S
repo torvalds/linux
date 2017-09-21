@@ -8,6 +8,12 @@
 #include <asm/cache.h>
 #include <asm/thread_info.h>
 
+#ifdef CONFIG_STRICT_KERNEL_RWX
+#define STRICT_ALIGN_SIZE	(1 << 24)
+#else
+#define STRICT_ALIGN_SIZE	PAGE_SIZE
+#endif
+
 ENTRY(_stext)
 
 PHDRS {
@@ -58,7 +64,6 @@ SECTIONS
 #ifdef CONFIG_PPC64
 		KEEP(*(.head.text.first_256B));
 #ifdef CONFIG_PPC_BOOK3E
-# define END_FIXED	0x100
 #else
 		KEEP(*(.head.text.real_vectors));
 		*(.head.text.real_trampolines);
@@ -66,12 +71,8 @@ SECTIONS
 		*(.head.text.virt_trampolines);
 # if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
 		KEEP(*(.head.data.fwnmi_page));
-#  define END_FIXED	0x8000
-# else
-#  define END_FIXED	0x7000
 # endif
 #endif
-		ASSERT((. == END_FIXED), "vmlinux.lds.S: fixed section overflow error");
 #else /* !CONFIG_PPC64 */
 		HEAD_TEXT
 #endif
@@ -79,23 +80,6 @@ SECTIONS
 
 	__head_end = .;
 
-	/*
-	 * If the build dies here, it's likely code in head_64.S is referencing
-	 * labels it can't reach, and the linker inserting stubs without the
-	 * assembler's knowledge. To debug, remove the above assert and
-	 * rebuild. Look for branch stubs in the fixed section region.
-	 *
-	 * Linker stub generation could be allowed in "trampoline"
-	 * sections if absolutely necessary, but this would require
-	 * some rework of the fixed sections. Before resorting to this,
-	 * consider references that have sufficient addressing range,
-	 * (e.g., hand coded trampolines) so the linker does not have
-	 * to add stubs.
-	 *
-	 * Linker stubs at the top of the main text section are currently not
-	 * detected, and will result in a crash at boot due to offsets being
-	 * wrong.
-	 */
 #ifdef CONFIG_PPC64
 	/*
 	 * BLOCK(0) overrides the default output section alignment because
@@ -103,18 +87,31 @@ SECTIONS
 	 * section placement to work.
 	 */
 	.text BLOCK(0) : AT(ADDR(.text) - LOAD_OFFSET) {
+#ifdef CONFIG_LD_HEAD_STUB_CATCH
+		*(.linker_stub_catch);
+		. = . ;
+#endif
+
 #else
 	.text : AT(ADDR(.text) - LOAD_OFFSET) {
 		ALIGN_FUNCTION();
 #endif
 		/* careful! __ftr_alt_* sections need to be close to .text */
-		*(.text .fixup __ftr_alt_* .ref.text)
+		*(.text.hot .text .text.fixup .text.unlikely .fixup __ftr_alt_* .ref.text);
 		SCHED_TEXT
 		CPUIDLE_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
 		IRQENTRY_TEXT
 		SOFTIRQENTRY_TEXT
+		/*
+		 * -Os builds call FP save/restore functions. The powerpc64
+		 * linker generates those on demand in the .sfpr section.
+		 * .sfpr gets placed at the beginning of a group of input
+		 * sections, which can break start-of-text offset if it is
+		 * included with the main text sections, so put it by itself.
+		 */
+		*(.sfpr);
 		MEM_KEEP(init.text)
 		MEM_KEEP(exit.text)
 
@@ -132,7 +129,7 @@ SECTIONS
 	PROVIDE32 (etext = .);
 
 	/* Read-only data */
-	RODATA
+	RO_DATA(PAGE_SIZE)
 
 	EXCEPTION_TABLE(0)
 
@@ -149,7 +146,7 @@ SECTIONS
 /*
  * Init sections discarded at runtime
  */
-	. = ALIGN(PAGE_SIZE);
+	. = ALIGN(STRICT_ALIGN_SIZE);
 	__init_begin = .;
 	INIT_TEXT_SECTION(PAGE_SIZE) :kernel
 
@@ -267,7 +264,9 @@ SECTIONS
 	.data : AT(ADDR(.data) - LOAD_OFFSET) {
 		DATA_DATA
 		*(.sdata)
+		*(.sdata2)
 		*(.got.plt) *(.got)
+		*(.plt)
 	}
 #else
 	.data : AT(ADDR(.data) - LOAD_OFFSET) {
@@ -330,6 +329,16 @@ SECTIONS
 	_end = . ;
 	PROVIDE32 (end = .);
 
-	/* Sections to be discarded. */
+	STABS_DEBUG
+
+	DWARF_DEBUG
+
 	DISCARDS
+	/DISCARD/ : {
+		*(*.EMB.apuinfo)
+		*(.glink .iplt .plt .rela* .comment)
+		*(.gnu.version*)
+		*(.gnu.attributes)
+		*(.eh_frame)
+	}
 }

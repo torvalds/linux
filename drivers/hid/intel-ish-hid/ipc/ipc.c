@@ -296,17 +296,12 @@ static int write_ipc_from_queue(struct ishtp_device *dev)
 	/* If sending MNG_SYNC_FW_CLOCK, update clock again */
 	if (IPC_HEADER_GET_PROTOCOL(doorbell_val) == IPC_PROTOCOL_MNG &&
 		IPC_HEADER_GET_MNG_CMD(doorbell_val) == MNG_SYNC_FW_CLOCK) {
-		struct timespec ts_system;
-		struct timeval tv_utc;
-		uint64_t        usec_system, usec_utc;
+		uint64_t usec_system, usec_utc;
 		struct ipc_time_update_msg time_update;
 		struct time_sync_format ts_format;
 
-		get_monotonic_boottime(&ts_system);
-		do_gettimeofday(&tv_utc);
-		usec_system = (timespec_to_ns(&ts_system)) / NSEC_PER_USEC;
-		usec_utc = (uint64_t)tv_utc.tv_sec * 1000000 +
-						((uint32_t)tv_utc.tv_usec);
+		usec_system = ktime_to_us(ktime_get_boottime());
+		usec_utc = ktime_to_us(ktime_get_real());
 		ts_format.ts1_source = HOST_SYSTEM_TIME_USEC;
 		ts_format.ts2_source = HOST_UTC_TIME_USEC;
 		ts_format.reserved = 0;
@@ -575,15 +570,13 @@ static void fw_reset_work_fn(struct work_struct *unused)
 static void _ish_sync_fw_clock(struct ishtp_device *dev)
 {
 	static unsigned long	prev_sync;
-	struct timespec	ts;
 	uint64_t	usec;
 
 	if (prev_sync && jiffies - prev_sync < 20 * HZ)
 		return;
 
 	prev_sync = jiffies;
-	get_monotonic_boottime(&ts);
-	usec = (timespec_to_ns(&ts)) / NSEC_PER_USEC;
+	usec = ktime_to_us(ktime_get_boottime());
 	ipc_send_mng_msg(dev, MNG_SYNC_FW_CLOCK, &usec, sizeof(uint64_t));
 }
 

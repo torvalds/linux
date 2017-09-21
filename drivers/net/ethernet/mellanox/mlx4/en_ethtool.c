@@ -89,7 +89,7 @@ mlx4_en_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 	struct mlx4_en_dev *mdev = priv->mdev;
 
 	strlcpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, DRV_VERSION " (" DRV_RELDATE ")",
+	strlcpy(drvinfo->version, DRV_VERSION,
 		sizeof(drvinfo->version));
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		"%d.%d.%d",
@@ -223,6 +223,7 @@ static void mlx4_en_get_wol(struct net_device *netdev,
 			    struct ethtool_wolinfo *wol)
 {
 	struct mlx4_en_priv *priv = netdev_priv(netdev);
+	struct mlx4_caps *caps = &priv->mdev->dev->caps;
 	int err = 0;
 	u64 config = 0;
 	u64 mask;
@@ -235,11 +236,16 @@ static void mlx4_en_get_wol(struct net_device *netdev,
 	mask = (priv->port == 1) ? MLX4_DEV_CAP_FLAG_WOL_PORT1 :
 		MLX4_DEV_CAP_FLAG_WOL_PORT2;
 
-	if (!(priv->mdev->dev->caps.flags & mask)) {
+	if (!(caps->flags & mask)) {
 		wol->supported = 0;
 		wol->wolopts = 0;
 		return;
 	}
+
+	if (caps->wol_port[priv->port])
+		wol->supported = WAKE_MAGIC;
+	else
+		wol->supported = 0;
 
 	err = mlx4_wol_read(priv->mdev->dev, &config, priv->port);
 	if (err) {
@@ -247,12 +253,7 @@ static void mlx4_en_get_wol(struct net_device *netdev,
 		return;
 	}
 
-	if (config & MLX4_EN_WOL_MAGIC)
-		wol->supported = WAKE_MAGIC;
-	else
-		wol->supported = 0;
-
-	if (config & MLX4_EN_WOL_ENABLED)
+	if ((config & MLX4_EN_WOL_ENABLED) && (config & MLX4_EN_WOL_MAGIC))
 		wol->wolopts = WAKE_MAGIC;
 	else
 		wol->wolopts = 0;
@@ -1750,7 +1751,8 @@ static void mlx4_en_get_channels(struct net_device *dev,
 	channel->max_tx = MLX4_EN_MAX_TX_RING_P_UP;
 
 	channel->rx_count = priv->rx_ring_num;
-	channel->tx_count = priv->tx_ring_num[TX] / MLX4_EN_NUM_UP;
+	channel->tx_count = priv->tx_ring_num[TX] /
+			    priv->prof->num_up;
 }
 
 static int mlx4_en_set_channels(struct net_device *dev,
@@ -1763,6 +1765,7 @@ static int mlx4_en_set_channels(struct net_device *dev,
 	int port_up = 0;
 	int xdp_count;
 	int err = 0;
+	u8 up;
 
 	if (!channel->tx_count || !channel->rx_count)
 		return -EINVAL;
@@ -1773,18 +1776,19 @@ static int mlx4_en_set_channels(struct net_device *dev,
 
 	mutex_lock(&mdev->state_lock);
 	xdp_count = priv->tx_ring_num[TX_XDP] ? channel->rx_count : 0;
-	if (channel->tx_count * MLX4_EN_NUM_UP + xdp_count > MAX_TX_RINGS) {
+	if (channel->tx_count * priv->prof->num_up + xdp_count >
+	    MAX_TX_RINGS) {
 		err = -EINVAL;
 		en_err(priv,
 		       "Total number of TX and XDP rings (%d) exceeds the maximum supported (%d)\n",
-		       channel->tx_count * MLX4_EN_NUM_UP + xdp_count,
+		       channel->tx_count * priv->prof->num_up  + xdp_count,
 		       MAX_TX_RINGS);
 		goto out;
 	}
 
 	memcpy(&new_prof, priv->prof, sizeof(struct mlx4_en_port_profile));
 	new_prof.num_tx_rings_p_up = channel->tx_count;
-	new_prof.tx_ring_num[TX] = channel->tx_count * MLX4_EN_NUM_UP;
+	new_prof.tx_ring_num[TX] = channel->tx_count * priv->prof->num_up;
 	new_prof.tx_ring_num[TX_XDP] = xdp_count;
 	new_prof.rx_ring_num = channel->rx_count;
 
@@ -1799,11 +1803,11 @@ static int mlx4_en_set_channels(struct net_device *dev,
 
 	mlx4_en_safe_replace_resources(priv, tmp);
 
-	netif_set_real_num_tx_queues(dev, priv->tx_ring_num[TX]);
 	netif_set_real_num_rx_queues(dev, priv->rx_ring_num);
 
-	if (netdev_get_num_tc(dev))
-		mlx4_en_setup_tc(dev, MLX4_EN_NUM_UP);
+	up = (priv->prof->num_up == MLX4_EN_NUM_UP_LOW) ?
+				    0 : priv->prof->num_up;
+	mlx4_en_setup_tc(dev, up);
 
 	en_warn(priv, "Using %d TX rings\n", priv->tx_ring_num[TX]);
 	en_warn(priv, "Using %d RX rings\n", priv->rx_ring_num);

@@ -247,11 +247,6 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 
 #define MWIFIEX_DEF_AMPDU	IEEE80211_HT_AMPDU_PARM_FACTOR
 
-#define GET_RXSTBC(x) (x & IEEE80211_HT_CAP_RX_STBC)
-#define MWIFIEX_RX_STBC1	0x0100
-#define MWIFIEX_RX_STBC12	0x0200
-#define MWIFIEX_RX_STBC123	0x0300
-
 /* dev_cap bitmap
  * BIT
  * 0-16		reserved
@@ -405,6 +400,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_TDLS_OPER                         0x0122
 #define HostCmd_CMD_SDIO_SP_RX_AGGR_CFG               0x0223
 #define HostCmd_CMD_CHAN_REGION_CFG		      0x0242
+#define HostCmd_CMD_PACKET_AGGR_CTRL		      0x0251
 
 #define PROTOCOL_NO_SECURITY        0x01
 #define PROTOCOL_STATIC_WEP         0x02
@@ -2268,6 +2264,14 @@ struct host_cmd_ds_chan_region_cfg {
 	__le16 action;
 } __packed;
 
+struct host_cmd_ds_pkt_aggr_ctrl {
+	__le16 action;
+	__le16 enable;
+	__le16 tx_aggr_max_size;
+	__le16 tx_aggr_max_num;
+	__le16 tx_aggr_align;
+} __packed;
+
 struct host_cmd_ds_command {
 	__le16 command;
 	__le16 size;
@@ -2343,6 +2347,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_wakeup_reason hs_wakeup_reason;
 		struct host_cmd_ds_gtk_rekey_params rekey;
 		struct host_cmd_ds_chan_region_cfg reg_cfg;
+		struct host_cmd_ds_pkt_aggr_ctrl pkt_aggr_ctrl;
 	} params;
 } __packed;
 

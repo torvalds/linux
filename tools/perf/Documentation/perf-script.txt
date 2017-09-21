@@ -116,8 +116,9 @@ OPTIONS
 --fields::
         Comma separated list of fields to print. Options are:
         comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff,
-        srcline, period, iregs, brstack, brstacksym, flags, bpf-output, brstackinsn,
-        callindent, insn, insnlen. Field list can be prepended with the type, trace, sw or hw,
+        srcline, period, iregs, brstack, brstacksym, flags, bpf-output, brstackinsn, brstackoff,
+        callindent, insn, insnlen, synth.
+        Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
         e.g., -F sw:comm,tid,time,ip,sym  and -F trace:time,cpu,trace
 
@@ -129,6 +130,14 @@ OPTIONS
 
 	i.e., the specified fields apply to all event types if the type string
 	is not given.
+
+	In addition to overriding fields, it is also possible to add or remove
+	fields from the defaults. For example
+
+		-F -cpu,+insn
+
+	removes the cpu field and adds the insn field. Adding/removing fields
+	cannot be mixed with normal overriding.
 
 	The arguments are processed in the order received. A later usage can
 	reset a prior request. e.g.:
@@ -185,6 +194,9 @@ OPTIONS
 	instruction bytes and the instruction length of the current
 	instruction.
 
+	The synth field is used by synthesized events which may be created when
+	Instruction Trace decoding.
+
 	Finally, a user may not set fields to none for all event types.
 	i.e., -F "" is not allowed.
 
@@ -202,6 +214,8 @@ OPTIONS
 	When brstackinsn is specified the full assembler sequences of branch sequences for each sample
 	is printed. This is the full execution path leading to the sample. This is only supported when the
 	sample was recorded with perf record -b or -j any.
+
+	The brstackoff field will print an offset into a specific dso/binary.
 
 -k::
 --vmlinux=<file>::

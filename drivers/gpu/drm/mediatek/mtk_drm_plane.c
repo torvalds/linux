@@ -28,6 +28,8 @@ static const u32 formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_RGB565,
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_YUYV,
 };
 
 static void mtk_plane_reset(struct drm_plane *plane)

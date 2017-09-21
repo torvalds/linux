@@ -16,10 +16,10 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "mdp5_kms.h"
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
 
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
+#include "mdp5_kms.h"
 
 static struct mdp5_kms *get_kms(struct drm_encoder *encoder)
 {
@@ -299,7 +299,7 @@ static void mdp5_encoder_enable(struct drm_encoder *encoder)
 	struct mdp5_interface *intf = mdp5_encoder->intf;
 
 	if (intf->mode == MDP5_INTF_DSI_MODE_COMMAND)
-		mdp5_cmd_encoder_disable(encoder);
+		mdp5_cmd_encoder_enable(encoder);
 	else
 		mdp5_vid_encoder_enable(encoder);
 }

@@ -185,12 +185,6 @@ static int poison_channel(struct most_interface *most_iface,
 	return 0;
 }
 
-static void request_netinfo(struct most_interface *most_iface,
-			    int ch_idx)
-{
-	pr_info("request_netinfo()\n");
-}
-
 static void do_rx_work(struct hdm_i2c *dev)
 {
 	struct mbo *mbo;
@@ -343,7 +337,6 @@ static int i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	dev->most_iface.configure = configure_channel;
 	dev->most_iface.enqueue = enqueue;
 	dev->most_iface.poison_channel = poison_channel;
-	dev->most_iface.request_netinfo = request_netinfo;
 
 	INIT_LIST_HEAD(&dev->rx.list);
 	mutex_init(&dev->rx.list_mutex);

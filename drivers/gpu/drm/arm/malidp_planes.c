@@ -80,7 +80,7 @@ static void malidp_plane_reset(struct drm_plane *plane)
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (state) {
 		state->base.plane = plane;
-		state->base.rotation = DRM_ROTATE_0;
+		state->base.rotation = DRM_MODE_ROTATE_0;
 		plane->state = &state->base;
 	}
 }
@@ -221,7 +221,7 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 		return ret;
 
 	/* packed RGB888 / BGR888 can't be rotated or flipped */
-	if (state->rotation != DRM_ROTATE_0 &&
+	if (state->rotation != DRM_MODE_ROTATE_0 &&
 	    (fb->format->format == DRM_FORMAT_RGB888 ||
 	     fb->format->format == DRM_FORMAT_BGR888))
 		return -EINVAL;
@@ -264,11 +264,9 @@ static void malidp_de_set_plane_pitches(struct malidp_plane *mp,
 static void malidp_de_plane_update(struct drm_plane *plane,
 				   struct drm_plane_state *old_state)
 {
-	struct drm_gem_cma_object *obj;
 	struct malidp_plane *mp;
 	const struct malidp_hw_regmap *map;
 	struct malidp_plane_state *ms = to_malidp_plane_state(plane->state);
-	u16 ptr;
 	u32 src_w, src_h, dest_w, dest_h, val;
 	int i;
 
@@ -285,12 +283,12 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 
 	for (i = 0; i < ms->n_planes; i++) {
 		/* calculate the offset for the layer's plane registers */
-		ptr = mp->layer->ptr + (i << 4);
+		u16 ptr = mp->layer->ptr + (i << 4);
+		dma_addr_t fb_addr = drm_fb_cma_get_gem_addr(plane->state->fb,
+							     plane->state, i);
 
-		obj = drm_fb_cma_get_gem_obj(plane->state->fb, i);
-		obj->paddr += plane->state->fb->offsets[i];
-		malidp_hw_write(mp->hwdev, lower_32_bits(obj->paddr), ptr);
-		malidp_hw_write(mp->hwdev, upper_32_bits(obj->paddr), ptr + 4);
+		malidp_hw_write(mp->hwdev, lower_32_bits(fb_addr), ptr);
+		malidp_hw_write(mp->hwdev, upper_32_bits(fb_addr), ptr + 4);
 	}
 	malidp_de_set_plane_pitches(mp, ms->n_planes,
 				    plane->state->fb->pitches);
@@ -315,12 +313,12 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	val &= ~LAYER_ROT_MASK;
 
 	/* setup the rotation and axis flip bits */
-	if (plane->state->rotation & DRM_ROTATE_MASK)
-		val |= ilog2(plane->state->rotation & DRM_ROTATE_MASK) <<
+	if (plane->state->rotation & DRM_MODE_ROTATE_MASK)
+		val |= ilog2(plane->state->rotation & DRM_MODE_ROTATE_MASK) <<
 		       LAYER_ROT_OFFSET;
-	if (plane->state->rotation & DRM_REFLECT_X)
+	if (plane->state->rotation & DRM_MODE_REFLECT_X)
 		val |= LAYER_H_FLIP;
-	if (plane->state->rotation & DRM_REFLECT_Y)
+	if (plane->state->rotation & DRM_MODE_REFLECT_Y)
 		val |= LAYER_V_FLIP;
 
 	/*
@@ -370,8 +368,8 @@ int malidp_de_planes_init(struct drm_device *drm)
 	struct malidp_plane *plane = NULL;
 	enum drm_plane_type plane_type;
 	unsigned long crtcs = 1 << drm->mode_config.num_crtc;
-	unsigned long flags = DRM_ROTATE_0 | DRM_ROTATE_90 | DRM_ROTATE_180 |
-			      DRM_ROTATE_270 | DRM_REFLECT_X | DRM_REFLECT_Y;
+	unsigned long flags = DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_180 |
+			      DRM_MODE_ROTATE_270 | DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y;
 	u32 *formats;
 	int ret, i, j, n;
 
@@ -420,7 +418,7 @@ int malidp_de_planes_init(struct drm_device *drm)
 			continue;
 		}
 
-		drm_plane_create_rotation_property(&plane->base, DRM_ROTATE_0, flags);
+		drm_plane_create_rotation_property(&plane->base, DRM_MODE_ROTATE_0, flags);
 		malidp_hw_write(malidp->dev, MALIDP_ALPHA_LUT,
 				plane->layer->base + MALIDP_LAYER_COMPOSE);
 	}

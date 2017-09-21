@@ -71,7 +71,7 @@ static void maybe_release_space(struct gfs2_bufdata *bd)
 {
 	struct gfs2_glock *gl = bd->bd_gl;
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-	struct gfs2_rgrpd *rgd = gl->gl_object;
+	struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(gl);
 	unsigned int index = bd->bd_bh->b_blocknr - gl->gl_name.ln_number;
 	struct gfs2_bitmap *bi = rgd->rd_bits + index;
 
@@ -134,10 +134,8 @@ static void gfs2_log_incr_head(struct gfs2_sbd *sdp)
 	BUG_ON((sdp->sd_log_flush_head == sdp->sd_log_tail) &&
 	       (sdp->sd_log_flush_head != sdp->sd_log_head));
 
-	if (++sdp->sd_log_flush_head == sdp->sd_jdesc->jd_blocks) {
+	if (++sdp->sd_log_flush_head == sdp->sd_jdesc->jd_blocks)
 		sdp->sd_log_flush_head = 0;
-		sdp->sd_log_flush_wrapped = 1;
-	}
 }
 
 static u64 gfs2_log_bmap(struct gfs2_sbd *sdp)
@@ -170,7 +168,7 @@ static u64 gfs2_log_bmap(struct gfs2_sbd *sdp)
  */
 
 static void gfs2_end_log_write_bh(struct gfs2_sbd *sdp, struct bio_vec *bvec,
-				  int error)
+				  blk_status_t error)
 {
 	struct buffer_head *bh, *next;
 	struct page *page = bvec->bv_page;
@@ -182,7 +180,7 @@ static void gfs2_end_log_write_bh(struct gfs2_sbd *sdp, struct bio_vec *bvec,
 		bh = bh->b_this_page;
 	do {
 		if (error)
-			set_buffer_write_io_error(bh);
+			mark_buffer_write_io_error(bh);
 		unlock_buffer(bh);
 		next = bh->b_this_page;
 		size -= bh->b_size;
@@ -209,15 +207,13 @@ static void gfs2_end_log_write(struct bio *bio)
 	struct page *page;
 	int i;
 
-	if (bio->bi_error) {
-		sdp->sd_log_error = bio->bi_error;
-		fs_err(sdp, "Error %d writing to log\n", bio->bi_error);
-	}
+	if (bio->bi_status)
+		fs_err(sdp, "Error %d writing to log\n", bio->bi_status);
 
 	bio_for_each_segment_all(bvec, bio, i) {
 		page = bvec->bv_page;
 		if (page_has_buffers(page))
-			gfs2_end_log_write_bh(sdp, bvec, bio->bi_error);
+			gfs2_end_log_write_bh(sdp, bvec, bio->bi_status);
 		else
 			mempool_free(page, gfs2_page_pool);
 	}

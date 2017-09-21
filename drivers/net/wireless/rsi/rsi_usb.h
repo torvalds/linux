@@ -35,6 +35,8 @@
 #define MGMT_EP                      1
 #define DATA_EP                      2
 
+#define RSI_USB_BUF_SIZE	     4096
+
 struct rsi_91x_usbdev {
 	struct rsi_thread rx_thread;
 	u8 endpoint;
@@ -61,8 +63,5 @@ static inline int rsi_usb_event_timeout(struct rsi_hw *adapter)
 	return EVENT_WAIT_FOREVER;
 }
 
-int rsi_usb_device_init(struct rsi_common *common);
-int rsi_usb_write_register_multiple(struct rsi_hw *adapter, u32 addr,
-				    u8 *data, u32 count);
 void rsi_usb_rx_thread(struct rsi_common *common);
 #endif

@@ -279,10 +279,10 @@ static int dib7000p_set_power_mode(struct dib7000p_state *state, enum dib7000p_p
 		if (state->version != SOC7090)
 			reg_1280 &= ~((1 << 11));
 		reg_1280 &= ~(1 << 6);
-		/* fall through wanted to enable the interfaces */
-
+		/* fall-through */
+	case DIB7000P_POWER_INTERFACE_ONLY:
 		/* just leave power on the control-interfaces: GPIO and (I2C or SDIO) */
-	case DIB7000P_POWER_INTERFACE_ONLY:	/* TODO power up either SDIO or I2C */
+		/* TODO power up either SDIO or I2C */
 		if (state->version == SOC7090)
 			reg_1280 &= ~((1 << 7) | (1 << 5));
 		else

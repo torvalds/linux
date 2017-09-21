@@ -764,6 +764,15 @@ static int vsp1_probe(struct platform_device *pdev)
 				PTR_ERR(vsp1->fcp));
 			return PTR_ERR(vsp1->fcp);
 		}
+
+		/*
+		 * When the FCP is present, it handles all bus master accesses
+		 * for the VSP and must thus be used in place of the VSP device
+		 * to map DMA buffers.
+		 */
+		vsp1->bus_master = rcar_fcp_get_device(vsp1->fcp);
+	} else {
+		vsp1->bus_master = vsp1->dev;
 	}
 
 	/* Configure device parameters based on the version register. */

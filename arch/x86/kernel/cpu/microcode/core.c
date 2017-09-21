@@ -290,6 +290,17 @@ struct cpio_data find_microcode_in_initrd(const char *path, bool use_pa)
 			return (struct cpio_data){ NULL, 0, "" };
 		if (initrd_start)
 			start = initrd_start;
+	} else {
+		/*
+		 * The picture with physical addresses is a bit different: we
+		 * need to get the *physical* address to which the ramdisk was
+		 * relocated, i.e., relocated_ramdisk (not initrd_start) and
+		 * since we're running from physical addresses, we need to access
+		 * relocated_ramdisk through its *physical* address too.
+		 */
+		u64 *rr = (u64 *)__pa_nodebug(&relocated_ramdisk);
+		if (*rr)
+			start = *rr;
 	}
 
 	return find_cpio_data(path, (void *)start, size, NULL);
@@ -550,7 +561,7 @@ static struct attribute *mc_default_attrs[] = {
 	NULL
 };
 
-static struct attribute_group mc_attr_group = {
+static const struct attribute_group mc_attr_group = {
 	.attrs			= mc_default_attrs,
 	.name			= "microcode",
 };
@@ -696,7 +707,7 @@ static struct attribute *cpu_root_microcode_attrs[] = {
 	NULL
 };
 
-static struct attribute_group cpu_root_microcode_group = {
+static const struct attribute_group cpu_root_microcode_group = {
 	.name  = "microcode",
 	.attrs = cpu_root_microcode_attrs,
 };

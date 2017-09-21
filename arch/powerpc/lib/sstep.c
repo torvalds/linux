@@ -683,8 +683,10 @@ int analyse_instr(struct instruction_op *op, struct pt_regs *regs,
 	case 19:
 		switch ((instr >> 1) & 0x3ff) {
 		case 0:		/* mcrf */
-			rd = (instr >> 21) & 0x1c;
-			ra = (instr >> 16) & 0x1c;
+			rd = 7 - ((instr >> 23) & 0x7);
+			ra = 7 - ((instr >> 18) & 0x7);
+			rd *= 4;
+			ra *= 4;
 			val = (regs->ccr >> ra) & 0xf;
 			regs->ccr = (regs->ccr & ~(0xfUL << rd)) | (val << rd);
 			goto instr_done;
@@ -964,6 +966,19 @@ int analyse_instr(struct instruction_op *op, struct pt_regs *regs,
 #endif
 
 		case 19:	/* mfcr */
+			if ((instr >> 20) & 1) {
+				imm = 0xf0000000UL;
+				for (sh = 0; sh < 8; ++sh) {
+					if (instr & (0x80000 >> sh)) {
+						regs->gpr[rd] = regs->ccr & imm;
+						break;
+					}
+					imm >>= 4;
+				}
+
+				goto instr_done;
+			}
+
 			regs->gpr[rd] = regs->ccr;
 			regs->gpr[rd] &= 0xffffffffUL;
 			goto instr_done;

@@ -17,6 +17,27 @@ struct io_context;
 struct cgroup_subsys_state;
 typedef void (bio_end_io_t) (struct bio *);
 
+/*
+ * Block error status values.  See block/blk-core:blk_errors for the details.
+ */
+typedef u8 __bitwise blk_status_t;
+#define	BLK_STS_OK 0
+#define BLK_STS_NOTSUPP		((__force blk_status_t)1)
+#define BLK_STS_TIMEOUT		((__force blk_status_t)2)
+#define BLK_STS_NOSPC		((__force blk_status_t)3)
+#define BLK_STS_TRANSPORT	((__force blk_status_t)4)
+#define BLK_STS_TARGET		((__force blk_status_t)5)
+#define BLK_STS_NEXUS		((__force blk_status_t)6)
+#define BLK_STS_MEDIUM		((__force blk_status_t)7)
+#define BLK_STS_PROTECTION	((__force blk_status_t)8)
+#define BLK_STS_RESOURCE	((__force blk_status_t)9)
+#define BLK_STS_IOERR		((__force blk_status_t)10)
+
+/* hack for device mapper, don't use elsewhere: */
+#define BLK_STS_DM_REQUEUE    ((__force blk_status_t)11)
+
+#define BLK_STS_AGAIN		((__force blk_status_t)12)
+
 struct blk_issue_stat {
 	u64 stat;
 };
@@ -28,13 +49,14 @@ struct blk_issue_stat {
 struct bio {
 	struct bio		*bi_next;	/* request queue link */
 	struct block_device	*bi_bdev;
-	int			bi_error;
+	blk_status_t		bi_status;
 	unsigned int		bi_opf;		/* bottom bits req flags,
 						 * top bits REQ_OP. Use
 						 * accessors.
 						 */
 	unsigned short		bi_flags;	/* status, etc and bvec pool number */
 	unsigned short		bi_ioprio;
+	unsigned short		bi_write_hint;
 
 	struct bvec_iter	bi_iter;
 
@@ -205,6 +227,7 @@ enum req_flag_bits {
 	/* command specific flags for REQ_OP_WRITE_ZEROES: */
 	__REQ_NOUNMAP,		/* do not free blocks when zeroing */
 
+	__REQ_NOWAIT,           /* Don't wait if request will block */
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -223,6 +246,7 @@ enum req_flag_bits {
 #define REQ_BACKGROUND		(1ULL << __REQ_BACKGROUND)
 
 #define REQ_NOUNMAP		(1ULL << __REQ_NOUNMAP)
+#define REQ_NOWAIT		(1ULL << __REQ_NOWAIT)
 
 #define REQ_FAILFAST_MASK \
 	(REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT | REQ_FAILFAST_DRIVER)

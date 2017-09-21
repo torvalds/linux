@@ -590,7 +590,7 @@ static void exynos_pcie_host_init(struct pcie_port *pp)
 	exynos_pcie_enable_interrupts(ep);
 }
 
-static struct dw_pcie_host_ops exynos_pcie_host_ops = {
+static const struct dw_pcie_host_ops exynos_pcie_host_ops = {
 	.rd_own_conf = exynos_pcie_rd_own_conf,
 	.wr_own_conf = exynos_pcie_wr_own_conf,
 	.host_init = exynos_pcie_host_init,

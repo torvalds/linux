@@ -1003,10 +1003,10 @@ enum ieee80211_state {
 
 #define DEFAULT_MAX_SCAN_AGE (15 * HZ)
 #define DEFAULT_FTS 2346
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-#define MAC_ARG(x) ((u8 *)(x))[0], ((u8 *)(x))[1], ((u8 *)(x))[2], ((u8 *)(x))[3], ((u8 *)(x))[4], ((u8 *)(x))[5]
-#define IP_FMT "%d.%d.%d.%d"
-#define IP_ARG(x) ((u8 *)(x))[0], ((u8 *)(x))[1], ((u8 *)(x))[2], ((u8 *)(x))[3]
+#define MAC_FMT "%pM"
+#define MAC_ARG(x) (x)
+#define IP_FMT "%pI4"
+#define IP_ARG(x) (x)
 
 extern __inline int is_multicast_mac_addr(const u8 *addr)
 {

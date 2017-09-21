@@ -13,6 +13,7 @@
  */
 
 #include <linux/audit.h>
+#include <linux/security.h>
 
 #include "include/audit.h"
 #include "include/context.h"
@@ -24,8 +25,8 @@
  */
 #include "rlim_names.h"
 
-struct aa_fs_entry aa_fs_entry_rlimit[] = {
-	AA_FS_FILE_STRING("mask", AA_FS_RLIMIT_MASK),
+struct aa_sfs_entry aa_sfs_entry_rlimit[] = {
+	AA_SFS_FILE_STRING("mask", AA_SFS_RLIMIT_MASK),
 	{ }
 };
 
@@ -36,6 +37,11 @@ static void audit_cb(struct audit_buffer *ab, void *va)
 
 	audit_log_format(ab, " rlimit=%s value=%lu",
 			 rlim_names[aad(sa)->rlim.rlim], aad(sa)->rlim.max);
+	if (aad(sa)->peer) {
+		audit_log_format(ab, " peer=");
+		aa_label_xaudit(ab, labels_ns(aad(sa)->label), aad(sa)->peer,
+				FLAGS_NONE, GFP_ATOMIC);
+	}
 }
 
 /**
@@ -48,13 +54,17 @@ static void audit_cb(struct audit_buffer *ab, void *va)
  * Returns: 0 or sa->error else other error code on failure
  */
 static int audit_resource(struct aa_profile *profile, unsigned int resource,
-			  unsigned long value, int error)
+			  unsigned long value, struct aa_label *peer,
+			  const char *info, int error)
 {
 	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, OP_SETRLIMIT);
 
 	aad(&sa)->rlim.rlim = resource;
 	aad(&sa)->rlim.max = value;
+	aad(&sa)->peer = peer;
+	aad(&sa)->info = info;
 	aad(&sa)->error = error;
+
 	return aa_audit(AUDIT_APPARMOR_AUTO, profile, &sa, audit_cb);
 }
 
@@ -72,9 +82,21 @@ int aa_map_resource(int resource)
 	return rlim_map[resource];
 }
 
+static int profile_setrlimit(struct aa_profile *profile, unsigned int resource,
+			     struct rlimit *new_rlim)
+{
+	int e = 0;
+
+	if (profile->rlimits.mask & (1 << resource) && new_rlim->rlim_max >
+	    profile->rlimits.limits[resource].rlim_max)
+		e = -EACCES;
+	return audit_resource(profile, resource, new_rlim->rlim_max, NULL, NULL,
+			      e);
+}
+
 /**
  * aa_task_setrlimit - test permission to set an rlimit
- * @profile - profile confining the task  (NOT NULL)
+ * @label - label confining the task  (NOT NULL)
  * @task - task the resource is being set on
  * @resource - the resource being set
  * @new_rlim - the new resource limit  (NOT NULL)
@@ -83,14 +105,15 @@ int aa_map_resource(int resource)
  *
  * Returns: 0 or error code if setting resource failed
  */
-int aa_task_setrlimit(struct aa_profile *profile, struct task_struct *task,
+int aa_task_setrlimit(struct aa_label *label, struct task_struct *task,
 		      unsigned int resource, struct rlimit *new_rlim)
 {
-	struct aa_profile *task_profile;
+	struct aa_profile *profile;
+	struct aa_label *peer;
 	int error = 0;
 
 	rcu_read_lock();
-	task_profile = aa_get_profile(aa_cred_profile(__task_cred(task)));
+	peer = aa_get_newest_cred_label(__task_cred(task));
 	rcu_read_unlock();
 
 	/* TODO: extend resource control to handle other (non current)
@@ -99,53 +122,70 @@ int aa_task_setrlimit(struct aa_profile *profile, struct task_struct *task,
 	 * the same profile or that the task setting the resource of another
 	 * task has CAP_SYS_RESOURCE.
 	 */
-	if ((profile != task_profile &&
-	     aa_capable(profile, CAP_SYS_RESOURCE, 1)) ||
-	    (profile->rlimits.mask & (1 << resource) &&
-	     new_rlim->rlim_max > profile->rlimits.limits[resource].rlim_max))
-		error = -EACCES;
 
-	aa_put_profile(task_profile);
+	if (label != peer &&
+	    !aa_capable(label, CAP_SYS_RESOURCE, SECURITY_CAP_NOAUDIT))
+		error = fn_for_each(label, profile,
+				audit_resource(profile, resource,
+					       new_rlim->rlim_max, peer,
+					       "cap_sys_resoure", -EACCES));
+	else
+		error = fn_for_each_confined(label, profile,
+				profile_setrlimit(profile, resource, new_rlim));
+	aa_put_label(peer);
 
-	return audit_resource(profile, resource, new_rlim->rlim_max, error);
+	return error;
 }
 
 /**
  * __aa_transition_rlimits - apply new profile rlimits
- * @old: old profile on task  (NOT NULL)
- * @new: new profile with rlimits to apply  (NOT NULL)
+ * @old_l: old label on task  (NOT NULL)
+ * @new_l: new label with rlimits to apply  (NOT NULL)
  */
-void __aa_transition_rlimits(struct aa_profile *old, struct aa_profile *new)
+void __aa_transition_rlimits(struct aa_label *old_l, struct aa_label *new_l)
 {
 	unsigned int mask = 0;
 	struct rlimit *rlim, *initrlim;
-	int i;
+	struct aa_profile *old, *new;
+	struct label_it i;
 
-	/* for any rlimits the profile controlled reset the soft limit
-	 * to the less of the tasks hard limit and the init tasks soft limit
+	old = labels_profile(old_l);
+	new = labels_profile(new_l);
+
+	/* for any rlimits the profile controlled, reset the soft limit
+	 * to the lesser of the tasks hard limit and the init tasks soft limit
 	 */
-	if (old->rlimits.mask) {
-		for (i = 0, mask = 1; i < RLIM_NLIMITS; i++, mask <<= 1) {
-			if (old->rlimits.mask & mask) {
-				rlim = current->signal->rlim + i;
-				initrlim = init_task.signal->rlim + i;
-				rlim->rlim_cur = min(rlim->rlim_max,
-						     initrlim->rlim_cur);
+	label_for_each_confined(i, old_l, old) {
+		if (old->rlimits.mask) {
+			int j;
+
+			for (j = 0, mask = 1; j < RLIM_NLIMITS; j++,
+				     mask <<= 1) {
+				if (old->rlimits.mask & mask) {
+					rlim = current->signal->rlim + j;
+					initrlim = init_task.signal->rlim + j;
+					rlim->rlim_cur = min(rlim->rlim_max,
+							    initrlim->rlim_cur);
+				}
 			}
 		}
 	}
 
 	/* set any new hard limits as dictated by the new profile */
-	if (!new->rlimits.mask)
-		return;
-	for (i = 0, mask = 1; i < RLIM_NLIMITS; i++, mask <<= 1) {
-		if (!(new->rlimits.mask & mask))
-			continue;
+	label_for_each_confined(i, new_l, new) {
+		int j;
 
-		rlim = current->signal->rlim + i;
-		rlim->rlim_max = min(rlim->rlim_max,
-				     new->rlimits.limits[i].rlim_max);
-		/* soft limit should not exceed hard limit */
-		rlim->rlim_cur = min(rlim->rlim_cur, rlim->rlim_max);
+		if (!new->rlimits.mask)
+			continue;
+		for (j = 0, mask = 1; j < RLIM_NLIMITS; j++, mask <<= 1) {
+			if (!(new->rlimits.mask & mask))
+				continue;
+
+			rlim = current->signal->rlim + j;
+			rlim->rlim_max = min(rlim->rlim_max,
+					     new->rlimits.limits[j].rlim_max);
+			/* soft limit should not exceed hard limit */
+			rlim->rlim_cur = min(rlim->rlim_cur, rlim->rlim_max);
+		}
 	}
 }

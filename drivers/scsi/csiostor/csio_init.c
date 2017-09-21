@@ -952,8 +952,9 @@ static int csio_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct csio_hw *hw;
 	struct csio_lnode *ln;
 
-	/* probe only T5 cards */
-	if (!csio_is_t5((pdev->device & CSIO_HW_CHIP_MASK)))
+	/* probe only T5 and T6 cards */
+	if (!csio_is_t5((pdev->device & CSIO_HW_CHIP_MASK)) &&
+	    !csio_is_t6((pdev->device & CSIO_HW_CHIP_MASK)))
 		return -ENODEV;
 
 	rv = csio_pci_init(pdev, &bars);
@@ -968,10 +969,14 @@ static int csio_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_drvdata(pdev, hw);
 
-	if (csio_hw_start(hw) != 0) {
-		dev_err(&pdev->dev,
-			"Failed to start FW, continuing in debug mode.\n");
-		return 0;
+	rv = csio_hw_start(hw);
+	if (rv) {
+		if (rv == -EINVAL) {
+			dev_err(&pdev->dev,
+				"Failed to start FW, continuing in debug mode.\n");
+			return 0;
+		}
+		goto err_lnode_exit;
 	}
 
 	sprintf(hw->fwrev_str, "%u.%u.%u.%u\n",
@@ -1253,3 +1258,4 @@ MODULE_LICENSE(CSIO_DRV_LICENSE);
 MODULE_DEVICE_TABLE(pci, csio_pci_tbl);
 MODULE_VERSION(CSIO_DRV_VERSION);
 MODULE_FIRMWARE(FW_FNAME_T5);
+MODULE_FIRMWARE(FW_FNAME_T6);

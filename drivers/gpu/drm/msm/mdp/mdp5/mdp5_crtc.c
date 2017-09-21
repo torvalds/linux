@@ -16,13 +16,13 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "mdp5_kms.h"
-
 #include <linux/sort.h>
 #include <drm/drm_mode.h>
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
-#include "drm_flip_work.h"
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_flip_work.h>
+
+#include "mdp5_kms.h"
 
 #define CURSOR_WIDTH	64
 #define CURSOR_HEIGHT	64
@@ -160,8 +160,9 @@ static void unref_cursor_worker(struct drm_flip_work *work, void *val)
 	struct mdp5_crtc *mdp5_crtc =
 		container_of(work, struct mdp5_crtc, unref_cursor_work);
 	struct mdp5_kms *mdp5_kms = get_kms(&mdp5_crtc->base);
+	struct msm_kms *kms = &mdp5_kms->base.base;
 
-	msm_gem_put_iova(val, mdp5_kms->id);
+	msm_gem_put_iova(val, kms->aspace);
 	drm_gem_object_unreference_unlocked(val);
 }
 
@@ -220,8 +221,8 @@ static void blend_setup(struct drm_crtc *crtc)
 	struct mdp5_ctl *ctl = mdp5_cstate->ctl;
 	uint32_t blend_op, fg_alpha, bg_alpha, ctl_blend_flags = 0;
 	unsigned long flags;
-	enum mdp5_pipe stage[STAGE_MAX + 1][MAX_PIPE_STAGE] = { SSPP_NONE };
-	enum mdp5_pipe r_stage[STAGE_MAX + 1][MAX_PIPE_STAGE] = { SSPP_NONE };
+	enum mdp5_pipe stage[STAGE_MAX + 1][MAX_PIPE_STAGE] = { { SSPP_NONE } };
+	enum mdp5_pipe r_stage[STAGE_MAX + 1][MAX_PIPE_STAGE] = { { SSPP_NONE } };
 	int i, plane_cnt = 0;
 	bool bg_alpha_enabled = false;
 	u32 mixer_op_mode = 0;
@@ -724,6 +725,7 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	struct mdp5_pipeline *pipeline = &mdp5_cstate->pipeline;
 	struct drm_device *dev = crtc->dev;
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
+	struct msm_kms *kms = &mdp5_kms->base.base;
 	struct drm_gem_object *cursor_bo, *old_bo = NULL;
 	uint32_t blendcfg, stride;
 	uint64_t cursor_addr;
@@ -751,6 +753,7 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	if (!handle) {
 		DBG("Cursor off");
 		cursor_enable = false;
+		mdp5_enable(mdp5_kms);
 		goto set_cursor;
 	}
 
@@ -758,7 +761,7 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	if (!cursor_bo)
 		return -ENOENT;
 
-	ret = msm_gem_get_iova(cursor_bo, mdp5_kms->id, &cursor_addr);
+	ret = msm_gem_get_iova(cursor_bo, kms->aspace, &cursor_addr);
 	if (ret)
 		return -EINVAL;
 
@@ -773,6 +776,8 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	mdp5_crtc->cursor.height = height;
 
 	get_roi(crtc, &roi_w, &roi_h);
+
+	mdp5_enable(mdp5_kms);
 
 	mdp5_write(mdp5_kms, REG_MDP5_LM_CURSOR_STRIDE(lm), stride);
 	mdp5_write(mdp5_kms, REG_MDP5_LM_CURSOR_FORMAT(lm),
@@ -802,6 +807,7 @@ set_cursor:
 	crtc_flush(crtc, flush_mask);
 
 end:
+	mdp5_disable(mdp5_kms);
 	if (old_bo) {
 		drm_flip_work_queue(&mdp5_crtc->unref_cursor_work, old_bo);
 		/* enable vblank to complete cursor work: */
@@ -834,6 +840,8 @@ static int mdp5_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 
 	get_roi(crtc, &roi_w, &roi_h);
 
+	mdp5_enable(mdp5_kms);
+
 	spin_lock_irqsave(&mdp5_crtc->cursor.lock, flags);
 	mdp5_write(mdp5_kms, REG_MDP5_LM_CURSOR_SIZE(lm),
 			MDP5_LM_CURSOR_SIZE_ROI_H(roi_h) |
@@ -844,6 +852,8 @@ static int mdp5_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	spin_unlock_irqrestore(&mdp5_crtc->cursor.lock, flags);
 
 	crtc_flush(crtc, flush_mask);
+
+	mdp5_disable(mdp5_kms);
 
 	return 0;
 }

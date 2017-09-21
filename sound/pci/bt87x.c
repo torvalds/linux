@@ -401,13 +401,13 @@ static int snd_bt87x_set_digital_hw(struct snd_bt87x *chip, struct snd_pcm_runti
 
 static int snd_bt87x_set_analog_hw(struct snd_bt87x *chip, struct snd_pcm_runtime *runtime)
 {
-	static struct snd_ratnum analog_clock = {
+	static const struct snd_ratnum analog_clock = {
 		.num = ANALOG_CLOCK,
 		.den_min = CLOCK_DIV_MIN,
 		.den_max = CLOCK_DIV_MAX,
 		.den_step = 1
 	};
-	static struct snd_pcm_hw_constraint_ratnums constraint_rates = {
+	static const struct snd_pcm_hw_constraint_ratnums constraint_rates = {
 		.nrats = 1,
 		.rats = &analog_clock
 	};

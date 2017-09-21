@@ -1945,6 +1945,7 @@ static int handle_goto(struct vc_data *vc, u_char type, u_char ch, u_short key)
 		goto oops;
 	if (ch == 8) {
 		u16 wch;
+
 		if (num == 0)
 			return -1;
 		wch = goto_buf[--num];
@@ -2287,6 +2288,7 @@ static int vt_notifier_call(struct notifier_block *nb,
 			speakup_bs(vc);
 		} else {
 			u16 d = param->c;
+
 			speakup_con_write(vc, &d, 1);
 		}
 		break;
@@ -2312,6 +2314,7 @@ static void __exit speakup_exit(void)
 	mutex_lock(&spk_mutex);
 	synth_release();
 	mutex_unlock(&spk_mutex);
+	spk_ttyio_unregister_ldisc();
 
 	speakup_kobj_exit();
 
@@ -2374,6 +2377,7 @@ static int __init speakup_init(void)
 	if (err)
 		goto error_kobjects;
 
+	spk_ttyio_register_ldisc();
 	synth_init(synth_name);
 	speakup_register_devsynth();
 	/*

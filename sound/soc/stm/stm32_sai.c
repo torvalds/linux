@@ -27,8 +27,17 @@
 
 #include "stm32_sai.h"
 
+static const struct stm32_sai_conf stm32_sai_conf_f4 = {
+	.version = SAI_STM32F4,
+};
+
+static const struct stm32_sai_conf stm32_sai_conf_h7 = {
+	.version = SAI_STM32H7,
+};
+
 static const struct of_device_id stm32_sai_ids[] = {
-	{ .compatible = "st,stm32f4-sai", .data = (void *)SAI_STM32F4 },
+	{ .compatible = "st,stm32f4-sai", .data = (void *)&stm32_sai_conf_f4 },
+	{ .compatible = "st,stm32h7-sai", .data = (void *)&stm32_sai_conf_h7 },
 	{}
 };
 
@@ -52,7 +61,7 @@ static int stm32_sai_probe(struct platform_device *pdev)
 
 	of_id = of_match_device(stm32_sai_ids, &pdev->dev);
 	if (of_id)
-		sai->version = (enum stm32_sai_version)of_id->data;
+		sai->conf = (struct stm32_sai_conf *)of_id->data;
 	else
 		return -EINVAL;
 
@@ -110,6 +119,6 @@ static struct platform_driver stm32_sai_driver = {
 module_platform_driver(stm32_sai_driver);
 
 MODULE_DESCRIPTION("STM32 Soc SAI Interface");
-MODULE_AUTHOR("Olivier Moysan, <olivier.moysan@st.com>");
+MODULE_AUTHOR("Olivier Moysan <olivier.moysan@st.com>");
 MODULE_ALIAS("platform:st,stm32-sai");
 MODULE_LICENSE("GPL v2");

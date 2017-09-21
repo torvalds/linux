@@ -149,12 +149,21 @@ struct qed_iov_vf_mbx {
 	struct vfpf_first_tlv first_tlv;
 };
 
-struct qed_vf_q_info {
+#define QED_IOV_LEGACY_QID_RX (0)
+#define QED_IOV_LEGACY_QID_TX (1)
+#define QED_IOV_QID_INVALID (0xFE)
+
+struct qed_vf_queue_cid {
+	bool b_is_tx;
+	struct qed_queue_cid *p_cid;
+};
+
+/* Describes a qzone associated with the VF */
+struct qed_vf_queue {
 	u16 fw_rx_qid;
-	struct qed_queue_cid *p_rx_cid;
 	u16 fw_tx_qid;
-	struct qed_queue_cid *p_tx_cid;
-	u8 fw_cid;
+
+	struct qed_vf_queue_cid cids[MAX_QUEUES_PER_QZONE];
 };
 
 enum vf_state {
@@ -212,7 +221,8 @@ struct qed_vf_info {
 
 	u8 num_mac_filters;
 	u8 num_vlan_filters;
-	struct qed_vf_q_info vf_queues[QED_MAX_VF_CHAINS_PER_PF];
+
+	struct qed_vf_queue vf_queues[QED_MAX_VF_CHAINS_PER_PF];
 	u16 igu_sbs[QED_MAX_VF_CHAINS_PER_PF];
 	u8 num_active_rxqs;
 	struct qed_public_vf_info p_vf_info;
@@ -316,9 +326,8 @@ int qed_iov_alloc(struct qed_hwfn *p_hwfn);
  * @brief qed_iov_setup - setup sriov related resources
  *
  * @param p_hwfn
- * @param p_ptt
  */
-void qed_iov_setup(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+void qed_iov_setup(struct qed_hwfn *p_hwfn);
 
 /**
  * @brief qed_iov_free - free sriov related resources
@@ -333,17 +342,6 @@ void qed_iov_free(struct qed_hwfn *p_hwfn);
  * @param cdev
  */
 void qed_iov_free_hw_info(struct qed_dev *cdev);
-
-/**
- * @brief qed_sriov_eqe_event - handle async sriov event arrived on eqe.
- *
- * @param p_hwfn
- * @param opcode
- * @param echo
- * @param data
- */
-int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
-			u8 opcode, __le16 echo, union event_ring_data *data);
 
 /**
  * @brief Mark structs of vfs that have been FLR-ed.
@@ -397,7 +395,7 @@ static inline int qed_iov_alloc(struct qed_hwfn *p_hwfn)
 	return 0;
 }
 
-static inline void qed_iov_setup(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+static inline void qed_iov_setup(struct qed_hwfn *p_hwfn)
 {
 }
 
@@ -407,13 +405,6 @@ static inline void qed_iov_free(struct qed_hwfn *p_hwfn)
 
 static inline void qed_iov_free_hw_info(struct qed_dev *cdev)
 {
-}
-
-static inline int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
-				      u8 opcode,
-				      __le16 echo, union event_ring_data *data)
-{
-	return -EINVAL;
 }
 
 static inline bool qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn,

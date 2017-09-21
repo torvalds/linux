@@ -208,6 +208,7 @@ struct raid_dev {
 #define RT_FLAG_RS_BITMAP_LOADED	2
 #define RT_FLAG_UPDATE_SBS		3
 #define RT_FLAG_RESHAPE_RS		4
+#define RT_FLAG_RS_SUSPENDED		5
 
 /* Array elements of 64 bit needed for rebuild/failed disk bits */
 #define DISKS_ARRAY_ELEMS ((MAX_RAID_DEVICES + (sizeof(uint64_t) * 8 - 1)) / sizeof(uint64_t) / 8)
@@ -564,9 +565,10 @@ static const char *raid10_md_layout_to_format(int layout)
 	if (__raid10_near_copies(layout) > 1)
 		return "near";
 
-	WARN_ON(__raid10_far_copies(layout) < 2);
+	if (__raid10_far_copies(layout) > 1)
+		return "far";
 
-	return "far";
+	return "unknown";
 }
 
 /* Return md raid10 algorithm for @name */
@@ -1571,7 +1573,7 @@ static sector_t __rdev_sectors(struct raid_set *rs)
 			return rdev->sectors;
 	}
 
-	BUG(); /* Constructor ensures we got some. */
+	return 0;
 }
 
 /* Calculate the sectors per device and per array used for @rs */
@@ -2540,11 +2542,6 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 	if (!freshest)
 		return 0;
 
-	if (validate_raid_redundancy(rs)) {
-		rs->ti->error = "Insufficient redundancy to activate array";
-		return -EINVAL;
-	}
-
 	/*
 	 * Validation of the freshest device provides the source of
 	 * validation for the remaining devices.
@@ -2552,6 +2549,11 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 	rs->ti->error = "Unable to assemble array: Invalid superblocks";
 	if (super_validate(rs, freshest))
 		return -EINVAL;
+
+	if (validate_raid_redundancy(rs)) {
+		rs->ti->error = "Insufficient redundancy to activate array";
+		return -EINVAL;
+	}
 
 	rdev_for_each(rdev, mddev)
 		if (!test_bit(Journal, &rdev->flags) &&
@@ -2941,7 +2943,7 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	bool resize;
 	struct raid_type *rt;
 	unsigned int num_raid_params, num_raid_devs;
-	sector_t calculated_dev_sectors;
+	sector_t calculated_dev_sectors, rdev_sectors;
 	struct raid_set *rs = NULL;
 	const char *arg;
 	struct rs_layout rs_layout;
@@ -3017,7 +3019,14 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (r)
 		goto bad;
 
-	resize = calculated_dev_sectors != __rdev_sectors(rs);
+	rdev_sectors = __rdev_sectors(rs);
+	if (!rdev_sectors) {
+		ti->error = "Invalid rdev size";
+		r = -EINVAL;
+		goto bad;
+	}
+
+	resize = calculated_dev_sectors != rdev_sectors;
 
 	INIT_WORK(&rs->md.event_work, do_table_event);
 	ti->private = rs;
@@ -3161,6 +3170,7 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	mddev_suspend(&rs->md);
+	set_bit(RT_FLAG_RS_SUSPENDED, &rs->runtime_flags);
 
 	/* Try to adjust the raid4/5/6 stripe cache size to the stripe size */
 	if (rs_is_raid456(rs)) {
@@ -3618,7 +3628,7 @@ static void raid_postsuspend(struct dm_target *ti)
 {
 	struct raid_set *rs = ti->private;
 
-	if (!rs->md.suspended)
+	if (!test_and_set_bit(RT_FLAG_RS_SUSPENDED, &rs->runtime_flags))
 		mddev_suspend(&rs->md);
 
 	rs->md.ro = 1;
@@ -3752,7 +3762,7 @@ static int rs_start_reshape(struct raid_set *rs)
 		return r;
 
 	/* Need to be resumed to be able to start reshape, recovery is frozen until raid_resume() though */
-	if (mddev->suspended)
+	if (test_and_clear_bit(RT_FLAG_RS_SUSPENDED, &rs->runtime_flags))
 		mddev_resume(mddev);
 
 	/*
@@ -3779,8 +3789,8 @@ static int rs_start_reshape(struct raid_set *rs)
 	}
 
 	/* Suspend because a resume will happen in raid_resume() */
-	if (!mddev->suspended)
-		mddev_suspend(mddev);
+	set_bit(RT_FLAG_RS_SUSPENDED, &rs->runtime_flags);
+	mddev_suspend(mddev);
 
 	/*
 	 * Now reshape got set up, update superblocks to
@@ -3876,13 +3886,13 @@ static void raid_resume(struct dm_target *ti)
 	if (!(rs->ctr_flags & RESUME_STAY_FROZEN_FLAGS))
 		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 
-	if (mddev->suspended)
+	if (test_and_clear_bit(RT_FLAG_RS_SUSPENDED, &rs->runtime_flags))
 		mddev_resume(mddev);
 }
 
 static struct target_type raid_target = {
 	.name = "raid",
-	.version = {1, 11, 1},
+	.version = {1, 12, 1},
 	.module = THIS_MODULE,
 	.ctr = raid_ctr,
 	.dtr = raid_dtr,

@@ -17,7 +17,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/vmalloc.h>
+#include <linux/sched/mm.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "locking.h"
@@ -153,21 +153,21 @@ static inline u32 free_space_bitmap_size(u64 size, u32 sectorsize)
 
 static u8 *alloc_bitmap(u32 bitmap_size)
 {
-	void *mem;
+	u8 *ret;
+	unsigned int nofs_flag;
 
 	/*
-	 * The allocation size varies, observed numbers were < 4K up to 16K.
-	 * Using vmalloc unconditionally would be too heavy, we'll try
-	 * contiguous allocations first.
+	 * GFP_NOFS doesn't work with kvmalloc(), but we really can't recurse
+	 * into the filesystem as the free space bitmap can be modified in the
+	 * critical section of a transaction commit.
+	 *
+	 * TODO: push the memalloc_nofs_{save,restore}() to the caller where we
+	 * know that recursion is unsafe.
 	 */
-	if  (bitmap_size <= PAGE_SIZE)
-		return kzalloc(bitmap_size, GFP_NOFS);
-
-	mem = kzalloc(bitmap_size, GFP_NOFS | __GFP_NOWARN);
-	if (mem)
-		return mem;
-
-	return __vmalloc(bitmap_size, GFP_NOFS | __GFP_ZERO, PAGE_KERNEL);
+	nofs_flag = memalloc_nofs_save();
+	ret = kvzalloc(bitmap_size, GFP_KERNEL);
+	memalloc_nofs_restore(nofs_flag);
+	return ret;
 }
 
 int convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
@@ -1188,11 +1188,7 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info)
 	btrfs_set_fs_compat_ro(fs_info, FREE_SPACE_TREE_VALID);
 	clear_bit(BTRFS_FS_CREATING_FREE_SPACE_TREE, &fs_info->flags);
 
-	ret = btrfs_commit_transaction(trans);
-	if (ret)
-		return ret;
-
-	return 0;
+	return btrfs_commit_transaction(trans);
 
 abort:
 	clear_bit(BTRFS_FS_CREATING_FREE_SPACE_TREE, &fs_info->flags);
@@ -1277,11 +1273,7 @@ int btrfs_clear_free_space_tree(struct btrfs_fs_info *fs_info)
 	free_extent_buffer(free_space_root->commit_root);
 	kfree(free_space_root);
 
-	ret = btrfs_commit_transaction(trans);
-	if (ret)
-		return ret;
-
-	return 0;
+	return btrfs_commit_transaction(trans);
 
 abort:
 	btrfs_abort_transaction(trans, ret);

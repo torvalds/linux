@@ -26,7 +26,6 @@ struct nvkm_timer {
 
 u64 nvkm_timer_read(struct nvkm_timer *);
 void nvkm_timer_alarm(struct nvkm_timer *, u32 nsec, struct nvkm_alarm *);
-void nvkm_timer_alarm_cancel(struct nvkm_timer *, struct nvkm_alarm *);
 
 /* Delay based on GPU time (ie. PTIMER).
  *

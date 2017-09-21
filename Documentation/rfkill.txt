@@ -1,13 +1,13 @@
+===============================
 rfkill - RF kill switch support
 ===============================
 
-1. Introduction
-2. Implementation details
-3. Kernel API
-4. Userspace support
 
+.. contents::
+   :depth: 2
 
-1. Introduction
+Introduction
+============
 
 The rfkill subsystem provides a generic interface to disabling any radio
 transmitter in the system. When a transmitter is blocked, it shall not
@@ -21,17 +21,24 @@ aircraft.
 The rfkill subsystem has a concept of "hard" and "soft" block, which
 differ little in their meaning (block == transmitters off) but rather in
 whether they can be changed or not:
- - hard block: read-only radio block that cannot be overridden by software
- - soft block: writable radio block (need not be readable) that is set by
-               the system software.
+
+ - hard block
+	read-only radio block that cannot be overridden by software
+
+ - soft block
+	writable radio block (need not be readable) that is set by
+        the system software.
 
 The rfkill subsystem has two parameters, rfkill.default_state and
-rfkill.master_switch_mode, which are documented in admin-guide/kernel-parameters.rst.
+rfkill.master_switch_mode, which are documented in
+admin-guide/kernel-parameters.rst.
 
 
-2. Implementation details
+Implementation details
+======================
 
 The rfkill subsystem is composed of three main components:
+
  * the rfkill core,
  * the deprecated rfkill-input module (an input layer handler, being
    replaced by userspace policy code) and
@@ -55,7 +62,8 @@ use the return value of rfkill_set_hw_state() unless the hardware actually
 keeps track of soft and hard block separately.
 
 
-3. Kernel API
+Kernel API
+==========
 
 
 Drivers for radio transmitters normally implement an rfkill driver.
@@ -69,7 +77,7 @@ For some platforms, it is possible that the hardware state changes during
 suspend/hibernation, in which case it will be necessary to update the rfkill
 core with the current state is at resume time.
 
-To create an rfkill driver, driver's Kconfig needs to have
+To create an rfkill driver, driver's Kconfig needs to have::
 
 	depends on RFKILL || !RFKILL
 
@@ -87,7 +95,8 @@ RFKill provides per-switch LED triggers, which can be used to drive LEDs
 according to the switch state (LED_FULL when blocked, LED_OFF otherwise).
 
 
-5. Userspace support
+Userspace support
+=================
 
 The recommended userspace interface to use is /dev/rfkill, which is a misc
 character device that allows userspace to obtain and set the state of rfkill
@@ -112,11 +121,11 @@ rfkill core framework.
 Additionally, each rfkill device is registered in sysfs and emits uevents.
 
 rfkill devices issue uevents (with an action of "change"), with the following
-environment variables set:
+environment variables set::
 
-RFKILL_NAME
-RFKILL_STATE
-RFKILL_TYPE
+	RFKILL_NAME
+	RFKILL_STATE
+	RFKILL_TYPE
 
 The contents of these variables corresponds to the "name", "state" and
 "type" sysfs files explained above.

@@ -336,7 +336,7 @@ static void pn_rx_complete(struct usb_ep *ep, struct usb_request *req)
 			skb->protocol = htons(ETH_P_PHONET);
 			skb_reset_mac_header(skb);
 			/* Can't use pskb_pull() on page in IRQ */
-			memcpy(skb_put(skb, 1), page_address(page), 1);
+			skb_put_data(skb, page_address(page), 1);
 		}
 
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,

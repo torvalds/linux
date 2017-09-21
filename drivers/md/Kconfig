@@ -521,6 +521,23 @@ config DM_INTEGRITY
 	  To compile this code as a module, choose M here: the module will
 	  be called dm-integrity.
 
+config DM_ZONED
+	tristate "Drive-managed zoned block device target support"
+	depends on BLK_DEV_DM
+	depends on BLK_DEV_ZONED
+	---help---
+	  This device-mapper target takes a host-managed or host-aware zoned
+	  block device and exposes most of its capacity as a regular block
+	  device (drive-managed zoned block device) without any write
+	  constraints. This is mainly intended for use with file systems that
+	  do not natively support zoned block devices but still want to
+	  benefit from the increased capacity offered by SMR disks. Other uses
+	  by applications using raw block devices (for example object stores)
+	  are also possible.
+
+	  To compile this code as a module, choose M here: the module will
+	  be called dm-zoned.
+
 	  If unsure, say N.
 
 endif # MD

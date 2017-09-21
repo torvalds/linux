@@ -1370,9 +1370,9 @@ static int boomerang_rx(struct net_device *dev)
 			    (skb = netdev_alloc_skb(dev, pkt_len + 4)) != NULL) {
 				skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 				/* 'skb_put()' points to the start of sk_buff data area. */
-				memcpy(skb_put(skb, pkt_len),
-				       isa_bus_to_virt(vp->rx_ring[entry].
-						   addr), pkt_len);
+				skb_put_data(skb,
+					     isa_bus_to_virt(vp->rx_ring[entry].addr),
+					     pkt_len);
 				rx_copy++;
 			} else {
 				void *temp;

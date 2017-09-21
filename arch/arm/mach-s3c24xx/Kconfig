@@ -394,7 +394,7 @@ config MACH_SMDK2416
 
 config MACH_S3C2416_DT
 	bool "Samsung S3C2416 machine using devicetree"
-	select CLKSRC_OF
+	select TIMER_OF
 	select USE_OF
 	select PINCTRL
 	select PINCTRL_S3C24XX

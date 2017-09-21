@@ -280,10 +280,10 @@ static void ch7017_mode_set(struct intel_dvo_device *dvo,
 			(0 << CH7017_PHASE_DETECTOR_SHIFT);
 	} else {
 		outputs_enable = CH7017_LVDS_CHANNEL_A | CH7017_CHARGE_PUMP_HIGH;
-		lvds_pll_feedback_div = CH7017_LVDS_PLL_FEEDBACK_DEFAULT_RESERVED |
+		lvds_pll_feedback_div =
+			CH7017_LVDS_PLL_FEEDBACK_DEFAULT_RESERVED |
 			(2 << CH7017_LVDS_PLL_FEED_BACK_DIVIDER_SHIFT) |
 			(3 << CH7017_LVDS_PLL_FEED_FORWARD_DIVIDER_SHIFT);
-		lvds_pll_feedback_div = 35;
 		lvds_control_2 = (3 << CH7017_LOOP_FILTER_SHIFT) |
 			(0 << CH7017_PHASE_DETECTOR_SHIFT);
 		if (1) { /* XXX: dual channel panel detection.  Assume yes for now. */

@@ -69,12 +69,10 @@ out_unlock:
 static void vfio_ccw_sch_io_todo(struct work_struct *work)
 {
 	struct vfio_ccw_private *private;
-	struct subchannel *sch;
 	struct irb *irb;
 
 	private = container_of(work, struct vfio_ccw_private, io_work);
 	irb = &private->irb;
-	sch = private->sch;
 
 	if (scsw_is_solicited(&irb->scsw)) {
 		cp_update_scsw(&private->cp, &irb->scsw);
@@ -88,54 +86,6 @@ static void vfio_ccw_sch_io_todo(struct work_struct *work)
 	if (private->mdev)
 		private->state = VFIO_CCW_STATE_IDLE;
 }
-
-/*
- * Sysfs interfaces
- */
-static ssize_t chpids_show(struct device *dev,
-			   struct device_attribute *attr,
-			   char *buf)
-{
-	struct subchannel *sch = to_subchannel(dev);
-	struct chsc_ssd_info *ssd = &sch->ssd_info;
-	ssize_t ret = 0;
-	int chp;
-	int mask;
-
-	for (chp = 0; chp < 8; chp++) {
-		mask = 0x80 >> chp;
-		if (ssd->path_mask & mask)
-			ret += sprintf(buf + ret, "%02x ", ssd->chpid[chp].id);
-		else
-			ret += sprintf(buf + ret, "00 ");
-	}
-	ret += sprintf(buf+ret, "\n");
-	return ret;
-}
-
-static ssize_t pimpampom_show(struct device *dev,
-			      struct device_attribute *attr,
-			      char *buf)
-{
-	struct subchannel *sch = to_subchannel(dev);
-	struct pmcw *pmcw = &sch->schib.pmcw;
-
-	return sprintf(buf, "%02x %02x %02x\n",
-		       pmcw->pim, pmcw->pam, pmcw->pom);
-}
-
-static DEVICE_ATTR(chpids, 0444, chpids_show, NULL);
-static DEVICE_ATTR(pimpampom, 0444, pimpampom_show, NULL);
-
-static struct attribute *vfio_subchannel_attrs[] = {
-	&dev_attr_chpids.attr,
-	&dev_attr_pimpampom.attr,
-	NULL,
-};
-
-static struct attribute_group vfio_subchannel_attr_group = {
-	.attrs = vfio_subchannel_attrs,
-};
 
 /*
  * Css driver callbacks
@@ -174,13 +124,9 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 	if (ret)
 		goto out_free;
 
-	ret = sysfs_create_group(&sch->dev.kobj, &vfio_subchannel_attr_group);
-	if (ret)
-		goto out_disable;
-
 	ret = vfio_ccw_mdev_reg(sch);
 	if (ret)
-		goto out_rm_group;
+		goto out_disable;
 
 	INIT_WORK(&private->io_work, vfio_ccw_sch_io_todo);
 	atomic_set(&private->avail, 1);
@@ -188,8 +134,6 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 
 	return 0;
 
-out_rm_group:
-	sysfs_remove_group(&sch->dev.kobj, &vfio_subchannel_attr_group);
 out_disable:
 	cio_disable_subchannel(sch);
 out_free:
@@ -205,8 +149,6 @@ static int vfio_ccw_sch_remove(struct subchannel *sch)
 	vfio_ccw_sch_quiesce(sch);
 
 	vfio_ccw_mdev_unreg(sch);
-
-	sysfs_remove_group(&sch->dev.kobj, &vfio_subchannel_attr_group);
 
 	dev_set_drvdata(&sch->dev, NULL);
 

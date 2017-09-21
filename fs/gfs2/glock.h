@@ -257,4 +257,11 @@ static inline bool gfs2_holder_initialized(struct gfs2_holder *gh)
 	return gh->gh_gl;
 }
 
+static inline void glock_set_object(struct gfs2_glock *gl, void *object)
+{
+	spin_lock(&gl->gl_lockref.lock);
+	gl->gl_object = object;
+	spin_unlock(&gl->gl_lockref.lock);
+}
+
 #endif /* __GLOCK_DOT_H__ */

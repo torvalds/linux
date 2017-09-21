@@ -860,8 +860,8 @@ static int snd_atiixp_pcm_open(struct snd_pcm_substream *substream,
 	struct atiixp_modem *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
-	static unsigned int rates[] = { 8000,  9600, 12000, 16000 };
-	static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
+	static const unsigned int rates[] = { 8000,  9600, 12000, 16000 };
+	static const struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 		.count = ARRAY_SIZE(rates),
 		.list = rates,
 		.mask = 0,

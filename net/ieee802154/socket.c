@@ -301,14 +301,13 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 		goto out_skb;
 
 	skb->dev = dev;
-	skb->sk  = sk;
 	skb->protocol = htons(ETH_P_IEEE802154);
-
-	dev_put(dev);
 
 	err = dev_queue_xmit(skb);
 	if (err > 0)
 		err = net_xmit_errno(err);
+
+	dev_put(dev);
 
 	return err ?: size;
 
@@ -690,14 +689,13 @@ static int dgram_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 		goto out_skb;
 
 	skb->dev = dev;
-	skb->sk  = sk;
 	skb->protocol = htons(ETH_P_IEEE802154);
-
-	dev_put(dev);
 
 	err = dev_queue_xmit(skb);
 	if (err > 0)
 		err = net_xmit_errno(err);
+
+	dev_put(dev);
 
 	return err ?: size;
 

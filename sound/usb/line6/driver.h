@@ -117,6 +117,8 @@ enum {
 	LINE6_CAP_IN_NEEDS_OUT = 1 << 3,
 	/* device uses raw MIDI via USB (data endpoints) */
 	LINE6_CAP_CONTROL_MIDI = 1 << 4,
+	/* device provides low-level information */
+	LINE6_CAP_CONTROL_INFO = 1 << 5,
 };
 
 /*

@@ -166,12 +166,16 @@ void debug_rt_mutex_free_waiter(struct rt_mutex_waiter *waiter)
 	memset(waiter, 0x22, sizeof(*waiter));
 }
 
-void debug_rt_mutex_init(struct rt_mutex *lock, const char *name)
+void debug_rt_mutex_init(struct rt_mutex *lock, const char *name, struct lock_class_key *key)
 {
 	/*
 	 * Make sure we are not reinitializing a held lock:
 	 */
 	debug_check_no_locks_freed((void *)lock, sizeof(*lock));
 	lock->name = name;
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	lockdep_init_map(&lock->dep_map, name, key, 0);
+#endif
 }
 

@@ -75,6 +75,27 @@ void asix_write_cmd_async(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 			       value, index, data, size);
 }
 
+static void reset_asix_rx_fixup_info(struct asix_rx_fixup_info *rx)
+{
+	/* Reset the variables that have a lifetime outside of
+	 * asix_rx_fixup_internal() so that future processing starts from a
+	 * known set of initial conditions.
+	 */
+
+	if (rx->ax_skb) {
+		/* Discard any incomplete Ethernet frame in the netdev buffer */
+		kfree_skb(rx->ax_skb);
+		rx->ax_skb = NULL;
+	}
+
+	/* Assume the Data header 32-bit word is at the start of the current
+	 * or next URB socket buffer so reset all the state variables.
+	 */
+	rx->remaining = 0;
+	rx->split_head = false;
+	rx->header = 0;
+}
+
 int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 			   struct asix_rx_fixup_info *rx)
 {
@@ -99,21 +120,12 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 		if (size != ((~rx->header >> 16) & 0x7ff)) {
 			netdev_err(dev->net, "asix_rx_fixup() Data Header synchronisation was lost, remaining %d\n",
 				   rx->remaining);
-			if (rx->ax_skb) {
-				kfree_skb(rx->ax_skb);
-				rx->ax_skb = NULL;
-				/* Discard the incomplete netdev Ethernet frame
-				 * and assume the Data header is at the start of
-				 * the current URB socket buffer.
-				 */
-			}
-			rx->remaining = 0;
+			reset_asix_rx_fixup_info(rx);
 		}
 	}
 
 	while (offset + sizeof(u16) <= skb->len) {
 		u16 copy_length;
-		unsigned char *data;
 
 		if (!rx->remaining) {
 			if (skb->len - offset == sizeof(u16)) {
@@ -140,11 +152,13 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 			if (size != ((~rx->header >> 16) & 0x7ff)) {
 				netdev_err(dev->net, "asix_rx_fixup() Bad Header Length 0x%x, offset %d\n",
 					   rx->header, offset);
+				reset_asix_rx_fixup_info(rx);
 				return 0;
 			}
 			if (size > dev->net->mtu + ETH_HLEN + VLAN_HLEN) {
 				netdev_dbg(dev->net, "asix_rx_fixup() Bad RX Length %d\n",
 					   size);
+				reset_asix_rx_fixup_info(rx);
 				return 0;
 			}
 
@@ -167,10 +181,12 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 		}
 
 		if (rx->ax_skb) {
-			data = skb_put(rx->ax_skb, copy_length);
-			memcpy(data, skb->data + offset, copy_length);
-			if (!rx->remaining)
+			skb_put_data(rx->ax_skb, skb->data + offset,
+				     copy_length);
+			if (!rx->remaining) {
 				usbnet_skb_return(dev, rx->ax_skb);
+				rx->ax_skb = NULL;
+			}
 		}
 
 		offset += (copy_length + 1) & 0xfffe;
@@ -179,6 +195,7 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 	if (skb->len != offset) {
 		netdev_err(dev->net, "asix_rx_fixup() Bad SKB Length %d, %d\n",
 			   skb->len, offset);
+		reset_asix_rx_fixup_info(rx);
 		return 0;
 	}
 
@@ -191,6 +208,21 @@ int asix_rx_fixup_common(struct usbnet *dev, struct sk_buff *skb)
 	struct asix_rx_fixup_info *rx = &dp->rx_fixup_info;
 
 	return asix_rx_fixup_internal(dev, skb, rx);
+}
+
+void asix_rx_fixup_common_free(struct asix_common_private *dp)
+{
+	struct asix_rx_fixup_info *rx;
+
+	if (!dp)
+		return;
+
+	rx = &dp->rx_fixup_info;
+
+	if (rx->ax_skb) {
+		kfree_skb(rx->ax_skb);
+		rx->ax_skb = NULL;
+	}
 }
 
 struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,

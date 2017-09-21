@@ -33,15 +33,7 @@ enum slb_index {
 	KSTACK_INDEX	= 2, /* Kernel stack map */
 };
 
-extern void slb_allocate_realmode(unsigned long ea);
-
-static void slb_allocate(unsigned long ea)
-{
-	/* Currently, we do real mode for all SLBs including user, but
-	 * that will change if we bring back dynamic VSIDs
-	 */
-	slb_allocate_realmode(ea);
-}
+extern void slb_allocate(unsigned long ea);
 
 #define slb_esid_mask(ssize)	\
 	(((ssize) == MMU_SEGSIZE_256M)? ESID_MASK: ESID_MASK_1T)

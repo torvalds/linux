@@ -246,7 +246,7 @@ struct dm_integrity_io {
 	unsigned metadata_offset;
 
 	atomic_t in_flight;
-	int bi_error;
+	blk_status_t bi_status;
 
 	struct completion *completion;
 
@@ -1118,8 +1118,8 @@ static void submit_flush_bio(struct dm_integrity_c *ic, struct dm_integrity_io *
 static void do_endio(struct dm_integrity_c *ic, struct bio *bio)
 {
 	int r = dm_integrity_failed(ic);
-	if (unlikely(r) && !bio->bi_error)
-		bio->bi_error = r;
+	if (unlikely(r) && !bio->bi_status)
+		bio->bi_status = errno_to_blk_status(r);
 	bio_endio(bio);
 }
 
@@ -1127,7 +1127,7 @@ static void do_endio_flush(struct dm_integrity_c *ic, struct dm_integrity_io *di
 {
 	struct bio *bio = dm_bio_from_per_bio_data(dio, sizeof(struct dm_integrity_io));
 
-	if (unlikely(dio->fua) && likely(!bio->bi_error) && likely(!dm_integrity_failed(ic)))
+	if (unlikely(dio->fua) && likely(!bio->bi_status) && likely(!dm_integrity_failed(ic)))
 		submit_flush_bio(ic, dio);
 	else
 		do_endio(ic, bio);
@@ -1146,9 +1146,9 @@ static void dec_in_flight(struct dm_integrity_io *dio)
 
 		bio = dm_bio_from_per_bio_data(dio, sizeof(struct dm_integrity_io));
 
-		if (unlikely(dio->bi_error) && !bio->bi_error)
-			bio->bi_error = dio->bi_error;
-		if (likely(!bio->bi_error) && unlikely(bio_sectors(bio) != dio->range.n_sectors)) {
+		if (unlikely(dio->bi_status) && !bio->bi_status)
+			bio->bi_status = dio->bi_status;
+		if (likely(!bio->bi_status) && unlikely(bio_sectors(bio) != dio->range.n_sectors)) {
 			dio->range.logical_sector += dio->range.n_sectors;
 			bio_advance(bio, dio->range.n_sectors << SECTOR_SHIFT);
 			INIT_WORK(&dio->work, integrity_bio_wait);
@@ -1322,7 +1322,7 @@ skip_io:
 	dec_in_flight(dio);
 	return;
 error:
-	dio->bi_error = r;
+	dio->bi_status = errno_to_blk_status(r);
 	dec_in_flight(dio);
 }
 
@@ -1335,7 +1335,7 @@ static int dm_integrity_map(struct dm_target *ti, struct bio *bio)
 	sector_t area, offset;
 
 	dio->ic = ic;
-	dio->bi_error = 0;
+	dio->bi_status = 0;
 
 	if (unlikely(bio->bi_opf & REQ_PREFLUSH)) {
 		submit_flush_bio(ic, dio);
@@ -1356,13 +1356,13 @@ static int dm_integrity_map(struct dm_target *ti, struct bio *bio)
 		DMERR("Too big sector number: 0x%llx + 0x%x > 0x%llx",
 		      (unsigned long long)dio->range.logical_sector, bio_sectors(bio),
 		      (unsigned long long)ic->provided_data_sectors);
-		return -EIO;
+		return DM_MAPIO_KILL;
 	}
 	if (unlikely((dio->range.logical_sector | bio_sectors(bio)) & (unsigned)(ic->sectors_per_block - 1))) {
 		DMERR("Bio not aligned on %u sectors: 0x%llx, 0x%x",
 		      ic->sectors_per_block,
 		      (unsigned long long)dio->range.logical_sector, bio_sectors(bio));
-		return -EIO;
+		return DM_MAPIO_KILL;
 	}
 
 	if (ic->sectors_per_block > 1) {
@@ -1372,7 +1372,7 @@ static int dm_integrity_map(struct dm_target *ti, struct bio *bio)
 			if (unlikely((bv.bv_offset | bv.bv_len) & ((ic->sectors_per_block << SECTOR_SHIFT) - 1))) {
 				DMERR("Bio vector (%u,%u) is not aligned on %u-sector boundary",
 					bv.bv_offset, bv.bv_len, ic->sectors_per_block);
-				return -EIO;
+				return DM_MAPIO_KILL;
 			}
 		}
 	}
@@ -1387,18 +1387,18 @@ static int dm_integrity_map(struct dm_target *ti, struct bio *bio)
 				wanted_tag_size *= ic->tag_size;
 			if (unlikely(wanted_tag_size != bip->bip_iter.bi_size)) {
 				DMERR("Invalid integrity data size %u, expected %u", bip->bip_iter.bi_size, wanted_tag_size);
-				return -EIO;
+				return DM_MAPIO_KILL;
 			}
 		}
 	} else {
 		if (unlikely(bip != NULL)) {
 			DMERR("Unexpected integrity data when using internal hash");
-			return -EIO;
+			return DM_MAPIO_KILL;
 		}
 	}
 
 	if (unlikely(ic->mode == 'R') && unlikely(dio->write))
-		return -EIO;
+		return DM_MAPIO_KILL;
 
 	get_area_and_offset(ic, dio->range.logical_sector, &area, &offset);
 	dio->metadata_block = get_metadata_sector_and_offset(ic, area, offset, &dio->metadata_offset);
@@ -1587,16 +1587,18 @@ retry:
 	if (likely(ic->mode == 'J')) {
 		if (dio->write) {
 			unsigned next_entry, i, pos;
-			unsigned ws, we;
+			unsigned ws, we, range_sectors;
 
-			dio->range.n_sectors = min(dio->range.n_sectors, ic->free_sectors);
+			dio->range.n_sectors = min(dio->range.n_sectors,
+						   ic->free_sectors << ic->sb->log2_sectors_per_block);
 			if (unlikely(!dio->range.n_sectors))
 				goto sleep;
-			ic->free_sectors -= dio->range.n_sectors;
+			range_sectors = dio->range.n_sectors >> ic->sb->log2_sectors_per_block;
+			ic->free_sectors -= range_sectors;
 			journal_section = ic->free_section;
 			journal_entry = ic->free_section_entry;
 
-			next_entry = ic->free_section_entry + dio->range.n_sectors;
+			next_entry = ic->free_section_entry + range_sectors;
 			ic->free_section_entry = next_entry % ic->journal_section_entries;
 			ic->free_section += next_entry / ic->journal_section_entries;
 			ic->n_uncommitted_sections += next_entry / ic->journal_section_entries;
@@ -1727,6 +1729,8 @@ static void pad_uncommitted(struct dm_integrity_c *ic)
 		wraparound_section(ic, &ic->free_section);
 		ic->n_uncommitted_sections++;
 	}
+	WARN_ON(ic->journal_sections * ic->journal_section_entries !=
+		(ic->n_uncommitted_sections + ic->n_committed_sections) * ic->journal_section_entries + ic->free_sectors);
 }
 
 static void integrity_commit(struct work_struct *w)
@@ -1821,6 +1825,9 @@ static void do_journal_write(struct dm_integrity_c *ic, unsigned write_start,
 {
 	unsigned i, j, n;
 	struct journal_completion comp;
+	struct blk_plug plug;
+
+	blk_start_plug(&plug);
 
 	comp.ic = ic;
 	comp.in_flight = (atomic_t)ATOMIC_INIT(1);
@@ -1944,6 +1951,8 @@ skip_io:
 	}
 
 	dm_bufio_write_dirty_buffers_async(ic->bufio);
+
+	blk_finish_plug(&plug);
 
 	complete_journal_op(&comp);
 	wait_for_completion_io(&comp.comp);
@@ -3017,6 +3026,11 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	if (ic->sb->log2_sectors_per_block != __ffs(ic->sectors_per_block)) {
 		r = -EINVAL;
 		ti->error = "Block size doesn't match the information in superblock";
+		goto bad;
+	}
+	if (!le32_to_cpu(ic->sb->journal_sections)) {
+		r = -EINVAL;
+		ti->error = "Corrupted superblock, journal_sections is 0";
 		goto bad;
 	}
 	/* make sure that ti->max_io_len doesn't overflow */

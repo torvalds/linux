@@ -455,7 +455,7 @@ static int vx_output_level_put(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 	return 0;
 }
 
-static struct snd_kcontrol_new vx_control_output_level = {
+static const struct snd_kcontrol_new vx_control_output_level = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access =	(SNDRV_CTL_ELEM_ACCESS_READWRITE |
 			 SNDRV_CTL_ELEM_ACCESS_TLV_READ),
@@ -514,7 +514,7 @@ static int vx_audio_src_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
 	return 0;
 }
 
-static struct snd_kcontrol_new vx_control_audio_src = {
+static const struct snd_kcontrol_new vx_control_audio_src = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"Capture Source",
 	.info =		vx_audio_src_info,
@@ -558,7 +558,7 @@ static int vx_clock_mode_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_
 	return 0;
 }
 
-static struct snd_kcontrol_new vx_control_clock_mode = {
+static const struct snd_kcontrol_new vx_control_clock_mode = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"Clock Mode",
 	.info =		vx_clock_mode_info,
@@ -717,7 +717,7 @@ static int vx_monitor_sw_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_
 
 static const DECLARE_TLV_DB_SCALE(db_scale_audio_gain, -10975, 25, 0);
 
-static struct snd_kcontrol_new vx_control_audio_gain = {
+static const struct snd_kcontrol_new vx_control_audio_gain = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access =	(SNDRV_CTL_ELEM_ACCESS_READWRITE |
 			 SNDRV_CTL_ELEM_ACCESS_TLV_READ),
@@ -727,14 +727,14 @@ static struct snd_kcontrol_new vx_control_audio_gain = {
 	.put =          vx_audio_gain_put,
 	.tlv = { .p = db_scale_audio_gain },
 };
-static struct snd_kcontrol_new vx_control_output_switch = {
+static const struct snd_kcontrol_new vx_control_output_switch = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =         "PCM Playback Switch",
 	.info =         vx_audio_sw_info,
 	.get =          vx_audio_sw_get,
 	.put =          vx_audio_sw_put
 };
-static struct snd_kcontrol_new vx_control_monitor_gain = {
+static const struct snd_kcontrol_new vx_control_monitor_gain = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =         "Monitoring Volume",
 	.access =	(SNDRV_CTL_ELEM_ACCESS_READWRITE |
@@ -744,7 +744,7 @@ static struct snd_kcontrol_new vx_control_monitor_gain = {
 	.put =          vx_audio_monitor_put,
 	.tlv = { .p = db_scale_audio_gain },
 };
-static struct snd_kcontrol_new vx_control_monitor_switch = {
+static const struct snd_kcontrol_new vx_control_monitor_switch = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =         "Monitoring Switch",
 	.info =         vx_audio_sw_info,	/* shared */
@@ -805,7 +805,7 @@ static int vx_iec958_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_valu
 	return 0;
 }
 
-static struct snd_kcontrol_new vx_control_iec958_mask = {
+static const struct snd_kcontrol_new vx_control_iec958_mask = {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,MASK),
@@ -813,7 +813,7 @@ static struct snd_kcontrol_new vx_control_iec958_mask = {
 	.get =		vx_iec958_mask_get,
 };
 
-static struct snd_kcontrol_new vx_control_iec958 = {
+static const struct snd_kcontrol_new vx_control_iec958 = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
 	.info =         vx_iec958_info,
@@ -878,7 +878,7 @@ static int vx_saturation_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_
 	return 0;
 }
 
-static struct snd_kcontrol_new vx_control_vu_meter = {
+static const struct snd_kcontrol_new vx_control_vu_meter = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	/* name will be filled later */
@@ -886,7 +886,7 @@ static struct snd_kcontrol_new vx_control_vu_meter = {
 	.get =		vx_vu_meter_get,
 };
 
-static struct snd_kcontrol_new vx_control_peak_meter = {
+static const struct snd_kcontrol_new vx_control_peak_meter = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	/* name will be filled later */
@@ -894,7 +894,7 @@ static struct snd_kcontrol_new vx_control_peak_meter = {
 	.get =		vx_peak_meter_get,
 };
 
-static struct snd_kcontrol_new vx_control_saturation = {
+static const struct snd_kcontrol_new vx_control_saturation = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"Input Saturation",
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,

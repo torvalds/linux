@@ -138,9 +138,6 @@ static void chdir_to_tmpfs(void)
 
 	if (chdir(cwd) != 0)
 		err(1, "chdir to private tmpfs");
-
-	if (umount2(".", MNT_DETACH) != 0)
-		err(1, "detach private tmpfs");
 }
 
 static void copy_fromat_to(int fromfd, const char *fromname, const char *toname)
@@ -248,7 +245,7 @@ static int do_tests(int uid, const char *our_path)
 			err(1, "chown");
 		if (chmod("validate_cap_sgidnonroot", S_ISGID | 0710) != 0)
 			err(1, "chmod");
-}
+	}
 
 	capng_get_caps_process();
 
@@ -384,7 +381,7 @@ static int do_tests(int uid, const char *our_path)
 	} else {
 		printf("[RUN]\tNon-root +ia, sgidnonroot => i\n");
 		exec_other_validate_cap("./validate_cap_sgidnonroot",
-						false, false, true, false);
+					false, false, true, false);
 
 		if (fork_wait()) {
 			printf("[RUN]\tNon-root +ia, sgidroot => i\n");

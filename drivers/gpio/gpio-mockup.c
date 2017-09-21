@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2014  Kamlakant Patel <kamlakant.patel@broadcom.com>
  * Copyright (C) 2015-2016  Bamvor Jian Zhang <bamvor.zhangjian@linaro.org>
+ * Copyright (C) 2017 Bartosz Golaszewski <brgl@bgdev.pl>
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -27,10 +28,15 @@
 
 #define GPIO_MOCKUP_NAME	"gpio-mockup"
 #define	GPIO_MOCKUP_MAX_GC	10
+/*
+ * We're storing two values per chip: the GPIO base and the number
+ * of GPIO lines.
+ */
+#define GPIO_MOCKUP_MAX_RANGES	(GPIO_MOCKUP_MAX_GC * 2)
 
 enum {
-	DIR_IN = 0,
-	DIR_OUT,
+	GPIO_MOCKUP_DIR_OUT = 0,
+	GPIO_MOCKUP_DIR_IN = 1,
 };
 
 /*
@@ -41,6 +47,7 @@ enum {
 struct gpio_mockup_line_status {
 	int dir;
 	bool value;
+	bool irq_enabled;
 };
 
 struct gpio_mockup_irq_context {
@@ -61,7 +68,7 @@ struct gpio_mockup_dbgfs_private {
 	int offset;
 };
 
-static int gpio_mockup_ranges[GPIO_MOCKUP_MAX_GC << 1];
+static int gpio_mockup_ranges[GPIO_MOCKUP_MAX_RANGES];
 static int gpio_mockup_params_nr;
 module_param_array(gpio_mockup_ranges, int, &gpio_mockup_params_nr, 0400);
 
@@ -93,7 +100,7 @@ static int gpio_mockup_dirout(struct gpio_chip *gc, unsigned int offset,
 	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
 
 	gpio_mockup_set(gc, offset, value);
-	chip->lines[offset].dir = DIR_OUT;
+	chip->lines[offset].dir = GPIO_MOCKUP_DIR_OUT;
 
 	return 0;
 }
@@ -102,7 +109,7 @@ static int gpio_mockup_dirin(struct gpio_chip *gc, unsigned int offset)
 {
 	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
 
-	chip->lines[offset].dir = DIR_IN;
+	chip->lines[offset].dir = GPIO_MOCKUP_DIR_IN;
 
 	return 0;
 }
@@ -121,7 +128,7 @@ static int gpio_mockup_name_lines(struct device *dev,
 	char **names;
 	int i;
 
-	names = devm_kzalloc(dev, sizeof(char *) * gc->ngpio, GFP_KERNEL);
+	names = devm_kcalloc(dev, gc->ngpio, sizeof(char *), GFP_KERNEL);
 	if (!names)
 		return -ENOMEM;
 
@@ -142,12 +149,21 @@ static int gpio_mockup_to_irq(struct gpio_chip *chip, unsigned int offset)
 	return chip->irq_base + offset;
 }
 
-/*
- * While we should generally support irqmask and irqunmask, this driver is
- * for testing purposes only so we don't care.
- */
-static void gpio_mockup_irqmask(struct irq_data *d) { }
-static void gpio_mockup_irqunmask(struct irq_data *d) { }
+static void gpio_mockup_irqmask(struct irq_data *data)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
+	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
+
+	chip->lines[data->irq - gc->irq_base].irq_enabled = false;
+}
+
+static void gpio_mockup_irqunmask(struct irq_data *data)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
+	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
+
+	chip->lines[data->irq - gc->irq_base].irq_enabled = true;
+}
 
 static struct irq_chip gpio_mockup_irqchip = {
 	.name		= GPIO_MOCKUP_NAME,
@@ -178,6 +194,7 @@ static int gpio_mockup_irqchip_setup(struct device *dev,
 
 	for (i = 0; i < gc->ngpio; i++) {
 		irq_set_chip(irq_base + i, gc->irqchip);
+		irq_set_chip_data(irq_base + i, gc);
 		irq_set_handler(irq_base + i, &handle_simple_irq);
 		irq_modify_status(irq_base + i,
 				  IRQ_NOREQUEST | IRQ_NOAUTOEN, IRQ_NOPROBE);
@@ -197,8 +214,13 @@ static ssize_t gpio_mockup_event_write(struct file *file,
 	struct seq_file *sfile;
 	struct gpio_desc *desc;
 	struct gpio_chip *gc;
-	int val;
-	char buf;
+	int rv, val;
+
+	rv = kstrtoint_from_user(usr_buf, size, 0, &val);
+	if (rv)
+		return rv;
+	if (val != 0 && val != 1)
+		return -EINVAL;
 
 	sfile = file->private_data;
 	priv = sfile->private;
@@ -206,19 +228,11 @@ static ssize_t gpio_mockup_event_write(struct file *file,
 	chip = priv->chip;
 	gc = &chip->gc;
 
-	if (copy_from_user(&buf, usr_buf, 1))
-		return -EFAULT;
-
-	if (buf == '0')
-		val = 0;
-	else if (buf == '1')
-		val = 1;
-	else
-		return -EINVAL;
-
-	gpiod_set_value_cansleep(desc, val);
-	priv->chip->irq_ctx.irq = gc->irq_base + priv->offset;
-	irq_work_queue(&priv->chip->irq_ctx.work);
+	if (chip->lines[priv->offset].irq_enabled) {
+		gpiod_set_value_cansleep(desc, val);
+		priv->chip->irq_ctx.irq = gc->irq_base + priv->offset;
+		irq_work_queue(&priv->chip->irq_ctx.work);
+	}
 
 	return size;
 }
@@ -294,8 +308,8 @@ static int gpio_mockup_add(struct device *dev,
 	gc->get_direction = gpio_mockup_get_direction;
 	gc->to_irq = gpio_mockup_to_irq;
 
-	chip->lines = devm_kzalloc(dev, sizeof(*chip->lines) * gc->ngpio,
-				   GFP_KERNEL);
+	chip->lines = devm_kcalloc(dev, gc->ngpio,
+				   sizeof(*chip->lines), GFP_KERNEL);
 	if (!chip->lines)
 		return -ENOMEM;
 
@@ -321,23 +335,24 @@ static int gpio_mockup_add(struct device *dev,
 
 static int gpio_mockup_probe(struct platform_device *pdev)
 {
-	struct gpio_mockup_chip *chips;
+	int ret, i, base, ngpio, num_chips;
 	struct device *dev = &pdev->dev;
-	int ret, i, base, ngpio;
+	struct gpio_mockup_chip *chips;
 	char *chip_name;
 
-	if (gpio_mockup_params_nr < 2)
+	if (gpio_mockup_params_nr < 2 || (gpio_mockup_params_nr % 2))
 		return -EINVAL;
 
-	chips = devm_kzalloc(dev,
-			     sizeof(*chips) * (gpio_mockup_params_nr >> 1),
-			     GFP_KERNEL);
+	/* Each chip is described by two values. */
+	num_chips = gpio_mockup_params_nr / 2;
+
+	chips = devm_kcalloc(dev, num_chips, sizeof(*chips), GFP_KERNEL);
 	if (!chips)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, chips);
 
-	for (i = 0; i < gpio_mockup_params_nr >> 1; i++) {
+	for (i = 0; i < num_chips; i++) {
 		base = gpio_mockup_ranges[i * 2];
 
 		if (base == -1)
@@ -355,18 +370,16 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 			ret = gpio_mockup_add(dev, &chips[i],
 					      chip_name, base, ngpio);
 		} else {
-			ret = -1;
+			ret = -EINVAL;
 		}
 
 		if (ret) {
-			dev_err(dev, "gpio<%d..%d> add failed\n",
-				base, base < 0 ? ngpio : base + ngpio);
+			dev_err(dev,
+				"adding gpiochip failed: %d (base: %d, ngpio: %d)\n",
+				ret, base, base < 0 ? ngpio : base + ngpio);
 
 			return ret;
 		}
-
-		dev_info(dev, "gpio<%d..%d> add successful!",
-			 base, base + ngpio);
 	}
 
 	return 0;
@@ -420,5 +433,6 @@ module_exit(mock_device_exit);
 
 MODULE_AUTHOR("Kamlakant Patel <kamlakant.patel@broadcom.com>");
 MODULE_AUTHOR("Bamvor Jian Zhang <bamvor.zhangjian@linaro.org>");
+MODULE_AUTHOR("Bartosz Golaszewski <brgl@bgdev.pl>");
 MODULE_DESCRIPTION("GPIO Testing driver");
 MODULE_LICENSE("GPL v2");

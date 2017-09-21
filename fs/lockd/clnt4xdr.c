@@ -381,8 +381,9 @@ static void encode_nlm4_lock(struct xdr_stream *xdr,
  */
 static void nlm4_xdr_enc_testargs(struct rpc_rqst *req,
 				  struct xdr_stream *xdr,
-				  const struct nlm_args *args)
+				  const void *data)
 {
+	const struct nlm_args *args = data;
 	const struct nlm_lock *lock = &args->lock;
 
 	encode_cookie(xdr, &args->cookie);
@@ -402,8 +403,9 @@ static void nlm4_xdr_enc_testargs(struct rpc_rqst *req,
  */
 static void nlm4_xdr_enc_lockargs(struct rpc_rqst *req,
 				  struct xdr_stream *xdr,
-				  const struct nlm_args *args)
+				  const void *data)
 {
+	const struct nlm_args *args = data;
 	const struct nlm_lock *lock = &args->lock;
 
 	encode_cookie(xdr, &args->cookie);
@@ -424,8 +426,9 @@ static void nlm4_xdr_enc_lockargs(struct rpc_rqst *req,
  */
 static void nlm4_xdr_enc_cancargs(struct rpc_rqst *req,
 				  struct xdr_stream *xdr,
-				  const struct nlm_args *args)
+				  const void *data)
 {
+	const struct nlm_args *args = data;
 	const struct nlm_lock *lock = &args->lock;
 
 	encode_cookie(xdr, &args->cookie);
@@ -442,8 +445,9 @@ static void nlm4_xdr_enc_cancargs(struct rpc_rqst *req,
  */
 static void nlm4_xdr_enc_unlockargs(struct rpc_rqst *req,
 				    struct xdr_stream *xdr,
-				    const struct nlm_args *args)
+				    const void *data)
 {
+	const struct nlm_args *args = data;
 	const struct nlm_lock *lock = &args->lock;
 
 	encode_cookie(xdr, &args->cookie);
@@ -458,8 +462,10 @@ static void nlm4_xdr_enc_unlockargs(struct rpc_rqst *req,
  */
 static void nlm4_xdr_enc_res(struct rpc_rqst *req,
 			     struct xdr_stream *xdr,
-			     const struct nlm_res *result)
+			     const void *data)
 {
+	const struct nlm_res *result = data;
+
 	encode_cookie(xdr, &result->cookie);
 	encode_nlm4_stat(xdr, result->status);
 }
@@ -479,8 +485,10 @@ static void nlm4_xdr_enc_res(struct rpc_rqst *req,
  */
 static void nlm4_xdr_enc_testres(struct rpc_rqst *req,
 				 struct xdr_stream *xdr,
-				 const struct nlm_res *result)
+				 const void *data)
 {
+	const struct nlm_res *result = data;
+
 	encode_cookie(xdr, &result->cookie);
 	encode_nlm4_stat(xdr, result->status);
 	if (result->status == nlm_lck_denied)
@@ -525,8 +533,9 @@ out:
 
 static int nlm4_xdr_dec_testres(struct rpc_rqst *req,
 				struct xdr_stream *xdr,
-				struct nlm_res *result)
+				void *data)
 {
+	struct nlm_res *result = data;
 	int error;
 
 	error = decode_cookie(xdr, &result->cookie);
@@ -545,8 +554,9 @@ out:
  */
 static int nlm4_xdr_dec_res(struct rpc_rqst *req,
 			    struct xdr_stream *xdr,
-			    struct nlm_res *result)
+			    void *data)
 {
+	struct nlm_res *result = data;
 	int error;
 
 	error = decode_cookie(xdr, &result->cookie);
@@ -566,15 +576,15 @@ out:
 #define PROC(proc, argtype, restype)					\
 [NLMPROC_##proc] = {							\
 	.p_proc      = NLMPROC_##proc,					\
-	.p_encode    = (kxdreproc_t)nlm4_xdr_enc_##argtype,		\
-	.p_decode    = (kxdrdproc_t)nlm4_xdr_dec_##restype,		\
+	.p_encode    = nlm4_xdr_enc_##argtype,				\
+	.p_decode    = nlm4_xdr_dec_##restype,				\
 	.p_arglen    = NLM4_##argtype##_sz,				\
 	.p_replen    = NLM4_##restype##_sz,				\
 	.p_statidx   = NLMPROC_##proc,					\
 	.p_name      = #proc,						\
 	}
 
-static struct rpc_procinfo	nlm4_procedures[] = {
+static const struct rpc_procinfo nlm4_procedures[] = {
 	PROC(TEST,		testargs,	testres),
 	PROC(LOCK,		lockargs,	res),
 	PROC(CANCEL,		cancargs,	res),
@@ -592,8 +602,10 @@ static struct rpc_procinfo	nlm4_procedures[] = {
 	PROC(GRANTED_RES,	res,		norep),
 };
 
+static unsigned int nlm_version4_counts[ARRAY_SIZE(nlm4_procedures)];
 const struct rpc_version nlm_version4 = {
 	.number		= 4,
 	.nrprocs	= ARRAY_SIZE(nlm4_procedures),
 	.procs		= nlm4_procedures,
+	.counts		= nlm_version4_counts,
 };

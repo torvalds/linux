@@ -800,7 +800,7 @@ static int mgc_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 		/* We've given up the lock, prepare ourselves to update. */
 		LDLM_DEBUG(lock, "MGC cancel CB");
 
-		CDEBUG(D_MGC, "Lock res "DLDLMRES" (%.8s)\n",
+		CDEBUG(D_MGC, "Lock res " DLDLMRES " (%.8s)\n",
 		       PLDLMRES(lock->l_resource),
 		       (char *)&lock->l_resource->lr_name.name[0]);
 

@@ -16,6 +16,7 @@ FLIC provides support to
 - register and modify adapter interrupt sources (KVM_DEV_FLIC_ADAPTER_*)
 - modify AIS (adapter-interruption-suppression) mode state (KVM_DEV_FLIC_AISM)
 - inject adapter interrupts on a specified adapter (KVM_DEV_FLIC_AIRQ_INJECT)
+- get/set all AIS mode states (KVM_DEV_FLIC_AISM_ALL)
 
 Groups:
   KVM_DEV_FLIC_ENQUEUE
@@ -135,6 +136,20 @@ struct kvm_s390_ais_req {
     For adapters subject to AIS, handle the airq injection suppression for
     an isc according to the adapter-interruption-suppression mode on condition
     that the AIS capability is enabled.
+
+  KVM_DEV_FLIC_AISM_ALL
+    Gets or sets the adapter-interruption-suppression mode for all ISCs. Takes
+    a kvm_s390_ais_all describing:
+
+struct kvm_s390_ais_all {
+       __u8 simm; /* Single-Interruption-Mode mask */
+       __u8 nimm; /* No-Interruption-Mode mask *
+};
+
+    simm contains Single-Interruption-Mode mask for all ISCs, nimm contains
+    No-Interruption-Mode mask for all ISCs. Each bit in simm and nimm corresponds
+    to an ISC (MSB0 bit 0 to ISC 0 and so on). The combination of simm bit and
+    nimm bit presents AIS mode for a ISC.
 
 Note: The KVM_SET_DEVICE_ATTR/KVM_GET_DEVICE_ATTR device ioctls executed on
 FLIC with an unknown group or attribute gives the error code EINVAL (instead of

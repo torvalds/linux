@@ -273,7 +273,10 @@ enum amd_pp_clock_type {
 	amd_pp_dcef_clock,
 	amd_pp_soc_clock,
 	amd_pp_pixel_clock,
-	amd_pp_phy_clock
+	amd_pp_phy_clock,
+	amd_pp_dcf_clock,
+	amd_pp_dpp_clock,
+	amd_pp_f_clock = amd_pp_dcef_clock,
 };
 
 #define MAX_NUM_CLOCKS 16

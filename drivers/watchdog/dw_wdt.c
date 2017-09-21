@@ -29,6 +29,7 @@
 #include <linux/of.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 #include <linux/watchdog.h>
 
 #define WDOG_CONTROL_REG_OFFSET		    0x00
@@ -54,6 +55,7 @@ struct dw_wdt {
 	struct clk		*clk;
 	unsigned long		rate;
 	struct watchdog_device	wdd;
+	struct reset_control	*rst;
 };
 
 #define to_dw_wdt(wdd)	container_of(wdd, struct dw_wdt, wdd)
@@ -234,6 +236,14 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 		goto out_disable_clk;
 	}
 
+	dw_wdt->rst = devm_reset_control_get_optional_shared(&pdev->dev, NULL);
+	if (IS_ERR(dw_wdt->rst)) {
+		ret = PTR_ERR(dw_wdt->rst);
+		goto out_disable_clk;
+	}
+
+	reset_control_deassert(dw_wdt->rst);
+
 	wdd = &dw_wdt->wdd;
 	wdd->info = &dw_wdt_ident;
 	wdd->ops = &dw_wdt_ops;
@@ -279,6 +289,7 @@ static int dw_wdt_drv_remove(struct platform_device *pdev)
 	struct dw_wdt *dw_wdt = platform_get_drvdata(pdev);
 
 	watchdog_unregister_device(&dw_wdt->wdd);
+	reset_control_assert(dw_wdt->rst);
 	clk_disable_unprepare(dw_wdt->clk);
 
 	return 0;

@@ -15,11 +15,12 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "msm_drv.h"
+#include <drm/drm_crtc.h>
+#include <drm/drm_fb_helper.h>
 
-#include "drm_crtc.h"
-#include "drm_fb_helper.h"
+#include "msm_drv.h"
 #include "msm_gem.h"
+#include "msm_kms.h"
 
 extern int msm_gem_mmap_obj(struct drm_gem_object *obj,
 					struct vm_area_struct *vma);
@@ -73,6 +74,7 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 {
 	struct msm_fbdev *fbdev = to_msm_fbdev(helper);
 	struct drm_device *dev = helper->dev;
+	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_framebuffer *fb = NULL;
 	struct fb_info *fbi = NULL;
 	struct drm_mode_fb_cmd2 mode_cmd = {0};
@@ -95,10 +97,8 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	/* allocate backing bo */
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 	DBG("allocating %d bytes for fb %d", size, dev->primary->index);
-	mutex_lock(&dev->struct_mutex);
 	fbdev->bo = msm_gem_new(dev, size, MSM_BO_SCANOUT |
 			MSM_BO_WC | MSM_BO_STOLEN);
-	mutex_unlock(&dev->struct_mutex);
 	if (IS_ERR(fbdev->bo)) {
 		ret = PTR_ERR(fbdev->bo);
 		fbdev->bo = NULL;
@@ -124,7 +124,7 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	 * in panic (ie. lock-safe, etc) we could avoid pinning the
 	 * buffer now:
 	 */
-	ret = msm_gem_get_iova_locked(fbdev->bo, 0, &paddr);
+	ret = msm_gem_get_iova(fbdev->bo, priv->kms->aspace, &paddr);
 	if (ret) {
 		dev_err(dev->dev, "failed to get buffer obj iova: %d\n", ret);
 		goto fail_unlock;
@@ -153,7 +153,7 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 
 	dev->mode_config.fb_base = paddr;
 
-	fbi->screen_base = msm_gem_get_vaddr_locked(fbdev->bo);
+	fbi->screen_base = msm_gem_get_vaddr(fbdev->bo);
 	if (IS_ERR(fbi->screen_base)) {
 		ret = PTR_ERR(fbi->screen_base);
 		goto fail_unlock;

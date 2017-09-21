@@ -31,9 +31,13 @@ int pblk_write_to_cache(struct pblk *pblk, struct bio *bio, unsigned long flags)
 	 */
 retry:
 	ret = pblk_rb_may_write_user(&pblk->rwb, bio, nr_entries, &bpos);
-	if (ret == NVM_IO_REQUEUE) {
+	switch (ret) {
+	case NVM_IO_REQUEUE:
 		io_schedule();
 		goto retry;
+	case NVM_IO_ERR:
+		pblk_pipeline_stop(pblk);
+		goto out;
 	}
 
 	if (unlikely(!bio_has_data(bio)))
@@ -57,6 +61,8 @@ retry:
 	atomic_long_add(nr_entries, &pblk->inflight_writes);
 	atomic_long_add(nr_entries, &pblk->req_writes);
 #endif
+
+	pblk_rl_inserted(&pblk->rl, nr_entries);
 
 out:
 	pblk_write_should_kick(pblk);

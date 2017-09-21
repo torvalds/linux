@@ -1085,6 +1085,24 @@ static ssize_t block_size_store(struct config_item *item,
 	return count;
 }
 
+static ssize_t alua_support_show(struct config_item *item, char *page)
+{
+	struct se_dev_attrib *da = to_attrib(item);
+	u8 flags = da->da_dev->transport->transport_flags;
+
+	return snprintf(page, PAGE_SIZE, "%d\n",
+			flags & TRANSPORT_FLAG_PASSTHROUGH_ALUA ? 0 : 1);
+}
+
+static ssize_t pgr_support_show(struct config_item *item, char *page)
+{
+	struct se_dev_attrib *da = to_attrib(item);
+	u8 flags = da->da_dev->transport->transport_flags;
+
+	return snprintf(page, PAGE_SIZE, "%d\n",
+			flags & TRANSPORT_FLAG_PASSTHROUGH_PGR ? 0 : 1);
+}
+
 CONFIGFS_ATTR(, emulate_model_alias);
 CONFIGFS_ATTR(, emulate_dpo);
 CONFIGFS_ATTR(, emulate_fua_write);
@@ -1116,6 +1134,8 @@ CONFIGFS_ATTR(, unmap_granularity);
 CONFIGFS_ATTR(, unmap_granularity_alignment);
 CONFIGFS_ATTR(, unmap_zeroes_data);
 CONFIGFS_ATTR(, max_write_same_len);
+CONFIGFS_ATTR_RO(, alua_support);
+CONFIGFS_ATTR_RO(, pgr_support);
 
 /*
  * dev_attrib attributes for devices using the target core SBC/SPC
@@ -1154,6 +1174,8 @@ struct configfs_attribute *sbc_attrib_attrs[] = {
 	&attr_unmap_granularity_alignment,
 	&attr_unmap_zeroes_data,
 	&attr_max_write_same_len,
+	&attr_alua_support,
+	&attr_pgr_support,
 	NULL,
 };
 EXPORT_SYMBOL(sbc_attrib_attrs);
@@ -1168,6 +1190,8 @@ struct configfs_attribute *passthrough_attrib_attrs[] = {
 	&attr_hw_block_size,
 	&attr_hw_max_sectors,
 	&attr_hw_queue_depth,
+	&attr_alua_support,
+	&attr_pgr_support,
 	NULL,
 };
 EXPORT_SYMBOL(passthrough_attrib_attrs);
@@ -2236,7 +2260,11 @@ static void target_core_dev_release(struct config_item *item)
 	target_free_device(dev);
 }
 
-static struct configfs_item_operations target_core_dev_item_ops = {
+/*
+ * Used in target_core_fabric_configfs.c to verify valid se_device symlink
+ * within target_fabric_port_link()
+ */
+struct configfs_item_operations target_core_dev_item_ops = {
 	.release		= target_core_dev_release,
 };
 

@@ -62,14 +62,14 @@ struct vpif_display_config {
 
 struct vpif_input {
 	struct v4l2_input input;
-	const char *subdev_name;
+	char *subdev_name;
 	u32 input_route;
 	u32 output_route;
 };
 
 struct vpif_capture_chan_config {
 	struct vpif_interface vpif_if;
-	const struct vpif_input *inputs;
+	struct vpif_input *inputs;
 	int input_count;
 };
 
@@ -81,7 +81,8 @@ struct vpif_capture_config {
 	int subdev_count;
 	int i2c_adapter_id;
 	const char *card_name;
-	struct v4l2_async_subdev **asd;	/* Flat array, arranged in groups */
-	int *asd_sizes;		/* 0-terminated array of asd group sizes */
+
+	struct v4l2_async_subdev *asd[VPIF_CAPTURE_MAX_CHANNELS];
+	int asd_sizes[VPIF_CAPTURE_MAX_CHANNELS];
 };
 #endif /* _VPIF_TYPES_H */

@@ -21,7 +21,7 @@
  * registered when we parsed the ACPI MADT.
  */
 
-#define pr_fmt(fmt) "ACPI : IOAPIC: " fmt
+#define pr_fmt(fmt) "ACPI: IOAPIC: " fmt
 
 #include <linux/slab.h>
 #include <linux/acpi.h>

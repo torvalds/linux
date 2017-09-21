@@ -72,6 +72,9 @@ struct msm_kms {
 
 	/* irq number to be passed on to drm_irq_install */
 	int irq;
+
+	/* mapper-id used to request GEM buffer mapped for scanout: */
+	struct msm_gem_address_space *aspace;
 };
 
 /**

@@ -17,6 +17,7 @@
 #define cpu_has_counter		1
 #define cpu_has_watch		0
 #define cpu_has_mips16		0
+#define cpu_has_mips16e2	0
 #define cpu_has_divec		0
 #define cpu_has_cache_cdex_p	1
 #define cpu_has_prefetch	0

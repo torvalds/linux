@@ -166,7 +166,11 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 		}
 	}
 
-	clk_prepare_enable(info->clk);
+	ret = clk_prepare_enable(info->clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to prepare clock!\n");
+		return ret;
+	}
 
 	ret = nand_scan(mtd, 1);
 	if (ret)

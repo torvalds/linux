@@ -264,7 +264,7 @@ void psample_sample_packet(struct psample_group *group, struct sk_buff *skb,
 		int nla_len = nla_total_size(data_len);
 		struct nlattr *nla;
 
-		nla = (struct nlattr *)skb_put(nl_skb, nla_len);
+		nla = skb_put(nl_skb, nla_len);
 		nla->nla_type = PSAMPLE_ATTR_DATA;
 		nla->nla_len = nla_attr_size(data_len);
 

@@ -51,11 +51,23 @@ static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 		return _SEGMENT_ENTRY_EMPTY;
 	if (mm->context.asce_limit <= (1UL << 42))
 		return _REGION3_ENTRY_EMPTY;
-	return _REGION2_ENTRY_EMPTY;
+	if (mm->context.asce_limit <= (1UL << 53))
+		return _REGION2_ENTRY_EMPTY;
+	return _REGION1_ENTRY_EMPTY;
 }
 
-int crst_table_upgrade(struct mm_struct *);
+int crst_table_upgrade(struct mm_struct *mm, unsigned long limit);
 void crst_table_downgrade(struct mm_struct *);
+
+static inline p4d_t *p4d_alloc_one(struct mm_struct *mm, unsigned long address)
+{
+	unsigned long *table = crst_table_alloc(mm);
+
+	if (table)
+		crst_table_init(table, _REGION2_ENTRY_EMPTY);
+	return (p4d_t *) table;
+}
+#define p4d_free(mm, p4d) crst_table_free(mm, (unsigned long *) p4d)
 
 static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long address)
 {
@@ -86,9 +98,14 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 	crst_table_free(mm, (unsigned long *) pmd);
 }
 
-static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
+static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, p4d_t *p4d)
 {
-	pgd_val(*pgd) = _REGION2_ENTRY | __pa(pud);
+	pgd_val(*pgd) = _REGION1_ENTRY | __pa(p4d);
+}
+
+static inline void p4d_populate(struct mm_struct *mm, p4d_t *p4d, pud_t *pud)
+{
+	p4d_val(*p4d) = _REGION2_ENTRY | __pa(pud);
 }
 
 static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)

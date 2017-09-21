@@ -4,9 +4,9 @@
  * Authors: Salvatore Benedetto <salvatore.benedetto@intel.com>
  *
  * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
+ * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
+ * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -85,6 +85,9 @@ static int dh_set_secret(struct crypto_kpp *tfm, const void *buf,
 	struct dh_ctx *ctx = dh_get_ctx(tfm);
 	struct dh params;
 
+	/* Free the old MPI key if any */
+	dh_free_ctx(ctx);
+
 	if (crypto_dh_decode_key(buf, len, &params) < 0)
 		return -EINVAL;
 
@@ -144,7 +147,7 @@ err_free_val:
 	return ret;
 }
 
-static int dh_max_size(struct crypto_kpp *tfm)
+static unsigned int dh_max_size(struct crypto_kpp *tfm)
 {
 	struct dh_ctx *ctx = dh_get_ctx(tfm);
 

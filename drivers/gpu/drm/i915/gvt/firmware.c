@@ -72,11 +72,13 @@ static int expose_firmware_sysfs(struct intel_gvt *gvt)
 	struct intel_gvt_device_info *info = &gvt->device_info;
 	struct pci_dev *pdev = gvt->dev_priv->drm.pdev;
 	struct intel_gvt_mmio_info *e;
+	struct gvt_mmio_block *block = gvt->mmio.mmio_block;
+	int num = gvt->mmio.num_mmio_block;
 	struct gvt_firmware_header *h;
 	void *firmware;
 	void *p;
 	unsigned long size, crc32_start;
-	int i;
+	int i, j;
 	int ret;
 
 	size = sizeof(*h) + info->mmio_size + info->cfg_space_size;
@@ -102,12 +104,14 @@ static int expose_firmware_sysfs(struct intel_gvt *gvt)
 
 	p = firmware + h->mmio_offset;
 
-	hash_for_each(gvt->mmio.mmio_info_table, i, e, node) {
-		int j;
+	hash_for_each(gvt->mmio.mmio_info_table, i, e, node)
+		*(u32 *)(p + e->offset) = I915_READ_NOTRACE(_MMIO(e->offset));
 
-		for (j = 0; j < e->length; j += 4)
-			*(u32 *)(p + e->offset + j) =
-				I915_READ_NOTRACE(_MMIO(e->offset + j));
+	for (i = 0; i < num; i++, block++) {
+		for (j = 0; j < block->size; j += 4)
+			*(u32 *)(p + INTEL_GVT_MMIO_OFFSET(block->offset) + j) =
+				I915_READ_NOTRACE(_MMIO(INTEL_GVT_MMIO_OFFSET(
+							block->offset) + j));
 	}
 
 	memcpy(gvt->firmware.mmio, p, info->mmio_size);

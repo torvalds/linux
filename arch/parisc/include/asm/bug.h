@@ -27,7 +27,7 @@
 	do {								\
 		asm volatile("\n"					\
 			     "1:\t" PARISC_BUG_BREAK_ASM "\n"		\
-			     "\t.pushsection __bug_table,\"a\"\n"	\
+			     "\t.pushsection __bug_table,\"aw\"\n"	\
 			     "2:\t" ASM_WORD_INSN "1b, %c0\n"		\
 			     "\t.short %c1, %c2\n"			\
 			     "\t.org 2b+%c3\n"				\
@@ -50,7 +50,7 @@
 	do {								\
 		asm volatile("\n"					\
 			     "1:\t" PARISC_BUG_BREAK_ASM "\n"		\
-			     "\t.pushsection __bug_table,\"a\"\n"	\
+			     "\t.pushsection __bug_table,\"aw\"\n"	\
 			     "2:\t" ASM_WORD_INSN "1b, %c0\n"		\
 			     "\t.short %c1, %c2\n"			\
 			     "\t.org 2b+%c3\n"				\
@@ -64,7 +64,7 @@
 	do {								\
 		asm volatile("\n"					\
 			     "1:\t" PARISC_BUG_BREAK_ASM "\n"		\
-			     "\t.pushsection __bug_table,\"a\"\n"	\
+			     "\t.pushsection __bug_table,\"aw\"\n"	\
 			     "2:\t" ASM_WORD_INSN "1b\n"		\
 			     "\t.short %c0\n"				\
 			     "\t.org 2b+%c1\n"				\

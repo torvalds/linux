@@ -277,7 +277,7 @@ static void zap_completion_queue(void)
 			struct sk_buff *skb = clist;
 			clist = clist->next;
 			if (!skb_irq_freeable(skb)) {
-				atomic_inc(&skb->users);
+				refcount_set(&skb->users, 1);
 				dev_kfree_skb_any(skb); /* put this one back */
 			} else {
 				__kfree_skb(skb);
@@ -309,7 +309,7 @@ repeat:
 		return NULL;
 	}
 
-	atomic_set(&skb->users, 1);
+	refcount_set(&skb->users, 1);
 	skb_reserve(skb, reserve);
 	return skb;
 }
@@ -441,7 +441,7 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 		ip6h->saddr = np->local_ip.in6;
 		ip6h->daddr = np->remote_ip.in6;
 
-		eth = (struct ethhdr *) skb_push(skb, ETH_HLEN);
+		eth = skb_push(skb, ETH_HLEN);
 		skb_reset_mac_header(skb);
 		skb->protocol = eth->h_proto = htons(ETH_P_IPV6);
 	} else {
@@ -470,7 +470,7 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 		put_unaligned(np->remote_ip.ip, &(iph->daddr));
 		iph->check    = ip_fast_csum((unsigned char *)iph, iph->ihl);
 
-		eth = (struct ethhdr *) skb_push(skb, ETH_HLEN);
+		eth = skb_push(skb, ETH_HLEN);
 		skb_reset_mac_header(skb);
 		skb->protocol = eth->h_proto = htons(ETH_P_IP);
 	}
@@ -632,7 +632,7 @@ int __netpoll_setup(struct netpoll *np, struct net_device *ndev)
 		skb_queue_head_init(&npinfo->txq);
 		INIT_DELAYED_WORK(&npinfo->tx_work, queue_process);
 
-		atomic_set(&npinfo->refcnt, 1);
+		refcount_set(&npinfo->refcnt, 1);
 
 		ops = np->dev->netdev_ops;
 		if (ops->ndo_netpoll_setup) {
@@ -642,7 +642,7 @@ int __netpoll_setup(struct netpoll *np, struct net_device *ndev)
 		}
 	} else {
 		npinfo = rtnl_dereference(ndev->npinfo);
-		atomic_inc(&npinfo->refcnt);
+		refcount_inc(&npinfo->refcnt);
 	}
 
 	npinfo->netpoll = np;
@@ -666,7 +666,7 @@ int netpoll_setup(struct netpoll *np)
 	int err;
 
 	rtnl_lock();
-	if (np->dev_name) {
+	if (np->dev_name[0]) {
 		struct net *net = current->nsproxy->net_ns;
 		ndev = __dev_get_by_name(net, np->dev_name);
 	}
@@ -821,7 +821,7 @@ void __netpoll_cleanup(struct netpoll *np)
 
 	synchronize_srcu(&netpoll_srcu);
 
-	if (atomic_dec_and_test(&npinfo->refcnt)) {
+	if (refcount_dec_and_test(&npinfo->refcnt)) {
 		const struct net_device_ops *ops;
 
 		ops = np->dev->netdev_ops;

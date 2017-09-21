@@ -114,7 +114,7 @@
 #define SET_TX_DESC_RAW(__pdesc, __val)				\
 	SET_BITS_TO_LE_4BYTE(__pdesc+8, 18, 1, __val)
 #define SET_TX_DESC_SPE_RPT(__pdesc, __val)			\
-	SET_BITS_TO_LE_4BYTE(__pdesc+8, 19, 1, __val)
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 8, 19, 1, __val)
 #define SET_TX_DESC_AMPDU_DENSITY(__pdesc, __val)	\
 	SET_BITS_TO_LE_4BYTE(__pdesc+8, 20, 3, __val)
 #define SET_TX_DESC_BT_INT(__pdesc, __val)	\
@@ -185,8 +185,21 @@
 #define SET_TX_DESC_RTS_SC(__pdesc, __val)	\
 	SET_BITS_TO_LE_4BYTE(__pdesc+20, 13, 4, __val)
 
+#define SET_TX_DESC_SW_DEFINE(__pdesc, __val)	\
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 0, 12, __val)
+#define SET_TX_DESC_ANTSEL_A(__pdesc, __val)	\
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 16, 3, __val)
+#define SET_TX_DESC_ANTSEL_B(__pdesc, __val)	\
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 19, 3, __val)
+#define SET_TX_DESC_ANTSEL_C(__pdesc, __val)	\
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 22, 3, __val)
+#define SET_TX_DESC_ANTSEL_D(__pdesc, __val)	\
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 25, 3, __val)
+#define SET_TX_DESC_MBSSID(__pdesc, __val)	\
+	SET_BITS_TO_LE_4BYTE(i(__pdesc) + 24, 12, 4, __val)
+
 #define SET_TX_DESC_TX_BUFFER_SIZE(__pdesc, __val)	\
-	SET_BITS_TO_LE_4BYTE(__pdesc+28, 0, 16, __val)
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 28, 0, 16, __val)
 
 #define GET_TX_DESC_TX_BUFFER_SIZE(__pdesc)		\
 	LE_BITS_TO_4BYTE(__pdesc+28, 0, 16)

@@ -369,7 +369,10 @@ EXPORT_SYMBOL_GPL(of_irq_parse_one);
  */
 int of_irq_to_resource(struct device_node *dev, int index, struct resource *r)
 {
-	int irq = irq_of_parse_and_map(dev, index);
+	int irq = of_irq_get(dev, index);
+
+	if (irq < 0)
+		return irq;
 
 	/* Only dereference the resource if both the
 	 * resource and the irq are valid. */
@@ -473,7 +476,7 @@ int of_irq_to_resource_table(struct device_node *dev, struct resource *res,
 	int i;
 
 	for (i = 0; i < nr_irqs; i++, res++)
-		if (!of_irq_to_resource(dev, i, res))
+		if (of_irq_to_resource(dev, i, res) <= 0)
 			break;
 
 	return i;

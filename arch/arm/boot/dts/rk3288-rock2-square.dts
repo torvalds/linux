@@ -125,10 +125,6 @@
 		gpio = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&host_vbus_drv>;
-		/* Always on as the rockchip usb phy doesn't have a vbus-supply
-		 * property
-		 */
-		regulator-always-on;
 		regulator-name = "vcc_host";
 	};
 
@@ -277,6 +273,10 @@
 
 &usbphy {
 	status = "okay";
+};
+
+&usbphy1 {
+	vbus-supply = <&vcc_usb_host>;
 };
 
 &usb_host0_ehci {

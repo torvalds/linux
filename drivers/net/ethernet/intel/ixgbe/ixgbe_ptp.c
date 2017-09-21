@@ -663,6 +663,33 @@ static void ixgbe_ptp_clear_tx_timestamp(struct ixgbe_adapter *adapter)
 }
 
 /**
+ * ixgbe_ptp_tx_hang - detect error case where Tx timestamp never finishes
+ * @adapter: private network adapter structure
+ */
+void ixgbe_ptp_tx_hang(struct ixgbe_adapter *adapter)
+{
+	bool timeout = time_is_before_jiffies(adapter->ptp_tx_start +
+					      IXGBE_PTP_TX_TIMEOUT);
+
+	if (!adapter->ptp_tx_skb)
+		return;
+
+	if (!test_bit(__IXGBE_PTP_TX_IN_PROGRESS, &adapter->state))
+		return;
+
+	/* If we haven't received a timestamp within the timeout, it is
+	 * reasonable to assume that it will never occur, so we can unlock the
+	 * timestamp bit when this occurs.
+	 */
+	if (timeout) {
+		cancel_work_sync(&adapter->ptp_tx_work);
+		ixgbe_ptp_clear_tx_timestamp(adapter);
+		adapter->tx_hwtstamp_timeouts++;
+		e_warn(drv, "clearing Tx timestamp hang\n");
+	}
+}
+
+/**
  * ixgbe_ptp_tx_hwtstamp - utility function which checks for TX time stamp
  * @adapter: the private adapter struct
  *
@@ -672,17 +699,26 @@ static void ixgbe_ptp_clear_tx_timestamp(struct ixgbe_adapter *adapter)
  */
 static void ixgbe_ptp_tx_hwtstamp(struct ixgbe_adapter *adapter)
 {
+	struct sk_buff *skb = adapter->ptp_tx_skb;
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct skb_shared_hwtstamps shhwtstamps;
 	u64 regval = 0;
 
 	regval |= (u64)IXGBE_READ_REG(hw, IXGBE_TXSTMPL);
 	regval |= (u64)IXGBE_READ_REG(hw, IXGBE_TXSTMPH) << 32;
-
 	ixgbe_ptp_convert_to_hwtstamp(adapter, &shhwtstamps, regval);
-	skb_tstamp_tx(adapter->ptp_tx_skb, &shhwtstamps);
 
-	ixgbe_ptp_clear_tx_timestamp(adapter);
+	/* Handle cleanup of the ptp_tx_skb ourselves, and unlock the state
+	 * bit prior to notifying the stack via skb_tstamp_tx(). This prevents
+	 * well behaved applications from attempting to timestamp again prior
+	 * to the lock bit being clear.
+	 */
+	adapter->ptp_tx_skb = NULL;
+	clear_bit_unlock(__IXGBE_PTP_TX_IN_PROGRESS, &adapter->state);
+
+	/* Notify the stack and then free the skb after we've unlocked */
+	skb_tstamp_tx(skb, &shhwtstamps);
+	dev_kfree_skb_any(skb);
 }
 
 /**
@@ -883,6 +919,7 @@ static int ixgbe_ptp_set_timestamp_mode(struct ixgbe_adapter *adapter,
 				   IXGBE_FLAG_RX_HWTSTAMP_IN_REGISTER);
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+	case HWTSTAMP_FILTER_NTP_ALL:
 	case HWTSTAMP_FILTER_ALL:
 		/* The X550 controller is capable of timestamping all packets,
 		 * which allows it to accept any filter.

@@ -75,25 +75,13 @@
 #define ISCSI_TARGET_MODE 1
 
 /* iSCSI request op codes */
-#define ISCSI_OPCODE_NOP_OUT_NO_IMM                     (0)
-#define ISCSI_OPCODE_NOP_OUT                            ( \
-		ISCSI_OPCODE_NOP_OUT_NO_IMM | 0x40)
-#define ISCSI_OPCODE_SCSI_CMD_NO_IMM            (1)
-#define ISCSI_OPCODE_SCSI_CMD                           ( \
-		ISCSI_OPCODE_SCSI_CMD_NO_IMM | 0x40)
-#define ISCSI_OPCODE_TMF_REQUEST_NO_IMM         (2)
-#define ISCSI_OPCODE_TMF_REQUEST                        ( \
-		ISCSI_OPCODE_TMF_REQUEST_NO_IMM | 0x40)
-#define ISCSI_OPCODE_LOGIN_REQUEST_NO_IMM       (3)
-#define ISCSI_OPCODE_LOGIN_REQUEST                      ( \
-		ISCSI_OPCODE_LOGIN_REQUEST_NO_IMM | 0x40)
-#define ISCSI_OPCODE_TEXT_REQUEST_NO_IMM        (4)
-#define ISCSI_OPCODE_TEXT_REQUEST                       ( \
-		ISCSI_OPCODE_TEXT_REQUEST_NO_IMM | 0x40)
-#define ISCSI_OPCODE_DATA_OUT                           (5)
-#define ISCSI_OPCODE_LOGOUT_REQUEST_NO_IMM      (6)
-#define ISCSI_OPCODE_LOGOUT_REQUEST                     ( \
-		ISCSI_OPCODE_LOGOUT_REQUEST_NO_IMM | 0x40)
+#define ISCSI_OPCODE_NOP_OUT		(0)
+#define ISCSI_OPCODE_SCSI_CMD		(1)
+#define ISCSI_OPCODE_TMF_REQUEST	(2)
+#define ISCSI_OPCODE_LOGIN_REQUEST	(3)
+#define ISCSI_OPCODE_TEXT_REQUEST	(4)
+#define ISCSI_OPCODE_DATA_OUT		(5)
+#define ISCSI_OPCODE_LOGOUT_REQUEST	(6)
 
 /* iSCSI response/messages op codes */
 #define ISCSI_OPCODE_NOP_IN             (0x20)
@@ -172,17 +160,23 @@ struct iscsi_async_msg_hdr {
 struct iscsi_cmd_hdr {
 	__le16 reserved1;
 	u8 flags_attr;
-#define ISCSI_CMD_HDR_ATTR_MASK           0x7
-#define ISCSI_CMD_HDR_ATTR_SHIFT          0
-#define ISCSI_CMD_HDR_RSRV_MASK           0x3
-#define ISCSI_CMD_HDR_RSRV_SHIFT          3
-#define ISCSI_CMD_HDR_WRITE_MASK          0x1
-#define ISCSI_CMD_HDR_WRITE_SHIFT         5
-#define ISCSI_CMD_HDR_READ_MASK           0x1
-#define ISCSI_CMD_HDR_READ_SHIFT          6
-#define ISCSI_CMD_HDR_FINAL_MASK          0x1
-#define ISCSI_CMD_HDR_FINAL_SHIFT         7
-	u8 opcode;
+#define ISCSI_CMD_HDR_ATTR_MASK		0x7
+#define ISCSI_CMD_HDR_ATTR_SHIFT	0
+#define ISCSI_CMD_HDR_RSRV_MASK		0x3
+#define ISCSI_CMD_HDR_RSRV_SHIFT	3
+#define ISCSI_CMD_HDR_WRITE_MASK	0x1
+#define ISCSI_CMD_HDR_WRITE_SHIFT	5
+#define ISCSI_CMD_HDR_READ_MASK		0x1
+#define ISCSI_CMD_HDR_READ_SHIFT	6
+#define ISCSI_CMD_HDR_FINAL_MASK	0x1
+#define ISCSI_CMD_HDR_FINAL_SHIFT	7
+	u8 hdr_first_byte;
+#define ISCSI_CMD_HDR_OPCODE_MASK	0x3F
+#define ISCSI_CMD_HDR_OPCODE_SHIFT	0
+#define ISCSI_CMD_HDR_IMM_MASK		0x1
+#define ISCSI_CMD_HDR_IMM_SHIFT		6
+#define ISCSI_CMD_HDR_RSRV1_MASK	0x1
+#define ISCSI_CMD_HDR_RSRV1_SHIFT	7
 	__le32 hdr_second_dword;
 #define ISCSI_CMD_HDR_DATA_SEG_LEN_MASK   0xFFFFFF
 #define ISCSI_CMD_HDR_DATA_SEG_LEN_SHIFT  0
@@ -790,9 +784,9 @@ enum iscsi_error_types {
 	ISCSI_CONN_ERROR_LOCAL_COMPLETION_ERROR,
 	ISCSI_CONN_ERROR_DATA_OVERRUN,
 	ISCSI_CONN_ERROR_OUT_OF_SGES_ERROR,
-	ISCSI_CONN_ERROR_TCP_SEG_PROC_URG_ERROR,
-	ISCSI_CONN_ERROR_TCP_SEG_PROC_IP_OPTIONS_ERROR,
-	ISCSI_CONN_ERROR_TCP_SEG_PROC_CONNECT_INVALID_WS_OPTION,
+	ISCSI_CONN_ERROR_IP_OPTIONS_ERROR,
+	ISCSI_CONN_ERROR_PRS_ERRORS,
+	ISCSI_CONN_ERROR_CONNECT_INVALID_TCP_OPTION,
 	ISCSI_CONN_ERROR_TCP_IP_FRAGMENT_ERROR,
 	ISCSI_CONN_ERROR_PROTOCOL_ERR_AHS_LEN,
 	ISCSI_CONN_ERROR_PROTOCOL_ERR_AHS_TYPE,
@@ -1304,22 +1298,6 @@ struct ystorm_iscsi_stats_drv {
 	struct regpair iscsi_tx_total_pdu_cnt;
 };
 
-struct iscsi_db_data {
-	u8 params;
-#define ISCSI_DB_DATA_DEST_MASK         0x3
-#define ISCSI_DB_DATA_DEST_SHIFT        0
-#define ISCSI_DB_DATA_AGG_CMD_MASK      0x3
-#define ISCSI_DB_DATA_AGG_CMD_SHIFT     2
-#define ISCSI_DB_DATA_BYPASS_EN_MASK    0x1
-#define ISCSI_DB_DATA_BYPASS_EN_SHIFT   4
-#define ISCSI_DB_DATA_RESERVED_MASK     0x1
-#define ISCSI_DB_DATA_RESERVED_SHIFT    5
-#define ISCSI_DB_DATA_AGG_VAL_SEL_MASK  0x3
-#define ISCSI_DB_DATA_AGG_VAL_SEL_SHIFT 6
-	u8 agg_flags;
-	__le16 sq_prod;
-};
-
 struct tstorm_iscsi_task_ag_ctx {
 	u8 byte0;
 	u8 byte1;
@@ -1397,6 +1375,21 @@ struct tstorm_iscsi_task_ag_ctx {
 	__le16 word4;
 	__le32 reg1;
 	__le32 reg2;
+};
+struct iscsi_db_data {
+	u8 params;
+#define ISCSI_DB_DATA_DEST_MASK         0x3
+#define ISCSI_DB_DATA_DEST_SHIFT        0
+#define ISCSI_DB_DATA_AGG_CMD_MASK      0x3
+#define ISCSI_DB_DATA_AGG_CMD_SHIFT     2
+#define ISCSI_DB_DATA_BYPASS_EN_MASK    0x1
+#define ISCSI_DB_DATA_BYPASS_EN_SHIFT   4
+#define ISCSI_DB_DATA_RESERVED_MASK     0x1
+#define ISCSI_DB_DATA_RESERVED_SHIFT    5
+#define ISCSI_DB_DATA_AGG_VAL_SEL_MASK  0x3
+#define ISCSI_DB_DATA_AGG_VAL_SEL_SHIFT 6
+	u8 agg_flags;
+	__le16 sq_prod;
 };
 
 #endif /* __ISCSI_COMMON__ */

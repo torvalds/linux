@@ -500,7 +500,11 @@ static int from_fw_port_mod_type(enum fw_port_type port_type,
 	} else if (port_type == FW_PORT_TYPE_SFP ||
 		   port_type == FW_PORT_TYPE_QSFP_10G ||
 		   port_type == FW_PORT_TYPE_QSA ||
-		   port_type == FW_PORT_TYPE_QSFP) {
+		   port_type == FW_PORT_TYPE_QSFP ||
+		   port_type == FW_PORT_TYPE_CR4_QSFP ||
+		   port_type == FW_PORT_TYPE_CR_QSFP ||
+		   port_type == FW_PORT_TYPE_CR2_QSFP ||
+		   port_type == FW_PORT_TYPE_SFP28) {
 		if (mod_type == FW_PORT_MOD_TYPE_LR ||
 		    mod_type == FW_PORT_MOD_TYPE_SR ||
 		    mod_type == FW_PORT_MOD_TYPE_ER ||
@@ -511,6 +515,9 @@ static int from_fw_port_mod_type(enum fw_port_type port_type,
 			return PORT_DA;
 		else
 			return PORT_OTHER;
+	} else if (port_type == FW_PORT_TYPE_KR4_100G ||
+		   port_type == FW_PORT_TYPE_KR_SFP28) {
+		return PORT_NONE;
 	}
 
 	return PORT_OTHER;
@@ -618,7 +625,21 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 	case FW_PORT_TYPE_CR_QSFP:
 	case FW_PORT_TYPE_SFP28:
 		SET_LMM(FIBRE);
-		SET_LMM(25000baseCR_Full);
+		FW_CAPS_TO_LMM(SPEED_1G, 1000baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_25G, 25000baseCR_Full);
+		break;
+
+	case FW_PORT_TYPE_KR_SFP28:
+		SET_LMM(Backplane);
+		FW_CAPS_TO_LMM(SPEED_1G, 1000baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKR_Full);
+		FW_CAPS_TO_LMM(SPEED_25G, 25000baseKR_Full);
+		break;
+
+	case FW_PORT_TYPE_CR2_QSFP:
+		SET_LMM(FIBRE);
+		SET_LMM(50000baseSR2_Full);
 		break;
 
 	case FW_PORT_TYPE_KR4_100G:
@@ -674,12 +695,19 @@ static unsigned int lmm_to_fw_caps(const unsigned long *link_mode_mask)
 static int get_link_ksettings(struct net_device *dev,
 			      struct ethtool_link_ksettings *link_ksettings)
 {
-	const struct port_info *pi = netdev_priv(dev);
+	struct port_info *pi = netdev_priv(dev);
 	struct ethtool_link_settings *base = &link_ksettings->base;
 
 	ethtool_link_ksettings_zero_link_mode(link_ksettings, supported);
 	ethtool_link_ksettings_zero_link_mode(link_ksettings, advertising);
 	ethtool_link_ksettings_zero_link_mode(link_ksettings, lp_advertising);
+
+	/* For the nonce, the Firmware doesn't send up Port State changes
+	 * when the Virtual Interface attached to the Port is down.  So
+	 * if it's down, let's grab any changes.
+	 */
+	if (!netif_running(dev))
+		(void)t4_update_port_info(pi);
 
 	base->port = from_fw_port_mod_type(pi->port_type, pi->mod_type);
 
@@ -1085,14 +1113,31 @@ static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
 
 static int get_ts_info(struct net_device *dev, struct ethtool_ts_info *ts_info)
 {
+	struct port_info *pi = netdev_priv(dev);
+	struct  adapter *adapter = pi->adapter;
+
 	ts_info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
 				   SOF_TIMESTAMPING_RX_SOFTWARE |
 				   SOF_TIMESTAMPING_SOFTWARE;
 
 	ts_info->so_timestamping |= SOF_TIMESTAMPING_RX_HARDWARE |
+				    SOF_TIMESTAMPING_TX_HARDWARE |
 				    SOF_TIMESTAMPING_RAW_HARDWARE;
 
-	ts_info->phc_index = -1;
+	ts_info->tx_types = (1 << HWTSTAMP_TX_OFF) |
+			    (1 << HWTSTAMP_TX_ON);
+
+	ts_info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+			      (1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
+			      (1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
+			      (1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
+			      (1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
+			      (1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ);
+
+	if (adapter->ptp_clock)
+		ts_info->phc_index = ptp_clock_index(adapter->ptp_clock);
+	else
+		ts_info->phc_index = -1;
 
 	return 0;
 }

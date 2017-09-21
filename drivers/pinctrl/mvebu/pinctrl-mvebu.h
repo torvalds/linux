@@ -210,6 +210,6 @@ int mvebu_regmap_mpp_ctrl_set(struct mvebu_mpp_ctrl_data *data, unsigned pid,
 int mvebu_pinctrl_probe(struct platform_device *pdev);
 int mvebu_pinctrl_simple_mmio_probe(struct platform_device *pdev);
 int mvebu_pinctrl_simple_regmap_probe(struct platform_device *pdev,
-				      struct device *syscon_dev);
+				      struct device *syscon_dev, u32 offset);
 
 #endif

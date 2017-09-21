@@ -160,11 +160,6 @@ void clk_deactivate(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_deactivate);
 
-struct clk *of_clk_get_from_provider(struct of_phandle_args *clkspec)
-{
-	return NULL;
-}
-
 static inline u32 get_counter_resolution(void)
 {
 	u32 res;

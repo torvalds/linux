@@ -245,7 +245,7 @@ struct sdebug_dev_info {
 	unsigned int channel;
 	unsigned int target;
 	u64 lun;
-	uuid_be lu_name;
+	uuid_t lu_name;
 	struct sdebug_host_info *sdbg_host;
 	unsigned long uas_bm[1];
 	atomic_t num_in_q;
@@ -965,7 +965,7 @@ static const u64 naa3_comp_c = 0x3111111000000000ULL;
 static int inquiry_vpd_83(unsigned char *arr, int port_group_id,
 			  int target_dev_id, int dev_id_num,
 			  const char *dev_id_str, int dev_id_str_len,
-			  const uuid_be *lu_name)
+			  const uuid_t *lu_name)
 {
 	int num, port_a;
 	char b[32];
@@ -3568,7 +3568,7 @@ static void sdebug_q_cmd_wq_complete(struct work_struct *work)
 }
 
 static bool got_shared_uuid;
-static uuid_be shared_uuid;
+static uuid_t shared_uuid;
 
 static struct sdebug_dev_info *sdebug_device_create(
 			struct sdebug_host_info *sdbg_host, gfp_t flags)
@@ -3578,12 +3578,12 @@ static struct sdebug_dev_info *sdebug_device_create(
 	devip = kzalloc(sizeof(*devip), flags);
 	if (devip) {
 		if (sdebug_uuid_ctl == 1)
-			uuid_be_gen(&devip->lu_name);
+			uuid_gen(&devip->lu_name);
 		else if (sdebug_uuid_ctl == 2) {
 			if (got_shared_uuid)
 				devip->lu_name = shared_uuid;
 			else {
-				uuid_be_gen(&shared_uuid);
+				uuid_gen(&shared_uuid);
 				got_shared_uuid = true;
 				devip->lu_name = shared_uuid;
 			}

@@ -32,7 +32,7 @@ static int inv_mpu6050_select_bypass(struct i2c_mux_core *muxc, u32 chan_id)
 	int ret = 0;
 
 	/* Use the same mutex which was used everywhere to protect power-op */
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 	if (!st->powerup_count) {
 		ret = regmap_write(st->map, st->reg->pwr_mgmt_1, 0);
 		if (ret)
@@ -48,7 +48,7 @@ static int inv_mpu6050_select_bypass(struct i2c_mux_core *muxc, u32 chan_id)
 				   INV_MPU6050_BIT_BYPASS_EN);
 	}
 write_error:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return ret;
 }
@@ -58,14 +58,14 @@ static int inv_mpu6050_deselect_bypass(struct i2c_mux_core *muxc, u32 chan_id)
 	struct iio_dev *indio_dev = i2c_mux_priv(muxc);
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 	/* It doesn't really mattter, if any of the calls fails */
 	regmap_write(st->map, st->reg->int_pin_cfg, INV_MPU6050_INT_PIN_CFG);
 	st->powerup_count--;
 	if (!st->powerup_count)
 		regmap_write(st->map, st->reg->pwr_mgmt_1,
 			     INV_MPU6050_BIT_SLEEP);
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return 0;
 }

@@ -48,28 +48,31 @@
 #define KVM_IRQCHIP_NUM_PINS  KVM_IOAPIC_NUM_PINS
 
 /* x86-specific vcpu->requests bit members */
-#define KVM_REQ_MIGRATE_TIMER      8
-#define KVM_REQ_REPORT_TPR_ACCESS  9
-#define KVM_REQ_TRIPLE_FAULT      10
-#define KVM_REQ_MMU_SYNC          11
-#define KVM_REQ_CLOCK_UPDATE      12
-#define KVM_REQ_EVENT             14
-#define KVM_REQ_APF_HALT          15
-#define KVM_REQ_STEAL_UPDATE      16
-#define KVM_REQ_NMI               17
-#define KVM_REQ_PMU               18
-#define KVM_REQ_PMI               19
-#define KVM_REQ_SMI               20
-#define KVM_REQ_MASTERCLOCK_UPDATE 21
-#define KVM_REQ_MCLOCK_INPROGRESS (22 | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
-#define KVM_REQ_SCAN_IOAPIC       (23 | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
-#define KVM_REQ_GLOBAL_CLOCK_UPDATE 24
-#define KVM_REQ_APIC_PAGE_RELOAD  (25 | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
-#define KVM_REQ_HV_CRASH          26
-#define KVM_REQ_IOAPIC_EOI_EXIT   27
-#define KVM_REQ_HV_RESET          28
-#define KVM_REQ_HV_EXIT           29
-#define KVM_REQ_HV_STIMER         30
+#define KVM_REQ_MIGRATE_TIMER		KVM_ARCH_REQ(0)
+#define KVM_REQ_REPORT_TPR_ACCESS	KVM_ARCH_REQ(1)
+#define KVM_REQ_TRIPLE_FAULT		KVM_ARCH_REQ(2)
+#define KVM_REQ_MMU_SYNC		KVM_ARCH_REQ(3)
+#define KVM_REQ_CLOCK_UPDATE		KVM_ARCH_REQ(4)
+#define KVM_REQ_EVENT			KVM_ARCH_REQ(6)
+#define KVM_REQ_APF_HALT		KVM_ARCH_REQ(7)
+#define KVM_REQ_STEAL_UPDATE		KVM_ARCH_REQ(8)
+#define KVM_REQ_NMI			KVM_ARCH_REQ(9)
+#define KVM_REQ_PMU			KVM_ARCH_REQ(10)
+#define KVM_REQ_PMI			KVM_ARCH_REQ(11)
+#define KVM_REQ_SMI			KVM_ARCH_REQ(12)
+#define KVM_REQ_MASTERCLOCK_UPDATE	KVM_ARCH_REQ(13)
+#define KVM_REQ_MCLOCK_INPROGRESS \
+	KVM_ARCH_REQ_FLAGS(14, KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
+#define KVM_REQ_SCAN_IOAPIC \
+	KVM_ARCH_REQ_FLAGS(15, KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
+#define KVM_REQ_GLOBAL_CLOCK_UPDATE	KVM_ARCH_REQ(16)
+#define KVM_REQ_APIC_PAGE_RELOAD \
+	KVM_ARCH_REQ_FLAGS(17, KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
+#define KVM_REQ_HV_CRASH		KVM_ARCH_REQ(18)
+#define KVM_REQ_IOAPIC_EOI_EXIT		KVM_ARCH_REQ(19)
+#define KVM_REQ_HV_RESET		KVM_ARCH_REQ(20)
+#define KVM_REQ_HV_EXIT			KVM_ARCH_REQ(21)
+#define KVM_REQ_HV_STIMER		KVM_ARCH_REQ(22)
 
 #define CR0_RESERVED_BITS                                               \
 	(~(unsigned long)(X86_CR0_PE | X86_CR0_MP | X86_CR0_EM | X86_CR0_TS \
@@ -254,7 +257,8 @@ union kvm_mmu_page_role {
 		unsigned cr0_wp:1;
 		unsigned smep_andnot_wp:1;
 		unsigned smap_andnot_wp:1;
-		unsigned :8;
+		unsigned ad_disabled:1;
+		unsigned :7;
 
 		/*
 		 * This is left at the top of the word so that
@@ -458,10 +462,12 @@ struct kvm_vcpu_hv_synic {
 	DECLARE_BITMAP(auto_eoi_bitmap, 256);
 	DECLARE_BITMAP(vec_bitmap, 256);
 	bool active;
+	bool dont_zero_synic_pages;
 };
 
 /* Hyper-V per vcpu emulation context */
 struct kvm_vcpu_hv {
+	u32 vp_index;
 	u64 hv_vapic;
 	s64 runtime_offset;
 	struct kvm_vcpu_hv_synic synic;
@@ -486,6 +492,7 @@ struct kvm_vcpu_arch {
 	unsigned long cr4;
 	unsigned long cr4_guest_owned_bits;
 	unsigned long cr8;
+	u32 pkru;
 	u32 hflags;
 	u64 efer;
 	u64 apic_base;
@@ -545,6 +552,7 @@ struct kvm_vcpu_arch {
 		bool reinject;
 		u8 nr;
 		u32 error_code;
+		u8 nested_apf;
 	} exception;
 
 	struct kvm_queued_interrupt {
@@ -645,6 +653,9 @@ struct kvm_vcpu_arch {
 		u64 msr_val;
 		u32 id;
 		bool send_user_only;
+		u32 host_apf_reason;
+		unsigned long nested_apf_token;
+		bool delivery_as_pf_vmexit;
 	} apf;
 
 	/* OSVW MSRs (AMD only) */
@@ -799,6 +810,7 @@ struct kvm_arch {
 	int audit_point;
 	#endif
 
+	bool backwards_tsc_observed;
 	bool boot_vcpu_runs_old_kvmclock;
 	u32 bsp_vcpu_id;
 
@@ -948,9 +960,7 @@ struct kvm_x86_ops {
 				unsigned char *hypercall_addr);
 	void (*set_irq)(struct kvm_vcpu *vcpu);
 	void (*set_nmi)(struct kvm_vcpu *vcpu);
-	void (*queue_exception)(struct kvm_vcpu *vcpu, unsigned nr,
-				bool has_error_code, u32 error_code,
-				bool reinject);
+	void (*queue_exception)(struct kvm_vcpu *vcpu);
 	void (*cancel_injection)(struct kvm_vcpu *vcpu);
 	int (*interrupt_allowed)(struct kvm_vcpu *vcpu);
 	int (*nmi_allowed)(struct kvm_vcpu *vcpu);
@@ -1365,8 +1375,6 @@ int kvm_arch_interrupt_allowed(struct kvm_vcpu *vcpu);
 int kvm_cpu_get_interrupt(struct kvm_vcpu *v);
 void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event);
 void kvm_vcpu_reload_apic_access_page(struct kvm_vcpu *vcpu);
-void kvm_arch_mmu_notifier_invalidate_page(struct kvm *kvm,
-					   unsigned long address);
 
 void kvm_define_shared_msr(unsigned index, u32 msr);
 int kvm_set_shared_msr(unsigned index, u64 val, u64 mask);

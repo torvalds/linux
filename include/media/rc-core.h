@@ -70,7 +70,6 @@ enum rc_filter_type {
 /**
  * struct rc_dev - represents a remote control device
  * @dev: driver model's view of this device
- * @initialized: 1 if the device init has completed, 0 otherwise
  * @managed_alloc: devm_rc_allocate_device was used to create rc_dev
  * @sysfs_groups: sysfs attribute groups
  * @input_name: name of the input child device
@@ -137,7 +136,6 @@ enum rc_filter_type {
  */
 struct rc_dev {
 	struct device			dev;
-	atomic_t			initialized;
 	bool				managed_alloc;
 	const struct attribute_group	*sysfs_groups[5];
 	const char			*input_name;

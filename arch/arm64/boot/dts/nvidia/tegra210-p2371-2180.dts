@@ -7,7 +7,7 @@
 	model = "NVIDIA Jetson TX1 Developer Kit";
 	compatible = "nvidia,p2371-2180", "nvidia,tegra210";
 
-	pcie-controller@01003000 {
+	pcie@1003000 {
 		status = "okay";
 
 		avdd-pll-uerefe-supply = <&avdd_1v05_pll>;

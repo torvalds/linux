@@ -708,8 +708,14 @@ iser_calc_scsi_params(struct iser_conn *iser_conn,
 	unsigned short sg_tablesize, sup_sg_tablesize;
 
 	sg_tablesize = DIV_ROUND_UP(max_sectors * 512, SIZE_4K);
-	sup_sg_tablesize = min_t(unsigned, ISCSI_ISER_MAX_SG_TABLESIZE,
-				 device->ib_device->attrs.max_fast_reg_page_list_len);
+	if (device->ib_device->attrs.device_cap_flags &
+			IB_DEVICE_MEM_MGT_EXTENSIONS)
+		sup_sg_tablesize =
+			min_t(
+			 uint, ISCSI_ISER_MAX_SG_TABLESIZE,
+			 device->ib_device->attrs.max_fast_reg_page_list_len);
+	else
+		sup_sg_tablesize = ISCSI_ISER_MAX_SG_TABLESIZE;
 
 	iser_conn->scsi_sg_tablesize = min(sg_tablesize, sup_sg_tablesize);
 }

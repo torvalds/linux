@@ -188,9 +188,11 @@ i915_gem_object_create_internal(struct drm_i915_private *i915,
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
 	i915_gem_object_init(obj, &i915_gem_object_internal_ops);
 
-	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
+	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	obj->cache_level = HAS_LLC(i915) ? I915_CACHE_LLC : I915_CACHE_NONE;
+	obj->cache_coherent = i915_gem_object_is_coherent(obj);
+	obj->cache_dirty = !obj->cache_coherent;
 
 	return obj;
 }

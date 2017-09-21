@@ -185,11 +185,11 @@
 			FW_CRYPTO_LOOKASIDE_WR_CCTX_LOC_V(1) | \
 			FW_CRYPTO_LOOKASIDE_WR_CCTX_SIZE_V((ctx_len)))
 
-#define FILL_WR_RX_Q_ID(cid, qid, wr_iv, fid) \
+#define FILL_WR_RX_Q_ID(cid, qid, wr_iv, lcb, fid) \
 		htonl( \
 			FW_CRYPTO_LOOKASIDE_WR_RX_CHID_V((cid)) | \
 			FW_CRYPTO_LOOKASIDE_WR_RX_Q_ID_V((qid)) | \
-			FW_CRYPTO_LOOKASIDE_WR_LCB_V(0) | \
+			FW_CRYPTO_LOOKASIDE_WR_LCB_V((lcb)) | \
 			FW_CRYPTO_LOOKASIDE_WR_IV_V((wr_iv)) | \
 			FW_CRYPTO_LOOKASIDE_WR_FQIDX_V(fid))
 
@@ -219,9 +219,26 @@
 #define MAX_NK 8
 #define CRYPTO_MAX_IMM_TX_PKT_LEN 256
 #define MAX_WR_SIZE			512
+#define ROUND_16(bytes)		((bytes) & 0xFFFFFFF0)
+#define MAX_DSGL_ENT			32
+#define MAX_DIGEST_SKB_SGE	(MAX_SKB_FRAGS - 2)
+#define MIN_CIPHER_SG			1 /* IV */
 #define MIN_AUTH_SG			2 /*IV + AAD*/
 #define MIN_GCM_SG			2 /* IV + AAD*/
+#define MIN_DIGEST_SG			1 /*Partial Buffer*/
 #define MIN_CCM_SG			3 /*IV+AAD+B0*/
+#define SPACE_LEFT(len) \
+	((MAX_WR_SIZE - WR_MIN_LEN - (len)))
+
+unsigned int sgl_ent_len[] = {0, 0, 16, 24, 40,
+				48, 64, 72, 88,
+				96, 112, 120, 136,
+				144, 160, 168, 184,
+				192};
+unsigned int dsgl_ent_len[] = {0, 32, 32, 48, 48, 64, 64, 80, 80,
+				112, 112, 128, 128, 144, 144, 160, 160,
+				192, 192, 208, 208, 224, 224, 240, 240,
+				272, 272, 288, 288, 304, 304, 320, 320};
 
 struct algo_param {
 	unsigned int auth_mode;
@@ -239,6 +256,14 @@ struct hash_wr_param {
 	u64 scmd1;
 };
 
+struct cipher_wr_param {
+	struct ablkcipher_request *req;
+	struct scatterlist *srcsg;
+	char *iv;
+	int bytes;
+	short int snent;
+	unsigned short qid;
+};
 enum {
 	AES_KEYLENGTH_128BIT = 128,
 	AES_KEYLENGTH_192BIT = 192,
@@ -293,7 +318,6 @@ struct phys_sge_parm {
 	unsigned int nents;
 	unsigned int obsize;
 	unsigned short qid;
-	unsigned char align;
 };
 
 struct crypto_result {

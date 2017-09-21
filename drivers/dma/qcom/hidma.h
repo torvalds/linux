@@ -104,6 +104,7 @@ struct hidma_chan {
 	struct dma_chan			chan;
 	struct list_head		free;
 	struct list_head		prepared;
+	struct list_head		queued;
 	struct list_head		active;
 	struct list_head		completed;
 

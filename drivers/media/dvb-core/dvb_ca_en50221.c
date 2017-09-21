@@ -193,8 +193,10 @@ static void dvb_ca_private_put(struct dvb_ca_private *ca)
 }
 
 static void dvb_ca_en50221_thread_wakeup(struct dvb_ca_private *ca);
-static int dvb_ca_en50221_read_data(struct dvb_ca_private *ca, int slot, u8 * ebuf, int ecount);
-static int dvb_ca_en50221_write_data(struct dvb_ca_private *ca, int slot, u8 * ebuf, int ecount);
+static int dvb_ca_en50221_read_data(struct dvb_ca_private *ca, int slot,
+				    u8 *ebuf, int ecount);
+static int dvb_ca_en50221_write_data(struct dvb_ca_private *ca, int slot,
+				     u8 *ebuf, int ecount);
 
 
 /**
@@ -206,7 +208,7 @@ static int dvb_ca_en50221_write_data(struct dvb_ca_private *ca, int slot, u8 * e
  * @nlen: Number of bytes in needle.
  * @return Pointer into haystack needle was found at, or NULL if not found.
  */
-static char *findstr(char * haystack, int hlen, char * needle, int nlen)
+static char *findstr(char *haystack, int hlen, char *needle, int nlen)
 {
 	int i;
 
@@ -347,7 +349,8 @@ static int dvb_ca_en50221_link_init(struct dvb_ca_private *ca, int slot)
 	/* read the buffer size from the CAM */
 	if ((ret = ca->pub->write_cam_control(ca->pub, slot, CTRLIF_COMMAND, IRQEN | CMDREG_SR)) != 0)
 		return ret;
-	if ((ret = dvb_ca_en50221_wait_if_status(ca, slot, STATUSREG_DA, HZ / 10)) != 0)
+	ret = dvb_ca_en50221_wait_if_status(ca, slot, STATUSREG_DA, HZ);
+	if (ret != 0)
 		return ret;
 	if ((ret = dvb_ca_en50221_read_data(ca, slot, buf, 2)) != 2)
 		return -EIO;
@@ -390,7 +393,8 @@ static int dvb_ca_en50221_link_init(struct dvb_ca_private *ca, int slot)
  * @return 0 on success, nonzero on error.
  */
 static int dvb_ca_en50221_read_tuple(struct dvb_ca_private *ca, int slot,
-				     int *address, int *tupleType, int *tupleLength, u8 * tuple)
+				     int *address, int *tupleType,
+				     int *tupleLength, u8 *tuple)
 {
 	int i;
 	int _tupleType;
@@ -621,7 +625,8 @@ static int dvb_ca_en50221_set_configoption(struct dvb_ca_private *ca, int slot)
  *
  * @return Number of bytes read, or < 0 on error
  */
-static int dvb_ca_en50221_read_data(struct dvb_ca_private *ca, int slot, u8 * ebuf, int ecount)
+static int dvb_ca_en50221_read_data(struct dvb_ca_private *ca, int slot,
+				    u8 *ebuf, int ecount)
 {
 	int bytes_read;
 	int status;
@@ -640,72 +645,101 @@ static int dvb_ca_en50221_read_data(struct dvb_ca_private *ca, int slot, u8 * eb
 		}
 		buf_free = dvb_ringbuffer_free(&ca->slot_info[slot].rx_buffer);
 
-		if (buf_free < (ca->slot_info[slot].link_buf_size + DVB_RINGBUFFER_PKTHDRSIZE)) {
+		if (buf_free < (ca->slot_info[slot].link_buf_size +
+				DVB_RINGBUFFER_PKTHDRSIZE)) {
 			status = -EAGAIN;
 			goto exit;
 		}
 	}
 
-	/* check if there is data available */
-	if ((status = ca->pub->read_cam_control(ca->pub, slot, CTRLIF_STATUS)) < 0)
-		goto exit;
-	if (!(status & STATUSREG_DA)) {
-		/* no data */
-		status = 0;
-		goto exit;
-	}
-
-	/* read the amount of data */
-	if ((status = ca->pub->read_cam_control(ca->pub, slot, CTRLIF_SIZE_HIGH)) < 0)
-		goto exit;
-	bytes_read = status << 8;
-	if ((status = ca->pub->read_cam_control(ca->pub, slot, CTRLIF_SIZE_LOW)) < 0)
-		goto exit;
-	bytes_read |= status;
-
-	/* check it will fit */
-	if (ebuf == NULL) {
-		if (bytes_read > ca->slot_info[slot].link_buf_size) {
-			pr_err("dvb_ca adapter %d: CAM tried to send a buffer larger than the link buffer size (%i > %i)!\n",
-			       ca->dvbdev->adapter->num, bytes_read,
-			       ca->slot_info[slot].link_buf_size);
-			ca->slot_info[slot].slot_state = DVB_CA_SLOTSTATE_LINKINIT;
-			status = -EIO;
+	if (ca->pub->read_data &&
+	    (ca->slot_info[slot].slot_state != DVB_CA_SLOTSTATE_LINKINIT)) {
+		if (ebuf == NULL)
+			status = ca->pub->read_data(ca->pub, slot, buf,
+						    sizeof(buf));
+		else
+			status = ca->pub->read_data(ca->pub, slot, buf, ecount);
+		if (status < 0)
+			return status;
+		bytes_read =  status;
+		if (status == 0)
 			goto exit;
-		}
-		if (bytes_read < 2) {
-			pr_err("dvb_ca adapter %d: CAM sent a buffer that was less than 2 bytes!\n",
-			       ca->dvbdev->adapter->num);
-			ca->slot_info[slot].slot_state = DVB_CA_SLOTSTATE_LINKINIT;
-			status = -EIO;
-			goto exit;
-		}
 	} else {
-		if (bytes_read > ecount) {
-			pr_err("dvb_ca adapter %d: CAM tried to send a buffer larger than the ecount size!\n",
-			       ca->dvbdev->adapter->num);
+
+		/* check if there is data available */
+		status = ca->pub->read_cam_control(ca->pub, slot,
+						   CTRLIF_STATUS);
+		if (status < 0)
+			goto exit;
+		if (!(status & STATUSREG_DA)) {
+			/* no data */
+			status = 0;
+			goto exit;
+		}
+
+		/* read the amount of data */
+		status = ca->pub->read_cam_control(ca->pub, slot,
+						   CTRLIF_SIZE_HIGH);
+		if (status < 0)
+			goto exit;
+		bytes_read = status << 8;
+		status = ca->pub->read_cam_control(ca->pub, slot,
+						   CTRLIF_SIZE_LOW);
+		if (status < 0)
+			goto exit;
+		bytes_read |= status;
+
+		/* check it will fit */
+		if (ebuf == NULL) {
+			if (bytes_read > ca->slot_info[slot].link_buf_size) {
+				pr_err("dvb_ca adapter %d: CAM tried to send a buffer larger than the link buffer size (%i > %i)!\n",
+				       ca->dvbdev->adapter->num, bytes_read,
+				       ca->slot_info[slot].link_buf_size);
+				ca->slot_info[slot].slot_state =
+						     DVB_CA_SLOTSTATE_LINKINIT;
+				status = -EIO;
+				goto exit;
+			}
+			if (bytes_read < 2) {
+				pr_err("dvb_ca adapter %d: CAM sent a buffer that was less than 2 bytes!\n",
+				       ca->dvbdev->adapter->num);
+				ca->slot_info[slot].slot_state =
+						     DVB_CA_SLOTSTATE_LINKINIT;
+				status = -EIO;
+				goto exit;
+			}
+		} else {
+			if (bytes_read > ecount) {
+				pr_err("dvb_ca adapter %d: CAM tried to send a buffer larger than the ecount size!\n",
+				       ca->dvbdev->adapter->num);
+				status = -EIO;
+				goto exit;
+			}
+		}
+
+		/* fill the buffer */
+		for (i = 0; i < bytes_read; i++) {
+			/* read byte and check */
+			status = ca->pub->read_cam_control(ca->pub, slot,
+							   CTRLIF_DATA);
+			if (status < 0)
+				goto exit;
+
+			/* OK, store it in the buffer */
+			buf[i] = status;
+		}
+
+		/* check for read error (RE should now be 0) */
+		status = ca->pub->read_cam_control(ca->pub, slot,
+						   CTRLIF_STATUS);
+		if (status < 0)
+			goto exit;
+		if (status & STATUSREG_RE) {
+			ca->slot_info[slot].slot_state =
+						     DVB_CA_SLOTSTATE_LINKINIT;
 			status = -EIO;
 			goto exit;
 		}
-	}
-
-	/* fill the buffer */
-	for (i = 0; i < bytes_read; i++) {
-		/* read byte and check */
-		if ((status = ca->pub->read_cam_control(ca->pub, slot, CTRLIF_DATA)) < 0)
-			goto exit;
-
-		/* OK, store it in the buffer */
-		buf[i] = status;
-	}
-
-	/* check for read error (RE should now be 0) */
-	if ((status = ca->pub->read_cam_control(ca->pub, slot, CTRLIF_STATUS)) < 0)
-		goto exit;
-	if (status & STATUSREG_RE) {
-		ca->slot_info[slot].slot_state = DVB_CA_SLOTSTATE_LINKINIT;
-		status = -EIO;
-		goto exit;
 	}
 
 	/* OK, add it to the receive buffer, or copy into external buffer if supplied */
@@ -745,7 +779,8 @@ exit:
  *
  * @return Number of bytes written, or < 0 on error.
  */
-static int dvb_ca_en50221_write_data(struct dvb_ca_private *ca, int slot, u8 * buf, int bytes_write)
+static int dvb_ca_en50221_write_data(struct dvb_ca_private *ca, int slot,
+				     u8 *buf, int bytes_write)
 {
 	int status;
 	int i;
@@ -756,6 +791,10 @@ static int dvb_ca_en50221_write_data(struct dvb_ca_private *ca, int slot, u8 * b
 	/* sanity check */
 	if (bytes_write > ca->slot_info[slot].link_buf_size)
 		return -EINVAL;
+
+	if (ca->pub->write_data &&
+	    (ca->slot_info[slot].slot_state != DVB_CA_SLOTSTATE_LINKINIT))
+		return ca->pub->write_data(ca->pub, slot, buf, bytes_write);
 
 	/* it is possible we are dealing with a single buffer implementation,
 	   thus if there is data available for read or if there is even a read
@@ -840,7 +879,6 @@ exit:
 exitnowrite:
 	return status;
 }
-EXPORT_SYMBOL(dvb_ca_en50221_camchange_irq);
 
 
 
@@ -849,7 +887,7 @@ EXPORT_SYMBOL(dvb_ca_en50221_camchange_irq);
 
 
 /**
- * dvb_ca_en50221_camready_irq - A CAM has been removed => shut it down.
+ * dvb_ca_en50221_slot_shutdown - A CAM has been removed => shut it down.
  *
  * @ca: CA instance.
  * @slot: Slot to shut down.
@@ -870,11 +908,10 @@ static int dvb_ca_en50221_slot_shutdown(struct dvb_ca_private *ca, int slot)
 	/* success */
 	return 0;
 }
-EXPORT_SYMBOL(dvb_ca_en50221_camready_irq);
 
 
 /**
- * dvb_ca_en50221_camready_irq - A CAMCHANGE IRQ has occurred.
+ * dvb_ca_en50221_camchange_irq - A CAMCHANGE IRQ has occurred.
  *
  * @ca: CA instance.
  * @slot: Slot concerned.
@@ -899,7 +936,7 @@ void dvb_ca_en50221_camchange_irq(struct dvb_ca_en50221 *pubca, int slot, int ch
 	atomic_inc(&ca->slot_info[slot].camchange_count);
 	dvb_ca_en50221_thread_wakeup(ca);
 }
-EXPORT_SYMBOL(dvb_ca_en50221_frda_irq);
+EXPORT_SYMBOL(dvb_ca_en50221_camchange_irq);
 
 
 /**
@@ -919,10 +956,11 @@ void dvb_ca_en50221_camready_irq(struct dvb_ca_en50221 *pubca, int slot)
 		dvb_ca_en50221_thread_wakeup(ca);
 	}
 }
+EXPORT_SYMBOL(dvb_ca_en50221_camready_irq);
 
 
 /**
- * An FR or DA IRQ has occurred.
+ * dvb_ca_en50221_frda_irq - An FR or DA IRQ has occurred.
  *
  * @ca: CA instance.
  * @slot: Slot concerned.
@@ -949,7 +987,7 @@ void dvb_ca_en50221_frda_irq(struct dvb_ca_en50221 *pubca, int slot)
 		break;
 	}
 }
-
+EXPORT_SYMBOL(dvb_ca_en50221_frda_irq);
 
 
 /* ******************************************************************************** */
@@ -1172,7 +1210,8 @@ static int dvb_ca_en50221_thread(void *data)
 
 					pr_err("dvb_ca adapter %d: DVB CAM link initialisation failed :(\n",
 					       ca->dvbdev->adapter->num);
-					ca->slot_info[slot].slot_state = DVB_CA_SLOTSTATE_INVALID;
+					ca->slot_info[slot].slot_state =
+						DVB_CA_SLOTSTATE_UNINITIALISED;
 					dvb_ca_en50221_thread_update_delay(ca);
 					break;
 				}
@@ -1345,7 +1384,8 @@ static long dvb_ca_en50221_io_ioctl(struct file *file,
  * @return Number of bytes read, or <0 on error.
  */
 static ssize_t dvb_ca_en50221_io_write(struct file *file,
-				       const char __user * buf, size_t count, loff_t * ppos)
+				       const char __user *buf, size_t count,
+				       loff_t *ppos)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_ca_private *ca = dvbdev->priv;
@@ -1485,8 +1525,8 @@ nextslot:
  *
  * @return Number of bytes read, or <0 on error.
  */
-static ssize_t dvb_ca_en50221_io_read(struct file *file, char __user * buf,
-				      size_t count, loff_t * ppos)
+static ssize_t dvb_ca_en50221_io_read(struct file *file, char __user *buf,
+				      size_t count, loff_t *ppos)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_ca_private *ca = dvbdev->priv;
@@ -1664,7 +1704,7 @@ static int dvb_ca_en50221_io_release(struct inode *inode, struct file *file)
  *
  * @return Standard poll mask.
  */
-static unsigned int dvb_ca_en50221_io_poll(struct file *file, poll_table * wait)
+static unsigned int dvb_ca_en50221_io_poll(struct file *file, poll_table *wait)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_ca_private *ca = dvbdev->priv;

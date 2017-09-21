@@ -1975,18 +1975,6 @@ static void cy_set_line_char(struct cyclades_port *info, struct tty_struct *tty)
 	cflag = tty->termios.c_cflag;
 	iflag = tty->termios.c_iflag;
 
-	/*
-	 * Set up the tty->alt_speed kludge
-	 */
-	if ((info->port.flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
-		tty->alt_speed = 57600;
-	if ((info->port.flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
-		tty->alt_speed = 115200;
-	if ((info->port.flags & ASYNC_SPD_MASK) == ASYNC_SPD_SHI)
-		tty->alt_speed = 230400;
-	if ((info->port.flags & ASYNC_SPD_MASK) == ASYNC_SPD_WARP)
-		tty->alt_speed = 460800;
-
 	card = info->card;
 	channel = info->line - card->first_line;
 
@@ -2295,12 +2283,16 @@ cy_set_serial_info(struct cyclades_port *info, struct tty_struct *tty,
 		struct serial_struct __user *new_info)
 {
 	struct serial_struct new_serial;
+	int old_flags;
 	int ret;
 
 	if (copy_from_user(&new_serial, new_info, sizeof(new_serial)))
 		return -EFAULT;
 
 	mutex_lock(&info->port.mutex);
+
+	old_flags = info->port.flags;
+
 	if (!capable(CAP_SYS_ADMIN)) {
 		if (new_serial.close_delay != info->port.close_delay ||
 				new_serial.baud_base != info->baud ||
@@ -2332,6 +2324,11 @@ cy_set_serial_info(struct cyclades_port *info, struct tty_struct *tty,
 
 check_and_exit:
 	if (tty_port_initialized(&info->port)) {
+		if ((new_serial.flags ^ old_flags) & ASYNC_SPD_MASK) {
+			/* warn about deprecation unless clearing */
+			if (new_serial.flags & ASYNC_SPD_MASK)
+				dev_warn_ratelimited(tty->dev, "use of SPD flags is deprecated\n");
+		}
 		cy_set_line_char(info, tty);
 		ret = 0;
 	} else {

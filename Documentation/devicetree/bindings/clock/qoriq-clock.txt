@@ -57,6 +57,11 @@ Optional properties:
 - clocks: If clock-frequency is not specified, sysclk may be provided
 	as an input clock.  Either clock-frequency or clocks must be
 	provided.
+	A second input clock, called "coreclk", may be provided if
+	core PLLs are based on a different input clock from the
+	platform PLL.
+- clock-names: Required if a coreclk is present.  Valid names are
+	"sysclk" and "coreclk".
 
 2. Clock Provider
 
@@ -73,6 +78,7 @@ second cell is the clock index for the specified type.
 	2	hwaccel		index (n in CLKCGnHWACSR)
 	3	fman		0 for fm1, 1 for fm2
 	4	platform pll	0=pll, 1=pll/2, 2=pll/3, 3=pll/4
+	5	coreclk		must be 0
 
 3. Example
 

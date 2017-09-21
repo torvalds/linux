@@ -458,7 +458,7 @@ send_DLE_ETX(struct BCState *bcs)
 	struct sk_buff *skb;
 
 	if ((skb = dev_alloc_skb(2))) {
-		memcpy(skb_put(skb, 2), dleetx, 2);
+		skb_put_data(skb, dleetx, 2);
 		skb_queue_tail(&bcs->rqueue, skb);
 		schedule_event(bcs, B_RCVBUFREADY);
 	} else {
@@ -550,8 +550,8 @@ isar_rcv_frame(struct IsdnCardState *cs, struct BCState *bcs)
 				} else if (!(skb = dev_alloc_skb(bcs->hw.isar.rcvidx - 2))) {
 					printk(KERN_WARNING "ISAR: receive out of memory\n");
 				} else {
-					memcpy(skb_put(skb, bcs->hw.isar.rcvidx - 2),
-					       bcs->hw.isar.rcvbuf, bcs->hw.isar.rcvidx - 2);
+					skb_put_data(skb, bcs->hw.isar.rcvbuf,
+						     bcs->hw.isar.rcvidx - 2);
 					skb_queue_tail(&bcs->rqueue, skb);
 					schedule_event(bcs, B_RCVBUFREADY);
 				}

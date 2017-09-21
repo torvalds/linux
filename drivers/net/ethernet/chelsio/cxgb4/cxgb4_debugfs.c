@@ -2669,6 +2669,8 @@ static int tid_info_show(struct seq_file *seq, void *v)
 
 	if (t4_read_reg(adap, LE_DB_CONFIG_A) & HASHEN_F) {
 		unsigned int sb;
+		seq_printf(seq, "Connections in use: %u\n",
+			   atomic_read(&t->conns_in_use));
 
 		if (chip <= CHELSIO_T5)
 			sb = t4_read_reg(adap, LE_DB_SERVER_INDEX_A) / 4;
@@ -2699,17 +2701,23 @@ static int tid_info_show(struct seq_file *seq, void *v)
 				   atomic_read(&t->hash_tids_in_use));
 		}
 	} else if (t->ntids) {
+		seq_printf(seq, "Connections in use: %u\n",
+			   atomic_read(&t->conns_in_use));
+
 		seq_printf(seq, "TID range: 0..%u", t->ntids - 1);
 		seq_printf(seq, ", in use: %u\n",
 			   atomic_read(&t->tids_in_use));
 	}
 
 	if (t->nstids)
-		seq_printf(seq, "STID range: %u..%u, in use: %u\n",
+		seq_printf(seq, "STID range: %u..%u, in use-IPv4/IPv6: %u/%u\n",
 			   (!t->stid_base &&
 			   (chip <= CHELSIO_T5)) ?
 			   t->stid_base + 1 : t->stid_base,
-			   t->stid_base + t->nstids - 1, t->stids_in_use);
+			   t->stid_base + t->nstids - 1,
+			   t->stids_in_use - t->v6_stids_in_use,
+			   t->v6_stids_in_use);
+
 	if (t->natids)
 		seq_printf(seq, "ATID range: 0..%u, in use: %u\n",
 			   t->natids - 1, t->atids_in_use);
@@ -3069,6 +3077,40 @@ static const struct file_operations meminfo_fops = {
 	.llseek  = seq_lseek,
 	.release = single_release,
 };
+
+static int chcr_show(struct seq_file *seq, void *v)
+{
+	struct adapter *adap = seq->private;
+
+	seq_puts(seq, "Chelsio Crypto Accelerator Stats \n");
+	seq_printf(seq, "Cipher Ops: %10u \n",
+		   atomic_read(&adap->chcr_stats.cipher_rqst));
+	seq_printf(seq, "Digest Ops: %10u \n",
+		   atomic_read(&adap->chcr_stats.digest_rqst));
+	seq_printf(seq, "Aead Ops: %10u \n",
+		   atomic_read(&adap->chcr_stats.aead_rqst));
+	seq_printf(seq, "Completion: %10u \n",
+		   atomic_read(&adap->chcr_stats.complete));
+	seq_printf(seq, "Error: %10u \n",
+		   atomic_read(&adap->chcr_stats.error));
+	seq_printf(seq, "Fallback: %10u \n",
+		   atomic_read(&adap->chcr_stats.fallback));
+	return 0;
+}
+
+
+static int chcr_stats_open(struct inode *inode, struct file *file)
+{
+        return single_open(file, chcr_show, inode->i_private);
+}
+
+static const struct file_operations chcr_stats_debugfs_fops = {
+        .owner   = THIS_MODULE,
+        .open    = chcr_stats_open,
+        .read    = seq_read,
+        .llseek  = seq_lseek,
+        .release = single_release,
+};
 /* Add an array of Debug FS files.
  */
 void add_debugfs_files(struct adapter *adap,
@@ -3143,6 +3185,7 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "tids", &tid_info_debugfs_fops, S_IRUSR, 0},
 		{ "blocked_fl", &blocked_fl_fops, S_IRUSR | S_IWUSR, 0 },
 		{ "meminfo", &meminfo_fops, S_IRUSR, 0 },
+		{ "crypto", &chcr_stats_debugfs_fops, S_IRUSR, 0 },
 	};
 
 	/* Debug FS nodes common to all T5 and later adapters.

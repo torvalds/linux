@@ -164,7 +164,7 @@ static int snd_emu10k1_pcm_channel_alloc(struct snd_emu10k1_pcm * epcm, int voic
 	return 0;
 }
 
-static unsigned int capture_period_sizes[31] = {
+static const unsigned int capture_period_sizes[31] = {
 	384,	448,	512,	640,
 	384*2,	448*2,	512*2,	640*2,
 	384*4,	448*4,	512*4,	640*4,
@@ -175,17 +175,17 @@ static unsigned int capture_period_sizes[31] = {
 	384*128,448*128,512*128
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_capture_period_sizes = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_capture_period_sizes = {
 	.count = 31,
 	.list = capture_period_sizes,
 	.mask = 0
 };
 
-static unsigned int capture_rates[8] = {
+static const unsigned int capture_rates[8] = {
 	8000, 11025, 16000, 22050, 24000, 32000, 44100, 48000
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_capture_rates = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_capture_rates = {
 	.count = 8,
 	.list = capture_rates,
 	.mask = 0
@@ -1632,8 +1632,8 @@ static int snd_emu10k1_fx8010_playback_transfer(struct snd_pcm_substream *substr
 	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
 	struct snd_emu10k1_fx8010_pcm *pcm = &emu->fx8010.pcm[substream->number];
 
-	snd_pcm_indirect_playback_transfer(substream, &pcm->pcm_rec, fx8010_pb_trans_copy);
-	return 0;
+	return snd_pcm_indirect_playback_transfer(substream, &pcm->pcm_rec,
+						  fx8010_pb_trans_copy);
 }
 
 static int snd_emu10k1_fx8010_playback_hw_params(struct snd_pcm_substream *substream,

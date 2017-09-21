@@ -85,10 +85,6 @@
 	};
 };
 
-&ahci_pwr_pin_a {
-	pins = "PB3";
-};
-
 &ahci {
 	target-supply = <&reg_ahci_5v>;
 	status = "okay";
@@ -317,10 +313,6 @@
 
 &usb_power_supply {
 	status = "okay";
-};
-
-&usb2_vbus_pin_a {
-	pins = "PH12";
 };
 
 &usbphy {

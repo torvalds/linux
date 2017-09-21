@@ -25,11 +25,10 @@
 
 #include <linux/list.h>
 #include <linux/ctype.h>
+#include <linux/hdmi.h>
 #include <drm/drm_mode_object.h>
 
 #include <uapi/drm/drm_mode.h>
-
-struct drm_device;
 
 struct drm_connector_helper_funcs;
 struct drm_modeset_acquire_ctx;
@@ -326,6 +325,21 @@ struct drm_connector_state {
 	struct drm_atomic_state *state;
 
 	struct drm_tv_connector_state tv;
+
+	/**
+	 * @picture_aspect_ratio: Connector property to control the
+	 * HDMI infoframe aspect ratio setting.
+	 *
+	 * The %DRM_MODE_PICTURE_ASPECT_\* values much match the
+	 * values for &enum hdmi_picture_aspect
+	 */
+	enum hdmi_picture_aspect picture_aspect_ratio;
+
+	/**
+	 * @scaling_mode: Connector property to control the
+	 * upscaling, mostly used for built-in panels.
+	 */
+	unsigned int scaling_mode;
 };
 
 /**
@@ -675,6 +689,7 @@ struct drm_cmdline_mode {
  * @tile_v_loc: vertical location of this tile
  * @tile_h_size: horizontal size of this tile.
  * @tile_v_size: vertical size of this tile.
+ * @scaling_mode_property:  Optional atomic property to control the upscaling.
  *
  * Each connector may be connected to one or more CRTCs, or may be clonable by
  * another connector if they can share a CRTC.  Each connector also has a specific
@@ -753,6 +768,8 @@ struct drm_connector {
 
 	struct drm_property_blob *edid_blob_ptr;
 	struct drm_object_properties properties;
+
+	struct drm_property *scaling_mode_property;
 
 	/**
 	 * @path_blob_ptr:
@@ -953,6 +970,8 @@ int drm_mode_create_tv_properties(struct drm_device *dev,
 				  unsigned int num_modes,
 				  const char * const modes[]);
 int drm_mode_create_scaling_mode_property(struct drm_device *dev);
+int drm_connector_attach_scaling_mode_property(struct drm_connector *connector,
+					       u32 scaling_mode_mask);
 int drm_mode_create_aspect_ratio_property(struct drm_device *dev);
 int drm_mode_create_suggested_offset_properties(struct drm_device *dev);
 
@@ -989,21 +1008,6 @@ void drm_mode_put_tile_group(struct drm_device *dev,
 			     struct drm_tile_group *tg);
 
 /**
- * drm_for_each_connector - iterate over all connectors
- * @connector: the loop cursor
- * @dev: the DRM device
- *
- * Iterate over all connectors of @dev.
- *
- * WARNING:
- *
- * This iterator is not safe against hotadd/removal of connectors and is
- * deprecated. Use drm_for_each_connector_iter() instead.
- */
-#define drm_for_each_connector(connector, dev) \
-	list_for_each_entry(connector, &(dev)->mode_config.connector_list, head)
-
-/**
  * struct drm_connector_list_iter - connector_list iterator
  *
  * This iterator tracks state needed to be able to walk the connector_list
@@ -1031,7 +1035,7 @@ void drm_connector_list_iter_end(struct drm_connector_list_iter *iter);
  *
  * Note that @connector is only valid within the list body, if you want to use
  * @connector after calling drm_connector_list_iter_end() then you need to grab
- * your own reference first using drm_connector_begin().
+ * your own reference first using drm_connector_get().
  */
 #define drm_for_each_connector_iter(connector, iter) \
 	while ((connector = drm_connector_list_iter_next(iter)))

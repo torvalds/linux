@@ -407,7 +407,7 @@ static void hangcheck_declare_hang(struct drm_i915_private *i915,
 				 "%s, ", engine->name);
 	msg[len-2] = '\0';
 
-	return i915_handle_error(i915, hung, msg);
+	return i915_handle_error(i915, hung, "%s", msg);
 }
 
 /*

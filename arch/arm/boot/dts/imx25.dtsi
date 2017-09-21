@@ -9,6 +9,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <dt-bindings/gpio/gpio.h>
 #include "imx25-pinfunc.h"
 
 / {
@@ -296,6 +297,7 @@
 				#address-cells = <1>;
 				#size-cells = <1>;
 				status = "disabled";
+				ranges;
 
 				adc: adc@50030800 {
 					compatible = "fsl,imx25-gcq";

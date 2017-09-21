@@ -1175,7 +1175,7 @@ static void boot_delay_msec(int level)
 	unsigned long long k;
 	unsigned long timeout;
 
-	if ((boot_delay == 0 || system_state != SYSTEM_BOOTING)
+	if ((boot_delay == 0 || system_state >= SYSTEM_RUNNING)
 		|| suppress_message_printing(level)) {
 		return;
 	}
@@ -2720,19 +2720,28 @@ void wake_up_klogd(void)
 	preempt_enable();
 }
 
+int vprintk_deferred(const char *fmt, va_list args)
+{
+	int r;
+
+	r = vprintk_emit(0, LOGLEVEL_SCHED, NULL, 0, fmt, args);
+
+	preempt_disable();
+	__this_cpu_or(printk_pending, PRINTK_PENDING_OUTPUT);
+	irq_work_queue(this_cpu_ptr(&wake_up_klogd_work));
+	preempt_enable();
+
+	return r;
+}
+
 int printk_deferred(const char *fmt, ...)
 {
 	va_list args;
 	int r;
 
-	preempt_disable();
 	va_start(args, fmt);
-	r = vprintk_emit(0, LOGLEVEL_SCHED, NULL, 0, fmt, args);
+	r = vprintk_deferred(fmt, args);
 	va_end(args);
-
-	__this_cpu_or(printk_pending, PRINTK_PENDING_OUTPUT);
-	irq_work_queue(this_cpu_ptr(&wake_up_klogd_work));
-	preempt_enable();
 
 	return r;
 }

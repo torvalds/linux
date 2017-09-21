@@ -23,15 +23,12 @@ subdirs       := $(patsubst $(srcdir)/%/,%,\
 		 $(filter-out $(srcdir)/,\
 		 $(sort $(dir $(wildcard $(srcdir)/*/)))))
 
-# caller may set destination dir (when installing to asm/)
-_dst          := $(if $(dst),$(dst),$(obj))
-
 # Recursion
 __headers: $(subdirs)
 
 .PHONY: $(subdirs)
 $(subdirs):
-	$(Q)$(MAKE) $(hdr-inst)=$(obj)/$@ dst=$(_dst)/$@
+	$(Q)$(MAKE) $(hdr-inst)=$(obj)/$@ dst=$(dst)/$@
 
 # Skip header install/check for include/uapi and arch/$(hdr-arch)/include/uapi.
 # We have only sub-directories there.
@@ -39,21 +36,12 @@ skip-inst := $(if $(filter %/uapi,$(obj)),1)
 
 ifeq ($(skip-inst),)
 
-# generated header directory
-gen := $(if $(gen),$(gen),$(subst include/,include/generated/,$(obj)))
-
 # Kbuild file is optional
 kbuild-file := $(srctree)/$(obj)/Kbuild
 -include $(kbuild-file)
 
-old-kbuild-file := $(srctree)/$(subst uapi/,,$(obj))/Kbuild
-ifneq ($(wildcard $(old-kbuild-file)),)
-include $(old-kbuild-file)
-endif
-
-installdir    := $(INSTALL_HDR_PATH)/$(subst uapi/,,$(_dst))
-
-gendir        := $(objtree)/$(gen)
+installdir    := $(INSTALL_HDR_PATH)/$(dst)
+gendir        := $(objtree)/$(subst include/,include/generated/,$(obj))
 header-files  := $(notdir $(wildcard $(srcdir)/*.h))
 header-files  += $(notdir $(wildcard $(srcdir)/*.agh))
 header-files  := $(filter-out $(no-export-headers), $(header-files))
@@ -64,14 +52,8 @@ genhdr-files  := $(filter-out $(header-files), $(genhdr-files))
 install-file  := $(installdir)/.install
 check-file    := $(installdir)/.check
 
-# generic-y list all files an architecture uses from asm-generic
-# Use this to build a list of headers which require a wrapper
-generic-files := $(notdir $(wildcard $(srctree)/include/uapi/asm-generic/*.h))
-wrapper-files := $(filter $(generic-files), $(generic-y))
-wrapper-files := $(filter-out $(header-files), $(wrapper-files))
-
 # all headers files for this dir
-all-files     := $(header-files) $(genhdr-files) $(wrapper-files)
+all-files     := $(header-files) $(genhdr-files)
 output-files  := $(addprefix $(installdir)/, $(all-files))
 
 ifneq ($(mandatory-y),)
@@ -95,9 +77,6 @@ quiet_cmd_install = INSTALL $(printdir) ($(words $(all-files))\
       cmd_install = \
         $(CONFIG_SHELL) $< $(installdir) $(srcdir) $(header-files); \
         $(CONFIG_SHELL) $< $(installdir) $(gendir) $(genhdr-files); \
-        for F in $(wrapper-files); do                                   \
-                echo "\#include <asm-generic/$$F>" > $(installdir)/$$F;    \
-        done;                                                           \
         touch $@
 
 quiet_cmd_remove = REMOVE  $(unwanted)

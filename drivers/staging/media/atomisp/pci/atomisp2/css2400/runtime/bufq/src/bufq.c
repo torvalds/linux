@@ -239,7 +239,7 @@ static ia_css_queue_t *bufq_get_qhandle(
 	enum sh_css_queue_id id,
 	int thread)
 {
-	ia_css_queue_t *q = 0;
+	ia_css_queue_t *q = NULL;
 
 	switch (type) {
 	case sh_css_host2sp_buffer_queue:
