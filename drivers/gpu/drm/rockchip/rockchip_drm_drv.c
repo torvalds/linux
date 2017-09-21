@@ -407,6 +407,7 @@ int setup_initial_state(struct drm_device *drm_dev,
 			struct drm_atomic_state *state,
 			struct rockchip_drm_mode_set *set)
 {
+	struct rockchip_drm_private *priv = drm_dev->dev_private;
 	struct drm_connector *connector = set->connector;
 	struct drm_crtc *crtc = set->crtc;
 	struct drm_crtc_state *crtc_state;
@@ -415,6 +416,7 @@ int setup_initial_state(struct drm_device *drm_dev,
 	struct drm_display_mode *mode = NULL;
 	const struct drm_connector_helper_funcs *funcs;
 	const struct drm_encoder_helper_funcs *encoder_funcs;
+	int pipe = drm_crtc_index(crtc);
 	bool is_crtc_enabled = true;
 	int hdisplay, vdisplay;
 	int fb_width, fb_height;
@@ -496,6 +498,10 @@ int setup_initial_state(struct drm_device *drm_dev,
 			goto error;
 
 		crtc_state->active = true;
+
+		if (priv->crtc_funcs[pipe] &&
+		    priv->crtc_funcs[pipe]->loader_protect)
+			priv->crtc_funcs[pipe]->loader_protect(crtc, true);
 	}
 
 	if (!set->fb) {
@@ -550,6 +556,10 @@ error:
 	if (encoder_funcs->loader_protect)
 		encoder_funcs->loader_protect(conn_state->best_encoder, false);
 	conn_state->best_encoder->loader_protect = false;
+	if (priv->crtc_funcs[pipe] &&
+	    priv->crtc_funcs[pipe]->loader_protect)
+		priv->crtc_funcs[pipe]->loader_protect(crtc, false);
+
 	return ret;
 }
 
@@ -588,12 +598,9 @@ static int update_state(struct drm_device *drm_dev,
 		const struct drm_encoder_helper_funcs *encoder_helper_funcs;
 		const struct drm_connector_helper_funcs *connector_helper_funcs;
 		struct drm_encoder *encoder;
-		int pipe = drm_crtc_index(crtc);
 
 		connector_helper_funcs = connector->helper_private;
-		if (!priv->crtc_funcs[pipe] ||
-		    !priv->crtc_funcs[pipe]->loader_protect ||
-		    !connector_helper_funcs ||
+		if (!connector_helper_funcs ||
 		    !connector_helper_funcs->best_encoder)
 			return -ENXIO;
 		encoder = connector_helper_funcs->best_encoder(connector);
@@ -608,7 +615,6 @@ static int update_state(struct drm_device *drm_dev,
 			return ret;
 		if (encoder_helper_funcs->mode_set)
 			encoder_helper_funcs->mode_set(encoder, mode, mode);
-		priv->crtc_funcs[pipe]->loader_protect(crtc, true);
 	}
 
 	primary_state = drm_atomic_get_plane_state(state, crtc->primary);
@@ -690,6 +696,13 @@ static void show_loader_logo(struct drm_device *drm_dev)
 		goto err_free_state;
 	}
 
+	/*
+	 * The state save initial devices status, swap the state into
+	 * drm deivces as old state, so if new state come, can compare
+	 * with this state to judge which status need to update.
+	 */
+	drm_atomic_helper_swap_state(drm_dev, state);
+	drm_atomic_state_free(state);
 	old_state = drm_atomic_helper_duplicate_state(drm_dev,
 						      mode_config->acquire_ctx);
 	if (IS_ERR(old_state)) {
@@ -698,13 +711,6 @@ static void show_loader_logo(struct drm_device *drm_dev)
 		goto err_free_state;
 	}
 
-	/*
-	 * The state save initial devices status, swap the state into
-	 * drm deivces as old state, so if new state come, can compare
-	 * with this state to judge which status need to update.
-	 */
-	drm_atomic_helper_swap_state(drm_dev, state);
-	drm_atomic_state_free(state);
 	state = drm_atomic_helper_duplicate_state(drm_dev,
 						  mode_config->acquire_ctx);
 	if (IS_ERR(state)) {
