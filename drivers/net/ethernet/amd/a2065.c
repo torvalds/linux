@@ -733,10 +733,9 @@ static int a2065_init_one(struct zorro_dev *z,
 	dev->watchdog_timeo = 5*HZ;
 	dev->dma = 0;
 
-	init_timer(&priv->multicast_timer);
-	priv->multicast_timer.data = (unsigned long) dev;
-	priv->multicast_timer.function =
-		(void (*)(unsigned long))lance_set_multicast;
+	setup_timer(&priv->multicast_timer,
+		    (void(*)(unsigned long))lance_set_multicast,
+		    (unsigned long)dev);
 
 	err = register_netdev(dev);
 	if (err) {
