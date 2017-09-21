@@ -41,7 +41,7 @@
 static dev_t lirc_base_dev;
 
 struct irctl {
-	struct lirc_driver d;
+	struct lirc_dev d;
 	bool attached;
 	int open;
 
@@ -82,7 +82,7 @@ static void lirc_release(struct device *ld)
 static int lirc_allocate_buffer(struct irctl *ir)
 {
 	int err = 0;
-	struct lirc_driver *d = &ir->d;
+	struct lirc_dev *d = &ir->d;
 
 	if (d->rbuf) {
 		ir->buf = d->rbuf;
@@ -109,7 +109,7 @@ out:
 	return err;
 }
 
-int lirc_register_driver(struct lirc_driver *d)
+int lirc_register_device(struct lirc_dev *d)
 {
 	struct irctl *ir;
 	int minor;
@@ -210,9 +210,9 @@ int lirc_register_driver(struct lirc_driver *d)
 
 	return 0;
 }
-EXPORT_SYMBOL(lirc_register_driver);
+EXPORT_SYMBOL(lirc_register_device);
 
-void lirc_unregister_driver(struct lirc_driver *d)
+void lirc_unregister_device(struct lirc_dev *d)
 {
 	struct irctl *ir;
 
@@ -240,7 +240,7 @@ void lirc_unregister_driver(struct lirc_driver *d)
 	ida_simple_remove(&lirc_ida, d->minor);
 	put_device(&ir->dev);
 }
-EXPORT_SYMBOL(lirc_unregister_driver);
+EXPORT_SYMBOL(lirc_unregister_device);
 
 int lirc_dev_fop_open(struct inode *inode, struct file *file)
 {
