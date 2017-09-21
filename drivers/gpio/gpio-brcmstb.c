@@ -485,6 +485,10 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 		gc->of_node = np;
 		gc->owner = THIS_MODULE;
 		gc->label = devm_kasprintf(dev, GFP_KERNEL, "%pOF", dev->of_node);
+		if (!gc->label) {
+			err = -ENOMEM;
+			goto fail;
+		}
 		gc->base = gpio_base;
 		gc->of_gpio_n_cells = 2;
 		gc->of_xlate = brcmstb_gpio_of_xlate;
