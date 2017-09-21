@@ -691,25 +691,12 @@ struct drm_atomic_state *
 dm_atomic_state_alloc(struct drm_device *dev)
 {
 	struct dm_atomic_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
-	struct validate_context *new_ctx;
-	struct amdgpu_device *adev = dev->dev_private;
-	struct dc *dc = adev->dm.dc;
 
 	if (!state)
 		return NULL;
 
 	if (drm_atomic_state_init(dev, &state->base) < 0)
 		goto fail;
-
-	/* copy existing configuration */
-	new_ctx = dc_create_state();
-
-	if (!new_ctx)
-		goto fail;
-
-	dc_resource_validate_ctx_copy_construct_current(dc, new_ctx);
-
-	state->context = new_ctx;
 
 	return &state->base;
 
@@ -4464,6 +4451,10 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 		DRM_ERROR("Atomic state validation failed with error :%d !\n", ret);
 		return ret;
 	}
+
+	dm_state->context = dc_create_state();
+	ASSERT(dm_state->context);
+	dc_resource_validate_ctx_copy_construct_current(dc, dm_state->context);
 
 	/* copy existing configuration */
 	set_count = 0;
