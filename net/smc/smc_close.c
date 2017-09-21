@@ -174,15 +174,15 @@ int smc_close_active(struct smc_sock *smc)
 {
 	struct smc_cdc_conn_state_flags *txflags =
 		&smc->conn.local_tx_ctrl.conn_state_flags;
-	long timeout = SMC_MAX_STREAM_WAIT_TIMEOUT;
 	struct smc_connection *conn = &smc->conn;
 	struct sock *sk = &smc->sk;
 	int old_state;
+	long timeout;
 	int rc = 0;
 
-	if (sock_flag(sk, SOCK_LINGER) &&
-	    !(current->flags & PF_EXITING))
-		timeout = sk->sk_lingertime;
+	timeout = current->flags & PF_EXITING ?
+		  0 : sock_flag(sk, SOCK_LINGER) ?
+		      sk->sk_lingertime : SMC_MAX_STREAM_WAIT_TIMEOUT;
 
 again:
 	old_state = sk->sk_state;
@@ -413,13 +413,14 @@ void smc_close_sock_put_work(struct work_struct *work)
 int smc_close_shutdown_write(struct smc_sock *smc)
 {
 	struct smc_connection *conn = &smc->conn;
-	long timeout = SMC_MAX_STREAM_WAIT_TIMEOUT;
 	struct sock *sk = &smc->sk;
 	int old_state;
+	long timeout;
 	int rc = 0;
 
-	if (sock_flag(sk, SOCK_LINGER))
-		timeout = sk->sk_lingertime;
+	timeout = current->flags & PF_EXITING ?
+		  0 : sock_flag(sk, SOCK_LINGER) ?
+		      sk->sk_lingertime : SMC_MAX_STREAM_WAIT_TIMEOUT;
 
 again:
 	old_state = sk->sk_state;
