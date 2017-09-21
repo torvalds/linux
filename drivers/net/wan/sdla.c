@@ -1617,10 +1617,8 @@ static void setup_sdla(struct net_device *dev)
 	flp->deassoc		= sdla_deassoc;
 	flp->dlci_conf		= sdla_dlci_conf;
 
-	init_timer(&flp->timer);
+	setup_timer(&flp->timer, sdla_poll, (unsigned long)dev);
 	flp->timer.expires	= 1;
-	flp->timer.data		= (unsigned long) dev;
-	flp->timer.function	= sdla_poll;
 }
 
 static struct net_device *sdla;

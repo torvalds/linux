@@ -596,10 +596,8 @@ static int dmfe_open(struct net_device *dev)
 	netif_wake_queue(dev);
 
 	/* set and active a timer process */
-	init_timer(&db->timer);
+	setup_timer(&db->timer, dmfe_timer, (unsigned long)dev);
 	db->timer.expires = DMFE_TIMER_WUT + HZ * 2;
-	db->timer.data = (unsigned long)dev;
-	db->timer.function = dmfe_timer;
 	add_timer(&db->timer);
 
 	return 0;

@@ -2686,9 +2686,8 @@ static void i40evf_init_task(struct work_struct *work)
 		ether_addr_copy(netdev->perm_addr, adapter->hw.mac.addr);
 	}
 
-	init_timer(&adapter->watchdog_timer);
-	adapter->watchdog_timer.function = &i40evf_watchdog_timer;
-	adapter->watchdog_timer.data = (unsigned long)adapter;
+	setup_timer(&adapter->watchdog_timer, &i40evf_watchdog_timer,
+		    (unsigned long)adapter);
 	mod_timer(&adapter->watchdog_timer, jiffies + 1);
 
 	adapter->tx_desc_count = I40EVF_DEFAULT_TXD;

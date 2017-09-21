@@ -1246,9 +1246,9 @@ static int dec_lance_probe(struct device *bdev, const int type)
 	 * can occur from interrupts (ex. IPv6).  So we
 	 * use a timer to try again later when necessary. -DaveM
 	 */
-	init_timer(&lp->multicast_timer);
-	lp->multicast_timer.data = (unsigned long) dev;
-	lp->multicast_timer.function = lance_set_multicast_retry;
+	setup_timer(&lp->multicast_timer, lance_set_multicast_retry,
+		    (unsigned long)dev);
+
 
 	ret = register_netdev(dev);
 	if (ret) {

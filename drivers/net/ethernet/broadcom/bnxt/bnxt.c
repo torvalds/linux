@@ -7190,9 +7190,7 @@ static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 	bp->stats_coal_ticks = BNXT_DEF_STATS_COAL_TICKS;
 
-	init_timer(&bp->timer);
-	bp->timer.data = (unsigned long)bp;
-	bp->timer.function = bnxt_timer;
+	setup_timer(&bp->timer, bnxt_timer, (unsigned long)bp);
 	bp->current_interval = BNXT_TIMER_INTERVAL;
 
 	clear_bit(BNXT_STATE_OPEN, &bp->state);

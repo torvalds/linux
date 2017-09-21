@@ -728,9 +728,7 @@ static int am79c961_probe(struct platform_device *pdev)
 	am79c961_banner();
 
 	spin_lock_init(&priv->chip_lock);
-	init_timer(&priv->timer);
-	priv->timer.data = (unsigned long)dev;
-	priv->timer.function = am79c961_timer;
+	setup_timer(&priv->timer, am79c961_timer, (unsigned long)dev);
 
 	if (am79c961_hw_init(dev))
 		goto release;

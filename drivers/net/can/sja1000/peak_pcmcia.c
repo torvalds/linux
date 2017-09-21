@@ -692,9 +692,7 @@ static int pcan_probe(struct pcmcia_device *pdev)
 	}
 
 	/* init the timer which controls the leds */
-	init_timer(&card->led_timer);
-	card->led_timer.function = pcan_led_timer;
-	card->led_timer.data = (unsigned long)card;
+	setup_timer(&card->led_timer, pcan_led_timer, (unsigned long)card);
 
 	/* request the given irq */
 	err = request_irq(pdev->irq, &pcan_isr, IRQF_SHARED, PCC_NAME, card);

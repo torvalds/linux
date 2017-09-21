@@ -859,9 +859,7 @@ void cpsw_ale_start(struct cpsw_ale *ale)
 	cpsw_ale_control_set(ale, 0, ALE_ENABLE, 1);
 	cpsw_ale_control_set(ale, 0, ALE_CLEAR, 1);
 
-	init_timer(&ale->timer);
-	ale->timer.data	    = (unsigned long)ale;
-	ale->timer.function = cpsw_ale_timer;
+	setup_timer(&ale->timer, cpsw_ale_timer, (unsigned long)ale);
 	if (ale->ageout) {
 		ale->timer.expires = jiffies + ale->ageout;
 		add_timer(&ale->timer);

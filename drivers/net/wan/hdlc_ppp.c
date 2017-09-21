@@ -610,9 +610,7 @@ static void ppp_start(struct net_device *dev)
 	for (i = 0; i < IDX_COUNT; i++) {
 		struct proto *proto = &ppp->protos[i];
 		proto->dev = dev;
-		init_timer(&proto->timer);
-		proto->timer.function = ppp_timer;
-		proto->timer.data = (unsigned long)proto;
+		setup_timer(&proto->timer, ppp_timer, (unsigned long)proto);
 		proto->state = CLOSED;
 	}
 	ppp->protos[IDX_LCP].pid = PID_LCP;
