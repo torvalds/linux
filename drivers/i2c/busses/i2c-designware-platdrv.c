@@ -265,7 +265,9 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	u32 acpi_speed, ht = 0;
 	struct resource *mem;
 	int i, irq, ret;
-	const int supported_speeds[] = { 0, 100000, 400000, 1000000, 3400000 };
+	static const int supported_speeds[] = {
+		0, 100000, 400000, 1000000, 3400000
+	};
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
