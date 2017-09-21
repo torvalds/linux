@@ -318,19 +318,20 @@ lnet_sock_read(struct socket *sock, void *buffer, int nob, int timeout)
 	long jiffies_left = timeout * msecs_to_jiffies(MSEC_PER_SEC);
 	unsigned long then;
 	struct timeval tv;
+	struct kvec  iov = {
+		.iov_base = buffer,
+		.iov_len  = nob
+	};
+	struct msghdr msg = {
+		.msg_flags = 0
+	};
 
 	LASSERT(nob > 0);
 	LASSERT(jiffies_left > 0);
 
-	for (;;) {
-		struct kvec  iov = {
-			.iov_base = buffer,
-			.iov_len  = nob
-		};
-		struct msghdr msg = {
-			.msg_flags = 0
-		};
+	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, &iov, 1, nob);
 
+	for (;;) {
 		/* Set receive timeout to remaining time */
 		jiffies_to_timeval(jiffies_left, &tv);
 		rc = kernel_setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,
@@ -342,7 +343,7 @@ lnet_sock_read(struct socket *sock, void *buffer, int nob, int timeout)
 		}
 
 		then = jiffies;
-		rc = kernel_recvmsg(sock, &msg, &iov, 1, nob, 0);
+		rc = sock_recvmsg(sock, &msg, 0);
 		jiffies_left -= jiffies - then;
 
 		if (rc < 0)
@@ -351,10 +352,7 @@ lnet_sock_read(struct socket *sock, void *buffer, int nob, int timeout)
 		if (!rc)
 			return -ECONNRESET;
 
-		buffer = ((char *)buffer) + rc;
-		nob -= rc;
-
-		if (!nob)
+		if (!msg_data_left(&msg))
 			return 0;
 
 		if (jiffies_left <= 0)
