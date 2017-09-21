@@ -100,7 +100,7 @@ struct IR {
 	struct list_head list;
 
 	/* FIXME spinlock access to l.features */
-	struct lirc_driver l;
+	struct lirc_dev l;
 	struct lirc_buffer rbuf;
 
 	struct mutex ir_lock;
@@ -183,7 +183,7 @@ static void release_ir_device(struct kref *ref)
 	 * ir->open_count ==  0 - happens on final close()
 	 * ir_lock, tx_ref_lock, rx_ref_lock, all released
 	 */
-	lirc_unregister_driver(&ir->l);
+	lirc_unregister_device(&ir->l);
 
 	if (kfifo_initialized(&ir->rbuf.fifo))
 		lirc_buffer_free(&ir->rbuf);
@@ -1345,7 +1345,7 @@ static const struct file_operations lirc_fops = {
 	.release	= close
 };
 
-static struct lirc_driver lirc_template = {
+static struct lirc_dev lirc_template = {
 	.name		= "lirc_zilog",
 	.code_length	= 13,
 	.fops		= &lirc_fops,
@@ -1441,7 +1441,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		spin_lock_init(&ir->rx_ref_lock);
 
 		/* set lirc_dev stuff */
-		memcpy(&ir->l, &lirc_template, sizeof(struct lirc_driver));
+		memcpy(&ir->l, &lirc_template, sizeof(struct lirc_dev));
 		/*
 		 * FIXME this is a pointer reference to us, but no refcount.
 		 *
@@ -1559,10 +1559,10 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	/* register with lirc */
-	ret = lirc_register_driver(&ir->l);
+	ret = lirc_register_device(&ir->l);
 	if (ret < 0) {
 		dev_err(tx->ir->l.dev,
-			"%s: lirc_register_driver() failed: %i\n",
+			"%s: lirc_register_device() failed: %i\n",
 			__func__, ret);
 		goto out_put_xx;
 	}

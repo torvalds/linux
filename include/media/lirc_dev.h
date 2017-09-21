@@ -111,54 +111,32 @@ static inline unsigned int lirc_buffer_write(struct lirc_buffer *buf,
 }
 
 /**
- * struct lirc_driver - Defines the parameters on a LIRC driver
+ * struct lirc_dev - represents a LIRC device
  *
- * @name:		this string will be used for logs
- *
- * @minor:		the minor device (/dev/lircX) number for a registered
- *			driver.
- *
- * @code_length:	length of the remote control key code expressed in bits.
- *
+ * @name:		used for logging
+ * @minor:		the minor device (/dev/lircX) number for the device
+ * @code_length:	length of a remote control key code expressed in bits
  * @features:		lirc compatible hardware features, like LIRC_MODE_RAW,
  *			LIRC_CAN\_\*, as defined at include/media/lirc.h.
- *
  * @buffer_size:	Number of FIFO buffers with @chunk_size size.
  *			Only used if @rbuf is NULL.
- *
  * @chunk_size:		Size of each FIFO buffer.
  *			Only used if @rbuf is NULL.
- *
- * @data:		it may point to any driver data and this pointer will
- *			be passed to all callback functions.
- *
+ * @data:		private per-driver data
  * @min_timeout:	Minimum timeout for record. Valid only if
  *			LIRC_CAN_SET_REC_TIMEOUT is defined.
- *
  * @max_timeout:	Maximum timeout for record. Valid only if
  *			LIRC_CAN_SET_REC_TIMEOUT is defined.
- *
  * @rbuf:		if not NULL, it will be used as a read buffer, you will
  *			have to write to the buffer by other means, like irq's
  *			(see also lirc_serial.c).
- *
- * @rdev:		Pointed to struct rc_dev associated with the LIRC
- *			device.
- *
- * @fops:		file_operations for drivers which don't fit the current
- *			driver model.
- *			Some ioctl's can be directly handled by lirc_dev if the
- *			driver's ioctl function is NULL or if it returns
- *			-ENOIOCTLCMD (see also lirc_serial.c).
- *
- * @dev:		pointer to the struct device associated with the LIRC
- *			device.
- *
+ * @rdev:		&struct rc_dev associated with the device
+ * @fops:		&struct file_operations for the device
+ * @dev:		&struct device assigned to the device
  * @owner:		the module owning this struct
- *
- * @irctl:		the struct irctl for this LIRC device.
+ * @irctl:		&struct irctl assigned to the device
  */
-struct lirc_driver {
+struct lirc_dev {
 	char name[40];
 	unsigned int minor;
 	__u32 code_length;
@@ -183,14 +161,14 @@ struct lirc_driver {
  * returns negative value on error or zero
  * contents of the structure pointed by p is copied
  */
-int lirc_register_driver(struct lirc_driver *d);
+int lirc_register_device(struct lirc_dev *d);
 
-void lirc_unregister_driver(struct lirc_driver *d);
+void lirc_unregister_device(struct lirc_dev *d);
 
 /* Must be called in the open fop before lirc_get_pdata() can be used */
 void lirc_init_pdata(struct inode *inode, struct file *file);
 
-/* Returns the private data stored in the lirc_driver
+/* Returns the private data stored in the lirc_dev
  * associated with the given device file pointer.
  */
 void *lirc_get_pdata(struct file *file);
