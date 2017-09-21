@@ -496,6 +496,7 @@ static void detect_dp(
 		}
 		if (is_mst_supported(link)) {
 			sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT_MST;
+			link->type = dc_connection_mst_branch;
 
 			/*
 			 * This call will initiate MST topology discovery. Which
@@ -524,12 +525,11 @@ static void detect_dp(
 			if (reason == DETECT_REASON_BOOT)
 				boot = true;
 
-			if (dm_helpers_dp_mst_start_top_mgr(
+			if (!dm_helpers_dp_mst_start_top_mgr(
 				link->ctx,
 				link, boot)) {
-				link->type = dc_connection_mst_branch;
-			} else {
 				/* MST not supported */
+				link->type = dc_connection_single;
 				sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT;
 			}
 		}
