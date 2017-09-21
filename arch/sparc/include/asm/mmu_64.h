@@ -96,6 +96,7 @@ typedef struct {
 	unsigned long		thp_pte_count;
 	struct tsb_config	tsb_block[MM_NUM_TSBS];
 	struct hv_tsb_descr	tsb_descr[MM_NUM_TSBS];
+	void			*vdso;
 } mm_context_t;
 
 #endif /* !__ASSEMBLY__ */

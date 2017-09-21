@@ -52,6 +52,8 @@
 
 DEFINE_SPINLOCK(rtc_lock);
 
+unsigned int __read_mostly vdso_fix_stick;
+
 #ifdef CONFIG_SMP
 unsigned long profile_pc(struct pt_regs *regs)
 {
@@ -829,12 +831,17 @@ static void init_tick_ops(struct sparc64_tick_ops *ops)
 void __init time_init_early(void)
 {
 	if (tlb_type == spitfire) {
-		if (is_hummingbird())
+		if (is_hummingbird()) {
 			init_tick_ops(&hbtick_operations);
-		else
+			clocksource_tick.archdata.vclock_mode = VCLOCK_NONE;
+		} else {
 			init_tick_ops(&tick_operations);
+			clocksource_tick.archdata.vclock_mode = VCLOCK_TICK;
+			vdso_fix_stick = 1;
+		}
 	} else {
 		init_tick_ops(&stick_operations);
+		clocksource_tick.archdata.vclock_mode = VCLOCK_STICK;
 	}
 }
 
