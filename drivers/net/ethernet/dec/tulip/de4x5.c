@@ -1147,9 +1147,8 @@ de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
 	lp->timeout = -1;
 	lp->gendev = gendev;
 	spin_lock_init(&lp->lock);
-	init_timer(&lp->timer);
-	lp->timer.function = (void (*)(unsigned long))de4x5_ast;
-	lp->timer.data = (unsigned long)dev;
+	setup_timer(&lp->timer, (void (*)(unsigned long))de4x5_ast,
+		    (unsigned long)dev);
 	de4x5_parse_params(dev);
 
 	/*
