@@ -11,7 +11,7 @@
  * (at your option) any later version.
  */
 
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>

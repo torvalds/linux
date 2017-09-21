@@ -23,7 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/max14577.h>
 #include <linux/mfd/max14577-private.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 
 #define	DELAY_MS_DEFAULT		17000		/* unit: millisecond */
 

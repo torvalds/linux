@@ -12,7 +12,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
