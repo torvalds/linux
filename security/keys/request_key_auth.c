@@ -163,9 +163,10 @@ struct key *request_key_auth_new(struct key *target, const void *callout_info,
 	rka = kzalloc(sizeof(*rka), GFP_KERNEL);
 	if (!rka)
 		goto error;
-	rka->callout_info = kmalloc(callout_len, GFP_KERNEL);
+	rka->callout_info = kmemdup(callout_info, callout_len, GFP_KERNEL);
 	if (!rka->callout_info)
 		goto error_free_rka;
+	rka->callout_len = callout_len;
 
 	/* see if the calling process is already servicing the key request of
 	 * another process */
@@ -196,8 +197,6 @@ struct key *request_key_auth_new(struct key *target, const void *callout_info,
 
 	rka->target_key = key_get(target);
 	rka->dest_keyring = key_get(dest_keyring);
-	memcpy(rka->callout_info, callout_info, callout_len);
-	rka->callout_len = callout_len;
 
 	/* allocate the auth key */
 	sprintf(desc, "%x", target->serial);
