@@ -707,7 +707,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	}
 	res = clk_prepare_enable(host->clk);
 	if (res)
-		goto err_exit1;
+		goto err_put_clk;
 
 	nand_chip->cmd_ctrl = lpc32xx_nand_cmd_ctrl;
 	nand_chip->dev_ready = lpc32xx_nand_device_ready;
@@ -814,6 +814,7 @@ err_exit3:
 		dma_release_channel(host->dma_chan);
 err_exit2:
 	clk_disable_unprepare(host->clk);
+err_put_clk:
 	clk_put(host->clk);
 err_exit1:
 	lpc32xx_wp_enable(host);

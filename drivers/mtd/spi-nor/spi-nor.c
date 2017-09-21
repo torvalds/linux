@@ -1784,7 +1784,7 @@ spi_nor_set_pp_settings(struct spi_nor_pp_command *pp,
  * @nor:	pointer to a 'struct spi_nor'
  * @addr:	offset in the SFDP area to start reading data from
  * @len:	number of bytes to read
- * @buf:	buffer where the SFDP data are copied into
+ * @buf:	buffer where the SFDP data are copied into (dma-safe memory)
  *
  * Whatever the actual numbers of bytes for address and dummy cycles are
  * for (Fast) Read commands, the Read SFDP (5Ah) instruction is always
@@ -1825,6 +1825,36 @@ read_err:
 	nor->read_opcode = read_opcode;
 	nor->addr_width = addr_width;
 	nor->read_dummy = read_dummy;
+
+	return ret;
+}
+
+/**
+ * spi_nor_read_sfdp_dma_unsafe() - read Serial Flash Discoverable Parameters.
+ * @nor:	pointer to a 'struct spi_nor'
+ * @addr:	offset in the SFDP area to start reading data from
+ * @len:	number of bytes to read
+ * @buf:	buffer where the SFDP data are copied into
+ *
+ * Wrap spi_nor_read_sfdp() using a kmalloc'ed bounce buffer as @buf is now not
+ * guaranteed to be dma-safe.
+ *
+ * Return: -ENOMEM if kmalloc() fails, the return code of spi_nor_read_sfdp()
+ *          otherwise.
+ */
+static int spi_nor_read_sfdp_dma_unsafe(struct spi_nor *nor, u32 addr,
+					size_t len, void *buf)
+{
+	void *dma_safe_buf;
+	int ret;
+
+	dma_safe_buf = kmalloc(len, GFP_KERNEL);
+	if (!dma_safe_buf)
+		return -ENOMEM;
+
+	ret = spi_nor_read_sfdp(nor, addr, len, dma_safe_buf);
+	memcpy(buf, dma_safe_buf, len);
+	kfree(dma_safe_buf);
 
 	return ret;
 }
@@ -2101,7 +2131,7 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 		    bfpt_header->length * sizeof(u32));
 	addr = SFDP_PARAM_HEADER_PTP(bfpt_header);
 	memset(&bfpt, 0, sizeof(bfpt));
-	err = spi_nor_read_sfdp(nor,  addr, len, &bfpt);
+	err = spi_nor_read_sfdp_dma_unsafe(nor,  addr, len, &bfpt);
 	if (err < 0)
 		return err;
 
@@ -2127,6 +2157,15 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 	params->size = bfpt.dwords[BFPT_DWORD(2)];
 	if (params->size & BIT(31)) {
 		params->size &= ~BIT(31);
+
+		/*
+		 * Prevent overflows on params->size. Anyway, a NOR of 2^64
+		 * bits is unlikely to exist so this error probably means
+		 * the BFPT we are reading is corrupted/wrong.
+		 */
+		if (params->size > 63)
+			return -EINVAL;
+
 		params->size = 1ULL << params->size;
 	} else {
 		params->size++;
@@ -2243,7 +2282,7 @@ static int spi_nor_parse_sfdp(struct spi_nor *nor,
 	int i, err;
 
 	/* Get the SFDP header. */
-	err = spi_nor_read_sfdp(nor, 0, sizeof(header), &header);
+	err = spi_nor_read_sfdp_dma_unsafe(nor, 0, sizeof(header), &header);
 	if (err < 0)
 		return err;
 
