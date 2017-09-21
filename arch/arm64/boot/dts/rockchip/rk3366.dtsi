@@ -963,6 +963,7 @@
 		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA>;
 		clock-names = "aclk_rga", "hclk_rga", "clk_rga";
 		power-domains = <&power RK3366_PD_VIO>;
+		dma-coherent;
 		status = "disabled";
 	};
 
