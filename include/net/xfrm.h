@@ -1769,7 +1769,7 @@ static inline unsigned int aead_len(struct xfrm_algo_aead *alg)
 	return sizeof(*alg) + ((alg->alg_key_len + 7) / 8);
 }
 
-static inline int xfrm_alg_len(const struct xfrm_algo *alg)
+static inline unsigned int xfrm_alg_len(const struct xfrm_algo *alg)
 {
 	return sizeof(*alg) + ((alg->alg_key_len + 7) / 8);
 }

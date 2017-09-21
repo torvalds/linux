@@ -42,7 +42,7 @@ static int verify_one_alg(struct nlattr **attrs, enum xfrm_attr_type_t type)
 		return 0;
 
 	algp = nla_data(rt);
-	if (nla_len(rt) < xfrm_alg_len(algp))
+	if (nla_len(rt) < (int)xfrm_alg_len(algp))
 		return -EINVAL;
 
 	switch (type) {
