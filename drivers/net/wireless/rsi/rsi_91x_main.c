@@ -20,6 +20,7 @@
 #include <linux/firmware.h>
 #include "rsi_mgmt.h"
 #include "rsi_common.h"
+#include "rsi_hal.h"
 
 u32 rsi_zone_enabled = /* INFO_ZONE |
 			INIT_ZONE |
@@ -55,6 +56,30 @@ void rsi_dbg(u32 zone, const char *fmt, ...)
 	va_end(args);
 }
 EXPORT_SYMBOL_GPL(rsi_dbg);
+
+static char *opmode_str(int oper_mode)
+{
+	switch (oper_mode) {
+	case RSI_DEV_OPMODE_WIFI_ALONE:
+		return "Wi-Fi alone";
+	}
+
+	return "Unknown";
+}
+
+void rsi_print_version(struct rsi_common *common)
+{
+	rsi_dbg(ERR_ZONE, "================================================\n");
+	rsi_dbg(ERR_ZONE, "================ RSI Version Info ==============\n");
+	rsi_dbg(ERR_ZONE, "================================================\n");
+	rsi_dbg(ERR_ZONE, "FW Version\t: %d.%d.%d\n",
+		common->lmac_ver.major, common->lmac_ver.minor,
+		common->lmac_ver.release_num);
+	rsi_dbg(ERR_ZONE, "Operating mode\t: %d [%s]",
+		common->oper_mode, opmode_str(common->oper_mode));
+	rsi_dbg(ERR_ZONE, "Firmware file\t: %s", common->priv->fw_file_name);
+	rsi_dbg(ERR_ZONE, "================================================\n");
+}
 
 /**
  * rsi_prepare_skb() - This function prepares the skb.

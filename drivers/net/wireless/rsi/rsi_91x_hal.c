@@ -769,6 +769,7 @@ static int auto_fw_upgrade(struct rsi_hw *adapter, u8 *flash_content,
 
 static int rsi_load_firmware(struct rsi_hw *adapter)
 {
+	struct rsi_common *common = adapter->priv;
 	struct rsi_host_intf_ops *hif_ops = adapter->host_intf_ops;
 	const struct firmware *fw_entry = NULL;
 	u32 regout_val = 0, content_size;
@@ -843,6 +844,18 @@ static int rsi_load_firmware(struct rsi_hw *adapter)
 	}
 	content_size = fw_entry->size;
 	rsi_dbg(INFO_ZONE, "FW Length = %d bytes\n", content_size);
+
+	/* Get the firmware version */
+	common->lmac_ver.ver.info.fw_ver[0] =
+		flash_content[LMAC_VER_OFFSET] & 0xFF;
+	common->lmac_ver.ver.info.fw_ver[1] =
+		flash_content[LMAC_VER_OFFSET + 1] & 0xFF;
+	common->lmac_ver.major = flash_content[LMAC_VER_OFFSET + 2] & 0xFF;
+	common->lmac_ver.release_num =
+		flash_content[LMAC_VER_OFFSET + 3] & 0xFF;
+	common->lmac_ver.minor = flash_content[LMAC_VER_OFFSET + 4] & 0xFF;
+	common->lmac_ver.patch_num = 0;
+	rsi_print_version(common);
 
 	status = bl_write_header(adapter, flash_content, content_size);
 	if (status) {

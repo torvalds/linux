@@ -113,8 +113,13 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 struct version_info {
 	u16 major;
 	u16 minor;
-	u16 release_num;
-	u16 patch_num;
+	u8 release_num;
+	u8 patch_num;
+	union {
+		struct {
+			u8 fw_ver[8];
+		} info;
+	} ver;
 } __packed;
 
 struct skb_info {
@@ -199,8 +204,7 @@ struct rsi_common {
 	struct vif_priv vif_info[RSI_MAX_VIFS];
 
 	bool mgmt_q_block;
-	struct version_info driver_ver;
-	struct version_info fw_ver;
+	struct version_info lmac_ver;
 
 	struct rsi_thread tx_thread;
 	struct sk_buff_head tx_queue[NUM_EDCA_QUEUES + 2];
@@ -333,6 +337,8 @@ struct rsi_hw {
 	int (*rx_urb_submit)(struct rsi_hw *adapter);
 	int (*determine_event_timeout)(struct rsi_hw *adapter);
 };
+
+void rsi_print_version(struct rsi_common *common);
 
 struct rsi_host_intf_ops {
 	int (*read_pkt)(struct rsi_hw *adapter, u8 *pkt, u32 len);

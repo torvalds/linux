@@ -101,6 +101,9 @@
 
 #define BBP_INFO_40MHZ 0x6
 
+#define FW_FLASH_OFFSET			0x820
+#define LMAC_VER_OFFSET			(FW_FLASH_OFFSET + 0x200)
+
 struct bl_header {
 	__le32 flags;
 	__le32 image_no;
