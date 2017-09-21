@@ -35,7 +35,7 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	struct smc_clc_msg_hdr *clcm = buf;
 	struct msghdr msg = {NULL, 0};
 	int reason_code = 0;
-	struct kvec vec;
+	struct kvec vec = {buf, buflen};
 	int len, datlen;
 	int krflags;
 
@@ -43,12 +43,15 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	 * so we don't consume any subsequent CLC message or payload data
 	 * in the TCP byte stream
 	 */
-	vec.iov_base = buf;
-	vec.iov_len = buflen;
+	/*
+	 * Caller must make sure that buflen is no less than
+	 * sizeof(struct smc_clc_msg_hdr)
+	 */
 	krflags = MSG_PEEK | MSG_WAITALL;
 	smc->clcsock->sk->sk_rcvtimeo = CLC_WAIT_TIME;
-	len = kernel_recvmsg(smc->clcsock, &msg, &vec, 1,
-			     sizeof(struct smc_clc_msg_hdr), krflags);
+	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, &vec, 1,
+			sizeof(struct smc_clc_msg_hdr));
+	len = sock_recvmsg(smc->clcsock, &msg, krflags);
 	if (signal_pending(current)) {
 		reason_code = -EINTR;
 		clc_sk->sk_err = EINTR;
@@ -83,12 +86,11 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	}
 
 	/* receive the complete CLC message */
-	vec.iov_base = buf;
-	vec.iov_len = buflen;
 	memset(&msg, 0, sizeof(struct msghdr));
+	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, &vec, 1, buflen);
 	krflags = MSG_WAITALL;
 	smc->clcsock->sk->sk_rcvtimeo = CLC_WAIT_TIME;
-	len = kernel_recvmsg(smc->clcsock, &msg, &vec, 1, datlen, krflags);
+	len = sock_recvmsg(smc->clcsock, &msg, krflags);
 	if (len < datlen) {
 		smc->sk.sk_err = EPROTO;
 		reason_code = -EPROTO;
