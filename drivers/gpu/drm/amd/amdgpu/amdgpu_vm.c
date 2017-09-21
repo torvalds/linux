@@ -2682,6 +2682,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	}
 
 	INIT_KFIFO(vm->faults);
+	vm->fault_credit = 16;
 
 	return 0;
 
@@ -2773,6 +2774,36 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	dma_fence_put(vm->last_update);
 	for (i = 0; i < AMDGPU_MAX_VMHUBS; i++)
 		amdgpu_vm_free_reserved_vmid(adev, vm, i);
+}
+
+/**
+ * amdgpu_vm_pasid_fault_credit - Check fault credit for given PASID
+ *
+ * @adev: amdgpu_device pointer
+ * @pasid: PASID do identify the VM
+ *
+ * This function is expected to be called in interrupt context. Returns
+ * true if there was fault credit, false otherwise
+ */
+bool amdgpu_vm_pasid_fault_credit(struct amdgpu_device *adev,
+				  unsigned int pasid)
+{
+	struct amdgpu_vm *vm;
+
+	spin_lock(&adev->vm_manager.pasid_lock);
+	vm = idr_find(&adev->vm_manager.pasid_idr, pasid);
+	spin_unlock(&adev->vm_manager.pasid_lock);
+	if (!vm)
+		/* VM not found, can't track fault credit */
+		return true;
+
+	/* No lock needed. only accessed by IRQ handler */
+	if (!vm->fault_credit)
+		/* Too many faults in this VM */
+		return false;
+
+	vm->fault_credit--;
+	return true;
 }
 
 /**

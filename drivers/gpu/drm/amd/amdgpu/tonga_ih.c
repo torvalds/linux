@@ -227,8 +227,23 @@ static u32 tonga_ih_get_wptr(struct amdgpu_device *adev)
  */
 static bool tonga_ih_prescreen_iv(struct amdgpu_device *adev)
 {
-	/* Process all interrupts */
-	return true;
+	u32 ring_index = adev->irq.ih.rptr >> 2;
+	u16 pasid;
+
+	switch (le32_to_cpu(adev->irq.ih.ring[ring_index]) & 0xff) {
+	case 146:
+	case 147:
+		pasid = le32_to_cpu(adev->irq.ih.ring[ring_index + 2]) >> 16;
+		if (!pasid || amdgpu_vm_pasid_fault_credit(adev, pasid))
+			return true;
+		break;
+	default:
+		/* Not a VM fault */
+		return true;
+	}
+
+	adev->irq.ih.rptr += 16;
+	return false;
 }
 
 /**
