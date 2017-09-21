@@ -191,7 +191,8 @@ static int del_filter_wr(struct adapter *adapter, int fidx)
 		return -ENOMEM;
 
 	fwr = __skb_put(skb, len);
-	t4_mk_filtdelwr(f->tid, fwr, adapter->sge.fw_evtq.abs_id);
+	t4_mk_filtdelwr(f->tid, fwr, (adapter->flags & SHUTTING_DOWN) ? -1
+			: adapter->sge.fw_evtq.abs_id);
 
 	/* Mark the filter as "pending" and ship off the Filter Work Request.
 	 * When we get the Work Request Reply we'll clear the pending status.
@@ -635,6 +636,10 @@ int cxgb4_del_filter(struct net_device *dev, int filter_id)
 {
 	struct filter_ctx ctx;
 	int ret;
+
+	/* If we are shutting down the adapter do not wait for completion */
+	if (netdev2adap(dev)->flags & SHUTTING_DOWN)
+		return __cxgb4_del_filter(dev, filter_id, NULL);
 
 	init_completion(&ctx.completion);
 

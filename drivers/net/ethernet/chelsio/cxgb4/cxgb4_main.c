@@ -5254,6 +5254,8 @@ static void remove_one(struct pci_dev *pdev)
 		return;
 	}
 
+	adapter->flags |= SHUTTING_DOWN;
+
 	if (adapter->pf == 4) {
 		int i;
 
@@ -5338,6 +5340,8 @@ static void shutdown_one(struct pci_dev *pdev)
 		pci_release_regions(pdev);
 		return;
 	}
+
+	adapter->flags |= SHUTTING_DOWN;
 
 	if (adapter->pf == 4) {
 		int i;
