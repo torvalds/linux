@@ -2061,10 +2061,27 @@ static void bfq_bfqq_save_state(struct bfq_queue *bfqq)
 	bic->saved_IO_bound = bfq_bfqq_IO_bound(bfqq);
 	bic->saved_in_large_burst = bfq_bfqq_in_large_burst(bfqq);
 	bic->was_in_burst_list = !hlist_unhashed(&bfqq->burst_list_node);
-	bic->saved_wr_coeff = bfqq->wr_coeff;
-	bic->saved_wr_start_at_switch_to_srt = bfqq->wr_start_at_switch_to_srt;
-	bic->saved_last_wr_start_finish = bfqq->last_wr_start_finish;
-	bic->saved_wr_cur_max_time = bfqq->wr_cur_max_time;
+	if (unlikely(bfq_bfqq_just_created(bfqq) &&
+		     !bfq_bfqq_in_large_burst(bfqq))) {
+		/*
+		 * bfqq being merged right after being created: bfqq
+		 * would have deserved interactive weight raising, but
+		 * did not make it to be set in a weight-raised state,
+		 * because of this early merge.	Store directly the
+		 * weight-raising state that would have been assigned
+		 * to bfqq, so that to avoid that bfqq unjustly fails
+		 * to enjoy weight raising if split soon.
+		 */
+		bic->saved_wr_coeff = bfqq->bfqd->bfq_wr_coeff;
+		bic->saved_wr_cur_max_time = bfq_wr_duration(bfqq->bfqd);
+		bic->saved_last_wr_start_finish = jiffies;
+	} else {
+		bic->saved_wr_coeff = bfqq->wr_coeff;
+		bic->saved_wr_start_at_switch_to_srt =
+			bfqq->wr_start_at_switch_to_srt;
+		bic->saved_last_wr_start_finish = bfqq->last_wr_start_finish;
+		bic->saved_wr_cur_max_time = bfqq->wr_cur_max_time;
+	}
 }
 
 static void
@@ -4150,7 +4167,6 @@ static void __bfq_insert_request(struct bfq_data *bfqd, struct request *rq)
 		new_bfqq->allocated++;
 		bfqq->allocated--;
 		new_bfqq->ref++;
-		bfq_clear_bfqq_just_created(bfqq);
 		/*
 		 * If the bic associated with the process
 		 * issuing this request still points to bfqq
@@ -4162,6 +4178,8 @@ static void __bfq_insert_request(struct bfq_data *bfqd, struct request *rq)
 		if (bic_to_bfqq(RQ_BIC(rq), 1) == bfqq)
 			bfq_merge_bfqqs(bfqd, RQ_BIC(rq),
 					bfqq, new_bfqq);
+
+		bfq_clear_bfqq_just_created(bfqq);
 		/*
 		 * rq is about to be enqueued into new_bfqq,
 		 * release rq reference on bfqq
