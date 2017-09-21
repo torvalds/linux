@@ -41,6 +41,10 @@
 
 };
 
+&auxadc {
+	status = "okay";
+};
+
 &cpu0 {
 	proc-supply = <&cpus_fixed_vproc0>;
 };
