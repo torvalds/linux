@@ -513,7 +513,7 @@ decline_rdma:
 	/* RDMA setup failed, switch back to TCP */
 	smc->use_fallback = true;
 	if (reason_code && (reason_code != SMC_CLC_DECL_REPLY)) {
-		rc = smc_clc_send_decline(smc, reason_code, 0);
+		rc = smc_clc_send_decline(smc, reason_code);
 		if (rc < sizeof(struct smc_clc_msg_decline))
 			goto out_err;
 	}
@@ -808,8 +808,6 @@ static void smc_listen_work(struct work_struct *work)
 		rc = local_contact;
 		if (rc == -ENOMEM)
 			reason_code = SMC_CLC_DECL_MEM;/* insufficient memory*/
-		else if (rc == -ENOLINK)
-			reason_code = SMC_CLC_DECL_SYNCERR; /* synchr. error */
 		goto decline_rdma;
 	}
 	link = &new_smc->conn.lgr->lnk[SMC_SINGLE_LINK];
@@ -903,7 +901,7 @@ decline_rdma:
 	smc_conn_free(&new_smc->conn);
 	new_smc->use_fallback = true;
 	if (reason_code && (reason_code != SMC_CLC_DECL_REPLY)) {
-		rc = smc_clc_send_decline(new_smc, reason_code, 0);
+		rc = smc_clc_send_decline(new_smc, reason_code);
 		if (rc < sizeof(struct smc_clc_msg_decline))
 			goto out_err;
 	}
