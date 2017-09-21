@@ -37,7 +37,7 @@ static void fq_flush_timeout(unsigned long data);
 
 void
 init_iova_domain(struct iova_domain *iovad, unsigned long granule,
-	unsigned long start_pfn, unsigned long pfn_32bit)
+	unsigned long start_pfn)
 {
 	/*
 	 * IOVA granularity will normally be equal to the smallest
@@ -52,7 +52,7 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	iovad->cached32_node = NULL;
 	iovad->granule = granule;
 	iovad->start_pfn = start_pfn;
-	iovad->dma_32bit_pfn = pfn_32bit + 1;
+	iovad->dma_32bit_pfn = 1UL << (32 - iova_shift(iovad));
 	iovad->flush_cb = NULL;
 	iovad->fq = NULL;
 	init_iova_rcaches(iovad);

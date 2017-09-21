@@ -63,7 +63,6 @@
 /* IO virtual address start page frame number */
 #define IOVA_START_PFN		(1)
 #define IOVA_PFN(addr)		((addr) >> PAGE_SHIFT)
-#define DMA_32BIT_PFN		IOVA_PFN(DMA_BIT_MASK(32))
 
 /* Reserved IOVA ranges */
 #define MSI_RANGE_START		(0xfee00000)
@@ -1788,8 +1787,7 @@ static struct dma_ops_domain *dma_ops_domain_alloc(void)
 	if (!dma_dom->domain.pt_root)
 		goto free_dma_dom;
 
-	init_iova_domain(&dma_dom->iovad, PAGE_SIZE,
-			 IOVA_START_PFN, DMA_32BIT_PFN);
+	init_iova_domain(&dma_dom->iovad, PAGE_SIZE, IOVA_START_PFN);
 
 	if (init_iova_flush_queue(&dma_dom->iovad, iova_domain_flush_tlb, NULL))
 		goto free_dma_dom;
@@ -2696,8 +2694,7 @@ static int init_reserved_iova_ranges(void)
 	struct pci_dev *pdev = NULL;
 	struct iova *val;
 
-	init_iova_domain(&reserved_iova_ranges, PAGE_SIZE,
-			 IOVA_START_PFN, DMA_32BIT_PFN);
+	init_iova_domain(&reserved_iova_ranges, PAGE_SIZE, IOVA_START_PFN);
 
 	lockdep_set_class(&reserved_iova_ranges.iova_rbtree_lock,
 			  &reserved_rbtree_key);
