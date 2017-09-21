@@ -542,7 +542,7 @@ void queue_iova(struct iova_domain *iovad,
 		unsigned long pfn, unsigned long pages,
 		unsigned long data)
 {
-	struct iova_fq *fq = get_cpu_ptr(iovad->fq);
+	struct iova_fq *fq = raw_cpu_ptr(iovad->fq);
 	unsigned long flags;
 	unsigned idx;
 
@@ -572,8 +572,6 @@ void queue_iova(struct iova_domain *iovad,
 	if (atomic_cmpxchg(&iovad->fq_timer_on, 0, 1) == 0)
 		mod_timer(&iovad->fq_timer,
 			  jiffies + msecs_to_jiffies(IOVA_FQ_TIMEOUT));
-
-	put_cpu_ptr(iovad->fq);
 }
 EXPORT_SYMBOL_GPL(queue_iova);
 
