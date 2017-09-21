@@ -1165,9 +1165,7 @@ struct net_device * __init ltpc_probe(void)
 		dev->irq = 0;
 		/* polled mode -- 20 times per second */
 		/* this is really, really slow... should it poll more often? */
-		init_timer(&ltpc_timer);
-		ltpc_timer.function=ltpc_poll;
-		ltpc_timer.data = (unsigned long) dev;
+		setup_timer(&ltpc_timer, ltpc_poll, (unsigned long)dev);
 
 		ltpc_timer.expires = jiffies + HZ/20;
 		add_timer(&ltpc_timer);
