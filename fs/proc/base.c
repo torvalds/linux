@@ -3021,6 +3021,10 @@ static void proc_flush_task_mnt(struct vfsmount *mnt, pid_t pid, pid_t tgid)
 	char buf[PROC_NUMBUF];
 	struct qstr name;
 
+	/* procfs is not mounted. There is nothing to unhash. */
+	if (!mnt)
+		return;
+
 	name.name = buf;
 	name.len = snprintf(buf, sizeof(buf), "%d", pid);
 	/* no ->d_hash() rejects on procfs */

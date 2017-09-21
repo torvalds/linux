@@ -39,6 +39,7 @@
 #include <linux/proc_ns.h>
 #include <linux/proc_fs.h>
 #include <linux/sched/task.h>
+#include <linux/idr.h>
 
 #define pid_hashfn(nr, ns)	\
 	hash_long((unsigned long)nr + (unsigned long)ns, pidhash_shift)
@@ -53,12 +54,6 @@ int pid_max = PID_MAX_DEFAULT;
 int pid_max_min = RESERVED_PIDS + 1;
 int pid_max_max = PID_MAX_LIMIT;
 
-static inline int mk_pid(struct pid_namespace *pid_ns,
-		struct pidmap *map, int off)
-{
-	return (map - pid_ns->pidmap)*BITS_PER_PAGE + off;
-}
-
 #define find_next_offset(map, off)					\
 		find_next_zero_bit((map)->page, BITS_PER_PAGE, off)
 
@@ -68,12 +63,11 @@ static inline int mk_pid(struct pid_namespace *pid_ns,
  * value does not cause lots of bitmaps to be allocated, but
  * the scheme scales to up to 4 million PIDs, runtime.
  */
+
 struct pid_namespace init_pid_ns = {
 	.kref = KREF_INIT(2),
-	.pidmap = {
-		[ 0 ... PIDMAP_ENTRIES-1] = { ATOMIC_INIT(BITS_PER_PAGE), NULL }
-	},
 	.last_pid = 0,
+	.idr = IDR_INIT,
 	.nr_hashed = PIDNS_HASH_ADDING,
 	.level = 0,
 	.child_reaper = &init_task,
@@ -100,138 +94,6 @@ EXPORT_SYMBOL_GPL(init_pid_ns);
  */
 
 static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(pidmap_lock);
-
-static void free_pidmap(struct upid *upid)
-{
-	int nr = upid->nr;
-	struct pidmap *map = upid->ns->pidmap + nr / BITS_PER_PAGE;
-	int offset = nr & BITS_PER_PAGE_MASK;
-
-	clear_bit(offset, map->page);
-	atomic_inc(&map->nr_free);
-}
-
-/*
- * If we started walking pids at 'base', is 'a' seen before 'b'?
- */
-static int pid_before(int base, int a, int b)
-{
-	/*
-	 * This is the same as saying
-	 *
-	 * (a - base + MAXUINT) % MAXUINT < (b - base + MAXUINT) % MAXUINT
-	 * and that mapping orders 'a' and 'b' with respect to 'base'.
-	 */
-	return (unsigned)(a - base) < (unsigned)(b - base);
-}
-
-/*
- * We might be racing with someone else trying to set pid_ns->last_pid
- * at the pid allocation time (there's also a sysctl for this, but racing
- * with this one is OK, see comment in kernel/pid_namespace.c about it).
- * We want the winner to have the "later" value, because if the
- * "earlier" value prevails, then a pid may get reused immediately.
- *
- * Since pids rollover, it is not sufficient to just pick the bigger
- * value.  We have to consider where we started counting from.
- *
- * 'base' is the value of pid_ns->last_pid that we observed when
- * we started looking for a pid.
- *
- * 'pid' is the pid that we eventually found.
- */
-static void set_last_pid(struct pid_namespace *pid_ns, int base, int pid)
-{
-	int prev;
-	int last_write = base;
-	do {
-		prev = last_write;
-		last_write = cmpxchg(&pid_ns->last_pid, prev, pid);
-	} while ((prev != last_write) && (pid_before(base, last_write, pid)));
-}
-
-static int alloc_pidmap(struct pid_namespace *pid_ns)
-{
-	int i, offset, max_scan, pid, last = pid_ns->last_pid;
-	struct pidmap *map;
-
-	pid = last + 1;
-	if (pid >= pid_max)
-		pid = RESERVED_PIDS;
-	offset = pid & BITS_PER_PAGE_MASK;
-	map = &pid_ns->pidmap[pid/BITS_PER_PAGE];
-	/*
-	 * If last_pid points into the middle of the map->page we
-	 * want to scan this bitmap block twice, the second time
-	 * we start with offset == 0 (or RESERVED_PIDS).
-	 */
-	max_scan = DIV_ROUND_UP(pid_max, BITS_PER_PAGE) - !offset;
-	for (i = 0; i <= max_scan; ++i) {
-		if (unlikely(!map->page)) {
-			void *page = kzalloc(PAGE_SIZE, GFP_KERNEL);
-			/*
-			 * Free the page if someone raced with us
-			 * installing it:
-			 */
-			spin_lock_irq(&pidmap_lock);
-			if (!map->page) {
-				map->page = page;
-				page = NULL;
-			}
-			spin_unlock_irq(&pidmap_lock);
-			kfree(page);
-			if (unlikely(!map->page))
-				return -ENOMEM;
-		}
-		if (likely(atomic_read(&map->nr_free))) {
-			for ( ; ; ) {
-				if (!test_and_set_bit(offset, map->page)) {
-					atomic_dec(&map->nr_free);
-					set_last_pid(pid_ns, last, pid);
-					return pid;
-				}
-				offset = find_next_offset(map, offset);
-				if (offset >= BITS_PER_PAGE)
-					break;
-				pid = mk_pid(pid_ns, map, offset);
-				if (pid >= pid_max)
-					break;
-			}
-		}
-		if (map < &pid_ns->pidmap[(pid_max-1)/BITS_PER_PAGE]) {
-			++map;
-			offset = 0;
-		} else {
-			map = &pid_ns->pidmap[0];
-			offset = RESERVED_PIDS;
-			if (unlikely(last == offset))
-				break;
-		}
-		pid = mk_pid(pid_ns, map, offset);
-	}
-	return -EAGAIN;
-}
-
-int next_pidmap(struct pid_namespace *pid_ns, unsigned int last)
-{
-	int offset;
-	struct pidmap *map, *end;
-
-	if (last >= PID_MAX_LIMIT)
-		return -1;
-
-	offset = (last + 1) & BITS_PER_PAGE_MASK;
-	map = &pid_ns->pidmap[(last + 1)/BITS_PER_PAGE];
-	end = &pid_ns->pidmap[PIDMAP_ENTRIES];
-	for (; map < end; map++, offset = 0) {
-		if (unlikely(!map->page))
-			continue;
-		offset = find_next_bit((map)->page, BITS_PER_PAGE, offset);
-		if (offset < BITS_PER_PAGE)
-			return mk_pid(pid_ns, map, offset);
-	}
-	return -1;
-}
 
 void put_pid(struct pid *pid)
 {
@@ -285,10 +147,14 @@ void free_pid(struct pid *pid)
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&pidmap_lock, flags);
 
-	for (i = 0; i <= pid->level; i++)
-		free_pidmap(pid->numbers + i);
+	for (i = 0; i <= pid->level; i++) {
+		struct upid *upid = pid->numbers + i;
+		struct pid_namespace *ns = upid->ns;
+
+		idr_remove(&ns->idr, upid->nr);
+	}
+	spin_unlock_irqrestore(&pidmap_lock, flags);
 
 	call_rcu(&pid->rcu, delayed_put_pid);
 }
@@ -309,7 +175,22 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 	tmp = ns;
 	pid->level = ns->level;
 	for (i = ns->level; i >= 0; i--) {
-		nr = alloc_pidmap(tmp);
+		int pid_min = 1;
+		idr_preload(GFP_KERNEL);
+		spin_lock_irq(&pidmap_lock);
+
+		/*
+		 * init really needs pid 1, but after reaching the maximum
+		 * wrap back to RESERVED_PIDS
+		 */
+		if (tmp->idr.idr_next > RESERVED_PIDS)
+			pid_min = RESERVED_PIDS;
+
+		nr = idr_alloc_cyclic(&tmp->idr, ns, pid_min,
+				      pid_max, GFP_ATOMIC);
+		spin_unlock_irq(&pidmap_lock);
+		idr_preload_end();
+
 		if (nr < 0) {
 			retval = nr;
 			goto out_free;
@@ -346,12 +227,14 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 	return pid;
 
 out_unlock:
-	spin_unlock_irq(&pidmap_lock);
 	put_pid_ns(ns);
+	spin_unlock_irq(&pidmap_lock);
 
 out_free:
+	spin_lock_irq(&pidmap_lock);
 	while (++i <= ns->level)
-		free_pidmap(pid->numbers + i);
+		idr_remove(&ns->idr, (pid->numbers + i)->nr);
+	spin_unlock_irq(&pidmap_lock);
 
 	kmem_cache_free(ns->pid_cachep, pid);
 	return ERR_PTR(retval);
@@ -559,7 +442,7 @@ struct pid *find_ge_pid(int nr, struct pid_namespace *ns)
 		pid = find_pid_ns(nr, ns);
 		if (pid)
 			break;
-		nr = next_pidmap(ns, nr);
+		idr_get_next(&ns->idr, &nr);
 	} while (nr > 0);
 
 	return pid;
@@ -572,13 +455,16 @@ struct pid *find_ge_pid(int nr, struct pid_namespace *ns)
  */
 void __init pidhash_init(void)
 {
+	unsigned int pidhash_size;
+
 	pid_hash = alloc_large_system_hash("PID", sizeof(*pid_hash), 0, 18,
 					   HASH_EARLY | HASH_SMALL | HASH_ZERO,
 					   &pidhash_shift, NULL,
 					   0, 4096);
+	pidhash_size = 1U << pidhash_shift;
 }
 
-void __init pidmap_init(void)
+void __init pid_idr_init(void)
 {
 	/* Verify no one has done anything silly: */
 	BUILD_BUG_ON(PID_MAX_LIMIT >= PIDNS_HASH_ADDING);
@@ -590,10 +476,9 @@ void __init pidmap_init(void)
 				PIDS_PER_CPU_MIN * num_possible_cpus());
 	pr_info("pid_max: default: %u minimum: %u\n", pid_max, pid_max_min);
 
-	init_pid_ns.pidmap[0].page = kzalloc(PAGE_SIZE, GFP_KERNEL);
-	/* Reserve PID 0. We never call free_pidmap(0) */
-	set_bit(0, init_pid_ns.pidmap[0].page);
-	atomic_dec(&init_pid_ns.pidmap[0].nr_free);
+	idr_init(&init_pid_ns.idr);
+	/* Reserve PID 0. */
+	idr_alloc_cyclic(&init_pid_ns.idr, &init_pid_ns, 0, 0, GFP_KERNEL);
 
 	init_pid_ns.pid_cachep = KMEM_CACHE(pid,
 			SLAB_HWCACHE_ALIGN | SLAB_PANIC | SLAB_ACCOUNT);

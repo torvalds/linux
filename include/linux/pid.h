@@ -99,6 +99,7 @@ extern void transfer_pid(struct task_struct *old, struct task_struct *new,
 
 struct pid_namespace;
 extern struct pid_namespace init_pid_ns;
+extern int pid_max;
 
 /*
  * look up a PID in the hash table. Must be called with the tasklist_lock
