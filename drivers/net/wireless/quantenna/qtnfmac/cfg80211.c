@@ -809,7 +809,6 @@ out:
 static int qtnf_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 			       struct cfg80211_csa_settings *params)
 {
-	struct qtnf_wmac *mac = wiphy_priv(wiphy);
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 	int ret;
 
@@ -828,17 +827,6 @@ static int qtnf_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		pr_err("unsupported vif type (%d) on %s\n",
 		       vif->wdev.iftype, dev->name);
 		return -EOPNOTSUPP;
-	}
-
-	if (vif->vifid != 0) {
-		if (!(mac->status & QTNF_MAC_CSA_ACTIVE))
-			return -EOPNOTSUPP;
-
-		if (!cfg80211_chandef_identical(&params->chandef,
-						&mac->csa_chandef))
-			return -EINVAL;
-
-		return 0;
 	}
 
 	if (!cfg80211_chandef_valid(&params->chandef)) {

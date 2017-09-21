@@ -381,13 +381,7 @@ qtnf_event_handle_freq_change(struct qtnf_wmac *mac,
 		 mac->macid, chandef.chan->hw_value, chandef.center_freq1,
 		 chandef.center_freq2, chandef.width);
 
-	if (mac->status & QTNF_MAC_CSA_ACTIVE) {
-		mac->status &= ~QTNF_MAC_CSA_ACTIVE;
-		if (chandef.chan->hw_value != mac->csa_chandef.chan->hw_value)
-			pr_warn("unexpected switch to %u during CSA to %u\n",
-				chandef.chan->hw_value,
-				mac->csa_chandef.chan->hw_value);
-	}
+	mac->status &= ~QTNF_MAC_CSA_ACTIVE;
 
 	memcpy(&mac->chandef, &chandef, sizeof(mac->chandef));
 
