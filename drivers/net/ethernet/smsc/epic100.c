@@ -739,10 +739,8 @@ static int epic_open(struct net_device *dev)
 
 	/* Set the timer to switch to check for link beat and perhaps switch
 	   to an alternate media type. */
-	init_timer(&ep->timer);
+	setup_timer(&ep->timer, epic_timer, (unsigned long)dev);
 	ep->timer.expires = jiffies + 3*HZ;
-	ep->timer.data = (unsigned long)dev;
-	ep->timer.function = epic_timer;				/* timer handler */
 	add_timer(&ep->timer);
 
 	return rc;
