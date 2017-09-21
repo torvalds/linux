@@ -217,6 +217,14 @@
 	status = "okay";
 };
 
+&cpm_eth0 {
+	status = "okay";
+	/* Network PHY */
+	phy-mode = "10gbase-kr";
+	/* Generic PHY, providing serdes lanes */
+	phys = <&cpm_comphy2 0>;
+};
+
 &cpm_eth1 {
 	status = "okay";
 	/* Network PHY */
