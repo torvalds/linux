@@ -526,14 +526,21 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 
 	/*
 	 * validation ioctl must be signed, so no point sending this if we
-	 * can not sign it.  We could eventually change this to selectively
+	 * can not sign it (ie are not known user).  Even if signing is not
+	 * required (enabled but not negotiated), in those cases we selectively
 	 * sign just this, the first and only signed request on a connection.
-	 * This is good enough for now since a user who wants better security
-	 * would also enable signing on the mount. Having validation of
-	 * negotiate info for signed connections helps reduce attack vectors
+	 * Having validation of negotiate info  helps reduce attack vectors.
 	 */
-	if (tcon->ses->server->sign == false)
+	if (tcon->ses->session_flags & SMB2_SESSION_FLAG_IS_GUEST)
 		return 0; /* validation requires signing */
+
+	if (tcon->ses->user_name == NULL) {
+		cifs_dbg(FYI, "Can't validate negotiate: null user mount\n");
+		return 0; /* validation requires signing */
+	}
+
+	if (tcon->ses->session_flags & SMB2_SESSION_FLAG_IS_NULL)
+		cifs_dbg(VFS, "Unexpected null user (anonymous) auth flag sent by server\n");
 
 	vneg_inbuf.Capabilities =
 			cpu_to_le32(tcon->ses->server->vals->req_capabilities);
