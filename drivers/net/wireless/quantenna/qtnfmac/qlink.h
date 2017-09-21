@@ -169,6 +169,7 @@ enum qlink_cmd_type {
 	QLINK_CMD_REG_NOTIFY		= 0x0019,
 	QLINK_CMD_CHANS_INFO_GET	= 0x001A,
 	QLINK_CMD_CHAN_SWITCH		= 0x001B,
+	QLINK_CMD_CHAN_GET		= 0x001C,
 	QLINK_CMD_CONFIG_AP		= 0x0020,
 	QLINK_CMD_START_AP		= 0x0021,
 	QLINK_CMD_STOP_AP		= 0x0022,
@@ -692,6 +693,16 @@ struct qlink_resp_phy_params {
 struct qlink_resp_get_chan_stats {
 	struct qlink_cmd rhdr;
 	u8 info[0];
+} __packed;
+
+/**
+ * struct qlink_resp_channel_get - response for QLINK_CMD_CHAN_GET command
+ *
+ * @chan: definition of current operating channel.
+ */
+struct qlink_resp_channel_get {
+	struct qlink_resp rhdr;
+	struct qlink_chandef chan;
 } __packed;
 
 /* QLINK Events messages related definitions

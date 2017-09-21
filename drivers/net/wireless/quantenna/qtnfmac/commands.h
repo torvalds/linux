@@ -75,5 +75,6 @@ int qtnf_cmd_get_chan_stats(struct qtnf_wmac *mac, u16 channel,
 			    struct qtnf_chan_stats *stats);
 int qtnf_cmd_send_chan_switch(struct qtnf_wmac *mac,
 			      struct cfg80211_csa_settings *params);
+int qtnf_cmd_get_channel(struct qtnf_vif *vif, struct cfg80211_chan_def *chdef);
 
 #endif /* QLINK_COMMANDS_H_ */

@@ -2358,3 +2358,41 @@ out:
 	qtnf_bus_unlock(mac->bus);
 	return ret;
 }
+
+int qtnf_cmd_get_channel(struct qtnf_vif *vif, struct cfg80211_chan_def *chdef)
+{
+	struct qtnf_bus *bus = vif->mac->bus;
+	const struct qlink_resp_channel_get *resp;
+	struct sk_buff *cmd_skb;
+	struct sk_buff *resp_skb = NULL;
+	u16 res_code = QLINK_CMD_RESULT_OK;
+	int ret;
+
+	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
+					    QLINK_CMD_CHAN_GET,
+					    sizeof(struct qlink_cmd));
+	if (unlikely(!cmd_skb))
+		return -ENOMEM;
+
+	qtnf_bus_lock(bus);
+
+	ret = qtnf_cmd_send_with_reply(bus, cmd_skb, &resp_skb, &res_code,
+				       sizeof(*resp), NULL);
+
+	qtnf_bus_unlock(bus);
+
+	if (unlikely(ret))
+		goto out;
+
+	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
+		ret = -ENODATA;
+		goto out;
+	}
+
+	resp = (const struct qlink_resp_channel_get *)resp_skb->data;
+	qlink_chandef_q2cfg(priv_to_wiphy(vif->mac), &resp->chan, chdef);
+
+out:
+	consume_skb(resp_skb);
+	return ret;
+}

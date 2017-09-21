@@ -793,37 +793,30 @@ qtnf_get_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
 	struct qtnf_wmac *mac = wiphy_priv(wiphy);
 	struct net_device *ndev = wdev->netdev;
 	struct qtnf_vif *vif;
+	int ret;
 
 	if (!ndev)
 		return -ENODEV;
 
 	vif = qtnf_netdev_get_priv(wdev->netdev);
 
-	switch (vif->wdev.iftype) {
-	case NL80211_IFTYPE_STATION:
-		if (vif->sta_state == QTNF_STA_DISCONNECTED) {
-			pr_warn("%s: STA disconnected\n", ndev->name);
-			return -ENODATA;
-		}
-		break;
-	case NL80211_IFTYPE_AP:
-		if (!(vif->bss_status & QTNF_STATE_AP_START)) {
-			pr_warn("%s: AP not started\n", ndev->name);
-			return -ENODATA;
-		}
-		break;
-	default:
-		pr_err("unsupported vif type (%d)\n", vif->wdev.iftype);
-		return -ENODATA;
+	ret = qtnf_cmd_get_channel(vif, chandef);
+	if (ret) {
+		pr_err("%s: failed to get channel: %d\n", ndev->name, ret);
+		goto out;
 	}
 
-	if (!cfg80211_chandef_valid(&mac->chandef)) {
-		pr_err("invalid channel settings on %s\n", ndev->name);
-		return -ENODATA;
+	if (!cfg80211_chandef_valid(chandef)) {
+		pr_err("%s: bad chan freq1=%u freq2=%u bw=%u\n", ndev->name,
+		       chandef->center_freq1, chandef->center_freq2,
+		       chandef->width);
+		ret = -ENODATA;
 	}
 
-	memcpy(chandef, &mac->chandef, sizeof(*chandef));
-	return 0;
+	memcpy(&mac->chandef, chandef, sizeof(mac->chandef));
+
+out:
+	return ret;
 }
 
 static int qtnf_channel_switch(struct wiphy *wiphy, struct net_device *dev,
