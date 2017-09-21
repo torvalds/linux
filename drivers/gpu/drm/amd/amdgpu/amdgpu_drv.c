@@ -609,6 +609,8 @@ amdgpu_pci_remove(struct pci_dev *pdev)
 
 	drm_dev_unregister(dev);
 	drm_dev_unref(dev);
+	pci_disable_device(pdev);
+	pci_set_drvdata(pdev, NULL);
 }
 
 static void
