@@ -588,9 +588,6 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
 
 #ifdef CONFIG_ACPI
-#define ACPI_SPLC_METHOD	"SPLC"
-#define ACPI_SPLC_DOMAIN_WIFI	(0x07)
-
 static u64 splc_get_pwr_limit(struct iwl_trans *trans, union acpi_object *splc)
 {
 	union acpi_object *data_pkg, *dflt_pwr_limit;
@@ -625,7 +622,7 @@ static u64 splc_get_pwr_limit(struct iwl_trans *trans, union acpi_object *splc)
 			continue;
 
 		domain = &data_pkg->package.elements[0];
-		if (domain->integer.value == ACPI_SPLC_DOMAIN_WIFI)
+		if (domain->integer.value == ACPI_WIFI_DOMAIN)
 			break;
 
 		data_pkg = NULL;

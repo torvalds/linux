@@ -946,10 +946,6 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 IWL_EXPORT_SYMBOL(iwl_parse_nvm_mcc_info);
 
 #ifdef CONFIG_ACPI
-#define WRDD_METHOD		"WRDD"
-#define WRDD_WIFI		(0x07)
-#define WRDD_WIGIG		(0x10)
-
 static u32 iwl_wrdd_get_mcc(struct device *dev, union acpi_object *wrdd)
 {
 	union acpi_object *mcc_pkg, *domain_type, *mcc_value;
@@ -975,7 +971,7 @@ static u32 iwl_wrdd_get_mcc(struct device *dev, union acpi_object *wrdd)
 		}
 
 		domain_type = &mcc_pkg->package.elements[0];
-		if (domain_type->integer.value == WRDD_WIFI)
+		if (domain_type->integer.value == ACPI_WIFI_DOMAIN)
 			break;
 
 		mcc_pkg = NULL;
@@ -994,7 +990,7 @@ int iwl_get_bios_mcc(struct device *dev, char *mcc)
 	union acpi_object *data;
 	u32 mcc_val;
 
-	data = iwl_acpi_get_object(dev, WRDD_METHOD);
+	data = iwl_acpi_get_object(dev, ACPI_WRDD_METHOD);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 

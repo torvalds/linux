@@ -579,17 +579,6 @@ static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)
 }
 
 #ifdef CONFIG_ACPI
-#define ACPI_WRDS_METHOD		"WRDS"
-#define ACPI_EWRD_METHOD		"EWRD"
-#define ACPI_WGDS_METHOD		"WGDS"
-#define ACPI_WIFI_DOMAIN		(0x07)
-#define ACPI_WRDS_WIFI_DATA_SIZE	(IWL_MVM_SAR_TABLE_SIZE + 2)
-#define ACPI_EWRD_WIFI_DATA_SIZE	((IWL_MVM_SAR_PROFILE_NUM - 1) * \
-					 IWL_MVM_SAR_TABLE_SIZE + 3)
-#define ACPI_WGDS_WIFI_DATA_SIZE	18
-#define ACPI_WGDS_NUM_BANDS		2
-#define ACPI_WGDS_TABLE_SIZE		3
-
 static int iwl_mvm_sar_set_profile(struct iwl_mvm *mvm,
 				   union acpi_object *table,
 				   struct iwl_mvm_sar_profile *profile,
