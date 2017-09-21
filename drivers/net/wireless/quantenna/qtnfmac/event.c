@@ -381,8 +381,6 @@ qtnf_event_handle_freq_change(struct qtnf_wmac *mac,
 		 mac->macid, chandef.chan->hw_value, chandef.center_freq1,
 		 chandef.center_freq2, chandef.width);
 
-	mac->status &= ~QTNF_MAC_CSA_ACTIVE;
-
 	memcpy(&mac->chandef, &chandef, sizeof(mac->chandef));
 
 	for (i = 0; i < QTNF_MAX_INTF; i++) {

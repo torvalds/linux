@@ -2337,7 +2337,6 @@ int qtnf_cmd_send_chan_switch(struct qtnf_vif *vif,
 
 	switch (res_code) {
 	case QLINK_CMD_RESULT_OK:
-		mac->status |= QTNF_MAC_CSA_ACTIVE;
 		ret = 0;
 		break;
 	case QLINK_CMD_RESULT_ENOTFOUND:
