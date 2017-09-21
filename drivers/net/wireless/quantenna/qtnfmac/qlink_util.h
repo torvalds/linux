@@ -19,6 +19,7 @@
 
 #include <linux/types.h>
 #include <linux/skbuff.h>
+#include <net/cfg80211.h>
 
 #include "qlink.h"
 
@@ -62,5 +63,8 @@ static inline void qtnf_cmd_skb_put_tlv_u16(struct sk_buff *skb,
 
 u16 qlink_iface_type_to_nl_mask(u16 qlink_type);
 u8 qlink_chan_width_mask_to_nl(u16 qlink_mask);
+void qlink_chandef_q2cfg(struct wiphy *wiphy,
+			 const struct qlink_chandef *qch,
+			 struct cfg80211_chan_def *chdef);
 
 #endif /* _QTN_FMAC_QLINK_UTIL_H_ */

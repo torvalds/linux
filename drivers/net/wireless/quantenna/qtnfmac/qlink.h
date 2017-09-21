@@ -118,6 +118,20 @@ enum qlink_channel_width {
 	QLINK_CHAN_WIDTH_160,
 };
 
+/**
+ * struct qlink_chandef - qlink channel definition
+ *
+ * @center_freq1: center frequency of first segment
+ * @center_freq2: center frequency of second segment (80+80 only)
+ * @width: channel width, one of @enum qlink_channel_width
+ */
+struct qlink_chandef {
+	__le16 center_freq1;
+	__le16 center_freq2;
+	u8 width;
+	u8 rsvd[3];
+} __packed;
+
 /* QLINK Command messages related definitions
  */
 
@@ -764,11 +778,11 @@ struct qlink_event_bss_leave {
 /**
  * struct qlink_event_freq_change - data for QLINK_EVENT_FREQ_CHANGE event
  *
- * @freq: new operating frequency in MHz
+ * @chan: new operating channel definition
  */
 struct qlink_event_freq_change {
 	struct qlink_event ehdr;
-	__le32 freq;
+	struct qlink_chandef chan;
 } __packed;
 
 enum qlink_rxmgmt_flags {
