@@ -754,7 +754,7 @@ static int fcoe_netdev_config(struct fc_lport *lport, struct net_device *netdev)
 
 	skb_queue_head_init(&port->fcoe_pending_queue);
 	port->fcoe_pending_queue_active = 0;
-	setup_timer(&port->timer, fcoe_queue_timer, (unsigned long)lport);
+	timer_setup(&port->timer, fcoe_queue_timer, 0);
 
 	fcoe_link_speed_update(lport);
 
