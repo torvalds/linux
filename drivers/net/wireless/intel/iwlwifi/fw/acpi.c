@@ -95,3 +95,55 @@ void *iwl_acpi_get_object(struct device *dev, acpi_string method)
 	return buf.pointer;
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_object);
+
+union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
+					 union acpi_object *data,
+					 int data_size)
+{
+	int i;
+	union acpi_object *wifi_pkg;
+
+	/*
+	 * We need at least one entry in the wifi package that
+	 * describes the domain, and one more entry, otherwise there's
+	 * no point in reading it.
+	 */
+	if (WARN_ON_ONCE(data_size < 2))
+		return ERR_PTR(-EINVAL);
+
+	/*
+	 * We need at least two packages, one for the revision and one
+	 * for the data itself.  Also check that the revision is valid
+	 * (i.e. it is an integer set to 0).
+	 */
+	if (data->type != ACPI_TYPE_PACKAGE ||
+	    data->package.count < 2 ||
+	    data->package.elements[0].type != ACPI_TYPE_INTEGER ||
+	    data->package.elements[0].integer.value != 0) {
+		IWL_DEBUG_DEV_RADIO(dev, "Unsupported packages structure\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	/* loop through all the packages to find the one for WiFi */
+	for (i = 1; i < data->package.count; i++) {
+		union acpi_object *domain;
+
+		wifi_pkg = &data->package.elements[i];
+
+		/* skip entries that are not a package with the right size */
+		if (wifi_pkg->type != ACPI_TYPE_PACKAGE ||
+		    wifi_pkg->package.count != data_size)
+			continue;
+
+		domain = &wifi_pkg->package.elements[0];
+		if (domain->type == ACPI_TYPE_INTEGER &&
+		    domain->integer.value == ACPI_WIFI_DOMAIN)
+			goto found;
+	}
+
+	return ERR_PTR(-ENOENT);
+
+found:
+	return wifi_pkg;
+}
+IWL_EXPORT_SYMBOL(iwl_acpi_get_wifi_pkg);

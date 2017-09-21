@@ -91,10 +91,20 @@
 #ifdef CONFIG_ACPI
 
 void *iwl_acpi_get_object(struct device *dev, acpi_string method);
+union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
+					 union acpi_object *data,
+					 int data_size);
 
 #else /* CONFIG_ACPI */
 
 static inline void *iwl_acpi_get_object(struct device *dev, acpi_string method)
+{
+	return ERR_PTR(-ENOENT);
+}
+
+static inline union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
+						       union acpi_object *data,
+						       int data_size)
 {
 	return ERR_PTR(-ENOENT);
 }

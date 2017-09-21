@@ -599,54 +599,6 @@ static int iwl_mvm_sar_set_profile(struct iwl_mvm *mvm,
 	return 0;
 }
 
-static union acpi_object *iwl_mvm_sar_find_wifi_pkg(struct iwl_mvm *mvm,
-						    union acpi_object *data,
-						    int data_size)
-{
-	union acpi_object *wifi_pkg = NULL;
-	int i;
-
-	/*
-	 * We need at least two packages, one for the revision and one
-	 * for the data itself.  Also check that the revision is valid
-	 * (i.e. it is an integer set to 0).
-	 */
-	if (data->type != ACPI_TYPE_PACKAGE ||
-	    data->package.count < 2 ||
-	    data->package.elements[0].type != ACPI_TYPE_INTEGER ||
-	    data->package.elements[0].integer.value != 0) {
-		IWL_DEBUG_RADIO(mvm, "Unsupported packages structure\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	/* loop through all the packages to find the one for WiFi */
-	for (i = 1; i < data->package.count; i++) {
-		union acpi_object *domain;
-
-		wifi_pkg = &data->package.elements[i];
-
-		/* Skip anything that is not a package with the right
-		 * amount of elements (i.e. domain_type,
-		 * enabled/disabled plus the actual data size.
-		 */
-		if (wifi_pkg->type != ACPI_TYPE_PACKAGE ||
-		    wifi_pkg->package.count != data_size)
-			continue;
-
-		domain = &wifi_pkg->package.elements[0];
-		if (domain->type == ACPI_TYPE_INTEGER &&
-		    domain->integer.value == ACPI_WIFI_DOMAIN)
-			break;
-
-		wifi_pkg = NULL;
-	}
-
-	if (!wifi_pkg)
-		return ERR_PTR(-ENOENT);
-
-	return wifi_pkg;
-}
-
 static int iwl_mvm_sar_get_wrds_table(struct iwl_mvm *mvm)
 {
 	union acpi_object *wifi_pkg, *table, *data;
@@ -657,8 +609,8 @@ static int iwl_mvm_sar_get_wrds_table(struct iwl_mvm *mvm)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	wifi_pkg = iwl_mvm_sar_find_wifi_pkg(mvm, data,
-					     ACPI_WRDS_WIFI_DATA_SIZE);
+	wifi_pkg = iwl_acpi_get_wifi_pkg(mvm->dev, data,
+					 ACPI_WRDS_WIFI_DATA_SIZE);
 	if (IS_ERR(wifi_pkg)) {
 		ret = PTR_ERR(wifi_pkg);
 		goto out_free;
@@ -694,8 +646,8 @@ static int iwl_mvm_sar_get_ewrd_table(struct iwl_mvm *mvm)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	wifi_pkg = iwl_mvm_sar_find_wifi_pkg(mvm, data,
-					     ACPI_EWRD_WIFI_DATA_SIZE);
+	wifi_pkg = iwl_acpi_get_wifi_pkg(mvm->dev, data,
+					 ACPI_EWRD_WIFI_DATA_SIZE);
 	if (IS_ERR(wifi_pkg)) {
 		ret = PTR_ERR(wifi_pkg);
 		goto out_free;
@@ -750,8 +702,8 @@ static int iwl_mvm_sar_get_wgds_table(struct iwl_mvm *mvm)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	wifi_pkg = iwl_mvm_sar_find_wifi_pkg(mvm, data,
-					     ACPI_WGDS_WIFI_DATA_SIZE);
+	wifi_pkg = iwl_acpi_get_wifi_pkg(mvm->dev, data,
+					 ACPI_WGDS_WIFI_DATA_SIZE);
 	if (IS_ERR(wifi_pkg)) {
 		ret = PTR_ERR(wifi_pkg);
 		goto out_free;
