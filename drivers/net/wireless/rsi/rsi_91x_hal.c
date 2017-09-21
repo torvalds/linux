@@ -411,9 +411,8 @@ static void bl_cmd_timeout(unsigned long priv)
 
 static int bl_start_cmd_timer(struct rsi_hw *adapter, u32 timeout)
 {
-	init_timer(&adapter->bl_cmd_timer);
-	adapter->bl_cmd_timer.data = (unsigned long)adapter;
-	adapter->bl_cmd_timer.function = (void *)&bl_cmd_timeout;
+	setup_timer(&adapter->bl_cmd_timer, (void *)&bl_cmd_timeout,
+		    (unsigned long)adapter);
 	adapter->bl_cmd_timer.expires = (msecs_to_jiffies(timeout) + jiffies);
 
 	adapter->blcmd_timer_expired = false;
