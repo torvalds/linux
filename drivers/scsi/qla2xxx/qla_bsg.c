@@ -1116,14 +1116,13 @@ qla84xx_mgmt_cmd(struct bsg_job *bsg_job)
 		return -EINVAL;
 	}
 
-	mn = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &mn_dma);
+	mn = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &mn_dma);
 	if (!mn) {
 		ql_log(ql_log_warn, vha, 0x703c,
 		    "DMA alloc failed for fw buffer.\n");
 		return -ENOMEM;
 	}
 
-	memset(mn, 0, sizeof(struct access_chip_84xx));
 	mn->entry_type = ACCESS_CHIP_IOCB_TYPE;
 	mn->entry_count = 1;
 	ql84_mgmt = (void *)bsg_request + sizeof(struct fc_bsg_request);

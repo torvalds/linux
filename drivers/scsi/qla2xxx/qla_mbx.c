@@ -1782,13 +1782,12 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 	    "Entered %s.\n", __func__);
 
 	pd24 = NULL;
-	pd = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &pd_dma);
+	pd = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &pd_dma);
 	if (pd  == NULL) {
 		ql_log(ql_log_warn, vha, 0x1050,
 		    "Failed to allocate port database structure.\n");
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
-	memset(pd, 0, max(PORT_DATABASE_SIZE, PORT_DATABASE_24XX_SIZE));
 
 	mcp->mb[0] = MBC_GET_PORT_DATABASE;
 	if (opt != 0 && !IS_FWI2_CAPABLE(ha))
@@ -2255,13 +2254,12 @@ qla24xx_login_fabric(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 	else
 		req = ha->req_q_map[0];
 
-	lg = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &lg_dma);
+	lg = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &lg_dma);
 	if (lg == NULL) {
 		ql_log(ql_log_warn, vha, 0x1062,
 		    "Failed to allocate login IOCB.\n");
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
-	memset(lg, 0, sizeof(struct logio_entry_24xx));
 
 	lg->entry_type = LOGINOUT_PORT_IOCB_TYPE;
 	lg->entry_count = 1;
@@ -2525,13 +2523,12 @@ qla24xx_fabric_logout(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x106d,
 	    "Entered %s.\n", __func__);
 
-	lg = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &lg_dma);
+	lg = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &lg_dma);
 	if (lg == NULL) {
 		ql_log(ql_log_warn, vha, 0x106e,
 		    "Failed to allocate logout IOCB.\n");
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
-	memset(lg, 0, sizeof(struct logio_entry_24xx));
 
 	req = vha->req;
 	lg->entry_type = LOGINOUT_PORT_IOCB_TYPE;
@@ -2820,13 +2817,12 @@ qla2x00_get_fcal_position_map(scsi_qla_host_t *vha, char *pos_map)
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x107f,
 	    "Entered %s.\n", __func__);
 
-	pmap = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &pmap_dma);
+	pmap = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &pmap_dma);
 	if (pmap  == NULL) {
 		ql_log(ql_log_warn, vha, 0x1080,
 		    "Memory alloc failed.\n");
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
-	memset(pmap, 0, FCAL_MAP_SIZE);
 
 	mcp->mb[0] = MBC_GET_FC_AL_POSITION_MAP;
 	mcp->mb[2] = MSW(pmap_dma);
@@ -3014,13 +3010,12 @@ qla24xx_abort_command(srb_t *sp)
 		return QLA_FUNCTION_FAILED;
 	}
 
-	abt = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &abt_dma);
+	abt = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &abt_dma);
 	if (abt == NULL) {
 		ql_log(ql_log_warn, vha, 0x108d,
 		    "Failed to allocate abort IOCB.\n");
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
-	memset(abt, 0, sizeof(struct abort_entry_24xx));
 
 	abt->entry_type = ABORT_IOCB_TYPE;
 	abt->entry_count = 1;
@@ -3098,13 +3093,12 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 		rsp = req->rsp;
 	}
 
-	tsk = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &tsk_dma);
+	tsk = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &tsk_dma);
 	if (tsk == NULL) {
 		ql_log(ql_log_warn, vha, 0x1093,
 		    "Failed to allocate task management IOCB.\n");
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
-	memset(tsk, 0, sizeof(struct tsk_mgmt_cmd));
 
 	tsk->p.tsk.entry_type = TSK_MGMT_IOCB_TYPE;
 	tsk->p.tsk.entry_count = 1;
@@ -3856,14 +3850,13 @@ qla24xx_modify_vp_config(scsi_qla_host_t *vha)
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10bb,
 	    "Entered %s.\n", __func__);
 
-	vpmod = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &vpmod_dma);
+	vpmod = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &vpmod_dma);
 	if (!vpmod) {
 		ql_log(ql_log_warn, vha, 0x10bc,
 		    "Failed to allocate modify VP IOCB.\n");
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
 
-	memset(vpmod, 0, sizeof(struct vp_config_entry_24xx));
 	vpmod->entry_type = VP_CONFIG_IOCB_TYPE;
 	vpmod->entry_count = 1;
 	vpmod->command = VCT_COMMAND_MOD_ENABLE_VPS;
@@ -3934,13 +3927,12 @@ qla24xx_control_vp(scsi_qla_host_t *vha, int cmd)
 	if (vp_index == 0 || vp_index >= ha->max_npiv_vports)
 		return QLA_PARAMETER_ERROR;
 
-	vce = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &vce_dma);
+	vce = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &vce_dma);
 	if (!vce) {
 		ql_log(ql_log_warn, vha, 0x10c2,
 		    "Failed to allocate VP control IOCB.\n");
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
-	memset(vce, 0, sizeof(struct vp_ctrl_entry_24xx));
 
 	vce->entry_type = VP_CTRL_IOCB_TYPE;
 	vce->entry_count = 1;
@@ -6025,13 +6017,12 @@ int qla24xx_gpdb_wait(struct scsi_qla_host *vha, fc_port_t *fcport, u8 opt)
 	if (!vha->hw->flags.fw_started)
 		goto done;
 
-	pd = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &pd_dma);
+	pd = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &pd_dma);
 	if (pd  == NULL) {
 		ql_log(ql_log_warn, vha, 0xd047,
 		    "Failed to allocate port database structure.\n");
 		goto done_free_sp;
 	}
-	memset(pd, 0, max(PORT_DATABASE_SIZE, PORT_DATABASE_24XX_SIZE));
 
 	memset(&mc, 0, sizeof(mc));
 	mc.mb[0] = MBC_GET_PORT_DATABASE;
