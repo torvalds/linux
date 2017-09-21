@@ -486,7 +486,7 @@ static bool get_alias_id(struct usb_device *dev, unsigned int *id)
 	return false;
 }
 
-static struct usb_device_id usb_audio_ids[]; /* defined below */
+static const struct usb_device_id usb_audio_ids[]; /* defined below */
 
 /* look for the corresponding quirk */
 static const struct snd_usb_audio_quirk *
@@ -814,7 +814,7 @@ static int usb_audio_reset_resume(struct usb_interface *intf)
 #define usb_audio_reset_resume	NULL
 #endif		/* CONFIG_PM */
 
-static struct usb_device_id usb_audio_ids [] = {
+static const struct usb_device_id usb_audio_ids [] = {
 #include "quirks-table.h"
     { .match_flags = (USB_DEVICE_ID_MATCH_INT_CLASS | USB_DEVICE_ID_MATCH_INT_SUBCLASS),
       .bInterfaceClass = USB_CLASS_AUDIO,

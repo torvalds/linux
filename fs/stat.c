@@ -710,7 +710,7 @@ loff_t inode_get_bytes(struct inode *inode)
 	loff_t ret;
 
 	spin_lock(&inode->i_lock);
-	ret = (((loff_t)inode->i_blocks) << 9) + inode->i_bytes;
+	ret = __inode_get_bytes(inode);
 	spin_unlock(&inode->i_lock);
 	return ret;
 }

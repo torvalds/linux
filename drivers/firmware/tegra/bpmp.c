@@ -806,6 +806,8 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "firmware: %s\n", tag);
 
+	platform_set_drvdata(pdev, bpmp);
+
 	err = of_platform_default_populate(pdev->dev.of_node, NULL, &pdev->dev);
 	if (err < 0)
 		goto free_mrq;
@@ -821,8 +823,6 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 	err = tegra_bpmp_init_powergates(bpmp);
 	if (err < 0)
 		goto free_mrq;
-
-	platform_set_drvdata(pdev, bpmp);
 
 	return 0;
 

@@ -312,7 +312,7 @@ struct io7 {
 	io7_port7_csrs *csrs;
 	struct io7_port ports[IO7_NUM_PORTS];
 
-	spinlock_t irq_lock;
+	raw_spinlock_t irq_lock;
 };
 
 #ifndef __EXTERN_INLINE

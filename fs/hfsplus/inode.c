@@ -283,7 +283,7 @@ int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(inode->i_sb);
 	int error = 0, error2;
 
-	error = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	error = file_write_and_wait_range(file, start, end);
 	if (error)
 		return error;
 	inode_lock(inode);

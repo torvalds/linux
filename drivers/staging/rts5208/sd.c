@@ -910,8 +910,8 @@ static int sd_change_phase(struct rtsx_chip *chip, u8 sample_point, u8 tune_dir)
 	int retval;
 	bool ddr_rx = false;
 
-	dev_dbg(rtsx_dev(chip), "sd_change_phase (sample_point = %d, tune_dir = %d)\n",
-		sample_point, tune_dir);
+	dev_dbg(rtsx_dev(chip), "%s (sample_point = %d, tune_dir = %d)\n",
+		__func__, sample_point, tune_dir);
 
 	if (tune_dir == TUNE_RX) {
 		SD_VP_CTL = SD_VPRX_CTL;
@@ -1225,8 +1225,8 @@ static int sd_check_switch_mode(struct rtsx_chip *chip, u8 mode, u8 func_group,
 	int retval;
 	u8 cmd[5], buf[64];
 
-	dev_dbg(rtsx_dev(chip), "sd_check_switch_mode (mode = %d, func_group = %d, func_to_switch = %d)\n",
-		mode, func_group, func_to_switch);
+	dev_dbg(rtsx_dev(chip), "%s (mode = %d, func_group = %d, func_to_switch = %d)\n",
+		__func__, mode, func_group, func_to_switch);
 
 	cmd[0] = 0x40 | SWITCH;
 	cmd[1] = mode;
@@ -1654,7 +1654,7 @@ static int sd_ddr_tuning_rx_cmd(struct rtsx_chip *chip, u8 sample_point)
 	return STATUS_SUCCESS;
 }
 
-static int mmc_ddr_tunning_rx_cmd(struct rtsx_chip *chip, u8 sample_point)
+static int mmc_ddr_tuning_rx_cmd(struct rtsx_chip *chip, u8 sample_point)
 {
 	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
@@ -1933,7 +1933,7 @@ static int sd_tuning_rx(struct rtsx_chip *chip)
 
 	} else {
 		if (CHK_MMC_DDR52(sd_card)) {
-			tuning_cmd = mmc_ddr_tunning_rx_cmd;
+			tuning_cmd = mmc_ddr_tuning_rx_cmd;
 		} else {
 			rtsx_trace(chip);
 			return STATUS_FAIL;
@@ -3575,8 +3575,8 @@ static int reset_mmc_only(struct rtsx_chip *chip)
 		return STATUS_FAIL;
 	}
 
-	dev_dbg(rtsx_dev(chip), "In reset_mmc_only, sd_card->sd_type = 0x%x\n",
-		sd_card->sd_type);
+	dev_dbg(rtsx_dev(chip), "In %s, sd_card->sd_type = 0x%x\n",
+		__func__, sd_card->sd_type);
 
 	return STATUS_SUCCESS;
 }
@@ -3699,11 +3699,11 @@ int sd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip, u32 start_sector,
 	int retval;
 
 	if (srb->sc_data_direction == DMA_FROM_DEVICE) {
-		dev_dbg(rtsx_dev(chip), "sd_rw: Read %d %s from 0x%x\n",
+		dev_dbg(rtsx_dev(chip), "%s: Read %d %s from 0x%x\n", __func__,
 			sector_cnt, (sector_cnt > 1) ? "sectors" : "sector",
 			start_sector);
 	} else {
-		dev_dbg(rtsx_dev(chip), "sd_rw: Write %d %s to 0x%x\n",
+		dev_dbg(rtsx_dev(chip), "%s: Write %d %s to 0x%x\n", __func__,
 			sector_cnt, (sector_cnt > 1) ? "sectors" : "sector",
 			start_sector);
 	}
@@ -3921,7 +3921,8 @@ int sd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip, u32 start_sector,
 		rtsx_clear_sd_error(chip);
 		if (detect_card_cd(chip, SD_CARD) != STATUS_SUCCESS) {
 			chip->rw_need_retry = 0;
-			dev_dbg(rtsx_dev(chip), "No card exist, exit sd_rw\n");
+			dev_dbg(rtsx_dev(chip), "No card exist, exit %s\n",
+				__func__);
 			rtsx_trace(chip);
 			return STATUS_FAIL;
 		}
@@ -3964,7 +3965,7 @@ RW_FAIL:
 
 	if (detect_card_cd(chip, SD_CARD) != STATUS_SUCCESS) {
 		chip->rw_need_retry = 0;
-		dev_dbg(rtsx_dev(chip), "No card exist, exit sd_rw\n");
+		dev_dbg(rtsx_dev(chip), "No card exist, exit %s\n", __func__);
 		rtsx_trace(chip);
 		return STATUS_FAIL;
 	}

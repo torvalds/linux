@@ -1024,3 +1024,49 @@ fail:
 	drm_gem_object_unreference_unlocked(obj);
 	return ERR_PTR(ret);
 }
+
+static void *_msm_gem_kernel_new(struct drm_device *dev, uint32_t size,
+		uint32_t flags, struct msm_gem_address_space *aspace,
+		struct drm_gem_object **bo, uint64_t *iova, bool locked)
+{
+	void *vaddr;
+	struct drm_gem_object *obj = _msm_gem_new(dev, size, flags, locked);
+	int ret;
+
+	if (IS_ERR(obj))
+		return ERR_CAST(obj);
+
+	if (iova) {
+		ret = msm_gem_get_iova(obj, aspace, iova);
+		if (ret) {
+			drm_gem_object_unreference(obj);
+			return ERR_PTR(ret);
+		}
+	}
+
+	vaddr = msm_gem_get_vaddr(obj);
+	if (!vaddr) {
+		msm_gem_put_iova(obj, aspace);
+		drm_gem_object_unreference(obj);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	if (bo)
+		*bo = obj;
+
+	return vaddr;
+}
+
+void *msm_gem_kernel_new(struct drm_device *dev, uint32_t size,
+		uint32_t flags, struct msm_gem_address_space *aspace,
+		struct drm_gem_object **bo, uint64_t *iova)
+{
+	return _msm_gem_kernel_new(dev, size, flags, aspace, bo, iova, false);
+}
+
+void *msm_gem_kernel_new_locked(struct drm_device *dev, uint32_t size,
+		uint32_t flags, struct msm_gem_address_space *aspace,
+		struct drm_gem_object **bo, uint64_t *iova)
+{
+	return _msm_gem_kernel_new(dev, size, flags, aspace, bo, iova, true);
+}

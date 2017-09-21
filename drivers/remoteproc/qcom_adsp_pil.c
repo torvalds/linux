@@ -38,6 +38,7 @@ struct adsp_data {
 	const char *firmware_name;
 	int pas_id;
 	bool has_aggre2_clk;
+	const char *ssr_name;
 };
 
 struct qcom_adsp {
@@ -71,7 +72,9 @@ struct qcom_adsp {
 	void *mem_region;
 	size_t mem_size;
 
+	struct qcom_rproc_glink glink_subdev;
 	struct qcom_rproc_subdev smd_subdev;
+	struct qcom_rproc_ssr ssr_subdev;
 };
 
 static int adsp_load(struct rproc *rproc, const struct firmware *fw)
@@ -266,10 +269,7 @@ static int adsp_init_regulator(struct qcom_adsp *adsp)
 	regulator_set_load(adsp->cx_supply, 100000);
 
 	adsp->px_supply = devm_regulator_get(adsp->dev, "px");
-	if (IS_ERR(adsp->px_supply))
-		return PTR_ERR(adsp->px_supply);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(adsp->px_supply);
 }
 
 static int adsp_request_irq(struct qcom_adsp *adsp,
@@ -401,7 +401,9 @@ static int adsp_probe(struct platform_device *pdev)
 		goto free_rproc;
 	}
 
+	qcom_add_glink_subdev(rproc, &adsp->glink_subdev);
 	qcom_add_smd_subdev(rproc, &adsp->smd_subdev);
+	qcom_add_ssr_subdev(rproc, &adsp->ssr_subdev, desc->ssr_name);
 
 	ret = rproc_add(rproc);
 	if (ret)
@@ -422,7 +424,9 @@ static int adsp_remove(struct platform_device *pdev)
 	qcom_smem_state_put(adsp->state);
 	rproc_del(adsp->rproc);
 
+	qcom_remove_glink_subdev(adsp->rproc, &adsp->glink_subdev);
 	qcom_remove_smd_subdev(adsp->rproc, &adsp->smd_subdev);
+	qcom_remove_ssr_subdev(adsp->rproc, &adsp->ssr_subdev);
 	rproc_free(adsp->rproc);
 
 	return 0;
@@ -433,6 +437,7 @@ static const struct adsp_data adsp_resource_init = {
 		.firmware_name = "adsp.mdt",
 		.pas_id = 1,
 		.has_aggre2_clk = false,
+		.ssr_name = "lpass",
 };
 
 static const struct adsp_data slpi_resource_init = {
@@ -440,6 +445,7 @@ static const struct adsp_data slpi_resource_init = {
 		.firmware_name = "slpi.mdt",
 		.pas_id = 12,
 		.has_aggre2_clk = true,
+		.ssr_name = "dsps",
 };
 
 static const struct of_device_id adsp_of_match[] = {

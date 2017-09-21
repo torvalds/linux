@@ -31,6 +31,7 @@
 #endif
 #include <asm/accounting.h>
 #include <asm/hmi.h>
+#include <asm/cpuidle.h>
 
 register struct paca_struct *local_paca asm("r13");
 
@@ -183,6 +184,12 @@ struct paca_struct {
 	struct paca_struct **thread_sibling_pacas;
 	/* The PSSCR value that the kernel requested before going to stop */
 	u64 requested_psscr;
+
+	/*
+	 * Save area for additional SPRs that need to be
+	 * saved/restored during cpuidle stop.
+	 */
+	struct stop_sprs stop_sprs;
 #endif
 
 #ifdef CONFIG_PPC_STD_MMU_64

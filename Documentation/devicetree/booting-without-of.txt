@@ -1282,7 +1282,7 @@ hierarchy and routing of interrupts in the hardware.
 The interrupt tree model is fully described in the
 document "Open Firmware Recommended Practice: Interrupt
 Mapping Version 0.9".  The document is available at:
-<http://www.openfirmware.org/ofwg/practice/>
+<http://www.devicetree.org/open-firmware/practice/>
 
 1) interrupts property
 ----------------------

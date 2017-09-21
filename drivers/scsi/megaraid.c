@@ -311,13 +311,15 @@ mega_query_adapter(adapter_t *adapter)
 	   right 8 bits making them zero. This 0 value was hardcoded to fix
 	   sparse warnings. */
 	if (adapter->product_info.subsysvid == PCI_VENDOR_ID_HP) {
-		sprintf (adapter->fw_version, "%c%d%d.%d%d",
+		snprintf(adapter->fw_version, sizeof(adapter->fw_version),
+			 "%c%d%d.%d%d",
 			 adapter->product_info.fw_version[2],
 			 0,
 			 adapter->product_info.fw_version[1] & 0x0f,
 			 0,
 			 adapter->product_info.fw_version[0] & 0x0f);
-		sprintf (adapter->bios_version, "%c%d%d.%d%d",
+		snprintf(adapter->bios_version, sizeof(adapter->fw_version),
+			 "%c%d%d.%d%d",
 			 adapter->product_info.bios_version[2],
 			 0,
 			 adapter->product_info.bios_version[1] & 0x0f,

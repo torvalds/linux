@@ -291,12 +291,7 @@ static int v3_cache_packet_formats(struct snd_motu *motu)
 			V3_ENABLE_OPT_OUT_IFACE_A, V3_NO_ADAT_OPT_OUT_IFACE_A,
 			V3_ENABLE_OPT_OUT_IFACE_B, V3_NO_ADAT_OPT_OUT_IFACE_B);
 
-	motu->tx_packet_formats.midi_flag_offset = 8;
-	motu->tx_packet_formats.midi_byte_offset = 7;
 	motu->tx_packet_formats.pcm_byte_offset = 10;
-
-	motu->rx_packet_formats.midi_flag_offset = 8;
-	motu->rx_packet_formats.midi_byte_offset = 7;
 	motu->rx_packet_formats.pcm_byte_offset = 10;
 
 	return 0;

@@ -81,7 +81,6 @@ static int tegra_wm9712_driver_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	card->dev = &pdev->dev;
-	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, machine);
 
 	machine->codec = platform_device_alloc("wm9712-codec", -1);

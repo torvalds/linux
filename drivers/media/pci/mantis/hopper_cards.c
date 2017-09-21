@@ -255,7 +255,7 @@ static void hopper_pci_remove(struct pci_dev *pdev)
 
 }
 
-static struct pci_device_id hopper_pci_table[] = {
+static const struct pci_device_id hopper_pci_table[] = {
 	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_3028_DVB_T, &vp3028_config,
 		   NULL),
 	{ }

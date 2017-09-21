@@ -895,6 +895,7 @@ static inline void cec_ops_report_features(const struct cec_msg *msg,
 	*cec_version = msg->msg[2];
 	*all_device_types = msg->msg[3];
 	*rc_profile = p;
+	*dev_features = NULL;
 	while (p < &msg->msg[14] && (*p & CEC_OP_FEAT_EXT))
 		p++;
 	if (!(*p & CEC_OP_FEAT_EXT)) {

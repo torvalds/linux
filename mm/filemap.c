@@ -130,17 +130,8 @@ static int page_cache_tree_insert(struct address_space *mapping,
 			return -EEXIST;
 
 		mapping->nrexceptional--;
-		if (!dax_mapping(mapping)) {
-			if (shadowp)
-				*shadowp = p;
-		} else {
-			/* DAX can replace empty locked entry with a hole */
-			WARN_ON_ONCE(p !=
-				dax_radix_locked_entry(0, RADIX_DAX_EMPTY));
-			/* Wakeup waiters for exceptional entry lock */
-			dax_wake_mapping_entry_waiter(mapping, page->index, p,
-						      true);
-		}
+		if (shadowp)
+			*shadowp = p;
 	}
 	__radix_tree_replace(&mapping->page_tree, node, slot, page,
 			     workingset_update_node, mapping);
@@ -402,8 +393,7 @@ bool filemap_range_has_page(struct address_space *mapping,
 {
 	pgoff_t index = start_byte >> PAGE_SHIFT;
 	pgoff_t end = end_byte >> PAGE_SHIFT;
-	struct pagevec pvec;
-	bool ret;
+	struct page *page;
 
 	if (end_byte < start_byte)
 		return false;
@@ -411,12 +401,10 @@ bool filemap_range_has_page(struct address_space *mapping,
 	if (mapping->nrpages == 0)
 		return false;
 
-	pagevec_init(&pvec, 0);
-	if (!pagevec_lookup(&pvec, mapping, index, 1))
+	if (!find_get_pages_range(mapping, &index, end, 1, &page))
 		return false;
-	ret = (pvec.pages[0]->index <= end);
-	pagevec_release(&pvec);
-	return ret;
+	put_page(page);
+	return true;
 }
 EXPORT_SYMBOL(filemap_range_has_page);
 
@@ -476,6 +464,29 @@ int filemap_fdatawait_range(struct address_space *mapping, loff_t start_byte,
 EXPORT_SYMBOL(filemap_fdatawait_range);
 
 /**
+ * file_fdatawait_range - wait for writeback to complete
+ * @file:		file pointing to address space structure to wait for
+ * @start_byte:		offset in bytes where the range starts
+ * @end_byte:		offset in bytes where the range ends (inclusive)
+ *
+ * Walk the list of under-writeback pages of the address space that file
+ * refers to, in the given range and wait for all of them.  Check error
+ * status of the address space vs. the file->f_wb_err cursor and return it.
+ *
+ * Since the error status of the file is advanced by this function,
+ * callers are responsible for checking the return value and handling and/or
+ * reporting the error.
+ */
+int file_fdatawait_range(struct file *file, loff_t start_byte, loff_t end_byte)
+{
+	struct address_space *mapping = file->f_mapping;
+
+	__filemap_fdatawait_range(mapping, start_byte, end_byte);
+	return file_check_and_advance_wb_err(file);
+}
+EXPORT_SYMBOL(file_fdatawait_range);
+
+/**
  * filemap_fdatawait_keep_errors - wait for writeback without clearing errors
  * @mapping: address space structure to wait for
  *
@@ -489,45 +500,22 @@ EXPORT_SYMBOL(filemap_fdatawait_range);
  */
 int filemap_fdatawait_keep_errors(struct address_space *mapping)
 {
-	loff_t i_size = i_size_read(mapping->host);
-
-	if (i_size == 0)
-		return 0;
-
-	__filemap_fdatawait_range(mapping, 0, i_size - 1);
+	__filemap_fdatawait_range(mapping, 0, LLONG_MAX);
 	return filemap_check_and_keep_errors(mapping);
 }
 EXPORT_SYMBOL(filemap_fdatawait_keep_errors);
 
-/**
- * filemap_fdatawait - wait for all under-writeback pages to complete
- * @mapping: address space structure to wait for
- *
- * Walk the list of under-writeback pages of the given address space
- * and wait for all of them.  Check error status of the address space
- * and return it.
- *
- * Since the error status of the address space is cleared by this function,
- * callers are responsible for checking the return value and handling and/or
- * reporting the error.
- */
-int filemap_fdatawait(struct address_space *mapping)
+static bool mapping_needs_writeback(struct address_space *mapping)
 {
-	loff_t i_size = i_size_read(mapping->host);
-
-	if (i_size == 0)
-		return 0;
-
-	return filemap_fdatawait_range(mapping, 0, i_size - 1);
+	return (!dax_mapping(mapping) && mapping->nrpages) ||
+	    (dax_mapping(mapping) && mapping->nrexceptional);
 }
-EXPORT_SYMBOL(filemap_fdatawait);
 
 int filemap_write_and_wait(struct address_space *mapping)
 {
 	int err = 0;
 
-	if ((!dax_mapping(mapping) && mapping->nrpages) ||
-	    (dax_mapping(mapping) && mapping->nrexceptional)) {
+	if (mapping_needs_writeback(mapping)) {
 		err = filemap_fdatawrite(mapping);
 		/*
 		 * Even if the above returned error, the pages may be
@@ -566,8 +554,7 @@ int filemap_write_and_wait_range(struct address_space *mapping,
 {
 	int err = 0;
 
-	if ((!dax_mapping(mapping) && mapping->nrpages) ||
-	    (dax_mapping(mapping) && mapping->nrexceptional)) {
+	if (mapping_needs_writeback(mapping)) {
 		err = __filemap_fdatawrite_range(mapping, lstart, lend,
 						 WB_SYNC_ALL);
 		/* See comment of filemap_write_and_wait() */
@@ -589,7 +576,7 @@ EXPORT_SYMBOL(filemap_write_and_wait_range);
 
 void __filemap_set_wb_err(struct address_space *mapping, int err)
 {
-	errseq_t eseq = __errseq_set(&mapping->wb_err, err);
+	errseq_t eseq = errseq_set(&mapping->wb_err, err);
 
 	trace_filemap_set_wb_err(mapping, eseq);
 }
@@ -656,8 +643,7 @@ int file_write_and_wait_range(struct file *file, loff_t lstart, loff_t lend)
 	int err = 0, err2;
 	struct address_space *mapping = file->f_mapping;
 
-	if ((!dax_mapping(mapping) && mapping->nrpages) ||
-	    (dax_mapping(mapping) && mapping->nrexceptional)) {
+	if (mapping_needs_writeback(mapping)) {
 		err = __filemap_fdatawrite_range(mapping, lstart, lend,
 						 WB_SYNC_ALL);
 		/* See comment of filemap_write_and_wait() */
@@ -885,6 +871,7 @@ void __init pagecache_init(void)
 	page_writeback_init();
 }
 
+/* This has the same layout as wait_bit_key - see fs/cachefiles/rdwr.c */
 struct wait_page_key {
 	struct page *page;
 	int bit_nr;
@@ -909,8 +896,10 @@ static int wake_page_function(wait_queue_entry_t *wait, unsigned mode, int sync,
 
 	if (wait_page->bit_nr != key->bit_nr)
 		return 0;
+
+	/* Stop walking if it's locked */
 	if (test_bit(key->bit_nr, &key->page->flags))
-		return 0;
+		return -1;
 
 	return autoremove_wake_function(wait, mode, sync, key);
 }
@@ -920,13 +909,33 @@ static void wake_up_page_bit(struct page *page, int bit_nr)
 	wait_queue_head_t *q = page_waitqueue(page);
 	struct wait_page_key key;
 	unsigned long flags;
+	wait_queue_entry_t bookmark;
 
 	key.page = page;
 	key.bit_nr = bit_nr;
 	key.page_match = 0;
 
+	bookmark.flags = 0;
+	bookmark.private = NULL;
+	bookmark.func = NULL;
+	INIT_LIST_HEAD(&bookmark.entry);
+
 	spin_lock_irqsave(&q->lock, flags);
-	__wake_up_locked_key(q, TASK_NORMAL, &key);
+	__wake_up_locked_key_bookmark(q, TASK_NORMAL, &key, &bookmark);
+
+	while (bookmark.flags & WQ_FLAG_BOOKMARK) {
+		/*
+		 * Take a breather from holding the lock,
+		 * allow pages that finish wake up asynchronously
+		 * to acquire the lock and remove themselves
+		 * from wait queue
+		 */
+		spin_unlock_irqrestore(&q->lock, flags);
+		cpu_relax();
+		spin_lock_irqsave(&q->lock, flags);
+		__wake_up_locked_key_bookmark(q, TASK_NORMAL, &key, &bookmark);
+	}
+
 	/*
 	 * It is possible for other pages to have collided on the waitqueue
 	 * hash, so in that case check for a page match. That prevents a long-
@@ -964,6 +973,7 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
 	int ret = 0;
 
 	init_wait(wait);
+	wait->flags = lock ? WQ_FLAG_EXCLUSIVE : 0;
 	wait->func = wake_page_function;
 	wait_page.page = page;
 	wait_page.bit_nr = bit_nr;
@@ -972,10 +982,7 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
 		spin_lock_irq(&q->lock);
 
 		if (likely(list_empty(&wait->entry))) {
-			if (lock)
-				__add_wait_queue_entry_tail_exclusive(q, wait);
-			else
-				__add_wait_queue(q, wait);
+			__add_wait_queue_entry_tail(q, wait);
 			SetPageWaiters(page);
 		}
 
@@ -985,10 +992,6 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
 
 		if (likely(test_bit(bit_nr, &page->flags))) {
 			io_schedule();
-			if (unlikely(signal_pending_state(state, current))) {
-				ret = -EINTR;
-				break;
-			}
 		}
 
 		if (lock) {
@@ -997,6 +1000,11 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
 		} else {
 			if (!test_bit(bit_nr, &page->flags))
 				break;
+		}
+
+		if (unlikely(signal_pending_state(state, current))) {
+			ret = -EINTR;
+			break;
 		}
 	}
 
@@ -1039,7 +1047,7 @@ void add_page_wait_queue(struct page *page, wait_queue_entry_t *waiter)
 	unsigned long flags;
 
 	spin_lock_irqsave(&q->lock, flags);
-	__add_wait_queue(q, waiter);
+	__add_wait_queue_entry_tail(q, waiter);
 	SetPageWaiters(page);
 	spin_unlock_irqrestore(&q->lock, flags);
 }
@@ -1564,23 +1572,29 @@ export:
 }
 
 /**
- * find_get_pages - gang pagecache lookup
+ * find_get_pages_range - gang pagecache lookup
  * @mapping:	The address_space to search
  * @start:	The starting page index
+ * @end:	The final page index (inclusive)
  * @nr_pages:	The maximum number of pages
  * @pages:	Where the resulting pages are placed
  *
- * find_get_pages() will search for and return a group of up to
- * @nr_pages pages in the mapping.  The pages are placed at @pages.
- * find_get_pages() takes a reference against the returned pages.
+ * find_get_pages_range() will search for and return a group of up to @nr_pages
+ * pages in the mapping starting at index @start and up to index @end
+ * (inclusive).  The pages are placed at @pages.  find_get_pages_range() takes
+ * a reference against the returned pages.
  *
  * The search returns a group of mapping-contiguous pages with ascending
  * indexes.  There may be holes in the indices due to not-present pages.
+ * We also update @start to index the next page for the traversal.
  *
- * find_get_pages() returns the number of pages which were found.
+ * find_get_pages_range() returns the number of pages which were found. If this
+ * number is smaller than @nr_pages, the end of specified range has been
+ * reached.
  */
-unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
-			    unsigned int nr_pages, struct page **pages)
+unsigned find_get_pages_range(struct address_space *mapping, pgoff_t *start,
+			      pgoff_t end, unsigned int nr_pages,
+			      struct page **pages)
 {
 	struct radix_tree_iter iter;
 	void **slot;
@@ -1590,8 +1604,11 @@ unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
 		return 0;
 
 	rcu_read_lock();
-	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
+	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, *start) {
 		struct page *head, *page;
+
+		if (iter.index > end)
+			break;
 repeat:
 		page = radix_tree_deref_slot(slot);
 		if (unlikely(!page))
@@ -1627,11 +1644,25 @@ repeat:
 		}
 
 		pages[ret] = page;
-		if (++ret == nr_pages)
-			break;
+		if (++ret == nr_pages) {
+			*start = pages[ret - 1]->index + 1;
+			goto out;
+		}
 	}
 
+	/*
+	 * We come here when there is no page beyond @end. We take care to not
+	 * overflow the index @start as it confuses some of the callers. This
+	 * breaks the iteration when there is page at index -1 but that is
+	 * already broken anyway.
+	 */
+	if (end == (pgoff_t)-1)
+		*start = (pgoff_t)-1;
+	else
+		*start = end + 1;
+out:
 	rcu_read_unlock();
+
 	return ret;
 }
 
@@ -1886,9 +1917,8 @@ static void shrink_readahead_size_eio(struct file *filp,
 }
 
 /**
- * do_generic_file_read - generic file read routine
- * @filp:	the file to read
- * @ppos:	current file position
+ * generic_file_buffered_read - generic file read routine
+ * @iocb:	the iocb to read
  * @iter:	data destination
  * @written:	already copied
  *
@@ -1898,12 +1928,14 @@ static void shrink_readahead_size_eio(struct file *filp,
  * This is really ugly. But the goto's actually try to clarify some
  * of the logic when it comes to error handling etc.
  */
-static ssize_t do_generic_file_read(struct file *filp, loff_t *ppos,
+static ssize_t generic_file_buffered_read(struct kiocb *iocb,
 		struct iov_iter *iter, ssize_t written)
 {
+	struct file *filp = iocb->ki_filp;
 	struct address_space *mapping = filp->f_mapping;
 	struct inode *inode = mapping->host;
 	struct file_ra_state *ra = &filp->f_ra;
+	loff_t *ppos = &iocb->ki_pos;
 	pgoff_t index;
 	pgoff_t last_index;
 	pgoff_t prev_index;
@@ -1936,6 +1968,8 @@ find_page:
 
 		page = find_get_page(mapping, index);
 		if (!page) {
+			if (iocb->ki_flags & IOCB_NOWAIT)
+				goto would_block;
 			page_cache_sync_readahead(mapping,
 					ra, filp,
 					index, last_index - index);
@@ -1949,6 +1983,11 @@ find_page:
 					index, last_index - index);
 		}
 		if (!PageUptodate(page)) {
+			if (iocb->ki_flags & IOCB_NOWAIT) {
+				put_page(page);
+				goto would_block;
+			}
+
 			/*
 			 * See comment in do_read_cache_page on why
 			 * wait_on_page_locked is used to avoid unnecessarily
@@ -2130,6 +2169,8 @@ no_cached_page:
 		goto readpage;
 	}
 
+would_block:
+	error = -EAGAIN;
 out:
 	ra->prev_pos = prev_index;
 	ra->prev_pos <<= PAGE_SHIFT;
@@ -2151,14 +2192,14 @@ out:
 ssize_t
 generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
-	struct file *file = iocb->ki_filp;
-	ssize_t retval = 0;
 	size_t count = iov_iter_count(iter);
+	ssize_t retval = 0;
 
 	if (!count)
 		goto out; /* skip atime */
 
 	if (iocb->ki_flags & IOCB_DIRECT) {
+		struct file *file = iocb->ki_filp;
 		struct address_space *mapping = file->f_mapping;
 		struct inode *inode = mapping->host;
 		loff_t size;
@@ -2199,7 +2240,7 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 			goto out;
 	}
 
-	retval = do_generic_file_read(file, &iocb->ki_pos, iter, retval);
+	retval = generic_file_buffered_read(iocb, iter, retval);
 out:
 	return retval;
 }

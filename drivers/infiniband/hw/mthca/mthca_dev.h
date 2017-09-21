@@ -118,7 +118,7 @@ enum {
 };
 
 struct mthca_cmd {
-	struct pci_pool          *pool;
+	struct dma_pool          *pool;
 	struct mutex              hcr_mutex;
 	struct semaphore 	  poll_sem;
 	struct semaphore 	  event_sem;
@@ -263,7 +263,7 @@ struct mthca_qp_table {
 };
 
 struct mthca_av_table {
-	struct pci_pool   *pool;
+	struct dma_pool   *pool;
 	int                num_ddr_avs;
 	u64                ddr_av_base;
 	void __iomem      *av_map;

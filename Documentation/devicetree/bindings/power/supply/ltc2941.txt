@@ -1,13 +1,14 @@
-binding for LTC2941 and LTC2943 battery gauges
+binding for LTC2941, LTC2942, LTC2943 and LTC2944 battery gauges
 
-Both the LTC2941 and LTC2943 measure battery capacity.
-The LTC2943 is compatible with the LTC2941, it adds voltage and
-temperature monitoring, and uses a slightly different conversion
-formula for the charge counter.
+All chips measure battery capacity.
+The LTC2942 is pin compatible with the LTC2941, it adds voltage and
+temperature monitoring, and is runtime detected. LTC2943 and LTC2944
+is software compatible, uses a slightly different conversion formula
+for the charge counter and adds voltage, current and temperature monitoring.
 
 Required properties:
-- compatible: Should contain "lltc,ltc2941" or "lltc,ltc2943" which also
-    indicates the type of I2C chip attached.
+- compatible: Should contain "lltc,ltc2941", "lltc,ltc2942", "lltc,ltc2943"
+    or "lltc,ltc2944" which also indicates the type of I2C chip attached.
 - reg: The 7-bit I2C address.
 - lltc,resistor-sense: The sense resistor value in milli-ohms. Can be a 32-bit
     negative value when the battery has been connected to the wrong end of the

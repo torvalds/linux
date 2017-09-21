@@ -396,7 +396,6 @@ static int handshake(struct usb_hcd *hcd, u32 reg,
 /* reset a non-running (STS_HALT == 1) controller */
 static int ehci_reset(struct usb_hcd *hcd)
 {
-	int retval;
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
 
 	u32 command = reg_read32(hcd->regs, HC_USBCMD);
@@ -405,9 +404,8 @@ static int ehci_reset(struct usb_hcd *hcd)
 	reg_write32(hcd->regs, HC_USBCMD, command);
 	hcd->state = HC_STATE_HALT;
 	priv->next_statechange = jiffies;
-	retval = handshake(hcd, HC_USBCMD,
-			    CMD_RESET, 0, 250 * 1000);
-	return retval;
+
+	return handshake(hcd, HC_USBCMD, CMD_RESET, 0, 250 * 1000);
 }
 
 static struct isp1760_qh *qh_alloc(gfp_t flags)

@@ -23,7 +23,6 @@ spi@80000500 {
 	reg = <0x80000500 0x4>;
 	interrupts = <15>;
 	clocks = <&clks CLPS711X_CLK_SPI>;
-	status = "disabled";
 };
 
 syscon3: syscon@80002200 {

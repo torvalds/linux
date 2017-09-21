@@ -12,6 +12,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sched.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
@@ -31,6 +32,7 @@ static int cmd_help(int argc, const char **argv);
  */
 struct cpupower_cpu_info cpupower_cpu_info;
 int run_as_root;
+int base_cpu;
 /* Affected cpus chosen by -c/--cpu param */
 struct bitmask *cpus_chosen;
 
@@ -174,6 +176,7 @@ int main(int argc, const char *argv[])
 	unsigned int i, ret;
 	struct stat statbuf;
 	struct utsname uts;
+	char pathname[32];
 
 	cpus_chosen = bitmask_alloc(sysconf(_SC_NPROCESSORS_CONF));
 
@@ -198,17 +201,23 @@ int main(int argc, const char *argv[])
 		argv[0] = cmd = "help";
 	}
 
-	get_cpu_info(0, &cpupower_cpu_info);
+	base_cpu = sched_getcpu();
+	if (base_cpu < 0) {
+		fprintf(stderr, _("No valid cpus found.\n"));
+		return EXIT_FAILURE;
+	}
+
+	get_cpu_info(&cpupower_cpu_info);
 	run_as_root = !geteuid();
 	if (run_as_root) {
 		ret = uname(&uts);
+		sprintf(pathname, "/dev/cpu/%d/msr", base_cpu);
 		if (!ret && !strcmp(uts.machine, "x86_64") &&
-		    stat("/dev/cpu/0/msr", &statbuf) != 0) {
+		    stat(pathname, &statbuf) != 0) {
 			if (system("modprobe msr") == -1)
 	fprintf(stderr, _("MSR access not available.\n"));
 		}
 	}
-		
 
 	for (i = 0; i < ARRAY_SIZE(commands); i++) {
 		struct cmd_struct *p = commands + i;

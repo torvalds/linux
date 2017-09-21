@@ -551,8 +551,8 @@ int xenvif_init_queue(struct xenvif_queue *queue)
 	for (i = 0; i < MAX_PENDING_REQS; i++) {
 		queue->pending_tx_info[i].callback_struct = (struct ubuf_info)
 			{ .callback = xenvif_zerocopy_callback,
-			  .ctx = NULL,
-			  .desc = i };
+			  { { .ctx = NULL,
+			      .desc = i } } };
 		queue->grant_tx_handle[i] = NETBACK_INVALID_HANDLE;
 	}
 

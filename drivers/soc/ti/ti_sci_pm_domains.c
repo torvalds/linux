@@ -176,6 +176,8 @@ static int ti_sci_pm_domain_probe(struct platform_device *pdev)
 
 	ti_sci_pd->dev = dev;
 
+	ti_sci_pd->pd.name = "ti_sci_pd";
+
 	ti_sci_pd->pd.attach_dev = ti_sci_pd_attach_dev;
 	ti_sci_pd->pd.detach_dev = ti_sci_pd_detach_dev;
 

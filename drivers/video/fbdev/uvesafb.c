@@ -1666,7 +1666,7 @@ static struct attribute *uvesafb_dev_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group uvesafb_dev_attgrp = {
+static const struct attribute_group uvesafb_dev_attgrp = {
 	.name = NULL,
 	.attrs = uvesafb_dev_attrs,
 };
@@ -1860,19 +1860,18 @@ static int uvesafb_setup(char *options)
 }
 #endif /* !MODULE */
 
-static ssize_t show_v86d(struct device_driver *dev, char *buf)
+static ssize_t v86d_show(struct device_driver *dev, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%s\n", v86d_path);
 }
 
-static ssize_t store_v86d(struct device_driver *dev, const char *buf,
+static ssize_t v86d_store(struct device_driver *dev, const char *buf,
 		size_t count)
 {
 	strncpy(v86d_path, buf, PATH_MAX);
 	return count;
 }
-
-static DRIVER_ATTR(v86d, S_IRUGO | S_IWUSR, show_v86d, store_v86d);
+static DRIVER_ATTR_RW(v86d);
 
 static int uvesafb_init(void)
 {

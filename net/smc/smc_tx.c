@@ -174,10 +174,12 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 				  copylen, conn->sndbuf_size - tx_cnt_prep);
 		chunk_len_sum = chunk_len;
 		chunk_off = tx_cnt_prep;
+		smc_sndbuf_sync_sg_for_cpu(conn);
 		for (chunk = 0; chunk < 2; chunk++) {
 			rc = memcpy_from_msg(sndbuf_base + chunk_off,
 					     msg, chunk_len);
 			if (rc) {
+				smc_sndbuf_sync_sg_for_device(conn);
 				if (send_done)
 					return send_done;
 				goto out_err;
@@ -192,6 +194,7 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 			chunk_len_sum += chunk_len;
 			chunk_off = 0; /* modulo offset in send ring buffer */
 		}
+		smc_sndbuf_sync_sg_for_device(conn);
 		/* update cursors */
 		smc_curs_add(conn->sndbuf_size, &prep, copylen);
 		smc_curs_write(&conn->tx_curs_prep,
@@ -277,6 +280,7 @@ static int smc_tx_rdma_writes(struct smc_connection *conn)
 	struct smc_link_group *lgr = conn->lgr;
 	int to_send, rmbespace;
 	struct smc_link *link;
+	dma_addr_t dma_addr;
 	int num_sges;
 	int rc;
 
@@ -334,12 +338,11 @@ static int smc_tx_rdma_writes(struct smc_connection *conn)
 		src_len = conn->sndbuf_size - sent.count;
 	}
 	src_len_sum = src_len;
+	dma_addr = sg_dma_address(conn->sndbuf_desc->sgt[SMC_SINGLE_LINK].sgl);
 	for (dstchunk = 0; dstchunk < 2; dstchunk++) {
 		num_sges = 0;
 		for (srcchunk = 0; srcchunk < 2; srcchunk++) {
-			sges[srcchunk].addr =
-				conn->sndbuf_desc->dma_addr[SMC_SINGLE_LINK] +
-				src_off;
+			sges[srcchunk].addr = dma_addr + src_off;
 			sges[srcchunk].length = src_len;
 			sges[srcchunk].lkey = link->roce_pd->local_dma_lkey;
 			num_sges++;

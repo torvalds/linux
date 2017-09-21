@@ -46,7 +46,7 @@ static u32 dcs_get_backlight(struct intel_connector *connector)
 	struct intel_encoder *encoder = connector->encoder;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	struct mipi_dsi_device *dsi_device;
-	u8 data;
+	u8 data = 0;
 	enum port port;
 
 	/* FIXME: Need to take care of 16 bit brightness level */

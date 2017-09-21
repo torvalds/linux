@@ -1487,7 +1487,7 @@ tdes_dd_err:
 
 static int atmel_tdes_remove(struct platform_device *pdev)
 {
-	static struct atmel_tdes_dev *tdes_dd;
+	struct atmel_tdes_dev *tdes_dd;
 
 	tdes_dd = platform_get_drvdata(pdev);
 	if (!tdes_dd)

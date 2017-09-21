@@ -17,24 +17,30 @@
 
 #include "qlink_util.h"
 
-u16 qlink_iface_type_mask_to_nl(u16 qlink_mask)
+u16 qlink_iface_type_to_nl_mask(u16 qlink_type)
 {
 	u16 result = 0;
 
-	if (qlink_mask & QLINK_IFTYPE_AP)
+	switch (qlink_type) {
+	case QLINK_IFTYPE_AP:
 		result |= BIT(NL80211_IFTYPE_AP);
-
-	if (qlink_mask & QLINK_IFTYPE_STATION)
+		break;
+	case QLINK_IFTYPE_STATION:
 		result |= BIT(NL80211_IFTYPE_STATION);
-
-	if (qlink_mask & QLINK_IFTYPE_ADHOC)
+		break;
+	case QLINK_IFTYPE_ADHOC:
 		result |= BIT(NL80211_IFTYPE_ADHOC);
-
-	if (qlink_mask & QLINK_IFTYPE_MONITOR)
+		break;
+	case QLINK_IFTYPE_MONITOR:
 		result |= BIT(NL80211_IFTYPE_MONITOR);
-
-	if (qlink_mask & QLINK_IFTYPE_WDS)
+		break;
+	case QLINK_IFTYPE_WDS:
 		result |= BIT(NL80211_IFTYPE_WDS);
+		break;
+	case QLINK_IFTYPE_AP_VLAN:
+		result |= BIT(NL80211_IFTYPE_AP_VLAN);
+		break;
+	}
 
 	return result;
 }

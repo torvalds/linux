@@ -134,8 +134,6 @@ typedef long (*dm_dax_direct_access_fn) (struct dm_target *ti, pgoff_t pgoff,
 		long nr_pages, void **kaddr, pfn_t *pfn);
 typedef size_t (*dm_dax_copy_from_iter_fn)(struct dm_target *ti, pgoff_t pgoff,
 		void *addr, size_t bytes, struct iov_iter *i);
-typedef void (*dm_dax_flush_fn)(struct dm_target *ti, pgoff_t pgoff, void *addr,
-		size_t size);
 #define PAGE_SECTORS (PAGE_SIZE / 512)
 
 void dm_error(const char *message);
@@ -186,7 +184,6 @@ struct target_type {
 	dm_io_hints_fn io_hints;
 	dm_dax_direct_access_fn direct_access;
 	dm_dax_copy_from_iter_fn dax_copy_from_iter;
-	dm_dax_flush_fn dax_flush;
 
 	/* For internal device-mapper use. */
 	struct list_head list;
@@ -387,7 +384,7 @@ struct dm_arg {
  * Validate the next argument, either returning it as *value or, if invalid,
  * returning -EINVAL and setting *error.
  */
-int dm_read_arg(struct dm_arg *arg, struct dm_arg_set *arg_set,
+int dm_read_arg(const struct dm_arg *arg, struct dm_arg_set *arg_set,
 		unsigned *value, char **error);
 
 /*
@@ -395,7 +392,7 @@ int dm_read_arg(struct dm_arg *arg, struct dm_arg_set *arg_set,
  * arg->min and arg->max further arguments. Either return the size as
  * *num_args or, if invalid, return -EINVAL and set *error.
  */
-int dm_read_arg_group(struct dm_arg *arg, struct dm_arg_set *arg_set,
+int dm_read_arg_group(const struct dm_arg *arg, struct dm_arg_set *arg_set,
 		      unsigned *num_args, char **error);
 
 /*
@@ -549,46 +546,29 @@ void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size);
  *---------------------------------------------------------------*/
 #define DM_NAME "device-mapper"
 
-#ifdef CONFIG_PRINTK
-extern struct ratelimit_state dm_ratelimit_state;
-
-#define dm_ratelimit()	__ratelimit(&dm_ratelimit_state)
-#else
-#define dm_ratelimit()	0
-#endif
+#define DM_RATELIMIT(pr_func, fmt, ...)					\
+do {									\
+	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL,	\
+				      DEFAULT_RATELIMIT_BURST);		\
+									\
+	if (__ratelimit(&rs))						\
+		pr_func(DM_FMT(fmt), ##__VA_ARGS__);			\
+} while (0)
 
 #define DM_FMT(fmt) DM_NAME ": " DM_MSG_PREFIX ": " fmt "\n"
 
 #define DMCRIT(fmt, ...) pr_crit(DM_FMT(fmt), ##__VA_ARGS__)
 
 #define DMERR(fmt, ...) pr_err(DM_FMT(fmt), ##__VA_ARGS__)
-#define DMERR_LIMIT(fmt, ...)						\
-do {									\
-	if (dm_ratelimit())						\
-		DMERR(fmt, ##__VA_ARGS__);				\
-} while (0)
-
+#define DMERR_LIMIT(fmt, ...) DM_RATELIMIT(pr_err, fmt, ##__VA_ARGS__)
 #define DMWARN(fmt, ...) pr_warn(DM_FMT(fmt), ##__VA_ARGS__)
-#define DMWARN_LIMIT(fmt, ...)						\
-do {									\
-	if (dm_ratelimit())						\
-		DMWARN(fmt, ##__VA_ARGS__);				\
-} while (0)
-
+#define DMWARN_LIMIT(fmt, ...) DM_RATELIMIT(pr_warn, fmt, ##__VA_ARGS__)
 #define DMINFO(fmt, ...) pr_info(DM_FMT(fmt), ##__VA_ARGS__)
-#define DMINFO_LIMIT(fmt, ...)						\
-do {									\
-	if (dm_ratelimit())						\
-		DMINFO(fmt, ##__VA_ARGS__);				\
-} while (0)
+#define DMINFO_LIMIT(fmt, ...) DM_RATELIMIT(pr_info, fmt, ##__VA_ARGS__)
 
 #ifdef CONFIG_DM_DEBUG
 #define DMDEBUG(fmt, ...) printk(KERN_DEBUG DM_FMT(fmt), ##__VA_ARGS__)
-#define DMDEBUG_LIMIT(fmt, ...)						\
-do {									\
-	if (dm_ratelimit())						\
-		DMDEBUG(fmt, ##__VA_ARGS__);				\
-} while (0)
+#define DMDEBUG_LIMIT(fmt, ...) DM_RATELIMIT(pr_debug, fmt, ##__VA_ARGS__)
 #else
 #define DMDEBUG(fmt, ...) no_printk(fmt, ##__VA_ARGS__)
 #define DMDEBUG_LIMIT(fmt, ...) no_printk(fmt, ##__VA_ARGS__)

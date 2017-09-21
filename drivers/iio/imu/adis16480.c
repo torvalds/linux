@@ -696,7 +696,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.gyro_max_val = IIO_RAD_TO_DEGREE(22500),
 		.gyro_max_scale = 450,
 		.accel_max_val = IIO_M_S_2_TO_G(12500),
-		.accel_max_scale = 5,
+		.accel_max_scale = 10,
 	},
 	[ADIS16485] = {
 		.channels = adis16485_channels,

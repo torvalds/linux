@@ -1546,8 +1546,8 @@ static int nfit_test_blk_do_io(struct nd_blk_region *ndbr, resource_size_t dpa,
 	else {
 		memcpy(iobuf, mmio->addr.base + dpa, len);
 
-		/* give us some some coverage of the mmio_flush_range() API */
-		mmio_flush_range(mmio->addr.base + dpa, len);
+		/* give us some some coverage of the arch_invalidate_pmem() API */
+		arch_invalidate_pmem(mmio->addr.base + dpa, len);
 	}
 	nd_region_release_lane(nd_region, lane);
 

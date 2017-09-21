@@ -6016,6 +6016,8 @@ static int wl1271_register_hw(struct wl1271 *wl)
 {
 	int ret;
 	u32 oui_addr = 0, nic_addr = 0;
+	struct platform_device *pdev = wl->pdev;
+	struct wlcore_platdev_data *pdev_data = dev_get_platdata(&pdev->dev);
 
 	if (wl->mac80211_registered)
 		return 0;
@@ -6038,6 +6040,27 @@ static int wl1271_register_hw(struct wl1271 *wl)
 		oui_addr = wl->fuse_oui_addr;
 		/* fuse has the BD_ADDR, the WLAN addresses are the next two */
 		nic_addr = wl->fuse_nic_addr + 1;
+	}
+
+	if (oui_addr == 0xdeadbe && nic_addr == 0xef0000) {
+		wl1271_warning("Detected unconfigured mac address in nvs, derive from fuse instead.\n");
+		if (!strcmp(pdev_data->family->name, "wl18xx")) {
+			wl1271_warning("This default nvs file can be removed from the file system\n");
+		} else {
+			wl1271_warning("Your device performance is not optimized.\n");
+			wl1271_warning("Please use the calibrator tool to configure your device.\n");
+		}
+
+		if (wl->fuse_oui_addr == 0 && wl->fuse_nic_addr == 0) {
+			wl1271_warning("Fuse mac address is zero. using random mac\n");
+			/* Use TI oui and a random nic */
+			oui_addr = WLCORE_TI_OUI_ADDRESS;
+			nic_addr = get_random_int();
+		} else {
+			oui_addr = wl->fuse_oui_addr;
+			/* fuse has the BD_ADDR, the WLAN addresses are the next two */
+			nic_addr = wl->fuse_nic_addr + 1;
+		}
 	}
 
 	wl12xx_derive_mac_addresses(wl, oui_addr, nic_addr);

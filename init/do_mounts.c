@@ -373,7 +373,7 @@ static int __init do_mount_root(char *name, char *fs, int flags, void *data)
 	printk(KERN_INFO
 	       "VFS: Mounted root (%s filesystem)%s on device %u:%u.\n",
 	       s->s_type->name,
-	       s->s_flags & MS_RDONLY ?  " readonly" : "",
+	       sb_rdonly(s) ? " readonly" : "",
 	       MAJOR(ROOT_DEV), MINOR(ROOT_DEV));
 	return 0;
 }
@@ -420,8 +420,8 @@ retry:
 #endif
 		panic("VFS: Unable to mount root fs on %s", b);
 	}
-	if (!(flags & MS_RDONLY)) {
-		flags |= MS_RDONLY;
+	if (!(flags & SB_RDONLY)) {
+		flags |= SB_RDONLY;
 		goto retry;
 	}
 

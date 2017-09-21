@@ -1321,8 +1321,8 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 		phy = of_phy_connect(priv->ndev, slave->data->phy_node,
 				 &cpsw_adjust_link, 0, slave->data->phy_if);
 		if (!phy) {
-			dev_err(priv->dev, "phy \"%s\" not found on slave %d\n",
-				slave->data->phy_node->full_name,
+			dev_err(priv->dev, "phy \"%pOF\" not found on slave %d\n",
+				slave->data->phy_node,
 				slave->slave_num);
 			return;
 		}
@@ -2670,8 +2670,8 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		parp = of_get_property(slave_node, "phy_id", &lenp);
 		if (slave_data->phy_node) {
 			dev_dbg(&pdev->dev,
-				"slave[%d] using phy-handle=\"%s\"\n",
-				i, slave_data->phy_node->full_name);
+				"slave[%d] using phy-handle=\"%pOF\"\n",
+				i, slave_data->phy_node);
 		} else if (of_phy_is_fixed_link(slave_node)) {
 			/* In the case of a fixed PHY, the DT node associated
 			 * to the PHY is the Ethernet MAC DT node.
@@ -2827,7 +2827,7 @@ static int cpsw_probe_dual_emac(struct cpsw_priv *priv)
 
 #define CPSW_QUIRK_IRQ		BIT(0)
 
-static struct platform_device_id cpsw_devtype[] = {
+static const struct platform_device_id cpsw_devtype[] = {
 	{
 		/* keep it for existing comaptibles */
 		.name = "cpsw",

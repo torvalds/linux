@@ -1,4 +1,4 @@
-* Synopsys Designware PCIe interface
+* Synopsys DesignWare PCIe interface
 
 Required properties:
 - compatible: should contain "snps,dw-pcie" to identify the core.
@@ -17,29 +17,27 @@ RC mode:
 	properties to define the mapping of the PCIe interface to interrupt
 	numbers.
 EP mode:
-- num-ib-windows: number of inbound address translation
-        windows
-- num-ob-windows: number of outbound address translation
-        windows
+- num-ib-windows: number of inbound address translation windows
+- num-ob-windows: number of outbound address translation windows
 
 Optional properties:
 - num-lanes: number of lanes to use (this property should be specified unless
   the link is brought already up in BIOS)
-- reset-gpio: gpio pin number of power good signal
+- reset-gpio: GPIO pin number of power good signal
 - clocks: Must contain an entry for each entry in clock-names.
 	See ../clocks/clock-bindings.txt for details.
 - clock-names: Must include the following entries:
 	- "pcie"
 	- "pcie_bus"
 RC mode:
-- num-viewport: number of view ports configured in
-  hardware. If a platform does not specify it, the driver assumes 2.
-- bus-range: PCI bus numbers covered (it is recommended
-  for new devicetrees to specify this property, to keep backwards
-  compatibility a range of 0x00-0xff is assumed if not present)
+- num-viewport: number of view ports configured in hardware. If a platform
+  does not specify it, the driver assumes 2.
+- bus-range: PCI bus numbers covered (it is recommended for new devicetrees
+  to specify this property, to keep backwards compatibility a range of
+  0x00-0xff is assumed if not present)
+
 EP mode:
-- max-functions: maximum number of functions that can be
-  configured
+- max-functions: maximum number of functions that can be configured
 
 Example configuration:
 

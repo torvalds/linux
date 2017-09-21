@@ -58,7 +58,7 @@ static int __init dmi_io_delay_0xed_port(const struct dmi_system_id *id)
  * Quirk table for systems that misbehave (lock up, etc.) if port
  * 0x80 is used:
  */
-static struct dmi_system_id __initdata io_delay_0xed_port_dmi_table[] = {
+static const struct dmi_system_id io_delay_0xed_port_dmi_table[] __initconst = {
 	{
 		.callback	= dmi_io_delay_0xed_port,
 		.ident		= "Compaq Presario V6000",

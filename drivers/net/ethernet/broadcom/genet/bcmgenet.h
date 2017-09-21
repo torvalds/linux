@@ -657,6 +657,7 @@ struct bcmgenet_priv {
 
 	struct clk *clk;
 	struct platform_device *pdev;
+	struct platform_device *mii_pdev;
 
 	/* WOL */
 	struct clk *clk_wol;
@@ -671,12 +672,21 @@ struct bcmgenet_priv {
 static inline u32 bcmgenet_##name##_readl(struct bcmgenet_priv *priv,	\
 					u32 off)			\
 {									\
-	return __raw_readl(priv->base + offset + off);			\
+	/* MIPS chips strapped for BE will automagically configure the	\
+	 * peripheral registers for CPU-native byte order.		\
+	 */								\
+	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)) \
+		return __raw_readl(priv->base + offset + off);		\
+	else								\
+		return readl_relaxed(priv->base + offset + off);	\
 }									\
 static inline void bcmgenet_##name##_writel(struct bcmgenet_priv *priv,	\
 					u32 val, u32 off)		\
 {									\
-	__raw_writel(val, priv->base + offset + off);			\
+	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)) \
+		__raw_writel(val, priv->base + offset + off);		\
+	else								\
+		writel_relaxed(val, priv->base + offset + off);		\
 }
 
 GENET_IO_MACRO(ext, GENET_EXT_OFF);

@@ -414,6 +414,8 @@ static inline void pmd_set(pmd_t *pmdp, pte_t *ptep)
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD]; /* defined in head.S */
 
+struct vm_area_struct;
+
 /*
  * or32 doesn't have any external MMU info: the kernel page
  * tables contain all the necessary information.

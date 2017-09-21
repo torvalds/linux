@@ -1095,7 +1095,7 @@ static int delta_job_ready(void *priv)
 }
 
 /* mem-to-mem ops */
-static struct v4l2_m2m_ops delta_m2m_ops = {
+static const struct v4l2_m2m_ops delta_m2m_ops = {
 	.device_run     = delta_device_run,
 	.job_ready	= delta_job_ready,
 	.job_abort      = delta_job_abort,
@@ -1574,7 +1574,7 @@ static void delta_vb2_frame_stop_streaming(struct vb2_queue *q)
 }
 
 /* VB2 queue ops */
-static struct vb2_ops delta_vb2_au_ops = {
+static const struct vb2_ops delta_vb2_au_ops = {
 	.queue_setup = delta_vb2_au_queue_setup,
 	.buf_prepare = delta_vb2_au_prepare,
 	.buf_queue = delta_vb2_au_queue,
@@ -1584,7 +1584,7 @@ static struct vb2_ops delta_vb2_au_ops = {
 	.stop_streaming = delta_vb2_au_stop_streaming,
 };
 
-static struct vb2_ops delta_vb2_frame_ops = {
+static const struct vb2_ops delta_vb2_frame_ops = {
 	.queue_setup = delta_vb2_frame_queue_setup,
 	.buf_prepare = delta_vb2_frame_prepare,
 	.buf_finish = delta_vb2_frame_finish,

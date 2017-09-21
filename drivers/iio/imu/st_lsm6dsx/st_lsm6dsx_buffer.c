@@ -31,6 +31,8 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
 
+#include <linux/platform_data/st_sensors_pdata.h>
+
 #include "st_lsm6dsx.h"
 
 #define ST_LSM6DSX_REG_FIFO_THL_ADDR		0x06
@@ -39,6 +41,8 @@
 #define ST_LSM6DSX_REG_FIFO_DEC_GXL_ADDR	0x08
 #define ST_LSM6DSX_REG_HLACTIVE_ADDR		0x12
 #define ST_LSM6DSX_REG_HLACTIVE_MASK		BIT(5)
+#define ST_LSM6DSX_REG_PP_OD_ADDR		0x12
+#define ST_LSM6DSX_REG_PP_OD_MASK		BIT(4)
 #define ST_LSM6DSX_REG_FIFO_MODE_ADDR		0x0a
 #define ST_LSM6DSX_FIFO_MODE_MASK		GENMASK(2, 0)
 #define ST_LSM6DSX_FIFO_ODR_MASK		GENMASK(6, 3)
@@ -417,6 +421,8 @@ static const struct iio_buffer_setup_ops st_lsm6dsx_buffer_ops = {
 
 int st_lsm6dsx_fifo_setup(struct st_lsm6dsx_hw *hw)
 {
+	struct device_node *np = hw->dev->of_node;
+	struct st_sensors_platform_data *pdata;
 	struct iio_buffer *buffer;
 	unsigned long irq_type;
 	bool irq_active_low;
@@ -443,6 +449,17 @@ int st_lsm6dsx_fifo_setup(struct st_lsm6dsx_hw *hw)
 					 irq_active_low);
 	if (err < 0)
 		return err;
+
+	pdata = (struct st_sensors_platform_data *)hw->dev->platform_data;
+	if ((np && of_property_read_bool(np, "drive-open-drain")) ||
+	    (pdata && pdata->open_drain)) {
+		err = st_lsm6dsx_write_with_mask(hw, ST_LSM6DSX_REG_PP_OD_ADDR,
+						 ST_LSM6DSX_REG_PP_OD_MASK, 1);
+		if (err < 0)
+			return err;
+
+		irq_type |= IRQF_SHARED;
+	}
 
 	err = devm_request_threaded_irq(hw->dev, hw->irq,
 					st_lsm6dsx_handler_irq,

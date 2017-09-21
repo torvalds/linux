@@ -1964,7 +1964,7 @@ out:
 	return ret;
 }
 
-static struct v4l2_file_operations dev_fops = {
+static const struct v4l2_file_operations dev_fops = {
 	.owner = THIS_MODULE,
 	.open = dev_open,
 	.release = dev_close,

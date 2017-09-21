@@ -36,7 +36,7 @@
 #include "cobalt-omnitek.h"
 
 /* add your revision and whatnot here */
-static struct pci_device_id cobalt_pci_tbl[] = {
+static const struct pci_device_id cobalt_pci_tbl[] = {
 	{PCI_VENDOR_ID_CISCO, PCI_DEVICE_ID_COBALT,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0,}

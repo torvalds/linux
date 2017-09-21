@@ -15,11 +15,6 @@
  * locked.
  */
 
-static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
-{
-	smp_cond_load_acquire(&lock->lock, !VAL);
-}
-
 #define arch_spin_lock_flags(lock, flags) arch_spin_lock(lock)
 
 #define	arch_read_lock_flags(lock, flags) arch_read_lock(lock)

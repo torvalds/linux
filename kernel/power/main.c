@@ -150,7 +150,7 @@ static ssize_t mem_sleep_store(struct kobject *kobj, struct kobj_attribute *attr
 power_attr(mem_sleep);
 #endif /* CONFIG_SUSPEND */
 
-#ifdef CONFIG_PM_DEBUG
+#ifdef CONFIG_PM_SLEEP_DEBUG
 int pm_test_level = TEST_NONE;
 
 static const char * const pm_tests[__TEST_AFTER_LAST] = {
@@ -211,7 +211,7 @@ static ssize_t pm_test_store(struct kobject *kobj, struct kobj_attribute *attr,
 }
 
 power_attr(pm_test);
-#endif /* CONFIG_PM_DEBUG */
+#endif /* CONFIG_PM_SLEEP_DEBUG */
 
 #ifdef CONFIG_DEBUG_FS
 static char *suspend_step_name(enum suspend_stat_step step)
@@ -360,6 +360,61 @@ static ssize_t pm_wakeup_irq_show(struct kobject *kobj,
 }
 
 power_attr_ro(pm_wakeup_irq);
+
+bool pm_debug_messages_on __read_mostly;
+
+static ssize_t pm_debug_messages_show(struct kobject *kobj,
+				      struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", pm_debug_messages_on);
+}
+
+static ssize_t pm_debug_messages_store(struct kobject *kobj,
+				       struct kobj_attribute *attr,
+				       const char *buf, size_t n)
+{
+	unsigned long val;
+
+	if (kstrtoul(buf, 10, &val))
+		return -EINVAL;
+
+	if (val > 1)
+		return -EINVAL;
+
+	pm_debug_messages_on = !!val;
+	return n;
+}
+
+power_attr(pm_debug_messages);
+
+/**
+ * __pm_pr_dbg - Print a suspend debug message to the kernel log.
+ * @defer: Whether or not to use printk_deferred() to print the message.
+ * @fmt: Message format.
+ *
+ * The message will be emitted if enabled through the pm_debug_messages
+ * sysfs attribute.
+ */
+void __pm_pr_dbg(bool defer, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (!pm_debug_messages_on)
+		return;
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	if (defer)
+		printk_deferred(KERN_DEBUG "PM: %pV", &vaf);
+	else
+		printk(KERN_DEBUG "PM: %pV", &vaf);
+
+	va_end(args);
+}
 
 #else /* !CONFIG_PM_SLEEP_DEBUG */
 static inline void pm_print_times_init(void) {}
@@ -691,12 +746,11 @@ static struct attribute * g[] = {
 	&wake_lock_attr.attr,
 	&wake_unlock_attr.attr,
 #endif
-#ifdef CONFIG_PM_DEBUG
-	&pm_test_attr.attr,
-#endif
 #ifdef CONFIG_PM_SLEEP_DEBUG
+	&pm_test_attr.attr,
 	&pm_print_times_attr.attr,
 	&pm_wakeup_irq_attr.attr,
+	&pm_debug_messages_attr.attr,
 #endif
 #endif
 #ifdef CONFIG_FREEZER

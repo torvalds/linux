@@ -300,6 +300,24 @@ void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta,
 
 	/* stopping might queue the work again - so cancel only afterwards */
 	cancel_work_sync(&sta->ampdu_mlme.work);
+
+	/*
+	 * In case the tear down is part of a reconfigure due to HW restart
+	 * request, it is possible that the low level driver requested to stop
+	 * the BA session, so handle it to properly clean tid_tx data.
+	 */
+	mutex_lock(&sta->ampdu_mlme.mtx);
+	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
+		struct tid_ampdu_tx *tid_tx =
+			rcu_dereference_protected_tid_tx(sta, i);
+
+		if (!tid_tx)
+			continue;
+
+		if (test_and_clear_bit(HT_AGG_STATE_STOP_CB, &tid_tx->state))
+			ieee80211_stop_tx_ba_cb(sta, i, tid_tx);
+	}
+	mutex_unlock(&sta->ampdu_mlme.mtx);
 }
 
 void ieee80211_ba_session_work(struct work_struct *work)
@@ -333,9 +351,9 @@ void ieee80211_ba_session_work(struct work_struct *work)
 
 		if (test_and_clear_bit(tid,
 				       sta->ampdu_mlme.tid_rx_manage_offl))
-			__ieee80211_start_rx_ba_session(sta, 0, 0, 0, 1, tid,
-							IEEE80211_MAX_AMPDU_BUF,
-							false, true);
+			___ieee80211_start_rx_ba_session(sta, 0, 0, 0, 1, tid,
+							 IEEE80211_MAX_AMPDU_BUF,
+							 false, true);
 
 		if (test_and_clear_bit(tid + IEEE80211_NUM_TIDS,
 				       sta->ampdu_mlme.tid_rx_manage_offl))

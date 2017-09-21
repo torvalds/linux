@@ -319,7 +319,6 @@ gov_show_one_common(sampling_rate);
 gov_show_one_common(up_threshold);
 gov_show_one_common(sampling_down_factor);
 gov_show_one_common(ignore_nice_load);
-gov_show_one_common(min_sampling_rate);
 gov_show_one_common(io_is_busy);
 gov_show_one(od, powersave_bias);
 
@@ -329,10 +328,8 @@ gov_attr_rw(up_threshold);
 gov_attr_rw(sampling_down_factor);
 gov_attr_rw(ignore_nice_load);
 gov_attr_rw(powersave_bias);
-gov_attr_ro(min_sampling_rate);
 
 static struct attribute *od_attributes[] = {
-	&min_sampling_rate.attr,
 	&sampling_rate.attr,
 	&up_threshold.attr,
 	&sampling_down_factor.attr,
@@ -373,17 +370,8 @@ static int od_init(struct dbs_data *dbs_data)
 	if (idle_time != -1ULL) {
 		/* Idle micro accounting is supported. Use finer thresholds */
 		dbs_data->up_threshold = MICRO_FREQUENCY_UP_THRESHOLD;
-		/*
-		 * In nohz/micro accounting case we set the minimum frequency
-		 * not depending on HZ, but fixed (very low).
-		*/
-		dbs_data->min_sampling_rate = MICRO_FREQUENCY_MIN_SAMPLE_RATE;
 	} else {
 		dbs_data->up_threshold = DEF_FREQUENCY_UP_THRESHOLD;
-
-		/* For correct statistics, we need 10 ticks for each measure */
-		dbs_data->min_sampling_rate = MIN_SAMPLING_RATE_RATIO *
-			jiffies_to_usecs(10);
 	}
 
 	dbs_data->sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR;

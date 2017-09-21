@@ -687,8 +687,10 @@ EXPORT_SYMBOL(_copy_from_iter_full_nocache);
 
 static inline bool page_copy_sane(struct page *page, size_t offset, size_t n)
 {
-	size_t v = n + offset;
-	if (likely(n <= v && v <= (PAGE_SIZE << compound_order(page))))
+	struct page *head = compound_head(page);
+	size_t v = n + offset + page_address(page) - page_address(head);
+
+	if (likely(n <= v && v <= (PAGE_SIZE << compound_order(head))))
 		return true;
 	WARN_ON(1);
 	return false;

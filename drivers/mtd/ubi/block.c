@@ -383,7 +383,7 @@ int ubiblock_create(struct ubi_volume_info *vi)
 	/* Initialize the gendisk of this ubiblock device */
 	gd = alloc_disk(1);
 	if (!gd) {
-		pr_err("UBI: block: alloc_disk failed");
+		pr_err("UBI: block: alloc_disk failed\n");
 		ret = -ENODEV;
 		goto out_free_dev;
 	}
@@ -607,7 +607,7 @@ static void __init ubiblock_create_from_param(void)
 		desc = open_volume_desc(p->name, p->ubi_num, p->vol_id);
 		if (IS_ERR(desc)) {
 			pr_err(
-			       "UBI: block: can't open volume on ubi%d_%d, err=%ld",
+			       "UBI: block: can't open volume on ubi%d_%d, err=%ld\n",
 			       p->ubi_num, p->vol_id, PTR_ERR(desc));
 			continue;
 		}
@@ -618,7 +618,7 @@ static void __init ubiblock_create_from_param(void)
 		ret = ubiblock_create(&vi);
 		if (ret) {
 			pr_err(
-			       "UBI: block: can't add '%s' volume on ubi%d_%d, err=%d",
+			       "UBI: block: can't add '%s' volume on ubi%d_%d, err=%d\n",
 			       vi.name, p->ubi_num, p->vol_id, ret);
 			continue;
 		}

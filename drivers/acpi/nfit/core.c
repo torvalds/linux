@@ -228,6 +228,10 @@ int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 	if (cmd == ND_CMD_CALL) {
 		call_pkg = buf;
 		func = call_pkg->nd_command;
+
+		for (i = 0; i < ARRAY_SIZE(call_pkg->nd_reserved2); i++)
+			if (call_pkg->nd_reserved2[i])
+				return -EINVAL;
 	}
 
 	if (nvdimm) {
@@ -1674,8 +1678,19 @@ static ssize_t range_index_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(range_index);
 
+static ssize_t ecc_unit_size_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_region *nd_region = to_nd_region(dev);
+	struct nfit_spa *nfit_spa = nd_region_provider_data(nd_region);
+
+	return sprintf(buf, "%d\n", nfit_spa->clear_err_unit);
+}
+static DEVICE_ATTR_RO(ecc_unit_size);
+
 static struct attribute *acpi_nfit_region_attributes[] = {
 	&dev_attr_range_index.attr,
+	&dev_attr_ecc_unit_size.attr,
 	NULL,
 };
 
@@ -1804,6 +1819,7 @@ static int acpi_nfit_init_interleave_set(struct acpi_nfit_desc *acpi_desc,
 		struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
 		struct acpi_nfit_memory_map *memdev = memdev_from_spa(acpi_desc,
 				spa->range_index, i);
+		struct acpi_nfit_control_region *dcr = nfit_mem->dcr;
 
 		if (!memdev || !nfit_mem->dcr) {
 			dev_err(dev, "%s: failed to find DCR\n", __func__);
@@ -1811,13 +1827,13 @@ static int acpi_nfit_init_interleave_set(struct acpi_nfit_desc *acpi_desc,
 		}
 
 		map->region_offset = memdev->region_offset;
-		map->serial_number = nfit_mem->dcr->serial_number;
+		map->serial_number = dcr->serial_number;
 
 		map2->region_offset = memdev->region_offset;
-		map2->serial_number = nfit_mem->dcr->serial_number;
-		map2->vendor_id = nfit_mem->dcr->vendor_id;
-		map2->manufacturing_date = nfit_mem->dcr->manufacturing_date;
-		map2->manufacturing_location = nfit_mem->dcr->manufacturing_location;
+		map2->serial_number = dcr->serial_number;
+		map2->vendor_id = dcr->vendor_id;
+		map2->manufacturing_date = dcr->manufacturing_date;
+		map2->manufacturing_location = dcr->manufacturing_location;
 	}
 
 	/* v1.1 namespaces */
@@ -1834,6 +1850,28 @@ static int acpi_nfit_init_interleave_set(struct acpi_nfit_desc *acpi_desc,
 	sort(&info->mapping[0], nr, sizeof(struct nfit_set_info_map),
 			cmp_map_compat, NULL);
 	nd_set->altcookie = nd_fletcher64(info, sizeof_nfit_set_info(nr), 0);
+
+	/* record the result of the sort for the mapping position */
+	for (i = 0; i < nr; i++) {
+		struct nfit_set_info_map2 *map2 = &info2->mapping[i];
+		int j;
+
+		for (j = 0; j < nr; j++) {
+			struct nd_mapping_desc *mapping = &ndr_desc->mapping[j];
+			struct nvdimm *nvdimm = mapping->nvdimm;
+			struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+			struct acpi_nfit_control_region *dcr = nfit_mem->dcr;
+
+			if (map2->serial_number == dcr->serial_number &&
+			    map2->vendor_id == dcr->vendor_id &&
+			    map2->manufacturing_date == dcr->manufacturing_date &&
+			    map2->manufacturing_location
+				    == dcr->manufacturing_location) {
+				mapping->position = i;
+				break;
+			}
+		}
+	}
 
 	ndr_desc->nd_set = nd_set;
 	devm_kfree(dev, info);
@@ -1930,7 +1968,7 @@ static int acpi_nfit_blk_single_io(struct nfit_blk *nfit_blk,
 			memcpy_flushcache(mmio->addr.aperture + offset, iobuf + copied, c);
 		else {
 			if (nfit_blk->dimm_flags & NFIT_BLK_READ_FLUSH)
-				mmio_flush_range((void __force *)
+				arch_invalidate_pmem((void __force *)
 					mmio->addr.aperture + offset, c);
 
 			memcpy(iobuf + copied, mmio->addr.aperture + offset, c);
@@ -2884,7 +2922,7 @@ static int acpi_nfit_flush_probe(struct nvdimm_bus_descriptor *nd_desc)
 	 * need to be interruptible while waiting.
 	 */
 	INIT_WORK_ONSTACK(&flush.work, flush_probe);
-	COMPLETION_INITIALIZER_ONSTACK(flush.cmp);
+	init_completion(&flush.cmp);
 	queue_work(nfit_wq, &flush.work);
 	mutex_unlock(&acpi_desc->init_mutex);
 

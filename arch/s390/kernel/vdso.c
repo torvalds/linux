@@ -157,6 +157,8 @@ int vdso_alloc_per_cpu(struct lowcore *lowcore)
 	page_frame = get_zeroed_page(GFP_KERNEL);
 	if (!segment_table || !page_table || !page_frame)
 		goto out;
+	arch_set_page_dat(virt_to_page(segment_table), SEGMENT_ORDER);
+	arch_set_page_dat(virt_to_page(page_table), 0);
 
 	/* Initialize per-cpu vdso data page */
 	vd = (struct vdso_per_cpu_data *) page_frame;

@@ -77,58 +77,8 @@ extern void switch_cop(struct mm_struct *next);
 extern int use_cop(unsigned long acop, struct mm_struct *mm);
 extern void drop_cop(unsigned long acop, struct mm_struct *mm);
 
-/*
- * switch_mm is the entry point called from the architecture independent
- * code in kernel/sched/core.c
- */
-static inline void switch_mm_irqs_off(struct mm_struct *prev,
-				      struct mm_struct *next,
-				      struct task_struct *tsk)
-{
-	bool new_on_cpu = false;
-
-	/* Mark this context has been used on the new CPU */
-	if (!cpumask_test_cpu(smp_processor_id(), mm_cpumask(next))) {
-		cpumask_set_cpu(smp_processor_id(), mm_cpumask(next));
-		new_on_cpu = true;
-	}
-
-	/* 32-bit keeps track of the current PGDIR in the thread struct */
-#ifdef CONFIG_PPC32
-	tsk->thread.pgdir = next->pgd;
-#endif /* CONFIG_PPC32 */
-
-	/* 64-bit Book3E keeps track of current PGD in the PACA */
-#ifdef CONFIG_PPC_BOOK3E_64
-	get_paca()->pgd = next->pgd;
-#endif
-	/* Nothing else to do if we aren't actually switching */
-	if (prev == next)
-		return;
-
-#ifdef CONFIG_PPC_ICSWX
-	/* Switch coprocessor context only if prev or next uses a coprocessor */
-	if (prev->context.acop || next->context.acop)
-		switch_cop(next);
-#endif /* CONFIG_PPC_ICSWX */
-
-	/* We must stop all altivec streams before changing the HW
-	 * context
-	 */
-#ifdef CONFIG_ALTIVEC
-	if (cpu_has_feature(CPU_FTR_ALTIVEC))
-		asm volatile ("dssall");
-#endif /* CONFIG_ALTIVEC */
-
-	if (new_on_cpu)
-		radix_kvm_prefetch_workaround(next);
-
-	/*
-	 * The actual HW switching method differs between the various
-	 * sub architectures. Out of line for now
-	 */
-	switch_mmu_context(prev, next, tsk);
-}
+extern void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
+			       struct task_struct *tsk);
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 			     struct task_struct *tsk)
@@ -150,11 +100,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
  */
 static inline void activate_mm(struct mm_struct *prev, struct mm_struct *next)
 {
-	unsigned long flags;
-
-	local_irq_save(flags);
 	switch_mm(prev, next, current);
-	local_irq_restore(flags);
 }
 
 /* We don't currently use enter_lazy_tlb() for anything */

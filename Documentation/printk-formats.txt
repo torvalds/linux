@@ -58,20 +58,33 @@ Symbols/Function Pointers
 	%ps	versatile_init
 	%pB	prev_fn_of_versatile_init+0x88/0x88
 
-For printing symbols and function pointers. The ``S`` and ``s`` specifiers
-result in the symbol name with (``S``) or without (``s``) offsets. Where
-this is used on a kernel without KALLSYMS - the symbol address is
-printed instead.
+The ``F`` and ``f`` specifiers are for printing function pointers,
+for example, f->func, &gettimeofday. They have the same result as
+``S`` and ``s`` specifiers. But they do an extra conversion on
+ia64, ppc64 and parisc64 architectures where the function pointers
+are actually function descriptors.
+
+The ``S`` and ``s`` specifiers can be used for printing symbols
+from direct addresses, for example, __builtin_return_address(0),
+(void *)regs->ip. They result in the symbol name with (``S``) or
+without (``s``) offsets. If KALLSYMS are disabled then the symbol
+address is printed instead.
 
 The ``B`` specifier results in the symbol name with offsets and should be
 used when printing stack backtraces. The specifier takes into
 consideration the effect of compiler optimisations which may occur
 when tail-call``s are used and marked with the noreturn GCC attribute.
 
-On ia64, ppc64 and parisc64 architectures function pointers are
-actually function descriptors which must first be resolved. The ``F`` and
-``f`` specifiers perform this resolution and then provide the same
-functionality as the ``S`` and ``s`` specifiers.
+Examples::
+
+	printk("Going to call: %pF\n", gettimeofday);
+	printk("Going to call: %pF\n", p->func);
+	printk("%s: called from %pS\n", __func__, (void *)_RET_IP_);
+	printk("%s: called from %pS\n", __func__,
+				(void *)__builtin_return_address(0));
+	printk("Faulted at %pS\n", (void *)regs->ip);
+	printk(" %s%pB\n", (reliable ? "" : "? "), (void *)*stack);
+
 
 Kernel Pointers
 ===============

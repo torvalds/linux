@@ -86,9 +86,11 @@ static int bnxt_set_coalesce(struct net_device *dev,
 	if (bp->stats_coal_ticks != coal->stats_block_coalesce_usecs) {
 		u32 stats_ticks = coal->stats_block_coalesce_usecs;
 
-		stats_ticks = clamp_t(u32, stats_ticks,
-				      BNXT_MIN_STATS_COAL_TICKS,
-				      BNXT_MAX_STATS_COAL_TICKS);
+		/* Allow 0, which means disable. */
+		if (stats_ticks)
+			stats_ticks = clamp_t(u32, stats_ticks,
+					      BNXT_MIN_STATS_COAL_TICKS,
+					      BNXT_MAX_STATS_COAL_TICKS);
 		stats_ticks = rounddown(stats_ticks, BNXT_MIN_STATS_COAL_TICKS);
 		bp->stats_coal_ticks = stats_ticks;
 		update_stats = true;
@@ -198,19 +200,23 @@ static const struct {
 
 #define BNXT_NUM_PORT_STATS ARRAY_SIZE(bnxt_port_stats_arr)
 
+static int bnxt_get_num_stats(struct bnxt *bp)
+{
+	int num_stats = BNXT_NUM_STATS * bp->cp_nr_rings;
+
+	if (bp->flags & BNXT_FLAG_PORT_STATS)
+		num_stats += BNXT_NUM_PORT_STATS;
+
+	return num_stats;
+}
+
 static int bnxt_get_sset_count(struct net_device *dev, int sset)
 {
 	struct bnxt *bp = netdev_priv(dev);
 
 	switch (sset) {
-	case ETH_SS_STATS: {
-		int num_stats = BNXT_NUM_STATS * bp->cp_nr_rings;
-
-		if (bp->flags & BNXT_FLAG_PORT_STATS)
-			num_stats += BNXT_NUM_PORT_STATS;
-
-		return num_stats;
-	}
+	case ETH_SS_STATS:
+		return bnxt_get_num_stats(bp);
 	case ETH_SS_TEST:
 		if (!bp->num_tests)
 			return -EOPNOTSUPP;
@@ -225,10 +231,7 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 {
 	u32 i, j = 0;
 	struct bnxt *bp = netdev_priv(dev);
-	u32 buf_size = sizeof(struct ctx_hw_stats) * bp->cp_nr_rings;
 	u32 stat_fields = sizeof(struct ctx_hw_stats) / 8;
-
-	memset(buf, 0, buf_size);
 
 	if (!bp->bnapi)
 		return;
@@ -432,8 +435,7 @@ static int bnxt_set_channels(struct net_device *dev,
 		}
 		tx_xdp = req_rx_rings;
 	}
-	rc = bnxt_reserve_rings(bp, req_tx_rings, req_rx_rings, sh, tcs,
-				tx_xdp);
+	rc = bnxt_check_rings(bp, req_tx_rings, req_rx_rings, sh, tcs, tx_xdp);
 	if (rc) {
 		netdev_warn(dev, "Unable to allocate the requested rings\n");
 		return rc;
@@ -520,7 +522,7 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 	struct flow_keys *fkeys;
 	int i, rc = -EINVAL;
 
-	if (fs->location < 0 || fs->location >= BNXT_NTP_FLTR_MAX_FLTR)
+	if (fs->location >= BNXT_NTP_FLTR_MAX_FLTR)
 		return rc;
 
 	for (i = 0; i < BNXT_NTP_FLTR_HASH_SIZE; i++) {
@@ -835,7 +837,7 @@ static void bnxt_get_drvinfo(struct net_device *dev,
 		strlcpy(info->fw_version, bp->fw_ver_str,
 			sizeof(info->fw_version));
 	strlcpy(info->bus_info, pci_name(bp->pdev), sizeof(info->bus_info));
-	info->n_stats = BNXT_NUM_STATS * bp->cp_nr_rings;
+	info->n_stats = bnxt_get_num_stats(bp);
 	info->testinfo_len = bp->num_tests;
 	/* TODO CHIMP_FW: eeprom dump details */
 	info->eedump_len = 0;

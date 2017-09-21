@@ -96,7 +96,7 @@ static int __init init_inodecache(void)
 					0, (SLAB_RECLAIM_ACCOUNT|
 					SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					init_once);
-	if (isofs_inode_cachep == NULL)
+	if (!isofs_inode_cachep)
 		return -ENOMEM;
 	return 0;
 }
@@ -678,7 +678,7 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 			if (isonum_711(vdp->type) == ISO_VD_END)
 				break;
 			if (isonum_711(vdp->type) == ISO_VD_PRIMARY) {
-				if (pri == NULL) {
+				if (!pri) {
 					pri = (struct iso_primary_descriptor *)vdp;
 					/* Save the buffer in case we need it ... */
 					pri_bh = bh;
@@ -737,12 +737,12 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 
 root_found:
 	/* We don't support read-write mounts */
-	if (!(s->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(s)) {
 		error = -EACCES;
 		goto out_freebh;
 	}
 
-	if (joliet_level && (pri == NULL || !opt.rock)) {
+	if (joliet_level && (!pri || !opt.rock)) {
 		/* This is the case of Joliet with the norock mount flag.
 		 * A disc with both Joliet and Rock Ridge is handled later
 		 */
@@ -1298,7 +1298,7 @@ static int isofs_read_inode(struct inode *inode, int relocated)
 	unsigned long bufsize = ISOFS_BUFFER_SIZE(inode);
 	unsigned long block;
 	int high_sierra = sbi->s_high_sierra;
-	struct buffer_head *bh = NULL;
+	struct buffer_head *bh;
 	struct iso_directory_record *de;
 	struct iso_directory_record *tmpde = NULL;
 	unsigned int de_len;
@@ -1320,8 +1320,7 @@ static int isofs_read_inode(struct inode *inode, int relocated)
 		int frag1 = bufsize - offset;
 
 		tmpde = kmalloc(de_len, GFP_KERNEL);
-		if (tmpde == NULL) {
-			printk(KERN_INFO "%s: out of memory\n", __func__);
+		if (!tmpde) {
 			ret = -ENOMEM;
 			goto fail;
 		}

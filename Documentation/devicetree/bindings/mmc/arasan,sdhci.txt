@@ -74,5 +74,4 @@ Example:
 		phys = <&emmc_phy>;
 		phy-names = "phy_arasan";
 		#clock-cells = <0>;
-		status = "disabled";
 	};

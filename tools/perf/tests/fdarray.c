@@ -26,7 +26,7 @@ static int fdarray__fprintf_prefix(struct fdarray *fda, const char *prefix, FILE
 	return printed + fdarray__fprintf(fda, fp);
 }
 
-int test__fdarray__filter(int subtest __maybe_unused)
+int test__fdarray__filter(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int nr_fds, expected_fd[2], fd, err = TEST_FAIL;
 	struct fdarray *fda = fdarray__new(5, 5);
@@ -104,7 +104,7 @@ out:
 	return err;
 }
 
-int test__fdarray__add(int subtest __maybe_unused)
+int test__fdarray__add(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = TEST_FAIL;
 	struct fdarray *fda = fdarray__new(2, 2);

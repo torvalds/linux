@@ -1159,7 +1159,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	long long x, y;
 	size_t sz;
 
-	c->ro_mount = !!(c->vfs_sb->s_flags & MS_RDONLY);
+	c->ro_mount = !!sb_rdonly(c->vfs_sb);
 	/* Suppress error messages while probing if MS_SILENT is set */
 	c->probing = !!(c->vfs_sb->s_flags & MS_SILENT);
 

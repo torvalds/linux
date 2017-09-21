@@ -33,5 +33,4 @@ hdmicec: cec@100B0000 {
 	hdmi-phandle = <&hdmi>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_cec>;
-	status = "okay";
 };

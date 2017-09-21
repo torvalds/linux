@@ -84,12 +84,12 @@ __print_symbolic(opcode,                                   \
 	wr_opcode_name(RESERVED10))
 
 #define POS_PRN \
-"[%s] wqe %p wr_id %llx send_flags %x qpn %x qpt %u psn %x lpsn %x ssn %x length %u opcode 0x%.2x,%s size %u avail %u head %u last %u pid %u num_sge %u"
+"[%s] wqe %p wr_id %llx send_flags %x qpn %x qpt %u psn %x lpsn %x ssn %x length %u opcode 0x%.2x,%s size %u avail %u head %u last %u pid %u num_sge %u wr_num_sge %u"
 
 TRACE_EVENT(
 	rvt_post_one_wr,
-	TP_PROTO(struct rvt_qp *qp, struct rvt_swqe *wqe),
-	TP_ARGS(qp, wqe),
+	TP_PROTO(struct rvt_qp *qp, struct rvt_swqe *wqe, int wr_num_sge),
+	TP_ARGS(qp, wqe, wr_num_sge),
 	TP_STRUCT__entry(
 		RDI_DEV_ENTRY(ib_to_rvt(qp->ibqp.device))
 		__field(u64, wr_id)
@@ -108,6 +108,7 @@ TRACE_EVENT(
 		__field(int, send_flags)
 		__field(pid_t, pid)
 		__field(int, num_sge)
+		__field(int, wr_num_sge)
 	),
 	TP_fast_assign(
 		RDI_DEV_ASSIGN(ib_to_rvt(qp->ibqp.device))
@@ -127,6 +128,7 @@ TRACE_EVENT(
 		__entry->ssn = wqe->ssn;
 		__entry->send_flags = wqe->wr.send_flags;
 		__entry->num_sge = wqe->wr.num_sge;
+		__entry->wr_num_sge = wr_num_sge;
 	),
 	TP_printk(
 		POS_PRN,
@@ -146,7 +148,8 @@ TRACE_EVENT(
 		__entry->head,
 		__entry->last,
 		__entry->pid,
-		__entry->num_sge
+		__entry->num_sge,
+		__entry->wr_num_sge
 	)
 );
 

@@ -2301,8 +2301,8 @@ static void do_queue_select(struct adapter	*padapter, struct pkt_attrib *pattrib
  */
 s32 rtw_xmit(struct adapter *padapter, _pkt **ppkt)
 {
-	static unsigned long start = 0;
-	static u32 drop_cnt = 0;
+	static unsigned long start;
+	static u32 drop_cnt;
 
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct xmit_frame *pxmitframe = NULL;
@@ -3002,7 +3002,7 @@ int rtw_xmit_thread(void *context)
 
 
 	err = _SUCCESS;
-	padapter = (struct adapter *)context;
+	padapter = context;
 
 	thread_enter("RTW_XMIT_THREAD");
 

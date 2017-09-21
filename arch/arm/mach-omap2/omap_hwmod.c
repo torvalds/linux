@@ -2417,8 +2417,8 @@ static int __init _init_mpu_rt_base(struct omap_hwmod *oh, void *data,
 		if (mem)
 			pr_err("omap_hwmod: %s: Could not ioremap\n", oh->name);
 		else
-			pr_err("omap_hwmod: %s: Missing dt reg%i for %s\n",
-			       oh->name, index, np->full_name);
+			pr_err("omap_hwmod: %s: Missing dt reg%i for %pOF\n",
+			       oh->name, index, np);
 		return -ENXIO;
 	}
 

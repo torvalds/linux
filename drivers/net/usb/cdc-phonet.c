@@ -304,7 +304,7 @@ static void usbpn_setup(struct net_device *dev)
 /*
  * USB driver callbacks
  */
-static struct usb_device_id usbpn_ids[] = {
+static const struct usb_device_id usbpn_ids[] = {
 	{
 		.match_flags = USB_DEVICE_ID_MATCH_VENDOR
 			| USB_DEVICE_ID_MATCH_INT_CLASS

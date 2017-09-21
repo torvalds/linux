@@ -13,10 +13,8 @@ menuconfig HW_RANDOM
 	  that's usually called /dev/hwrng, and which exposes one
 	  of possibly several hardware random number generators.
 
-	  These hardware random number generators do not feed directly
-	  into the kernel's random number generator.  That is usually
-	  handled by the "rngd" daemon.  Documentation/hw_random.txt
-	  has more information.
+	  These hardware random number generators do feed into the
+	  kernel's random number generator entropy pool.
 
 	  If unsure, say Y.
 
@@ -252,6 +250,20 @@ config HW_RANDOM_MXC_RNGA
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mxc-rnga.
+
+	  If unsure, say Y.
+
+config HW_RANDOM_IMX_RNGC
+	tristate "Freescale i.MX RNGC Random Number Generator"
+	depends on ARCH_MXC
+	default HW_RANDOM
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator Version C hardware found on some Freescale i.MX
+	  processors. Version B is also supported by this driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx-rngc.
 
 	  If unsure, say Y.
 

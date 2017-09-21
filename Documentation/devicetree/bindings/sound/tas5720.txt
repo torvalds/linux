@@ -17,7 +17,6 @@ Required properties:
 Example:
 
 tas5720: tas5720@6c {
-	status = "okay";
 	compatible = "ti,tas5720";
 	reg = <0x6c>;
 	dvdd-supply = <&vdd_3v3_reg>;

@@ -24,9 +24,6 @@
  */
 #define MAX_RSP_FQ_BACKLOG_PER_CPU	256
 
-/* Length of a single buffer in the QI driver memory cache */
-#define CAAM_QI_MEMCACHE_SIZE	512
-
 #define CAAM_QI_ENQUEUE_RETRIES	10000
 
 #define CAAM_NAPI_WEIGHT	63
@@ -55,6 +52,7 @@ struct caam_qi_pcpu_priv {
 } ____cacheline_aligned;
 
 static DEFINE_PER_CPU(struct caam_qi_pcpu_priv, pcpu_qipriv);
+static DEFINE_PER_CPU(int, last_cpu);
 
 /*
  * caam_qi_priv - CAAM QI backend private params
@@ -203,8 +201,8 @@ static struct qman_fq *create_caam_req_fq(struct device *qidev,
 		goto init_req_fq_fail;
 	}
 
-	dev_info(qidev, "Allocated request FQ %u for CPU %u\n", req_fq->fqid,
-		 smp_processor_id());
+	dev_dbg(qidev, "Allocated request FQ %u for CPU %u\n", req_fq->fqid,
+		smp_processor_id());
 	return req_fq;
 
 init_req_fq_fail:
@@ -277,6 +275,7 @@ empty_fq:
 		dev_err(qidev, "OOS of FQID: %u failed\n", fq->fqid);
 
 	qman_destroy_fq(fq);
+	kfree(fq);
 
 	return ret;
 }
@@ -342,8 +341,7 @@ int caam_drv_ctx_update(struct caam_drv_ctx *drv_ctx, u32 *sh_desc)
 		drv_ctx->req_fq = old_fq;
 
 		if (kill_fq(qidev, new_fq))
-			dev_warn(qidev, "New CAAM FQ: %u kill failed\n",
-				 new_fq->fqid);
+			dev_warn(qidev, "New CAAM FQ kill failed\n");
 
 		return ret;
 	}
@@ -373,10 +371,9 @@ int caam_drv_ctx_update(struct caam_drv_ctx *drv_ctx, u32 *sh_desc)
 		drv_ctx->req_fq = old_fq;
 
 		if (kill_fq(qidev, new_fq))
-			dev_warn(qidev, "New CAAM FQ: %u kill failed\n",
-				 new_fq->fqid);
+			dev_warn(qidev, "New CAAM FQ kill failed\n");
 	} else if (kill_fq(qidev, old_fq)) {
-		dev_warn(qidev, "Old CAAM FQ: %u kill failed\n", old_fq->fqid);
+		dev_warn(qidev, "Old CAAM FQ kill failed\n");
 	}
 
 	return 0;
@@ -392,7 +389,6 @@ struct caam_drv_ctx *caam_drv_ctx_init(struct device *qidev,
 	dma_addr_t hwdesc;
 	struct caam_drv_ctx *drv_ctx;
 	const cpumask_t *cpus = qman_affine_cpus();
-	static DEFINE_PER_CPU(int, last_cpu);
 
 	num_words = desc_len(sh_desc);
 	if (num_words > MAX_SDLEN) {
@@ -511,7 +507,6 @@ int caam_qi_shutdown(struct device *qidev)
 
 		if (kill_fq(qidev, per_cpu(pcpu_qipriv.rsp_fq, i)))
 			dev_err(qidev, "Rsp FQ kill failed, cpu: %d\n", i);
-		kfree(per_cpu(pcpu_qipriv.rsp_fq, i));
 	}
 
 	/*
@@ -646,7 +641,7 @@ static int alloc_rsp_fq_cpu(struct device *qidev, unsigned int cpu)
 
 	per_cpu(pcpu_qipriv.rsp_fq, cpu) = fq;
 
-	dev_info(qidev, "Allocated response FQ %u for CPU %u", fq->fqid, cpu);
+	dev_dbg(qidev, "Allocated response FQ %u for CPU %u", fq->fqid, cpu);
 	return 0;
 }
 
@@ -679,7 +674,7 @@ static int init_cgr(struct device *qidev)
 		return ret;
 	}
 
-	dev_info(qidev, "Congestion threshold set to %llu\n", val);
+	dev_dbg(qidev, "Congestion threshold set to %llu\n", val);
 	return 0;
 }
 
@@ -737,6 +732,7 @@ int caam_qi_init(struct platform_device *caam_pdev)
 	qi_pdev = platform_device_register_full(&qi_pdev_info);
 	if (IS_ERR(qi_pdev))
 		return PTR_ERR(qi_pdev);
+	set_dma_ops(&qi_pdev->dev, get_dma_ops(ctrldev));
 
 	ctrlpriv = dev_get_drvdata(ctrldev);
 	qidev = &qi_pdev->dev;
@@ -795,10 +791,8 @@ int caam_qi_init(struct platform_device *caam_pdev)
 	/* Done with the CGRs; restore the cpus allowed mask */
 	set_cpus_allowed_ptr(current, &old_cpumask);
 #ifdef CONFIG_DEBUG_FS
-	ctrlpriv->qi_congested = debugfs_create_file("qi_congested", 0444,
-						     ctrlpriv->ctl,
-						     &times_congested,
-						     &caam_fops_u64_ro);
+	debugfs_create_file("qi_congested", 0444, ctrlpriv->ctl,
+			    &times_congested, &caam_fops_u64_ro);
 #endif
 	dev_info(qidev, "Linux CAAM Queue I/F driver initialised\n");
 	return 0;

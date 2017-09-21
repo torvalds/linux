@@ -70,19 +70,19 @@ static int ovl_check_append_only(struct inode *inode, int flag)
 
 static struct dentry *ovl_d_real(struct dentry *dentry,
 				 const struct inode *inode,
-				 unsigned int open_flags)
+				 unsigned int open_flags, unsigned int flags)
 {
 	struct dentry *real;
 	int err;
+
+	if (flags & D_REAL_UPPER)
+		return ovl_dentry_upper(dentry);
 
 	if (!d_is_reg(dentry)) {
 		if (!inode || inode == d_inode(dentry))
 			return dentry;
 		goto bug;
 	}
-
-	if (d_is_negative(dentry))
-		return dentry;
 
 	if (open_flags) {
 		err = ovl_open_maybe_copy_up(dentry, open_flags);
@@ -105,7 +105,7 @@ static struct dentry *ovl_d_real(struct dentry *dentry,
 		goto bug;
 
 	/* Handle recursion */
-	real = d_real(real, inode, open_flags);
+	real = d_real(real, inode, open_flags, 0);
 
 	if (!inode || inode == d_inode(real))
 		return real;
@@ -198,6 +198,7 @@ static void ovl_destroy_inode(struct inode *inode)
 
 	dput(oi->__upperdentry);
 	kfree(oi->redirect);
+	ovl_dir_cache_free(inode);
 	mutex_destroy(&oi->lock);
 
 	call_rcu(&inode->i_rcu, ovl_i_callback);
@@ -869,7 +870,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			goto out_free_config;
 
 		/* Upper fs should not be r/o */
-		if (upperpath.mnt->mnt_sb->s_flags & MS_RDONLY) {
+		if (sb_rdonly(upperpath.mnt->mnt_sb)) {
 			pr_err("overlayfs: upper fs is r/o, try multi-lower layers mount\n");
 			err = -EINVAL;
 			goto out_put_upperpath;

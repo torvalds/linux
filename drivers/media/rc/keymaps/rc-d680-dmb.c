@@ -51,10 +51,10 @@ static struct rc_map_table rc_map_d680_dmb_table[] = {
 
 static struct rc_map_list d680_dmb_map = {
 	.map = {
-		.scan    = rc_map_d680_dmb_table,
-		.size    = ARRAY_SIZE(rc_map_d680_dmb_table),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_D680_DMB,
+		.scan     = rc_map_d680_dmb_table,
+		.size     = ARRAY_SIZE(rc_map_d680_dmb_table),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_D680_DMB,
 	}
 };
 

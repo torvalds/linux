@@ -258,13 +258,15 @@ static int tipc_nl_compat_dumpit(struct tipc_nl_compat_cmd_dump *cmd,
 	arg = nlmsg_new(0, GFP_KERNEL);
 	if (!arg) {
 		kfree_skb(msg->rep);
+		msg->rep = NULL;
 		return -ENOMEM;
 	}
 
 	err = __tipc_nl_compat_dumpit(cmd, msg, arg);
-	if (err)
+	if (err) {
 		kfree_skb(msg->rep);
-
+		msg->rep = NULL;
+	}
 	kfree_skb(arg);
 
 	return err;
@@ -1215,7 +1217,7 @@ send:
 	return err;
 }
 
-static struct genl_ops tipc_genl_compat_ops[] = {
+static const struct genl_ops tipc_genl_compat_ops[] = {
 	{
 		.cmd		= TIPC_GENL_CMD,
 		.doit		= tipc_nl_compat_recv,

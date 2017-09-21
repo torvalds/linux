@@ -335,8 +335,6 @@ static int queue_gso_packets(struct datapath *dp, struct sk_buff *skb,
 			     const struct dp_upcall_info *upcall_info,
 				 uint32_t cutlen)
 {
-	unsigned short gso_type = skb_shinfo(skb)->gso_type;
-	struct sw_flow_key later_key;
 	struct sk_buff *segs, *nskb;
 	int err;
 
@@ -347,21 +345,9 @@ static int queue_gso_packets(struct datapath *dp, struct sk_buff *skb,
 	if (segs == NULL)
 		return -EINVAL;
 
-	if (gso_type & SKB_GSO_UDP) {
-		/* The initial flow key extracted by ovs_flow_key_extract()
-		 * in this case is for a first fragment, so we need to
-		 * properly mark later fragments.
-		 */
-		later_key = *key;
-		later_key.ip.frag = OVS_FRAG_TYPE_LATER;
-	}
-
 	/* Queue all of the segments. */
 	skb = segs;
 	do {
-		if (gso_type & SKB_GSO_UDP && skb != segs)
-			key = &later_key;
-
 		err = queue_userspace_packet(dp, skb, key, upcall_info, cutlen);
 		if (err)
 			break;
@@ -381,7 +367,7 @@ static int queue_gso_packets(struct datapath *dp, struct sk_buff *skb,
 }
 
 static size_t upcall_msg_size(const struct dp_upcall_info *upcall_info,
-			      unsigned int hdrlen)
+			      unsigned int hdrlen, int actions_attrlen)
 {
 	size_t size = NLMSG_ALIGN(sizeof(struct ovs_header))
 		+ nla_total_size(hdrlen) /* OVS_PACKET_ATTR_PACKET */
@@ -398,7 +384,7 @@ static size_t upcall_msg_size(const struct dp_upcall_info *upcall_info,
 
 	/* OVS_PACKET_ATTR_ACTIONS */
 	if (upcall_info->actions_len)
-		size += nla_total_size(upcall_info->actions_len);
+		size += nla_total_size(actions_attrlen);
 
 	/* OVS_PACKET_ATTR_MRU */
 	if (upcall_info->mru)
@@ -465,7 +451,8 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 	else
 		hlen = skb->len;
 
-	len = upcall_msg_size(upcall_info, hlen - cutlen);
+	len = upcall_msg_size(upcall_info, hlen - cutlen,
+			      OVS_CB(skb)->acts_origlen);
 	user_skb = genlmsg_new(len, GFP_ATOMIC);
 	if (!user_skb) {
 		err = -ENOMEM;
@@ -1125,7 +1112,8 @@ static int ovs_nla_init_match_and_action(struct net *net,
 		if (!a[OVS_FLOW_ATTR_KEY]) {
 			OVS_NLERR(log,
 				  "Flow key attribute not present in set flow.");
-			return -EINVAL;
+			error = -EINVAL;
+			goto error;
 		}
 
 		*acts = get_flow_actions(net, a[OVS_FLOW_ATTR_ACTIONS], key,

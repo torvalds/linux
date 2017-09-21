@@ -188,6 +188,8 @@ enum smb_version {
 #ifdef CONFIG_CIFS_SMB311
 	Smb_311,
 #endif /* SMB311 */
+	Smb_3any,
+	Smb_default,
 	Smb_version_err
 };
 
@@ -421,7 +423,7 @@ struct smb_version_operations {
 			size_t, struct cifs_sb_info *);
 	int (*set_EA)(const unsigned int, struct cifs_tcon *, const char *,
 			const char *, const void *, const __u16,
-			const struct nls_table *, int);
+			const struct nls_table *, struct cifs_sb_info *);
 	struct cifs_ntsd * (*get_acl)(struct cifs_sb_info *, struct inode *,
 			const char *, u32 *);
 	struct cifs_ntsd * (*get_acl_by_fid)(struct cifs_sb_info *,
@@ -1701,6 +1703,10 @@ extern struct smb_version_values smb20_values;
 #define SMB21_VERSION_STRING	"2.1"
 extern struct smb_version_operations smb21_operations;
 extern struct smb_version_values smb21_values;
+#define SMBDEFAULT_VERSION_STRING "default"
+extern struct smb_version_values smbdefault_values;
+#define SMB3ANY_VERSION_STRING "3"
+extern struct smb_version_values smb3any_values;
 #define SMB30_VERSION_STRING	"3.0"
 extern struct smb_version_operations smb30_operations;
 extern struct smb_version_values smb30_values;

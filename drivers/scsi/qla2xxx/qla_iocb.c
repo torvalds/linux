@@ -2682,12 +2682,12 @@ qla24xx_ct_iocb(srb_t *sp, struct ct_entry_24xx *ct_iocb)
 	uint32_t        *cur_dsd;
 	struct scatterlist *sg;
 	int index;
-	uint16_t tot_dsds;
+	uint16_t cmd_dsds, rsp_dsds;
 	scsi_qla_host_t *vha = sp->vha;
 	struct qla_hw_data *ha = vha->hw;
 	struct bsg_job *bsg_job = sp->u.bsg_job;
-	int loop_iterartion = 0;
 	int entry_count = 1;
+	cont_a64_entry_t *cont_pkt = NULL;
 
 	ct_iocb->entry_type = CT_IOCB_TYPE;
         ct_iocb->entry_status = 0;
@@ -2698,30 +2698,46 @@ qla24xx_ct_iocb(srb_t *sp, struct ct_entry_24xx *ct_iocb)
 	ct_iocb->vp_index = sp->vha->vp_idx;
 	ct_iocb->comp_status = cpu_to_le16(0);
 
-	ct_iocb->cmd_dsd_count =
-		cpu_to_le16(bsg_job->request_payload.sg_cnt);
+	cmd_dsds = bsg_job->request_payload.sg_cnt;
+	rsp_dsds = bsg_job->reply_payload.sg_cnt;
+
+	ct_iocb->cmd_dsd_count = cpu_to_le16(cmd_dsds);
         ct_iocb->timeout = 0;
-        ct_iocb->rsp_dsd_count =
-		cpu_to_le16(bsg_job->reply_payload.sg_cnt);
-        ct_iocb->rsp_byte_count =
-            cpu_to_le32(bsg_job->reply_payload.payload_len);
+	ct_iocb->rsp_dsd_count = cpu_to_le16(rsp_dsds);
         ct_iocb->cmd_byte_count =
             cpu_to_le32(bsg_job->request_payload.payload_len);
-        ct_iocb->dseg_0_address[0] = cpu_to_le32(LSD(sg_dma_address
-            (bsg_job->request_payload.sg_list)));
-        ct_iocb->dseg_0_address[1] = cpu_to_le32(MSD(sg_dma_address
-           (bsg_job->request_payload.sg_list)));
-        ct_iocb->dseg_0_len = cpu_to_le32(sg_dma_len
-            (bsg_job->request_payload.sg_list));
 
-	avail_dsds = 1;
-	cur_dsd = (uint32_t *)ct_iocb->dseg_1_address;
+	avail_dsds = 2;
+	cur_dsd = (uint32_t *)ct_iocb->dseg_0_address;
 	index = 0;
-	tot_dsds = bsg_job->reply_payload.sg_cnt;
 
-	for_each_sg(bsg_job->reply_payload.sg_list, sg, tot_dsds, index) {
+	for_each_sg(bsg_job->request_payload.sg_list, sg, cmd_dsds, index) {
 		dma_addr_t       sle_dma;
-		cont_a64_entry_t *cont_pkt;
+
+		/* Allocate additional continuation packets? */
+		if (avail_dsds == 0) {
+			/*
+			 * Five DSDs are available in the Cont.
+			 * Type 1 IOCB.
+			 */
+			cont_pkt = qla2x00_prep_cont_type1_iocb(
+			    vha, ha->req_q_map[0]);
+			cur_dsd = (uint32_t *) cont_pkt->dseg_0_address;
+			avail_dsds = 5;
+			entry_count++;
+		}
+
+		sle_dma = sg_dma_address(sg);
+		*cur_dsd++   = cpu_to_le32(LSD(sle_dma));
+		*cur_dsd++   = cpu_to_le32(MSD(sle_dma));
+		*cur_dsd++   = cpu_to_le32(sg_dma_len(sg));
+		avail_dsds--;
+	}
+
+	index = 0;
+
+	for_each_sg(bsg_job->reply_payload.sg_list, sg, rsp_dsds, index) {
+		dma_addr_t       sle_dma;
 
 		/* Allocate additional continuation packets? */
 		if (avail_dsds == 0) {
@@ -2740,7 +2756,6 @@ qla24xx_ct_iocb(srb_t *sp, struct ct_entry_24xx *ct_iocb)
 		*cur_dsd++   = cpu_to_le32(LSD(sle_dma));
 		*cur_dsd++   = cpu_to_le32(MSD(sle_dma));
 		*cur_dsd++   = cpu_to_le32(sg_dma_len(sg));
-		loop_iterartion++;
 		avail_dsds--;
 	}
         ct_iocb->entry_count = entry_count;

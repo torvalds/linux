@@ -602,7 +602,7 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 	int i, has_io, has_mem;
-	unsigned int cmd;
+	unsigned int cmd = 0;
 	struct linux_pcic *pcic;
 	/* struct linux_pbm_info* pbm = &pcic->pbm; */
 	int node;
@@ -745,12 +745,6 @@ static void watchdog_reset() {
 	writeb(0, pcic->pcic_regs+PCI_SYS_STATUS);
 }
 #endif
-
-resource_size_t pcibios_align_resource(void *data, const struct resource *res,
-				resource_size_t size, resource_size_t align)
-{
-	return res->start;
-}
 
 int pcibios_enable_device(struct pci_dev *pdev, int mask)
 {

@@ -107,6 +107,9 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 #define V_IRQ_SHIFT 8
 #define V_IRQ_MASK (1 << V_IRQ_SHIFT)
 
+#define V_GIF_SHIFT 9
+#define V_GIF_MASK (1 << V_GIF_SHIFT)
+
 #define V_INTR_PRIO_SHIFT 16
 #define V_INTR_PRIO_MASK (0x0f << V_INTR_PRIO_SHIFT)
 
@@ -115,6 +118,9 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 
 #define V_INTR_MASKING_SHIFT 24
 #define V_INTR_MASKING_MASK (1 << V_INTR_MASKING_SHIFT)
+
+#define V_GIF_ENABLE_SHIFT 25
+#define V_GIF_ENABLE_MASK (1 << V_GIF_ENABLE_SHIFT)
 
 #define AVIC_ENABLE_SHIFT 31
 #define AVIC_ENABLE_MASK (1 << AVIC_ENABLE_SHIFT)

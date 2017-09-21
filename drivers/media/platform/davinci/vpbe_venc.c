@@ -36,7 +36,7 @@
 
 #define MODULE_NAME	"davinci-vpbe-venc"
 
-static struct platform_device_id vpbe_venc_devtype[] = {
+static const struct platform_device_id vpbe_venc_devtype[] = {
 	{
 		.name = DM644X_VPBE_VENC_SUBDEV_NAME,
 		.driver_data = VPBE_VERSION_1,

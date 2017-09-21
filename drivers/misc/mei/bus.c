@@ -845,7 +845,7 @@ static void mei_cl_bus_dev_release(struct device *dev)
 	kfree(cldev);
 }
 
-static struct device_type mei_cl_device_type = {
+static const struct device_type mei_cl_device_type = {
 	.release	= mei_cl_bus_dev_release,
 };
 

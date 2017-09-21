@@ -643,17 +643,9 @@ static int nvme_nvm_submit_user_cmd(struct request_queue *q,
 			vcmd->ph_rw.metadata = cpu_to_le64(metadata_dma);
 		}
 
-		if (!disk)
-			goto submit;
-
-		bio->bi_bdev = bdget_disk(disk, 0);
-		if (!bio->bi_bdev) {
-			ret = -ENODEV;
-			goto err_meta;
-		}
+		bio->bi_disk = disk;
 	}
 
-submit:
 	blk_execute_rq(q, NULL, rq, 0);
 
 	if (nvme_req(rq)->flags & NVME_REQ_CANCELLED)
@@ -673,11 +665,8 @@ err_meta:
 	if (meta_buf && meta_len)
 		dma_pool_free(dev->dma_pool, metadata, metadata_dma);
 err_map:
-	if (bio) {
-		if (disk && bio->bi_bdev)
-			bdput(bio->bi_bdev);
+	if (bio)
 		blk_rq_unmap_user(bio);
-	}
 err_ppa:
 	if (ppa_buf && ppa_len)
 		dma_pool_free(dev->dma_pool, ppa_list, ppa_dma);
@@ -965,30 +954,4 @@ void nvme_nvm_unregister_sysfs(struct nvme_ns *ns)
 {
 	sysfs_remove_group(&disk_to_dev(ns->disk)->kobj,
 					&nvm_dev_attr_group);
-}
-
-/* move to shared place when used in multiple places. */
-#define PCI_VENDOR_ID_CNEX 0x1d1d
-#define PCI_DEVICE_ID_CNEX_WL 0x2807
-#define PCI_DEVICE_ID_CNEX_QEMU 0x1f1f
-
-int nvme_nvm_ns_supported(struct nvme_ns *ns, struct nvme_id_ns *id)
-{
-	struct nvme_ctrl *ctrl = ns->ctrl;
-	/* XXX: this is poking into PCI structures from generic code! */
-	struct pci_dev *pdev = to_pci_dev(ctrl->dev);
-
-	/* QEMU NVMe simulator - PCI ID + Vendor specific bit */
-	if (pdev->vendor == PCI_VENDOR_ID_CNEX &&
-				pdev->device == PCI_DEVICE_ID_CNEX_QEMU &&
-							id->vs[0] == 0x1)
-		return 1;
-
-	/* CNEX Labs - PCI ID + Vendor specific bit */
-	if (pdev->vendor == PCI_VENDOR_ID_CNEX &&
-				pdev->device == PCI_DEVICE_ID_CNEX_WL &&
-							id->vs[0] == 0x1)
-		return 1;
-
-	return 0;
 }

@@ -63,10 +63,19 @@ config GENERIC_IRQ_CHIP
 config IRQ_DOMAIN
 	bool
 
+# Support for simulated interrupts
+config IRQ_SIM
+	bool
+	select IRQ_WORK
+
 # Support for hierarchical irq domains
 config IRQ_DOMAIN_HIERARCHY
 	bool
 	select IRQ_DOMAIN
+
+# Support for hierarchical fasteoi+edge and fasteoi+level handlers
+config IRQ_FASTEOI_HIERARCHY_HANDLERS
+	bool
 
 # Generic IRQ IPI support
 config GENERIC_IRQ_IPI

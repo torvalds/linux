@@ -36,6 +36,7 @@
 	cpus: cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		enable-method = "brcm,bcm2836-smp";
 
 		v7_cpu0: cpu@0 {
 			device_type = "cpu";

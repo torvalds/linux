@@ -872,15 +872,13 @@ asmlinkage long syscall_trace_enter(struct pt_regs *regs, long syscall)
 	if (unlikely(test_thread_flag(TIF_SECCOMP))) {
 		int ret, i;
 		struct seccomp_data sd;
+		unsigned long args[6];
 
 		sd.nr = syscall;
 		sd.arch = syscall_get_arch();
-		for (i = 0; i < 6; i++) {
-			unsigned long v, r;
-
-			r = mips_get_syscall_arg(&v, current, regs, i);
-			sd.args[i] = r ? 0 : v;
-		}
+		syscall_get_arguments(current, regs, 0, 6, args);
+		for (i = 0; i < 6; i++)
+			sd.args[i] = args[i];
 		sd.instruction_pointer = KSTK_EIP(current);
 
 		ret = __secure_computing(&sd);

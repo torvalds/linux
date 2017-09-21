@@ -1,7 +1,7 @@
 /*
  * aesce-ccm-core.S - AES-CCM transform for ARMv8 with Crypto Extensions
  *
- * Copyright (C) 2013 - 2014 Linaro Ltd <ard.biesheuvel@linaro.org>
+ * Copyright (C) 2013 - 2017 Linaro Ltd <ard.biesheuvel@linaro.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -32,7 +32,7 @@ ENTRY(ce_aes_ccm_auth_data)
 	beq	8f				/* out of input? */
 	cbnz	w8, 0b
 	eor	v0.16b, v0.16b, v1.16b
-1:	ld1	{v3.16b}, [x4]			/* load first round key */
+1:	ld1	{v3.4s}, [x4]			/* load first round key */
 	prfm	pldl1strm, [x1]
 	cmp	w5, #12				/* which key size? */
 	add	x6, x4, #16
@@ -42,17 +42,17 @@ ENTRY(ce_aes_ccm_auth_data)
 	mov	v5.16b, v3.16b
 	b	4f
 2:	mov	v4.16b, v3.16b
-	ld1	{v5.16b}, [x6], #16		/* load 2nd round key */
+	ld1	{v5.4s}, [x6], #16		/* load 2nd round key */
 3:	aese	v0.16b, v4.16b
 	aesmc	v0.16b, v0.16b
-4:	ld1	{v3.16b}, [x6], #16		/* load next round key */
+4:	ld1	{v3.4s}, [x6], #16		/* load next round key */
 	aese	v0.16b, v5.16b
 	aesmc	v0.16b, v0.16b
-5:	ld1	{v4.16b}, [x6], #16		/* load next round key */
+5:	ld1	{v4.4s}, [x6], #16		/* load next round key */
 	subs	w7, w7, #3
 	aese	v0.16b, v3.16b
 	aesmc	v0.16b, v0.16b
-	ld1	{v5.16b}, [x6], #16		/* load next round key */
+	ld1	{v5.4s}, [x6], #16		/* load next round key */
 	bpl	3b
 	aese	v0.16b, v4.16b
 	subs	w2, w2, #16			/* last data? */
@@ -90,7 +90,7 @@ ENDPROC(ce_aes_ccm_auth_data)
 	 * 			 u32 rounds);
 	 */
 ENTRY(ce_aes_ccm_final)
-	ld1	{v3.16b}, [x2], #16		/* load first round key */
+	ld1	{v3.4s}, [x2], #16		/* load first round key */
 	ld1	{v0.16b}, [x0]			/* load mac */
 	cmp	w3, #12				/* which key size? */
 	sub	w3, w3, #2			/* modified # of rounds */
@@ -100,17 +100,17 @@ ENTRY(ce_aes_ccm_final)
 	mov	v5.16b, v3.16b
 	b	2f
 0:	mov	v4.16b, v3.16b
-1:	ld1	{v5.16b}, [x2], #16		/* load next round key */
+1:	ld1	{v5.4s}, [x2], #16		/* load next round key */
 	aese	v0.16b, v4.16b
 	aesmc	v0.16b, v0.16b
 	aese	v1.16b, v4.16b
 	aesmc	v1.16b, v1.16b
-2:	ld1	{v3.16b}, [x2], #16		/* load next round key */
+2:	ld1	{v3.4s}, [x2], #16		/* load next round key */
 	aese	v0.16b, v5.16b
 	aesmc	v0.16b, v0.16b
 	aese	v1.16b, v5.16b
 	aesmc	v1.16b, v1.16b
-3:	ld1	{v4.16b}, [x2], #16		/* load next round key */
+3:	ld1	{v4.4s}, [x2], #16		/* load next round key */
 	subs	w3, w3, #3
 	aese	v0.16b, v3.16b
 	aesmc	v0.16b, v0.16b
@@ -137,31 +137,31 @@ CPU_LE(	rev	x8, x8			)	/* keep swabbed ctr in reg */
 	cmp	w4, #12				/* which key size? */
 	sub	w7, w4, #2			/* get modified # of rounds */
 	ins	v1.d[1], x9			/* no carry in lower ctr */
-	ld1	{v3.16b}, [x3]			/* load first round key */
+	ld1	{v3.4s}, [x3]			/* load first round key */
 	add	x10, x3, #16
 	bmi	1f
 	bne	4f
 	mov	v5.16b, v3.16b
 	b	3f
 1:	mov	v4.16b, v3.16b
-	ld1	{v5.16b}, [x10], #16		/* load 2nd round key */
+	ld1	{v5.4s}, [x10], #16		/* load 2nd round key */
 2:	/* inner loop: 3 rounds, 2x interleaved */
 	aese	v0.16b, v4.16b
 	aesmc	v0.16b, v0.16b
 	aese	v1.16b, v4.16b
 	aesmc	v1.16b, v1.16b
-3:	ld1	{v3.16b}, [x10], #16		/* load next round key */
+3:	ld1	{v3.4s}, [x10], #16		/* load next round key */
 	aese	v0.16b, v5.16b
 	aesmc	v0.16b, v0.16b
 	aese	v1.16b, v5.16b
 	aesmc	v1.16b, v1.16b
-4:	ld1	{v4.16b}, [x10], #16		/* load next round key */
+4:	ld1	{v4.4s}, [x10], #16		/* load next round key */
 	subs	w7, w7, #3
 	aese	v0.16b, v3.16b
 	aesmc	v0.16b, v0.16b
 	aese	v1.16b, v3.16b
 	aesmc	v1.16b, v1.16b
-	ld1	{v5.16b}, [x10], #16		/* load next round key */
+	ld1	{v5.4s}, [x10], #16		/* load next round key */
 	bpl	2b
 	aese	v0.16b, v4.16b
 	aese	v1.16b, v4.16b

@@ -322,47 +322,6 @@ static inline struct kvm *mmu_notifier_to_kvm(struct mmu_notifier *mn)
 	return container_of(mn, struct kvm, mmu_notifier);
 }
 
-static void kvm_mmu_notifier_invalidate_page(struct mmu_notifier *mn,
-					     struct mm_struct *mm,
-					     unsigned long address)
-{
-	struct kvm *kvm = mmu_notifier_to_kvm(mn);
-	int need_tlb_flush, idx;
-
-	/*
-	 * When ->invalidate_page runs, the linux pte has been zapped
-	 * already but the page is still allocated until
-	 * ->invalidate_page returns. So if we increase the sequence
-	 * here the kvm page fault will notice if the spte can't be
-	 * established because the page is going to be freed. If
-	 * instead the kvm page fault establishes the spte before
-	 * ->invalidate_page runs, kvm_unmap_hva will release it
-	 * before returning.
-	 *
-	 * The sequence increase only need to be seen at spin_unlock
-	 * time, and not at spin_lock time.
-	 *
-	 * Increasing the sequence after the spin_unlock would be
-	 * unsafe because the kvm page fault could then establish the
-	 * pte after kvm_unmap_hva returned, without noticing the page
-	 * is going to be freed.
-	 */
-	idx = srcu_read_lock(&kvm->srcu);
-	spin_lock(&kvm->mmu_lock);
-
-	kvm->mmu_notifier_seq++;
-	need_tlb_flush = kvm_unmap_hva(kvm, address) | kvm->tlbs_dirty;
-	/* we've to flush the tlb before the pages can be freed */
-	if (need_tlb_flush)
-		kvm_flush_remote_tlbs(kvm);
-
-	spin_unlock(&kvm->mmu_lock);
-
-	kvm_arch_mmu_notifier_invalidate_page(kvm, address);
-
-	srcu_read_unlock(&kvm->srcu, idx);
-}
-
 static void kvm_mmu_notifier_change_pte(struct mmu_notifier *mn,
 					struct mm_struct *mm,
 					unsigned long address,
@@ -510,7 +469,6 @@ static void kvm_mmu_notifier_release(struct mmu_notifier *mn,
 }
 
 static const struct mmu_notifier_ops kvm_mmu_notifier_ops = {
-	.invalidate_page	= kvm_mmu_notifier_invalidate_page,
 	.invalidate_range_start	= kvm_mmu_notifier_invalidate_range_start,
 	.invalidate_range_end	= kvm_mmu_notifier_invalidate_range_end,
 	.clear_flush_young	= kvm_mmu_notifier_clear_flush_young,
@@ -716,6 +674,7 @@ out_err_no_irq_srcu:
 out_err_no_srcu:
 	hardware_disable_all();
 out_err_no_disable:
+	refcount_set(&kvm->users_count, 0);
 	for (i = 0; i < KVM_NR_BUSES; i++)
 		kfree(kvm_get_bus(kvm, i));
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++)
@@ -1651,7 +1610,7 @@ int gfn_to_page_many_atomic(struct kvm_memory_slot *slot, gfn_t gfn,
 			    struct page **pages, int nr_pages)
 {
 	unsigned long addr;
-	gfn_t entry;
+	gfn_t entry = 0;
 
 	addr = gfn_to_hva_many(slot, gfn, &entry);
 	if (kvm_is_error_hva(addr))
@@ -1970,6 +1929,7 @@ static int __kvm_gfn_to_hva_cache_init(struct kvm_memslots *slots,
 		 * verify that the entire region is valid here.
 		 */
 		while (start_gfn <= end_gfn) {
+			nr_pages_avail = 0;
 			ghc->memslot = __gfn_to_memslot(slots, start_gfn);
 			ghc->hva = gfn_to_hva_many(ghc->memslot, start_gfn,
 						   &nr_pages_avail);
@@ -2227,7 +2187,7 @@ bool kvm_vcpu_wake_up(struct kvm_vcpu *vcpu)
 	struct swait_queue_head *wqp;
 
 	wqp = kvm_arch_vcpu_wq(vcpu);
-	if (swait_active(wqp)) {
+	if (swq_has_sleeper(wqp)) {
 		swake_up(wqp);
 		++vcpu->stat.halt_wakeup;
 		return true;
@@ -2317,7 +2277,7 @@ static bool kvm_vcpu_eligible_for_directed_yield(struct kvm_vcpu *vcpu)
 #endif
 }
 
-void kvm_vcpu_on_spin(struct kvm_vcpu *me)
+void kvm_vcpu_on_spin(struct kvm_vcpu *me, bool yield_to_kernel_mode)
 {
 	struct kvm *kvm = me->kvm;
 	struct kvm_vcpu *vcpu;
@@ -2347,6 +2307,8 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 			if (vcpu == me)
 				continue;
 			if (swait_active(&vcpu->wq) && !kvm_arch_vcpu_runnable(vcpu))
+				continue;
+			if (yield_to_kernel_mode && !kvm_arch_vcpu_in_kernel(vcpu))
 				continue;
 			if (!kvm_vcpu_eligible_for_directed_yield(vcpu))
 				continue;

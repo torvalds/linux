@@ -579,8 +579,8 @@ static int mal_probe(struct platform_device *ofdev)
 		mal->features |= (MAL_FTR_CLEAR_ICINTSTAT |
 				MAL_FTR_COMMON_ERR_INT);
 #else
-		printk(KERN_ERR "%s: Support for 405EZ not enabled!\n",
-				ofdev->dev.of_node->full_name);
+		printk(KERN_ERR "%pOF: Support for 405EZ not enabled!\n",
+				ofdev->dev.of_node);
 		err = -ENODEV;
 		goto fail;
 #endif
@@ -687,8 +687,8 @@ static int mal_probe(struct platform_device *ofdev)
 	mal_enable_eob_irq(mal);
 
 	printk(KERN_INFO
-	       "MAL v%d %s, %d TX channels, %d RX channels\n",
-	       mal->version, ofdev->dev.of_node->full_name,
+	       "MAL v%d %pOF, %d TX channels, %d RX channels\n",
+	       mal->version, ofdev->dev.of_node,
 	       mal->num_tx_chans, mal->num_rx_chans);
 
 	/* Advertise this instance to the rest of the world */

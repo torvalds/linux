@@ -204,11 +204,6 @@ int dw9718_q_focus_status(struct v4l2_subdev *sd, s32 *value)
 	return 0;
 }
 
-int dw9718_t_focus_vcm(struct v4l2_subdev *sd, u16 val)
-{
-	return -EINVAL;
-}
-
 int dw9718_t_focus_rel(struct v4l2_subdev *sd, s32 value)
 {
 	return dw9718_t_focus_abs(sd, dw9718_dev.focus + value);

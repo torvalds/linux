@@ -409,17 +409,30 @@ static int xenon_emmc_phy_config_tuning(struct sdhci_host *host)
 	return 0;
 }
 
-static void xenon_emmc_phy_disable_data_strobe(struct sdhci_host *host)
+static void xenon_emmc_phy_disable_strobe(struct sdhci_host *host)
 {
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	u32 reg;
 
-	/* Disable SDHC Data Strobe */
+	/* Disable both SDHC Data Strobe and Enhanced Strobe */
 	reg = sdhci_readl(host, XENON_SLOT_EMMC_CTRL);
-	reg &= ~XENON_ENABLE_DATA_STROBE;
+	reg &= ~(XENON_ENABLE_DATA_STROBE | XENON_ENABLE_RESP_STROBE);
 	sdhci_writel(host, reg, XENON_SLOT_EMMC_CTRL);
+
+	/* Clear Strobe line Pull down or Pull up */
+	if (priv->phy_type == EMMC_5_0_PHY) {
+		reg = sdhci_readl(host, XENON_EMMC_5_0_PHY_PAD_CONTROL);
+		reg &= ~(XENON_EMMC5_FC_QSP_PD | XENON_EMMC5_FC_QSP_PU);
+		sdhci_writel(host, reg, XENON_EMMC_5_0_PHY_PAD_CONTROL);
+	} else {
+		reg = sdhci_readl(host, XENON_EMMC_PHY_PAD_CONTROL1);
+		reg &= ~(XENON_EMMC5_1_FC_QSP_PD | XENON_EMMC5_1_FC_QSP_PU);
+		sdhci_writel(host, reg, XENON_EMMC_PHY_PAD_CONTROL1);
+	}
 }
 
-/* Set HS400 Data Strobe */
+/* Set HS400 Data Strobe and Enhanced Strobe */
 static void xenon_emmc_phy_strobe_delay_adj(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -439,6 +452,15 @@ static void xenon_emmc_phy_strobe_delay_adj(struct sdhci_host *host)
 	/* Enable SDHC Data Strobe */
 	reg = sdhci_readl(host, XENON_SLOT_EMMC_CTRL);
 	reg |= XENON_ENABLE_DATA_STROBE;
+	/*
+	 * Enable SDHC Enhanced Strobe if supported
+	 * Xenon Enhanced Strobe should be enabled only when
+	 * 1. card is in HS400 mode and
+	 * 2. SDCLK is higher than 52MHz
+	 * 3. DLL is enabled
+	 */
+	if (host->mmc->ios.enhanced_strobe)
+		reg |= XENON_ENABLE_RESP_STROBE;
 	sdhci_writel(host, reg, XENON_SLOT_EMMC_CTRL);
 
 	/* Set Data Strobe Pull down */
@@ -615,7 +637,7 @@ static void xenon_emmc_phy_set(struct sdhci_host *host,
 		sdhci_writel(host, phy_regs->logic_timing_val,
 			     phy_regs->logic_timing_adj);
 	else
-		xenon_emmc_phy_disable_data_strobe(host);
+		xenon_emmc_phy_disable_strobe(host);
 
 phy_init:
 	xenon_emmc_phy_init(host);
@@ -705,7 +727,7 @@ void xenon_soc_pad_ctrl(struct sdhci_host *host,
 
 /*
  * Setting PHY when card is working in High Speed Mode.
- * HS400 set data strobe line.
+ * HS400 set Data Strobe and Enhanced Strobe if it is supported.
  * HS200/SDR104 set tuning config to prepare for tuning.
  */
 static int xenon_hs_delay_adj(struct sdhci_host *host)

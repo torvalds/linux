@@ -485,7 +485,7 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 		goto exit_free_irq;
 	}
 
-	tsd->rst = devm_reset_control_get(&pdev->dev, "spi");
+	tsd->rst = devm_reset_control_get_exclusive(&pdev->dev, "spi");
 	if (IS_ERR(tsd->rst)) {
 		dev_err(&pdev->dev, "can not get reset\n");
 		ret = PTR_ERR(tsd->rst);

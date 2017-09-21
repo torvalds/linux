@@ -52,6 +52,7 @@
 	clocks {
 		mmc_clk: mmc_clk {
 			compatible = "fixed-clock";
+			#clock-cells = <0>;
 			clock-frequency = <50000000>;
 			clock-output-names = "mmc_clk";
 		};
@@ -359,20 +360,6 @@
 		interrupts = <31 0x4 15 0x84>;
 	};
 
-	mmc0: sdhci@020c0000 {
-		compatible	= "st,sdhci-stih407", "st,sdhci";
-		status		= "disabled";
-		reg		= <0x020c0000 0x20000>;
-		reg-names	= "mmc";
-		interrupt-parent = <&UIC1_3>;
-		interrupts	= <21 0x4 22 0x4>;
-		interrupt-names	= "mmcirq";
-		pinctrl-names	= "default";
-		pinctrl-0	= <>;
-		clock-names	= "mmc";
-		clocks		= <&mmc_clk>;
-	};
-
 	plb6 {
 		compatible = "ibm,plb6";
 		#address-cells = <2>;
@@ -499,6 +486,24 @@
 					 /*SERR*/  2 &UIC1_2 15 0x4
 					 /*TXDE*/  3 &UIC1_2 14 0x4
 					 /*RXDE*/  4 &UIC1_2 13 0x4>;
+		};
+
+		mmc0: mmc@20c0000 {
+			compatible	= "st,sdhci-stih407", "st,sdhci";
+			reg		= <0x020c0000 0x20000>;
+			reg-names	= "mmc";
+			interrupts	= <21 0x4>;
+			interrupt-parent = <&UIC1_3>;
+			interrupt-names	= "mmcirq";
+			pinctrl-names	= "default";
+			pinctrl-0	= <>;
+			clock-names	= "mmc";
+			clocks		= <&mmc_clk>;
+			bus-width	= <4>;
+			non-removable;
+			sd-uhs-sdr50;
+			sd-uhs-sdr104;
+			sd-uhs-ddr50;
 		};
 
 		opb {

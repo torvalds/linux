@@ -354,3 +354,16 @@ err_alloc:
 	return err;
 }
 EXPORT_SYMBOL_GPL(hci_uart_register_device);
+
+void hci_uart_unregister_device(struct hci_uart *hu)
+{
+	struct hci_dev *hdev = hu->hdev;
+
+	hci_unregister_dev(hdev);
+	hci_free_dev(hdev);
+
+	cancel_work_sync(&hu->write_work);
+
+	hu->proto->close(hu);
+}
+EXPORT_SYMBOL_GPL(hci_uart_unregister_device);

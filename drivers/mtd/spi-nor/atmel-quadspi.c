@@ -35,7 +35,6 @@
 
 #include <linux/io.h>
 #include <linux/gpio.h>
-#include <linux/pinctrl/consumer.h>
 
 /* QSPI register offsets */
 #define QSPI_CR      0x0000  /* Control Register */

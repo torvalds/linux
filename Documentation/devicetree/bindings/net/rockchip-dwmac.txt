@@ -10,6 +10,7 @@ Required properties:
    "rockchip,rk3366-gmac": found on RK3366 SoCs
    "rockchip,rk3368-gmac": found on RK3368 SoCs
    "rockchip,rk3399-gmac": found on RK3399 SoCs
+   "rockchip,rv1108-gmac": found on RV1108 SoCs
  - reg: addresses and length of the register sets for the device.
  - interrupts: Should contain the GMAC interrupts.
  - interrupt-names: Should contain the interrupt names "macirq".
@@ -70,5 +71,4 @@ gmac: ethernet@ff290000 {
 	tx_delay = <0x30>;
 	rx_delay = <0x10>;
 
-	status = "ok";
 };

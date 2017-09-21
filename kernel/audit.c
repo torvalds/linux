@@ -1662,7 +1662,7 @@ static inline void audit_get_stamp(struct audit_context *ctx,
 				   struct timespec64 *t, unsigned int *serial)
 {
 	if (!ctx || !auditsc_get_stamp(ctx, t, serial)) {
-		ktime_get_real_ts64(t);
+		*t = current_kernel_time64();
 		*serial = audit_serial();
 	}
 }
@@ -1833,7 +1833,7 @@ void audit_log_format(struct audit_buffer *ab, const char *fmt, ...)
 }
 
 /**
- * audit_log_hex - convert a buffer to hex and append it to the audit skb
+ * audit_log_n_hex - convert a buffer to hex and append it to the audit skb
  * @ab: the audit_buffer
  * @buf: buffer to convert to hex
  * @len: length of @buf to be converted

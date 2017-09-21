@@ -131,7 +131,7 @@ void new_thread_handler(void)
 	 * callback returns only if the kernel thread execs a process
 	 */
 	n = fn(arg);
-	userspace(&current->thread.regs.regs);
+	userspace(&current->thread.regs.regs, current_thread_info()->aux_fp_regs);
 }
 
 /* Called magically, see new_thread_handler above */
@@ -150,7 +150,7 @@ void fork_handler(void)
 
 	current->thread.prev_sched = NULL;
 
-	userspace(&current->thread.regs.regs);
+	userspace(&current->thread.regs.regs, current_thread_info()->aux_fp_regs);
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long sp,

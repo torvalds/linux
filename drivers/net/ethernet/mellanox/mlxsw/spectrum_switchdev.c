@@ -705,6 +705,7 @@ static int mlxsw_sp_port_attr_mc_router_set(struct mlxsw_sp_port *mlxsw_sp_port,
 					    bool is_port_mc_router)
 {
 	struct mlxsw_sp_bridge_port *bridge_port;
+	int err;
 
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
@@ -715,11 +716,17 @@ static int mlxsw_sp_port_attr_mc_router_set(struct mlxsw_sp_port *mlxsw_sp_port,
 		return 0;
 
 	if (!bridge_port->bridge_device->multicast_enabled)
-		return 0;
+		goto out;
 
-	return mlxsw_sp_bridge_port_flood_table_set(mlxsw_sp_port, bridge_port,
-						    MLXSW_SP_FLOOD_TYPE_MC,
-						    is_port_mc_router);
+	err = mlxsw_sp_bridge_port_flood_table_set(mlxsw_sp_port, bridge_port,
+						   MLXSW_SP_FLOOD_TYPE_MC,
+						   is_port_mc_router);
+	if (err)
+		return err;
+
+out:
+	bridge_port->mrouter = is_port_mc_router;
+	return 0;
 }
 
 static int mlxsw_sp_port_mc_disabled_set(struct mlxsw_sp_port *mlxsw_sp_port,

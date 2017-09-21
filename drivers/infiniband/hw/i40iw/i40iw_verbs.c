@@ -2584,13 +2584,12 @@ static const char * const i40iw_hw_stat_names[] = {
 		"iwRdmaInv"
 };
 
-static void i40iw_get_dev_fw_str(struct ib_device *dev, char *str,
-				 size_t str_len)
+static void i40iw_get_dev_fw_str(struct ib_device *dev, char *str)
 {
 	u32 firmware_version = I40IW_FW_VERSION;
 
-	snprintf(str, str_len, "%u.%u", firmware_version,
-		       (firmware_version & 0x000000ff));
+	snprintf(str, IB_FW_VERSION_NAME_MAX, "%u.%u", firmware_version,
+		 (firmware_version & 0x000000ff));
 }
 
 /**

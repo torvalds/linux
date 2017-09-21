@@ -250,7 +250,7 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_ssiu *ssiu;
-	static struct rsnd_mod_ops *ops;
+	struct rsnd_mod_ops *ops;
 	int i, nr, ret;
 
 	/* same number to SSI */

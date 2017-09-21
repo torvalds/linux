@@ -29,6 +29,7 @@
 #include <net/sch_generic.h>
 #include <net/pkt_sched.h>
 #include <net/dst.h>
+#include <trace/events/qdisc.h>
 
 /* Qdisc to use by default */
 const struct Qdisc_ops *default_qdisc_ops = &pfifo_fast_ops;
@@ -126,7 +127,7 @@ static struct sk_buff *dequeue_skb(struct Qdisc *q, bool *validate,
 			q->q.qlen--;
 		} else
 			skb = NULL;
-		return skb;
+		goto trace;
 	}
 	*validate = true;
 	skb = q->skb_bad_txq;
@@ -139,7 +140,8 @@ static struct sk_buff *dequeue_skb(struct Qdisc *q, bool *validate,
 			q->q.qlen--;
 			goto bulk;
 		}
-		return NULL;
+		skb = NULL;
+		goto trace;
 	}
 	if (!(q->flags & TCQ_F_ONETXQUEUE) ||
 	    !netif_xmit_frozen_or_stopped(txq))
@@ -151,6 +153,8 @@ bulk:
 		else
 			try_bulk_dequeue_skb_slow(q, skb, packets);
 	}
+trace:
+	trace_qdisc_dequeue(q, txq, *packets, skb);
 	return skb;
 }
 
@@ -785,7 +789,7 @@ static void attach_default_qdiscs(struct net_device *dev)
 	    dev->priv_flags & IFF_NO_QUEUE) {
 		netdev_for_each_tx_queue(dev, attach_one_default_qdisc, NULL);
 		dev->qdisc = txq->qdisc_sleeping;
-		refcount_inc(&dev->qdisc->refcnt);
+		qdisc_refcount_inc(dev->qdisc);
 	} else {
 		qdisc = qdisc_create_dflt(txq, &mq_qdisc_ops, TC_H_ROOT);
 		if (qdisc) {

@@ -309,7 +309,7 @@ static void mark_fsinfo_dirty(struct super_block *sb)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 
-	if (sb->s_flags & MS_RDONLY || sbi->fat_bits != 32)
+	if (sb_rdonly(sb) || sbi->fat_bits != 32)
 		return;
 
 	__mark_inode_dirty(sbi->fsinfo_inode, I_DIRTY_SYNC);

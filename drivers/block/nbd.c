@@ -128,7 +128,7 @@ static struct dentry *nbd_dbg_dir;
 #define NBD_MAGIC 0x68797548
 
 static unsigned int nbds_max = 16;
-static int max_part;
+static int max_part = 16;
 static struct workqueue_struct *recv_workqueue;
 static int part_shift;
 
@@ -165,7 +165,7 @@ static ssize_t pid_show(struct device *dev,
 	return sprintf(buf, "%d\n", task_pid_nr(nbd->task_recv));
 }
 
-static struct device_attribute pid_attr = {
+static const struct device_attribute pid_attr = {
 	.attr = { .name = "pid", .mode = S_IRUGO},
 	.show = pid_show,
 };
@@ -1584,6 +1584,15 @@ again:
 		}
 	} else {
 		nbd = idr_find(&nbd_index_idr, index);
+		if (!nbd) {
+			ret = nbd_dev_add(index);
+			if (ret < 0) {
+				mutex_unlock(&nbd_index_mutex);
+				printk(KERN_ERR "nbd: failed to add new device\n");
+				return ret;
+			}
+			nbd = idr_find(&nbd_index_idr, index);
+		}
 	}
 	if (!nbd) {
 		printk(KERN_ERR "nbd: couldn't find device at index %d\n",
@@ -2137,4 +2146,4 @@ MODULE_LICENSE("GPL");
 module_param(nbds_max, int, 0444);
 MODULE_PARM_DESC(nbds_max, "number of network block devices to initialize (default: 16)");
 module_param(max_part, int, 0444);
-MODULE_PARM_DESC(max_part, "number of partitions per device (default: 0)");
+MODULE_PARM_DESC(max_part, "number of partitions per device (default: 16)");

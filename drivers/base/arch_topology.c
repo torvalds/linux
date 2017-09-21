@@ -41,8 +41,7 @@ static ssize_t cpu_capacity_show(struct device *dev,
 {
 	struct cpu *cpu = container_of(dev, struct cpu, dev);
 
-	return sprintf(buf, "%lu\n",
-			topology_get_cpu_scale(NULL, cpu->dev.id));
+	return sprintf(buf, "%lu\n", topology_get_cpu_scale(NULL, cpu->dev.id));
 }
 
 static ssize_t cpu_capacity_store(struct device *dev,
@@ -96,14 +95,21 @@ subsys_initcall(register_cpu_capacity_sysctl);
 
 static u32 capacity_scale;
 static u32 *raw_capacity;
-static bool cap_parsing_failed;
+
+static int __init free_raw_capacity(void)
+{
+	kfree(raw_capacity);
+	raw_capacity = NULL;
+
+	return 0;
+}
 
 void topology_normalize_cpu_scale(void)
 {
 	u64 capacity;
 	int cpu;
 
-	if (!raw_capacity || cap_parsing_failed)
+	if (!raw_capacity)
 		return;
 
 	pr_debug("cpu_capacity: capacity_scale=%u\n", capacity_scale);
@@ -120,16 +126,16 @@ void topology_normalize_cpu_scale(void)
 	mutex_unlock(&cpu_scale_mutex);
 }
 
-int __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
+bool __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
 {
-	int ret = 1;
+	static bool cap_parsing_failed;
+	int ret;
 	u32 cpu_capacity;
 
 	if (cap_parsing_failed)
-		return !ret;
+		return false;
 
-	ret = of_property_read_u32(cpu_node,
-				   "capacity-dmips-mhz",
+	ret = of_property_read_u32(cpu_node, "capacity-dmips-mhz",
 				   &cpu_capacity);
 	if (!ret) {
 		if (!raw_capacity) {
@@ -139,21 +145,21 @@ int __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
 			if (!raw_capacity) {
 				pr_err("cpu_capacity: failed to allocate memory for raw capacities\n");
 				cap_parsing_failed = true;
-				return 0;
+				return false;
 			}
 		}
 		capacity_scale = max(cpu_capacity, capacity_scale);
 		raw_capacity[cpu] = cpu_capacity;
-		pr_debug("cpu_capacity: %s cpu_capacity=%u (raw)\n",
-			cpu_node->full_name, raw_capacity[cpu]);
+		pr_debug("cpu_capacity: %pOF cpu_capacity=%u (raw)\n",
+			cpu_node, raw_capacity[cpu]);
 	} else {
 		if (raw_capacity) {
-			pr_err("cpu_capacity: missing %s raw capacity\n",
-				cpu_node->full_name);
+			pr_err("cpu_capacity: missing %pOF raw capacity\n",
+				cpu_node);
 			pr_err("cpu_capacity: partial information: fallback to 1024 for all CPUs\n");
 		}
 		cap_parsing_failed = true;
-		kfree(raw_capacity);
+		free_raw_capacity();
 	}
 
 	return !ret;
@@ -161,7 +167,6 @@ int __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
 
 #ifdef CONFIG_CPU_FREQ
 static cpumask_var_t cpus_to_visit;
-static bool cap_parsing_done;
 static void parsing_done_workfn(struct work_struct *work);
 static DECLARE_WORK(parsing_done_work, parsing_done_workfn);
 
@@ -173,30 +178,31 @@ init_cpu_capacity_callback(struct notifier_block *nb,
 	struct cpufreq_policy *policy = data;
 	int cpu;
 
-	if (cap_parsing_failed || cap_parsing_done)
+	if (!raw_capacity)
 		return 0;
 
-	switch (val) {
-	case CPUFREQ_NOTIFY:
-		pr_debug("cpu_capacity: init cpu capacity for CPUs [%*pbl] (to_visit=%*pbl)\n",
-				cpumask_pr_args(policy->related_cpus),
-				cpumask_pr_args(cpus_to_visit));
-		cpumask_andnot(cpus_to_visit,
-			       cpus_to_visit,
-			       policy->related_cpus);
-		for_each_cpu(cpu, policy->related_cpus) {
-			raw_capacity[cpu] = topology_get_cpu_scale(NULL, cpu) *
-					    policy->cpuinfo.max_freq / 1000UL;
-			capacity_scale = max(raw_capacity[cpu], capacity_scale);
-		}
-		if (cpumask_empty(cpus_to_visit)) {
-			topology_normalize_cpu_scale();
-			kfree(raw_capacity);
-			pr_debug("cpu_capacity: parsing done\n");
-			cap_parsing_done = true;
-			schedule_work(&parsing_done_work);
-		}
+	if (val != CPUFREQ_NOTIFY)
+		return 0;
+
+	pr_debug("cpu_capacity: init cpu capacity for CPUs [%*pbl] (to_visit=%*pbl)\n",
+		 cpumask_pr_args(policy->related_cpus),
+		 cpumask_pr_args(cpus_to_visit));
+
+	cpumask_andnot(cpus_to_visit, cpus_to_visit, policy->related_cpus);
+
+	for_each_cpu(cpu, policy->related_cpus) {
+		raw_capacity[cpu] = topology_get_cpu_scale(NULL, cpu) *
+				    policy->cpuinfo.max_freq / 1000UL;
+		capacity_scale = max(raw_capacity[cpu], capacity_scale);
 	}
+
+	if (cpumask_empty(cpus_to_visit)) {
+		topology_normalize_cpu_scale();
+		free_raw_capacity();
+		pr_debug("cpu_capacity: parsing done\n");
+		schedule_work(&parsing_done_work);
+	}
+
 	return 0;
 }
 
@@ -233,11 +239,5 @@ static void parsing_done_workfn(struct work_struct *work)
 }
 
 #else
-static int __init free_raw_capacity(void)
-{
-	kfree(raw_capacity);
-
-	return 0;
-}
 core_initcall(free_raw_capacity);
 #endif

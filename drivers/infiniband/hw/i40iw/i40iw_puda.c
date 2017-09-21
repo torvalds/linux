@@ -685,7 +685,7 @@ static enum i40iw_status_code i40iw_puda_cq_create(struct i40iw_puda_rsrc *rsrc)
 	cqsize = rsrc->cq_size * (sizeof(struct i40iw_cqe));
 	tsize = cqsize + sizeof(struct i40iw_cq_shadow_area);
 	ret = i40iw_allocate_dma_mem(dev->hw, &rsrc->cqmem, tsize,
-				     I40IW_CQ0_ALIGNMENT_MASK);
+				     I40IW_CQ0_ALIGNMENT);
 	if (ret)
 		return ret;
 
@@ -949,14 +949,16 @@ enum i40iw_status_code i40iw_puda_create_rsrc(struct i40iw_sc_vsi *vsi,
 		ret = i40iw_puda_qp_create(rsrc);
 	}
 	if (ret) {
-		i40iw_debug(dev, I40IW_DEBUG_PUDA, "[%s] error qp_create\n", __func__);
+		i40iw_debug(dev, I40IW_DEBUG_PUDA, "[%s] error qp_create\n",
+			    __func__);
 		goto error;
 	}
 	rsrc->completion = PUDA_QP_CREATED;
 
 	ret = i40iw_puda_allocbufs(rsrc, info->tx_buf_cnt + info->rq_size);
 	if (ret) {
-		i40iw_debug(dev, I40IW_DEBUG_PUDA, "[%s] error allloc_buf\n", __func__);
+		i40iw_debug(dev, I40IW_DEBUG_PUDA, "[%s] error alloc_buf\n",
+			    __func__);
 		goto error;
 	}
 

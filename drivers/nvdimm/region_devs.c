@@ -723,8 +723,9 @@ static ssize_t mappingN(struct device *dev, char *buf, int n)
 	nd_mapping = &nd_region->mapping[n];
 	nvdimm = nd_mapping->nvdimm;
 
-	return sprintf(buf, "%s,%llu,%llu\n", dev_name(&nvdimm->dev),
-			nd_mapping->start, nd_mapping->size);
+	return sprintf(buf, "%s,%llu,%llu,%d\n", dev_name(&nvdimm->dev),
+			nd_mapping->start, nd_mapping->size,
+			nd_mapping->position);
 }
 
 #define REGION_MAPPING(idx) \
@@ -965,6 +966,7 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 		nd_region->mapping[i].nvdimm = nvdimm;
 		nd_region->mapping[i].start = mapping->start;
 		nd_region->mapping[i].size = mapping->size;
+		nd_region->mapping[i].position = mapping->position;
 		INIT_LIST_HEAD(&nd_region->mapping[i].labels);
 		mutex_init(&nd_region->mapping[i].lock);
 

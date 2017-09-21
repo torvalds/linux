@@ -2388,7 +2388,7 @@ static u32 dib7000p_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm dib7090_tuner_xfer_algo = {
+static const struct i2c_algorithm dib7090_tuner_xfer_algo = {
 	.master_xfer = dib7090_tuner_xfer,
 	.functionality = dib7000p_i2c_func,
 };

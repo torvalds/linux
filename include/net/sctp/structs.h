@@ -150,18 +150,18 @@ extern struct sctp_globals {
 #define sctp_checksum_disable		(sctp_globals.checksum_disable)
 
 /* SCTP Socket type: UDP or TCP style. */
-typedef enum {
+enum sctp_socket_type {
 	SCTP_SOCKET_UDP = 0,
 	SCTP_SOCKET_UDP_HIGH_BANDWIDTH,
 	SCTP_SOCKET_TCP
-} sctp_socket_type_t;
+};
 
 /* Per socket SCTP information. */
 struct sctp_sock {
 	/* inet_sock has to be the first member of sctp_sock */
 	struct inet_sock inet;
 	/* What kind of a socket is this? */
-	sctp_socket_type_t type;
+	enum sctp_socket_type type;
 
 	/* PF_ family specific functions.  */
 	struct sctp_pf *pf;
@@ -371,12 +371,12 @@ union sctp_params {
  *    chunk is sent and the destination transport address to which this
  *    HEARTBEAT is sent (see Section 8.3).
  */
-typedef struct sctp_sender_hb_info {
+struct sctp_sender_hb_info {
 	struct sctp_paramhdr param_hdr;
 	union sctp_addr daddr;
 	unsigned long sent_at;
 	__u64 hb_nonce;
-} sctp_sender_hb_info_t;
+};
 
 int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
 		     gfp_t gfp);
@@ -449,7 +449,7 @@ struct sctp_af {
 	int		(*addr_valid)	(union sctp_addr *,
 					 struct sctp_sock *,
 					 const struct sk_buff *);
-	sctp_scope_t	(*scope) (union sctp_addr *);
+	enum sctp_scope	(*scope)(union sctp_addr *);
 	void		(*inaddr_any)	(union sctp_addr *, __be16);
 	int		(*is_any)	(const union sctp_addr *);
 	int		(*available)	(union sctp_addr *,
@@ -657,8 +657,6 @@ struct sctp_sockaddr_entry {
 
 #define SCTP_ADDRESS_TICK_DELAY	500
 
-typedef struct sctp_chunk *(sctp_packet_phandler_t)(struct sctp_association *);
-
 /* This structure holds lists of chunks as we are assembling for
  * transmission.
  */
@@ -697,10 +695,11 @@ struct sctp_packet {
 void sctp_packet_init(struct sctp_packet *, struct sctp_transport *,
 		      __u16 sport, __u16 dport);
 void sctp_packet_config(struct sctp_packet *, __u32 vtag, int);
-sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *,
-				       struct sctp_chunk *, int, gfp_t);
-sctp_xmit_t sctp_packet_append_chunk(struct sctp_packet *,
-                                     struct sctp_chunk *);
+enum sctp_xmit sctp_packet_transmit_chunk(struct sctp_packet *packet,
+					  struct sctp_chunk *chunk,
+					  int one_packet, gfp_t gfp);
+enum sctp_xmit sctp_packet_append_chunk(struct sctp_packet *packet,
+					struct sctp_chunk *chunk);
 int sctp_packet_transmit(struct sctp_packet *, gfp_t);
 void sctp_packet_free(struct sctp_packet *);
 
@@ -950,7 +949,8 @@ int sctp_transport_hold(struct sctp_transport *);
 void sctp_transport_put(struct sctp_transport *);
 void sctp_transport_update_rto(struct sctp_transport *, __u32);
 void sctp_transport_raise_cwnd(struct sctp_transport *, __u32, __u32);
-void sctp_transport_lower_cwnd(struct sctp_transport *, sctp_lower_cwnd_t);
+void sctp_transport_lower_cwnd(struct sctp_transport *t,
+			       enum sctp_lower_cwnd reason);
 void sctp_transport_burst_limited(struct sctp_transport *);
 void sctp_transport_burst_reset(struct sctp_transport *);
 unsigned long sctp_transport_timeout(struct sctp_transport *);
@@ -1053,8 +1053,8 @@ int sctp_outq_sack(struct sctp_outq *, struct sctp_chunk *);
 int sctp_outq_is_empty(const struct sctp_outq *);
 void sctp_outq_restart(struct sctp_outq *);
 
-void sctp_retransmit(struct sctp_outq *, struct sctp_transport *,
-		     sctp_retransmit_reason_t);
+void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
+		     enum sctp_retransmit_reason reason);
 void sctp_retransmit_mark(struct sctp_outq *, struct sctp_transport *, __u8);
 void sctp_outq_uncork(struct sctp_outq *, gfp_t gfp);
 void sctp_prsctp_prune(struct sctp_association *asoc,
@@ -1110,7 +1110,7 @@ void sctp_bind_addr_init(struct sctp_bind_addr *, __u16 port);
 void sctp_bind_addr_free(struct sctp_bind_addr *);
 int sctp_bind_addr_copy(struct net *net, struct sctp_bind_addr *dest,
 			const struct sctp_bind_addr *src,
-			sctp_scope_t scope, gfp_t gfp,
+			enum sctp_scope scope, gfp_t gfp,
 			int flags);
 int sctp_bind_addr_dup(struct sctp_bind_addr *dest,
 			const struct sctp_bind_addr *src,
@@ -1134,17 +1134,18 @@ union sctp_params sctp_bind_addrs_to_raw(const struct sctp_bind_addr *bp,
 int sctp_raw_to_bind_addrs(struct sctp_bind_addr *bp, __u8 *raw, int len,
 			   __u16 port, gfp_t gfp);
 
-sctp_scope_t sctp_scope(const union sctp_addr *);
-int sctp_in_scope(struct net *net, const union sctp_addr *addr, const sctp_scope_t scope);
+enum sctp_scope sctp_scope(const union sctp_addr *addr);
+int sctp_in_scope(struct net *net, const union sctp_addr *addr,
+		  const enum sctp_scope scope);
 int sctp_is_any(struct sock *sk, const union sctp_addr *addr);
 int sctp_is_ep_boundall(struct sock *sk);
 
 
 /* What type of endpoint?  */
-typedef enum {
+enum sctp_endpoint_type {
 	SCTP_EP_TYPE_SOCKET,
 	SCTP_EP_TYPE_ASSOCIATION,
-} sctp_endpoint_type_t;
+};
 
 /*
  * A common base class to bridge the implmentation view of a
@@ -1168,7 +1169,7 @@ struct sctp_ep_common {
 	int hashent;
 
 	/* Runtime type information.  What kind of endpoint is this? */
-	sctp_endpoint_type_t type;
+	enum sctp_endpoint_type type;
 
 	/* Some fields to help us manage this object.
 	 *   refcnt   - Reference count access to this object.
@@ -1556,9 +1557,9 @@ struct sctp_association {
 		 * and authenticated chunk list.  All that is part of the
 		 * cookie and these are just pointers to those locations
 		 */
-		sctp_random_param_t *peer_random;
-		sctp_chunks_param_t *peer_chunks;
-		sctp_hmac_algo_param_t *peer_hmacs;
+		struct sctp_random_param *peer_random;
+		struct sctp_chunks_param *peer_chunks;
+		struct sctp_hmac_algo_param *peer_hmacs;
 	} peer;
 
 	/* State       : A state variable indicating what state the
@@ -1574,7 +1575,7 @@ struct sctp_association {
 	 *
 	 *		State takes values from SCTP_STATE_*.
 	 */
-	sctp_state_t state;
+	enum sctp_state state;
 
 	/* Overall     : The overall association error count.
 	 * Error Count : [Clear this any time I get something.]
@@ -1924,8 +1925,8 @@ static inline struct sctp_association *sctp_assoc(struct sctp_ep_common *base)
 
 
 struct sctp_association *
-sctp_association_new(const struct sctp_endpoint *, const struct sock *,
-		     sctp_scope_t scope, gfp_t gfp);
+sctp_association_new(const struct sctp_endpoint *ep, const struct sock *sk,
+		     enum sctp_scope scope, gfp_t gfp);
 void sctp_association_free(struct sctp_association *);
 void sctp_association_put(struct sctp_association *);
 void sctp_association_hold(struct sctp_association *);
@@ -1945,9 +1946,10 @@ void sctp_assoc_del_peer(struct sctp_association *asoc,
 			 const union sctp_addr *addr);
 void sctp_assoc_rm_peer(struct sctp_association *asoc,
 			 struct sctp_transport *peer);
-void sctp_assoc_control_transport(struct sctp_association *,
-				  struct sctp_transport *,
-				  sctp_transport_cmd_t, sctp_sn_error_t);
+void sctp_assoc_control_transport(struct sctp_association *asoc,
+				  struct sctp_transport *transport,
+				  enum sctp_transport_cmd command,
+				  sctp_sn_error_t error);
 struct sctp_transport *sctp_assoc_lookup_tsn(struct sctp_association *, __u32);
 struct sctp_transport *sctp_assoc_is_match(struct sctp_association *,
 					   struct net *,
@@ -1966,8 +1968,8 @@ void sctp_assoc_set_primary(struct sctp_association *,
 			    struct sctp_transport *);
 void sctp_assoc_del_nonprimary_peers(struct sctp_association *,
 				    struct sctp_transport *);
-int sctp_assoc_set_bind_addr_from_ep(struct sctp_association *,
-				     sctp_scope_t, gfp_t);
+int sctp_assoc_set_bind_addr_from_ep(struct sctp_association *asoc,
+				     enum sctp_scope scope, gfp_t gfp);
 int sctp_assoc_set_bind_addr_from_cookie(struct sctp_association *,
 					 struct sctp_cookie*,
 					 gfp_t gfp);
@@ -1983,16 +1985,16 @@ int sctp_cmp_addr_exact(const union sctp_addr *ss1,
 struct sctp_chunk *sctp_get_ecne_prepend(struct sctp_association *asoc);
 
 /* A convenience structure to parse out SCTP specific CMSGs. */
-typedef struct sctp_cmsgs {
+struct sctp_cmsgs {
 	struct sctp_initmsg *init;
 	struct sctp_sndrcvinfo *srinfo;
 	struct sctp_sndinfo *sinfo;
-} sctp_cmsgs_t;
+};
 
 /* Structure for tracking memory objects */
-typedef struct {
+struct sctp_dbg_objcnt_entry {
 	char *label;
 	atomic_t *counter;
-} sctp_dbg_objcnt_entry_t;
+};
 
 #endif /* __sctp_structs_h__ */

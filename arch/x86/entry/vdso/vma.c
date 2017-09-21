@@ -351,7 +351,7 @@ static void vgetcpu_cpu_init(void *arg)
 	 * and 8 bits for the node)
 	 */
 	d.limit0 = cpu | ((node & 0xf) << 12);
-	d.limit = node >> 4;
+	d.limit1 = node >> 4;
 	d.type = 5;		/* RO data, expand down, accessed */
 	d.dpl = 3;		/* Visible to user code */
 	d.s = 1;		/* Not a system segment */

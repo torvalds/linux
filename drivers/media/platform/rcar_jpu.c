@@ -1506,7 +1506,7 @@ static void jpu_job_abort(void *priv)
 		jpu_cleanup(ctx, true);
 }
 
-static struct v4l2_m2m_ops jpu_m2m_ops = {
+static const struct v4l2_m2m_ops jpu_m2m_ops = {
 	.device_run	= jpu_device_run,
 	.job_ready	= jpu_job_ready,
 	.job_abort	= jpu_job_abort,

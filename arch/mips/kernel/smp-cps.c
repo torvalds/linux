@@ -11,7 +11,6 @@
 #include <linux/cpu.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/irqchip/mips-gic.h>
 #include <linux/sched/task_stack.h>
 #include <linux/sched/hotplug.h>
 #include <linux/slab.h>
@@ -19,8 +18,7 @@
 #include <linux/types.h>
 
 #include <asm/bcache.h>
-#include <asm/mips-cm.h>
-#include <asm/mips-cpc.h>
+#include <asm/mips-cps.h>
 #include <asm/mips_mt.h>
 #include <asm/mipsregs.h>
 #include <asm/pm-cps.h>
@@ -41,55 +39,58 @@ static int __init setup_nothreads(char *s)
 }
 early_param("nothreads", setup_nothreads);
 
-static unsigned core_vpe_count(unsigned core)
+static unsigned core_vpe_count(unsigned int cluster, unsigned core)
 {
-	unsigned cfg;
-
 	if (threads_disabled)
 		return 1;
 
-	if ((!IS_ENABLED(CONFIG_MIPS_MT_SMP) || !cpu_has_mipsmt)
-		&& (!IS_ENABLED(CONFIG_CPU_MIPSR6) || !cpu_has_vp))
-		return 1;
-
-	mips_cm_lock_other(core, 0);
-	cfg = read_gcr_co_config() & CM_GCR_Cx_CONFIG_PVPE_MSK;
-	mips_cm_unlock_other();
-	return (cfg >> CM_GCR_Cx_CONFIG_PVPE_SHF) + 1;
+	return mips_cps_numvps(cluster, core);
 }
 
 static void __init cps_smp_setup(void)
 {
-	unsigned int ncores, nvpes, core_vpes;
+	unsigned int nclusters, ncores, nvpes, core_vpes;
 	unsigned long core_entry;
-	int c, v;
+	int cl, c, v;
 
 	/* Detect & record VPE topology */
-	ncores = mips_cm_numcores();
+	nvpes = 0;
+	nclusters = mips_cps_numclusters();
 	pr_info("%s topology ", cpu_has_mips_r6 ? "VP" : "VPE");
-	for (c = nvpes = 0; c < ncores; c++) {
-		core_vpes = core_vpe_count(c);
-		pr_cont("%c%u", c ? ',' : '{', core_vpes);
+	for (cl = 0; cl < nclusters; cl++) {
+		if (cl > 0)
+			pr_cont(",");
+		pr_cont("{");
 
-		/* Use the number of VPEs in core 0 for smp_num_siblings */
-		if (!c)
-			smp_num_siblings = core_vpes;
+		ncores = mips_cps_numcores(cl);
+		for (c = 0; c < ncores; c++) {
+			core_vpes = core_vpe_count(cl, c);
 
-		for (v = 0; v < min_t(int, core_vpes, NR_CPUS - nvpes); v++) {
-			cpu_data[nvpes + v].core = c;
-#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_CPU_MIPSR6)
-			cpu_data[nvpes + v].vpe_id = v;
-#endif
+			if (c > 0)
+				pr_cont(",");
+			pr_cont("%u", core_vpes);
+
+			/* Use the number of VPEs in cluster 0 core 0 for smp_num_siblings */
+			if (!cl && !c)
+				smp_num_siblings = core_vpes;
+
+			for (v = 0; v < min_t(int, core_vpes, NR_CPUS - nvpes); v++) {
+				cpu_set_cluster(&cpu_data[nvpes + v], cl);
+				cpu_set_core(&cpu_data[nvpes + v], c);
+				cpu_set_vpe_id(&cpu_data[nvpes + v], v);
+			}
+
+			nvpes += core_vpes;
 		}
 
-		nvpes += core_vpes;
+		pr_cont("}");
 	}
-	pr_cont("} total %u\n", nvpes);
+	pr_cont(" total %u\n", nvpes);
 
 	/* Indicate present CPUs (CPU being synonymous with VPE) */
 	for (v = 0; v < min_t(unsigned, nvpes, NR_CPUS); v++) {
-		set_cpu_possible(v, true);
-		set_cpu_present(v, true);
+		set_cpu_possible(v, cpu_cluster(&cpu_data[v]) == 0);
+		set_cpu_present(v, cpu_cluster(&cpu_data[v]) == 0);
 		__cpu_number_map[v] = v;
 		__cpu_logical_map[v] = v;
 	}
@@ -121,7 +122,7 @@ static void __init cps_smp_setup(void)
 static void __init cps_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned ncores, core_vpes, c, cca;
-	bool cca_unsuitable;
+	bool cca_unsuitable, cores_limited;
 	u32 *entry_code;
 
 	mips_mt_set_cpuoptions();
@@ -141,18 +142,21 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 	}
 
 	/* Warn the user if the CCA prevents multi-core */
-	ncores = mips_cm_numcores();
-	if ((cca_unsuitable || cpu_has_dc_aliases) && ncores > 1) {
+	cores_limited = false;
+	if (cca_unsuitable || cpu_has_dc_aliases) {
+		for_each_present_cpu(c) {
+			if (cpus_are_siblings(smp_processor_id(), c))
+				continue;
+
+			set_cpu_present(c, false);
+			cores_limited = true;
+		}
+	}
+	if (cores_limited)
 		pr_warn("Using only one core due to %s%s%s\n",
 			cca_unsuitable ? "unsuitable CCA" : "",
 			(cca_unsuitable && cpu_has_dc_aliases) ? " & " : "",
 			cpu_has_dc_aliases ? "dcache aliasing" : "");
-
-		for_each_present_cpu(c) {
-			if (cpu_data[c].core)
-				set_cpu_present(c, false);
-		}
-	}
 
 	/*
 	 * Patch the start of mips_cps_core_entry to provide:
@@ -168,6 +172,7 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 	__sync();
 
 	/* Allocate core boot configuration structs */
+	ncores = mips_cps_numcores(0);
 	mips_cps_core_bootcfg = kcalloc(ncores, sizeof(*mips_cps_core_bootcfg),
 					GFP_KERNEL);
 	if (!mips_cps_core_bootcfg) {
@@ -177,7 +182,7 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 
 	/* Allocate VPE boot configuration structs */
 	for (c = 0; c < ncores; c++) {
-		core_vpes = core_vpe_count(c);
+		core_vpes = core_vpe_count(0, c);
 		mips_cps_core_bootcfg[c].vpe_config = kcalloc(core_vpes,
 				sizeof(*mips_cps_core_bootcfg[c].vpe_config),
 				GFP_KERNEL);
@@ -189,7 +194,7 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 	}
 
 	/* Mark this CPU as booted */
-	atomic_set(&mips_cps_core_bootcfg[current_cpu_data.core].vpe_mask,
+	atomic_set(&mips_cps_core_bootcfg[cpu_core(&current_cpu_data)].vpe_mask,
 		   1 << cpu_vpe_id(&current_cpu_data));
 
 	return;
@@ -212,11 +217,11 @@ err_out:
 
 static void boot_core(unsigned int core, unsigned int vpe_id)
 {
-	u32 access, stat, seq_state;
+	u32 stat, seq_state;
 	unsigned timeout;
 
 	/* Select the appropriate core */
-	mips_cm_lock_other(core, 0);
+	mips_cm_lock_other(0, core, 0, CM_GCR_Cx_OTHER_BLOCK_LOCAL);
 
 	/* Set its reset vector */
 	write_gcr_co_reset_base(CKSEG1ADDR((unsigned long)mips_cps_core_entry));
@@ -225,12 +230,10 @@ static void boot_core(unsigned int core, unsigned int vpe_id)
 	write_gcr_co_coherence(0);
 
 	/* Start it with the legacy memory map and exception base */
-	write_gcr_co_reset_ext_base(CM_GCR_RESET_EXT_BASE_UEB);
+	write_gcr_co_reset_ext_base(CM_GCR_Cx_RESET_EXT_BASE_UEB);
 
 	/* Ensure the core can access the GCRs */
-	access = read_gcr_access();
-	access |= 1 << (CM_GCR_ACCESS_ACCESSEN_SHF + core);
-	write_gcr_access(access);
+	set_gcr_access(1 << core);
 
 	if (mips_cpc_present()) {
 		/* Reset the core */
@@ -253,7 +256,8 @@ static void boot_core(unsigned int core, unsigned int vpe_id)
 		timeout = 100;
 		while (true) {
 			stat = read_cpc_co_stat_conf();
-			seq_state = stat & CPC_Cx_STAT_CONF_SEQSTATE_MSK;
+			seq_state = stat & CPC_Cx_STAT_CONF_SEQSTATE;
+			seq_state >>= __ffs(CPC_Cx_STAT_CONF_SEQSTATE);
 
 			/* U6 == coherent execution, ie. the core is up */
 			if (seq_state == CPC_Cx_STAT_CONF_SEQSTATE_U6)
@@ -285,21 +289,25 @@ static void boot_core(unsigned int core, unsigned int vpe_id)
 
 static void remote_vpe_boot(void *dummy)
 {
-	unsigned core = current_cpu_data.core;
+	unsigned core = cpu_core(&current_cpu_data);
 	struct core_boot_config *core_cfg = &mips_cps_core_bootcfg[core];
 
 	mips_cps_boot_vpes(core_cfg, cpu_vpe_id(&current_cpu_data));
 }
 
-static void cps_boot_secondary(int cpu, struct task_struct *idle)
+static int cps_boot_secondary(int cpu, struct task_struct *idle)
 {
-	unsigned core = cpu_data[cpu].core;
+	unsigned core = cpu_core(&cpu_data[cpu]);
 	unsigned vpe_id = cpu_vpe_id(&cpu_data[cpu]);
 	struct core_boot_config *core_cfg = &mips_cps_core_bootcfg[core];
 	struct vpe_boot_config *vpe_cfg = &core_cfg->vpe_config[vpe_id];
 	unsigned long core_entry;
 	unsigned int remote;
 	int err;
+
+	/* We don't yet support booting CPUs in other clusters */
+	if (cpu_cluster(&cpu_data[cpu]) != cpu_cluster(&current_cpu_data))
+		return -ENOSYS;
 
 	vpe_cfg->pc = (unsigned long)&smp_bootstrap;
 	vpe_cfg->sp = __KSTK_TOS(idle);
@@ -316,16 +324,16 @@ static void cps_boot_secondary(int cpu, struct task_struct *idle)
 	}
 
 	if (cpu_has_vp) {
-		mips_cm_lock_other(core, vpe_id);
+		mips_cm_lock_other(0, core, vpe_id, CM_GCR_Cx_OTHER_BLOCK_LOCAL);
 		core_entry = CKSEG1ADDR((unsigned long)mips_cps_core_entry);
 		write_gcr_co_reset_base(core_entry);
 		mips_cm_unlock_other();
 	}
 
-	if (core != current_cpu_data.core) {
+	if (!cpus_are_siblings(cpu, smp_processor_id())) {
 		/* Boot a VPE on another powered up core */
 		for (remote = 0; remote < NR_CPUS; remote++) {
-			if (cpu_data[remote].core != core)
+			if (!cpus_are_siblings(cpu, remote))
 				continue;
 			if (cpu_online(remote))
 				break;
@@ -349,6 +357,7 @@ static void cps_boot_secondary(int cpu, struct task_struct *idle)
 	mips_cps_boot_vpes(core_cfg, vpe_id);
 out:
 	preempt_enable();
+	return 0;
 }
 
 static void cps_init_secondary(void)
@@ -358,7 +367,7 @@ static void cps_init_secondary(void)
 		dmt();
 
 	if (mips_cm_revision() >= CM_REV_CM3) {
-		unsigned ident = gic_read_local_vp_id();
+		unsigned int ident = read_gic_vl_ident();
 
 		/*
 		 * Ensure that our calculation of the VP ID matches up with
@@ -402,7 +411,7 @@ static int cps_cpu_disable(void)
 	if (!cps_pm_support_state(CPS_PM_POWER_GATED))
 		return -EINVAL;
 
-	core_cfg = &mips_cps_core_bootcfg[current_cpu_data.core];
+	core_cfg = &mips_cps_core_bootcfg[cpu_core(&current_cpu_data)];
 	atomic_sub(1 << cpu_vpe_id(&current_cpu_data), &core_cfg->vpe_mask);
 	smp_mb__after_atomic();
 	set_cpu_online(cpu, false);
@@ -424,15 +433,17 @@ void play_dead(void)
 	local_irq_disable();
 	idle_task_exit();
 	cpu = smp_processor_id();
-	core = cpu_data[cpu].core;
+	core = cpu_core(&cpu_data[cpu]);
 	cpu_death = CPU_DEATH_POWER;
 
 	pr_debug("CPU%d going offline\n", cpu);
 
 	if (cpu_has_mipsmt || cpu_has_vp) {
+		core = cpu_core(&cpu_data[cpu]);
+
 		/* Look for another online VPE within the core */
 		for_each_online_cpu(cpu_death_sibling) {
-			if (cpu_data[cpu_death_sibling].core != core)
+			if (!cpus_are_siblings(cpu, cpu_death_sibling))
 				continue;
 
 			/*
@@ -488,7 +499,7 @@ static void wait_for_sibling_halt(void *ptr_cpu)
 
 static void cps_cpu_die(unsigned int cpu)
 {
-	unsigned core = cpu_data[cpu].core;
+	unsigned core = cpu_core(&cpu_data[cpu]);
 	unsigned int vpe_id = cpu_vpe_id(&cpu_data[cpu]);
 	ktime_t fail_time;
 	unsigned stat;
@@ -519,10 +530,11 @@ static void cps_cpu_die(unsigned int cpu)
 		 */
 		fail_time = ktime_add_ms(ktime_get(), 2000);
 		do {
-			mips_cm_lock_other(core, 0);
+			mips_cm_lock_other(0, core, 0, CM_GCR_Cx_OTHER_BLOCK_LOCAL);
 			mips_cpc_lock_other(core);
 			stat = read_cpc_co_stat_conf();
-			stat &= CPC_Cx_STAT_CONF_SEQSTATE_MSK;
+			stat &= CPC_Cx_STAT_CONF_SEQSTATE;
+			stat >>= __ffs(CPC_Cx_STAT_CONF_SEQSTATE);
 			mips_cpc_unlock_other();
 			mips_cm_unlock_other();
 
@@ -544,7 +556,7 @@ static void cps_cpu_die(unsigned int cpu)
 			 */
 			if (WARN(ktime_after(ktime_get(), fail_time),
 				 "CPU%u hasn't powered down, seq. state %u\n",
-				 cpu, stat >> CPC_Cx_STAT_CONF_SEQSTATE_SHF))
+				 cpu, stat))
 				break;
 		} while (1);
 
@@ -562,7 +574,7 @@ static void cps_cpu_die(unsigned int cpu)
 			panic("Failed to call remote sibling CPU\n");
 	} else if (cpu_has_vp) {
 		do {
-			mips_cm_lock_other(core, vpe_id);
+			mips_cm_lock_other(0, core, vpe_id, CM_GCR_Cx_OTHER_BLOCK_LOCAL);
 			stat = read_cpc_co_vp_running();
 			mips_cm_unlock_other();
 		} while (stat & (1 << vpe_id));
@@ -571,7 +583,7 @@ static void cps_cpu_die(unsigned int cpu)
 
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static struct plat_smp_ops cps_smp_ops = {
+static const struct plat_smp_ops cps_smp_ops = {
 	.smp_setup		= cps_smp_setup,
 	.prepare_cpus		= cps_prepare_cpus,
 	.boot_secondary		= cps_boot_secondary,
@@ -587,7 +599,7 @@ static struct plat_smp_ops cps_smp_ops = {
 
 bool mips_cps_smp_in_use(void)
 {
-	extern struct plat_smp_ops *mp_ops;
+	extern const struct plat_smp_ops *mp_ops;
 	return mp_ops == &cps_smp_ops;
 }
 
@@ -599,7 +611,7 @@ int register_cps_smp_ops(void)
 	}
 
 	/* check we have a GIC - we need one for IPIs */
-	if (!(read_gcr_gic_status() & CM_GCR_GIC_STATUS_EX_MSK)) {
+	if (!(read_gcr_gic_status() & CM_GCR_GIC_STATUS_EX)) {
 		pr_warn("MIPS CPS SMP unable to proceed without a GIC\n");
 		return -ENODEV;
 	}

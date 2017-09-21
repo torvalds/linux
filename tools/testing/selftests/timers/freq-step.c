@@ -33,6 +33,10 @@
 #define MAX_FREQ_ERROR 10e-6
 #define MAX_STDDEV 1000e-9
 
+#ifndef ADJ_SETOFFSET
+  #define ADJ_SETOFFSET 0x0100
+#endif
+
 struct sample {
 	double offset;
 	double time;
@@ -229,10 +233,9 @@ static void init_test(void)
 	printf("CLOCK_MONOTONIC_RAW+CLOCK_MONOTONIC precision: %.0f ns\t\t",
 	       1e9 * precision);
 
-	if (precision > MAX_PRECISION) {
-		printf("[SKIP]\n");
-		ksft_exit_skip();
-	}
+	if (precision > MAX_PRECISION)
+		ksft_exit_skip("precision: %.0f ns > MAX_PRECISION: %.0f ns\n",
+				1e9 * precision, 1e9 * MAX_PRECISION);
 
 	printf("[OK]\n");
 	srand(ts.tv_sec ^ ts.tv_nsec);
@@ -262,7 +265,7 @@ int main(int argc, char **argv)
 	set_frequency(0.0);
 
 	if (fails)
-		ksft_exit_fail();
+		return ksft_exit_fail();
 
-	ksft_exit_pass();
+	return ksft_exit_pass();
 }

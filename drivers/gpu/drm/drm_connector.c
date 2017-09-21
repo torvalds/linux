@@ -717,9 +717,9 @@ DRM_ENUM_NAME_FN(drm_get_tv_subconnector_name,
  * 	drivers, it remaps to controlling the "ACTIVE" property on the CRTC the
  * 	connector is linked to. Drivers should never set this property directly,
  * 	it is handled by the DRM core by calling the &drm_connector_funcs.dpms
- * 	callback. Atomic drivers should implement this hook using
- * 	drm_atomic_helper_connector_dpms(). This is the only property standard
- * 	connector property that userspace can change.
+ * 	callback. For atomic drivers the remapping to the "ACTIVE" property is
+ * 	implemented in the DRM core.  This is the only standard connector
+ * 	property that userspace can change.
  * PATH:
  * 	Connector path property to identify how this sink is physically
  * 	connected. Used by DP MST. This should be set by calling
@@ -1225,7 +1225,6 @@ int drm_mode_connector_set_obj_prop(struct drm_mode_object *obj,
 	} else if (connector->funcs->set_property)
 		ret = connector->funcs->set_property(connector, property, value);
 
-	/* store the property value if successful */
 	if (!ret)
 		drm_object_property_set_value(&connector->base, property, value);
 	return ret;

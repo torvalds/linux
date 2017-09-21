@@ -727,70 +727,6 @@ out_raw:
 	return ret;
 }
 
-/*
- * nvt_tx_ir
- *
- * 1) clean TX fifo first (handled by AP)
- * 2) copy data from user space
- * 3) disable RX interrupts, enable TX interrupts: TTR & TFU
- * 4) send 9 packets to TX FIFO to open TTR
- * in interrupt_handler:
- * 5) send all data out
- * go back to write():
- * 6) disable TX interrupts, re-enable RX interupts
- *
- * The key problem of this function is user space data may larger than
- * driver's data buf length. So nvt_tx_ir() will only copy TX_BUF_LEN data to
- * buf, and keep current copied data buf num in cur_buf_num. But driver's buf
- * number may larger than TXFCONT (0xff). So in interrupt_handler, it has to
- * set TXFCONT as 0xff, until buf_count less than 0xff.
- */
-static int nvt_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned n)
-{
-	struct nvt_dev *nvt = dev->priv;
-	unsigned long flags;
-	unsigned int i;
-	u8 iren;
-	int ret;
-
-	spin_lock_irqsave(&nvt->lock, flags);
-
-	ret = min((unsigned)(TX_BUF_LEN / sizeof(unsigned)), n);
-	nvt->tx.buf_count = (ret * sizeof(unsigned));
-
-	memcpy(nvt->tx.buf, txbuf, nvt->tx.buf_count);
-
-	nvt->tx.cur_buf_num = 0;
-
-	/* save currently enabled interrupts */
-	iren = nvt_cir_reg_read(nvt, CIR_IREN);
-
-	/* now disable all interrupts, save TFU & TTR */
-	nvt_cir_reg_write(nvt, CIR_IREN_TFU | CIR_IREN_TTR, CIR_IREN);
-
-	nvt->tx.tx_state = ST_TX_REPLY;
-
-	nvt_cir_reg_write(nvt, CIR_FIFOCON_TX_TRIGGER_LEV_8 |
-			  CIR_FIFOCON_RXFIFOCLR, CIR_FIFOCON);
-
-	/* trigger TTR interrupt by writing out ones, (yes, it's ugly) */
-	for (i = 0; i < 9; i++)
-		nvt_cir_reg_write(nvt, 0x01, CIR_STXFIFO);
-
-	spin_unlock_irqrestore(&nvt->lock, flags);
-
-	wait_event(nvt->tx.queue, nvt->tx.tx_state == ST_TX_REQUEST);
-
-	spin_lock_irqsave(&nvt->lock, flags);
-	nvt->tx.tx_state = ST_TX_NONE;
-	spin_unlock_irqrestore(&nvt->lock, flags);
-
-	/* restore enabled interrupts to prior state */
-	nvt_cir_reg_write(nvt, iren, CIR_IREN);
-
-	return ret;
-}
-
 /* dump contents of the last rx buffer we got from the hw rx fifo */
 static void nvt_dump_rx_buf(struct nvt_dev *nvt)
 {
@@ -895,11 +831,6 @@ static void nvt_cir_log_irqs(u8 status, u8 iren)
 			   CIR_IRSTS_TFU | CIR_IRSTS_GH) ? " ?" : "");
 }
 
-static bool nvt_cir_tx_inactive(struct nvt_dev *nvt)
-{
-	return nvt->tx.tx_state == ST_TX_NONE;
-}
-
 /* interrupt service routine for incoming and outgoing CIR data */
 static irqreturn_t nvt_cir_isr(int irq, void *data)
 {
@@ -952,40 +883,8 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 
 	if (status & CIR_IRSTS_RFO)
 		nvt_handle_rx_fifo_overrun(nvt);
-
-	else if (status & (CIR_IRSTS_RTR | CIR_IRSTS_PE)) {
-		/* We only do rx if not tx'ing */
-		if (nvt_cir_tx_inactive(nvt))
-			nvt_get_rx_ir_data(nvt);
-	}
-
-	if (status & CIR_IRSTS_TE)
-		nvt_clear_tx_fifo(nvt);
-
-	if (status & CIR_IRSTS_TTR) {
-		unsigned int pos, count;
-		u8 tmp;
-
-		pos = nvt->tx.cur_buf_num;
-		count = nvt->tx.buf_count;
-
-		/* Write data into the hardware tx fifo while pos < count */
-		if (pos < count) {
-			nvt_cir_reg_write(nvt, nvt->tx.buf[pos], CIR_STXFIFO);
-			nvt->tx.cur_buf_num++;
-		/* Disable TX FIFO Trigger Level Reach (TTR) interrupt */
-		} else {
-			tmp = nvt_cir_reg_read(nvt, CIR_IREN);
-			nvt_cir_reg_write(nvt, tmp & ~CIR_IREN_TTR, CIR_IREN);
-		}
-	}
-
-	if (status & CIR_IRSTS_TFU) {
-		if (nvt->tx.tx_state == ST_TX_REPLY) {
-			nvt->tx.tx_state = ST_TX_REQUEST;
-			wake_up(&nvt->tx.queue);
-		}
-	}
+	else if (status & (CIR_IRSTS_RTR | CIR_IRSTS_PE))
+		nvt_get_rx_ir_data(nvt);
 
 	spin_unlock(&nvt->lock);
 
@@ -1062,7 +961,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	if (!nvt)
 		return -ENOMEM;
 
-	/* input device for IR remote (and tx) */
+	/* input device for IR remote */
 	nvt->rdev = devm_rc_allocate_device(&pdev->dev, RC_DRIVER_IR_RAW);
 	if (!nvt->rdev)
 		return -ENOMEM;
@@ -1105,8 +1004,6 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 
 	pnp_set_drvdata(pdev, nvt);
 
-	init_waitqueue_head(&nvt->tx.queue);
-
 	ret = nvt_hw_detect(nvt);
 	if (ret)
 		return ret;
@@ -1126,15 +1023,14 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 
 	/* Set up the rc device */
 	rdev->priv = nvt;
-	rdev->allowed_protocols = RC_BIT_ALL_IR_DECODER;
-	rdev->allowed_wakeup_protocols = RC_BIT_ALL_IR_ENCODER;
+	rdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
+	rdev->allowed_wakeup_protocols = RC_PROTO_BIT_ALL_IR_ENCODER;
 	rdev->encode_wakeup = true;
 	rdev->open = nvt_open;
 	rdev->close = nvt_close;
-	rdev->tx_ir = nvt_tx_ir;
 	rdev->s_tx_carrier = nvt_set_tx_carrier;
 	rdev->s_wakeup_filter = nvt_ir_raw_set_wakeup_filter;
-	rdev->input_name = "Nuvoton w836x7hg Infrared Remote Transceiver";
+	rdev->device_name = "Nuvoton w836x7hg Infrared Remote Transceiver";
 	rdev->input_phys = "nuvoton/cir0";
 	rdev->input_id.bustype = BUS_HOST;
 	rdev->input_id.vendor = PCI_VENDOR_ID_WINBOND2;
@@ -1148,8 +1044,6 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 #if 0
 	rdev->min_timeout = XYZ;
 	rdev->max_timeout = XYZ;
-	/* tx bits */
-	rdev->tx_resolution = XYZ;
 #endif
 	ret = devm_rc_register_device(&pdev->dev, rdev);
 	if (ret)
@@ -1204,8 +1098,6 @@ static int nvt_suspend(struct pnp_dev *pdev, pm_message_t state)
 	nvt_dbg("%s called", __func__);
 
 	spin_lock_irqsave(&nvt->lock, flags);
-
-	nvt->tx.tx_state = ST_TX_NONE;
 
 	/* disable all CIR interrupts */
 	nvt_cir_reg_write(nvt, 0, CIR_IREN);

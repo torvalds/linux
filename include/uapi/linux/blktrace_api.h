@@ -52,6 +52,7 @@ enum blktrace_act {
 	__BLK_TA_REMAP,			/* bio was remapped */
 	__BLK_TA_ABORT,			/* request aborted */
 	__BLK_TA_DRV_DATA,		/* driver-specific binary data */
+	__BLK_TA_CGROUP = 1 << 8,	/* from a cgroup*/
 };
 
 /*
@@ -61,6 +62,7 @@ enum blktrace_notify {
 	__BLK_TN_PROCESS = 0,		/* establish pid/name mapping */
 	__BLK_TN_TIMESTAMP,		/* include system clock */
 	__BLK_TN_MESSAGE,		/* Character string message */
+	__BLK_TN_CGROUP = __BLK_TA_CGROUP, /* from a cgroup */
 };
 
 
@@ -107,6 +109,7 @@ struct blk_io_trace {
 	__u32 cpu;		/* on what cpu did it happen */
 	__u16 error;		/* completion error */
 	__u16 pdu_len;		/* length of data after this trace */
+	/* cgroup id will be stored here if exists */
 };
 
 /*

@@ -86,9 +86,10 @@ struct ccu_div_internal {
 struct ccu_div {
 	u32			enable;
 
-	struct ccu_div_internal		div;
+	struct ccu_div_internal	div;
 	struct ccu_mux_internal	mux;
 	struct ccu_common	common;
+	unsigned int		fixed_post_div;
 };
 
 #define SUNXI_CCU_DIV_TABLE_WITH_GATE(_struct, _name, _parent, _reg,	\

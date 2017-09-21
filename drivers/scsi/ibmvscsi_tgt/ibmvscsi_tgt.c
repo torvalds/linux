@@ -4086,7 +4086,7 @@ static struct class ibmvscsis_class = {
 	.dev_groups	= ibmvscsis_dev_groups,
 };
 
-static struct vio_device_id ibmvscsis_device_table[] = {
+static const struct vio_device_id ibmvscsis_device_table[] = {
 	{ "v-scsi-host", "IBM,v-scsi-host" },
 	{ "", "" }
 };

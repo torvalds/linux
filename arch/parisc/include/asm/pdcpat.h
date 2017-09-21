@@ -223,6 +223,18 @@ struct pdc_pat_mem_retinfo { /* PDC_PAT_MEM/PDC_PAT_MEM_PD_INFO (return info) */
 	unsigned long clear_time; /* last PDT clear time (since Jan 1970) */
 };
 
+struct pdc_pat_mem_cell_pdt_retinfo { /* PDC_PAT_MEM/PDC_PAT_MEM_CELL_INFO */
+	u64 reserved:32;
+	u64 cs:1;		/* clear status: cleared since the last call? */
+	u64 current_pdt_entries:15;
+	u64 ic:1;		/* interleaving had to be changed ? */
+	u64 max_pdt_entries:15;
+	unsigned long good_mem;
+	unsigned long first_dbe_loc; /* first location of double bit error */
+	unsigned long clear_time; /* last PDT clear time (since Jan 1970) */
+};
+
+
 struct pdc_pat_mem_read_pd_retinfo { /* PDC_PAT_MEM/PDC_PAT_MEM_PD_READ */
 	unsigned long actual_count_bytes;
 	unsigned long pdt_entries;
@@ -325,6 +337,8 @@ extern int pdc_pat_io_pci_cfg_read(unsigned long pci_addr, int pci_size, u32 *va
 extern int pdc_pat_io_pci_cfg_write(unsigned long pci_addr, int pci_size, u32 val); 
 
 extern int pdc_pat_mem_pdt_info(struct pdc_pat_mem_retinfo *rinfo);
+extern int pdc_pat_mem_pdt_cell_info(struct pdc_pat_mem_cell_pdt_retinfo *rinfo,
+		unsigned long cell);
 extern int pdc_pat_mem_read_cell_pdt(struct pdc_pat_mem_read_pd_retinfo *pret,
 		unsigned long *pdt_entries_ptr, unsigned long max_entries);
 extern int pdc_pat_mem_read_pd_pdt(struct pdc_pat_mem_read_pd_retinfo *pret,

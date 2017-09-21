@@ -1106,12 +1106,10 @@ static int hptiop_reset_hba(struct hptiop_hba *hba)
 
 static int hptiop_reset(struct scsi_cmnd *scp)
 {
-	struct Scsi_Host * host = scp->device->host;
-	struct hptiop_hba * hba = (struct hptiop_hba *)host->hostdata;
+	struct hptiop_hba * hba = (struct hptiop_hba *)scp->device->host->hostdata;
 
-	printk(KERN_WARNING "hptiop_reset(%d/%d/%d) scp=%p\n",
-			scp->device->host->host_no, scp->device->channel,
-			scp->device->id, scp);
+	printk(KERN_WARNING "hptiop_reset(%d/%d/%d)\n",
+	       scp->device->host->host_no, -1, -1);
 
 	return hptiop_reset_hba(hba)? FAILED : SUCCESS;
 }
@@ -1179,8 +1177,7 @@ static struct scsi_host_template driver_template = {
 	.module                     = THIS_MODULE,
 	.name                       = driver_name,
 	.queuecommand               = hptiop_queuecommand,
-	.eh_device_reset_handler    = hptiop_reset,
-	.eh_bus_reset_handler       = hptiop_reset,
+	.eh_host_reset_handler      = hptiop_reset,
 	.info                       = hptiop_info,
 	.emulated                   = 0,
 	.use_clustering             = ENABLE_CLUSTERING,

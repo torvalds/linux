@@ -85,3 +85,4 @@ L_more_than_95:
 	popl	%esi
 	leave
 	ret
+ENDPROC(shr_Xsig)

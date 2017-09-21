@@ -492,27 +492,9 @@ static inline int overprovision_segments(struct f2fs_sb_info *sbi)
 	return SM_I(sbi)->ovp_segments;
 }
 
-static inline int overprovision_sections(struct f2fs_sb_info *sbi)
-{
-	return GET_SEC_FROM_SEG(sbi, (unsigned int)overprovision_segments(sbi));
-}
-
 static inline int reserved_sections(struct f2fs_sb_info *sbi)
 {
 	return GET_SEC_FROM_SEG(sbi, (unsigned int)reserved_segments(sbi));
-}
-
-static inline bool need_SSR(struct f2fs_sb_info *sbi)
-{
-	int node_secs = get_blocktype_secs(sbi, F2FS_DIRTY_NODES);
-	int dent_secs = get_blocktype_secs(sbi, F2FS_DIRTY_DENTS);
-	int imeta_secs = get_blocktype_secs(sbi, F2FS_DIRTY_IMETA);
-
-	if (test_opt(sbi, LFS))
-		return false;
-
-	return free_sections(sbi) <= (node_secs + 2 * dent_secs + imeta_secs +
-						2 * reserved_sections(sbi));
 }
 
 static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi,
@@ -576,6 +558,10 @@ static inline bool need_inplace_update_policy(struct inode *inode,
 
 	if (test_opt(sbi, LFS))
 		return false;
+
+	/* if this is cold file, we should overwrite to avoid fragmentation */
+	if (file_is_cold(inode))
+		return true;
 
 	if (policy & (0x1 << F2FS_IPU_FORCE))
 		return true;
@@ -798,4 +784,29 @@ static inline long nr_pages_to_write(struct f2fs_sb_info *sbi, int type,
 
 	wbc->nr_to_write = desired;
 	return desired - nr_to_write;
+}
+
+static inline void wake_up_discard_thread(struct f2fs_sb_info *sbi, bool force)
+{
+	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
+	bool wakeup = false;
+	int i;
+
+	if (force)
+		goto wake_up;
+
+	mutex_lock(&dcc->cmd_lock);
+	for (i = MAX_PLIST_NUM - 1;
+			i >= 0 && plist_issue(dcc->pend_list_tag[i]); i--) {
+		if (!list_empty(&dcc->pend_list[i])) {
+			wakeup = true;
+			break;
+		}
+	}
+	mutex_unlock(&dcc->cmd_lock);
+	if (!wakeup)
+		return;
+wake_up:
+	dcc->discard_wake = 1;
+	wake_up_interruptible_all(&dcc->discard_wait_queue);
 }

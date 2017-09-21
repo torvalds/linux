@@ -66,7 +66,7 @@ static struct fsnotify_group *audit_watch_group;
 
 /* fsnotify events we care about. */
 #define AUDIT_FS_WATCH (FS_MOVE | FS_CREATE | FS_DELETE | FS_DELETE_SELF |\
-			FS_MOVE_SELF | FS_EVENT_ON_CHILD)
+			FS_MOVE_SELF | FS_EVENT_ON_CHILD | FS_UNMOUNT)
 
 static void audit_free_parent(struct audit_parent *parent)
 {
@@ -457,13 +457,15 @@ void audit_remove_watch_rule(struct audit_krule *krule)
 	list_del(&krule->rlist);
 
 	if (list_empty(&watch->rules)) {
+		/*
+		 * audit_remove_watch() drops our reference to 'parent' which
+		 * can get freed. Grab our own reference to be safe.
+		 */
+		audit_get_parent(parent);
 		audit_remove_watch(watch);
-
-		if (list_empty(&parent->watches)) {
-			audit_get_parent(parent);
+		if (list_empty(&parent->watches))
 			fsnotify_destroy_mark(&parent->mark, audit_watch_group);
-			audit_put_parent(parent);
-		}
+		audit_put_parent(parent);
 	}
 }
 

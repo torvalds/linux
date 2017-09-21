@@ -45,6 +45,8 @@ Contact:	thunderbolt-software@lists.01.org
 Description:	When a devices supports Thunderbolt secure connect it will
 		have this attribute. Writing 32 byte hex string changes
 		authorization to use the secure connection method instead.
+		Writing an empty string clears the key and regular connection
+		method can be used again.
 
 What:		/sys/bus/thunderbolt/devices/.../device
 Date:		Sep 2017

@@ -352,20 +352,22 @@ static int submit_urbs(struct usb_stream_kernel *sk,
 	int err;
 	prepare_inurb(sk->idle_outurb->number_of_packets, sk->idle_inurb);
 	err = usb_submit_urb(sk->idle_inurb, GFP_ATOMIC);
-	if (err < 0) {
-		snd_printk(KERN_ERR "%i\n", err);
-		return err;
-	}
+	if (err < 0)
+		goto report_failure;
+
 	sk->idle_inurb = sk->completed_inurb;
 	sk->completed_inurb = inurb;
 	err = usb_submit_urb(sk->idle_outurb, GFP_ATOMIC);
-	if (err < 0) {
-		snd_printk(KERN_ERR "%i\n", err);
-		return err;
-	}
+	if (err < 0)
+		goto report_failure;
+
 	sk->idle_outurb = sk->completed_outurb;
 	sk->completed_outurb = outurb;
 	return 0;
+
+report_failure:
+	snd_printk(KERN_ERR "%i\n", err);
+	return err;
 }
 
 #ifdef DEBUG_LOOP_BACK
@@ -625,9 +627,9 @@ static void i_capture_start(struct urb *urb)
 		       urb->iso_frame_desc[0].actual_length);
 		for (pack = 1; pack < urb->number_of_packets; ++pack) {
 			int l = urb->iso_frame_desc[pack].actual_length;
-			printk(" %i", l);
+			printk(KERN_CONT " %i", l);
 		}
-		printk("\n");
+		printk(KERN_CONT "\n");
 	}
 #endif
 	if (!empty && s->state < usb_stream_sync1)

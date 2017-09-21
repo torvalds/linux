@@ -35,8 +35,8 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"07.701.17.00-rc1"
-#define MEGASAS_RELDATE				"March 2, 2017"
+#define MEGASAS_VERSION				"07.702.06.00-rc1"
+#define MEGASAS_RELDATE				"June 21, 2017"
 
 /*
  * Device IDs
@@ -2115,7 +2115,6 @@ struct megasas_instance {
 	u32 *crash_dump_buf;
 	dma_addr_t crash_dump_h;
 	void *crash_buf[MAX_CRASH_DUMP_SIZE];
-	u32 crash_buf_pages;
 	unsigned int    fw_crash_buffer_size;
 	unsigned int    fw_crash_state;
 	unsigned int    fw_crash_buffer_offset;

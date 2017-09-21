@@ -43,6 +43,7 @@ struct amdgpu_virt_ops {
 	int (*req_full_gpu)(struct amdgpu_device *adev, bool init);
 	int (*rel_full_gpu)(struct amdgpu_device *adev, bool init);
 	int (*reset_gpu)(struct amdgpu_device *adev);
+	void (*trans_msg)(struct amdgpu_device *adev, u32 req, u32 data1, u32 data2, u32 data3);
 };
 
 /* GPU virtualization */
@@ -89,7 +90,8 @@ static inline bool is_virtual_machine(void)
 
 struct amdgpu_vm;
 int amdgpu_allocate_static_csa(struct amdgpu_device *adev);
-int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm);
+int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+			  struct amdgpu_bo_va **bo_va);
 void amdgpu_virt_init_setting(struct amdgpu_device *adev);
 uint32_t amdgpu_virt_kiq_rreg(struct amdgpu_device *adev, uint32_t reg);
 void amdgpu_virt_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v);

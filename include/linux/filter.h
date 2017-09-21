@@ -711,7 +711,24 @@ bool bpf_helper_changes_pkt_data(void *func);
 
 struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 				       const struct bpf_insn *patch, u32 len);
+
+/* The pair of xdp_do_redirect and xdp_do_flush_map MUST be called in the
+ * same cpu context. Further for best results no more than a single map
+ * for the do_redirect/do_flush pair should be used. This limitation is
+ * because we only track one map and force a flush when the map changes.
+ * This does not appear to be a real limitation for existing software.
+ */
+int xdp_do_generic_redirect(struct net_device *dev, struct sk_buff *skb,
+			    struct bpf_prog *prog);
+int xdp_do_redirect(struct net_device *dev,
+		    struct xdp_buff *xdp,
+		    struct bpf_prog *prog);
+void xdp_do_flush_map(void);
+
 void bpf_warn_invalid_xdp_action(u32 act);
+void bpf_warn_invalid_xdp_redirect(u32 ifindex);
+
+struct sock *do_sk_redirect_map(void);
 
 #ifdef CONFIG_BPF_JIT
 extern int bpf_jit_enable;

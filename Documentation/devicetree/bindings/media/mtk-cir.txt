@@ -2,10 +2,14 @@ Device-Tree bindings for Mediatek consumer IR controller
 found in Mediatek SoC family
 
 Required properties:
-- compatible	    : "mediatek,mt7623-cir"
+- compatible	    : Should be
+			"mediatek,mt7623-cir": for MT7623 SoC
+			"mediatek,mt7622-cir": for MT7622 SoC
 - clocks	    : list of clock specifiers, corresponding to
 		      entries in clock-names property;
-- clock-names	    : should contain "clk" entries;
+- clock-names	    : should contain
+			- "clk" entries: for MT7623 SoC
+			- "clk", "bus" entries: for MT7622 SoC
 - interrupts	    : should contain IR IRQ number;
 - reg		    : should contain IO map address for IR.
 

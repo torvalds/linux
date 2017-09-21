@@ -137,6 +137,7 @@
 #define IS_FLOCK(fl)	(fl->fl_flags & FL_FLOCK)
 #define IS_LEASE(fl)	(fl->fl_flags & (FL_LEASE|FL_DELEG|FL_LAYOUT))
 #define IS_OFDLCK(fl)	(fl->fl_flags & FL_OFDLCK)
+#define IS_REMOTELCK(fl)	(fl->fl_pid <= 0)
 
 static inline bool is_remote_lock(struct file *filp)
 {
@@ -268,6 +269,22 @@ locks_check_ctx_lists(struct inode *inode)
 		locks_dump_ctx_list(&ctx->flc_posix, "POSIX");
 		locks_dump_ctx_list(&ctx->flc_lease, "LEASE");
 	}
+}
+
+static void
+locks_check_ctx_file_list(struct file *filp, struct list_head *list,
+				char *list_type)
+{
+	struct file_lock *fl;
+	struct inode *inode = locks_inode(filp);
+
+	list_for_each_entry(fl, list, fl_list)
+		if (fl->fl_file == filp)
+			pr_warn("Leaked %s lock on dev=0x%x:0x%x ino=0x%lx "
+				" fl_owner=%p fl_flags=0x%x fl_type=0x%x fl_pid=%u\n",
+				list_type, MAJOR(inode->i_sb->s_dev),
+				MINOR(inode->i_sb->s_dev), inode->i_ino,
+				fl->fl_owner, fl->fl_flags, fl->fl_type, fl->fl_pid);
 }
 
 void
@@ -733,7 +750,6 @@ static void locks_wake_up_blocks(struct file_lock *blocker)
 static void
 locks_insert_lock_ctx(struct file_lock *fl, struct list_head *before)
 {
-	fl->fl_nspid = get_pid(task_tgid(current));
 	list_add_tail(&fl->fl_list, before);
 	locks_insert_global_locks(fl);
 }
@@ -743,10 +759,6 @@ locks_unlink_lock_ctx(struct file_lock *fl)
 {
 	locks_delete_global_locks(fl);
 	list_del_init(&fl->fl_list);
-	if (fl->fl_nspid) {
-		put_pid(fl->fl_nspid);
-		fl->fl_nspid = NULL;
-	}
 	locks_wake_up_blocks(fl);
 }
 
@@ -823,8 +835,6 @@ posix_test_lock(struct file *filp, struct file_lock *fl)
 	list_for_each_entry(cfl, &ctx->flc_posix, fl_list) {
 		if (posix_locks_conflict(fl, cfl)) {
 			locks_copy_conflock(fl, cfl);
-			if (cfl->fl_nspid)
-				fl->fl_pid = pid_vnr(cfl->fl_nspid);
 			goto out;
 		}
 	}
@@ -2048,9 +2058,33 @@ int vfs_test_lock(struct file *filp, struct file_lock *fl)
 }
 EXPORT_SYMBOL_GPL(vfs_test_lock);
 
+/**
+ * locks_translate_pid - translate a file_lock's fl_pid number into a namespace
+ * @fl: The file_lock who's fl_pid should be translated
+ * @ns: The namespace into which the pid should be translated
+ *
+ * Used to tranlate a fl_pid into a namespace virtual pid number
+ */
+static pid_t locks_translate_pid(struct file_lock *fl, struct pid_namespace *ns)
+{
+	pid_t vnr;
+	struct pid *pid;
+
+	if (IS_OFDLCK(fl))
+		return -1;
+	if (IS_REMOTELCK(fl))
+		return fl->fl_pid;
+
+	rcu_read_lock();
+	pid = find_pid_ns(fl->fl_pid, &init_pid_ns);
+	vnr = pid_nr_ns(pid, ns);
+	rcu_read_unlock();
+	return vnr;
+}
+
 static int posix_lock_to_flock(struct flock *flock, struct file_lock *fl)
 {
-	flock->l_pid = IS_OFDLCK(fl) ? -1 : fl->fl_pid;
+	flock->l_pid = locks_translate_pid(fl, task_active_pid_ns(current));
 #if BITS_PER_LONG == 32
 	/*
 	 * Make sure we can represent the posix lock via
@@ -2072,7 +2106,7 @@ static int posix_lock_to_flock(struct flock *flock, struct file_lock *fl)
 #if BITS_PER_LONG == 32
 static void posix_lock_to_flock64(struct flock64 *flock, struct file_lock *fl)
 {
-	flock->l_pid = IS_OFDLCK(fl) ? -1 : fl->fl_pid;
+	flock->l_pid = locks_translate_pid(fl, task_active_pid_ns(current));
 	flock->l_start = fl->fl_start;
 	flock->l_len = fl->fl_end == OFFSET_MAX ? 0 :
 		fl->fl_end - fl->fl_start + 1;
@@ -2086,14 +2120,17 @@ static void posix_lock_to_flock64(struct flock64 *flock, struct file_lock *fl)
  */
 int fcntl_getlk(struct file *filp, unsigned int cmd, struct flock *flock)
 {
-	struct file_lock file_lock;
+	struct file_lock *fl;
 	int error;
 
+	fl = locks_alloc_lock();
+	if (fl == NULL)
+		return -ENOMEM;
 	error = -EINVAL;
 	if (flock->l_type != F_RDLCK && flock->l_type != F_WRLCK)
 		goto out;
 
-	error = flock_to_posix_lock(filp, &file_lock, flock);
+	error = flock_to_posix_lock(filp, fl, flock);
 	if (error)
 		goto out;
 
@@ -2103,23 +2140,22 @@ int fcntl_getlk(struct file *filp, unsigned int cmd, struct flock *flock)
 			goto out;
 
 		cmd = F_GETLK;
-		file_lock.fl_flags |= FL_OFDLCK;
-		file_lock.fl_owner = filp;
+		fl->fl_flags |= FL_OFDLCK;
+		fl->fl_owner = filp;
 	}
 
-	error = vfs_test_lock(filp, &file_lock);
+	error = vfs_test_lock(filp, fl);
 	if (error)
 		goto out;
  
-	flock->l_type = file_lock.fl_type;
-	if (file_lock.fl_type != F_UNLCK) {
-		error = posix_lock_to_flock(flock, &file_lock);
+	flock->l_type = fl->fl_type;
+	if (fl->fl_type != F_UNLCK) {
+		error = posix_lock_to_flock(flock, fl);
 		if (error)
-			goto rel_priv;
+			goto out;
 	}
-rel_priv:
-	locks_release_private(&file_lock);
 out:
+	locks_free_lock(fl);
 	return error;
 }
 
@@ -2298,14 +2334,18 @@ out:
  */
 int fcntl_getlk64(struct file *filp, unsigned int cmd, struct flock64 *flock)
 {
-	struct file_lock file_lock;
+	struct file_lock *fl;
 	int error;
+
+	fl = locks_alloc_lock();
+	if (fl == NULL)
+		return -ENOMEM;
 
 	error = -EINVAL;
 	if (flock->l_type != F_RDLCK && flock->l_type != F_WRLCK)
 		goto out;
 
-	error = flock64_to_posix_lock(filp, &file_lock, flock);
+	error = flock64_to_posix_lock(filp, fl, flock);
 	if (error)
 		goto out;
 
@@ -2315,20 +2355,20 @@ int fcntl_getlk64(struct file *filp, unsigned int cmd, struct flock64 *flock)
 			goto out;
 
 		cmd = F_GETLK64;
-		file_lock.fl_flags |= FL_OFDLCK;
-		file_lock.fl_owner = filp;
+		fl->fl_flags |= FL_OFDLCK;
+		fl->fl_owner = filp;
 	}
 
-	error = vfs_test_lock(filp, &file_lock);
+	error = vfs_test_lock(filp, fl);
 	if (error)
 		goto out;
 
-	flock->l_type = file_lock.fl_type;
-	if (file_lock.fl_type != F_UNLCK)
-		posix_lock_to_flock64(flock, &file_lock);
+	flock->l_type = fl->fl_type;
+	if (fl->fl_type != F_UNLCK)
+		posix_lock_to_flock64(flock, fl);
 
-	locks_release_private(&file_lock);
 out:
+	locks_free_lock(fl);
 	return error;
 }
 
@@ -2525,6 +2565,12 @@ void locks_remove_file(struct file *filp)
 
 	/* remove any leases */
 	locks_remove_lease(filp, ctx);
+
+	spin_lock(&ctx->flc_lock);
+	locks_check_ctx_file_list(filp, &ctx->flc_posix, "POSIX");
+	locks_check_ctx_file_list(filp, &ctx->flc_flock, "FLOCK");
+	locks_check_ctx_file_list(filp, &ctx->flc_lease, "LEASE");
+	spin_unlock(&ctx->flc_lock);
 }
 
 /**
@@ -2578,22 +2624,16 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 {
 	struct inode *inode = NULL;
 	unsigned int fl_pid;
+	struct pid_namespace *proc_pidns = file_inode(f->file)->i_sb->s_fs_info;
 
-	if (fl->fl_nspid) {
-		struct pid_namespace *proc_pidns = file_inode(f->file)->i_sb->s_fs_info;
-
-		/* Don't let fl_pid change based on who is reading the file */
-		fl_pid = pid_nr_ns(fl->fl_nspid, proc_pidns);
-
-		/*
-		 * If there isn't a fl_pid don't display who is waiting on
-		 * the lock if we are called from locks_show, or if we are
-		 * called from __show_fd_info - skip lock entirely
-		 */
-		if (fl_pid == 0)
-			return;
-	} else
-		fl_pid = fl->fl_pid;
+	fl_pid = locks_translate_pid(fl, proc_pidns);
+	/*
+	 * If there isn't a fl_pid don't display who is waiting on
+	 * the lock if we are called from locks_show, or if we are
+	 * called from __show_fd_info - skip lock entirely
+	 */
+	if (fl_pid == 0)
+		return;
 
 	if (fl->fl_file != NULL)
 		inode = locks_inode(fl->fl_file);
@@ -2668,7 +2708,7 @@ static int locks_show(struct seq_file *f, void *v)
 
 	fl = hlist_entry(v, struct file_lock, fl_link);
 
-	if (fl->fl_nspid && !pid_nr_ns(fl->fl_nspid, proc_pidns))
+	if (locks_translate_pid(fl, proc_pidns) == 0)
 		return 0;
 
 	lock_get_status(f, fl, iter->li_pos, "");

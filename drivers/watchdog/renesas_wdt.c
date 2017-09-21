@@ -1,8 +1,8 @@
 /*
  * Watchdog driver for Renesas WDT watchdog
  *
- * Copyright (C) 2015-16 Wolfram Sang, Sang Engineering <wsa@sang-engineering.com>
- * Copyright (C) 2015-16 Renesas Electronics Corporation
+ * Copyright (C) 2015-17 Wolfram Sang, Sang Engineering <wsa@sang-engineering.com>
+ * Copyright (C) 2015-17 Renesas Electronics Corporation
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published by
@@ -23,10 +23,22 @@
 #define RWTCSRA_WOVF	BIT(4)
 #define RWTCSRA_WRFLG	BIT(5)
 #define RWTCSRA_TME	BIT(7)
+#define RWTCSRB		8
 
 #define RWDT_DEFAULT_TIMEOUT 60U
 
-static const unsigned int clk_divs[] = { 1, 4, 16, 32, 64, 128, 1024 };
+/*
+ * In probe, clk_rate is checked to be not more than 16 bit * biggest clock
+ * divider (12 bits). d is only a factor to fully utilize the WDT counter and
+ * will not exceed its 16 bits. Thus, no overflow, we stay below 32 bits.
+ */
+#define MUL_BY_CLKS_PER_SEC(p, d) \
+	DIV_ROUND_UP((d) * (p)->clk_rate, clk_divs[(p)->cks])
+
+/* d is 16 bit, clk_divs 12 bit -> no 32 bit overflow */
+#define DIV_BY_CLKS_PER_SEC(p, d) ((d) * clk_divs[(p)->cks] / (p)->clk_rate)
+
+static const unsigned int clk_divs[] = { 1, 4, 16, 32, 64, 128, 1024, 4096 };
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
@@ -36,8 +48,7 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 struct rwdt_priv {
 	void __iomem *base;
 	struct watchdog_device wdev;
-	struct clk *clk;
-	unsigned int clks_per_sec;
+	unsigned long clk_rate;
 	u8 cks;
 };
 
@@ -55,7 +66,7 @@ static int rwdt_init_timeout(struct watchdog_device *wdev)
 {
 	struct rwdt_priv *priv = watchdog_get_drvdata(wdev);
 
-	rwdt_write(priv, 65536 - wdev->timeout * priv->clks_per_sec, RWTCNT);
+	rwdt_write(priv, 65536 - MUL_BY_CLKS_PER_SEC(priv, wdev->timeout), RWTCNT);
 
 	return 0;
 }
@@ -64,8 +75,9 @@ static int rwdt_start(struct watchdog_device *wdev)
 {
 	struct rwdt_priv *priv = watchdog_get_drvdata(wdev);
 
-	clk_prepare_enable(priv->clk);
+	pm_runtime_get_sync(wdev->parent);
 
+	rwdt_write(priv, 0, RWTCSRB);
 	rwdt_write(priv, priv->cks, RWTCSRA);
 	rwdt_init_timeout(wdev);
 
@@ -82,7 +94,7 @@ static int rwdt_stop(struct watchdog_device *wdev)
 	struct rwdt_priv *priv = watchdog_get_drvdata(wdev);
 
 	rwdt_write(priv, priv->cks, RWTCSRA);
-	clk_disable_unprepare(priv->clk);
+	pm_runtime_put(wdev->parent);
 
 	return 0;
 }
@@ -92,7 +104,7 @@ static unsigned int rwdt_get_timeleft(struct watchdog_device *wdev)
 	struct rwdt_priv *priv = watchdog_get_drvdata(wdev);
 	u16 val = readw_relaxed(priv->base + RWTCNT);
 
-	return DIV_ROUND_CLOSEST(65536 - val, priv->clks_per_sec);
+	return DIV_BY_CLKS_PER_SEC(priv, 65536 - val);
 }
 
 static const struct watchdog_info rwdt_ident = {
@@ -112,8 +124,8 @@ static int rwdt_probe(struct platform_device *pdev)
 {
 	struct rwdt_priv *priv;
 	struct resource *res;
-	unsigned long rate;
-	unsigned int clks_per_sec;
+	struct clk *clk;
+	unsigned long clks_per_sec;
 	int ret, i;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
@@ -125,36 +137,40 @@ static int rwdt_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	priv->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(priv->clk))
-		return PTR_ERR(priv->clk);
+	clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
 
-	rate = clk_get_rate(priv->clk);
-	if (!rate)
-		return -ENOENT;
+	pm_runtime_enable(&pdev->dev);
+
+	pm_runtime_get_sync(&pdev->dev);
+	priv->clk_rate = clk_get_rate(clk);
+	pm_runtime_put(&pdev->dev);
+
+	if (!priv->clk_rate) {
+		ret = -ENOENT;
+		goto out_pm_disable;
+	}
 
 	for (i = ARRAY_SIZE(clk_divs) - 1; i >= 0; i--) {
-		clks_per_sec = DIV_ROUND_UP(rate, clk_divs[i]);
-		if (clks_per_sec) {
-			priv->clks_per_sec = clks_per_sec;
+		clks_per_sec = priv->clk_rate / clk_divs[i];
+		if (clks_per_sec && clks_per_sec < 65536) {
 			priv->cks = i;
 			break;
 		}
 	}
 
-	if (!clks_per_sec) {
+	if (i < 0) {
 		dev_err(&pdev->dev, "Can't find suitable clock divider\n");
-		return -ERANGE;
+		ret = -ERANGE;
+		goto out_pm_disable;
 	}
-
-	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_sync(&pdev->dev);
 
 	priv->wdev.info = &rwdt_ident,
 	priv->wdev.ops = &rwdt_ops,
 	priv->wdev.parent = &pdev->dev;
 	priv->wdev.min_timeout = 1;
-	priv->wdev.max_timeout = 65536 / clks_per_sec;
+	priv->wdev.max_timeout = DIV_BY_CLKS_PER_SEC(priv, 65536);
 	priv->wdev.timeout = min(priv->wdev.max_timeout, RWDT_DEFAULT_TIMEOUT);
 
 	platform_set_drvdata(pdev, priv);
@@ -167,13 +183,14 @@ static int rwdt_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "Specified timeout value invalid, using default\n");
 
 	ret = watchdog_register_device(&priv->wdev);
-	if (ret < 0) {
-		pm_runtime_put(&pdev->dev);
-		pm_runtime_disable(&pdev->dev);
-		return ret;
-	}
+	if (ret < 0)
+		goto out_pm_disable;
 
 	return 0;
+
+ out_pm_disable:
+	pm_runtime_disable(&pdev->dev);
+	return ret;
 }
 
 static int rwdt_remove(struct platform_device *pdev)
@@ -181,7 +198,6 @@ static int rwdt_remove(struct platform_device *pdev)
 	struct rwdt_priv *priv = platform_get_drvdata(pdev);
 
 	watchdog_unregister_device(&priv->wdev);
-	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;

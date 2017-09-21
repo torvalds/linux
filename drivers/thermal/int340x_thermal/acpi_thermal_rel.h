@@ -34,10 +34,10 @@ struct trt {
 	acpi_handle target;
 	u64 influence;
 	u64 sample_period;
-	u64 reverved1;
-	u64 reverved2;
-	u64 reverved3;
-	u64 reverved4;
+	u64 reserved1;
+	u64 reserved2;
+	u64 reserved3;
+	u64 reserved4;
 } __packed;
 
 #define ACPI_NR_ART_ELEMENTS 13

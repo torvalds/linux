@@ -61,6 +61,7 @@
 #include "tests/btrfs-tests.h"
 
 #include "qgroup.h"
+#include "backref.h"
 #define CREATE_TRACE_POINTS
 #include <trace/events/btrfs.h>
 
@@ -102,7 +103,7 @@ static void btrfs_handle_error(struct btrfs_fs_info *fs_info)
 {
 	struct super_block *sb = fs_info->sb;
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return;
 
 	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state)) {
@@ -138,7 +139,7 @@ void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function
 	 * Special case: if the error is EROFS, and we're already
 	 * under MS_RDONLY, then it is safe here.
 	 */
-	if (errno == -EROFS && (sb->s_flags & MS_RDONLY))
+	if (errno == -EROFS && sb_rdonly(sb))
   		return;
 
 #ifdef CONFIG_PRINTK
@@ -425,7 +426,7 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 	 * strsep changes the string, duplicate it because parse_options
 	 * gets called twice
 	 */
-	options = kstrdup(options, GFP_NOFS);
+	options = kstrdup(options, GFP_KERNEL);
 	if (!options)
 		return -ENOMEM;
 
@@ -498,20 +499,28 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 				btrfs_test_opt(info, FORCE_COMPRESS);
 			if (token == Opt_compress ||
 			    token == Opt_compress_force ||
-			    strcmp(args[0].from, "zlib") == 0) {
+			    strncmp(args[0].from, "zlib", 4) == 0) {
 				compress_type = "zlib";
 				info->compress_type = BTRFS_COMPRESS_ZLIB;
 				btrfs_set_opt(info->mount_opt, COMPRESS);
 				btrfs_clear_opt(info->mount_opt, NODATACOW);
 				btrfs_clear_opt(info->mount_opt, NODATASUM);
 				no_compress = 0;
-			} else if (strcmp(args[0].from, "lzo") == 0) {
+			} else if (strncmp(args[0].from, "lzo", 3) == 0) {
 				compress_type = "lzo";
 				info->compress_type = BTRFS_COMPRESS_LZO;
 				btrfs_set_opt(info->mount_opt, COMPRESS);
 				btrfs_clear_opt(info->mount_opt, NODATACOW);
 				btrfs_clear_opt(info->mount_opt, NODATASUM);
 				btrfs_set_fs_incompat(info, COMPRESS_LZO);
+				no_compress = 0;
+			} else if (strcmp(args[0].from, "zstd") == 0) {
+				compress_type = "zstd";
+				info->compress_type = BTRFS_COMPRESS_ZSTD;
+				btrfs_set_opt(info->mount_opt, COMPRESS);
+				btrfs_clear_opt(info->mount_opt, NODATACOW);
+				btrfs_clear_opt(info->mount_opt, NODATASUM);
+				btrfs_set_fs_incompat(info, COMPRESS_ZSTD);
 				no_compress = 0;
 			} else if (strncmp(args[0].from, "no", 2) == 0) {
 				compress_type = "no";
@@ -548,20 +557,22 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			break;
 		case Opt_ssd:
 			btrfs_set_and_info(info, SSD,
-					   "use ssd allocation scheme");
+					   "enabling ssd optimizations");
 			btrfs_clear_opt(info->mount_opt, NOSSD);
 			break;
 		case Opt_ssd_spread:
+			btrfs_set_and_info(info, SSD,
+					   "enabling ssd optimizations");
 			btrfs_set_and_info(info, SSD_SPREAD,
-					   "use spread ssd allocation scheme");
-			btrfs_set_opt(info->mount_opt, SSD);
+					   "using spread ssd allocation scheme");
 			btrfs_clear_opt(info->mount_opt, NOSSD);
 			break;
 		case Opt_nossd:
-			btrfs_set_and_info(info, NOSSD,
-					     "not using ssd allocation scheme");
-			btrfs_clear_opt(info->mount_opt, SSD);
-			btrfs_clear_opt(info->mount_opt, SSD_SPREAD);
+			btrfs_set_opt(info->mount_opt, NOSSD);
+			btrfs_clear_and_info(info, SSD,
+					     "not using ssd optimizations");
+			btrfs_clear_and_info(info, SSD_SPREAD,
+					     "not using spread ssd allocation scheme");
 			break;
 		case Opt_barrier:
 			btrfs_clear_and_info(info, NOBARRIER,
@@ -949,7 +960,7 @@ static char *get_subvol_name_from_objectid(struct btrfs_fs_info *fs_info,
 	}
 	path->leave_spinning = 1;
 
-	name = kmalloc(PATH_MAX, GFP_NOFS);
+	name = kmalloc(PATH_MAX, GFP_KERNEL);
 	if (!name) {
 		ret = -ENOMEM;
 		goto err;
@@ -1227,8 +1238,10 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 	if (btrfs_test_opt(info, COMPRESS)) {
 		if (info->compress_type == BTRFS_COMPRESS_ZLIB)
 			compress_type = "zlib";
-		else
+		else if (info->compress_type == BTRFS_COMPRESS_LZO)
 			compress_type = "lzo";
+		else
+			compress_type = "zstd";
 		if (btrfs_test_opt(info, FORCE_COMPRESS))
 			seq_printf(seq, ",compress-force=%s", compress_type);
 		else
@@ -1335,10 +1348,11 @@ static char *setup_root_args(char *args)
 	char *buf, *dst, *sep;
 
 	if (!args)
-		return kstrdup("subvolid=0", GFP_NOFS);
+		return kstrdup("subvolid=0", GFP_KERNEL);
 
 	/* The worst case is that we add ",subvolid=0" to the end. */
-	buf = dst = kmalloc(strlen(args) + strlen(",subvolid=0") + 1, GFP_NOFS);
+	buf = dst = kmalloc(strlen(args) + strlen(",subvolid=0") + 1,
+			GFP_KERNEL);
 	if (!buf)
 		return NULL;
 
@@ -1567,7 +1581,7 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	 * it for searching for existing supers, so this lets us do that and
 	 * then open_ctree will properly initialize everything later.
 	 */
-	fs_info = kzalloc(sizeof(struct btrfs_fs_info), GFP_NOFS);
+	fs_info = kzalloc(sizeof(struct btrfs_fs_info), GFP_KERNEL);
 	if (!fs_info) {
 		error = -ENOMEM;
 		goto error_sec_opts;
@@ -1575,8 +1589,8 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 
 	fs_info->fs_devices = fs_devices;
 
-	fs_info->super_copy = kzalloc(BTRFS_SUPER_INFO_SIZE, GFP_NOFS);
-	fs_info->super_for_commit = kzalloc(BTRFS_SUPER_INFO_SIZE, GFP_NOFS);
+	fs_info->super_copy = kzalloc(BTRFS_SUPER_INFO_SIZE, GFP_KERNEL);
+	fs_info->super_for_commit = kzalloc(BTRFS_SUPER_INFO_SIZE, GFP_KERNEL);
 	security_init_mnt_opts(&fs_info->security_opts);
 	if (!fs_info->super_copy || !fs_info->super_for_commit) {
 		error = -ENOMEM;
@@ -1687,8 +1701,7 @@ static inline void btrfs_remount_cleanup(struct btrfs_fs_info *fs_info,
 	 * close or the filesystem is read only.
 	 */
 	if (btrfs_raw_test_opt(old_opts, AUTO_DEFRAG) &&
-	    (!btrfs_raw_test_opt(fs_info->mount_opt, AUTO_DEFRAG) ||
-	     (fs_info->sb->s_flags & MS_RDONLY))) {
+	    (!btrfs_raw_test_opt(fs_info->mount_opt, AUTO_DEFRAG) || sb_rdonly(fs_info->sb))) {
 		btrfs_cleanup_defrag_inodes(fs_info);
 	}
 
@@ -1735,7 +1748,7 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 	btrfs_resize_thread_pool(fs_info,
 		fs_info->thread_pool_size, old_thread_pool_size);
 
-	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
+	if ((bool)(*flags & MS_RDONLY) == sb_rdonly(sb))
 		goto out;
 
 	if (*flags & MS_RDONLY) {
@@ -1780,8 +1793,7 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 			goto restore;
 		}
 
-		if (fs_info->fs_devices->missing_devices >
-		     fs_info->num_tolerated_disk_barrier_failures) {
+		if (!btrfs_check_rw_degradable(fs_info)) {
 			btrfs_warn(fs_info,
 				"too many missing devices, writeable remount is not allowed");
 			ret = -EACCES;
@@ -1814,6 +1826,8 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 			goto restore;
 		}
 
+		btrfs_qgroup_rescan_resume(fs_info);
+
 		if (!fs_info->uuid_root) {
 			btrfs_info(fs_info, "creating UUID tree");
 			ret = btrfs_create_uuid_tree(fs_info);
@@ -1835,7 +1849,7 @@ out:
 
 restore:
 	/* We've hit an error - don't reset MS_RDONLY */
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		old_flags |= MS_RDONLY;
 	sb->s_flags = old_flags;
 	fs_info->mount_opt = old_opts;

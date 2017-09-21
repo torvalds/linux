@@ -1,4 +1,4 @@
-Version 2.03 August 1, 2014
+Version 2.04 September 13, 2017
 
 A Partial List of Missing Features
 ==================================
@@ -8,73 +8,69 @@ for visible, important contributions to this module.  Here
 is a partial list of the known problems and missing features:
 
 a) SMB3 (and SMB3.02) missing optional features:
-   - RDMA
+   - RDMA (started)
    - multichannel (started)
    - directory leases (improved metadata caching)
    - T10 copy offload (copy chunk is only mechanism supported)
-   - encrypted shares
 
 b) improved sparse file support
 
 c) Directory entry caching relies on a 1 second timer, rather than
-using FindNotify or equivalent.  - (started)
+using Directory Leases
 
 d) quota support (needs minor kernel change since quota calls
 to make it to network filesystems or deviceless filesystems)
 
-e) improve support for very old servers (OS/2 and Win9x for example)
-Including support for changing the time remotely (utimes command).
+e) Better optimize open to reduce redundant opens (using reference
+counts more) and to improve use of compounding in SMB3 to reduce
+number of roundtrips.
 
-f) hook lower into the sockets api (as NFS/SunRPC does) to avoid the
-extra copy in/out of the socket buffers in some cases.
-
-g) Better optimize open (and pathbased setfilesize) to reduce the
-oplock breaks coming from windows srv.  Piggyback identical file
-opens on top of each other by incrementing reference count rather
-than resending (helps reduce server resource utilization and avoid
-spurious oplock breaks).
-
-h) Add support for storing symlink info to Windows servers
-in the Extended Attribute format their SFU clients would recognize.
-
-i) Finish inotify support so kde and gnome file list windows
+f) Finish inotify support so kde and gnome file list windows
 will autorefresh (partially complete by Asser). Needs minor kernel
 vfs change to support removing D_NOTIFY on a file.   
 
-j) Add GUI tool to configure /proc/fs/cifs settings and for display of
+g) Add GUI tool to configure /proc/fs/cifs settings and for display of
 the CIFS statistics (started)
 
-k) implement support for security and trusted categories of xattrs
+h) implement support for security and trusted categories of xattrs
 (requires minor protocol extension) to enable better support for SELINUX
 
-l) Implement O_DIRECT flag on open (already supported on mount)
+i) Implement O_DIRECT flag on open (already supported on mount)
 
-m) Create UID mapping facility so server UIDs can be mapped on a per
+j) Create UID mapping facility so server UIDs can be mapped on a per
 mount or a per server basis to client UIDs or nobody if no mapping
-exists.  This is helpful when Unix extensions are negotiated to
-allow better permission checking when UIDs differ on the server
-and client.  Add new protocol request to the CIFS protocol 
-standard for asking the server for the corresponding name of a
-particular uid.
+exists. Also better integration with winbind for resolving SID owners
 
-n) DOS attrs - returned as pseudo-xattr in Samba format (check VFAT and NTFS for this too)
+k) Add tools to take advantage of more smb3 specific ioctls and features
 
-o) mount check for unmatched uids
+l) encrypted file support
 
-p) Add support for new vfs entry point for fallocate
+m) improved stats gathering, tools (perhaps integration with nfsometer?)
 
-q) Add tools to take advantage of cifs/smb3 specific ioctls and features
-such as "CopyChunk" (fast server side file copy)
+n) allow setting more NTFS/SMB3 file attributes remotely (currently limited to compressed
+file attribute via chflags) and improve user space tools for managing and
+viewing them.
 
-r) encrypted file support
+o) mount helper GUI (to simplify the various configuration options on mount)
 
-s) improved stats gathering, tools (perhaps integration with nfsometer?)
+p) autonegotiation of dialects (offering more than one dialect ie SMB3.02,
+SMB3, SMB2.1 not just SMB3).
 
-t) allow setting more NTFS/SMB3 file attributes remotely (currently limited to compressed
-file attribute via chflags)
+q) Allow mount.cifs to be more verbose in reporting errors with dialect
+or unsupported feature errors.
 
-u) mount helper GUI (to simplify the various configuration options on mount)
+r) updating cifs documentation, and user guid.
 
+s) Addressing bugs found by running a broader set of xfstests in standard
+file system xfstest suite.
+
+t) split cifs and smb3 support into separate modules so legacy (and less
+secure) CIFS dialect can be disabled in environments that don't need it
+and simplify the code.
+
+u) Finish up SMB3.1.1 dialect support
+
+v) POSIX Extensions for SMB3.1.1
 
 KNOWN BUGS
 ====================================

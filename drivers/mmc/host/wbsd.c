@@ -802,10 +802,8 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			break;
 
 		default:
-#ifdef CONFIG_MMC_DEBUG
 			pr_warn("%s: Data command %d is not supported by this controller\n",
 				mmc_hostname(host->mmc), cmd->opcode);
-#endif
 			cmd->error = -EINVAL;
 
 			goto done;

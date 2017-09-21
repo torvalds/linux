@@ -68,6 +68,7 @@ EXPORT_SYMBOL_GPL(blk_queue_rq_timeout);
 
 void blk_queue_rq_timed_out(struct request_queue *q, rq_timed_out_fn *fn)
 {
+	WARN_ON_ONCE(q->mq_ops);
 	q->rq_timed_out_fn = fn;
 }
 EXPORT_SYMBOL_GPL(blk_queue_rq_timed_out);

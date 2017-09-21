@@ -197,78 +197,65 @@ static int emulate_pci_command_write(struct intel_vgpu *vgpu,
 static int emulate_pci_bar_write(struct intel_vgpu *vgpu, unsigned int offset,
 	void *p_data, unsigned int bytes)
 {
-	unsigned int bar_index =
-		(rounddown(offset, 8) % PCI_BASE_ADDRESS_0) / 8;
 	u32 new = *(u32 *)(p_data);
 	bool lo = IS_ALIGNED(offset, 8);
 	u64 size;
 	int ret = 0;
 	bool mmio_enabled =
 		vgpu_cfg_space(vgpu)[PCI_COMMAND] & PCI_COMMAND_MEMORY;
+	struct intel_vgpu_pci_bar *bars = vgpu->cfg_space.bar;
 
-	if (WARN_ON(bar_index >= INTEL_GVT_PCI_BAR_MAX))
-		return -EINVAL;
-
+	/*
+	 * Power-up software can determine how much address
+	 * space the device requires by writing a value of
+	 * all 1's to the register and then reading the value
+	 * back. The device will return 0's in all don't-care
+	 * address bits.
+	 */
 	if (new == 0xffffffff) {
-		/*
-		 * Power-up software can determine how much address
-		 * space the device requires by writing a value of
-		 * all 1's to the register and then reading the value
-		 * back. The device will return 0's in all don't-care
-		 * address bits.
-		 */
-		size = vgpu->cfg_space.bar[bar_index].size;
-		if (lo) {
-			new = rounddown(new, size);
-		} else {
-			u32 val = vgpu_cfg_space(vgpu)[rounddown(offset, 8)];
-			/* for 32bit mode bar it returns all-0 in upper 32
-			 * bit, for 64bit mode bar it will calculate the
-			 * size with lower 32bit and return the corresponding
-			 * value
+		switch (offset) {
+		case PCI_BASE_ADDRESS_0:
+		case PCI_BASE_ADDRESS_1:
+			size = ~(bars[INTEL_GVT_PCI_BAR_GTTMMIO].size -1);
+			intel_vgpu_write_pci_bar(vgpu, offset,
+						size >> (lo ? 0 : 32), lo);
+			/*
+			 * Untrap the BAR, since guest hasn't configured a
+			 * valid GPA
 			 */
-			if (val & PCI_BASE_ADDRESS_MEM_TYPE_64)
-				new &= (~(size-1)) >> 32;
-			else
-				new = 0;
-		}
-		/*
-		 * Unmapp & untrap the BAR, since guest hasn't configured a
-		 * valid GPA
-		 */
-		switch (bar_index) {
-		case INTEL_GVT_PCI_BAR_GTTMMIO:
 			ret = trap_gttmmio(vgpu, false);
 			break;
-		case INTEL_GVT_PCI_BAR_APERTURE:
+		case PCI_BASE_ADDRESS_2:
+		case PCI_BASE_ADDRESS_3:
+			size = ~(bars[INTEL_GVT_PCI_BAR_APERTURE].size -1);
+			intel_vgpu_write_pci_bar(vgpu, offset,
+						size >> (lo ? 0 : 32), lo);
 			ret = map_aperture(vgpu, false);
 			break;
+		default:
+			/* Unimplemented BARs */
+			intel_vgpu_write_pci_bar(vgpu, offset, 0x0, false);
 		}
-		intel_vgpu_write_pci_bar(vgpu, offset, new, lo);
 	} else {
-		/*
-		 * Unmapp & untrap the old BAR first, since guest has
-		 * re-configured the BAR
-		 */
-		switch (bar_index) {
-		case INTEL_GVT_PCI_BAR_GTTMMIO:
-			ret = trap_gttmmio(vgpu, false);
+		switch (offset) {
+		case PCI_BASE_ADDRESS_0:
+		case PCI_BASE_ADDRESS_1:
+			/*
+			 * Untrap the old BAR first, since guest has
+			 * re-configured the BAR
+			 */
+			trap_gttmmio(vgpu, false);
+			intel_vgpu_write_pci_bar(vgpu, offset, new, lo);
+			ret = trap_gttmmio(vgpu, mmio_enabled);
 			break;
-		case INTEL_GVT_PCI_BAR_APERTURE:
-			ret = map_aperture(vgpu, false);
+		case PCI_BASE_ADDRESS_2:
+		case PCI_BASE_ADDRESS_3:
+			map_aperture(vgpu, false);
+			intel_vgpu_write_pci_bar(vgpu, offset, new, lo);
+			ret = map_aperture(vgpu, mmio_enabled);
 			break;
-		}
-		intel_vgpu_write_pci_bar(vgpu, offset, new, lo);
-		/* Track the new BAR */
-		if (mmio_enabled) {
-			switch (bar_index) {
-			case INTEL_GVT_PCI_BAR_GTTMMIO:
-				ret = trap_gttmmio(vgpu, true);
-				break;
-			case INTEL_GVT_PCI_BAR_APERTURE:
-				ret = map_aperture(vgpu, true);
-				break;
-			}
+		default:
+			intel_vgpu_write_pci_bar(vgpu, offset, new, lo);
 		}
 	}
 	return ret;
@@ -299,10 +286,7 @@ int intel_vgpu_emulate_cfg_write(struct intel_vgpu *vgpu, unsigned int offset,
 	}
 
 	switch (rounddown(offset, 4)) {
-	case PCI_BASE_ADDRESS_0:
-	case PCI_BASE_ADDRESS_1:
-	case PCI_BASE_ADDRESS_2:
-	case PCI_BASE_ADDRESS_3:
+	case PCI_BASE_ADDRESS_0 ... PCI_BASE_ADDRESS_5:
 		if (WARN_ON(!IS_ALIGNED(offset, 4)))
 			return -EINVAL;
 		return emulate_pci_bar_write(vgpu, offset, p_data, bytes);
@@ -344,7 +328,6 @@ void intel_vgpu_init_cfg_space(struct intel_vgpu *vgpu,
 	struct intel_gvt *gvt = vgpu->gvt;
 	const struct intel_gvt_device_info *info = &gvt->device_info;
 	u16 *gmch_ctl;
-	int i;
 
 	memcpy(vgpu_cfg_space(vgpu), gvt->firmware.cfg_space,
 	       info->cfg_space_size);
@@ -371,13 +354,13 @@ void intel_vgpu_init_cfg_space(struct intel_vgpu *vgpu,
 	 */
 	memset(vgpu_cfg_space(vgpu) + PCI_BASE_ADDRESS_1, 0, 4);
 	memset(vgpu_cfg_space(vgpu) + PCI_BASE_ADDRESS_3, 0, 4);
+	memset(vgpu_cfg_space(vgpu) + PCI_BASE_ADDRESS_4, 0, 8);
 	memset(vgpu_cfg_space(vgpu) + INTEL_GVT_PCI_OPREGION, 0, 4);
 
-	for (i = 0; i < INTEL_GVT_MAX_BAR_NUM; i++) {
-		vgpu->cfg_space.bar[i].size = pci_resource_len(
-					      gvt->dev_priv->drm.pdev, i * 2);
-		vgpu->cfg_space.bar[i].tracked = false;
-	}
+	vgpu->cfg_space.bar[INTEL_GVT_PCI_BAR_GTTMMIO].size =
+				pci_resource_len(gvt->dev_priv->drm.pdev, 0);
+	vgpu->cfg_space.bar[INTEL_GVT_PCI_BAR_APERTURE].size =
+				pci_resource_len(gvt->dev_priv->drm.pdev, 2);
 }
 
 /**

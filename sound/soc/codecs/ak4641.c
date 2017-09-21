@@ -524,7 +524,7 @@ static struct snd_soc_dai_driver ak4641_dai[] = {
 },
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_ak4641 = {
+static const struct snd_soc_codec_driver soc_codec_dev_ak4641 = {
 	.component_driver = {
 		.controls		= ak4641_snd_controls,
 		.num_controls		= ARRAY_SIZE(ak4641_snd_controls),

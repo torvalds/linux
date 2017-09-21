@@ -109,7 +109,10 @@ neigh/default/unres_qlen_bytes - INTEGER
 	queued for each	unresolved address by other network layers.
 	(added in linux 3.3)
 	Setting negative value is meaningless and will return error.
-	Default: 65536 Bytes(64KB)
+	Default: SK_WMEM_MAX, (same as net.core.wmem_default).
+		Exact value depends on architecture and kernel options,
+		but should be enough to allow queuing 256 packets
+		of medium size.
 
 neigh/default/unres_qlen - INTEGER
 	The maximum number of packets which may be queued for each
@@ -119,7 +122,7 @@ neigh/default/unres_qlen - INTEGER
 	unexpected packet loss. The current default value is calculated
 	according to default value of unres_qlen_bytes and true size of
 	packet.
-	Default: 31
+	Default: 101
 
 mtu_expires - INTEGER
 	Time, in seconds, that cached PMTU information is kept.
@@ -353,12 +356,7 @@ tcp_l3mdev_accept - BOOLEAN
 	compiled with CONFIG_NET_L3_MASTER_DEV.
 
 tcp_low_latency - BOOLEAN
-	If set, the TCP stack makes decisions that prefer lower
-	latency as opposed to higher throughput.  By default, this
-	option is not set meaning that higher throughput is preferred.
-	An example of an application where this default should be
-	changed would be a Beowulf compute cluster.
-	Default: 0
+	This is a legacy option, it has no effect anymore.
 
 tcp_max_orphans - INTEGER
 	Maximal number of TCP sockets not attached to any user file handle,
@@ -1291,8 +1289,7 @@ tag - INTEGER
 xfrm4_gc_thresh - INTEGER
 	The threshold at which we will start garbage collecting for IPv4
 	destination cache entries.  At twice this value the system will
-	refuse new allocations. The value must be set below the flowcache
-	limit (4096 * number of online cpus) to take effect.
+	refuse new allocations.
 
 igmp_link_local_mcast_reports - BOOLEAN
 	Enable IGMP reports for link local multicast groups in the
@@ -1355,6 +1352,15 @@ flowlabel_state_ranges - BOOLEAN
 	TRUE: enabled
 	FALSE: disabled
 	Default: true
+
+flowlabel_reflect - BOOLEAN
+	Automatically reflect the flow label. Needed for Path MTU
+	Discovery to work with Equal Cost Multipath Routing in anycast
+	environments. See RFC 7690 and:
+	https://tools.ietf.org/html/draft-wang-6man-flow-label-reflection-01
+	TRUE: enabled
+	FALSE: disabled
+	Default: FALSE
 
 anycast_src_echo_reply - BOOLEAN
 	Controls the use of anycast addresses as source addresses for ICMPv6
@@ -1778,8 +1784,7 @@ ratelimit - INTEGER
 xfrm6_gc_thresh - INTEGER
 	The threshold at which we will start garbage collecting for IPv6
 	destination cache entries.  At twice this value the system will
-	refuse new allocations. The value must be set below the flowcache
-	limit (4096 * number of online cpus) to take effect.
+	refuse new allocations.
 
 
 IPv6 Update by:

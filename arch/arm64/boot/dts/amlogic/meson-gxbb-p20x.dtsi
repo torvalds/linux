@@ -84,6 +84,9 @@
 		/* Based on P200 schematics, signal CARD_1.8V/3.3V_CTR */
 		states = <1800000 0
 			  3300000 1>;
+
+		regulator-settling-time-up-us = <10000>;
+		regulator-settling-time-down-us = <150000>;
 	};
 
 	vddio_boot: regulator-vddio_boot {
@@ -146,6 +149,13 @@
 			};
 		};
 	};
+};
+
+&cec_AO {
+	status = "okay";
+	pinctrl-0 = <&ao_cec_pins>;
+	pinctrl-names = "default";
+	hdmi-phandle = <&hdmi_tx>;
 };
 
 &cvbs_vdac_port {

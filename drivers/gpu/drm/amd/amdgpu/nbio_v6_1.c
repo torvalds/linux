@@ -32,6 +32,7 @@
 
 #define smnCPM_CONTROL                                                                                  0x11180460
 #define smnPCIE_CNTL2                                                                                   0x11180070
+#define smnPCIE_CONFIG_CNTL                                                                             0x11180044
 
 u32 nbio_v6_1_get_rev_id(struct amdgpu_device *adev)
 {
@@ -67,7 +68,7 @@ void nbio_v6_1_mc_access_enable(struct amdgpu_device *adev, bool enable)
 
 void nbio_v6_1_hdp_flush(struct amdgpu_device *adev)
 {
-	WREG32_SOC15(NBIO, 0, mmBIF_BX_PF0_HDP_MEM_COHERENCY_FLUSH_CNTL, 0);
+	WREG32_SOC15_NO_KIQ(NBIO, 0, mmBIF_BX_PF0_HDP_MEM_COHERENCY_FLUSH_CNTL, 0);
 }
 
 u32 nbio_v6_1_get_memsize(struct amdgpu_device *adev)
@@ -255,4 +256,16 @@ void nbio_v6_1_detect_hw_virt(struct amdgpu_device *adev)
 		if (is_virtual_machine())	/* passthrough mode exclus sriov mod */
 			adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
 	}
+}
+
+void nbio_v6_1_init_registers(struct amdgpu_device *adev)
+{
+	uint32_t def, data;
+
+	def = data = RREG32_PCIE(smnPCIE_CONFIG_CNTL);
+	data = REG_SET_FIELD(data, PCIE_CONFIG_CNTL, CI_SWUS_MAX_READ_REQUEST_SIZE_MODE, 1);
+	data = REG_SET_FIELD(data, PCIE_CONFIG_CNTL, CI_SWUS_MAX_READ_REQUEST_SIZE_PRIV, 1);
+
+	if (def != data)
+		WREG32_PCIE(smnPCIE_CONFIG_CNTL, data);
 }

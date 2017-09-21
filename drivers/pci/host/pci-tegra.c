@@ -1147,15 +1147,15 @@ static int tegra_pcie_resets_get(struct tegra_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
 
-	pcie->pex_rst = devm_reset_control_get(dev, "pex");
+	pcie->pex_rst = devm_reset_control_get_exclusive(dev, "pex");
 	if (IS_ERR(pcie->pex_rst))
 		return PTR_ERR(pcie->pex_rst);
 
-	pcie->afi_rst = devm_reset_control_get(dev, "afi");
+	pcie->afi_rst = devm_reset_control_get_exclusive(dev, "afi");
 	if (IS_ERR(pcie->afi_rst))
 		return PTR_ERR(pcie->afi_rst);
 
-	pcie->pcie_xrst = devm_reset_control_get(dev, "pcie_x");
+	pcie->pcie_xrst = devm_reset_control_get_exclusive(dev, "pcie_x");
 	if (IS_ERR(pcie->pcie_xrst))
 		return PTR_ERR(pcie->pcie_xrst);
 
@@ -1703,8 +1703,7 @@ static int tegra_pcie_get_legacy_regulators(struct tegra_pcie *pcie)
 		pcie->num_supplies = 2;
 
 	if (pcie->num_supplies == 0) {
-		dev_err(dev, "device %s not supported in legacy mode\n",
-			np->full_name);
+		dev_err(dev, "device %pOF not supported in legacy mode\n", np);
 		return -ENODEV;
 	}
 

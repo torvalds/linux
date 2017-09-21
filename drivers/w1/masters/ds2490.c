@@ -1088,7 +1088,7 @@ static void ds_disconnect(struct usb_interface *intf)
 	kfree(dev);
 }
 
-static struct usb_device_id ds_id_table [] = {
+static const struct usb_device_id ds_id_table[] = {
 	{ USB_DEVICE(0x04fa, 0x2490) },
 	{ },
 };

@@ -62,6 +62,7 @@ ENTRY(mul32_Xsig)
 	popl %esi
 	leave
 	ret
+ENDPROC(mul32_Xsig)
 
 
 ENTRY(mul64_Xsig)
@@ -114,6 +115,7 @@ ENTRY(mul64_Xsig)
 	popl %esi
 	leave
 	ret
+ENDPROC(mul64_Xsig)
 
 
 
@@ -173,4 +175,4 @@ ENTRY(mul_Xsig_Xsig)
 	popl %esi
 	leave
 	ret
-
+ENDPROC(mul_Xsig_Xsig)

@@ -1,0 +1,59 @@
+Cortina Systems Gemini pin controller
+
+This pin controller is found in the Cortina Systems Gemini SoC family,
+see further arm/gemini.txt. It is a purely group-based multiplexing pin
+controller.
+
+The pin controller node must be a subnode of the system controller node.
+
+Required properties:
+- compatible: "cortina,gemini-pinctrl"
+
+Subnodes of the pin controller contain pin control multiplexing set-up.
+Please refer to pinctrl-bindings.txt for generic pin multiplexing nodes.
+
+Example:
+
+
+syscon {
+	compatible = "cortina,gemini-syscon";
+	...
+	pinctrl {
+		compatible = "cortina,gemini-pinctrl";
+		pinctrl-names = "default";
+		pinctrl-0 = <&dram_default_pins>, <&system_default_pins>,
+		    <&vcontrol_default_pins>;
+
+		dram_default_pins: pinctrl-dram {
+			mux {
+				function = "dram";
+				groups = "dramgrp";
+			};
+		};
+		rtc_default_pins: pinctrl-rtc {
+			mux {
+				function = "rtc";
+				groups = "rtcgrp";
+			};
+		};
+		power_default_pins: pinctrl-power {
+			mux {
+				function = "power";
+				groups = "powergrp";
+			};
+		};
+		system_default_pins: pinctrl-system {
+			mux {
+				function = "system";
+				groups = "systemgrp";
+			};
+		};
+		(...)
+		uart_default_pins: pinctrl-uart {
+			mux {
+				function = "uart";
+				groups = "uartrxtxgrp";
+			};
+		};
+	};
+};

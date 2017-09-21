@@ -319,8 +319,8 @@ static int child_regions_with_firmware(struct device_node *overlay)
 	of_node_put(child_region);
 
 	if (ret)
-		pr_err("firmware-name not allowed in child FPGA region: %s",
-		       child_region->full_name);
+		pr_err("firmware-name not allowed in child FPGA region: %pOF",
+		       child_region);
 
 	return ret;
 }

@@ -681,7 +681,7 @@ fail1:
 	return err;
 }
 
-static struct serio_device_id w8001_serio_ids[] = {
+static const struct serio_device_id w8001_serio_ids[] = {
 	{
 		.type	= SERIO_RS232,
 		.proto	= SERIO_W8001,

@@ -180,14 +180,14 @@ struct inode *ovl_inode_real(struct inode *inode)
 }
 
 
-struct ovl_dir_cache *ovl_dir_cache(struct dentry *dentry)
+struct ovl_dir_cache *ovl_dir_cache(struct inode *inode)
 {
-	return OVL_I(d_inode(dentry))->cache;
+	return OVL_I(inode)->cache;
 }
 
-void ovl_set_dir_cache(struct dentry *dentry, struct ovl_dir_cache *cache)
+void ovl_set_dir_cache(struct inode *inode, struct ovl_dir_cache *cache)
 {
-	OVL_I(d_inode(dentry))->cache = cache;
+	OVL_I(inode)->cache = cache;
 }
 
 bool ovl_dentry_is_opaque(struct dentry *dentry)
@@ -275,12 +275,19 @@ void ovl_inode_update(struct inode *inode, struct dentry *upperdentry)
 	}
 }
 
-void ovl_dentry_version_inc(struct dentry *dentry)
+void ovl_dentry_version_inc(struct dentry *dentry, bool impurity)
 {
 	struct inode *inode = d_inode(dentry);
 
 	WARN_ON(!inode_is_locked(inode));
-	OVL_I(inode)->version++;
+	/*
+	 * Version is used by readdir code to keep cache consistent.  For merge
+	 * dirs all changes need to be noted.  For non-merge dirs, cache only
+	 * contains impure (ones which have been copied up and have origins)
+	 * entries, so only need to note changes to impure entries.
+	 */
+	if (OVL_TYPE_MERGE(ovl_path_type(dentry)) || impurity)
+		OVL_I(inode)->version++;
 }
 
 u64 ovl_dentry_version_get(struct dentry *dentry)
@@ -380,6 +387,11 @@ int ovl_set_impure(struct dentry *dentry, struct dentry *upperdentry)
 void ovl_set_flag(unsigned long flag, struct inode *inode)
 {
 	set_bit(flag, &OVL_I(inode)->flags);
+}
+
+void ovl_clear_flag(unsigned long flag, struct inode *inode)
+{
+	clear_bit(flag, &OVL_I(inode)->flags);
 }
 
 bool ovl_test_flag(unsigned long flag, struct inode *inode)

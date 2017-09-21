@@ -140,7 +140,7 @@ static int __init stm32_exti_init(struct device_node *node,
 
 	base = of_iomap(node, 0);
 	if (!base) {
-		pr_err("%s: Unable to map registers\n", node->full_name);
+		pr_err("%pOF: Unable to map registers\n", node);
 		return -ENOMEM;
 	}
 
@@ -149,7 +149,7 @@ static int __init stm32_exti_init(struct device_node *node,
 	nr_exti = fls(readl_relaxed(base + EXTI_RTSR));
 	writel_relaxed(0, base + EXTI_RTSR);
 
-	pr_info("%s: %d External IRQs detected\n", node->full_name, nr_exti);
+	pr_info("%pOF: %d External IRQs detected\n", node, nr_exti);
 
 	domain = irq_domain_add_linear(node, nr_exti,
 				       &irq_exti_domain_ops, NULL);
@@ -163,8 +163,8 @@ static int __init stm32_exti_init(struct device_node *node,
 	ret = irq_alloc_domain_generic_chips(domain, nr_exti, 1, "exti",
 					     handle_edge_irq, clr, 0, 0);
 	if (ret) {
-		pr_err("%s: Could not allocate generic interrupt chip.\n",
-			node->full_name);
+		pr_err("%pOF: Could not allocate generic interrupt chip.\n",
+			node);
 		goto out_free_domain;
 	}
 

@@ -114,7 +114,7 @@ static struct attribute *wusb_dev_attrs[] = {
 		NULL,
 };
 
-static struct attribute_group wusb_dev_attr_group = {
+static const struct attribute_group wusb_dev_attr_group = {
 	.name = NULL,	/* we want them in the same directory */
 	.attrs = wusb_dev_attrs,
 };

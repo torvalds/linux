@@ -107,7 +107,6 @@ struct pv_cpu_ops {
 	unsigned long (*read_cr0)(void);
 	void (*write_cr0)(unsigned long);
 
-	unsigned long (*read_cr4)(void);
 	void (*write_cr4)(unsigned long);
 
 #ifdef CONFIG_X86_64
@@ -119,8 +118,6 @@ struct pv_cpu_ops {
 	void (*load_tr_desc)(void);
 	void (*load_gdt)(const struct desc_ptr *);
 	void (*load_idt)(const struct desc_ptr *);
-	/* store_gdt has been removed. */
-	void (*store_idt)(struct desc_ptr *);
 	void (*set_ldt)(const void *desc, unsigned entries);
 	unsigned long (*store_tr)(void);
 	void (*load_tls)(struct thread_struct *t, unsigned int cpu);
@@ -196,9 +193,6 @@ struct pv_irq_ops {
 	void (*safe_halt)(void);
 	void (*halt)(void);
 
-#ifdef CONFIG_X86_64
-	void (*adjust_exception_frame)(void);
-#endif
 } __no_randomize_layout;
 
 struct pv_mmu_ops {
@@ -248,12 +242,6 @@ struct pv_mmu_ops {
 	void (*set_pte_at)(struct mm_struct *mm, unsigned long addr,
 			   pte_t *ptep, pte_t pteval);
 	void (*set_pmd)(pmd_t *pmdp, pmd_t pmdval);
-	void (*set_pmd_at)(struct mm_struct *mm, unsigned long addr,
-			   pmd_t *pmdp, pmd_t pmdval);
-	void (*set_pud_at)(struct mm_struct *mm, unsigned long addr,
-			   pud_t *pudp, pud_t pudval);
-	void (*pte_update)(struct mm_struct *mm, unsigned long addr,
-			   pte_t *ptep);
 
 	pte_t (*ptep_modify_prot_start)(struct mm_struct *mm, unsigned long addr,
 					pte_t *ptep);

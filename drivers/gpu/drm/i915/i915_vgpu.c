@@ -75,8 +75,15 @@ void i915_check_vgpu(struct drm_i915_private *dev_priv)
 		return;
 	}
 
+	dev_priv->vgpu.caps = __raw_i915_read32(dev_priv, vgtif_reg(vgt_caps));
+
 	dev_priv->vgpu.active = true;
 	DRM_INFO("Virtual GPU for Intel GVT-g detected.\n");
+}
+
+bool intel_vgpu_has_full_48bit_ppgtt(struct drm_i915_private *dev_priv)
+{
+	return dev_priv->vgpu.caps & VGT_CAPS_FULL_48BIT_PPGTT;
 }
 
 struct _balloon_info_ {

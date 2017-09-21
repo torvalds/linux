@@ -271,10 +271,10 @@ rt_mutex_waiter_equal(struct rt_mutex_waiter *left,
 static void
 rt_mutex_enqueue(struct rt_mutex *lock, struct rt_mutex_waiter *waiter)
 {
-	struct rb_node **link = &lock->waiters.rb_node;
+	struct rb_node **link = &lock->waiters.rb_root.rb_node;
 	struct rb_node *parent = NULL;
 	struct rt_mutex_waiter *entry;
-	int leftmost = 1;
+	bool leftmost = true;
 
 	while (*link) {
 		parent = *link;
@@ -283,15 +283,12 @@ rt_mutex_enqueue(struct rt_mutex *lock, struct rt_mutex_waiter *waiter)
 			link = &parent->rb_left;
 		} else {
 			link = &parent->rb_right;
-			leftmost = 0;
+			leftmost = false;
 		}
 	}
 
-	if (leftmost)
-		lock->waiters_leftmost = &waiter->tree_entry;
-
 	rb_link_node(&waiter->tree_entry, parent, link);
-	rb_insert_color(&waiter->tree_entry, &lock->waiters);
+	rb_insert_color_cached(&waiter->tree_entry, &lock->waiters, leftmost);
 }
 
 static void
@@ -300,20 +297,17 @@ rt_mutex_dequeue(struct rt_mutex *lock, struct rt_mutex_waiter *waiter)
 	if (RB_EMPTY_NODE(&waiter->tree_entry))
 		return;
 
-	if (lock->waiters_leftmost == &waiter->tree_entry)
-		lock->waiters_leftmost = rb_next(&waiter->tree_entry);
-
-	rb_erase(&waiter->tree_entry, &lock->waiters);
+	rb_erase_cached(&waiter->tree_entry, &lock->waiters);
 	RB_CLEAR_NODE(&waiter->tree_entry);
 }
 
 static void
 rt_mutex_enqueue_pi(struct task_struct *task, struct rt_mutex_waiter *waiter)
 {
-	struct rb_node **link = &task->pi_waiters.rb_node;
+	struct rb_node **link = &task->pi_waiters.rb_root.rb_node;
 	struct rb_node *parent = NULL;
 	struct rt_mutex_waiter *entry;
-	int leftmost = 1;
+	bool leftmost = true;
 
 	while (*link) {
 		parent = *link;
@@ -322,15 +316,12 @@ rt_mutex_enqueue_pi(struct task_struct *task, struct rt_mutex_waiter *waiter)
 			link = &parent->rb_left;
 		} else {
 			link = &parent->rb_right;
-			leftmost = 0;
+			leftmost = false;
 		}
 	}
 
-	if (leftmost)
-		task->pi_waiters_leftmost = &waiter->pi_tree_entry;
-
 	rb_link_node(&waiter->pi_tree_entry, parent, link);
-	rb_insert_color(&waiter->pi_tree_entry, &task->pi_waiters);
+	rb_insert_color_cached(&waiter->pi_tree_entry, &task->pi_waiters, leftmost);
 }
 
 static void
@@ -339,10 +330,7 @@ rt_mutex_dequeue_pi(struct task_struct *task, struct rt_mutex_waiter *waiter)
 	if (RB_EMPTY_NODE(&waiter->pi_tree_entry))
 		return;
 
-	if (task->pi_waiters_leftmost == &waiter->pi_tree_entry)
-		task->pi_waiters_leftmost = rb_next(&waiter->pi_tree_entry);
-
-	rb_erase(&waiter->pi_tree_entry, &task->pi_waiters);
+	rb_erase_cached(&waiter->pi_tree_entry, &task->pi_waiters);
 	RB_CLEAR_NODE(&waiter->pi_tree_entry);
 }
 
@@ -1657,8 +1645,7 @@ void __rt_mutex_init(struct rt_mutex *lock, const char *name,
 {
 	lock->owner = NULL;
 	raw_spin_lock_init(&lock->wait_lock);
-	lock->waiters = RB_ROOT;
-	lock->waiters_leftmost = NULL;
+	lock->waiters = RB_ROOT_CACHED;
 
 	if (name && key)
 		debug_rt_mutex_init(lock, name, key);

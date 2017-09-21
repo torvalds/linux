@@ -2079,7 +2079,7 @@ void
 mpt_detach(struct pci_dev *pdev)
 {
 	MPT_ADAPTER 	*ioc = pci_get_drvdata(pdev);
-	char pname[32];
+	char pname[64];
 	u8 cb_idx;
 	unsigned long flags;
 	struct workqueue_struct *wq;
@@ -2100,11 +2100,11 @@ mpt_detach(struct pci_dev *pdev)
 	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 	destroy_workqueue(wq);
 
-	sprintf(pname, MPT_PROCFS_MPTBASEDIR "/%s/summary", ioc->name);
+	snprintf(pname, sizeof(pname), MPT_PROCFS_MPTBASEDIR "/%s/summary", ioc->name);
 	remove_proc_entry(pname, NULL);
-	sprintf(pname, MPT_PROCFS_MPTBASEDIR "/%s/info", ioc->name);
+	snprintf(pname, sizeof(pname), MPT_PROCFS_MPTBASEDIR "/%s/info", ioc->name);
 	remove_proc_entry(pname, NULL);
-	sprintf(pname, MPT_PROCFS_MPTBASEDIR "/%s", ioc->name);
+	snprintf(pname, sizeof(pname), MPT_PROCFS_MPTBASEDIR "/%s", ioc->name);
 	remove_proc_entry(pname, NULL);
 
 	/* call per device driver remove entry point */

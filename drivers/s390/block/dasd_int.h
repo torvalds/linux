@@ -56,6 +56,7 @@
 #include <asm/dasd.h>
 #include <asm/idals.h>
 #include <linux/bitops.h>
+#include <linux/blk-mq.h>
 
 /* DASD discipline magic */
 #define DASD_ECKD_MAGIC 0xC5C3D2C4
@@ -167,6 +168,9 @@ do { \
 	printk(d_loglevel PRINTK_HEADER " " d_string "\n", d_args); \
 } while(0)
 
+/* Macro to calculate number of blocks per page */
+#define BLOCKS_PER_PAGE(blksize) (PAGE_SIZE / blksize)
+
 struct dasd_ccw_req {
 	unsigned int magic;		/* Eye catcher */
 	struct list_head devlist;	/* for dasd_device request queue */
@@ -182,6 +186,7 @@ struct dasd_ccw_req {
 	char status;			/* status of this request */
 	short retries;			/* A retry counter */
 	unsigned long flags;        	/* flags of this request */
+	struct dasd_queue *dq;
 
 	/* ... and how */
 	unsigned long starttime;	/* jiffies time of request start */
@@ -196,10 +201,10 @@ struct dasd_ccw_req {
 	void *function; 		/* originating ERP action */
 
 	/* these are for statistics only */
-	unsigned long long buildclk;	/* TOD-clock of request generation */
-	unsigned long long startclk;	/* TOD-clock of request start */
-	unsigned long long stopclk;	/* TOD-clock of request interrupt */
-	unsigned long long endclk;	/* TOD-clock of request termination */
+	unsigned long buildclk;		/* TOD-clock of request generation */
+	unsigned long startclk;		/* TOD-clock of request start */
+	unsigned long stopclk;		/* TOD-clock of request interrupt */
+	unsigned long endclk;		/* TOD-clock of request termination */
 
         /* Callback that is called after reaching final status. */
 	void (*callback)(struct dasd_ccw_req *, void *data);
@@ -244,6 +249,16 @@ struct dasd_ccw_req {
 #define DASD_CQR_SUPPRESS_FP	5	/* Suppress 'File Protected' error*/
 #define DASD_CQR_SUPPRESS_IL	6	/* Suppress 'Incorrect Length' error */
 #define DASD_CQR_SUPPRESS_CR	7	/* Suppress 'Command Reject' error */
+
+/*
+ * There is no reliable way to determine the number of available CPUs on
+ * LPAR but there is no big performance difference between 1 and the
+ * maximum CPU number.
+ * 64 is a good trade off performance wise.
+ */
+#define DASD_NR_HW_QUEUES 64
+#define DASD_MAX_LCU_DEV 256
+#define DASD_REQ_PER_DEV 4
 
 /* Signature for error recovery functions. */
 typedef struct dasd_ccw_req *(*dasd_erp_fn_t) (struct dasd_ccw_req *);
@@ -423,7 +438,7 @@ struct dasd_path {
 	u8 chpid;
 	struct dasd_conf_data *conf_data;
 	atomic_t error_count;
-	unsigned long long errorclk;
+	unsigned long errorclk;
 };
 
 
@@ -454,6 +469,10 @@ struct dasd_profile_info {
 	unsigned int dasd_read_time2[32];  /* hist. of time from start to irq */
 	unsigned int dasd_read_time3[32];  /* hist. of time from irq to end */
 	unsigned int dasd_read_nr_req[32]; /* hist. of # of requests in chanq */
+	unsigned long dasd_sum_times;	   /* sum of request times */
+	unsigned long dasd_sum_time_str;   /* sum of time from build to start */
+	unsigned long dasd_sum_time_irq;   /* sum of time from start to irq */
+	unsigned long dasd_sum_time_end;   /* sum of time from irq to end */
 };
 
 struct dasd_profile {
@@ -532,10 +551,11 @@ struct dasd_block {
 	struct gendisk *gdp;
 	struct request_queue *request_queue;
 	spinlock_t request_queue_lock;
+	struct blk_mq_tag_set tag_set;
 	struct block_device *bdev;
 	atomic_t open_count;
 
-	unsigned long long blocks; /* size of volume in blocks */
+	unsigned long blocks;	   /* size of volume in blocks */
 	unsigned int bp_block;	   /* bytes per block */
 	unsigned int s2b_shift;	   /* log2 (bp_block/512) */
 
@@ -554,6 +574,10 @@ struct dasd_block {
 struct dasd_attention_data {
 	struct dasd_device *device;
 	__u8 lpum;
+};
+
+struct dasd_queue {
+	spinlock_t lock;
 };
 
 /* reasons why device (ccw_device_start) was stopped */
@@ -724,7 +748,7 @@ void dasd_free_device(struct dasd_device *);
 struct dasd_block *dasd_alloc_block(void);
 void dasd_free_block(struct dasd_block *);
 
-enum blk_eh_timer_return dasd_times_out(struct request *req);
+enum blk_eh_timer_return dasd_times_out(struct request *req, bool reserved);
 
 void dasd_enable_device(struct dasd_device *);
 void dasd_set_target_state(struct dasd_device *, int);

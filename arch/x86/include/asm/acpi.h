@@ -150,8 +150,6 @@ static inline void disable_acpi(void) { }
 extern int x86_acpi_numa_init(void);
 #endif /* CONFIG_ACPI_NUMA */
 
-#define acpi_unlazy_tlb(x)	leave_mm(x)
-
 #ifdef CONFIG_ACPI_APEI
 static inline pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr)
 {
@@ -162,12 +160,13 @@ static inline pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr)
 	 * you call efi_mem_attributes() during boot and at runtime,
 	 * you could theoretically see different attributes.
 	 *
-	 * Since we are yet to see any x86 platforms that require
-	 * anything other than PAGE_KERNEL (some arm64 platforms
-	 * require the equivalent of PAGE_KERNEL_NOCACHE), return that
-	 * until we know differently.
+	 * We are yet to see any x86 platforms that require anything
+	 * other than PAGE_KERNEL (some ARM64 platforms require the
+	 * equivalent of PAGE_KERNEL_NOCACHE). Additionally, if SME
+	 * is active, the ACPI information will not be encrypted,
+	 * so return PAGE_KERNEL_NOENC until we know differently.
 	 */
-	 return PAGE_KERNEL;
+	return PAGE_KERNEL_NOENC;
 }
 #endif
 

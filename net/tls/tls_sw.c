@@ -639,7 +639,7 @@ sendpage_end:
 	return ret;
 }
 
-void tls_sw_free_resources(struct sock *sk)
+static void tls_sw_free_resources(struct sock *sk)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context *ctx = tls_sw_ctx(tls_ctx);

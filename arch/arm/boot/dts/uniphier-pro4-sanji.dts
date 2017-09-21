@@ -8,7 +8,7 @@
  */
 
 /dts-v1/;
-/include/ "uniphier-pro4.dtsi"
+#include "uniphier-pro4.dtsi"
 
 / {
 	model = "UniPhier Pro4 Sanji Board";

@@ -103,6 +103,8 @@ int aq_nic_cfg_start(struct aq_nic_s *self)
 	else
 		cfg->vecs = 1U;
 
+	cfg->num_rss_queues = min(cfg->vecs, AQ_CFG_NUM_RSS_QUEUES_DEF);
+
 	cfg->irq_type = aq_pci_func_get_irq_type(self->aq_pci_func);
 
 	if ((cfg->irq_type == AQ_HW_IRQ_LEGACY) ||
@@ -123,33 +125,30 @@ static void aq_nic_service_timer_cb(unsigned long param)
 	struct net_device *ndev = aq_nic_get_ndev(self);
 	int err = 0;
 	unsigned int i = 0U;
-	struct aq_hw_link_status_s link_status;
 	struct aq_ring_stats_rx_s stats_rx;
 	struct aq_ring_stats_tx_s stats_tx;
 
 	if (aq_utils_obj_test(&self->header.flags, AQ_NIC_FLAGS_IS_NOT_READY))
 		goto err_exit;
 
-	err = self->aq_hw_ops.hw_get_link_status(self->aq_hw, &link_status);
+	err = self->aq_hw_ops.hw_get_link_status(self->aq_hw);
 	if (err < 0)
 		goto err_exit;
 
+	self->link_status = self->aq_hw->aq_link_status;
+
 	self->aq_hw_ops.hw_interrupt_moderation_set(self->aq_hw,
-			    self->aq_nic_cfg.is_interrupt_moderation);
+		    self->aq_nic_cfg.is_interrupt_moderation);
 
-	if (memcmp(&link_status, &self->link_status, sizeof(link_status))) {
-		if (link_status.mbps) {
-			aq_utils_obj_set(&self->header.flags,
-					 AQ_NIC_FLAG_STARTED);
-			aq_utils_obj_clear(&self->header.flags,
-					   AQ_NIC_LINK_DOWN);
-			netif_carrier_on(self->ndev);
-		} else {
-			netif_carrier_off(self->ndev);
-			aq_utils_obj_set(&self->header.flags, AQ_NIC_LINK_DOWN);
-		}
-
-		self->link_status = link_status;
+	if (self->link_status.mbps) {
+		aq_utils_obj_set(&self->header.flags,
+				 AQ_NIC_FLAG_STARTED);
+		aq_utils_obj_clear(&self->header.flags,
+				   AQ_NIC_LINK_DOWN);
+		netif_carrier_on(self->ndev);
+	} else {
+		netif_carrier_off(self->ndev);
+		aq_utils_obj_set(&self->header.flags, AQ_NIC_LINK_DOWN);
 	}
 
 	memset(&stats_rx, 0U, sizeof(struct aq_ring_stats_rx_s));
@@ -597,14 +596,11 @@ exit:
 }
 
 int aq_nic_xmit(struct aq_nic_s *self, struct sk_buff *skb)
-__releases(&ring->lock)
-__acquires(&ring->lock)
 {
 	struct aq_ring_s *ring = NULL;
 	unsigned int frags = 0U;
 	unsigned int vec = skb->queue_mapping % self->aq_nic_cfg.vecs;
 	unsigned int tc = 0U;
-	unsigned int trys = AQ_CFG_LOCK_TRYS;
 	int err = NETDEV_TX_OK;
 	bool is_nic_in_bad_state;
 
@@ -628,36 +624,21 @@ __acquires(&ring->lock)
 		goto err_exit;
 	}
 
-	do {
-		if (spin_trylock(&ring->header.lock)) {
-			frags = aq_nic_map_skb(self, skb, ring);
+	frags = aq_nic_map_skb(self, skb, ring);
 
-			if (likely(frags)) {
-				err = self->aq_hw_ops.hw_ring_tx_xmit(
-								self->aq_hw,
-								ring, frags);
-				if (err >= 0) {
-					if (aq_ring_avail_dx(ring) <
-					    AQ_CFG_SKB_FRAGS_MAX + 1)
-						aq_nic_ndev_queue_stop(
-								self,
-								ring->idx);
+	if (likely(frags)) {
+		err = self->aq_hw_ops.hw_ring_tx_xmit(self->aq_hw,
+						      ring,
+						      frags);
+		if (err >= 0) {
+			if (aq_ring_avail_dx(ring) < AQ_CFG_SKB_FRAGS_MAX + 1)
+				aq_nic_ndev_queue_stop(self, ring->idx);
 
-					++ring->stats.tx.packets;
-					ring->stats.tx.bytes += skb->len;
-				}
-			} else {
-				err = NETDEV_TX_BUSY;
-			}
-
-			spin_unlock(&ring->header.lock);
-			break;
+			++ring->stats.tx.packets;
+			ring->stats.tx.bytes += skb->len;
 		}
-	} while (--trys);
-
-	if (!trys) {
+	} else {
 		err = NETDEV_TX_BUSY;
-		goto err_exit;
 	}
 
 err_exit:
@@ -688,11 +669,26 @@ int aq_nic_set_multicast_list(struct aq_nic_s *self, struct net_device *ndev)
 	netdev_for_each_mc_addr(ha, ndev) {
 		ether_addr_copy(self->mc_list.ar[i++], ha->addr);
 		++self->mc_list.count;
+
+		if (i >= AQ_CFG_MULTICAST_ADDRESS_MAX)
+			break;
 	}
 
-	return self->aq_hw_ops.hw_multicast_list_set(self->aq_hw,
+	if (i >= AQ_CFG_MULTICAST_ADDRESS_MAX) {
+		/* Number of filters is too big: atlantic does not support this.
+		 * Force all multi filter to support this.
+		 * With this we disable all UC filters and setup "all pass"
+		 * multicast mask
+		 */
+		self->packet_filter |= IFF_ALLMULTI;
+		self->aq_hw->aq_nic_cfg->mc_list_count = 0;
+		return self->aq_hw_ops.hw_packet_filter_set(self->aq_hw,
+							self->packet_filter);
+	} else {
+		return self->aq_hw_ops.hw_multicast_list_set(self->aq_hw,
 						    self->mc_list.ar,
 						    self->mc_list.count);
+	}
 }
 
 int aq_nic_set_mtu(struct aq_nic_s *self, int new_mtu)

@@ -59,11 +59,9 @@ static struct drm_driver zx_drm_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
 			   DRIVER_ATOMIC,
 	.lastclose = zx_drm_lastclose,
-	.gem_free_object = drm_gem_cma_free_object,
+	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,
-	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = drm_gem_prime_export,
@@ -149,7 +147,6 @@ out_fbdev_fini:
 out_poll_fini:
 	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);
-	drm_vblank_cleanup(drm);
 out_unbind:
 	component_unbind_all(dev, drm);
 out_unregister:
@@ -171,7 +168,6 @@ static void zx_drm_unbind(struct device *dev)
 	}
 	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);
-	drm_vblank_cleanup(drm);
 	component_unbind_all(dev, drm);
 	dev_set_drvdata(dev, NULL);
 	drm->dev_private = NULL;

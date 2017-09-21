@@ -43,6 +43,7 @@ static int of_pmsi_get_dev_id(struct irq_domain *domain, struct device *dev,
 			*dev_id = args.args[0];
 			break;
 		}
+		index++;
 	} while (!ret);
 
 	return ret;

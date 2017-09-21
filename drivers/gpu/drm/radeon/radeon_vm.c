@@ -139,7 +139,7 @@ struct radeon_bo_list *radeon_vm_get_bos(struct radeon_device *rdev,
 
 	/* add the vm page table to the list */
 	list[0].robj = vm->page_directory;
-	list[0].prefered_domains = RADEON_GEM_DOMAIN_VRAM;
+	list[0].preferred_domains = RADEON_GEM_DOMAIN_VRAM;
 	list[0].allowed_domains = RADEON_GEM_DOMAIN_VRAM;
 	list[0].tv.bo = &vm->page_directory->tbo;
 	list[0].tv.shared = true;
@@ -151,7 +151,7 @@ struct radeon_bo_list *radeon_vm_get_bos(struct radeon_device *rdev,
 			continue;
 
 		list[idx].robj = vm->page_tables[i].bo;
-		list[idx].prefered_domains = RADEON_GEM_DOMAIN_VRAM;
+		list[idx].preferred_domains = RADEON_GEM_DOMAIN_VRAM;
 		list[idx].allowed_domains = RADEON_GEM_DOMAIN_VRAM;
 		list[idx].tv.bo = &list[idx].robj->tbo;
 		list[idx].tv.shared = true;
@@ -1185,7 +1185,7 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 		vm->ids[i].last_id_use = NULL;
 	}
 	mutex_init(&vm->mutex);
-	vm->va = RB_ROOT;
+	vm->va = RB_ROOT_CACHED;
 	spin_lock_init(&vm->status_lock);
 	INIT_LIST_HEAD(&vm->invalidated);
 	INIT_LIST_HEAD(&vm->freed);
@@ -1232,10 +1232,11 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 	struct radeon_bo_va *bo_va, *tmp;
 	int i, r;
 
-	if (!RB_EMPTY_ROOT(&vm->va)) {
+	if (!RB_EMPTY_ROOT(&vm->va.rb_root)) {
 		dev_err(rdev->dev, "still active bo inside vm\n");
 	}
-	rbtree_postorder_for_each_entry_safe(bo_va, tmp, &vm->va, it.rb) {
+	rbtree_postorder_for_each_entry_safe(bo_va, tmp,
+					     &vm->va.rb_root, it.rb) {
 		interval_tree_remove(&bo_va->it, &vm->va);
 		r = radeon_bo_reserve(bo_va->bo, false);
 		if (!r) {

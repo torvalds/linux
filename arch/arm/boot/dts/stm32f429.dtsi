@@ -361,6 +361,31 @@
 			status = "disabled";
 		};
 
+		dac: dac@40007400 {
+			compatible = "st,stm32f4-dac-core";
+			reg = <0x40007400 0x400>;
+			resets = <&rcc STM32F4_APB1_RESET(DAC)>;
+			clocks = <&rcc 0 STM32F4_APB1_CLOCK(DAC)>;
+			clock-names = "pclk";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+
+			dac1: dac@1 {
+				compatible = "st,stm32-dac";
+				#io-channels-cells = <1>;
+				reg = <1>;
+				status = "disabled";
+			};
+
+			dac2: dac@2 {
+				compatible = "st,stm32-dac";
+				#io-channels-cells = <1>;
+				reg = <2>;
+				status = "disabled";
+			};
+		};
+
 		usart7: serial@40007800 {
 			compatible = "st,stm32-usart", "st,stm32-uart";
 			reg = <0x40007800 0x400>;

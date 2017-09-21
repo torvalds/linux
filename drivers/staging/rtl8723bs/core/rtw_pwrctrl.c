@@ -210,8 +210,8 @@ void pwr_state_check_handler(RTW_TIMER_HDL_ARGS)
 
 void traffic_check_for_leave_lps(struct adapter *padapter, u8 tx, u32 tx_packets)
 {
-	static unsigned long start_time = 0;
-	static u32 xmit_cnt = 0;
+	static unsigned long start_time;
+	static u32 xmit_cnt;
 	u8 bLeaveLPS = false;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
@@ -829,7 +829,7 @@ static void pwr_rpwm_timeout_handler(void *FunctionContext)
 	struct pwrctrl_priv *pwrpriv;
 
 
-	padapter = (struct adapter *)FunctionContext;
+	padapter = FunctionContext;
 	pwrpriv = adapter_to_pwrctl(padapter);
 	DBG_871X("+%s: rpwm = 0x%02X cpwm = 0x%02X\n", __func__, pwrpriv->rpwm, pwrpriv->cpwm);
 

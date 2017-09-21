@@ -11,6 +11,7 @@ BPF_PROG_TYPE(BPF_PROG_TYPE_LWT_IN, lwt_inout_prog_ops)
 BPF_PROG_TYPE(BPF_PROG_TYPE_LWT_OUT, lwt_inout_prog_ops)
 BPF_PROG_TYPE(BPF_PROG_TYPE_LWT_XMIT, lwt_xmit_prog_ops)
 BPF_PROG_TYPE(BPF_PROG_TYPE_SOCK_OPS, sock_ops_prog_ops)
+BPF_PROG_TYPE(BPF_PROG_TYPE_SK_SKB, sk_skb_prog_ops)
 #endif
 #ifdef CONFIG_BPF_EVENTS
 BPF_PROG_TYPE(BPF_PROG_TYPE_KPROBE, kprobe_prog_ops)
@@ -35,3 +36,9 @@ BPF_MAP_TYPE(BPF_MAP_TYPE_STACK_TRACE, stack_map_ops)
 #endif
 BPF_MAP_TYPE(BPF_MAP_TYPE_ARRAY_OF_MAPS, array_of_maps_map_ops)
 BPF_MAP_TYPE(BPF_MAP_TYPE_HASH_OF_MAPS, htab_of_maps_map_ops)
+#ifdef CONFIG_NET
+BPF_MAP_TYPE(BPF_MAP_TYPE_DEVMAP, dev_map_ops)
+#ifdef CONFIG_STREAM_PARSER
+BPF_MAP_TYPE(BPF_MAP_TYPE_SOCKMAP, sock_map_ops)
+#endif
+#endif

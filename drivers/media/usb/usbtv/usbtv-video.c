@@ -629,7 +629,7 @@ static struct v4l2_ioctl_ops usbtv_ioctl_ops = {
 	.vidioc_streamoff = vb2_ioctl_streamoff,
 };
 
-static struct v4l2_file_operations usbtv_fops = {
+static const struct v4l2_file_operations usbtv_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = video_ioctl2,
 	.mmap = vb2_fop_mmap,

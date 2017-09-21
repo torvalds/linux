@@ -737,7 +737,7 @@ static int ziirave_wdt_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id ziirave_wdt_id[] = {
+static const struct i2c_device_id ziirave_wdt_id[] = {
 	{ "rave-wdt", 0 },
 	{ }
 };

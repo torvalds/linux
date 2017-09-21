@@ -571,11 +571,8 @@ static int orangefs_prepare_cdm_array(char *debug_array_string)
 		goto out;
 	}
 
-	cdm_array =
-		kzalloc(cdm_element_count * sizeof(struct client_debug_mask),
-			GFP_KERNEL);
+	cdm_array = kcalloc(cdm_element_count, sizeof(*cdm_array), GFP_KERNEL);
 	if (!cdm_array) {
-		pr_info("malloc failed for cdm_array!\n");
 		rc = -ENOMEM;
 		goto out;
 	}

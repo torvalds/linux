@@ -1075,7 +1075,7 @@ static const struct v4l2_file_operations cpia2_fops = {
 	.mmap		= cpia2_mmap,
 };
 
-static struct video_device cpia2_template = {
+static const struct video_device cpia2_template = {
 	/* I could not find any place for the old .initialize initializer?? */
 	.name =		"CPiA2 Camera",
 	.fops =		&cpia2_fops,

@@ -20,6 +20,7 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kthread.h>
 #include <linux/wait.h>
@@ -53,6 +54,7 @@ static DEFINE_MUTEX(deferred_probe_mutex);
 static LIST_HEAD(deferred_probe_pending_list);
 static LIST_HEAD(deferred_probe_active_list);
 static atomic_t deferred_trigger_count = ATOMIC_INIT(0);
+static bool initcalls_done;
 
 /*
  * In some cases, like suspend to RAM or hibernation, It might be reasonable
@@ -60,6 +62,26 @@ static atomic_t deferred_trigger_count = ATOMIC_INIT(0);
  * Once defer_all_probes is true all drivers probes will be forcibly deferred.
  */
 static bool defer_all_probes;
+
+/*
+ * For initcall_debug, show the deferred probes executed in late_initcall
+ * processing.
+ */
+static void deferred_probe_debug(struct device *dev)
+{
+	ktime_t calltime, delta, rettime;
+	unsigned long long duration;
+
+	printk(KERN_DEBUG "deferred probe %s @ %i\n", dev_name(dev),
+	       task_pid_nr(current));
+	calltime = ktime_get();
+	bus_probe_device(dev);
+	rettime = ktime_get();
+	delta = ktime_sub(rettime, calltime);
+	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
+	printk(KERN_DEBUG "deferred probe %s returned after %lld usecs\n",
+	       dev_name(dev), duration);
+}
 
 /*
  * deferred_probe_work_func() - Retry probing devices in the active list.
@@ -106,7 +128,10 @@ static void deferred_probe_work_func(struct work_struct *work)
 		device_pm_unlock();
 
 		dev_dbg(dev, "Retrying from deferred list\n");
-		bus_probe_device(dev);
+		if (initcall_debug && !initcalls_done)
+			deferred_probe_debug(dev);
+		else
+			bus_probe_device(dev);
 
 		mutex_lock(&deferred_probe_mutex);
 
@@ -215,6 +240,7 @@ static int deferred_probe_initcall(void)
 	driver_deferred_probe_trigger();
 	/* Sort as many dependencies as possible before exiting initcalls */
 	flush_work(&deferred_probe_work);
+	initcalls_done = true;
 	return 0;
 }
 late_initcall(deferred_probe_initcall);
@@ -259,6 +285,8 @@ static void driver_bound(struct device *dev)
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_BOUND_DRIVER, dev);
+
+	kobject_uevent(&dev->kobj, KOBJ_BIND);
 }
 
 static int driver_sysfs_add(struct device *dev)
@@ -848,6 +876,8 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 			blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 						     BUS_NOTIFY_UNBOUND_DRIVER,
 						     dev);
+
+		kobject_uevent(&dev->kobj, KOBJ_UNBIND);
 	}
 }
 

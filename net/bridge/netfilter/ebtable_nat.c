@@ -48,7 +48,7 @@ static int check(const struct ebt_table_info *info, unsigned int valid_hooks)
 	return 0;
 }
 
-static struct ebt_table frame_nat = {
+static const struct ebt_table frame_nat = {
 	.name		= "nat",
 	.table		= &initial_table,
 	.valid_hooks	= NAT_VALID_HOOKS,
@@ -70,7 +70,7 @@ ebt_nat_out(void *priv, struct sk_buff *skb,
 	return ebt_do_table(skb, state, state->net->xt.frame_nat);
 }
 
-static struct nf_hook_ops ebt_ops_nat[] __read_mostly = {
+static const struct nf_hook_ops ebt_ops_nat[] = {
 	{
 		.hook		= ebt_nat_out,
 		.pf		= NFPROTO_BRIDGE,

@@ -58,8 +58,6 @@ void call_rcu(struct rcu_head *head, rcu_callback_t func);
 void call_rcu_bh(struct rcu_head *head, rcu_callback_t func);
 void call_rcu_sched(struct rcu_head *head, rcu_callback_t func);
 void synchronize_sched(void);
-void call_rcu_tasks(struct rcu_head *head, rcu_callback_t func);
-void synchronize_rcu_tasks(void);
 void rcu_barrier_tasks(void);
 
 #ifdef CONFIG_PREEMPT_RCU
@@ -105,11 +103,13 @@ static inline int rcu_preempt_depth(void)
 
 /* Internal to kernel */
 void rcu_init(void);
+extern int rcu_scheduler_active __read_mostly;
 void rcu_sched_qs(void);
 void rcu_bh_qs(void);
 void rcu_check_callbacks(int user);
 void rcu_report_dead(unsigned int cpu);
 void rcu_cpu_starting(unsigned int cpu);
+void rcutree_migrate_callbacks(int cpu);
 
 #ifdef CONFIG_RCU_STALL_COMMON
 void rcu_sysrq_start(void);
@@ -164,8 +164,6 @@ static inline void rcu_init_nohz(void) { }
  * macro rather than an inline function to avoid #include hell.
  */
 #ifdef CONFIG_TASKS_RCU
-#define TASKS_RCU(x) x
-extern struct srcu_struct tasks_rcu_exit_srcu;
 #define rcu_note_voluntary_context_switch_lite(t) \
 	do { \
 		if (READ_ONCE((t)->rcu_tasks_holdout)) \
@@ -176,10 +174,17 @@ extern struct srcu_struct tasks_rcu_exit_srcu;
 		rcu_all_qs(); \
 		rcu_note_voluntary_context_switch_lite(t); \
 	} while (0)
+void call_rcu_tasks(struct rcu_head *head, rcu_callback_t func);
+void synchronize_rcu_tasks(void);
+void exit_tasks_rcu_start(void);
+void exit_tasks_rcu_finish(void);
 #else /* #ifdef CONFIG_TASKS_RCU */
-#define TASKS_RCU(x) do { } while (0)
 #define rcu_note_voluntary_context_switch_lite(t)	do { } while (0)
 #define rcu_note_voluntary_context_switch(t)		rcu_all_qs()
+#define call_rcu_tasks call_rcu_sched
+#define synchronize_rcu_tasks synchronize_sched
+static inline void exit_tasks_rcu_start(void) { }
+static inline void exit_tasks_rcu_finish(void) { }
 #endif /* #else #ifdef CONFIG_TASKS_RCU */
 
 /**
@@ -406,6 +411,22 @@ static inline void rcu_preempt_sleep_check(void) { }
 		smp_store_release(&p, RCU_INITIALIZER((typeof(p))_r_a_p__v)); \
 	_r_a_p__v;							      \
 })
+
+/**
+ * rcu_swap_protected() - swap an RCU and a regular pointer
+ * @rcu_ptr: RCU pointer
+ * @ptr: regular pointer
+ * @c: the conditions under which the dereference will take place
+ *
+ * Perform swap(@rcu_ptr, @ptr) where @rcu_ptr is an RCU-annotated pointer and
+ * @c is the argument that is passed to the rcu_dereference_protected() call
+ * used to read that pointer.
+ */
+#define rcu_swap_protected(rcu_ptr, ptr, c) do {			\
+	typeof(ptr) __tmp = rcu_dereference_protected((rcu_ptr), (c));	\
+	rcu_assign_pointer((rcu_ptr), (ptr));				\
+	(ptr) = __tmp;							\
+} while (0)
 
 /**
  * rcu_access_pointer() - fetch RCU pointer with no dereferencing

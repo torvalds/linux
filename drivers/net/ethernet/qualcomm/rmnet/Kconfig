@@ -1,0 +1,12 @@
+#
+# RMNET MAP driver
+#
+
+menuconfig RMNET
+	tristate "RmNet MAP driver"
+	default n
+	---help---
+	  If you select this, you will enable the RMNET module which is used
+	  for handling data in the multiplexing and aggregation protocol (MAP)
+	  format in the embedded data path. RMNET devices can be attached to
+	  any IP mode physical device.

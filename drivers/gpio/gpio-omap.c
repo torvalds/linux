@@ -1247,6 +1247,8 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	if (ret) {
 		pm_runtime_put_sync(dev);
 		pm_runtime_disable(dev);
+		if (bank->dbck_flag)
+			clk_unprepare(bank->dbck);
 		return ret;
 	}
 

@@ -187,6 +187,8 @@ bool		xfs_iext_lookup_extent(struct xfs_inode *ip,
 			xfs_extnum_t *idxp, struct xfs_bmbt_irec *gotp);
 bool		xfs_iext_get_extent(struct xfs_ifork *ifp, xfs_extnum_t idx,
 			struct xfs_bmbt_irec *gotp);
+void		xfs_iext_update_extent(struct xfs_ifork *ifp, xfs_extnum_t idx,
+			struct xfs_bmbt_irec *gotp);
 
 extern struct kmem_zone	*xfs_ifork_zone;
 

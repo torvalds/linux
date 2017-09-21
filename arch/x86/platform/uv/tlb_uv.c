@@ -26,7 +26,7 @@
 static struct bau_operations ops __ro_after_init;
 
 /* timeouts in nanoseconds (indexed by UVH_AGING_PRESCALE_SEL urgency7 30:28) */
-static int timeout_base_ns[] = {
+static const int timeout_base_ns[] = {
 		20,
 		160,
 		1280,
@@ -1216,7 +1216,7 @@ static struct bau_pq_entry *find_another_by_swack(struct bau_pq_entry *msg,
  * set a bit in the UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE register.
  * Such a message must be ignored.
  */
-void process_uv2_message(struct msg_desc *mdp, struct bau_control *bcp)
+static void process_uv2_message(struct msg_desc *mdp, struct bau_control *bcp)
 {
 	unsigned long mmr_image;
 	unsigned char swack_vec;

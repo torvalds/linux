@@ -363,7 +363,7 @@ static struct saa7146_pci_extension_data hexium_gemini_dual_4bnc = {
 	.ext = &hexium_extension,
 };
 
-static struct pci_device_id pci_tbl[] = {
+static const struct pci_device_id pci_tbl[] = {
 	{
 	 .vendor = PCI_VENDOR_ID_PHILIPS,
 	 .device = PCI_DEVICE_ID_PHILIPS_SAA7146,

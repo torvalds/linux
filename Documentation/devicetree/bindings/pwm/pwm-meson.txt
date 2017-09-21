@@ -19,7 +19,6 @@ Example:
 		compatible = "amlogic,meson-gxbb-pwm";
 		reg = <0x0 0x08550 0x0 0x10>;
 		#pwm-cells = <3>;
-		status = "disabled";
 		clocks = <&xtal>, <&xtal>;
 		clock-names = "clkin0", "clkin1";
 	}

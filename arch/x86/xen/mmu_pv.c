@@ -162,26 +162,6 @@ static bool xen_page_pinned(void *ptr)
 	return PagePinned(page);
 }
 
-void xen_set_domain_pte(pte_t *ptep, pte_t pteval, unsigned domid)
-{
-	struct multicall_space mcs;
-	struct mmu_update *u;
-
-	trace_xen_mmu_set_domain_pte(ptep, pteval, domid);
-
-	mcs = xen_mc_entry(sizeof(*u));
-	u = mcs.args;
-
-	/* ptep might be kmapped when using 32-bit HIGHPTE */
-	u->ptr = virt_to_machine(ptep).maddr;
-	u->val = pte_val_ma(pteval);
-
-	MULTI_mmu_update(mcs.mc, mcs.args, 1, NULL, domid);
-
-	xen_mc_issue(PARAVIRT_LAZY_MMU);
-}
-EXPORT_SYMBOL_GPL(xen_set_domain_pte);
-
 static void xen_extend_mmu_update(const struct mmu_update *update)
 {
 	struct multicall_space mcs;
@@ -1005,14 +985,12 @@ static void xen_drop_mm_ref(struct mm_struct *mm)
 	/* Get the "official" set of cpus referring to our pagetable. */
 	if (!alloc_cpumask_var(&mask, GFP_ATOMIC)) {
 		for_each_online_cpu(cpu) {
-			if (!cpumask_test_cpu(cpu, mm_cpumask(mm))
-			    && per_cpu(xen_current_cr3, cpu) != __pa(mm->pgd))
+			if (per_cpu(xen_current_cr3, cpu) != __pa(mm->pgd))
 				continue;
 			smp_call_function_single(cpu, drop_mm_ref_this_cpu, mm, 1);
 		}
 		return;
 	}
-	cpumask_copy(mask, mm_cpumask(mm));
 
 	/*
 	 * It's possible that a vcpu may have a stale reference to our
@@ -1021,6 +999,7 @@ static void xen_drop_mm_ref(struct mm_struct *mm)
 	 * look at its actual current cr3 value, and force it to flush
 	 * if needed.
 	 */
+	cpumask_clear(mask);
 	for_each_online_cpu(cpu) {
 		if (per_cpu(xen_current_cr3, cpu) == __pa(mm->pgd))
 			cpumask_set_cpu(cpu, mask);
@@ -2429,8 +2408,6 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
 	.flush_tlb_kernel = xen_flush_tlb,
 	.flush_tlb_single = xen_flush_tlb_single,
 	.flush_tlb_others = xen_flush_tlb_others,
-
-	.pte_update = paravirt_nop,
 
 	.pgd_alloc = xen_pgd_alloc,
 	.pgd_free = xen_pgd_free,

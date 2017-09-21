@@ -816,3 +816,39 @@ static int __init acpi_backlight(char *str)
 	return 1;
 }
 __setup("acpi_backlight=", acpi_backlight);
+
+/**
+ * acpi_match_platform_list - Check if the system matches with a given list
+ * @plat: pointer to acpi_platform_list table terminated by a NULL entry
+ *
+ * Return the matched index if the system is found in the platform list.
+ * Otherwise, return a negative error code.
+ */
+int acpi_match_platform_list(const struct acpi_platform_list *plat)
+{
+	struct acpi_table_header hdr;
+	int idx = 0;
+
+	if (acpi_disabled)
+		return -ENODEV;
+
+	for (; plat->oem_id[0]; plat++, idx++) {
+		if (ACPI_FAILURE(acpi_get_table_header(plat->table, 0, &hdr)))
+			continue;
+
+		if (strncmp(plat->oem_id, hdr.oem_id, ACPI_OEM_ID_SIZE))
+			continue;
+
+		if (strncmp(plat->oem_table_id, hdr.oem_table_id, ACPI_OEM_TABLE_ID_SIZE))
+			continue;
+
+		if ((plat->pred == all_versions) ||
+		    (plat->pred == less_than_or_equal && hdr.oem_revision <= plat->oem_revision) ||
+		    (plat->pred == greater_than_or_equal && hdr.oem_revision >= plat->oem_revision) ||
+		    (plat->pred == equal && hdr.oem_revision == plat->oem_revision))
+			return idx;
+	}
+
+	return -ENODEV;
+}
+EXPORT_SYMBOL(acpi_match_platform_list);

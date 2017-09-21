@@ -1078,7 +1078,7 @@ static struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 	res = platform_get_resource(gpio_pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(base))
-		return base;
+		return ERR_CAST(base);
 	nmk_chip->addr = base;
 
 	clk = clk_get(&gpio_pdev->dev, NULL);
