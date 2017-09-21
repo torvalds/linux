@@ -623,9 +623,7 @@ static int sixpack_open(struct tty_struct *tty)
 
 	netif_start_queue(dev);
 
-	init_timer(&sp->tx_t);
-	sp->tx_t.function = sp_xmit_on_air;
-	sp->tx_t.data = (unsigned long) sp;
+	setup_timer(&sp->tx_t, sp_xmit_on_air, (unsigned long)sp);
 
 	init_timer(&sp->resync_t);
 
