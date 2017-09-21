@@ -84,7 +84,7 @@ static int verify_aead(struct nlattr **attrs)
 		return 0;
 
 	algp = nla_data(rt);
-	if (nla_len(rt) < aead_len(algp))
+	if (nla_len(rt) < (int)aead_len(algp))
 		return -EINVAL;
 
 	algp->alg_name[sizeof(algp->alg_name) - 1] = '\0';
