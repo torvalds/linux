@@ -380,6 +380,7 @@ static int smc_ib_fill_gid_and_mac(struct smc_ib_device *smcibdev, u8 ibport)
 	ndev = smcibdev->ibdev->get_netdev(smcibdev->ibdev, ibport);
 	if (ndev) {
 		memcpy(&smcibdev->mac, ndev->dev_addr, ETH_ALEN);
+		dev_put(ndev);
 	} else if (!rc) {
 		memcpy(&smcibdev->mac[ibport - 1][0],
 		       &smcibdev->gid[ibport - 1].raw[8], 3);
