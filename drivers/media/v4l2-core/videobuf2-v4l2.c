@@ -105,6 +105,9 @@ static int __verify_length(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 		length = (b->memory == VB2_MEMORY_USERPTR)
 			? b->length : vb->planes[0].length;
 
+		if (b->memory == VB2_MEMORY_DMABUF)
+			return 0;
+
 		if (b->bytesused > length)
 			return -EINVAL;
 	}
