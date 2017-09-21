@@ -39,9 +39,12 @@
 #include "cxgb4.h"
 #include "cxgb4_tc_flower.h"
 
+#define STATS_CHECK_PERIOD (HZ / 2)
+
 static struct ch_tc_flower_entry *allocate_flower_entry(void)
 {
 	struct ch_tc_flower_entry *new = kzalloc(sizeof(*new), GFP_KERNEL);
+	spin_lock_init(&new->lock);
 	return new;
 }
 
@@ -363,13 +366,87 @@ err:
 	return ret;
 }
 
+void ch_flower_stats_cb(unsigned long data)
+{
+	struct adapter *adap = (struct adapter *)data;
+	struct ch_tc_flower_entry *flower_entry;
+	struct ch_tc_flower_stats *ofld_stats;
+	unsigned int i;
+	u64 packets;
+	u64 bytes;
+	int ret;
+
+	rcu_read_lock();
+	hash_for_each_rcu(adap->flower_anymatch_tbl, i, flower_entry, link) {
+		ret = cxgb4_get_filter_counters(adap->port[0],
+						flower_entry->filter_id,
+						&packets, &bytes);
+		if (!ret) {
+			spin_lock(&flower_entry->lock);
+			ofld_stats = &flower_entry->stats;
+
+			if (ofld_stats->prev_packet_count != packets) {
+				ofld_stats->prev_packet_count = packets;
+				ofld_stats->last_used = jiffies;
+			}
+			spin_unlock(&flower_entry->lock);
+		}
+	}
+	rcu_read_unlock();
+	mod_timer(&adap->flower_stats_timer, jiffies + STATS_CHECK_PERIOD);
+}
+
 int cxgb4_tc_flower_stats(struct net_device *dev,
 			  struct tc_cls_flower_offload *cls)
 {
-	return -EOPNOTSUPP;
+	struct adapter *adap = netdev2adap(dev);
+	struct ch_tc_flower_stats *ofld_stats;
+	struct ch_tc_flower_entry *ch_flower;
+	u64 packets;
+	u64 bytes;
+	int ret;
+
+	ch_flower = ch_flower_lookup(adap, cls->cookie);
+	if (!ch_flower) {
+		ret = -ENOENT;
+		goto err;
+	}
+
+	ret = cxgb4_get_filter_counters(dev, ch_flower->filter_id,
+					&packets, &bytes);
+	if (ret < 0)
+		goto err;
+
+	spin_lock_bh(&ch_flower->lock);
+	ofld_stats = &ch_flower->stats;
+	if (ofld_stats->packet_count != packets) {
+		if (ofld_stats->prev_packet_count != packets)
+			ofld_stats->last_used = jiffies;
+		tcf_exts_stats_update(cls->exts, bytes - ofld_stats->byte_count,
+				      packets - ofld_stats->packet_count,
+				      ofld_stats->last_used);
+
+		ofld_stats->packet_count = packets;
+		ofld_stats->byte_count = bytes;
+		ofld_stats->prev_packet_count = packets;
+	}
+	spin_unlock_bh(&ch_flower->lock);
+	return 0;
+
+err:
+	return ret;
 }
 
 void cxgb4_init_tc_flower(struct adapter *adap)
 {
 	hash_init(adap->flower_anymatch_tbl);
+	setup_timer(&adap->flower_stats_timer, ch_flower_stats_cb,
+		    (unsigned long)adap);
+	mod_timer(&adap->flower_stats_timer, jiffies + STATS_CHECK_PERIOD);
+}
+
+void cxgb4_cleanup_tc_flower(struct adapter *adap)
+{
+	if (adap->flower_stats_timer.function)
+		del_timer_sync(&adap->flower_stats_timer);
 }

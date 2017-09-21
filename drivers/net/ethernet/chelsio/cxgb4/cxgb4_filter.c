@@ -148,6 +148,82 @@ static int get_filter_steerq(struct net_device *dev,
 	return iq;
 }
 
+static int get_filter_count(struct adapter *adapter, unsigned int fidx,
+			    u64 *pkts, u64 *bytes)
+{
+	unsigned int tcb_base, tcbaddr;
+	unsigned int word_offset;
+	struct filter_entry *f;
+	__be64 be64_byte_count;
+	int ret;
+
+	tcb_base = t4_read_reg(adapter, TP_CMM_TCB_BASE_A);
+	if ((fidx != (adapter->tids.nftids + adapter->tids.nsftids - 1)) &&
+	    fidx >= adapter->tids.nftids)
+		return -E2BIG;
+
+	f = &adapter->tids.ftid_tab[fidx];
+	if (!f->valid)
+		return -EINVAL;
+
+	tcbaddr = tcb_base + f->tid * TCB_SIZE;
+
+	spin_lock(&adapter->win0_lock);
+	if (is_t4(adapter->params.chip)) {
+		__be64 be64_count;
+
+		/* T4 doesn't maintain byte counts in hw */
+		*bytes = 0;
+
+		/* Get pkts */
+		word_offset = 4;
+		ret = t4_memory_rw(adapter, MEMWIN_NIC, MEM_EDC0,
+				   tcbaddr + (word_offset * sizeof(__be32)),
+				   sizeof(be64_count),
+				   (__be32 *)&be64_count,
+				   T4_MEMORY_READ);
+		if (ret < 0)
+			goto out;
+		*pkts = be64_to_cpu(be64_count);
+	} else {
+		__be32 be32_count;
+
+		/* Get bytes */
+		word_offset = 4;
+		ret = t4_memory_rw(adapter, MEMWIN_NIC, MEM_EDC0,
+				   tcbaddr + (word_offset * sizeof(__be32)),
+				   sizeof(be64_byte_count),
+				   &be64_byte_count,
+				   T4_MEMORY_READ);
+		if (ret < 0)
+			goto out;
+		*bytes = be64_to_cpu(be64_byte_count);
+
+		/* Get pkts */
+		word_offset = 6;
+		ret = t4_memory_rw(adapter, MEMWIN_NIC, MEM_EDC0,
+				   tcbaddr + (word_offset * sizeof(__be32)),
+				   sizeof(be32_count),
+				   &be32_count,
+				   T4_MEMORY_READ);
+		if (ret < 0)
+			goto out;
+		*pkts = (u64)be32_to_cpu(be32_count);
+	}
+
+out:
+	spin_unlock(&adapter->win0_lock);
+	return ret;
+}
+
+int cxgb4_get_filter_counters(struct net_device *dev, unsigned int fidx,
+			      u64 *hitcnt, u64 *bytecnt)
+{
+	struct adapter *adapter = netdev2adap(dev);
+
+	return get_filter_count(adapter, fidx, hitcnt, bytecnt);
+}
+
 int cxgb4_get_free_ftid(struct net_device *dev, int family)
 {
 	struct adapter *adap = netdev2adap(dev);

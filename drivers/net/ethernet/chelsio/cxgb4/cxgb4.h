@@ -908,6 +908,7 @@ struct adapter {
 
 	/* TC flower offload */
 	DECLARE_HASHTABLE(flower_anymatch_tbl, 9);
+	struct timer_list flower_stats_timer;
 };
 
 /* Support for "sched-class" command to allow a TX Scheduling Class to be
