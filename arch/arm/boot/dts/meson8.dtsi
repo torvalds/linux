@@ -132,7 +132,7 @@
 			reg-names = "mux", "pull", "gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
-			gpio-ranges = <&pinctrl_aobus 0 120 16>;
+			gpio-ranges = <&pinctrl_aobus 0 0 16>;
 		};
 
 		uart_ao_a_pins: uart_ao_a {
