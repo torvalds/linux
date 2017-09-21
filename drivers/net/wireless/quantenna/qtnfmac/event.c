@@ -368,6 +368,9 @@ qtnf_event_handle_freq_change(struct qtnf_wmac *mac,
 		return -EINVAL;
 	}
 
+	if (!wiphy->registered)
+		return 0;
+
 	qlink_chandef_q2cfg(wiphy, &data->chan, &chandef);
 
 	if (!cfg80211_chandef_valid(&chandef)) {
