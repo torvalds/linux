@@ -194,7 +194,9 @@
 			  "USB HUB nRESET", "USB OTG Power En",
 			  "J7 Header Pin2", "IR In", "J7 Header Pin4",
 			  "J7 Header Pin6", "J7 Header Pin5", "J7 Header Pin7",
-			  "HDMI CEC", "SYS LED";
+			  "HDMI CEC", "SYS LED",
+			  /* GPIO_TEST_N */
+			  "";
 };
 
 &pinctrl_periphs {
@@ -233,11 +235,9 @@
 			  "J2 Header Pin12", "J2 Header Pin13",
 			  "J2 Header Pin8", "J2 Header Pin10",
 			  "", "", "", "", "",
-			  "J2 Header Pin11", "", "J2 Header Pin7",
+			  "J2 Header Pin11", "", "J2 Header Pin7", "",
 			  /* Bank GPIOCLK */
-			  "", "", "", "",
-			  /* GPIO_TEST_N */
-			  "";
+			  "", "", "", "";
 };
 
 &saradc {
