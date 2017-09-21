@@ -82,6 +82,7 @@
 #define SCLK_VIP_OUT		127
 #define SCLK_DDRCLK		128
 
+#define SCLK_MAC_PLL		150
 #define SCLK_MAC		151
 #define SCLK_MACREF_OUT		152
 
