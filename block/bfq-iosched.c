@@ -724,6 +724,44 @@ static void bfq_updated_next_req(struct bfq_data *bfqd,
 	}
 }
 
+static unsigned int bfq_wr_duration(struct bfq_data *bfqd)
+{
+	u64 dur;
+
+	if (bfqd->bfq_wr_max_time > 0)
+		return bfqd->bfq_wr_max_time;
+
+	dur = bfqd->RT_prod;
+	do_div(dur, bfqd->peak_rate);
+
+	/*
+	 * Limit duration between 3 and 13 seconds. Tests show that
+	 * higher values than 13 seconds often yield the opposite of
+	 * the desired result, i.e., worsen responsiveness by letting
+	 * non-interactive and non-soft-real-time applications
+	 * preserve weight raising for a too long time interval.
+	 *
+	 * On the other end, lower values than 3 seconds make it
+	 * difficult for most interactive tasks to complete their jobs
+	 * before weight-raising finishes.
+	 */
+	if (dur > msecs_to_jiffies(13000))
+		dur = msecs_to_jiffies(13000);
+	else if (dur < msecs_to_jiffies(3000))
+		dur = msecs_to_jiffies(3000);
+
+	return dur;
+}
+
+/* switch back from soft real-time to interactive weight raising */
+static void switch_back_to_interactive_wr(struct bfq_queue *bfqq,
+					  struct bfq_data *bfqd)
+{
+	bfqq->wr_coeff = bfqd->bfq_wr_coeff;
+	bfqq->wr_cur_max_time = bfq_wr_duration(bfqd);
+	bfqq->last_wr_start_finish = bfqq->wr_start_at_switch_to_srt;
+}
+
 static void
 bfq_bfqq_resume_state(struct bfq_queue *bfqq, struct bfq_data *bfqd,
 		      struct bfq_io_cq *bic, bool bfq_already_existing)
@@ -750,10 +788,16 @@ bfq_bfqq_resume_state(struct bfq_queue *bfqq, struct bfq_data *bfqd,
 	if (bfqq->wr_coeff > 1 && (bfq_bfqq_in_large_burst(bfqq) ||
 	    time_is_before_jiffies(bfqq->last_wr_start_finish +
 				   bfqq->wr_cur_max_time))) {
-		bfq_log_bfqq(bfqq->bfqd, bfqq,
-		    "resume state: switching off wr");
-
-		bfqq->wr_coeff = 1;
+		if (bfqq->wr_cur_max_time == bfqd->bfq_wr_rt_max_time &&
+		    !bfq_bfqq_in_large_burst(bfqq) &&
+		    time_is_after_eq_jiffies(bfqq->wr_start_at_switch_to_srt +
+					     bfq_wr_duration(bfqd))) {
+			switch_back_to_interactive_wr(bfqq, bfqd);
+		} else {
+			bfqq->wr_coeff = 1;
+			bfq_log_bfqq(bfqq->bfqd, bfqq,
+				     "resume state: switching off wr");
+		}
 	}
 
 	/* make sure weight will be updated, however we got here */
@@ -1171,35 +1215,6 @@ static bool bfq_bfqq_update_budg_for_activation(struct bfq_data *bfqd,
 			       bfq_serv_to_charge(bfqq->next_rq, bfqq));
 	bfq_clear_bfqq_non_blocking_wait_rq(bfqq);
 	return wr_or_deserves_wr;
-}
-
-static unsigned int bfq_wr_duration(struct bfq_data *bfqd)
-{
-	u64 dur;
-
-	if (bfqd->bfq_wr_max_time > 0)
-		return bfqd->bfq_wr_max_time;
-
-	dur = bfqd->RT_prod;
-	do_div(dur, bfqd->peak_rate);
-
-	/*
-	 * Limit duration between 3 and 13 seconds. Tests show that
-	 * higher values than 13 seconds often yield the opposite of
-	 * the desired result, i.e., worsen responsiveness by letting
-	 * non-interactive and non-soft-real-time applications
-	 * preserve weight raising for a too long time interval.
-	 *
-	 * On the other end, lower values than 3 seconds make it
-	 * difficult for most interactive tasks to complete their jobs
-	 * before weight-raising finishes.
-	 */
-	if (dur > msecs_to_jiffies(13000))
-		dur = msecs_to_jiffies(13000);
-	else if (dur < msecs_to_jiffies(3000))
-		dur = msecs_to_jiffies(3000);
-
-	return dur;
 }
 
 /*
@@ -3501,11 +3516,7 @@ static void bfq_update_wr_data(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 					       bfq_wr_duration(bfqd)))
 				bfq_bfqq_end_wr(bfqq);
 			else {
-				/* switch back to interactive wr */
-				bfqq->wr_coeff = bfqd->bfq_wr_coeff;
-				bfqq->wr_cur_max_time = bfq_wr_duration(bfqd);
-				bfqq->last_wr_start_finish =
-					bfqq->wr_start_at_switch_to_srt;
+				switch_back_to_interactive_wr(bfqq, bfqd);
 				bfqq->entity.prio_changed = 1;
 			}
 		}
