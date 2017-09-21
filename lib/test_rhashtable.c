@@ -251,7 +251,7 @@ static s64 __init test_rhashtable(struct rhashtable *ht, struct test_obj *array,
 }
 
 static struct rhashtable ht;
-static struct rhltable rhlt __initdata;
+static struct rhltable rhlt;
 
 static int __init test_rhltable(unsigned int entries)
 {
