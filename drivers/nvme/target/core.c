@@ -390,7 +390,8 @@ static void __nvmet_req_complete(struct nvmet_req *req, u16 status)
 	if (status)
 		nvmet_set_status(req, status);
 
-	req->sq->sqhd = (req->sq->sqhd + 1) % req->sq->size;
+	if (req->sq->size)
+		req->sq->sqhd = (req->sq->sqhd + 1) % req->sq->size;
 	req->rsp->sq_head = cpu_to_le16(req->sq->sqhd);
 	req->rsp->sq_id = cpu_to_le16(req->sq->qid);
 	req->rsp->command_id = req->cmd->common.command_id;
