@@ -2217,10 +2217,8 @@ static void stmmac_init_tx_coalesce(struct stmmac_priv *priv)
 {
 	priv->tx_coal_frames = STMMAC_TX_FRAMES;
 	priv->tx_coal_timer = STMMAC_COAL_TX_TIMER;
-	init_timer(&priv->txtimer);
+	setup_timer(&priv->txtimer, stmmac_tx_timer, (unsigned long)priv);
 	priv->txtimer.expires = STMMAC_COAL_TIMER(priv->tx_coal_timer);
-	priv->txtimer.data = (unsigned long)priv;
-	priv->txtimer.function = stmmac_tx_timer;
 	add_timer(&priv->txtimer);
 }
 
