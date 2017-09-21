@@ -2069,6 +2069,10 @@ int cdc_parse_cdc_header(struct usb_cdc_parsed_header *hdr,
 			elength = 1;
 			goto next_desc;
 		}
+		if ((buflen < elength) || (elength < 3)) {
+			dev_err(&intf->dev, "invalid descriptor buffer length\n");
+			break;
+		}
 		if (buffer[1] != USB_DT_CS_INTERFACE) {
 			dev_err(&intf->dev, "skipping garbage\n");
 			goto next_desc;
