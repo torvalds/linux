@@ -53,6 +53,7 @@ else
 test:
 	dd if=/dev/zero of=disk.img bs=1024 count=102400
 	yes | mkfs.ext4 disk.img >/dev/null
+	adb root
 	adb shell mkdir -p /data/local/tmp/lkl/bin
 	adb push ../bin/lkl-hijack.sh /data/local/tmp/lkl/bin
 	adb push  ../tests ../liblkl-hijack.so /data/local/tmp/lkl/

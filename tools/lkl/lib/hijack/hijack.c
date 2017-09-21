@@ -161,17 +161,7 @@ HOOK_FD_CALL(vmsplice)
 HOOK_CALL_USE_HOST_BEFORE_START(pipe);
 
 HOOK_CALL_USE_HOST_BEFORE_START(accept4);
-int accept4(int fd, struct sockaddr *addr, socklen_t *addrlen, int flags)
-{
-	return lkl_call(__lkl__NR_accept4, 4, fd, addr, addrlen, flags);
-}
-
-
 HOOK_CALL_USE_HOST_BEFORE_START(pipe2);
-int pipe2(int pipefd[2], int flags)
-{
-	return lkl_call(__lkl__NR_pipe2, 2, pipefd, flags);
-}
 
 HOST_CALL(setsockopt);
 int setsockopt(int fd, int level, int optname, const void *optval,

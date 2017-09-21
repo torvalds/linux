@@ -7,6 +7,7 @@ export PATH=${script_dir}:${PATH}
 export LKL_ANDROID_TEST=1
 export TMPDIR=/data/local/tmp
 export CONFIG_AUTO_LKL_POSIX_HOST=y
+export LKL_TEST_DHCP=1
 
 sed -i "s/\/bin\/bash/\/system\/bin\/sh /" ${script_dir}/../bin/lkl-hijack.sh
 
