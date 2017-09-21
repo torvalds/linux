@@ -220,7 +220,6 @@ struct key *request_key_auth_new(struct key *target, const void *callout_info,
 	return authkey;
 
 error_put_authkey:
-	key_revoke(authkey);
 	key_put(authkey);
 error_free_rka:
 	free_request_key_auth(rka);
