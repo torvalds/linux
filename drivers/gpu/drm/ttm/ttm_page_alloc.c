@@ -627,19 +627,20 @@ static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool,
 }
 
 /**
- * Cut 'count' number of pages from the pool and put them on the return list.
+ * Allocate pages from the pool and put them on the return list.
  *
- * @return count of pages still required to fulfill the request.
+ * @return zero for success or negative error code.
  */
-static unsigned ttm_page_pool_get_pages(struct ttm_page_pool *pool,
-					struct list_head *pages,
-					int ttm_flags,
-					enum ttm_caching_state cstate,
-					unsigned count)
+static int ttm_page_pool_get_pages(struct ttm_page_pool *pool,
+				   struct list_head *pages,
+				   int ttm_flags,
+				   enum ttm_caching_state cstate,
+				   unsigned count)
 {
 	unsigned long irq_flags;
 	struct list_head *p;
 	unsigned i;
+	int r = 0;
 
 	spin_lock_irqsave(&pool->lock, irq_flags);
 	ttm_page_pool_fill_locked(pool, ttm_flags, cstate, count, &irq_flags);
@@ -672,7 +673,35 @@ static unsigned ttm_page_pool_get_pages(struct ttm_page_pool *pool,
 	count = 0;
 out:
 	spin_unlock_irqrestore(&pool->lock, irq_flags);
-	return count;
+
+	/* clear the pages coming from the pool if requested */
+	if (ttm_flags & TTM_PAGE_FLAG_ZERO_ALLOC) {
+		struct page *page;
+
+		list_for_each_entry(page, pages, lru) {
+			if (PageHighMem(page))
+				clear_highpage(page);
+			else
+				clear_page(page_address(page));
+		}
+	}
+
+	/* If pool didn't have enough pages allocate new one. */
+	if (count) {
+		gfp_t gfp_flags = pool->gfp_flags;
+
+		/* set zero flag for page allocation if required */
+		if (ttm_flags & TTM_PAGE_FLAG_ZERO_ALLOC)
+			gfp_flags |= __GFP_ZERO;
+
+		/* ttm_alloc_new_pages doesn't reference pool so we can run
+		 * multiple requests in parallel.
+		 **/
+		r = ttm_alloc_new_pages(pages, gfp_flags, ttm_flags, cstate,
+					count);
+	}
+
+	return r;
 }
 
 /* Put all pages in pages list to correct pool to wait for reuse */
@@ -742,17 +771,17 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 	struct ttm_page_pool *pool = ttm_get_pool(flags, cstate);
 	struct list_head plist;
 	struct page *p = NULL;
-	gfp_t gfp_flags = GFP_USER;
 	unsigned count;
 	int r;
 
-	/* set zero flag for page allocation if required */
-	if (flags & TTM_PAGE_FLAG_ZERO_ALLOC)
-		gfp_flags |= __GFP_ZERO;
-
 	/* No pool for cached pages */
 	if (pool == NULL) {
+		gfp_t gfp_flags = GFP_USER;
 		unsigned i, j;
+
+		/* set zero flag for page allocation if required */
+		if (flags & TTM_PAGE_FLAG_ZERO_ALLOC)
+			gfp_flags |= __GFP_ZERO;
 
 		if (flags & TTM_PAGE_FLAG_DMA32)
 			gfp_flags |= GFP_DMA32;
@@ -792,44 +821,21 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 		return 0;
 	}
 
-	/* combine zero flag to pool flags */
-	gfp_flags |= pool->gfp_flags;
-
 	/* First we take pages from the pool */
 	INIT_LIST_HEAD(&plist);
-	npages = ttm_page_pool_get_pages(pool, &plist, flags, cstate, npages);
+	r = ttm_page_pool_get_pages(pool, &plist, flags, cstate, npages);
+
 	count = 0;
-	list_for_each_entry(p, &plist, lru) {
+	list_for_each_entry(p, &plist, lru)
 		pages[count++] = p;
-	}
 
-	/* clear the pages coming from the pool if requested */
-	if (flags & TTM_PAGE_FLAG_ZERO_ALLOC) {
-		list_for_each_entry(p, &plist, lru) {
-			if (PageHighMem(p))
-				clear_highpage(p);
-			else
-				clear_page(page_address(p));
-		}
-	}
-
-	/* If pool didn't have enough pages allocate new one. */
-	if (npages > 0) {
-		/* ttm_alloc_new_pages doesn't reference pool so we can run
-		 * multiple requests in parallel.
-		 **/
-		INIT_LIST_HEAD(&plist);
-		r = ttm_alloc_new_pages(&plist, gfp_flags, flags, cstate, npages);
-		list_for_each_entry(p, &plist, lru) {
-			pages[count++] = p;
-		}
-		if (r) {
-			/* If there is any pages in the list put them back to
-			 * the pool. */
-			pr_err("Failed to allocate extra pages for large request\n");
-			ttm_put_pages(pages, count, flags, cstate);
-			return r;
-		}
+	if (r) {
+		/* If there is any pages in the list put them back to
+		 * the pool.
+		 */
+		pr_err("Failed to allocate extra pages for large request\n");
+		ttm_put_pages(pages, count, flags, cstate);
+		return r;
 	}
 
 	return 0;
