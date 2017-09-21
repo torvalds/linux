@@ -1459,9 +1459,8 @@ no_link_test:
 	 * can occur from interrupts (ex. IPv6).  So we
 	 * use a timer to try again later when necessary. -DaveM
 	 */
-	init_timer(&lp->multicast_timer);
-	lp->multicast_timer.data = (unsigned long) dev;
-	lp->multicast_timer.function = lance_set_multicast_retry;
+	setup_timer(&lp->multicast_timer, lance_set_multicast_retry,
+		    (unsigned long)dev);
 
 	if (register_netdev(dev)) {
 		printk(KERN_ERR "SunLance: Cannot register device.\n");
