@@ -161,7 +161,9 @@
 			  "7J1 Header Pin12",
 			  "IR In",
 			  "9J3 Switch HDMI CEC/7J1 Header Pin11",
-			  "7J1 Header Pin13";
+			  "7J1 Header Pin13",
+			  /* GPIO_TEST_N */
+			  "7J1 Header Pin15";
 };
 
 &pinctrl_periphs {
@@ -203,9 +205,7 @@
 			  "7J1 Header Pin32", "7J1 Header Pin29",
 			  "7J1 Header Pin31",
 			  /* Bank GPIOCLK */
-			  "7J1 Header Pin7", "",
-			  /* GPIO_TEST_N */
-			  "7J1 Header Pin15";
+			  "7J1 Header Pin7", "";
 };
 
 &saradc {
