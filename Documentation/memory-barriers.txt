@@ -383,8 +383,8 @@ Memory barriers come in four basic varieties:
      to have any effect on loads.
 
      A CPU can be viewed as committing a sequence of store operations to the
-     memory system as time progresses.  All stores before a write barrier will
-     occur in the sequence _before_ all the stores after the write barrier.
+     memory system as time progresses.  All stores _before_ a write barrier
+     will occur _before_ all the stores after the write barrier.
 
      [!] Note that write barriers should normally be paired with read or data
      dependency barriers; see the "SMP barrier pairing" subsection.
