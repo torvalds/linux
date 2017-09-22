@@ -61,7 +61,7 @@ struct atusb {
 	struct usb_ctrlrequest tx_dr;
 	struct urb *tx_urb;
 	struct sk_buff *tx_skb;
-	uint8_t tx_ack_seq;		/* current TX ACK sequence number */
+	u8 tx_ack_seq;		/* current TX ACK sequence number */
 
 	/* Firmware variable */
 	unsigned char fw_ver_maj;	/* Firmware major version number */
@@ -105,7 +105,7 @@ static int atusb_control_msg(struct atusb *atusb, unsigned int pipe,
 	return ret;
 }
 
-static int atusb_command(struct atusb *atusb, uint8_t cmd, uint8_t arg)
+static int atusb_command(struct atusb *atusb, u8 cmd, u8 arg)
 {
 	struct usb_device *usb_dev = atusb->usb_dev;
 
@@ -114,7 +114,7 @@ static int atusb_command(struct atusb *atusb, uint8_t cmd, uint8_t arg)
 				 cmd, ATUSB_REQ_TO_DEV, arg, 0, NULL, 0, 1000);
 }
 
-static int atusb_write_reg(struct atusb *atusb, uint8_t reg, uint8_t value)
+static int atusb_write_reg(struct atusb *atusb, u8 reg, u8 value)
 {
 	struct usb_device *usb_dev = atusb->usb_dev;
 
@@ -125,12 +125,12 @@ static int atusb_write_reg(struct atusb *atusb, uint8_t reg, uint8_t value)
 				 value, reg, NULL, 0, 1000);
 }
 
-static int atusb_read_reg(struct atusb *atusb, uint8_t reg)
+static int atusb_read_reg(struct atusb *atusb, u8 reg)
 {
 	struct usb_device *usb_dev = atusb->usb_dev;
 	int ret;
-	uint8_t *buffer;
-	uint8_t value;
+	u8 *buffer;
+	u8 value;
 
 	buffer = kmalloc(1, GFP_KERNEL);
 	if (!buffer)
@@ -151,11 +151,11 @@ static int atusb_read_reg(struct atusb *atusb, uint8_t reg)
 	}
 }
 
-static int atusb_write_subreg(struct atusb *atusb, uint8_t reg, uint8_t mask,
-			      uint8_t shift, uint8_t value)
+static int atusb_write_subreg(struct atusb *atusb, u8 reg, u8 mask,
+			      u8 shift, u8 value)
 {
 	struct usb_device *usb_dev = atusb->usb_dev;
-	uint8_t orig, tmp;
+	u8 orig, tmp;
 	int ret = 0;
 
 	dev_dbg(&usb_dev->dev, "atusb_write_subreg: 0x%02x <- 0x%02x\n",
@@ -261,10 +261,10 @@ static void atusb_work_urbs(struct work_struct *work)
 
 /* ----- Asynchronous USB -------------------------------------------------- */
 
-static void atusb_tx_done(struct atusb *atusb, uint8_t seq)
+static void atusb_tx_done(struct atusb *atusb, u8 seq)
 {
 	struct usb_device *usb_dev = atusb->usb_dev;
-	uint8_t expect = atusb->tx_ack_seq;
+	u8 expect = atusb->tx_ack_seq;
 
 	dev_dbg(&usb_dev->dev, "atusb_tx_done (0x%02x/0x%02x)\n", seq, expect);
 	if (seq == expect) {
@@ -287,7 +287,7 @@ static void atusb_in_good(struct urb *urb)
 	struct usb_device *usb_dev = urb->dev;
 	struct sk_buff *skb = urb->context;
 	struct atusb *atusb = SKB_ATUSB(skb);
-	uint8_t len, lqi;
+	u8 len, lqi;
 
 	if (!urb->actual_length) {
 		dev_dbg(&usb_dev->dev, "atusb_in: zero-sized URB ?\n");
@@ -880,7 +880,7 @@ static int atusb_get_and_show_build(struct atusb *atusb)
 static int atusb_get_and_conf_chip(struct atusb *atusb)
 {
 	struct usb_device *usb_dev = atusb->usb_dev;
-	uint8_t man_id_0, man_id_1, part_num, version_num;
+	u8 man_id_0, man_id_1, part_num, version_num;
 	const char *chip;
 	struct ieee802154_hw *hw = atusb->hw;
 
