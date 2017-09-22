@@ -393,8 +393,8 @@ static void intel_engine_init_timeline(struct intel_engine_cs *engine)
  */
 void intel_engine_setup_common(struct intel_engine_cs *engine)
 {
-	engine->execlist_queue = RB_ROOT;
-	engine->execlist_first = NULL;
+	engine->execlists.queue = RB_ROOT;
+	engine->execlists.first = NULL;
 
 	intel_engine_init_timeline(engine);
 	intel_engine_init_hangcheck(engine);
@@ -1475,11 +1475,11 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 		return false;
 
 	/* Both ports drained, no more ELSP submission? */
-	if (port_request(&engine->execlist_port[0]))
+	if (port_request(&engine->execlists.port[0]))
 		return false;
 
 	/* ELSP is empty, but there are ready requests? */
-	if (READ_ONCE(engine->execlist_first))
+	if (READ_ONCE(engine->execlists.first))
 		return false;
 
 	/* Ring stopped? */
@@ -1528,8 +1528,8 @@ void intel_engines_mark_idle(struct drm_i915_private *i915)
 	for_each_engine(engine, i915, id) {
 		intel_engine_disarm_breadcrumbs(engine);
 		i915_gem_batch_pool_fini(&engine->batch_pool);
-		tasklet_kill(&engine->irq_tasklet);
-		engine->no_priolist = false;
+		tasklet_kill(&engine->execlists.irq_tasklet);
+		engine->execlists.no_priolist = false;
 	}
 }
 

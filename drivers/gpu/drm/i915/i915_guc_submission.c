@@ -494,11 +494,12 @@ static void i915_guc_submit(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 	struct intel_guc *guc = &dev_priv->guc;
 	struct i915_guc_client *client = guc->execbuf_client;
-	struct execlist_port *port = engine->execlist_port;
-	unsigned int engine_id = engine->id;
+	struct intel_engine_execlists * const execlists = &engine->execlists;
+	struct execlist_port *port = execlists->port;
+	const unsigned int engine_id = engine->id;
 	unsigned int n;
 
-	for (n = 0; n < ARRAY_SIZE(engine->execlist_port); n++) {
+	for (n = 0; n < ARRAY_SIZE(execlists->port); n++) {
 		struct drm_i915_gem_request *rq;
 		unsigned int count;
 
@@ -558,7 +559,8 @@ static void port_assign(struct execlist_port *port,
 
 static void i915_guc_dequeue(struct intel_engine_cs *engine)
 {
-	struct execlist_port *port = engine->execlist_port;
+	struct intel_engine_execlists * const execlists = &engine->execlists;
+	struct execlist_port *port = execlists->port;
 	struct drm_i915_gem_request *last = NULL;
 	bool submit = false;
 	struct rb_node *rb;
@@ -567,15 +569,15 @@ static void i915_guc_dequeue(struct intel_engine_cs *engine)
 		port++;
 
 	spin_lock_irq(&engine->timeline->lock);
-	rb = engine->execlist_first;
-	GEM_BUG_ON(rb_first(&engine->execlist_queue) != rb);
+	rb = execlists->first;
+	GEM_BUG_ON(rb_first(&execlists->queue) != rb);
 	while (rb) {
 		struct i915_priolist *p = rb_entry(rb, typeof(*p), node);
 		struct drm_i915_gem_request *rq, *rn;
 
 		list_for_each_entry_safe(rq, rn, &p->requests, priotree.link) {
 			if (last && rq->ctx != last->ctx) {
-				if (port != engine->execlist_port) {
+				if (port != execlists->port) {
 					__list_del_many(&p->requests,
 							&rq->priotree.link);
 					goto done;
@@ -596,13 +598,13 @@ static void i915_guc_dequeue(struct intel_engine_cs *engine)
 		}
 
 		rb = rb_next(rb);
-		rb_erase(&p->node, &engine->execlist_queue);
+		rb_erase(&p->node, &execlists->queue);
 		INIT_LIST_HEAD(&p->requests);
 		if (p->priority != I915_PRIORITY_NORMAL)
 			kmem_cache_free(engine->i915->priorities, p);
 	}
 done:
-	engine->execlist_first = rb;
+	execlists->first = rb;
 	if (submit) {
 		port_assign(port, last);
 		i915_guc_submit(engine);
@@ -612,8 +614,8 @@ done:
 
 static void i915_guc_irq_handler(unsigned long data)
 {
-	struct intel_engine_cs *engine = (struct intel_engine_cs *)data;
-	struct execlist_port *port = engine->execlist_port;
+	struct intel_engine_cs * const engine = (struct intel_engine_cs *)data;
+	struct execlist_port *port = engine->execlists.port;
 	struct drm_i915_gem_request *rq;
 
 	rq = port_request(&port[0]);
@@ -1144,7 +1146,7 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 	 * and it is guaranteed that it will remove the work item from the
 	 * queue before our request is completed.
 	 */
-	BUILD_BUG_ON(ARRAY_SIZE(engine->execlist_port) *
+	BUILD_BUG_ON(ARRAY_SIZE(engine->execlists.port) *
 		     sizeof(struct guc_wq_item) *
 		     I915_NUM_ENGINES > GUC_WQ_SIZE);
 
@@ -1175,14 +1177,15 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 	guc_interrupts_capture(dev_priv);
 
 	for_each_engine(engine, dev_priv, id) {
+		struct intel_engine_execlists * const execlists = &engine->execlists;
 		/* The tasklet was initialised by execlists, and may be in
 		 * a state of flux (across a reset) and so we just want to
 		 * take over the callback without changing any other state
 		 * in the tasklet.
 		 */
-		engine->irq_tasklet.func = i915_guc_irq_handler;
+		execlists->irq_tasklet.func = i915_guc_irq_handler;
 		clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
-		tasklet_schedule(&engine->irq_tasklet);
+		tasklet_schedule(&execlists->irq_tasklet);
 	}
 
 	return 0;

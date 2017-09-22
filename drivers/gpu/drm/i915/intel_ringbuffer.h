@@ -184,6 +184,84 @@ struct i915_priolist {
 	int priority;
 };
 
+/**
+ * struct intel_engine_execlists - execlist submission queue and port state
+ *
+ * The struct intel_engine_execlists represents the combined logical state of
+ * driver and the hardware state for execlist mode of submission.
+ */
+struct intel_engine_execlists {
+	/**
+	 * @irq_tasklet: softirq tasklet for bottom handler
+	 */
+	struct tasklet_struct irq_tasklet;
+
+	/**
+	 * @default_priolist: priority list for I915_PRIORITY_NORMAL
+	 */
+	struct i915_priolist default_priolist;
+
+	/**
+	 * @no_priolist: priority lists disabled
+	 */
+	bool no_priolist;
+
+	/**
+	 * @port: execlist port states
+	 *
+	 * For each hardware ELSP (ExecList Submission Port) we keep
+	 * track of the last request and the number of times we submitted
+	 * that port to hw. We then count the number of times the hw reports
+	 * a context completion or preemption. As only one context can
+	 * be active on hw, we limit resubmission of context to port[0]. This
+	 * is called Lite Restore, of the context.
+	 */
+	struct execlist_port {
+		/**
+		 * @request_count: combined request and submission count
+		 */
+		struct drm_i915_gem_request *request_count;
+#define EXECLIST_COUNT_BITS 2
+#define port_request(p) ptr_mask_bits((p)->request_count, EXECLIST_COUNT_BITS)
+#define port_count(p) ptr_unmask_bits((p)->request_count, EXECLIST_COUNT_BITS)
+#define port_pack(rq, count) ptr_pack_bits(rq, count, EXECLIST_COUNT_BITS)
+#define port_unpack(p, count) ptr_unpack_bits((p)->request_count, count, EXECLIST_COUNT_BITS)
+#define port_set(p, packed) ((p)->request_count = (packed))
+#define port_isset(p) ((p)->request_count)
+#define port_index(p, e) ((p) - (e)->execlists.port)
+
+		/**
+		 * @context_id: context ID for port
+		 */
+		GEM_DEBUG_DECL(u32 context_id);
+	} port[2];
+
+	/**
+	 * @queue: queue of requests, in priority lists
+	 */
+	struct rb_root queue;
+
+	/**
+	 * @first: leftmost level in priority @queue
+	 */
+	struct rb_node *first;
+
+	/**
+	 * @fw_domains: forcewake domains for irq tasklet
+	 */
+	unsigned int fw_domains;
+
+	/**
+	 * @csb_head: context status buffer head
+	 */
+	unsigned int csb_head;
+
+	/**
+	 * @csb_use_mmio: access csb through mmio, instead of hwsp
+	 */
+	bool csb_use_mmio;
+};
+
 #define INTEL_ENGINE_CS_MAX_NAME 8
 
 struct intel_engine_cs {
@@ -380,27 +458,7 @@ struct intel_engine_cs {
 		u32	*(*signal)(struct drm_i915_gem_request *req, u32 *cs);
 	} semaphore;
 
-	/* Execlists */
-	struct tasklet_struct irq_tasklet;
-	struct i915_priolist default_priolist;
-	bool no_priolist;
-	struct execlist_port {
-		struct drm_i915_gem_request *request_count;
-#define EXECLIST_COUNT_BITS 2
-#define port_request(p) ptr_mask_bits((p)->request_count, EXECLIST_COUNT_BITS)
-#define port_count(p) ptr_unmask_bits((p)->request_count, EXECLIST_COUNT_BITS)
-#define port_pack(rq, count) ptr_pack_bits(rq, count, EXECLIST_COUNT_BITS)
-#define port_unpack(p, count) ptr_unpack_bits((p)->request_count, count, EXECLIST_COUNT_BITS)
-#define port_set(p, packed) ((p)->request_count = (packed))
-#define port_isset(p) ((p)->request_count)
-#define port_index(p, e) ((p) - (e)->execlist_port)
-		GEM_DEBUG_DECL(u32 context_id);
-	} execlist_port[2];
-	struct rb_root execlist_queue;
-	struct rb_node *execlist_first;
-	unsigned int fw_domains;
-	unsigned int csb_head;
-	bool csb_use_mmio;
+	struct intel_engine_execlists execlists;
 
 	/* Contexts are pinned whilst they are active on the GPU. The last
 	 * context executed remains active whilst the GPU is idle - the

@@ -2815,8 +2815,8 @@ i915_gem_reset_prepare_engine(struct intel_engine_cs *engine)
 	 * Turning off the engine->irq_tasklet until the reset is over
 	 * prevents the race.
 	 */
-	tasklet_kill(&engine->irq_tasklet);
-	tasklet_disable(&engine->irq_tasklet);
+	tasklet_kill(&engine->execlists.irq_tasklet);
+	tasklet_disable(&engine->execlists.irq_tasklet);
 
 	if (engine->irq_seqno_barrier)
 		engine->irq_seqno_barrier(engine);
@@ -2995,7 +2995,7 @@ void i915_gem_reset(struct drm_i915_private *dev_priv)
 
 void i915_gem_reset_finish_engine(struct intel_engine_cs *engine)
 {
-	tasklet_enable(&engine->irq_tasklet);
+	tasklet_enable(&engine->execlists.irq_tasklet);
 	kthread_unpark(engine->breadcrumbs.signaler);
 }
 
