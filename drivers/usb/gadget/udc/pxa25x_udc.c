@@ -2417,9 +2417,7 @@ static int pxa25x_udc_probe(struct platform_device *pdev)
 		gpio_direction_output(dev->mach->gpio_pullup, 0);
 	}
 
-	init_timer(&dev->timer);
-	dev->timer.function = udc_watchdog;
-	dev->timer.data = (unsigned long) dev;
+	setup_timer(&dev->timer, udc_watchdog, (unsigned long)dev);
 
 	the_controller = dev;
 	platform_set_drvdata(pdev, dev);
