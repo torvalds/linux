@@ -839,7 +839,8 @@ static int atusb_get_and_show_revision(struct atusb *atusb)
 
 		dev_info(&usb_dev->dev,
 			 "Firmware: major: %u, minor: %u, hardware type: %s (%d)\n",
-			 atusb->fw_ver_maj, atusb->fw_ver_min, hw_name, atusb->fw_hw_type);
+			 atusb->fw_ver_maj, atusb->fw_ver_min, hw_name,
+			 atusb->fw_hw_type);
 	}
 	if (atusb->fw_ver_maj == 0 && atusb->fw_ver_min < 2) {
 		dev_info(&usb_dev->dev,
@@ -974,7 +975,8 @@ static int atusb_set_extended_addr(struct atusb *atusb)
 	int ret;
 
 	/* Firmware versions before 0.3 do not support the EUI64_READ command.
-	 * Just use a random address and be done */
+	 * Just use a random address and be done.
+	 */
 	if (atusb->fw_ver_maj == 0 && atusb->fw_ver_min < 3) {
 		ieee802154_random_extended_addr(&atusb->hw->phy->perm_extended_addr);
 		return 0;
@@ -1004,7 +1006,7 @@ static int atusb_set_extended_addr(struct atusb *atusb)
 		atusb->hw->phy->perm_extended_addr = extended_addr;
 		addr = swab64((__force u64)atusb->hw->phy->perm_extended_addr);
 		dev_info(&usb_dev->dev, "Read permanent extended address %8phC from device\n",
-			&addr);
+			 &addr);
 	}
 
 	kfree(buffer);
