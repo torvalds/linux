@@ -81,7 +81,7 @@ static void denali_host_write(struct denali_nand_info *denali,
  * Use the configuration feature register to determine the maximum number of
  * banks that the hardware supports.
  */
-static void detect_max_banks(struct denali_nand_info *denali)
+static void denali_detect_max_banks(struct denali_nand_info *denali)
 {
 	uint32_t features = ioread32(denali->reg + FEATURES);
 
@@ -1115,7 +1115,7 @@ static void denali_hw_init(struct denali_nand_info *denali)
 	 * if this value is 0, just let it be.
 	 */
 	denali->oob_skip_bytes = ioread32(denali->reg + SPARE_AREA_SKIP_BYTES);
-	detect_max_banks(denali);
+	denali_detect_max_banks(denali);
 	iowrite32(0x0F, denali->reg + RB_PIN_ENABLED);
 	iowrite32(CHIP_EN_DONT_CARE__FLAG, denali->reg + CHIP_ENABLE_DONT_CARE);
 
