@@ -124,12 +124,8 @@ static size_t ipchain__fprintf_graph(FILE *fp, struct callchain_node *node,
 	str = callchain_list__sym_name(chain, bf, sizeof(bf), false);
 
 	if (symbol_conf.show_branchflag_count) {
-		if (!period)
-			callchain_list_counts__printf_value(node, chain, NULL,
-							    buf, sizeof(buf));
-		else
-			callchain_list_counts__printf_value(NULL, chain, NULL,
-							    buf, sizeof(buf));
+		callchain_list_counts__printf_value(chain, NULL,
+						    buf, sizeof(buf));
 
 		if (asprintf(&alloc_str, "%s%s", str, buf) < 0)
 			str = "Not enough memory!";
@@ -313,7 +309,7 @@ static size_t callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 
 			if (symbol_conf.show_branchflag_count)
 				ret += callchain_list_counts__printf_value(
-						NULL, chain, fp, NULL, 0);
+						chain, fp, NULL, 0);
 			ret += fprintf(fp, "\n");
 
 			if (++entries_printed == callchain_param.print_limit)

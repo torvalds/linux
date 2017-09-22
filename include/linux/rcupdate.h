@@ -413,6 +413,22 @@ static inline void rcu_preempt_sleep_check(void) { }
 })
 
 /**
+ * rcu_swap_protected() - swap an RCU and a regular pointer
+ * @rcu_ptr: RCU pointer
+ * @ptr: regular pointer
+ * @c: the conditions under which the dereference will take place
+ *
+ * Perform swap(@rcu_ptr, @ptr) where @rcu_ptr is an RCU-annotated pointer and
+ * @c is the argument that is passed to the rcu_dereference_protected() call
+ * used to read that pointer.
+ */
+#define rcu_swap_protected(rcu_ptr, ptr, c) do {			\
+	typeof(ptr) __tmp = rcu_dereference_protected((rcu_ptr), (c));	\
+	rcu_assign_pointer((rcu_ptr), (ptr));				\
+	(ptr) = __tmp;							\
+} while (0)
+
+/**
  * rcu_access_pointer() - fetch RCU pointer with no dereferencing
  * @p: The pointer to read
  *

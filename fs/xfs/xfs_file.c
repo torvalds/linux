@@ -259,7 +259,11 @@ xfs_file_buffered_aio_read(
 
 	trace_xfs_file_buffered_read(ip, iov_iter_count(to), iocb->ki_pos);
 
-	xfs_ilock(ip, XFS_IOLOCK_SHARED);
+	if (!xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED)) {
+		if (iocb->ki_flags & IOCB_NOWAIT)
+			return -EAGAIN;
+		xfs_ilock(ip, XFS_IOLOCK_SHARED);
+	}
 	ret = generic_file_read_iter(iocb, to);
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
@@ -636,6 +640,9 @@ xfs_file_buffered_aio_write(
 	int			enospc = 0;
 	int			iolock;
 
+	if (iocb->ki_flags & IOCB_NOWAIT)
+		return -EOPNOTSUPP;
+
 write_retry:
 	iolock = XFS_IOLOCK_EXCL;
 	xfs_ilock(ip, iolock);
@@ -912,7 +919,7 @@ xfs_file_open(
 		return -EFBIG;
 	if (XFS_FORCED_SHUTDOWN(XFS_M(inode->i_sb)))
 		return -EIO;
-	file->f_mode |= FMODE_AIO_NOWAIT;
+	file->f_mode |= FMODE_NOWAIT;
 	return 0;
 }
 

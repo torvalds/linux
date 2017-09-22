@@ -353,13 +353,13 @@ static const struct pinctrl_ops sprd_pctrl_ops = {
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
-int sprd_pmx_get_function_count(struct pinctrl_dev *pctldev)
+static int sprd_pmx_get_function_count(struct pinctrl_dev *pctldev)
 {
 	return PIN_FUNC_MAX;
 }
 
-const char *sprd_pmx_get_function_name(struct pinctrl_dev *pctldev,
-				       unsigned int selector)
+static const char *sprd_pmx_get_function_name(struct pinctrl_dev *pctldev,
+					      unsigned int selector)
 {
 	switch (selector) {
 	case PIN_FUNC_1:
@@ -375,10 +375,10 @@ const char *sprd_pmx_get_function_name(struct pinctrl_dev *pctldev,
 	}
 }
 
-int sprd_pmx_get_function_groups(struct pinctrl_dev *pctldev,
-				 unsigned int selector,
-				 const char * const **groups,
-				 unsigned int * const num_groups)
+static int sprd_pmx_get_function_groups(struct pinctrl_dev *pctldev,
+					unsigned int selector,
+					const char * const **groups,
+					unsigned int * const num_groups)
 {
 	struct sprd_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	struct sprd_pinctrl_soc_info *info = pctl->info;
@@ -400,7 +400,7 @@ static int sprd_pmx_set_mux(struct pinctrl_dev *pctldev,
 	unsigned long reg;
 	unsigned int val = 0;
 
-	if (group_selector > info->ngroups)
+	if (group_selector >= info->ngroups)
 		return -EINVAL;
 
 	switch (func_selector) {
@@ -734,7 +734,7 @@ static int sprd_pinconf_group_get(struct pinctrl_dev *pctldev,
 	struct sprd_pin_group *grp;
 	unsigned int pin_id;
 
-	if (selector > info->ngroups)
+	if (selector >= info->ngroups)
 		return -EINVAL;
 
 	grp = &info->groups[selector];
@@ -753,7 +753,7 @@ static int sprd_pinconf_group_set(struct pinctrl_dev *pctldev,
 	struct sprd_pin_group *grp;
 	int ret, i;
 
-	if (selector > info->ngroups)
+	if (selector >= info->ngroups)
 		return -EINVAL;
 
 	grp = &info->groups[selector];
@@ -813,7 +813,7 @@ static void sprd_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 	const char *name;
 	int i, ret;
 
-	if (selector > info->ngroups)
+	if (selector >= info->ngroups)
 		return;
 
 	grp = &info->groups[selector];
@@ -1100,12 +1100,16 @@ int sprd_pinctrl_remove(struct platform_device *pdev)
 
 void sprd_pinctrl_shutdown(struct platform_device *pdev)
 {
-	struct pinctrl *pinctl = devm_pinctrl_get(&pdev->dev);
+	struct pinctrl *pinctl;
 	struct pinctrl_state *state;
 
+	pinctl = devm_pinctrl_get(&pdev->dev);
+	if (IS_ERR(pinctl))
+		return;
 	state = pinctrl_lookup_state(pinctl, "shutdown");
-	if (!IS_ERR(state))
-		pinctrl_select_state(pinctl, state);
+	if (IS_ERR(state))
+		return;
+	pinctrl_select_state(pinctl, state);
 }
 
 MODULE_DESCRIPTION("SPREADTRUM Pin Controller Driver");

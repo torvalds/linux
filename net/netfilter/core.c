@@ -215,7 +215,7 @@ static void *__nf_hook_entries_try_shrink(struct nf_hook_entries __rcu **pp)
 	if (skip == hook_entries)
 		goto out_assign;
 
-	if (WARN_ON(skip == 0))
+	if (skip == 0)
 		return NULL;
 
 	hook_entries -= skip;

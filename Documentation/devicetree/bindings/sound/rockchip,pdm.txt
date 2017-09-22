@@ -38,5 +38,4 @@ pdm: pdm@ff040000 {
 		     &pdmm0_sdi1_sleep
 		     &pdmm0_sdi2_sleep
 		     &pdmm0_sdi3_sleep>;
-	status = "disabled";
 };

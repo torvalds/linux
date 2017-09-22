@@ -2,7 +2,7 @@
  * A security identifier table (sidtab) is a hash table
  * of security context structures indexed by SID value.
  *
- * Author : Stephen Smalley, <sds@epoch.ncsc.mil>
+ * Author : Stephen Smalley, <sds@tycho.nsa.gov>
  */
 #ifndef _SS_SIDTAB_H_
 #define _SS_SIDTAB_H_

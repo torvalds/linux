@@ -249,7 +249,10 @@ OPTIONS
 
 -d::
 --data::
-	Record the sample addresses.
+	Record the sample virtual addresses.
+
+--phys-data::
+	Record the sample physical addresses.
 
 -T::
 --timestamp::

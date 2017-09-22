@@ -331,6 +331,7 @@ static struct telemetry_debugfs_conf telem_apl_debugfs_conf = {
 
 static const struct x86_cpu_id telemetry_debugfs_cpu_ids[] = {
 	TELEM_DEBUGFS_CPU(INTEL_FAM6_ATOM_GOLDMONT, telem_apl_debugfs_conf),
+	TELEM_DEBUGFS_CPU(INTEL_FAM6_ATOM_GEMINI_LAKE, telem_apl_debugfs_conf),
 	{}
 };
 

@@ -112,7 +112,7 @@ Examples
 
 Example 1: SH73A0 (SH-Mobile AG5) pin controller node
 
-	pfc: pfc@e6050000 {
+	pfc: pin-controller@e6050000 {
 		compatible = "renesas,pfc-sh73a0";
 		reg = <0xe6050000 0x8000>,
 		      <0xe605801c 0x1c>;
@@ -173,5 +173,4 @@ Example 4: KZM-A9-GT (SH-Mobile AG5) default pin state for the MMCIF device
 
 		bus-width = <8>;
 		vmmc-supply = <&reg_1p8v>;
-		status = "okay";
 	};

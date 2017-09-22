@@ -551,7 +551,7 @@ void __init smp_setup_cpu_maps(void)
 		if (maxcpus > nr_cpu_ids) {
 			printk(KERN_WARNING
 			       "Partition configured for %d cpus, "
-			       "operating system maximum is %d.\n",
+			       "operating system maximum is %u.\n",
 			       maxcpus, nr_cpu_ids);
 			maxcpus = nr_cpu_ids;
 		} else

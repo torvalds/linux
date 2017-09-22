@@ -2980,7 +2980,7 @@ static void proxy_unlock_bus(struct i2c_adapter *adapter,
 	sdvo->i2c->lock_ops->unlock_bus(sdvo->i2c, flags);
 }
 
-const struct i2c_lock_operations proxy_lock_ops = {
+static const struct i2c_lock_operations proxy_lock_ops = {
 	.lock_bus =    proxy_lock_bus,
 	.trylock_bus = proxy_trylock_bus,
 	.unlock_bus =  proxy_unlock_bus,

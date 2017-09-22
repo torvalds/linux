@@ -14,7 +14,7 @@
 #include <asm/smp-ops.h>
 #include <asm/time.h>
 
-extern struct plat_smp_ops paravirt_smp_ops;
+extern const struct plat_smp_ops paravirt_smp_ops;
 
 const char *get_system_type(void)
 {

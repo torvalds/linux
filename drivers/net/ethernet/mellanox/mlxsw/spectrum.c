@@ -575,15 +575,14 @@ static void mlxsw_sp_span_entry_destroy(struct mlxsw_sp *mlxsw_sp,
 }
 
 static struct mlxsw_sp_span_entry *
-mlxsw_sp_span_entry_find(struct mlxsw_sp_port *port)
+mlxsw_sp_span_entry_find(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 {
-	struct mlxsw_sp *mlxsw_sp = port->mlxsw_sp;
 	int i;
 
 	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
 		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span.entries[i];
 
-		if (curr->used && curr->local_port == port->local_port)
+		if (curr->used && curr->local_port == local_port)
 			return curr;
 	}
 	return NULL;
@@ -594,7 +593,8 @@ static struct mlxsw_sp_span_entry
 {
 	struct mlxsw_sp_span_entry *span_entry;
 
-	span_entry = mlxsw_sp_span_entry_find(port);
+	span_entry = mlxsw_sp_span_entry_find(port->mlxsw_sp,
+					      port->local_port);
 	if (span_entry) {
 		/* Already exists, just take a reference */
 		span_entry->ref_count++;
@@ -783,12 +783,13 @@ err_port_bind:
 }
 
 static void mlxsw_sp_span_mirror_remove(struct mlxsw_sp_port *from,
-					struct mlxsw_sp_port *to,
+					u8 destination_port,
 					enum mlxsw_sp_span_type type)
 {
 	struct mlxsw_sp_span_entry *span_entry;
 
-	span_entry = mlxsw_sp_span_entry_find(to);
+	span_entry = mlxsw_sp_span_entry_find(from->mlxsw_sp,
+					      destination_port);
 	if (!span_entry) {
 		netdev_err(from->dev, "no span entry found\n");
 		return;
@@ -1563,14 +1564,12 @@ static void
 mlxsw_sp_port_del_cls_matchall_mirror(struct mlxsw_sp_port *mlxsw_sp_port,
 				      struct mlxsw_sp_port_mall_mirror_tc_entry *mirror)
 {
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	enum mlxsw_sp_span_type span_type;
-	struct mlxsw_sp_port *to_port;
 
-	to_port = mlxsw_sp->ports[mirror->to_local_port];
 	span_type = mirror->ingress ?
 			MLXSW_SP_SPAN_INGRESS : MLXSW_SP_SPAN_EGRESS;
-	mlxsw_sp_span_mirror_remove(mlxsw_sp_port, to_port, span_type);
+	mlxsw_sp_span_mirror_remove(mlxsw_sp_port, mirror->to_local_port,
+				    span_type);
 }
 
 static int
@@ -2545,7 +2544,9 @@ out:
 	return err;
 }
 
-#define MLXSW_SP_QSFP_I2C_ADDR 0x50
+#define MLXSW_SP_I2C_ADDR_LOW 0x50
+#define MLXSW_SP_I2C_ADDR_HIGH 0x51
+#define MLXSW_SP_EEPROM_PAGE_LENGTH 256
 
 static int mlxsw_sp_query_module_eeprom(struct mlxsw_sp_port *mlxsw_sp_port,
 					u16 offset, u16 size, void *data,
@@ -2554,12 +2555,25 @@ static int mlxsw_sp_query_module_eeprom(struct mlxsw_sp_port *mlxsw_sp_port,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char eeprom_tmp[MLXSW_SP_REG_MCIA_EEPROM_SIZE];
 	char mcia_pl[MLXSW_REG_MCIA_LEN];
+	u16 i2c_addr;
 	int status;
 	int err;
 
 	size = min_t(u16, size, MLXSW_SP_REG_MCIA_EEPROM_SIZE);
+
+	if (offset < MLXSW_SP_EEPROM_PAGE_LENGTH &&
+	    offset + size > MLXSW_SP_EEPROM_PAGE_LENGTH)
+		/* Cross pages read, read until offset 256 in low page */
+		size = MLXSW_SP_EEPROM_PAGE_LENGTH - offset;
+
+	i2c_addr = MLXSW_SP_I2C_ADDR_LOW;
+	if (offset >= MLXSW_SP_EEPROM_PAGE_LENGTH) {
+		i2c_addr = MLXSW_SP_I2C_ADDR_HIGH;
+		offset -= MLXSW_SP_EEPROM_PAGE_LENGTH;
+	}
+
 	mlxsw_reg_mcia_pack(mcia_pl, mlxsw_sp_port->mapping.module,
-			    0, 0, offset, size, MLXSW_SP_QSFP_I2C_ADDR);
+			    0, 0, offset, size, i2c_addr);
 
 	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(mcia), mcia_pl);
 	if (err)

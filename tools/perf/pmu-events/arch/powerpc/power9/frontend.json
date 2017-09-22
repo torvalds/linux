@@ -80,11 +80,6 @@
     "BriefDescription": "Load Missed L1, counted at execution time (can be greater than loads finished). LMQ merges are not included in this count. i.e. if a load instruction misses on an address that is already allocated on the LMQ, this event will not increment for that load). Note that this count is per slice, so if a load spans multiple slices this event will increment multiple times for a single load."
   },
   {,
-    "EventCode": "0x400F0",
-    "EventName": "PM_LD_MISS_L1",
-    "BriefDescription": "Load Missed L1, counted at execution time (can be greater than loads finished). LMQ merges are not included in this count. i.e. if a load instruction misses on an address that is already allocated on the LMQ, this event will not increment for that load). Note that this count is per slice, so if a load spans multiple slices this event will increment multiple times for a single load."
-  },
-  {,
     "EventCode": "0x2E01A",
     "EventName": "PM_CMPLU_STALL_LSU_FLUSH_NEXT",
     "BriefDescription": "Completion stall of one cycle because the LSU requested to flush the next iop in the sequence. It takes 1 cycle for the ISU to process this request before the LSU instruction is allowed to complete"

@@ -121,7 +121,6 @@ static inline int desc_empty(const void *ptr)
 #define load_ldt(ldt)				asm volatile("lldt %0"::"m" (ldt))
 
 #define store_gdt(dtr)				native_store_gdt(dtr)
-#define store_idt(dtr)				native_store_idt(dtr)
 #define store_tr(tr)				(tr = native_store_tr())
 
 #define load_TLS(t, cpu)			native_load_tls(t, cpu)
@@ -228,7 +227,7 @@ static inline void native_store_gdt(struct desc_ptr *dtr)
 	asm volatile("sgdt %0":"=m" (*dtr));
 }
 
-static inline void native_store_idt(struct desc_ptr *dtr)
+static inline void store_idt(struct desc_ptr *dtr)
 {
 	asm volatile("sidt %0":"=m" (*dtr));
 }

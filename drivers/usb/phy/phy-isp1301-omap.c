@@ -96,7 +96,7 @@ struct isp1301 {
 
 #if IS_REACHABLE(CONFIG_TPS65010)
 
-#include <linux/i2c/tps65010.h>
+#include <linux/mfd/tps65010.h>
 
 #else
 

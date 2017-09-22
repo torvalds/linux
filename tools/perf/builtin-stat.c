@@ -707,7 +707,7 @@ try_again:
 				process_interval();
 			}
 		}
-		wait(&status);
+		waitpid(child_pid, &status, 0);
 
 		if (workload_exec_errno) {
 			const char *emsg = str_error_r(workload_exec_errno, msg, sizeof(msg));
@@ -1257,7 +1257,7 @@ static bool collect_data(struct perf_evsel *counter,
 	if (counter->merged_stat)
 		return false;
 	cb(counter, data, true);
-	if (!no_merge)
+	if (!no_merge && counter->auto_merge_stats)
 		collect_all_aliases(counter, cb, data);
 	return true;
 }

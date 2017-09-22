@@ -676,7 +676,8 @@ bad:
 /*
  * Do a synchronous statfs().
  */
-int ceph_monc_do_statfs(struct ceph_mon_client *monc, struct ceph_statfs *buf)
+int ceph_monc_do_statfs(struct ceph_mon_client *monc, u64 data_pool,
+			struct ceph_statfs *buf)
 {
 	struct ceph_mon_generic_request *req;
 	struct ceph_mon_statfs *h;
@@ -696,6 +697,7 @@ int ceph_monc_do_statfs(struct ceph_mon_client *monc, struct ceph_statfs *buf)
 		goto out;
 
 	req->u.st = buf;
+	req->request->hdr.version = cpu_to_le16(2);
 
 	mutex_lock(&monc->mutex);
 	register_generic_request(req);
@@ -705,6 +707,8 @@ int ceph_monc_do_statfs(struct ceph_mon_client *monc, struct ceph_statfs *buf)
 	h->monhdr.session_mon = cpu_to_le16(-1);
 	h->monhdr.session_mon_tid = 0;
 	h->fsid = monc->monmap->fsid;
+	h->contains_data_pool = (data_pool != CEPH_NOPOOL);
+	h->data_pool = cpu_to_le64(data_pool);
 	send_generic_request(monc, req);
 	mutex_unlock(&monc->mutex);
 

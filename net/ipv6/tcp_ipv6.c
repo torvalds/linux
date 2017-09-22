@@ -1460,9 +1460,9 @@ process:
 		}
 		sock_hold(sk);
 		refcounted = true;
-		if (tcp_filter(sk, skb))
-			goto discard_and_relse;
-		nsk = tcp_check_req(sk, skb, req, false);
+		nsk = NULL;
+		if (!tcp_filter(sk, skb))
+			nsk = tcp_check_req(sk, skb, req, false);
 		if (!nsk) {
 			reqsk_put(req);
 			goto discard_and_relse;

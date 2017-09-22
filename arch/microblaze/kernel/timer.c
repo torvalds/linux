@@ -293,7 +293,7 @@ static int __init xilinx_timer_init(struct device_node *timer)
 		return -EINVAL;
 	}
 
-	pr_info("%s: irq=%d\n", timer->full_name, irq);
+	pr_info("%pOF: irq=%d\n", timer, irq);
 
 	clk = of_clk_get(timer, 0);
 	if (IS_ERR(clk)) {

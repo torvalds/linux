@@ -27,6 +27,13 @@ struct arc_fpu {
 };
 #endif
 
+#ifdef CONFIG_ARC_PLAT_EZNPS
+struct eznps_dp {
+	unsigned int eflags;
+	unsigned int gpa1;
+};
+#endif
+
 /* Arch specific stuff which needs to be saved per task.
  * However these items are not so important so as to earn a place in
  * struct thread_info
@@ -37,6 +44,9 @@ struct thread_struct {
 	unsigned long fault_address;	/* dbls as brkpt holder as well */
 #ifdef CONFIG_ARC_FPU_SAVE_RESTORE
 	struct arc_fpu fpu;
+#endif
+#ifdef CONFIG_ARC_PLAT_EZNPS
+	struct eznps_dp dp;
 #endif
 };
 

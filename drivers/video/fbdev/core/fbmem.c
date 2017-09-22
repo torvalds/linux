@@ -32,6 +32,7 @@
 #include <linux/device.h>
 #include <linux/efi.h>
 #include <linux/fb.h>
+#include <linux/fbcon.h>
 #include <linux/mem_encrypt.h>
 
 #include <asm/fb.h>
@@ -316,7 +317,7 @@ static void fb_set_logo(struct fb_info *info,
 		for (i = 0; i < logo->height; i++) {
 			for (j = 0; j < logo->width; src++) {
 				d = *src ^ xor;
-				for (k = 7; k >= 0; k--) {
+				for (k = 7; k >= 0 && j < logo->width; k--) {
 					*dst++ = ((d >> k) & 1) ? fg : 0;
 					j++;
 				}
@@ -463,7 +464,7 @@ static int fb_show_logo_line(struct fb_info *info, int rotate,
 
 	/* Return if the frame buffer is not mapped or suspended */
 	if (logo == NULL || info->state != FBINFO_STATE_RUNNING ||
-	    info->flags & FBINFO_MODULE)
+	    info->fbops->owner)
 		return 0;
 
 	image.depth = 8;
@@ -601,7 +602,7 @@ int fb_prepare_logo(struct fb_info *info, int rotate)
 	memset(&fb_logo, 0, sizeof(struct logo_data));
 
 	if (info->flags & FBINFO_MISC_TILEBLITTING ||
-	    info->flags & FBINFO_MODULE)
+	    info->fbops->owner)
 		return 0;
 
 	if (info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
@@ -1892,6 +1893,9 @@ fbmem_init(void)
 		fb_class = NULL;
 		goto err_class;
 	}
+
+	fb_console_init();
+
 	return 0;
 
 err_class:
@@ -1906,6 +1910,8 @@ module_init(fbmem_init);
 static void __exit
 fbmem_exit(void)
 {
+	fb_console_exit();
+
 	remove_proc_entry("fb", NULL);
 	class_destroy(fb_class);
 	unregister_chrdev(FB_MAJOR, "fb");

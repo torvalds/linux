@@ -8,9 +8,9 @@
  */
 
 /dts-v1/;
-/include/ "uniphier-sld8.dtsi"
-/include/ "uniphier-ref-daughter.dtsi"
-/include/ "uniphier-support-card.dtsi"
+#include "uniphier-sld8.dtsi"
+#include "uniphier-ref-daughter.dtsi"
+#include "uniphier-support-card.dtsi"
 
 / {
 	model = "UniPhier sLD8 Reference Board";
@@ -66,5 +66,9 @@
 };
 
 &usb2 {
+	status = "okay";
+};
+
+&nand {
 	status = "okay";
 };

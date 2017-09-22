@@ -59,5 +59,4 @@ esai: esai@02024000 {
 	fsl,fifo-depth = <128>;
 	fsl,esai-synchronous;
 	big-endian;
-	status = "disabled";
 };

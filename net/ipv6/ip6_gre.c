@@ -432,7 +432,9 @@ static void ip6gre_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		}
 		break;
 	case ICMPV6_PKT_TOOBIG:
-		mtu = be32_to_cpu(info) - offset;
+		mtu = be32_to_cpu(info) - offset - t->tun_hlen;
+		if (t->dev->type == ARPHRD_ETHER)
+			mtu -= ETH_HLEN;
 		if (mtu < IPV6_MIN_MTU)
 			mtu = IPV6_MIN_MTU;
 		t->dev->mtu = mtu;

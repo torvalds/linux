@@ -49,7 +49,7 @@ struct i915_mmu_notifier {
 	spinlock_t lock;
 	struct hlist_node node;
 	struct mmu_notifier mn;
-	struct rb_root objects;
+	struct rb_root_cached objects;
 	struct workqueue_struct *wq;
 };
 
@@ -123,7 +123,7 @@ static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 	struct interval_tree_node *it;
 	LIST_HEAD(cancelled);
 
-	if (RB_EMPTY_ROOT(&mn->objects))
+	if (RB_EMPTY_ROOT(&mn->objects.rb_root))
 		return;
 
 	/* interval ranges are inclusive, but invalidate range is exclusive */
@@ -172,7 +172,7 @@ i915_mmu_notifier_create(struct mm_struct *mm)
 
 	spin_lock_init(&mn->lock);
 	mn->mn.ops = &i915_gem_userptr_notifier;
-	mn->objects = RB_ROOT;
+	mn->objects = RB_ROOT_CACHED;
 	mn->wq = alloc_workqueue("i915-userptr-release", WQ_UNBOUND, 0);
 	if (mn->wq == NULL) {
 		kfree(mn);
@@ -507,7 +507,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 	ret = -ENOMEM;
 	pinned = 0;
 
-	pvec = kvmalloc_array(npages, sizeof(struct page *), GFP_TEMPORARY);
+	pvec = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 	if (pvec != NULL) {
 		struct mm_struct *mm = obj->userptr.mm->mm;
 		unsigned int flags = 0;
@@ -643,7 +643,7 @@ i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 
 	if (mm == current->mm) {
 		pvec = kvmalloc_array(num_pages, sizeof(struct page *),
-				      GFP_TEMPORARY |
+				      GFP_KERNEL |
 				      __GFP_NORETRY |
 				      __GFP_NOWARN);
 		if (pvec) /* defer to worker if malloc fails */

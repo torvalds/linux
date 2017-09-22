@@ -107,7 +107,7 @@ static void ctm_mult_by_limited(uint64_t *result, int64_t *input)
 	}
 }
 
-void i9xx_load_ycbcr_conversion_matrix(struct intel_crtc *intel_crtc)
+static void i9xx_load_ycbcr_conversion_matrix(struct intel_crtc *intel_crtc)
 {
 	int pipe = intel_crtc->pipe;
 	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);

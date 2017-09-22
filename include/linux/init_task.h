@@ -175,9 +175,8 @@ extern struct cred init_cred;
 
 #ifdef CONFIG_RT_MUTEXES
 # define INIT_RT_MUTEXES(tsk)						\
-	.pi_waiters = RB_ROOT,						\
-	.pi_top_task = NULL,						\
-	.pi_waiters_leftmost = NULL,
+	.pi_waiters = RB_ROOT_CACHED,					\
+	.pi_top_task = NULL,
 #else
 # define INIT_RT_MUTEXES(tsk)
 #endif

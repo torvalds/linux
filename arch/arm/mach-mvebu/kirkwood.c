@@ -107,8 +107,7 @@ static void __init kirkwood_dt_eth_fixup(void)
 		clk_prepare_enable(clk);
 
 		/* store MAC address register contents in local-mac-address */
-		pr_err(FW_INFO "%s: local-mac-address is not set\n",
-		       np->full_name);
+		pr_err(FW_INFO "%pOF: local-mac-address is not set\n", np);
 
 		pmac = kzalloc(sizeof(*pmac) + 6, GFP_KERNEL);
 		if (!pmac)

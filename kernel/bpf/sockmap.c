@@ -792,7 +792,7 @@ out_progs:
 	return err;
 }
 
-int sock_map_attach_prog(struct bpf_map *map, struct bpf_prog *prog, u32 type)
+int sock_map_prog(struct bpf_map *map, struct bpf_prog *prog, u32 type)
 {
 	struct bpf_stab *stab = container_of(map, struct bpf_stab, map);
 	struct bpf_prog *orig;

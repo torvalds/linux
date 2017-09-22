@@ -46,7 +46,6 @@ hdmi: hdmi@ff980000 {
 	interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 	clocks = <&cru  PCLK_HDMI_CTRL>, <&cru SCLK_HDMI_HDCP>;
 	clock-names = "iahb", "isfr";
-	status = "disabled";
 	ports {
 		hdmi_in: port {
 			#address-cells = <1>;

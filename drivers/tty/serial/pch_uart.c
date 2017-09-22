@@ -371,7 +371,7 @@ static const struct file_operations port_regs_ops = {
 };
 #endif	/* CONFIG_DEBUG_FS */
 
-static struct dmi_system_id pch_uart_dmi_table[] = {
+static const struct dmi_system_id pch_uart_dmi_table[] = {
 	{
 		.ident = "CM-iTC",
 		{

@@ -1215,7 +1215,7 @@ static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	if (cl == NULL) {
 		if (err & __NET_XMIT_BYPASS)
 			qdisc_qstats_drop(sch);
-		kfree_skb(skb);
+		__qdisc_drop(skb, to_free);
 		return err;
 	}
 	pr_debug("qfq_enqueue: cl = %x\n", cl->common.classid);

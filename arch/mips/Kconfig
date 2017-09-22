@@ -1627,14 +1627,6 @@ config CPU_R5500
 	  NEC VR5500 and VR5500A series processors implement 64-bit MIPS IV
 	  instruction set.
 
-config CPU_R6000
-	bool "R6000"
-	depends on SYS_HAS_CPU_R6000
-	select CPU_SUPPORTS_32BIT_KERNEL
-	help
-	  MIPS Technologies R6000 and R6000A series processors.  Note these
-	  processors are extremely rare and the support for them is incomplete.
-
 config CPU_NEVADA
 	bool "RM52xx"
 	depends on SYS_HAS_CPU_NEVADA
@@ -1950,9 +1942,6 @@ config SYS_HAS_CPU_R5432
 config SYS_HAS_CPU_R5500
 	bool
 
-config SYS_HAS_CPU_R6000
-	bool
-
 config SYS_HAS_CPU_NEVADA
 	bool
 
@@ -2180,7 +2169,7 @@ config PAGE_SIZE_32KB
 
 config PAGE_SIZE_64KB
 	bool "64kB"
-	depends on !CPU_R3000 && !CPU_TX39XX && !CPU_R6000
+	depends on !CPU_R3000 && !CPU_TX39XX
 	help
 	  Using 64kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available on
@@ -2248,11 +2237,11 @@ config CPU_HAS_PREFETCH
 
 config CPU_GENERIC_DUMP_TLB
 	bool
-	default y if !(CPU_R3000 || CPU_R6000 || CPU_R8000 || CPU_TX39XX)
+	default y if !(CPU_R3000 || CPU_R8000 || CPU_TX39XX)
 
 config CPU_R4K_FPU
 	bool
-	default y if !(CPU_R3000 || CPU_R6000 || CPU_TX39XX || CPU_CAVIUM_OCTEON)
+	default y if !(CPU_R3000 || CPU_TX39XX)
 
 config CPU_R4K_CACHE_TLB
 	bool
@@ -2260,6 +2249,7 @@ config CPU_R4K_CACHE_TLB
 
 config MIPS_MT_SMP
 	bool "MIPS MT SMP support (1 TC on each available VPE)"
+	default y
 	depends on SYS_SUPPORTS_MULTITHREADING && !CPU_MIPSR6 && !CPU_MICROMIPS
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
@@ -2376,7 +2366,6 @@ config MIPS_CPS
 	bool "MIPS Coherent Processing System support"
 	depends on SYS_SUPPORTS_MIPS_CPS
 	select MIPS_CM
-	select MIPS_CPC
 	select MIPS_CPS_PM if HOTPLUG_CPU
 	select SMP
 	select SYNC_R4K if (CEVT_R4K || CSRC_R4K)
@@ -2393,11 +2382,11 @@ config MIPS_CPS
 
 config MIPS_CPS_PM
 	depends on MIPS_CPS
-	select MIPS_CPC
 	bool
 
 config MIPS_CM
 	bool
+	select MIPS_CPC
 
 config MIPS_CPC
 	bool

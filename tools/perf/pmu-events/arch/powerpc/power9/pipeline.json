@@ -420,11 +420,6 @@
     "BriefDescription": "Final Pump Scope (Group) ended up larger than Initial Pump Scope (Chip) for an instruction fetch"
   },
   {,
-    "EventCode": "0x10016",
-    "EventName": "PM_DSLB_MISS",
-    "BriefDescription": "Data SLB Miss - Total of all segment sizes"
-  },
-  {,
     "EventCode": "0xD0A8",
     "EventName": "PM_DSLB_MISS",
     "BriefDescription": "Data SLB Miss - Total of all segment sizes"

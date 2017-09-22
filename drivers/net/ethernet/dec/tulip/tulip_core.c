@@ -138,7 +138,7 @@ static void tulip_timer(unsigned long data)
  * It is indexed via the values in 'enum chips'
  */
 
-struct tulip_chip_table tulip_tbl[] = {
+const struct tulip_chip_table tulip_tbl[] = {
   { }, /* placeholder for array, slot unused currently */
   { }, /* placeholder for array, slot unused currently */
 

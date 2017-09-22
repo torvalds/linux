@@ -269,7 +269,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 	if (!realmode)
 		local_irq_restore(irq_flags);
 
-	ptel &= ~(HPTE_R_PP0 - psize);
+	ptel &= HPTE_R_KEY | HPTE_R_PP0 | (psize-1);
 	ptel |= pa;
 
 	if (pa)

@@ -1735,11 +1735,8 @@ static void bcm_sysport_get_stats64(struct net_device *dev,
 		stats->tx_packets += tx_packets;
 	}
 
-	/* lockless update tx_bytes and tx_packets */
-	u64_stats_update_begin(&priv->syncp);
 	stats64->tx_bytes = stats->tx_bytes;
 	stats64->tx_packets = stats->tx_packets;
-	u64_stats_update_end(&priv->syncp);
 
 	do {
 		start = u64_stats_fetch_begin_irq(&priv->syncp);

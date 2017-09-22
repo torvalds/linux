@@ -428,14 +428,18 @@ over_batch:
 	 * some work and we will skip our goto
 	 */
 	if (ret == 0) {
+		bool raced;
+
 		smp_mb();
+		raced = send_gen != READ_ONCE(cp->cp_send_gen);
+
 		if ((test_bit(0, &conn->c_map_queued) ||
-		     !list_empty(&cp->cp_send_queue)) &&
-			send_gen == READ_ONCE(cp->cp_send_gen)) {
-			rds_stats_inc(s_send_lock_queue_raced);
+		    !list_empty(&cp->cp_send_queue)) && !raced) {
 			if (batch_count < send_batch_count)
 				goto restart;
 			queue_delayed_work(rds_wq, &cp->cp_send_w, 1);
+		} else if (raced) {
+			rds_stats_inc(s_send_lock_queue_raced);
 		}
 	}
 out:

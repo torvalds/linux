@@ -43,6 +43,7 @@ struct record_opts {
 	bool	     no_samples;
 	bool	     raw_samples;
 	bool	     sample_address;
+	bool	     sample_phys_addr;
 	bool	     sample_weight;
 	bool	     sample_time;
 	bool	     sample_time_set;

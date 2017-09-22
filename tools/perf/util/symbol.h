@@ -186,6 +186,7 @@ struct addr_map_symbol {
 	struct symbol *sym;
 	u64	      addr;
 	u64	      al_addr;
+	u64	      phys_addr;
 };
 
 struct branch_info {

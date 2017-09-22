@@ -873,7 +873,7 @@ amended to take the number of elements as a parameter.
 
 	$ cat ~/.perfconfig
 	[intel-pt]
-		mispred-all
+		mispred-all = on
 
 	$ perf record -e intel_pt//u ./sort 3000
 	Bubble sorting array of 3000 elements
