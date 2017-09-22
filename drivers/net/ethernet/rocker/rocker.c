@@ -821,37 +821,49 @@ static int rocker_tlv_put(struct rocker_desc_info *desc_info,
 static int rocker_tlv_put_u8(struct rocker_desc_info *desc_info,
 			     int attrtype, u8 value)
 {
-	return rocker_tlv_put(desc_info, attrtype, sizeof(u8), &value);
+	u8 tmp = value; /* work around GCC PR81715 */
+
+	return rocker_tlv_put(desc_info, attrtype, sizeof(u8), &tmp);
 }
 
 static int rocker_tlv_put_u16(struct rocker_desc_info *desc_info,
 			      int attrtype, u16 value)
 {
-	return rocker_tlv_put(desc_info, attrtype, sizeof(u16), &value);
+	u16 tmp = value;
+
+	return rocker_tlv_put(desc_info, attrtype, sizeof(u16), &tmp);
 }
 
 static int rocker_tlv_put_be16(struct rocker_desc_info *desc_info,
 			       int attrtype, __be16 value)
 {
-	return rocker_tlv_put(desc_info, attrtype, sizeof(__be16), &value);
+	__be16 tmp = value;
+
+	return rocker_tlv_put(desc_info, attrtype, sizeof(__be16), &tmp);
 }
 
 static int rocker_tlv_put_u32(struct rocker_desc_info *desc_info,
 			      int attrtype, u32 value)
 {
-	return rocker_tlv_put(desc_info, attrtype, sizeof(u32), &value);
+	u32 tmp = value;
+
+	return rocker_tlv_put(desc_info, attrtype, sizeof(u32), &tmp);
 }
 
 static int rocker_tlv_put_be32(struct rocker_desc_info *desc_info,
 			       int attrtype, __be32 value)
 {
-	return rocker_tlv_put(desc_info, attrtype, sizeof(__be32), &value);
+	__be32 tmp = value;
+
+	return rocker_tlv_put(desc_info, attrtype, sizeof(__be32), &tmp);
 }
 
 static int rocker_tlv_put_u64(struct rocker_desc_info *desc_info,
 			      int attrtype, u64 value)
 {
-	return rocker_tlv_put(desc_info, attrtype, sizeof(u64), &value);
+	u64 tmp = value;
+
+	return rocker_tlv_put(desc_info, attrtype, sizeof(u64), &tmp);
 }
 
 static struct rocker_tlv *
