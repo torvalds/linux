@@ -592,7 +592,7 @@ static void i915_guc_dequeue(struct intel_engine_cs *engine)
 			rq->priotree.priority = INT_MAX;
 
 			__i915_gem_request_submit(rq);
-			trace_i915_gem_request_in(rq, port_index(port, engine));
+			trace_i915_gem_request_in(rq, port_index(port, execlists));
 			last = rq;
 			submit = true;
 		}
@@ -615,7 +615,8 @@ done:
 static void i915_guc_irq_handler(unsigned long data)
 {
 	struct intel_engine_cs * const engine = (struct intel_engine_cs *)data;
-	struct execlist_port *port = engine->execlists.port;
+	struct intel_engine_execlists * const execlists = &engine->execlists;
+	struct execlist_port *port = execlists->port;
 	struct drm_i915_gem_request *rq;
 
 	rq = port_request(&port[0]);
@@ -623,8 +624,7 @@ static void i915_guc_irq_handler(unsigned long data)
 		trace_i915_gem_request_out(rq);
 		i915_gem_request_put(rq);
 
-		port[0] = port[1];
-		memset(&port[1], 0, sizeof(port[1]));
+		execlists_port_complete(execlists, port);
 
 		rq = port_request(&port[0]);
 	}

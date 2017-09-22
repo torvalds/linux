@@ -228,7 +228,7 @@ struct intel_engine_execlists {
 #define port_unpack(p, count) ptr_unpack_bits((p)->request_count, count, EXECLIST_COUNT_BITS)
 #define port_set(p, packed) ((p)->request_count = (packed))
 #define port_isset(p) ((p)->request_count)
-#define port_index(p, e) ((p) - (e)->execlists.port)
+#define port_index(p, execlists) ((p) - (execlists)->port)
 
 		/**
 		 * @context_id: context ID for port
@@ -510,6 +510,18 @@ struct intel_engine_cs {
 	 */
 	u32 (*get_cmd_length_mask)(u32 cmd_header);
 };
+
+static inline void
+execlists_port_complete(struct intel_engine_execlists * const execlists,
+			struct execlist_port * const port)
+{
+	struct execlist_port * const port1 = &execlists->port[1];
+
+	GEM_BUG_ON(port_index(port, execlists) != 0);
+
+	*port = *port1;
+	memset(port1, 0, sizeof(struct execlist_port));
+}
 
 static inline unsigned int
 intel_engine_flag(const struct intel_engine_cs *engine)

@@ -454,7 +454,8 @@ static void port_assign(struct execlist_port *port,
 static void execlists_dequeue(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *last;
-	struct execlist_port *port = engine->execlists.port;
+	struct intel_engine_execlists * const execlists = &engine->execlists;
+	struct execlist_port *port = execlists->port;
 	struct rb_node *rb;
 	bool submit = false;
 
@@ -467,8 +468,6 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		 * request.
 		 */
 		last->tail = last->wa_tail;
-
-	GEM_BUG_ON(port_isset(&port[1]));
 
 	/* Hardware submission is through 2 ports. Conceptually each port
 	 * has a (RING_START, RING_HEAD, RING_TAIL) tuple. RING_START is
@@ -492,8 +491,8 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	 */
 
 	spin_lock_irq(&engine->timeline->lock);
-	rb = engine->execlists.first;
-	GEM_BUG_ON(rb_first(&engine->execlists.queue) != rb);
+	rb = execlists->first;
+	GEM_BUG_ON(rb_first(&execlists->queue) != rb);
 	while (rb) {
 		struct i915_priolist *p = rb_entry(rb, typeof(*p), node);
 		struct drm_i915_gem_request *rq, *rn;
@@ -516,7 +515,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				 * combine this request with the last, then we
 				 * are done.
 				 */
-				if (port != engine->execlists.port) {
+				if (port != execlists->port) {
 					__list_del_many(&p->requests,
 							&rq->priotree.link);
 					goto done;
@@ -541,25 +540,27 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				if (submit)
 					port_assign(port, last);
 				port++;
+
+				GEM_BUG_ON(port_isset(port));
 			}
 
 			INIT_LIST_HEAD(&rq->priotree.link);
 			rq->priotree.priority = INT_MAX;
 
 			__i915_gem_request_submit(rq);
-			trace_i915_gem_request_in(rq, port_index(port, engine));
+			trace_i915_gem_request_in(rq, port_index(port, execlists));
 			last = rq;
 			submit = true;
 		}
 
 		rb = rb_next(rb);
-		rb_erase(&p->node, &engine->execlists.queue);
+		rb_erase(&p->node, &execlists->queue);
 		INIT_LIST_HEAD(&p->requests);
 		if (p->priority != I915_PRIORITY_NORMAL)
 			kmem_cache_free(engine->i915->priorities, p);
 	}
 done:
-	engine->execlists.first = rb;
+	execlists->first = rb;
 	if (submit)
 		port_assign(port, last);
 	spin_unlock_irq(&engine->timeline->lock);
@@ -748,8 +749,7 @@ static void intel_lrc_irq_handler(unsigned long data)
 				trace_i915_gem_request_out(rq);
 				i915_gem_request_put(rq);
 
-				port[0] = port[1];
-				memset(&port[1], 0, sizeof(port[1]));
+				execlists_port_complete(execlists, port);
 			} else {
 				port_set(port, port_pack(rq, count));
 			}
