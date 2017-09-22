@@ -1297,12 +1297,13 @@ ENTRY(nmi)
 	movq	%rax, %cr3
 #endif
 	call	do_nmi
+
+#ifdef CONFIG_KAISER
 	/*
 	 * Unconditionally restore CR3.  I know we return to
 	 * kernel code that needs user CR3, but do we ever return
 	 * to "user mode" where we need the kernel CR3?
 	 */
-#ifdef CONFIG_KAISER
 	popq	%rax
 	mov	%rax, %cr3
 #endif
@@ -1526,6 +1527,8 @@ end_repeat_nmi:
 	SWAPGS
 	xorl	%ebx, %ebx
 1:
+	movq	%rsp, %rdi
+	movq	$-1, %rsi
 #ifdef CONFIG_KAISER
 	/* Unconditionally use kernel CR3 for do_nmi() */
 	/* %rax is saved above, so OK to clobber here */
@@ -1538,16 +1541,14 @@ end_repeat_nmi:
 #endif
 
 	/* paranoidentry do_nmi, 0; without TRACE_IRQS_OFF */
-	movq	%rsp, %rdi
-	addq	$8, %rdi /* point %rdi at ptregs, fixed up for CR3 */
-	movq	$-1, %rsi
 	call	do_nmi
+
+#ifdef CONFIG_KAISER
 	/*
 	 * Unconditionally restore CR3.  We might be returning to
 	 * kernel code that needs user CR3, like just just before
 	 * a sysret.
 	 */
-#ifdef CONFIG_KAISER
 	popq	%rax
 	mov	%rax, %cr3
 #endif
