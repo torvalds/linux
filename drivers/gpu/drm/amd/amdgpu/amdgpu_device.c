@@ -1946,6 +1946,7 @@ static int amdgpu_sriov_reinit_late(struct amdgpu_device *adev)
 
 	static enum amd_ip_block_type ip_order[] = {
 		AMD_IP_BLOCK_TYPE_SMC,
+		AMD_IP_BLOCK_TYPE_PSP,
 		AMD_IP_BLOCK_TYPE_DCE,
 		AMD_IP_BLOCK_TYPE_GFX,
 		AMD_IP_BLOCK_TYPE_SDMA,
