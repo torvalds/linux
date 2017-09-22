@@ -644,6 +644,63 @@
 		};
 	};
 
+	vpu_service: vpu-service@20020000 {
+		compatible = "rockchip,vpu_service";
+		reg = <0x20020000 0x800>;
+		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_dec";
+		resets = <&cru SRST_VPU_A>, <&cru SRST_VPU_H>;
+		reset-names = "video_a", "video_h";
+		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+		clock-names = "aclk_vcodec", "hclk_vcodec";
+		rockchip,grf = <&grf>;
+		iommus = <&vpu_mmu>;
+		allocator = <1>;
+		status = "disabled";
+	};
+
+	vpu_mmu: iommu@20020800 {
+		compatible = "rockchip,iommu";
+		reg = <0x20020800 0x40>;
+		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vpu_mmu";
+		clock-names = "aclk", "hclk";
+		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	rkvdec: rkvdec@20030000 {
+		compatible = "rockchip,rkvdec";
+		reg = <0x20030000 0x400>;
+		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_dec";
+		clocks = <&cru ACLK_RKVDEC>, <&cru HCLK_RKVDEC>,
+			<&cru SCLK_VDEC_CABAC>, <&cru SCLK_VDEC_CORE>;
+		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_cabac",
+			"clk_core";
+		resets = <&cru SRST_RKVDEC_A>, <&cru SRST_RKVDEC_H>,
+			<&cru SRST_RKVDEC_NOC_A>, <&cru SRST_RKVDEC_NOC_H>,
+			<&cru SRST_RKVDEC_CABAC>, <&cru SRST_RKVDEC_CORE>;
+		reset-names = "video_a", "video_h", "niu_a", "niu_h",
+			"cabac", "video";
+		rockchip,grf = <&grf>;
+		iommus = <&rkvdec_mmu>;
+		allocator = <1>;
+		status = "disabled";
+	};
+
+	rkvdec_mmu: iommu@20030480 {
+		compatible = "rockchip,iommu";
+		reg = <0x20030480 0x40>, <0x200304c0 0x40>;
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "rkvdec_mmu";
+		clocks = <&cru ACLK_RKVDEC>, <&cru HCLK_RKVDEC>;
+		clock-names = "aclk", "hclk";
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
 	vop: vop@20050000 {
 		compatible = "rockchip,rk322x-vop";
 		reg = <0x20050000 0x1ffc>;
