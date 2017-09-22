@@ -1190,8 +1190,14 @@ static void commit_planes_for_stream(struct dc *dc,
 		}
 	}
 
-	if (surface_count == 0)
+	if (surface_count == 0) {
+		/*
+		 * In case of turning off screen, no need to program front end a second time.
+		 * just return after program front end.
+		 */
 		dc->hwss.apply_ctx_for_surface(dc, stream, surface_count, context);
+		return;
+	}
 
 	/* Lock pipes for provided surfaces, or all active if full update*/
 	for (i = 0; i < surface_count; i++) {
