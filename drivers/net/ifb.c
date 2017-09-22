@@ -231,6 +231,9 @@ static void ifb_setup(struct net_device *dev)
 	eth_hw_addr_random(dev);
 	dev->needs_free_netdev = true;
 	dev->priv_destructor = ifb_dev_free;
+
+	dev->min_mtu = 0;
+	dev->max_mtu = 0;
 }
 
 static netdev_tx_t ifb_xmit(struct sk_buff *skb, struct net_device *dev)
