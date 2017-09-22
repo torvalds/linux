@@ -133,6 +133,11 @@ static int dsa_slave_close(struct net_device *dev)
 	if (p->phy)
 		phy_stop(p->phy);
 
+	dsa_port_set_state_now(p->dp, BR_STATE_DISABLED);
+
+	if (ds->ops->port_disable)
+		ds->ops->port_disable(ds, p->dp->index, p->phy);
+
 	dev_mc_unsync(master, dev);
 	dev_uc_unsync(master, dev);
 	if (dev->flags & IFF_ALLMULTI)
@@ -142,11 +147,6 @@ static int dsa_slave_close(struct net_device *dev)
 
 	if (!ether_addr_equal(dev->dev_addr, master->dev_addr))
 		dev_uc_del(master, dev->dev_addr);
-
-	if (ds->ops->port_disable)
-		ds->ops->port_disable(ds, p->dp->index, p->phy);
-
-	dsa_port_set_state_now(p->dp, BR_STATE_DISABLED);
 
 	return 0;
 }
