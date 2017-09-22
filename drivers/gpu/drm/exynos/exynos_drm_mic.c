@@ -420,11 +420,7 @@ static int exynos_mic_probe(struct platform_device *pdev)
 	mic->bridge.funcs = &mic_bridge_funcs;
 	mic->bridge.of_node = dev->of_node;
 
-	ret = drm_bridge_add(&mic->bridge);
-	if (ret) {
-		DRM_ERROR("mic: Failed to add MIC to the global bridge list\n");
-		return ret;
-	}
+	drm_bridge_add(&mic->bridge);
 
 	pm_runtime_enable(dev);
 

@@ -144,7 +144,6 @@ struct __drm_planes_state {
 struct __drm_crtcs_state {
 	struct drm_crtc *ptr;
 	struct drm_crtc_state *state, *old_state, *new_state;
-	struct drm_crtc_commit *commit;
 	s32 __user *out_fence_ptr;
 	unsigned last_vblank_count;
 };
@@ -237,6 +236,18 @@ struct drm_atomic_state {
 	struct drm_modeset_acquire_ctx *acquire_ctx;
 
 	/**
+	 * @fake_commit:
+	 *
+	 * Used for signaling unbound planes/connectors.
+	 * When a connector or plane is not bound to any CRTC, it's still important
+	 * to preserve linearity to prevent the atomic states from being freed to early.
+	 *
+	 * This commit (if set) is not bound to any crtc, but will be completed when
+	 * drm_atomic_helper_commit_hw_done() is called.
+	 */
+	struct drm_crtc_commit *fake_commit;
+
+	/**
 	 * @commit_work:
 	 *
 	 * Work item which can be used by the driver or helpers to execute the
@@ -252,10 +263,14 @@ void __drm_crtc_commit_free(struct kref *kref);
  * @commit: CRTC commit
  *
  * Increases the reference of @commit.
+ *
+ * Returns:
+ * The pointer to @commit, with reference increased.
  */
-static inline void drm_crtc_commit_get(struct drm_crtc_commit *commit)
+static inline struct drm_crtc_commit *drm_crtc_commit_get(struct drm_crtc_commit *commit)
 {
 	kref_get(&commit->ref);
+	return commit;
 }
 
 /**
@@ -555,31 +570,6 @@ int __must_check drm_atomic_nonblocking_commit(struct drm_atomic_state *state);
 void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 
 /**
- * for_each_connector_in_state - iterate over all connectors in an atomic update
- * @__state: &struct drm_atomic_state pointer
- * @connector: &struct drm_connector iteration cursor
- * @connector_state: &struct drm_connector_state iteration cursor
- * @__i: int iteration cursor, for macro-internal use
- *
- * This iterates over all connectors in an atomic update. Note that before the
- * software state is committed (by calling drm_atomic_helper_swap_state(), this
- * points to the new state, while afterwards it points to the old state. Due to
- * this tricky confusion this macro is deprecated.
- *
- * FIXME:
- *
- * Replace all usage of this with one of the explicit iterators below and then
- * remove this macro.
- */
-#define for_each_connector_in_state(__state, connector, connector_state, __i) \
-	for ((__i) = 0;							\
-	     (__i) < (__state)->num_connector &&				\
-	     ((connector) = (__state)->connectors[__i].ptr,			\
-	     (connector_state) = (__state)->connectors[__i].state, 1); 	\
-	     (__i)++)							\
-		for_each_if (connector)
-
-/**
  * for_each_oldnew_connector_in_state - iterate over all connectors in an atomic update
  * @__state: &struct drm_atomic_state pointer
  * @connector: &struct drm_connector iteration cursor
@@ -643,31 +633,6 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 		for_each_if (connector)
 
 /**
- * for_each_crtc_in_state - iterate over all connectors in an atomic update
- * @__state: &struct drm_atomic_state pointer
- * @crtc: &struct drm_crtc iteration cursor
- * @crtc_state: &struct drm_crtc_state iteration cursor
- * @__i: int iteration cursor, for macro-internal use
- *
- * This iterates over all CRTCs in an atomic update. Note that before the
- * software state is committed (by calling drm_atomic_helper_swap_state(), this
- * points to the new state, while afterwards it points to the old state. Due to
- * this tricky confusion this macro is deprecated.
- *
- * FIXME:
- *
- * Replace all usage of this with one of the explicit iterators below and then
- * remove this macro.
- */
-#define for_each_crtc_in_state(__state, crtc, crtc_state, __i)	\
-	for ((__i) = 0;						\
-	     (__i) < (__state)->dev->mode_config.num_crtc &&	\
-	     ((crtc) = (__state)->crtcs[__i].ptr,			\
-	     (crtc_state) = (__state)->crtcs[__i].state, 1);	\
-	     (__i)++)						\
-		for_each_if (crtc_state)
-
-/**
  * for_each_oldnew_crtc_in_state - iterate over all CRTCs in an atomic update
  * @__state: &struct drm_atomic_state pointer
  * @crtc: &struct drm_crtc iteration cursor
@@ -725,31 +690,6 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (new_crtc_state) = (__state)->crtcs[__i].new_state, 1);	\
 	     (__i)++)							\
 		for_each_if (crtc)
-
-/**
- * for_each_plane_in_state - iterate over all planes in an atomic update
- * @__state: &struct drm_atomic_state pointer
- * @plane: &struct drm_plane iteration cursor
- * @plane_state: &struct drm_plane_state iteration cursor
- * @__i: int iteration cursor, for macro-internal use
- *
- * This iterates over all planes in an atomic update. Note that before the
- * software state is committed (by calling drm_atomic_helper_swap_state(), this
- * points to the new state, while afterwards it points to the old state. Due to
- * this tricky confusion this macro is deprecated.
- *
- * FIXME:
- *
- * Replace all usage of this with one of the explicit iterators below and then
- * remove this macro.
- */
-#define for_each_plane_in_state(__state, plane, plane_state, __i)		\
-	for ((__i) = 0;							\
-	     (__i) < (__state)->dev->mode_config.num_total_plane &&	\
-	     ((plane) = (__state)->planes[__i].ptr,				\
-	     (plane_state) = (__state)->planes[__i].state, 1);		\
-	     (__i)++)							\
-		for_each_if (plane_state)
 
 /**
  * for_each_oldnew_plane_in_state - iterate over all planes in an atomic update

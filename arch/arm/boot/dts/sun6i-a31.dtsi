@@ -278,6 +278,11 @@
 						reg = <0>;
 						remote-endpoint = <&drc0_out_tcon0>;
 					};
+
+					tcon0_in_drc1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&drc1_out_tcon0>;
+					};
 				};
 
 				tcon0_out: port@1 {
@@ -311,8 +316,13 @@
 					#size-cells = <0>;
 					reg = <0>;
 
-					tcon1_in_drc1: endpoint@0 {
+					tcon1_in_drc0: endpoint@0 {
 						reg = <0>;
+						remote-endpoint = <&drc0_out_tcon1>;
+					};
+
+					tcon1_in_drc1: endpoint@1 {
+						reg = <1>;
 						remote-endpoint = <&drc1_out_tcon1>;
 					};
 				};
@@ -658,6 +668,32 @@
 			resets = <&ccu RST_APB1_SPDIF>;
 			clock-names = "apb", "spdif";
 			dmas = <&dma 2>, <&dma 2>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
+		i2s0: i2s@01c22000 {
+			#sound-dai-cells = <0>;
+			compatible = "allwinner,sun6i-a31-i2s";
+			reg = <0x01c22000 0x400>;
+			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_APB1_DAUDIO0>, <&ccu CLK_DAUDIO0>;
+			resets = <&ccu RST_APB1_DAUDIO0>;
+			clock-names = "apb", "mod";
+			dmas = <&dma 3>, <&dma 3>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
+		i2s1: i2s@01c22400 {
+			#sound-dai-cells = <0>;
+			compatible = "allwinner,sun6i-a31-i2s";
+			reg = <0x01c22400 0x400>;
+			interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_APB1_DAUDIO1>, <&ccu CLK_DAUDIO1>;
+			resets = <&ccu RST_APB1_DAUDIO1>;
+			clock-names = "apb", "mod";
+			dmas = <&dma 4>, <&dma 4>;
 			dma-names = "rx", "tx";
 			status = "disabled";
 		};
@@ -1012,8 +1048,8 @@
 					#size-cells = <0>;
 					reg = <1>;
 
-					be1_out_drc1: endpoint@0 {
-						reg = <0>;
+					be1_out_drc1: endpoint@1 {
+						reg = <1>;
 						remote-endpoint = <&drc1_in_be1>;
 					};
 				};
@@ -1042,8 +1078,8 @@
 					#size-cells = <0>;
 					reg = <0>;
 
-					drc1_in_be1: endpoint@0 {
-						reg = <0>;
+					drc1_in_be1: endpoint@1 {
+						reg = <1>;
 						remote-endpoint = <&be1_out_drc1>;
 					};
 				};
@@ -1053,8 +1089,13 @@
 					#size-cells = <0>;
 					reg = <1>;
 
-					drc1_out_tcon1: endpoint@0 {
+					drc1_out_tcon0: endpoint@0 {
 						reg = <0>;
+						remote-endpoint = <&tcon0_in_drc1>;
+					};
+
+					drc1_out_tcon1: endpoint@1 {
+						reg = <1>;
 						remote-endpoint = <&tcon1_in_drc1>;
 					};
 				};
@@ -1143,6 +1184,11 @@
 					drc0_out_tcon0: endpoint@0 {
 						reg = <0>;
 						remote-endpoint = <&tcon0_in_drc0>;
+					};
+
+					drc0_out_tcon1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&tcon1_in_drc0>;
 					};
 				};
 			};
