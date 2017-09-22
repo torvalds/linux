@@ -99,7 +99,7 @@ struct task_group;
 /* get_task_state(): */
 #define TASK_REPORT			(TASK_RUNNING | TASK_INTERRUPTIBLE | \
 					 TASK_UNINTERRUPTIBLE | __TASK_STOPPED | \
-					 __TASK_TRACED | EXIT_ZOMBIE | EXIT_DEAD)
+					 __TASK_TRACED | EXIT_DEAD | EXIT_ZOMBIE)
 
 #define task_is_traced(task)		((task->state & __TASK_TRACED) != 0)
 
