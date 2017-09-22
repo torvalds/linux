@@ -6642,8 +6642,8 @@ M:	Alexander Aring <alex.aring@gmail.com>
 M:	Stefan Schmidt <stefan@osg.samsung.com>
 L:	linux-wpan@vger.kernel.org
 W:	http://wpan.cakelab.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bluetooth/bluetooth.git
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bluetooth/bluetooth-next.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sschmidt/wpan.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sschmidt/wpan-next.git
 S:	Maintained
 F:	net/ieee802154/
 F:	net/mac802154/
