@@ -2389,9 +2389,7 @@ static DEVICE_ATTR_RO(urbs);
 
 static int dummy_start_ss(struct dummy_hcd *dum_hcd)
 {
-	init_timer(&dum_hcd->timer);
-	dum_hcd->timer.function = dummy_timer;
-	dum_hcd->timer.data = (unsigned long)dum_hcd;
+	setup_timer(&dum_hcd->timer, dummy_timer, (unsigned long)dum_hcd);
 	dum_hcd->rh_state = DUMMY_RH_RUNNING;
 	dum_hcd->stream_en_ep = 0;
 	INIT_LIST_HEAD(&dum_hcd->urbp_list);
@@ -2420,9 +2418,7 @@ static int dummy_start(struct usb_hcd *hcd)
 		return dummy_start_ss(dum_hcd);
 
 	spin_lock_init(&dum_hcd->dum->lock);
-	init_timer(&dum_hcd->timer);
-	dum_hcd->timer.function = dummy_timer;
-	dum_hcd->timer.data = (unsigned long)dum_hcd;
+	setup_timer(&dum_hcd->timer, dummy_timer, (unsigned long)dum_hcd);
 	dum_hcd->rh_state = DUMMY_RH_RUNNING;
 
 	INIT_LIST_HEAD(&dum_hcd->urbp_list);
