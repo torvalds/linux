@@ -465,13 +465,6 @@ static int denali_sw_ecc_fixup(struct mtd_info *mtd,
 	return max_bitflips;
 }
 
-/* programs the controller to either enable/disable DMA transfers */
-static void denali_enable_dma(struct denali_nand_info *denali, bool en)
-{
-	iowrite32(en ? DMA_ENABLE__FLAG : 0, denali->reg + DMA_ENABLE);
-	ioread32(denali->reg + DMA_ENABLE);
-}
-
 static void denali_setup_dma64(struct denali_nand_info *denali,
 			       dma_addr_t dma_addr, int page, int write)
 {
@@ -619,7 +612,7 @@ static int denali_dma_xfer(struct denali_nand_info *denali, void *buf,
 		ecc_err_mask = INTR__ECC_ERR;
 	}
 
-	denali_enable_dma(denali, true);
+	iowrite32(DMA_ENABLE__FLAG, denali->reg + DMA_ENABLE);
 
 	denali_reset_irq(denali);
 	denali_setup_dma(denali, dma_addr, page, write);
@@ -631,7 +624,8 @@ static int denali_dma_xfer(struct denali_nand_info *denali, void *buf,
 	else if (irq_status & ecc_err_mask)
 		ret = -EBADMSG;
 
-	denali_enable_dma(denali, false);
+	iowrite32(0, denali->reg + DMA_ENABLE);
+
 	dma_unmap_single(denali->dev, dma_addr, size, dir);
 
 	if (irq_status & INTR__ERASED_PAGE)
