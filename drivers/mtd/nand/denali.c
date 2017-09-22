@@ -17,6 +17,7 @@
  *
  */
 
+#include <linux/bitfield.h>
 #include <linux/completion.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
@@ -386,13 +387,6 @@ static int denali_hw_ecc_fixup(struct mtd_info *mtd,
 	return max_bitflips;
 }
 
-#define ECC_SECTOR(x)	(((x) & ECC_ERROR_ADDRESS__SECTOR_NR) >> 12)
-#define ECC_BYTE(x)	(((x) & ECC_ERROR_ADDRESS__OFFSET))
-#define ECC_CORRECTION_VALUE(x) ((x) & ERR_CORRECTION_INFO__BYTEMASK)
-#define ECC_ERROR_UNCORRECTABLE(x) ((x) & ERR_CORRECTION_INFO__ERROR_TYPE)
-#define ECC_ERR_DEVICE(x)	(((x) & ERR_CORRECTION_INFO__DEVICE_NR) >> 8)
-#define ECC_LAST_ERR(x)		((x) & ERR_CORRECTION_INFO__LAST_ERR_INFO)
-
 static int denali_sw_ecc_fixup(struct mtd_info *mtd,
 			       struct denali_nand_info *denali,
 			       unsigned long *uncor_ecc_flags, uint8_t *buf)
@@ -410,18 +404,20 @@ static int denali_sw_ecc_fixup(struct mtd_info *mtd,
 
 	do {
 		err_addr = ioread32(denali->reg + ECC_ERROR_ADDRESS);
-		err_sector = ECC_SECTOR(err_addr);
-		err_byte = ECC_BYTE(err_addr);
+		err_sector = FIELD_GET(ECC_ERROR_ADDRESS__SECTOR, err_addr);
+		err_byte = FIELD_GET(ECC_ERROR_ADDRESS__OFFSET, err_addr);
 
 		err_cor_info = ioread32(denali->reg + ERR_CORRECTION_INFO);
-		err_cor_value = ECC_CORRECTION_VALUE(err_cor_info);
-		err_device = ECC_ERR_DEVICE(err_cor_info);
+		err_cor_value = FIELD_GET(ERR_CORRECTION_INFO__BYTE,
+					  err_cor_info);
+		err_device = FIELD_GET(ERR_CORRECTION_INFO__DEVICE,
+				       err_cor_info);
 
 		/* reset the bitflip counter when crossing ECC sector */
 		if (err_sector != prev_sector)
 			bitflips = 0;
 
-		if (ECC_ERROR_UNCORRECTABLE(err_cor_info)) {
+		if (err_cor_info & ERR_CORRECTION_INFO__UNCOR) {
 			/*
 			 * Check later if this is a real ECC error, or
 			 * an erased sector.
@@ -451,7 +447,7 @@ static int denali_sw_ecc_fixup(struct mtd_info *mtd,
 		}
 
 		prev_sector = err_sector;
-	} while (!ECC_LAST_ERR(err_cor_info));
+	} while (!(err_cor_info & ERR_CORRECTION_INFO__LAST_ERR));
 
 	/*
 	 * Once handle all ecc errors, controller will trigger a
@@ -1351,7 +1347,8 @@ int denali_init(struct denali_nand_info *denali)
 		"chosen ECC settings: step=%d, strength=%d, bytes=%d\n",
 		chip->ecc.size, chip->ecc.strength, chip->ecc.bytes);
 
-	iowrite32(MAKE_ECC_CORRECTION(chip->ecc.strength, 1),
+	iowrite32(FIELD_PREP(ECC_CORRECTION__ERASE_THRESHOLD, 1) |
+		  FIELD_PREP(ECC_CORRECTION__VALUE, chip->ecc.strength),
 		  denali->reg + ECC_CORRECTION);
 	iowrite32(mtd->erasesize / mtd->writesize,
 		  denali->reg + PAGES_PER_BLOCK);
