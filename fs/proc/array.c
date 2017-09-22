@@ -128,9 +128,10 @@ static const char * const task_state_array[] = {
 	"t (tracing stop)",	/* 0x08 */
 	"X (dead)",		/* 0x10 */
 	"Z (zombie)",		/* 0x20 */
+	"P (parked)",		/* 0x40 */
 
 	/* states beyond TASK_REPORT: */
-	"I (idle)",		/* 0x40 */
+	"I (idle)",		/* 0x80 */
 };
 
 static inline const char *get_task_state(struct task_struct *tsk)
