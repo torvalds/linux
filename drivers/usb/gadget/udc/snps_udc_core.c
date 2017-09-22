@@ -3207,13 +3207,9 @@ int udc_probe(struct udc *dev)
 		goto finished;
 
 	/* timer init */
-	init_timer(&udc_timer);
-	udc_timer.function = udc_timer_function;
-	udc_timer.data = 1;
+	setup_timer(&udc_timer, udc_timer_function, 1);
 	/* timer pollstall init */
-	init_timer(&udc_pollstall_timer);
-	udc_pollstall_timer.function = udc_pollstall_timer_function;
-	udc_pollstall_timer.data = 1;
+	setup_timer(&udc_pollstall_timer, udc_pollstall_timer_function, 1);
 
 	/* set SD */
 	reg = readl(&dev->regs->ctl);
