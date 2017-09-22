@@ -119,11 +119,11 @@ static void read_arc_build_cfg_regs(void)
 	struct bcr_generic bcr;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
 	const struct id_to_str *tbl;
+	struct bcr_isa_arcv2 isa;
 
 	FIX_PTR(cpu);
 
 	READ_BCR(AUX_IDENTITY, cpu->core);
-	READ_BCR(ARC_REG_ISA_CFG_BCR, cpu->isa);
 
 	for (tbl = &arc_cpu_rel[0]; tbl->id != 0; tbl++) {
 		if (cpu->core.family == tbl->id) {
@@ -205,18 +205,25 @@ static void read_arc_build_cfg_regs(void)
 
 	cpu->extn.debug = cpu->extn.ap | cpu->extn.smart | cpu->extn.rtt;
 
+	READ_BCR(ARC_REG_ISA_CFG_BCR, isa);
+
 	/* some hacks for lack of feature BCR info in old ARC700 cores */
 	if (is_isa_arcompact()) {
-		if (!cpu->isa.ver)	/* ISA BCR absent, use Kconfig info */
+		if (!isa.ver)	/* ISA BCR absent, use Kconfig info */
 			cpu->isa.atomic = IS_ENABLED(CONFIG_ARC_HAS_LLSC);
-		else
-			cpu->isa.atomic = cpu->isa.atomic1;
+		else {
+			/* ARC700_BUILD only has 2 bits of isa info */
+			struct bcr_generic bcr = *(struct bcr_generic *)&isa;
+			cpu->isa.atomic = bcr.info & 1;
+		}
 
 		cpu->isa.be = IS_ENABLED(CONFIG_CPU_BIG_ENDIAN);
 
 		 /* there's no direct way to distinguish 750 vs. 770 */
 		if (unlikely(cpu->core.family < 0x34 || cpu->mmu.ver < 3))
 			cpu->name = "ARC750";
+	} else {
+		cpu->isa = isa;
 	}
 }
 
