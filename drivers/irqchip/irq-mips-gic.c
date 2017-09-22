@@ -175,14 +175,13 @@ static void gic_mask_irq(struct irq_data *d)
 
 static void gic_unmask_irq(struct irq_data *d)
 {
-	struct cpumask *affinity = irq_data_get_affinity_mask(d);
 	unsigned int intr = GIC_HWIRQ_TO_SHARED(d->hwirq);
 	unsigned int cpu;
 
 	write_gic_smask(intr);
 
 	gic_clear_pcpu_masks(intr);
-	cpu = cpumask_first_and(affinity, cpu_online_mask);
+	cpu = cpumask_first(irq_data_get_effective_affinity_mask(d));
 	set_bit(intr, per_cpu_ptr(pcpu_masks, cpu));
 }
 
@@ -420,13 +419,17 @@ static int gic_shared_irq_domain_map(struct irq_domain *d, unsigned int virq,
 				     irq_hw_number_t hw, unsigned int cpu)
 {
 	int intr = GIC_HWIRQ_TO_SHARED(hw);
+	struct irq_data *data;
 	unsigned long flags;
+
+	data = irq_get_irq_data(virq);
 
 	spin_lock_irqsave(&gic_lock, flags);
 	write_gic_map_pin(intr, GIC_MAP_PIN_MAP_TO_PIN | gic_cpu_pin);
 	write_gic_map_vp(intr, BIT(mips_cm_vp_id(cpu)));
 	gic_clear_pcpu_masks(intr);
 	set_bit(intr, per_cpu_ptr(pcpu_masks, cpu));
+	irq_data_update_effective_affinity(data, cpumask_of(cpu));
 	spin_unlock_irqrestore(&gic_lock, flags);
 
 	return 0;
