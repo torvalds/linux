@@ -221,7 +221,7 @@ static void tve200_display_enable(struct drm_simple_display_pipe *pipe,
 	drm_crtc_vblank_on(crtc);
 }
 
-void tve200_display_disable(struct drm_simple_display_pipe *pipe)
+static void tve200_display_disable(struct drm_simple_display_pipe *pipe)
 {
 	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_device *drm = crtc->dev;
@@ -293,7 +293,7 @@ static int tve200_display_prepare_fb(struct drm_simple_display_pipe *pipe,
 	return drm_fb_cma_prepare_fb(&pipe->plane, plane_state);
 }
 
-const struct drm_simple_display_pipe_funcs tve200_display_funcs = {
+static const struct drm_simple_display_pipe_funcs tve200_display_funcs = {
 	.check = tve200_display_check,
 	.enable = tve200_display_enable,
 	.disable = tve200_display_disable,
