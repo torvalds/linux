@@ -1506,6 +1506,14 @@ static void sci_request_dma(struct uart_port *port)
 		return;
 
 	s->cookie_tx = -EINVAL;
+
+	/*
+	 * Don't request a dma channel if no channel was specified
+	 * in the device tree.
+	 */
+	if (!of_find_property(port->dev->of_node, "dmas", NULL))
+		return;
+
 	chan = sci_request_dma_chan(port, DMA_MEM_TO_DEV);
 	dev_dbg(port->dev, "%s: TX: got channel %p\n", __func__, chan);
 	if (chan) {
