@@ -12,6 +12,7 @@
 /dts-v1/;
 
 #include <dt-bindings/net/ti-dp83867.h>
+#include <dt-bindings/reset/snps,hsdk-reset.h>
 
 / {
 	model = "snps,hsdk";
@@ -102,6 +103,12 @@
 
 		ranges = <0x00000000 0xf0000000 0x10000000>;
 
+		cgu_rst: reset-controller@8a0 {
+			compatible = "snps,hsdk-reset";
+			#reset-cells = <1>;
+			reg = <0x8A0 0x4>, <0xFF0 0x4>;
+		};
+
 		core_clk: core-clk@0 {
 			compatible = "snps,hsdk-core-pll-clock";
 			reg = <0x00 0x10>, <0x14B8 0x4>;
@@ -158,6 +165,8 @@
 			clocks = <&gmacclk>;
 			clock-names = "stmmaceth";
 			phy-handle = <&phy0>;
+			resets = <&cgu_rst HSDK_ETH_RESET>;
+			reset-names = "stmmaceth";
 
 			mdio {
 				#address-cells = <1>;
