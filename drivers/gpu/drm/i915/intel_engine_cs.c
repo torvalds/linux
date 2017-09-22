@@ -382,6 +382,33 @@ static void intel_engine_init_timeline(struct intel_engine_cs *engine)
 	engine->timeline = &engine->i915->gt.global_timeline.engine[engine->id];
 }
 
+static bool csb_force_mmio(struct drm_i915_private *i915)
+{
+	/* GVT emulation depends upon intercepting CSB mmio */
+	if (intel_vgpu_active(i915))
+		return true;
+
+	/*
+	 * IOMMU adds unpredictable latency causing the CSB write (from the
+	 * GPU into the HWSP) to only be visible some time after the interrupt
+	 * (missed breadcrumb syndrome).
+	 */
+	if (intel_vtd_active())
+		return true;
+
+	return false;
+}
+
+static void intel_engine_init_execlist(struct intel_engine_cs *engine)
+{
+	struct intel_engine_execlists * const execlists = &engine->execlists;
+
+	execlists->csb_use_mmio = csb_force_mmio(engine->i915);
+
+	execlists->queue = RB_ROOT;
+	execlists->first = NULL;
+}
+
 /**
  * intel_engines_setup_common - setup engine state not requiring hw access
  * @engine: Engine to setup.
@@ -393,8 +420,7 @@ static void intel_engine_init_timeline(struct intel_engine_cs *engine)
  */
 void intel_engine_setup_common(struct intel_engine_cs *engine)
 {
-	engine->execlists.queue = RB_ROOT;
-	engine->execlists.first = NULL;
+	intel_engine_init_execlist(engine);
 
 	intel_engine_init_timeline(engine);
 	intel_engine_init_hangcheck(engine);

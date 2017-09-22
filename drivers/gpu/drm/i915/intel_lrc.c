@@ -1784,23 +1784,6 @@ logical_ring_default_irqs(struct intel_engine_cs *engine)
 	engine->irq_keep_mask = GT_CONTEXT_SWITCH_INTERRUPT << shift;
 }
 
-static bool irq_handler_force_mmio(struct drm_i915_private *i915)
-{
-	/* GVT emulation depends upon intercepting CSB mmio */
-	if (intel_vgpu_active(i915))
-		return true;
-
-	/*
-	 * IOMMU adds unpredictable latency causing the CSB write (from the
-	 * GPU into the HWSP) to only be visible some time after the interrupt
-	 * (missed breadcrumb syndrome).
-	 */
-	if (intel_vtd_active())
-		return true;
-
-	return false;
-}
-
 static void
 logical_ring_setup(struct intel_engine_cs *engine)
 {
@@ -1811,8 +1794,6 @@ logical_ring_setup(struct intel_engine_cs *engine)
 
 	/* Intentionally left blank. */
 	engine->buffer = NULL;
-
-	engine->execlists.csb_use_mmio = irq_handler_force_mmio(dev_priv);
 
 	fw_domains = intel_uncore_forcewake_for_reg(dev_priv,
 						    RING_ELSP(engine),
