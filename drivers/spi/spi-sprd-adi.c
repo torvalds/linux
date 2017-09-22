@@ -285,7 +285,7 @@ static void sprd_adi_hw_init(struct sprd_adi *sadi)
 
 	/* Set hardware channels setting */
 	list = of_get_property(np, "sprd,hw-channels", &size);
-	if (!size || !list) {
+	if (!list || !size) {
 		dev_info(sadi->dev, "no hw channels setting in node\n");
 		return;
 	}
