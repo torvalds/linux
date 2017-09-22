@@ -639,24 +639,22 @@ NOKPROBE_SYMBOL(setjmp_pre_handler);
 
 void __used jprobe_return(void)
 {
-	asm volatile("trap" ::: "memory");
+	asm volatile("jprobe_return_trap:\n"
+		     "trap\n"
+		     ::: "memory");
 }
 NOKPROBE_SYMBOL(jprobe_return);
-
-static void __used jprobe_return_end(void)
-{
-}
-NOKPROBE_SYMBOL(jprobe_return_end);
 
 int longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 
-	/*
-	 * FIXME - we should ideally be validating that we got here 'cos
-	 * of the "trap" in jprobe_return() above, before restoring the
-	 * saved regs...
-	 */
+	if (regs->nip != ppc_kallsyms_lookup_name("jprobe_return_trap")) {
+		pr_debug("longjmp_break_handler NIP (0x%lx) does not match jprobe_return_trap (0x%lx)\n",
+				regs->nip, ppc_kallsyms_lookup_name("jprobe_return_trap"));
+		return 0;
+	}
+
 	memcpy(regs, &kcb->jprobe_saved_regs, sizeof(struct pt_regs));
 	/* It's OK to start function graph tracing again */
 	unpause_graph_tracing();
