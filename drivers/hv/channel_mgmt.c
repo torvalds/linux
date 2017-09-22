@@ -350,7 +350,7 @@ static void free_channel(struct vmbus_channel *channel)
 {
 	tasklet_kill(&channel->callback_event);
 
-	kfree_rcu(channel, rcu);
+	kobject_put(&channel->kobj);
 }
 
 static void percpu_channel_enq(void *arg)
@@ -513,6 +513,14 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	newchannel->state = CHANNEL_OPEN_STATE;
 
 	if (!fnew) {
+		struct hv_device *dev
+			= newchannel->primary_channel->device_obj;
+
+		if (vmbus_add_channel_kobj(dev, newchannel)) {
+			atomic_dec(&vmbus_connection.offer_in_progress);
+			goto err_free_chan;
+		}
+
 		if (channel->sc_creation_callback != NULL)
 			channel->sc_creation_callback(newchannel);
 		return;
