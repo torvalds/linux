@@ -56,6 +56,7 @@
 #include "amdgpu_vf_error.h"
 
 #include "amdgpu_amdkfd.h"
+#include "amdgpu_pm.h"
 
 MODULE_FIRMWARE("amdgpu/vega10_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/raven_gpu_info.bin");
@@ -2216,6 +2217,10 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 
 	amdgpu_fbdev_init(adev);
 
+	r = amdgpu_pm_sysfs_init(adev);
+	if (r)
+		DRM_ERROR("registering pm debugfs failed (%d).\n", r);
+
 	r = amdgpu_gem_debugfs_init(adev);
 	if (r)
 		DRM_ERROR("registering gem debugfs failed (%d).\n", r);
@@ -2312,6 +2317,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	iounmap(adev->rmmio);
 	adev->rmmio = NULL;
 	amdgpu_doorbell_fini(adev);
+	amdgpu_pm_sysfs_fini(adev);
 	amdgpu_debugfs_regs_cleanup(adev);
 }
 

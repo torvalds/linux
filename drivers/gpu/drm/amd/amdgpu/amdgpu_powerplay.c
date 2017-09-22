@@ -137,10 +137,8 @@ static int amdgpu_pp_late_init(void *handle)
 		ret = adev->powerplay.ip_funcs->late_init(
 					adev->powerplay.pp_handle);
 
-	if (adev->pp_enabled && adev->pm.dpm_enabled) {
-		amdgpu_pm_sysfs_init(adev);
+	if (adev->pp_enabled && adev->pm.dpm_enabled)
 		amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_COMPLETE_INIT, NULL, NULL);
-	}
 
 	return ret;
 }
@@ -198,9 +196,6 @@ static int amdgpu_pp_hw_fini(void *handle)
 {
 	int ret = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	if (adev->pp_enabled && adev->pm.dpm_enabled)
-		amdgpu_pm_sysfs_fini(adev);
 
 	if (adev->powerplay.ip_funcs->hw_fini)
 		ret = adev->powerplay.ip_funcs->hw_fini(
