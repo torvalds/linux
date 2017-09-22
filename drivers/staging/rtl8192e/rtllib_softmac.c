@@ -2811,8 +2811,9 @@ exit:
 
 static struct sk_buff *rtllib_get_beacon_(struct rtllib_device *ieee)
 {
-	const u8 broadcast_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
+	static const u8 broadcast_addr[] = {
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+	};
 	struct sk_buff *skb;
 	struct rtllib_probe_response *b;
 
