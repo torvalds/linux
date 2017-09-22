@@ -87,14 +87,13 @@ config ARM_KIRKWOOD_CPUFREQ
 	  This adds the CPUFreq driver for Marvell Kirkwood
 	  SoCs.
 
-config ARM_MT8173_CPUFREQ
-	tristate "Mediatek MT8173 CPUFreq support"
+config ARM_MEDIATEK_CPUFREQ
+	tristate "CPU Frequency scaling support for MediaTek SoCs"
 	depends on ARCH_MEDIATEK && REGULATOR
-	depends on ARM64 || (ARM_CPU_TOPOLOGY && COMPILE_TEST)
 	depends on !CPU_THERMAL || THERMAL
 	select PM_OPP
 	help
-	  This adds the CPUFreq driver support for Mediatek MT8173 SoC.
+	  This adds the CPUFreq driver support for MediaTek SoCs.
 
 config ARM_OMAP2PLUS_CPUFREQ
 	bool "TI OMAP2+"
@@ -233,6 +232,11 @@ config ARM_STI_CPUFREQ
 	  this config option if you wish to add CPUFreq support for STi based
 	  SoCs.
 
+config ARM_TANGO_CPUFREQ
+	bool
+	depends on CPUFREQ_DT && ARCH_TANGO
+	default y
+
 config ARM_TEGRA20_CPUFREQ
 	bool "Tegra20 CPUFreq support"
 	depends on ARCH_TEGRA
@@ -246,6 +250,12 @@ config ARM_TEGRA124_CPUFREQ
 	default y
 	help
 	  This adds the CPUFreq driver support for Tegra124 SOCs.
+
+config ARM_TEGRA186_CPUFREQ
+	tristate "Tegra186 CPUFreq support"
+	depends on ARCH_TEGRA && TEGRA_BPMP
+	help
+	  This adds the CPUFreq driver support for Tegra186 SOCs.
 
 config ARM_TI_CPUFREQ
 	bool "Texas Instruments CPUFreq support"

@@ -186,8 +186,7 @@ static int dvo_dbg_show(struct seq_file *s, void *data)
 	DBGFS_DUMP(DVO_LUT_PROG_MID);
 	DBGFS_DUMP(DVO_LUT_PROG_HIGH);
 	dvo_dbg_awg_microcode(s, dvo->regs + DVO_DIGSYNC_INSTR_I);
-	seq_puts(s, "\n");
-
+	seq_putc(s, '\n');
 	return 0;
 }
 
@@ -413,7 +412,6 @@ static int sti_dvo_late_register(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs sti_dvo_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = sti_dvo_connector_detect,
 	.destroy = drm_connector_cleanup,
@@ -583,7 +581,7 @@ static int sti_dvo_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id dvo_of_match[] = {
+static const struct of_device_id dvo_of_match[] = {
 	{ .compatible = "st,stih407-dvo", },
 	{ /* end node */ }
 };

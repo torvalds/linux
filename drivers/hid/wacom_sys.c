@@ -325,6 +325,13 @@ static void wacom_post_parse_hid(struct hid_device *hdev,
 
 	if (features->type == HID_GENERIC) {
 		/* Any last-minute generic device setup */
+		if (wacom_wac->has_mode_change) {
+			if (wacom_wac->is_direct_mode)
+				features->device_type |= WACOM_DEVICETYPE_DIRECT;
+			else
+				features->device_type &= ~WACOM_DEVICETYPE_DIRECT;
+		}
+
 		if (features->touch_max > 1) {
 			if (features->device_type & WACOM_DEVICETYPE_DIRECT)
 				input_mt_init_slots(wacom_wac->touch_input,
@@ -1540,7 +1547,9 @@ static int wacom_battery_get_property(struct power_supply *psy,
 			val->intval = battery->battery_capacity;
 			break;
 		case POWER_SUPPLY_PROP_STATUS:
-			if (battery->bat_charging)
+			if (battery->bat_status != WACOM_POWER_SUPPLY_STATUS_AUTO)
+				val->intval = battery->bat_status;
+			else if (battery->bat_charging)
 				val->intval = POWER_SUPPLY_STATUS_CHARGING;
 			else if (battery->battery_capacity == 100 &&
 				    battery->ps_connected)
@@ -1662,10 +1671,7 @@ static ssize_t wacom_show_remote_mode(struct kobject *kobj,
 	u8 mode;
 
 	mode = wacom->led.groups[index].select;
-	if (mode >= 0 && mode < 3)
-		return snprintf(buf, PAGE_SIZE, "%d\n", mode);
-	else
-		return snprintf(buf, PAGE_SIZE, "%d\n", -1);
+	return sprintf(buf, "%d\n", mode < 3 ? mode : -1);
 }
 
 #define DEVICE_EKR_ATTR_GROUP(SET_ID)					\
@@ -2019,41 +2025,37 @@ static void wacom_update_name(struct wacom *wacom, const char *suffix)
 
 	/* Generic devices name unspecified */
 	if ((features->type == HID_GENERIC) && !strcmp("Wacom HID", features->name)) {
-		if (strstr(wacom->hdev->name, "Wacom") ||
-		    strstr(wacom->hdev->name, "wacom") ||
-		    strstr(wacom->hdev->name, "WACOM")) {
-			/* name is in HID descriptor, use it */
-			strlcpy(name, wacom->hdev->name, sizeof(name));
+		char *product_name = wacom->hdev->name;
 
-			/* strip out excess whitespaces */
-			while (1) {
-				char *gap = strstr(name, "  ");
-				if (gap == NULL)
-					break;
-				/* shift everything including the terminator */
-				memmove(gap, gap+1, strlen(gap));
-			}
-
-			/* strip off excessive prefixing */
-			if (strstr(name, "Wacom Co.,Ltd. Wacom ") == name) {
-				int n = strlen(name);
-				int x = strlen("Wacom Co.,Ltd. ");
-				memmove(name, name+x, n-x+1);
-			}
-			if (strstr(name, "Wacom Co., Ltd. Wacom ") == name) {
-				int n = strlen(name);
-				int x = strlen("Wacom Co., Ltd. ");
-				memmove(name, name+x, n-x+1);
-			}
-
-			/* get rid of trailing whitespace */
-			if (name[strlen(name)-1] == ' ')
-				name[strlen(name)-1] = '\0';
-		} else {
-			/* no meaningful name retrieved. use product ID */
-			snprintf(name, sizeof(name),
-				 "%s %X", features->name, wacom->hdev->product);
+		if (hid_is_using_ll_driver(wacom->hdev, &usb_hid_driver)) {
+			struct usb_interface *intf = to_usb_interface(wacom->hdev->dev.parent);
+			struct usb_device *dev = interface_to_usbdev(intf);
+			product_name = dev->product;
 		}
+
+		if (wacom->hdev->bus == BUS_I2C) {
+			snprintf(name, sizeof(name), "%s %X",
+				 features->name, wacom->hdev->product);
+		} else if (strstr(product_name, "Wacom") ||
+			   strstr(product_name, "wacom") ||
+			   strstr(product_name, "WACOM")) {
+			strlcpy(name, product_name, sizeof(name));
+		} else {
+			snprintf(name, sizeof(name), "Wacom %s", product_name);
+		}
+
+		/* strip out excess whitespaces */
+		while (1) {
+			char *gap = strstr(name, "  ");
+			if (gap == NULL)
+				break;
+			/* shift everything including the terminator */
+			memmove(gap, gap+1, strlen(gap));
+		}
+
+		/* get rid of trailing whitespace */
+		if (name[strlen(name)-1] == ' ')
+			name[strlen(name)-1] = '\0';
 	} else {
 		strlcpy(name, features->name, sizeof(name));
 	}
@@ -2093,8 +2095,10 @@ static void wacom_set_shared_values(struct wacom_wac *wacom_wac)
 		wacom_wac->shared->touch_input = wacom_wac->touch_input;
 	}
 
-	if (wacom_wac->has_mute_touch_switch)
+	if (wacom_wac->has_mute_touch_switch) {
 		wacom_wac->shared->has_mute_touch_switch = true;
+		wacom_wac->shared->is_touch_on = true;
+	}
 
 	if (wacom_wac->shared->has_mute_touch_switch &&
 	    wacom_wac->shared->touch_input) {
@@ -2165,6 +2169,14 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 
 	wacom_update_name(wacom, wireless ? " (WL)" : "");
 
+	/* pen only Bamboo neither support touch nor pad */
+	if ((features->type == BAMBOO_PEN) &&
+	    ((features->device_type & WACOM_DEVICETYPE_TOUCH) ||
+	    (features->device_type & WACOM_DEVICETYPE_PAD))) {
+		error = -ENODEV;
+		goto fail;
+	}
+
 	error = wacom_add_shared_data(hdev);
 	if (error)
 		goto fail;
@@ -2208,14 +2220,8 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 	/* touch only Bamboo doesn't support pen */
 	if ((features->type == BAMBOO_TOUCH) &&
 	    (features->device_type & WACOM_DEVICETYPE_PEN)) {
-		error = -ENODEV;
-		goto fail_quirks;
-	}
-
-	/* pen only Bamboo neither support touch nor pad */
-	if ((features->type == BAMBOO_PEN) &&
-	    ((features->device_type & WACOM_DEVICETYPE_TOUCH) ||
-	    (features->device_type & WACOM_DEVICETYPE_PAD))) {
+		cancel_delayed_work_sync(&wacom->init_work);
+		_wacom_query_tablet_data(wacom);
 		error = -ENODEV;
 		goto fail_quirks;
 	}
@@ -2488,6 +2494,46 @@ static void wacom_remote_work(struct work_struct *work)
 	}
 }
 
+static void wacom_mode_change_work(struct work_struct *work)
+{
+	struct wacom *wacom = container_of(work, struct wacom, mode_change_work);
+	struct wacom_shared *shared = wacom->wacom_wac.shared;
+	struct wacom *wacom1 = NULL;
+	struct wacom *wacom2 = NULL;
+	bool is_direct = wacom->wacom_wac.is_direct_mode;
+	int error = 0;
+
+	if (shared->pen) {
+		wacom1 = hid_get_drvdata(shared->pen);
+		wacom_release_resources(wacom1);
+		hid_hw_stop(wacom1->hdev);
+		wacom1->wacom_wac.has_mode_change = true;
+		wacom1->wacom_wac.is_direct_mode = is_direct;
+	}
+
+	if (shared->touch) {
+		wacom2 = hid_get_drvdata(shared->touch);
+		wacom_release_resources(wacom2);
+		hid_hw_stop(wacom2->hdev);
+		wacom2->wacom_wac.has_mode_change = true;
+		wacom2->wacom_wac.is_direct_mode = is_direct;
+	}
+
+	if (wacom1) {
+		error = wacom_parse_and_register(wacom1, false);
+		if (error)
+			return;
+	}
+
+	if (wacom2) {
+		error = wacom_parse_and_register(wacom2, false);
+		if (error)
+			return;
+	}
+
+	return;
+}
+
 static int wacom_probe(struct hid_device *hdev,
 		const struct hid_device_id *id)
 {
@@ -2532,6 +2578,7 @@ static int wacom_probe(struct hid_device *hdev,
 	INIT_WORK(&wacom->wireless_work, wacom_wireless_work);
 	INIT_WORK(&wacom->battery_work, wacom_battery_work);
 	INIT_WORK(&wacom->remote_work, wacom_remote_work);
+	INIT_WORK(&wacom->mode_change_work, wacom_mode_change_work);
 
 	/* ask for the report descriptor to be loaded by HID */
 	error = hid_parse(hdev);
@@ -2574,6 +2621,7 @@ static void wacom_remove(struct hid_device *hdev)
 	cancel_work_sync(&wacom->wireless_work);
 	cancel_work_sync(&wacom->battery_work);
 	cancel_work_sync(&wacom->remote_work);
+	cancel_work_sync(&wacom->mode_change_work);
 	if (hdev->bus == BUS_BLUETOOTH)
 		device_remove_file(&hdev->dev, &dev_attr_speed);
 

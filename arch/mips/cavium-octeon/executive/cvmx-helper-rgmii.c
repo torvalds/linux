@@ -152,7 +152,7 @@ static int __cvmx_helper_errata_asx_pass1(int interface, int port,
 }
 
 /**
- * Configure all of the ASX, GMX, and PKO regsiters required
+ * Configure all of the ASX, GMX, and PKO registers required
  * to get RGMII to function on the supplied interface.
  *
  * @interface: PKO Interface to configure (0 or 1)

@@ -541,7 +541,6 @@ struct i40iw_create_qp_info {
 struct i40iw_modify_qp_info {
 	u64 rx_win0;
 	u64 rx_win1;
-	u16 new_mss;
 	u8 next_iwarp_state;
 	u8 termlen;
 	bool ord_valid;
@@ -554,7 +553,6 @@ struct i40iw_modify_qp_info {
 	bool dont_send_term;
 	bool dont_send_fin;
 	bool cached_var_valid;
-	bool mss_change;
 	bool force_loopback;
 };
 
@@ -1345,6 +1343,11 @@ struct cqp_commands_info {
 struct i40iw_virtchnl_work_info {
 	void (*callback_fcn)(void *vf_dev);
 	void *worker_vf_dev;
+};
+
+struct i40iw_cqp_timeout {
+	u64 compl_cqp_cmds;
+	u8 count;
 };
 
 #endif

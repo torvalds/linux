@@ -15,12 +15,16 @@ static inline uint32_t xen_vcpu_nr(int cpu)
 	return per_cpu(xen_vcpu_id, cpu);
 }
 
+#define XEN_VCPU_ID_INVALID U32_MAX
+
 void xen_arch_pre_suspend(void);
 void xen_arch_post_suspend(int suspend_cancelled);
 
 void xen_timer_resume(void);
 void xen_arch_resume(void);
 void xen_arch_suspend(void);
+
+void xen_reboot(int reason);
 
 void xen_resume_notifier_register(struct notifier_block *nb);
 void xen_resume_notifier_unregister(struct notifier_block *nb);
@@ -34,11 +38,25 @@ u64 xen_steal_clock(int cpu);
 int xen_setup_shutdown_event(void);
 
 extern unsigned long *xen_contiguous_bitmap;
+
+#ifdef CONFIG_XEN_PV
 int xen_create_contiguous_region(phys_addr_t pstart, unsigned int order,
 				unsigned int address_bits,
 				dma_addr_t *dma_handle);
 
 void xen_destroy_contiguous_region(phys_addr_t pstart, unsigned int order);
+#else
+static inline int xen_create_contiguous_region(phys_addr_t pstart,
+					       unsigned int order,
+					       unsigned int address_bits,
+					       dma_addr_t *dma_handle)
+{
+	return 0;
+}
+
+static inline void xen_destroy_contiguous_region(phys_addr_t pstart,
+						 unsigned int order) { }
+#endif
 
 struct vm_area_struct;
 
@@ -120,6 +138,9 @@ efi_status_t xen_efi_update_capsule(efi_capsule_header_t **capsules,
 efi_status_t xen_efi_query_capsule_caps(efi_capsule_header_t **capsules,
 					unsigned long count, u64 *max_size,
 					int *reset_type);
+void xen_efi_reset_system(int reset_type, efi_status_t status,
+			  unsigned long data_size, efi_char16_t *data);
+
 
 #ifdef CONFIG_PREEMPT
 

@@ -3,37 +3,21 @@
 #include "debug.h"
 #include <api/fs/fs.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/utsname.h>
-#ifdef HAVE_BACKTRACE_SUPPORT
-#include <execinfo.h>
-#endif
+#include <dirent.h>
+#include <inttypes.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
-#include <byteswap.h>
 #include <linux/kernel.h>
 #include <linux/log2.h>
 #include <linux/time64.h>
 #include <unistd.h>
-#include "callchain.h"
 #include "strlist.h"
-
-#define CALLCHAIN_PARAM_DEFAULT			\
-	.mode		= CHAIN_GRAPH_ABS,	\
-	.min_percent	= 0.5,			\
-	.order		= ORDER_CALLEE,		\
-	.key		= CCKEY_FUNCTION,	\
-	.value		= CCVAL_PERCENT,	\
-
-struct callchain_param callchain_param = {
-	CALLCHAIN_PARAM_DEFAULT
-};
-
-struct callchain_param callchain_param_default = {
-	CALLCHAIN_PARAM_DEFAULT
-};
 
 /*
  * XXX We need to find a better place for these things...
@@ -159,13 +143,17 @@ out:
 	return list;
 }
 
-static int slow_copyfile(const char *from, const char *to)
+static int slow_copyfile(const char *from, const char *to, struct nsinfo *nsi)
 {
 	int err = -1;
 	char *line = NULL;
 	size_t n;
-	FILE *from_fp = fopen(from, "r"), *to_fp;
+	FILE *from_fp, *to_fp;
+	struct nscookie nsc;
 
+	nsinfo__mountns_enter(nsi, &nsc);
+	from_fp = fopen(from, "r");
+	nsinfo__mountns_exit(&nsc);
 	if (from_fp == NULL)
 		goto out;
 
@@ -214,15 +202,21 @@ int copyfile_offset(int ifd, loff_t off_in, int ofd, loff_t off_out, u64 size)
 	return size ? -1 : 0;
 }
 
-int copyfile_mode(const char *from, const char *to, mode_t mode)
+static int copyfile_mode_ns(const char *from, const char *to, mode_t mode,
+			    struct nsinfo *nsi)
 {
 	int fromfd, tofd;
 	struct stat st;
-	int err = -1;
+	int err;
 	char *tmp = NULL, *ptr = NULL;
+	struct nscookie nsc;
 
-	if (stat(from, &st))
+	nsinfo__mountns_enter(nsi, &nsc);
+	err = stat(from, &st);
+	nsinfo__mountns_exit(&nsc);
+	if (err)
 		goto out;
+	err = -1;
 
 	/* extra 'x' at the end is to reserve space for '.' */
 	if (asprintf(&tmp, "%s.XXXXXXx", to) < 0) {
@@ -243,11 +237,13 @@ int copyfile_mode(const char *from, const char *to, mode_t mode)
 		goto out_close_to;
 
 	if (st.st_size == 0) { /* /proc? do it slowly... */
-		err = slow_copyfile(from, tmp);
+		err = slow_copyfile(from, tmp, nsi);
 		goto out_close_to;
 	}
 
+	nsinfo__mountns_enter(nsi, &nsc);
 	fromfd = open(from, O_RDONLY);
+	nsinfo__mountns_exit(&nsc);
 	if (fromfd < 0)
 		goto out_close_to;
 
@@ -264,31 +260,19 @@ out:
 	return err;
 }
 
+int copyfile_ns(const char *from, const char *to, struct nsinfo *nsi)
+{
+	return copyfile_mode_ns(from, to, 0755, nsi);
+}
+
+int copyfile_mode(const char *from, const char *to, mode_t mode)
+{
+	return copyfile_mode_ns(from, to, mode, NULL);
+}
+
 int copyfile(const char *from, const char *to)
 {
 	return copyfile_mode(from, to, 0755);
-}
-
-unsigned long convert_unit(unsigned long value, char *unit)
-{
-	*unit = ' ';
-
-	if (value > 1000) {
-		value /= 1000;
-		*unit = 'K';
-	}
-
-	if (value > 1000) {
-		value /= 1000;
-		*unit = 'M';
-	}
-
-	if (value > 1000) {
-		value /= 1000;
-		*unit = 'G';
-	}
-
-	return value;
 }
 
 static ssize_t ion(bool is_read, int fd, void *buf, size_t n)
@@ -297,6 +281,7 @@ static ssize_t ion(bool is_read, int fd, void *buf, size_t n)
 	size_t left = n;
 
 	while (left) {
+		/* buf must be treated as const if !is_read. */
 		ssize_t ret = is_read ? read(fd, buf, left) :
 					write(fd, buf, left);
 
@@ -324,9 +309,10 @@ ssize_t readn(int fd, void *buf, size_t n)
 /*
  * Write exactly 'n' bytes or return an error.
  */
-ssize_t writen(int fd, void *buf, size_t n)
+ssize_t writen(int fd, const void *buf, size_t n)
 {
-	return ion(false, fd, buf, n);
+	/* ion does not modify buf. */
+	return ion(false, fd, (void *)buf, n);
 }
 
 size_t hex_width(u64 v)
@@ -372,171 +358,6 @@ int hex2u64(const char *ptr, u64 *long_val)
 	return p - ptr;
 }
 
-/* Obtain a backtrace and print it to stdout. */
-#ifdef HAVE_BACKTRACE_SUPPORT
-void dump_stack(void)
-{
-	void *array[16];
-	size_t size = backtrace(array, ARRAY_SIZE(array));
-	char **strings = backtrace_symbols(array, size);
-	size_t i;
-
-	printf("Obtained %zd stack frames.\n", size);
-
-	for (i = 0; i < size; i++)
-		printf("%s\n", strings[i]);
-
-	free(strings);
-}
-#else
-void dump_stack(void) {}
-#endif
-
-void sighandler_dump_stack(int sig)
-{
-	psignal(sig, "perf");
-	dump_stack();
-	signal(sig, SIG_DFL);
-	raise(sig);
-}
-
-int timestamp__scnprintf_usec(u64 timestamp, char *buf, size_t sz)
-{
-	u64  sec = timestamp / NSEC_PER_SEC;
-	u64 usec = (timestamp % NSEC_PER_SEC) / NSEC_PER_USEC;
-
-	return scnprintf(buf, sz, "%"PRIu64".%06"PRIu64, sec, usec);
-}
-
-unsigned long parse_tag_value(const char *str, struct parse_tag *tags)
-{
-	struct parse_tag *i = tags;
-
-	while (i->tag) {
-		char *s;
-
-		s = strchr(str, i->tag);
-		if (s) {
-			unsigned long int value;
-			char *endptr;
-
-			value = strtoul(str, &endptr, 10);
-			if (s != endptr)
-				break;
-
-			if (value > ULONG_MAX / i->mult)
-				break;
-			value *= i->mult;
-			return value;
-		}
-		i++;
-	}
-
-	return (unsigned long) -1;
-}
-
-int get_stack_size(const char *str, unsigned long *_size)
-{
-	char *endptr;
-	unsigned long size;
-	unsigned long max_size = round_down(USHRT_MAX, sizeof(u64));
-
-	size = strtoul(str, &endptr, 0);
-
-	do {
-		if (*endptr)
-			break;
-
-		size = round_up(size, sizeof(u64));
-		if (!size || size > max_size)
-			break;
-
-		*_size = size;
-		return 0;
-
-	} while (0);
-
-	pr_err("callchain: Incorrect stack dump size (max %ld): %s\n",
-	       max_size, str);
-	return -1;
-}
-
-int parse_callchain_record(const char *arg, struct callchain_param *param)
-{
-	char *tok, *name, *saveptr = NULL;
-	char *buf;
-	int ret = -1;
-
-	/* We need buffer that we know we can write to. */
-	buf = malloc(strlen(arg) + 1);
-	if (!buf)
-		return -ENOMEM;
-
-	strcpy(buf, arg);
-
-	tok = strtok_r((char *)buf, ",", &saveptr);
-	name = tok ? : (char *)buf;
-
-	do {
-		/* Framepointer style */
-		if (!strncmp(name, "fp", sizeof("fp"))) {
-			if (!strtok_r(NULL, ",", &saveptr)) {
-				param->record_mode = CALLCHAIN_FP;
-				ret = 0;
-			} else
-				pr_err("callchain: No more arguments "
-				       "needed for --call-graph fp\n");
-			break;
-
-		/* Dwarf style */
-		} else if (!strncmp(name, "dwarf", sizeof("dwarf"))) {
-			const unsigned long default_stack_dump_size = 8192;
-
-			ret = 0;
-			param->record_mode = CALLCHAIN_DWARF;
-			param->dump_size = default_stack_dump_size;
-
-			tok = strtok_r(NULL, ",", &saveptr);
-			if (tok) {
-				unsigned long size = 0;
-
-				ret = get_stack_size(tok, &size);
-				param->dump_size = size;
-			}
-		} else if (!strncmp(name, "lbr", sizeof("lbr"))) {
-			if (!strtok_r(NULL, ",", &saveptr)) {
-				param->record_mode = CALLCHAIN_LBR;
-				ret = 0;
-			} else
-				pr_err("callchain: No more arguments "
-					"needed for --call-graph lbr\n");
-			break;
-		} else {
-			pr_err("callchain: Unknown --call-graph option "
-			       "value: %s\n", arg);
-			break;
-		}
-
-	} while (0);
-
-	free(buf);
-	return ret;
-}
-
-const char *get_filename_for_perf_kvm(void)
-{
-	const char *filename;
-
-	if (perf_host && !perf_guest)
-		filename = strdup("perf.data.host");
-	else if (!perf_host && perf_guest)
-		filename = strdup("perf.data.guest");
-	else
-		filename = strdup("perf.data.kvm");
-
-	return filename;
-}
-
 int perf_event_paranoid(void)
 {
 	int value;
@@ -546,64 +367,6 @@ int perf_event_paranoid(void)
 
 	return value;
 }
-
-void mem_bswap_32(void *src, int byte_size)
-{
-	u32 *m = src;
-	while (byte_size > 0) {
-		*m = bswap_32(*m);
-		byte_size -= sizeof(u32);
-		++m;
-	}
-}
-
-void mem_bswap_64(void *src, int byte_size)
-{
-	u64 *m = src;
-
-	while (byte_size > 0) {
-		*m = bswap_64(*m);
-		byte_size -= sizeof(u64);
-		++m;
-	}
-}
-
-bool find_process(const char *name)
-{
-	size_t len = strlen(name);
-	DIR *dir;
-	struct dirent *d;
-	int ret = -1;
-
-	dir = opendir(procfs__mountpoint());
-	if (!dir)
-		return false;
-
-	/* Walk through the directory. */
-	while (ret && (d = readdir(dir)) != NULL) {
-		char path[PATH_MAX];
-		char *data;
-		size_t size;
-
-		if ((d->d_type != DT_DIR) ||
-		     !strcmp(".", d->d_name) ||
-		     !strcmp("..", d->d_name))
-			continue;
-
-		scnprintf(path, sizeof(path), "%s/%s/comm",
-			  procfs__mountpoint(), d->d_name);
-
-		if (filename__read_str(path, &data, &size))
-			continue;
-
-		ret = strncmp(name, data, len);
-		free(data);
-	}
-
-	closedir(dir);
-	return ret ? false : true;
-}
-
 static int
 fetch_ubuntu_kernel_version(unsigned int *puint)
 {
@@ -611,8 +374,12 @@ fetch_ubuntu_kernel_version(unsigned int *puint)
 	size_t line_len = 0;
 	char *ptr, *line = NULL;
 	int version, patchlevel, sublevel, err;
-	FILE *vsig = fopen("/proc/version_signature", "r");
+	FILE *vsig;
 
+	if (!puint)
+		return 0;
+
+	vsig = fopen("/proc/version_signature", "r");
 	if (!vsig) {
 		pr_debug("Open /proc/version_signature failed: %s\n",
 			 strerror(errno));
@@ -642,8 +409,7 @@ fetch_ubuntu_kernel_version(unsigned int *puint)
 		goto errout;
 	}
 
-	if (puint)
-		*puint = (version << 16) + (patchlevel << 8) + sublevel;
+	*puint = (version << 16) + (patchlevel << 8) + sublevel;
 	err = 0;
 errout:
 	free(line);
@@ -670,6 +436,9 @@ fetch_kernel_version(unsigned int *puint, char *str,
 		str[str_size - 1] = '\0';
 	}
 
+	if (!puint || int_ver_ready)
+		return 0;
+
 	err = sscanf(utsname.release, "%d.%d.%d",
 		     &version, &patchlevel, &sublevel);
 
@@ -679,8 +448,7 @@ fetch_kernel_version(unsigned int *puint, char *str,
 		return -1;
 	}
 
-	if (puint && !int_ver_ready)
-		*puint = (version << 16) + (patchlevel << 8) + sublevel;
+	*puint = (version << 16) + (patchlevel << 8) + sublevel;
 	return 0;
 }
 
@@ -696,7 +464,8 @@ const char *perf_tip(const char *dirpath)
 
 	tips = strlist__new("tips.txt", &conf);
 	if (tips == NULL)
-		return errno == ENOENT ? NULL : "Tip: get more memory! ;-p";
+		return errno == ENOENT ? NULL :
+			"Tip: check path of tips.txt or get more memory! ;-p";
 
 	if (strlist__nr_entries(tips) == 0)
 		goto out;
@@ -709,96 +478,4 @@ out:
 	strlist__delete(tips);
 
 	return tip;
-}
-
-bool is_regular_file(const char *file)
-{
-	struct stat st;
-
-	if (stat(file, &st))
-		return false;
-
-	return S_ISREG(st.st_mode);
-}
-
-int fetch_current_timestamp(char *buf, size_t sz)
-{
-	struct timeval tv;
-	struct tm tm;
-	char dt[32];
-
-	if (gettimeofday(&tv, NULL) || !localtime_r(&tv.tv_sec, &tm))
-		return -1;
-
-	if (!strftime(dt, sizeof(dt), "%Y%m%d%H%M%S", &tm))
-		return -1;
-
-	scnprintf(buf, sz, "%s%02u", dt, (unsigned)tv.tv_usec / 10000);
-
-	return 0;
-}
-
-void print_binary(unsigned char *data, size_t len,
-		  size_t bytes_per_line, print_binary_t printer,
-		  void *extra)
-{
-	size_t i, j, mask;
-
-	if (!printer)
-		return;
-
-	bytes_per_line = roundup_pow_of_two(bytes_per_line);
-	mask = bytes_per_line - 1;
-
-	printer(BINARY_PRINT_DATA_BEGIN, 0, extra);
-	for (i = 0; i < len; i++) {
-		if ((i & mask) == 0) {
-			printer(BINARY_PRINT_LINE_BEGIN, -1, extra);
-			printer(BINARY_PRINT_ADDR, i, extra);
-		}
-
-		printer(BINARY_PRINT_NUM_DATA, data[i], extra);
-
-		if (((i & mask) == mask) || i == len - 1) {
-			for (j = 0; j < mask-(i & mask); j++)
-				printer(BINARY_PRINT_NUM_PAD, -1, extra);
-
-			printer(BINARY_PRINT_SEP, i, extra);
-			for (j = i & ~mask; j <= i; j++)
-				printer(BINARY_PRINT_CHAR_DATA, data[j], extra);
-			for (j = 0; j < mask-(i & mask); j++)
-				printer(BINARY_PRINT_CHAR_PAD, i, extra);
-			printer(BINARY_PRINT_LINE_END, -1, extra);
-		}
-	}
-	printer(BINARY_PRINT_DATA_END, -1, extra);
-}
-
-int is_printable_array(char *p, unsigned int len)
-{
-	unsigned int i;
-
-	if (!p || !len || p[len - 1] != 0)
-		return 0;
-
-	len--;
-
-	for (i = 0; i < len; i++) {
-		if (!isprint(p[i]) && !isspace(p[i]))
-			return 0;
-	}
-	return 1;
-}
-
-int unit_number__scnprintf(char *buf, size_t size, u64 n)
-{
-	char unit[4] = "BKMG";
-	int i = 0;
-
-	while (((n / 1024) > 1) && (i < 3)) {
-		n /= 1024;
-		i++;
-	}
-
-	return scnprintf(buf, size, "%" PRIu64 "%c", n, unit[i]);
 }

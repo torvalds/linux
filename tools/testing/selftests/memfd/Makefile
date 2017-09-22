@@ -3,11 +3,11 @@ CFLAGS += -I../../../../include/uapi/
 CFLAGS += -I../../../../include/
 CFLAGS += -I../../../../usr/include/
 
-TEST_PROGS := run_fuse_test.sh
+TEST_PROGS := run_tests.sh
 TEST_GEN_FILES := memfd_test fuse_mnt fuse_test
 
 fuse_mnt.o: CFLAGS += $(shell pkg-config fuse --cflags)
-fuse_mnt: LDFLAGS += $(shell pkg-config fuse --libs)
 
 include ../lib.mk
 
+$(OUTPUT)/fuse_mnt: LDLIBS += $(shell pkg-config fuse --libs)

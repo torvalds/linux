@@ -394,6 +394,7 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 	brz,pt		%i2, 85f
 	 sub		%o0, %i1, %i3
 	ba,a,pt		%XCC, 90f
+	 nop
 
 	.align		64
 70: /* 16 < len <= 64 */

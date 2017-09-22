@@ -91,6 +91,8 @@ struct ath10k;
 enum ath10k_bus {
 	ATH10K_BUS_PCI,
 	ATH10K_BUS_AHB,
+	ATH10K_BUS_SDIO,
+	ATH10K_BUS_USB,
 };
 
 static inline const char *ath10k_bus_str(enum ath10k_bus bus)
@@ -100,6 +102,10 @@ static inline const char *ath10k_bus_str(enum ath10k_bus bus)
 		return "pci";
 	case ATH10K_BUS_AHB:
 		return "ahb";
+	case ATH10K_BUS_SDIO:
+		return "sdio";
+	case ATH10K_BUS_USB:
+		return "usb";
 	}
 
 	return "unknown";
@@ -456,7 +462,7 @@ struct ath10k_ce_crash_hdr {
 struct ath10k_fw_crash_data {
 	bool crashed_since_read;
 
-	uuid_le uuid;
+	guid_t guid;
 	struct timespec timestamp;
 	__le32 registers[REG_DUMP_COUNT_QCA988X];
 	struct ath10k_ce_crash_data ce_crash_data[CE_COUNT_MAX];
@@ -501,14 +507,16 @@ enum ath10k_state {
 	 * stopped in ath10k_core_restart() work holding conf_mutex. The state
 	 * RESTARTED means that the device is up and mac80211 has started hw
 	 * reconfiguration. Once mac80211 is done with the reconfiguration we
-	 * set the state to STATE_ON in reconfig_complete(). */
+	 * set the state to STATE_ON in reconfig_complete().
+	 */
 	ATH10K_STATE_RESTARTING,
 	ATH10K_STATE_RESTARTED,
 
 	/* The device has crashed while restarting hw. This state is like ON
 	 * but commands are blocked in HTC and -ECOMM response is given. This
 	 * prevents completion timeouts and makes the driver more responsive to
-	 * userspace commands. This is also prevents recursive recovery. */
+	 * userspace commands. This is also prevents recursive recovery.
+	 */
 	ATH10K_STATE_WEDGED,
 
 	/* factory tests */
@@ -775,6 +783,8 @@ struct ath10k {
 	u32 num_rf_chains;
 	u32 max_spatial_stream;
 	/* protected by conf_mutex */
+	u32 low_5ghz_chan;
+	u32 high_5ghz_chan;
 	bool ani_enabled;
 
 	bool p2p;
@@ -787,6 +797,7 @@ struct ath10k {
 	struct completion target_suspend;
 
 	const struct ath10k_hw_regs *regs;
+	const struct ath10k_hw_ce_regs *hw_ce_regs;
 	const struct ath10k_hw_values *hw_values;
 	struct ath10k_bmi bmi;
 	struct ath10k_wmi wmi;
@@ -918,7 +929,8 @@ struct ath10k {
 	struct work_struct restart_work;
 
 	/* cycle count is reported twice for each visited channel during scan.
-	 * access protected by data_lock */
+	 * access protected by data_lock
+	 */
 	u32 survey_last_rx_clear_count;
 	u32 survey_last_cycle_count;
 	struct survey_info survey[ATH10K_NUM_CHANS];
@@ -983,6 +995,10 @@ struct ath10k {
 		u32 reg_ack_cts_timeout_conf;
 		u32 reg_ack_cts_timeout_orig;
 	} fw_coverage;
+
+	u32 ampdu_reference;
+
+	void *ce_priv;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));

@@ -1185,7 +1185,7 @@ static int aic31xx_codec_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_driver_aic31xx = {
+static const struct snd_soc_codec_driver soc_codec_driver_aic31xx = {
 	.probe			= aic31xx_codec_probe,
 	.remove			= aic31xx_codec_remove,
 	.set_bias_level		= aic31xx_set_bias_level,
@@ -1210,7 +1210,7 @@ static const struct snd_soc_dai_ops aic31xx_dai_ops = {
 
 static struct snd_soc_dai_driver dac31xx_dai_driver[] = {
 	{
-		.name = "tlv32dac31xx-hifi",
+		.name = "tlv320dac31xx-hifi",
 		.playback = {
 			.stream_name	 = "Playback",
 			.channels_min	 = 2,

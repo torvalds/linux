@@ -32,7 +32,7 @@ nvbios_fan_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 	u32 fan = 0;
 
 	if (!bit_entry(bios, 'P', &bit_P)) {
-		if (bit_P.version == 2 && bit_P.length >= 0x5a)
+		if (bit_P.version == 2 && bit_P.length >= 0x5c)
 			fan = nvbios_rd32(bios, bit_P.offset + 0x58);
 
 		if (fan) {

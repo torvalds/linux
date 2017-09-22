@@ -16,8 +16,8 @@
  */
 
 /*
- * This file contains definitions relative to FC-NVME r1.11 and a few
- * newer items
+ * This file contains definitions relative to FC-NVME r1.14 (16-020vB).
+ * The fcnvme_lsdesc_cr_assoc_cmd struct reflects expected r1.16 content.
  */
 
 #ifndef _NVME_FC_H
@@ -47,8 +47,15 @@ struct nvme_fc_cmd_iu {
 
 #define NVME_FC_SIZEOF_ZEROS_RSP	12
 
+enum {
+	FCNVME_SC_SUCCESS		= 0,
+	FCNVME_SC_INVALID_FIELD		= 1,
+	FCNVME_SC_INVALID_CONNID	= 2,
+};
+
 struct nvme_fc_ersp_iu {
-	__u8			rsvd0[2];
+	__u8			status_code;
+	__u8			rsvd1;
 	__be16			iu_len;
 	__be32			rsn;
 	__be32			xfrd_len;
@@ -58,7 +65,7 @@ struct nvme_fc_ersp_iu {
 };
 
 
-/* FC-NVME r1.03/16-119v0 NVME Link Services */
+/* FC-NVME Link Services */
 enum {
 	FCNVME_LS_RSVD			= 0,
 	FCNVME_LS_RJT			= 1,
@@ -68,7 +75,7 @@ enum {
 	FCNVME_LS_DISCONNECT		= 5,
 };
 
-/* FC-NVME r1.03/16-119v0 NVME Link Service Descriptors */
+/* FC-NVME Link Service Descriptors */
 enum {
 	FCNVME_LSDESC_RSVD		= 0x0,
 	FCNVME_LSDESC_RQST		= 0x1,
@@ -92,7 +99,6 @@ static inline __be32 fcnvme_lsdesc_len(size_t sz)
 	return cpu_to_be32(sz - (2 * sizeof(u32)));
 }
 
-
 struct fcnvme_ls_rqst_w0 {
 	u8	ls_cmd;			/* FCNVME_LS_xxx */
 	u8	zeros[3];
@@ -106,8 +112,53 @@ struct fcnvme_lsdesc_rqst {
 	__be32	rsvd12;
 };
 
+/* FC-NVME LS RJT reason_code values */
+enum fcnvme_ls_rjt_reason {
+	FCNVME_RJT_RC_NONE		= 0,
+	/* no reason - not to be sent */
 
+	FCNVME_RJT_RC_INVAL		= 0x01,
+	/* invalid NVMe_LS command code */
 
+	FCNVME_RJT_RC_LOGIC		= 0x03,
+	/* logical error */
+
+	FCNVME_RJT_RC_UNAB		= 0x09,
+	/* unable to perform command request */
+
+	FCNVME_RJT_RC_UNSUP		= 0x0b,
+	/* command not supported */
+
+	FCNVME_RJT_RC_INPROG		= 0x0e,
+	/* command already in progress */
+
+	FCNVME_RJT_RC_INV_ASSOC		= 0x40,
+	/* Invalid Association ID*/
+
+	FCNVME_RJT_RC_INV_CONN		= 0x41,
+	/* Invalid Connection ID*/
+
+	FCNVME_RJT_RC_VENDOR		= 0xff,
+	/* vendor specific error */
+};
+
+/* FC-NVME LS RJT reason_explanation values */
+enum fcnvme_ls_rjt_explan {
+	FCNVME_RJT_EXP_NONE		= 0x00,
+	/* No additional explanation */
+
+	FCNVME_RJT_EXP_OXID_RXID	= 0x17,
+	/* invalid OX_ID-RX_ID combination */
+
+	FCNVME_RJT_EXP_INSUF_RES	= 0x29,
+	/* insufficient resources */
+
+	FCNVME_RJT_EXP_UNAB_DATA	= 0x2a,
+	/* unable to supply requested data */
+
+	FCNVME_RJT_EXP_INV_LEN		= 0x2d,
+	/* Invalid payload length */
+};
 
 /* FCNVME_LSDESC_RJT */
 struct fcnvme_lsdesc_rjt {
@@ -119,15 +170,14 @@ struct fcnvme_lsdesc_rjt {
 	 * Reject reason and explanaction codes are generic
 	 * to ELs's from LS-3.
 	 */
-	u8	reason_code;
-	u8	reason_explanation;
+	u8	reason_code;		/* fcnvme_ls_rjt_reason */
+	u8	reason_explanation;	/* fcnvme_ls_rjt_explan */
 
 	u8	vendor;
 	__be32	rsvd12;
 };
 
 
-#define FCNVME_ASSOC_HOSTID_LEN		64
 #define FCNVME_ASSOC_HOSTNQN_LEN	256
 #define FCNVME_ASSOC_SUBNQN_LEN		256
 
@@ -141,11 +191,23 @@ struct fcnvme_lsdesc_cr_assoc_cmd {
 	__be16	cntlid;
 	__be16	sqsize;
 	__be32	rsvd52;
-	u8	hostid[FCNVME_ASSOC_HOSTID_LEN];
+	uuid_t	hostid;
 	u8	hostnqn[FCNVME_ASSOC_HOSTNQN_LEN];
 	u8	subnqn[FCNVME_ASSOC_SUBNQN_LEN];
-	u8	rsvd632[384];
+	__be32	rsvd584[108];		/* pad to 1016 bytes,
+					 * which makes overall LS rqst
+					 * payload 1024 bytes
+					 */
 };
+
+#define FCNVME_LSDESC_CRA_CMD_DESC_MINLEN	\
+		offsetof(struct fcnvme_lsdesc_cr_assoc_cmd, rsvd584)
+
+#define FCNVME_LSDESC_CRA_CMD_DESC_MIN_DESCLEN	\
+		(FCNVME_LSDESC_CRA_CMD_DESC_MINLEN - \
+		 offsetof(struct fcnvme_lsdesc_cr_assoc_cmd, ersp_ratio))
+
+
 
 /* FCNVME_LSDESC_CREATE_CONN_CMD */
 struct fcnvme_lsdesc_cr_conn_cmd {
@@ -224,6 +286,14 @@ struct fcnvme_ls_cr_assoc_rqst {
 	struct fcnvme_lsdesc_cr_assoc_cmd	assoc_cmd;
 };
 
+#define FCNVME_LSDESC_CRA_RQST_MINLEN	\
+		(offsetof(struct fcnvme_ls_cr_assoc_rqst, assoc_cmd) + \
+			FCNVME_LSDESC_CRA_CMD_DESC_MINLEN)
+
+#define FCNVME_LSDESC_CRA_RQST_MIN_LISTLEN	\
+		FCNVME_LSDESC_CRA_CMD_DESC_MINLEN
+
+
 struct fcnvme_ls_cr_assoc_acc {
 	struct fcnvme_ls_acc_hdr		hdr;
 	struct fcnvme_lsdesc_assoc_id		associd;
@@ -263,6 +333,25 @@ struct fcnvme_ls_disconnect_acc {
 #define NVME_FC_CONNECT_TIMEOUT_SEC	2		/* 2 seconds */
 #define NVME_FC_LS_TIMEOUT_SEC		2		/* 2 seconds */
 #define NVME_FC_TGTOP_TIMEOUT_SEC	2		/* 2 seconds */
+
+/*
+ * TRADDR string must be of form "nn-<16hexdigits>:pn-<16hexdigits>"
+ * the string is allowed to be specified with or without a "0x" prefix
+ * infront of the <16hexdigits>.  Without is considered the "min" string
+ * and with is considered the "max" string. The hexdigits may be upper
+ * or lower case.
+ */
+#define NVME_FC_TRADDR_NNLEN		3	/* "?n-" */
+#define NVME_FC_TRADDR_OXNNLEN		5	/* "?n-0x" */
+#define NVME_FC_TRADDR_HEXNAMELEN	16
+#define NVME_FC_TRADDR_MINLENGTH	\
+		(2 * (NVME_FC_TRADDR_NNLEN + NVME_FC_TRADDR_HEXNAMELEN) + 1)
+#define NVME_FC_TRADDR_MAXLENGTH	\
+		(2 * (NVME_FC_TRADDR_OXNNLEN + NVME_FC_TRADDR_HEXNAMELEN) + 1)
+#define NVME_FC_TRADDR_MIN_PN_OFFSET	\
+		(NVME_FC_TRADDR_NNLEN + NVME_FC_TRADDR_HEXNAMELEN + 1)
+#define NVME_FC_TRADDR_MAX_PN_OFFSET	\
+		(NVME_FC_TRADDR_OXNNLEN + NVME_FC_TRADDR_HEXNAMELEN + 1)
 
 
 #endif /* _NVME_FC_H */

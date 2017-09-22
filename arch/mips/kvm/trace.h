@@ -18,6 +18,13 @@
 #define TRACE_INCLUDE_FILE trace
 
 /*
+ * arch/mips/kvm/mips.c
+ */
+extern bool kvm_trace_guest_mode_change;
+int kvm_guest_mode_change_trace_reg(void);
+void kvm_guest_mode_change_trace_unreg(void);
+
+/*
  * Tracepoints for VM enters
  */
 DECLARE_EVENT_CLASS(kvm_transition,
@@ -62,10 +69,20 @@ DEFINE_EVENT(kvm_transition, kvm_out,
 #define KVM_TRACE_EXIT_MSA_FPE		14
 #define KVM_TRACE_EXIT_FPE		15
 #define KVM_TRACE_EXIT_MSA_DISABLED	21
+#define KVM_TRACE_EXIT_GUEST_EXIT	27
 /* Further exit reasons */
 #define KVM_TRACE_EXIT_WAIT		32
 #define KVM_TRACE_EXIT_CACHE		33
 #define KVM_TRACE_EXIT_SIGNAL		34
+/* 32 exit reasons correspond to GuestCtl0.GExcCode (VZ) */
+#define KVM_TRACE_EXIT_GEXCCODE_BASE	64
+#define KVM_TRACE_EXIT_GPSI		64	/*  0 */
+#define KVM_TRACE_EXIT_GSFC		65	/*  1 */
+#define KVM_TRACE_EXIT_HC		66	/*  2 */
+#define KVM_TRACE_EXIT_GRR		67	/*  3 */
+#define KVM_TRACE_EXIT_GVA		72	/*  8 */
+#define KVM_TRACE_EXIT_GHFC		73	/*  9 */
+#define KVM_TRACE_EXIT_GPA		74	/* 10 */
 
 /* Tracepoints for VM exits */
 #define kvm_trace_symbol_exit_types				\
@@ -83,9 +100,17 @@ DEFINE_EVENT(kvm_transition, kvm_out,
 	{ KVM_TRACE_EXIT_MSA_FPE,	"MSA FPE" },		\
 	{ KVM_TRACE_EXIT_FPE,		"FPE" },		\
 	{ KVM_TRACE_EXIT_MSA_DISABLED,	"MSA Disabled" },	\
+	{ KVM_TRACE_EXIT_GUEST_EXIT,	"Guest Exit" },		\
 	{ KVM_TRACE_EXIT_WAIT,		"WAIT" },		\
 	{ KVM_TRACE_EXIT_CACHE,		"CACHE" },		\
-	{ KVM_TRACE_EXIT_SIGNAL,	"Signal" }
+	{ KVM_TRACE_EXIT_SIGNAL,	"Signal" },		\
+	{ KVM_TRACE_EXIT_GPSI,		"GPSI" },		\
+	{ KVM_TRACE_EXIT_GSFC,		"GSFC" },		\
+	{ KVM_TRACE_EXIT_HC,		"HC" },			\
+	{ KVM_TRACE_EXIT_GRR,		"GRR" },		\
+	{ KVM_TRACE_EXIT_GVA,		"GVA" },		\
+	{ KVM_TRACE_EXIT_GHFC,		"GHFC" },		\
+	{ KVM_TRACE_EXIT_GPA,		"GPA" }
 
 TRACE_EVENT(kvm_exit,
 	    TP_PROTO(struct kvm_vcpu *vcpu, unsigned int reason),
@@ -158,6 +183,8 @@ TRACE_EVENT(kvm_exit,
 	{ KVM_TRACE_COP0(16, 4),	"Config4" },		\
 	{ KVM_TRACE_COP0(16, 5),	"Config5" },		\
 	{ KVM_TRACE_COP0(16, 7),	"Config7" },		\
+	{ KVM_TRACE_COP0(17, 1),	"MAAR" },		\
+	{ KVM_TRACE_COP0(17, 2),	"MAARI" },		\
 	{ KVM_TRACE_COP0(26, 0),	"ECC" },		\
 	{ KVM_TRACE_COP0(30, 0),	"ErrorEPC" },		\
 	{ KVM_TRACE_COP0(31, 2),	"KScratch1" },		\
@@ -266,6 +293,51 @@ TRACE_EVENT(kvm_asid_change,
 		      __entry->pc,
 		      __entry->old_asid,
 		      __entry->new_asid)
+);
+
+TRACE_EVENT(kvm_guestid_change,
+	    TP_PROTO(struct kvm_vcpu *vcpu, unsigned int guestid),
+	    TP_ARGS(vcpu, guestid),
+	    TP_STRUCT__entry(
+			__field(unsigned int, guestid)
+	    ),
+
+	    TP_fast_assign(
+			__entry->guestid = guestid;
+	    ),
+
+	    TP_printk("GuestID: 0x%02x",
+		      __entry->guestid)
+);
+
+TRACE_EVENT_FN(kvm_guest_mode_change,
+	    TP_PROTO(struct kvm_vcpu *vcpu),
+	    TP_ARGS(vcpu),
+	    TP_STRUCT__entry(
+			__field(unsigned long, epc)
+			__field(unsigned long, pc)
+			__field(unsigned long, badvaddr)
+			__field(unsigned int, status)
+			__field(unsigned int, cause)
+	    ),
+
+	    TP_fast_assign(
+			__entry->epc = kvm_read_c0_guest_epc(vcpu->arch.cop0);
+			__entry->pc = vcpu->arch.pc;
+			__entry->badvaddr = kvm_read_c0_guest_badvaddr(vcpu->arch.cop0);
+			__entry->status = kvm_read_c0_guest_status(vcpu->arch.cop0);
+			__entry->cause = kvm_read_c0_guest_cause(vcpu->arch.cop0);
+	    ),
+
+	    TP_printk("EPC: 0x%08lx PC: 0x%08lx Status: 0x%08x Cause: 0x%08x BadVAddr: 0x%08lx",
+		      __entry->epc,
+		      __entry->pc,
+		      __entry->status,
+		      __entry->cause,
+		      __entry->badvaddr),
+
+	    kvm_guest_mode_change_trace_reg,
+	    kvm_guest_mode_change_trace_unreg
 );
 
 #endif /* _TRACE_KVM_H */

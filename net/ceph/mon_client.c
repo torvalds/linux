@@ -6,6 +6,7 @@
 #include <linux/random.h>
 #include <linux/sched.h>
 
+#include <linux/ceph/ceph_features.h>
 #include <linux/ceph/mon_client.h>
 #include <linux/ceph/libceph.h>
 #include <linux/ceph/debugfs.h>
@@ -43,15 +44,13 @@ struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
 	int i, err = -EINVAL;
 	struct ceph_fsid fsid;
 	u32 epoch, num_mon;
-	u16 version;
 	u32 len;
 
 	ceph_decode_32_safe(&p, end, len, bad);
 	ceph_decode_need(&p, end, len, bad);
 
 	dout("monmap_decode %p %p len %d\n", p, end, (int)(end-p));
-
-	ceph_decode_16_safe(&p, end, version, bad);
+	p += sizeof(u16);  /* skip version */
 
 	ceph_decode_need(&p, end, sizeof(fsid) + 2*sizeof(u32), bad);
 	ceph_decode_copy(&p, &fsid, sizeof(fsid));
@@ -299,6 +298,10 @@ static void handle_subscribe_ack(struct ceph_mon_client *monc,
 
 	mutex_lock(&monc->mutex);
 	if (monc->sub_renew_sent) {
+		/*
+		 * This is only needed for legacy (infernalis or older)
+		 * MONs -- see delayed_work().
+		 */
 		monc->sub_renew_after = monc->sub_renew_sent +
 					    (seconds >> 1) * HZ - 1;
 		dout("%s sent %lu duration %d renew after %lu\n", __func__,
@@ -673,7 +676,8 @@ bad:
 /*
  * Do a synchronous statfs().
  */
-int ceph_monc_do_statfs(struct ceph_mon_client *monc, struct ceph_statfs *buf)
+int ceph_monc_do_statfs(struct ceph_mon_client *monc, u64 data_pool,
+			struct ceph_statfs *buf)
 {
 	struct ceph_mon_generic_request *req;
 	struct ceph_mon_statfs *h;
@@ -693,6 +697,7 @@ int ceph_monc_do_statfs(struct ceph_mon_client *monc, struct ceph_statfs *buf)
 		goto out;
 
 	req->u.st = buf;
+	req->request->hdr.version = cpu_to_le16(2);
 
 	mutex_lock(&monc->mutex);
 	register_generic_request(req);
@@ -702,6 +707,8 @@ int ceph_monc_do_statfs(struct ceph_mon_client *monc, struct ceph_statfs *buf)
 	h->monhdr.session_mon = cpu_to_le16(-1);
 	h->monhdr.session_mon_tid = 0;
 	h->fsid = monc->monmap->fsid;
+	h->contains_data_pool = (data_pool != CEPH_NOPOOL);
+	h->data_pool = cpu_to_le64(data_pool);
 	send_generic_request(monc, req);
 	mutex_unlock(&monc->mutex);
 
@@ -957,7 +964,8 @@ static void delayed_work(struct work_struct *work)
 			__validate_auth(monc);
 		}
 
-		if (is_auth) {
+		if (is_auth &&
+		    !(monc->con.peer_features & CEPH_FEATURE_MON_STATEFUL_SUB)) {
 			unsigned long now = jiffies;
 
 			dout("%s renew subs? now %lu renew after %lu\n",

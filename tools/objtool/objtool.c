@@ -31,10 +31,9 @@
 #include <stdlib.h>
 #include <subcmd/exec-cmd.h>
 #include <subcmd/pager.h>
+#include <linux/kernel.h>
 
 #include "builtin.h"
-
-#define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
 struct cmd_struct {
 	const char *name;
@@ -43,10 +42,11 @@ struct cmd_struct {
 };
 
 static const char objtool_usage_string[] =
-	"objtool [OPTIONS] COMMAND [ARGS]";
+	"objtool COMMAND [ARGS]";
 
 static struct cmd_struct objtool_cmds[] = {
 	{"check",	cmd_check,	"Perform stack metadata validation on an object file" },
+	{"orc",		cmd_orc,	"Generate in-place ORC unwind tables for an object file" },
 };
 
 bool help;

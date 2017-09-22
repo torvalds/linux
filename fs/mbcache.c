@@ -10,13 +10,14 @@
 /*
  * Mbcache is a simple key-value store. Keys need not be unique, however
  * key-value pairs are expected to be unique (we use this fact in
- * mb_cache_entry_delete_block()).
+ * mb_cache_entry_delete()).
  *
  * Ext2 and ext4 use this cache for deduplication of extended attribute blocks.
- * They use hash of a block contents as a key and block number as a value.
- * That's why keys need not be unique (different xattr blocks may end up having
- * the same hash). However block number always uniquely identifies a cache
- * entry.
+ * Ext4 also uses it for deduplication of xattr values stored in inodes.
+ * They use hash of data as a key and provide a value that may represent a
+ * block or inode number. That's why keys need not be unique (hash of different
+ * data may be the same). However user provided value always uniquely
+ * identifies a cache entry.
  *
  * We provide functions for creation and removal of entries, search by key,
  * and a special "delete entry with given key-value pair" operation. Fixed
@@ -62,15 +63,15 @@ static inline struct hlist_bl_head *mb_cache_entry_head(struct mb_cache *cache,
  * @cache - cache where the entry should be created
  * @mask - gfp mask with which the entry should be allocated
  * @key - key of the entry
- * @block - block that contains data
- * @reusable - is the block reusable by other inodes?
+ * @value - value of the entry
+ * @reusable - is the entry reusable by others?
  *
- * Creates entry in @cache with key @key and records that data is stored in
- * block @block. The function returns -EBUSY if entry with the same key
- * and for the same block already exists in cache. Otherwise 0 is returned.
+ * Creates entry in @cache with key @key and value @value. The function returns
+ * -EBUSY if entry with the same key and value already exists in cache.
+ * Otherwise 0 is returned.
  */
 int mb_cache_entry_create(struct mb_cache *cache, gfp_t mask, u32 key,
-			  sector_t block, bool reusable)
+			  u64 value, bool reusable)
 {
 	struct mb_cache_entry *entry, *dup;
 	struct hlist_bl_node *dup_node;
@@ -91,12 +92,12 @@ int mb_cache_entry_create(struct mb_cache *cache, gfp_t mask, u32 key,
 	/* One ref for hash, one ref returned */
 	atomic_set(&entry->e_refcnt, 1);
 	entry->e_key = key;
-	entry->e_block = block;
+	entry->e_value = value;
 	entry->e_reusable = reusable;
 	head = mb_cache_entry_head(cache, key);
 	hlist_bl_lock(head);
 	hlist_bl_for_each_entry(dup, dup_node, head, e_hash_list) {
-		if (dup->e_key == key && dup->e_block == block) {
+		if (dup->e_key == key && dup->e_value == value) {
 			hlist_bl_unlock(head);
 			kmem_cache_free(mb_entry_cache, entry);
 			return -EBUSY;
@@ -187,13 +188,13 @@ struct mb_cache_entry *mb_cache_entry_find_next(struct mb_cache *cache,
 EXPORT_SYMBOL(mb_cache_entry_find_next);
 
 /*
- * mb_cache_entry_get - get a cache entry by block number (and key)
+ * mb_cache_entry_get - get a cache entry by value (and key)
  * @cache - cache we work with
- * @key - key of block number @block
- * @block - block number
+ * @key - key
+ * @value - value
  */
 struct mb_cache_entry *mb_cache_entry_get(struct mb_cache *cache, u32 key,
-					  sector_t block)
+					  u64 value)
 {
 	struct hlist_bl_node *node;
 	struct hlist_bl_head *head;
@@ -202,7 +203,7 @@ struct mb_cache_entry *mb_cache_entry_get(struct mb_cache *cache, u32 key,
 	head = mb_cache_entry_head(cache, key);
 	hlist_bl_lock(head);
 	hlist_bl_for_each_entry(entry, node, head, e_hash_list) {
-		if (entry->e_key == key && entry->e_block == block) {
+		if (entry->e_key == key && entry->e_value == value) {
 			atomic_inc(&entry->e_refcnt);
 			goto out;
 		}
@@ -214,15 +215,14 @@ out:
 }
 EXPORT_SYMBOL(mb_cache_entry_get);
 
-/* mb_cache_entry_delete_block - remove information about block from cache
+/* mb_cache_entry_delete - remove a cache entry
  * @cache - cache we work with
- * @key - key of block @block
- * @block - block number
+ * @key - key
+ * @value - value
  *
- * Remove entry from cache @cache with key @key with data stored in @block.
+ * Remove entry from cache @cache with key @key and value @value.
  */
-void mb_cache_entry_delete_block(struct mb_cache *cache, u32 key,
-				 sector_t block)
+void mb_cache_entry_delete(struct mb_cache *cache, u32 key, u64 value)
 {
 	struct hlist_bl_node *node;
 	struct hlist_bl_head *head;
@@ -231,7 +231,7 @@ void mb_cache_entry_delete_block(struct mb_cache *cache, u32 key,
 	head = mb_cache_entry_head(cache, key);
 	hlist_bl_lock(head);
 	hlist_bl_for_each_entry(entry, node, head, e_hash_list) {
-		if (entry->e_key == key && entry->e_block == block) {
+		if (entry->e_key == key && entry->e_value == value) {
 			/* We keep hash list reference to keep entry alive */
 			hlist_bl_del_init(&entry->e_hash_list);
 			hlist_bl_unlock(head);
@@ -248,7 +248,7 @@ void mb_cache_entry_delete_block(struct mb_cache *cache, u32 key,
 	}
 	hlist_bl_unlock(head);
 }
-EXPORT_SYMBOL(mb_cache_entry_delete_block);
+EXPORT_SYMBOL(mb_cache_entry_delete);
 
 /* mb_cache_entry_touch - cache entry got used
  * @cache - cache the entry belongs to

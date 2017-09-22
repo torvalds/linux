@@ -23,7 +23,7 @@
  */
 
 #define DRV_VERSION	"1.39"
-static const char *version = "tc35815.c:v" DRV_VERSION "\n";
+static const char version[] = "tc35815.c:v" DRV_VERSION "\n";
 #define MODNAME			"tc35815"
 
 #include <linux/module.h>
@@ -1017,8 +1017,8 @@ tc35815_free_queues(struct net_device *dev)
 			BUG_ON(lp->tx_skbs[i].skb != skb);
 #endif
 			if (skb) {
-				dev_kfree_skb(skb);
 				pci_unmap_single(lp->pci_dev, lp->tx_skbs[i].skb_dma, skb->len, PCI_DMA_TODEVICE);
+				dev_kfree_skb(skb);
 				lp->tx_skbs[i].skb = NULL;
 				lp->tx_skbs[i].skb_dma = 0;
 			}
@@ -1338,7 +1338,7 @@ static int tc35815_send_packet(struct sk_buff *skb, struct net_device *dev)
 static void tc35815_fatal_error_interrupt(struct net_device *dev, u32 status)
 {
 	static int count;
-	printk(KERN_WARNING "%s: Fatal Error Intterrupt (%#x):",
+	printk(KERN_WARNING "%s: Fatal Error Interrupt (%#x):",
 	       dev->name, status);
 	if (status & Int_IntPCI)
 		printk(" IntPCI");

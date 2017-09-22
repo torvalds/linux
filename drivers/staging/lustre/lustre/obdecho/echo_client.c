@@ -31,18 +31,18 @@
  */
 
 #define DEBUG_SUBSYSTEM S_ECHO
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
-#include "../include/obd.h"
-#include "../include/obd_support.h"
-#include "../include/obd_class.h"
-#include "../include/lustre_debug.h"
-#include "../include/lprocfs_status.h"
-#include "../include/cl_object.h"
-#include "../include/lustre_fid.h"
-#include "../include/lustre_acl.h"
-#include "../include/lustre/lustre_ioctl.h"
-#include "../include/lustre_net.h"
+#include <obd.h>
+#include <obd_support.h>
+#include <obd_class.h>
+#include <lustre_debug.h>
+#include <lprocfs_status.h>
+#include <cl_object.h>
+#include <lustre_fid.h>
+#include <lustre_acl.h>
+#include <uapi/linux/lustre/lustre_ioctl.h>
+#include <lustre_net.h>
 
 #include "echo_internal.h"
 
@@ -277,7 +277,7 @@ static int echo_page_print(const struct lu_env *env,
 {
 	struct echo_page *ep = cl2echo_page(slice);
 
-	(*printer)(env, cookie, LUSTRE_ECHO_CLIENT_NAME"-page@%p %d vm@%p\n",
+	(*printer)(env, cookie, LUSTRE_ECHO_CLIENT_NAME "-page@%p %d vm@%p\n",
 		   ep, mutex_is_locked(&ep->ep_lock),
 		   slice->cpl_page->cp_vmpage);
 	return 0;
@@ -319,7 +319,7 @@ static void echo_lock_fini(const struct lu_env *env,
 	kmem_cache_free(echo_lock_kmem, ecl);
 }
 
-static struct cl_lock_operations echo_lock_ops = {
+static const struct cl_lock_operations echo_lock_ops = {
 	.clo_fini      = echo_lock_fini,
 };
 
@@ -816,7 +816,7 @@ cl_echo_object_find(struct echo_device *d, const struct ost_id *oi)
 	struct echo_object *eco;
 	struct cl_object   *obj;
 	struct lu_fid *fid;
-	int refcheck;
+	u16 refcheck;
 	int rc;
 
 	LASSERTF(ostid_id(oi), DOSTID "\n", POSTID(oi));
@@ -882,7 +882,7 @@ static int cl_echo_object_put(struct echo_object *eco)
 {
 	struct lu_env *env;
 	struct cl_object *obj = echo_obj2cl(eco);
-	int refcheck;
+	u16 refcheck;
 
 	env = cl_env_get(&refcheck);
 	if (IS_ERR(env))
@@ -999,7 +999,7 @@ static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
 	struct cl_page	  *clp;
 	struct lustre_handle    lh = { 0 };
 	size_t page_size = cl_page_size(obj);
-	int refcheck;
+	u16 refcheck;
 	int rc;
 	int i;
 
@@ -1102,8 +1102,11 @@ static int echo_create_object(const struct lu_env *env, struct echo_device *ed,
 		return -EINVAL;
 	}
 
-	if (!ostid_id(&oa->o_oi))
-		ostid_set_id(&oa->o_oi, ++last_object_id);
+	if (!ostid_id(&oa->o_oi)) {
+		rc = ostid_set_id(&oa->o_oi, ++last_object_id);
+		if (rc)
+			goto failed;
+	}
 
 	rc = obd_create(env, ec->ec_exp, oa);
 	if (rc != 0) {
@@ -1121,7 +1124,7 @@ static int echo_create_object(const struct lu_env *env, struct echo_device *ed,
 	}
 	cl_echo_object_put(eco);
 
-	CDEBUG(D_INFO, "oa oid "DOSTID"\n", POSTID(&oa->o_oi));
+	CDEBUG(D_INFO, "oa oid " DOSTID "\n", POSTID(&oa->o_oi));
 
  failed:
 	if (created && rc)
@@ -1646,9 +1649,8 @@ static int echo_client_connect(const struct lu_env *env,
 	struct lustre_handle conn = { 0 };
 
 	rc = class_connect(&conn, src, cluuid);
-	if (rc == 0) {
+	if (rc == 0)
 		*exp = class_conn2export(&conn);
-	}
 
 	return rc;
 }

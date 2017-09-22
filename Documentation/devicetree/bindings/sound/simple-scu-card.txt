@@ -1,35 +1,30 @@
-ASoC simple SCU Sound Card
+ASoC Simple SCU Sound Card
 
-Simple-Card specifies audio DAI connections of SoC <-> codec.
+Simple SCU Sound Card is "Simple Sound Card" + "ALSA DPCM".
+For example, you can use this driver if you want to exchange sampling rate convert,
+Mixing, etc...
 
 Required properties:
 
 - compatible				: "simple-scu-audio-card"
 					  "renesas,rsrc-card"
-
 Optional properties:
 
-- simple-audio-card,name		: User specified audio sound card name, one string
-					  property.
-- simple-audio-card,cpu			: CPU   sub-node
-- simple-audio-card,codec		: CODEC sub-node
+- simple-audio-card,name		: see simple-audio-card.txt
+- simple-audio-card,cpu			: see simple-audio-card.txt
+- simple-audio-card,codec		: see simple-audio-card.txt
 
 Optional subnode properties:
 
-- simple-audio-card,format		: CPU/CODEC common audio format.
-					  "i2s", "right_j", "left_j" , "dsp_a"
-					  "dsp_b", "ac97", "pdm", "msb", "lsb"
-- simple-audio-card,frame-master	: Indicates dai-link frame master.
-					  phandle to a cpu or codec subnode.
-- simple-audio-card,bitclock-master	: Indicates dai-link bit clock master.
-					  phandle to a cpu or codec subnode.
-- simple-audio-card,bitclock-inversion	: bool property. Add this if the
-					  dai-link uses bit clock inversion.
-- simple-audio-card,frame-inversion	: bool property. Add this if the
-					  dai-link uses frame clock inversion.
+- simple-audio-card,format		: see simple-audio-card.txt
+- simple-audio-card,frame-master	: see simple-audio-card.txt
+- simple-audio-card,bitclock-master	: see simple-audio-card.txt
+- simple-audio-card,bitclock-inversion	: see simple-audio-card.txt
+- simple-audio-card,frame-inversion	: see simple-audio-card.txt
 - simple-audio-card,convert-rate	: platform specified sampling rate convert
 - simple-audio-card,convert-channels	: platform specified converted channel size (2 - 8 ch)
-- simple-audio-card,prefix		: see audio-routing
+- simple-audio-card,prefix		: see routing
+- simple-audio-card,widgets		: Please refer to widgets.txt.
 - simple-audio-card,routing		: A list of the connections between audio components.
 					  Each entry is a pair of strings, the first being the connection's sink,
 					  the second being the connection's source. Valid names for sources.
@@ -38,32 +33,23 @@ Optional subnode properties:
 
 Required CPU/CODEC subnodes properties:
 
-- sound-dai				: phandle and port of CPU/CODEC
+- sound-dai				: see simple-audio-card.txt
 
 Optional CPU/CODEC subnodes properties:
 
-- clocks / system-clock-frequency	: specify subnode's clock if needed.
-					  it can be specified via "clocks" if system has
-					  clock node (= common clock), or "system-clock-frequency"
-					  (if system doens't support common clock)
-					  If a clock is specified, it is
-					  enabled with clk_prepare_enable()
-					  in dai startup() and disabled with
-					  clk_disable_unprepare() in dai
-					  shutdown().
+- clocks / system-clock-frequency	: see simple-audio-card.txt
 
-Example 1. Sampling Rate Covert
+Example 1. Sampling Rate Conversion
 
 sound {
 	compatible = "simple-scu-audio-card";
 
 	simple-audio-card,name = "rsnd-ak4643";
 	simple-audio-card,format = "left_j";
-	simple-audio-card,format = "left_j";
 	simple-audio-card,bitclock-master = <&sndcodec>;
 	simple-audio-card,frame-master = <&sndcodec>;
 
-	simple-audio-card,convert-rate = <48000>; /* see audio_clk_a */
+	simple-audio-card,convert-rate = <48000>;
 
 	simple-audio-card,prefix = "ak4642";
 	simple-audio-card,routing = "ak4642 Playback", "DAI0 Playback",
@@ -79,20 +65,18 @@ sound {
 	};
 };
 
-Example 2. 2 CPU 1 Codec
+Example 2. 2 CPU 1 Codec (Mixing)
 
 sound {
-	compatible = "renesas,rsrc-card";
+	compatible = "simple-scu-audio-card";
 
-	card-name = "rsnd-ak4643";
-	format = "left_j";
-	bitclock-master = <&dpcmcpu>;
-	frame-master = <&dpcmcpu>;
+	simple-audio-card,name = "rsnd-ak4643";
+	simple-audio-card,format = "left_j";
+	simple-audio-card,bitclock-master = <&dpcmcpu>;
+	simple-audio-card,frame-master = <&dpcmcpu>;
 
-	convert-rate = <48000>;  /* see audio_clk_a */
-
-	audio-prefix = "ak4642";
-	audio-routing = "ak4642 Playback", "DAI0 Playback",
+	simple-audio-card,prefix = "ak4642";
+	simple-audio-card,routing = "ak4642 Playback", "DAI0 Playback",
 			"ak4642 Playback", "DAI1 Playback";
 
 	dpcmcpu: cpu@0 {

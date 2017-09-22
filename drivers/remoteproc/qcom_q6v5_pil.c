@@ -153,6 +153,7 @@ struct q6v5 {
 	size_t mpss_size;
 
 	struct qcom_rproc_subdev smd_subdev;
+	struct qcom_rproc_ssr ssr_subdev;
 };
 
 static int q6v5_regulator_init(struct device *dev, struct reg_info *regs,
@@ -867,7 +868,8 @@ static int q6v5_init_clocks(struct device *dev, struct clk **clks,
 
 static int q6v5_init_reset(struct q6v5 *qproc)
 {
-	qproc->mss_restart = devm_reset_control_get(qproc->dev, NULL);
+	qproc->mss_restart = devm_reset_control_get_exclusive(qproc->dev,
+							      NULL);
 	if (IS_ERR(qproc->mss_restart)) {
 		dev_err(qproc->dev, "failed to acquire mss restart\n");
 		return PTR_ERR(qproc->mss_restart);
@@ -1038,6 +1040,7 @@ static int q6v5_probe(struct platform_device *pdev)
 	}
 
 	qcom_add_smd_subdev(rproc, &qproc->smd_subdev);
+	qcom_add_ssr_subdev(rproc, &qproc->ssr_subdev, "mpss");
 
 	ret = rproc_add(rproc);
 	if (ret)
@@ -1058,6 +1061,7 @@ static int q6v5_remove(struct platform_device *pdev)
 	rproc_del(qproc->rproc);
 
 	qcom_remove_smd_subdev(qproc->rproc, &qproc->smd_subdev);
+	qcom_remove_ssr_subdev(qproc->rproc, &qproc->ssr_subdev);
 	rproc_free(qproc->rproc);
 
 	return 0;

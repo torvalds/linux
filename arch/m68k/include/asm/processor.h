@@ -122,16 +122,6 @@ static inline void start_thread(struct pt_regs * regs, unsigned long pc,
 	wrusp(usp);
 }
 
-#ifdef CONFIG_MMU
-extern int handle_kernel_fault(struct pt_regs *regs);
-#else
-static inline  int handle_kernel_fault(struct pt_regs *regs)
-{
-	/* Any fault in kernel is fatal on non-mmu */
-	return 0;
-}
-#endif
-
 /* Forward declaration, a strange C thing */
 struct task_struct;
 
@@ -139,8 +129,6 @@ struct task_struct;
 static inline void release_thread(struct task_struct *dead_task)
 {
 }
-
-extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
 unsigned long get_wchan(struct task_struct *p);
 

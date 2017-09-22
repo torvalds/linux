@@ -5,6 +5,7 @@
 
 #ifndef __ASSEMBLY__
 #include <linux/mmdebug.h>
+#include <linux/bug.h>
 #endif
 
 /*
@@ -13,6 +14,7 @@
 #define _PAGE_BIT_SWAP_TYPE	0
 
 #define _PAGE_RO		0
+#define _PAGE_SHARED		0
 
 #define _PAGE_EXEC		0x00001 /* execute permission */
 #define _PAGE_WRITE		0x00002 /* write access allowed */
@@ -37,21 +39,50 @@
 #define _RPAGE_RSV3		0x0400000000000000UL
 #define _RPAGE_RSV4		0x0200000000000000UL
 
-#ifdef CONFIG_MEM_SOFT_DIRTY
-#define _PAGE_SOFT_DIRTY	_RPAGE_SW3 /* software: software dirty tracking */
-#else
-#define _PAGE_SOFT_DIRTY	0x00000
-#endif
-#define _PAGE_SPECIAL		_RPAGE_SW2 /* software: special page */
+#define _PAGE_PTE		0x4000000000000000UL	/* distinguishes PTEs from pointers */
+#define _PAGE_PRESENT		0x8000000000000000UL	/* pte contains a translation */
 
 /*
- * For P9 DD1 only, we need to track whether the pte's huge.
+ * Top and bottom bits of RPN which can be used by hash
+ * translation mode, because we expect them to be zero
+ * otherwise.
  */
-#define _PAGE_LARGE	_RPAGE_RSV1
+#define _RPAGE_RPN0		0x01000
+#define _RPAGE_RPN1		0x02000
+#define _RPAGE_RPN44		0x0100000000000000UL
+#define _RPAGE_RPN43		0x0080000000000000UL
+#define _RPAGE_RPN42		0x0040000000000000UL
+#define _RPAGE_RPN41		0x0020000000000000UL
 
+/* Max physical address bit as per radix table */
+#define _RPAGE_PA_MAX		57
 
-#define _PAGE_PTE		(1ul << 62)	/* distinguishes PTEs from pointers */
-#define _PAGE_PRESENT		(1ul << 63)	/* pte contains a translation */
+/*
+ * Max physical address bit we will use for now.
+ *
+ * This is mostly a hardware limitation and for now Power9 has
+ * a 51 bit limit.
+ *
+ * This is different from the number of physical bit required to address
+ * the last byte of memory. That is defined by MAX_PHYSMEM_BITS.
+ * MAX_PHYSMEM_BITS is a linux limitation imposed by the maximum
+ * number of sections we can support (SECTIONS_SHIFT).
+ *
+ * This is different from Radix page table limitation above and
+ * should always be less than that. The limit is done such that
+ * we can overload the bits between _RPAGE_PA_MAX and _PAGE_PA_MAX
+ * for hash linux page table specific bits.
+ *
+ * In order to be compatible with future hardware generations we keep
+ * some offsets and limit this for now to 53
+ */
+#define _PAGE_PA_MAX		53
+
+#define _PAGE_SOFT_DIRTY	_RPAGE_SW3 /* software: software dirty tracking */
+#define _PAGE_SPECIAL		_RPAGE_SW2 /* software: special page */
+#define _PAGE_DEVMAP		_RPAGE_SW1 /* software: ZONE_DEVICE page */
+#define __HAVE_ARCH_PTE_DEVMAP
+
 /*
  * Drivers request for cache inhibited pte mapping using _PAGE_NO_CACHE
  * Instead of fixing all of them, add an alternate define which
@@ -59,10 +90,11 @@
  */
 #define _PAGE_NO_CACHE		_PAGE_TOLERANT
 /*
- * We support 57 bit real address in pte. Clear everything above 57, and
- * every thing below PAGE_SHIFT;
+ * We support _RPAGE_PA_MAX bit real address in pte. On the linux side
+ * we are limited by _PAGE_PA_MAX. Clear everything above _PAGE_PA_MAX
+ * and every thing below PAGE_SHIFT;
  */
-#define PTE_RPN_MASK	(((1UL << 57) - 1) & (PAGE_MASK))
+#define PTE_RPN_MASK	(((1UL << _PAGE_PA_MAX) - 1) & (PAGE_MASK))
 /*
  * set of bits not changed in pmd_modify. Even though we have hash specific bits
  * in here, on radix we expect them to be zero.
@@ -205,10 +237,6 @@ extern unsigned long __pte_frag_nr;
 extern unsigned long __pte_frag_size_shift;
 #define PTE_FRAG_SIZE_SHIFT __pte_frag_size_shift
 #define PTE_FRAG_SIZE (1UL << PTE_FRAG_SIZE_SHIFT)
-/*
- * Pgtable size used by swapper, init in asm code
- */
-#define MAX_PGD_TABLE_SIZE (sizeof(pgd_t) << RADIX_PGD_INDEX_SIZE)
 
 #define PTRS_PER_PTE	(1 << PTE_INDEX_SIZE)
 #define PTRS_PER_PMD	(1 << PMD_INDEX_SIZE)
@@ -244,8 +272,10 @@ extern unsigned long __vmalloc_end;
 
 extern unsigned long __kernel_virt_start;
 extern unsigned long __kernel_virt_size;
+extern unsigned long __kernel_io_start;
 #define KERN_VIRT_START __kernel_virt_start
 #define KERN_VIRT_SIZE  __kernel_virt_size
+#define KERN_IO_START  __kernel_io_start
 extern struct page *vmemmap;
 extern unsigned long ioremap_bot;
 extern unsigned long pci_io_base;
@@ -270,7 +300,6 @@ extern unsigned long pci_io_base;
  *  PHB_IO_BASE = ISA_IO_BASE + 64K to ISA_IO_BASE + 2G, PHB IO spaces
  * IOREMAP_BASE = ISA_IO_BASE + 2G to VMALLOC_START + PGTABLE_RANGE
  */
-#define KERN_IO_START	(KERN_VIRT_START + (KERN_VIRT_SIZE >> 1))
 #define FULL_IO_SIZE	0x80000000ul
 #define  ISA_IO_BASE	(KERN_IO_START)
 #define  ISA_IO_END	(KERN_IO_START + 0x10000ul)
@@ -379,6 +408,11 @@ static inline bool pte_savedwrite(pte_t pte)
 static inline int pte_write(pte_t pte)
 {
 	return __pte_write(pte) || pte_savedwrite(pte);
+}
+
+static inline int pte_read(pte_t pte)
+{
+	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_READ));
 }
 
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
@@ -573,6 +607,24 @@ static inline pte_t pte_mkspecial(pte_t pte)
 static inline pte_t pte_mkhuge(pte_t pte)
 {
 	return pte;
+}
+
+static inline pte_t pte_mkdevmap(pte_t pte)
+{
+	return __pte(pte_val(pte) | _PAGE_SPECIAL|_PAGE_DEVMAP);
+}
+
+/*
+ * This is potentially called with a pmd as the argument, in which case it's not
+ * safe to check _PAGE_DEVMAP unless we also confirm that _PAGE_PTE is set.
+ * That's because the bit we use for _PAGE_DEVMAP is not reserved for software
+ * use in page directory entries (ie. non-ptes).
+ */
+static inline int pte_devmap(pte_t pte)
+{
+	u64 mask = cpu_to_be64(_PAGE_DEVMAP | _PAGE_PTE);
+
+	return (pte_raw(pte) & mask) == mask;
 }
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
@@ -1121,7 +1173,40 @@ static inline bool arch_needs_pgtable_deposit(void)
 		return false;
 	return true;
 }
+extern void serialize_against_pte_lookup(struct mm_struct *mm);
 
+
+static inline pmd_t pmd_mkdevmap(pmd_t pmd)
+{
+	return __pmd(pmd_val(pmd) | (_PAGE_PTE | _PAGE_DEVMAP));
+}
+
+static inline int pmd_devmap(pmd_t pmd)
+{
+	return pte_devmap(pmd_pte(pmd));
+}
+
+static inline int pud_devmap(pud_t pud)
+{
+	return 0;
+}
+
+static inline int pgd_devmap(pgd_t pgd)
+{
+	return 0;
+}
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+
+static inline const int pud_pfn(pud_t pud)
+{
+	/*
+	 * Currently all calls to pud_pfn() are gated around a pud_devmap()
+	 * check so this should never be used. If it grows another user we
+	 * want to know about it.
+	 */
+	BUILD_BUG();
+	return 0;
+}
+
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_BOOK3S_64_PGTABLE_H_ */

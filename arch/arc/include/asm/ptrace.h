@@ -19,6 +19,11 @@
 #ifdef CONFIG_ISA_ARCOMPACT
 struct pt_regs {
 
+#ifdef CONFIG_ARC_PLAT_EZNPS
+	unsigned long eflags;	/* Extended FLAGS */
+	unsigned long gpa1;	/* General Purpose Aux */
+#endif
+
 	/* Real registers */
 	unsigned long bta;	/* bta_l1, bta_l2, erbta */
 
@@ -85,6 +90,10 @@ struct pt_regs {
 	unsigned long sp;	/* user/kernel sp depending on where we came from  */
 
 	unsigned long r12, r30;
+
+#ifdef CONFIG_ARC_HAS_ACCL_REGS
+	unsigned long r58, r59;	/* ACCL/ACCH used by FPU / DSP MPY */
+#endif
 
 	/*------- Below list auto saved by h/w -----------*/
 	unsigned long r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11;

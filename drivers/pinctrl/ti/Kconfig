@@ -1,6 +1,6 @@
 config PINCTRL_TI_IODELAY
 	tristate "TI IODelay Module pinconf driver"
-	depends on OF
+	depends on OF && (SOC_DRA7XX || COMPILE_TEST)
 	select GENERIC_PINCTRL_GROUPS
 	select GENERIC_PINMUX_FUNCTIONS
 	select GENERIC_PINCONF

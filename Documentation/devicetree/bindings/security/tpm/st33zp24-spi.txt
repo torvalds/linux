@@ -18,7 +18,6 @@ Example (for ARM-based BeagleBoard xM with ST33ZP24 on SPI4):
 
 &mcspi4 {
 
-        status = "okay";
 
         st33zp24@0 {
 

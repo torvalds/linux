@@ -25,7 +25,7 @@ Note: More extensive information for getting started with ext4 can be
 	
 	or
 
-    ftp://ftp.kernel.org/pub/linux/kernel/people/tytso/e2fsprogs/
+    https://www.kernel.org/pub/linux/kernel/people/tytso/e2fsprogs/
 
 	or grab the latest git repository from:
 

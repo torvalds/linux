@@ -83,11 +83,11 @@ static int rxrpc_recvmsg_term(struct rxrpc_call *call, struct msghdr *msg)
 		ret = put_cmsg(msg, SOL_RXRPC, RXRPC_ABORT, 4, &tmp);
 		break;
 	case RXRPC_CALL_NETWORK_ERROR:
-		tmp = call->error;
+		tmp = -call->error;
 		ret = put_cmsg(msg, SOL_RXRPC, RXRPC_NET_ERROR, 4, &tmp);
 		break;
 	case RXRPC_CALL_LOCAL_ERROR:
-		tmp = call->error;
+		tmp = -call->error;
 		ret = put_cmsg(msg, SOL_RXRPC, RXRPC_LOCAL_ERROR, 4, &tmp);
 		break;
 	default:
@@ -522,8 +522,11 @@ try_again:
 	}
 
 	if (msg->msg_name) {
-		size_t len = sizeof(call->conn->params.peer->srx);
-		memcpy(msg->msg_name, &call->conn->params.peer->srx, len);
+		struct sockaddr_rxrpc *srx = msg->msg_name;
+		size_t len = sizeof(call->peer->srx);
+
+		memcpy(msg->msg_name, &call->peer->srx, len);
+		srx->srx_service = call->service_id;
 		msg->msg_namelen = len;
 	}
 
@@ -682,14 +685,16 @@ out:
 	return ret;
 
 short_data:
+	trace_rxrpc_rx_eproto(call, 0, tracepoint_string("short_data"));
 	ret = -EBADMSG;
 	goto out;
 excess_data:
+	trace_rxrpc_rx_eproto(call, 0, tracepoint_string("excess_data"));
 	ret = -EMSGSIZE;
 	goto out;
 call_complete:
 	*_abort = call->abort_code;
-	ret = -call->error;
+	ret = call->error;
 	if (call->completion == RXRPC_CALL_SUCCEEDED) {
 		ret = 1;
 		if (size > 0)

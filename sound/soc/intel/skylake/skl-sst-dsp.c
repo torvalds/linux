@@ -47,7 +47,7 @@ void skl_dsp_init_core_state(struct sst_dsp *ctx)
 	skl->cores.state[SKL_DSP_CORE0_ID] = SKL_DSP_RUNNING;
 	skl->cores.usage_count[SKL_DSP_CORE0_ID] = 1;
 
-	for (i = SKL_DSP_CORE0_ID + 1; i < SKL_DSP_CORES_MAX; i++) {
+	for (i = SKL_DSP_CORE0_ID + 1; i < skl->cores.count; i++) {
 		skl->cores.state[i] = SKL_DSP_RESET;
 		skl->cores.usage_count[i] = 0;
 	}
@@ -351,16 +351,17 @@ int skl_dsp_get_core(struct sst_dsp *ctx, unsigned int core_id)
 		return -EINVAL;
 	}
 
+	skl->cores.usage_count[core_id]++;
+
 	if (skl->cores.state[core_id] == SKL_DSP_RESET) {
 		ret = ctx->fw_ops.set_state_D0(ctx, core_id);
 		if (ret < 0) {
 			dev_err(ctx->dev, "unable to get core%d\n", core_id);
-			return ret;
+			goto out;
 		}
 	}
 
-	skl->cores.usage_count[core_id]++;
-
+out:
 	dev_dbg(ctx->dev, "core id %d state %d usage_count %d\n",
 			core_id, skl->cores.state[core_id],
 			skl->cores.usage_count[core_id]);
@@ -379,7 +380,8 @@ int skl_dsp_put_core(struct sst_dsp *ctx, unsigned int core_id)
 		return -EINVAL;
 	}
 
-	if (--skl->cores.usage_count[core_id] == 0) {
+	if ((--skl->cores.usage_count[core_id] == 0) &&
+		(skl->cores.state[core_id] != SKL_DSP_RESET)) {
 		ret = ctx->fw_ops.set_state_D3(ctx, core_id);
 		if (ret < 0) {
 			dev_err(ctx->dev, "unable to put core %d: %d\n",

@@ -46,15 +46,15 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 /* class_put_type() */
-#include "../include/obd_class.h"
-#include "../include/obd_support.h"
-#include "../include/lustre_fid.h"
+#include <obd_class.h>
+#include <obd_support.h>
+#include <lustre_fid.h>
 #include <linux/list.h>
-#include "../../include/linux/libcfs/libcfs_hash.h"	/* for cfs_hash stuff */
-#include "../include/cl_object.h"
-#include "../include/lu_object.h"
+#include <linux/libcfs/libcfs_hash.h>	/* for cfs_hash stuff */
+#include <cl_object.h>
+#include <lu_object.h>
 #include "cl_internal.h"
 
 static struct kmem_cache *cl_env_kmem;
@@ -688,7 +688,7 @@ static inline struct cl_env *cl_env_container(struct lu_env *env)
  *
  * \see cl_env_put()
  */
-struct lu_env *cl_env_get(int *refcheck)
+struct lu_env *cl_env_get(u16 *refcheck)
 {
 	struct lu_env *env;
 
@@ -709,7 +709,7 @@ EXPORT_SYMBOL(cl_env_get);
  *
  * \see cl_env_get()
  */
-struct lu_env *cl_env_alloc(int *refcheck, __u32 tags)
+struct lu_env *cl_env_alloc(u16 *refcheck, u32 tags)
 {
 	struct lu_env *env;
 
@@ -769,7 +769,7 @@ EXPORT_SYMBOL(cl_env_cache_purge);
  * this thread is using environment and it is returned to the allocation
  * cache, or freed straight away, if cache is large enough.
  */
-void cl_env_put(struct lu_env *env, int *refcheck)
+void cl_env_put(struct lu_env *env, u16 *refcheck)
 {
 	struct cl_env *cle;
 

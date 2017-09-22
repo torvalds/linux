@@ -1,10 +1,14 @@
+#include <errno.h>
 #include <stdio.h>
 #include <sys/epoll.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <util/util.h>
 #include <util/bpf-loader.h>
 #include <util/evlist.h>
 #include <linux/bpf.h>
 #include <linux/filter.h>
+#include <linux/kernel.h>
 #include <api/fs/fs.h>
 #include <bpf/bpf.h>
 #include "tests.h"
@@ -120,16 +124,16 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	struct perf_evlist *evlist;
 	int i, ret = TEST_FAIL, err = 0, count = 0;
 
-	struct parse_events_evlist parse_evlist;
+	struct parse_events_state parse_state;
 	struct parse_events_error parse_error;
 
 	bzero(&parse_error, sizeof(parse_error));
-	bzero(&parse_evlist, sizeof(parse_evlist));
-	parse_evlist.error = &parse_error;
-	INIT_LIST_HEAD(&parse_evlist.list);
+	bzero(&parse_state, sizeof(parse_state));
+	parse_state.error = &parse_error;
+	INIT_LIST_HEAD(&parse_state.list);
 
-	err = parse_events_load_bpf_obj(&parse_evlist, &parse_evlist.list, obj, NULL);
-	if (err || list_empty(&parse_evlist.list)) {
+	err = parse_events_load_bpf_obj(&parse_state, &parse_state.list, obj, NULL);
+	if (err || list_empty(&parse_state.list)) {
 		pr_debug("Failed to add events selected by BPF\n");
 		return TEST_FAIL;
 	}
@@ -151,8 +155,8 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 		goto out_delete_evlist;
 	}
 
-	perf_evlist__splice_list_tail(evlist, &parse_evlist.list);
-	evlist->nr_groups = parse_evlist.nr_groups;
+	perf_evlist__splice_list_tail(evlist, &parse_state.list);
+	evlist->nr_groups = parse_state.nr_groups;
 
 	perf_evlist__config(evlist, &opts, NULL);
 
@@ -317,7 +321,7 @@ static int check_env(void)
 	return 0;
 }
 
-int test__bpf(int i)
+int test__bpf(struct test *test __maybe_unused, int i)
 {
 	int err;
 
@@ -347,7 +351,7 @@ const char *test__bpf_subtest_get_desc(int i __maybe_unused)
 	return NULL;
 }
 
-int test__bpf(int i __maybe_unused)
+int test__bpf(struct test *test __maybe_unused, int i __maybe_unused)
 {
 	pr_debug("Skip BPF test because BPF support is not compiled\n");
 	return TEST_SKIP;

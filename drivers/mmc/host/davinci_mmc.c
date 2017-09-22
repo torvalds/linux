@@ -478,18 +478,14 @@ static int mmc_davinci_start_dma_transfer(struct mmc_davinci_host *host,
 	int ret = 0;
 
 	host->sg_len = dma_map_sg(mmc_dev(host->mmc), data->sg, data->sg_len,
-				((data->flags & MMC_DATA_WRITE)
-				? DMA_TO_DEVICE
-				: DMA_FROM_DEVICE));
+				  mmc_get_dma_dir(data));
 
 	/* no individual DMA segment should need a partial FIFO */
 	for (i = 0; i < host->sg_len; i++) {
 		if (sg_dma_len(data->sg + i) & mask) {
 			dma_unmap_sg(mmc_dev(host->mmc),
-					data->sg, data->sg_len,
-					(data->flags & MMC_DATA_WRITE)
-					? DMA_TO_DEVICE
-					: DMA_FROM_DEVICE);
+				     data->sg, data->sg_len,
+				     mmc_get_dma_dir(data));
 			return -1;
 		}
 	}
@@ -802,9 +798,7 @@ mmc_davinci_xfer_done(struct mmc_davinci_host *host, struct mmc_data *data)
 		davinci_abort_dma(host);
 
 		dma_unmap_sg(mmc_dev(host->mmc), data->sg, data->sg_len,
-			     (data->flags & MMC_DATA_WRITE)
-			     ? DMA_TO_DEVICE
-			     : DMA_FROM_DEVICE);
+			     mmc_get_dma_dir(data));
 		host->do_dma = false;
 	}
 	host->data_dir = DAVINCI_MMC_DATADIR_NONE;
@@ -1068,7 +1062,7 @@ static void mmc_davinci_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	}
 }
 
-static struct mmc_host_ops mmc_davinci_ops = {
+static const struct mmc_host_ops mmc_davinci_ops = {
 	.request	= mmc_davinci_request,
 	.set_ios	= mmc_davinci_set_ios,
 	.get_cd		= mmc_davinci_get_cd,

@@ -69,6 +69,9 @@
  */
 #define PCI_DEVICE_ID_VMWARE_PVRDMA	0x0820
 
+#define PVRDMA_NUM_RING_PAGES		4
+#define PVRDMA_QP_NUM_HEADER_PAGES	1
+
 struct pvrdma_dev;
 
 struct pvrdma_page_dir {
@@ -191,6 +194,7 @@ struct pvrdma_dev {
 	void *resp_slot;
 	unsigned long flags;
 	struct list_head device_link;
+	unsigned int dsr_version;
 
 	/* Locking and interrupt information. */
 	spinlock_t cmd_lock; /* Command lock. */
@@ -437,10 +441,11 @@ void pvrdma_global_route_to_ib(struct ib_global_route *dst,
 			       const struct pvrdma_global_route *src);
 void ib_global_route_to_pvrdma(struct pvrdma_global_route *dst,
 			       const struct ib_global_route *src);
-void pvrdma_ah_attr_to_ib(struct ib_ah_attr *dst,
-			  const struct pvrdma_ah_attr *src);
-void ib_ah_attr_to_pvrdma(struct pvrdma_ah_attr *dst,
-			  const struct ib_ah_attr *src);
+void pvrdma_ah_attr_to_rdma(struct rdma_ah_attr *dst,
+			    const struct pvrdma_ah_attr *src);
+void rdma_ah_attr_to_pvrdma(struct pvrdma_ah_attr *dst,
+			    const struct rdma_ah_attr *src);
+u8 ib_gid_type_to_pvrdma(enum ib_gid_type gid_type);
 
 int pvrdma_uar_table_init(struct pvrdma_dev *dev);
 void pvrdma_uar_table_cleanup(struct pvrdma_dev *dev);

@@ -11,17 +11,6 @@ fi
 disable_tracing
 clear_trace
 
-# filter by ?, schedule is always good
-if ! echo "sch?dule" > set_ftrace_filter; then
-    # test for powerpc 64
-    if ! echo ".sch?dule" > set_ftrace_filter; then
-	fail "can not enable schedule filter"
-    fi
-    cat set_ftrace_filter | grep '^.schedule$'
-else
-    cat set_ftrace_filter | grep '^schedule$'
-fi
-
 ftrace_filter_check() { # glob grep
   echo "$1" > set_ftrace_filter
   cut -f1 -d" " set_ftrace_filter > $TMPDIR/actual
@@ -39,11 +28,28 @@ ftrace_filter_check '*schedule*' '^.*schedule.*$'
 # filter by *, end match
 ftrace_filter_check 'schedule*' '^schedule.*$'
 
+# Advanced full-glob matching feature is recently supported.
+# Skip the tests if we are sure the kernel does not support it.
+if grep -q 'accepts: .* glob-matching-pattern' README ; then
+
 # filter by *, both side match
 ftrace_filter_check 'sch*ule' '^sch.*ule$'
 
 # filter by char class.
 ftrace_filter_check '[Ss]y[Ss]_*' '^[Ss]y[Ss]_.*$'
+
+# filter by ?, schedule is always good
+if ! echo "sch?dule" > set_ftrace_filter; then
+    # test for powerpc 64
+    if ! echo ".sch?dule" > set_ftrace_filter; then
+	fail "can not enable schedule filter"
+    fi
+    cat set_ftrace_filter | grep '^.schedule$'
+else
+    cat set_ftrace_filter | grep '^schedule$'
+fi
+
+fi
 
 echo > set_ftrace_filter
 enable_tracing

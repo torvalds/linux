@@ -811,7 +811,7 @@ static int ov5642_set_fmt(struct v4l2_subdev *sd,
 	mf->field	= V4L2_FIELD_NONE;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		priv->fmt = ov5642_find_datafmt(mf->code);
+		priv->fmt = fmt;
 	else
 		cfg->try_fmt = *mf;
 	return 0;
@@ -943,7 +943,7 @@ static int ov5642_s_power(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
-static struct v4l2_subdev_video_ops ov5642_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops ov5642_subdev_video_ops = {
 	.g_mbus_config	= ov5642_g_mbus_config,
 };
 
@@ -955,7 +955,7 @@ static const struct v4l2_subdev_pad_ops ov5642_subdev_pad_ops = {
 	.set_fmt	= ov5642_set_fmt,
 };
 
-static struct v4l2_subdev_core_ops ov5642_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops ov5642_subdev_core_ops = {
 	.s_power	= ov5642_s_power,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= ov5642_get_register,
@@ -963,7 +963,7 @@ static struct v4l2_subdev_core_ops ov5642_subdev_core_ops = {
 #endif
 };
 
-static struct v4l2_subdev_ops ov5642_subdev_ops = {
+static const struct v4l2_subdev_ops ov5642_subdev_ops = {
 	.core	= &ov5642_subdev_core_ops,
 	.video	= &ov5642_subdev_video_ops,
 	.pad	= &ov5642_subdev_pad_ops,
@@ -1063,9 +1063,18 @@ static const struct i2c_device_id ov5642_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ov5642_id);
 
+#if IS_ENABLED(CONFIG_OF)
+static const struct of_device_id ov5642_of_match[] = {
+	{ .compatible = "ovti,ov5642" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ov5642_of_match);
+#endif
+
 static struct i2c_driver ov5642_i2c_driver = {
 	.driver = {
 		.name = "ov5642",
+		.of_match_table = of_match_ptr(ov5642_of_match),
 	},
 	.probe		= ov5642_probe,
 	.remove		= ov5642_remove,

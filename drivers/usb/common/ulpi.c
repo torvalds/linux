@@ -107,7 +107,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 	int len;
 	struct ulpi *ulpi = to_ulpi_dev(dev);
 
-	len = of_device_get_modalias(dev, buf, PAGE_SIZE - 1);
+	len = of_device_modalias(dev, buf, PAGE_SIZE);
 	if (len != -ENODEV)
 		return len;
 
@@ -135,7 +135,7 @@ static void ulpi_dev_release(struct device *dev)
 	kfree(to_ulpi_dev(dev));
 }
 
-static struct device_type ulpi_dev_type = {
+static const struct device_type ulpi_dev_type = {
 	.name = "ulpi_device",
 	.groups = ulpi_dev_attr_groups,
 	.release = ulpi_dev_release,

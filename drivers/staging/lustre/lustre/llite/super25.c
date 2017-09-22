@@ -34,11 +34,11 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include "../include/lustre_ha.h"
-#include "../include/lustre_dlm.h"
+#include <lustre_ha.h>
+#include <lustre_dlm.h>
 #include <linux/init.h>
 #include <linux/fs.h>
-#include "../include/lprocfs_status.h"
+#include <lprocfs_status.h>
 #include "llite_internal.h"
 
 static struct kmem_cache *ll_inode_cachep;
@@ -84,7 +84,7 @@ MODULE_ALIAS_FS("lustre");
 
 static int __init lustre_init(void)
 {
-	lnet_process_id_t lnet_id;
+	struct lnet_process_id lnet_id;
 	struct timespec64 ts;
 	int i, rc, seed[2];
 

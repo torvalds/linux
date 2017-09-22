@@ -373,7 +373,7 @@ static void bot_cleanup_old_alt(struct f_uas *fu)
 	usb_ep_free_request(fu->ep_in, fu->bot_req_in);
 	usb_ep_free_request(fu->ep_out, fu->bot_req_out);
 	usb_ep_free_request(fu->ep_out, fu->cmd.req);
-	usb_ep_free_request(fu->ep_out, fu->bot_status.req);
+	usb_ep_free_request(fu->ep_in, fu->bot_status.req);
 
 	kfree(fu->cmd.buf);
 

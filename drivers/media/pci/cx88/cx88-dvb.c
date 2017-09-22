@@ -306,7 +306,7 @@ static const struct zl10353_config cx88_terratec_cinergy_ht_pci_mkii_config = {
 	.if2           = 45600,
 };
 
-static struct mb86a16_config twinhan_vp1027 = {
+static const struct mb86a16_config twinhan_vp1027 = {
 	.demod_address  = 0x08,
 };
 

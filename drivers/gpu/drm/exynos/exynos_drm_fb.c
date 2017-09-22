@@ -145,13 +145,19 @@ static struct drm_framebuffer *
 exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		      const struct drm_mode_fb_cmd2 *mode_cmd)
 {
+	const struct drm_format_info *info = drm_get_format_info(dev, mode_cmd);
 	struct exynos_drm_gem *exynos_gem[MAX_FB_BUFFER];
 	struct drm_gem_object *obj;
 	struct drm_framebuffer *fb;
 	int i;
 	int ret;
 
-	for (i = 0; i < drm_format_num_planes(mode_cmd->pixel_format); i++) {
+	for (i = 0; i < info->num_planes; i++) {
+		unsigned int height = (i == 0) ? mode_cmd->height :
+				     DIV_ROUND_UP(mode_cmd->height, info->vsub);
+		unsigned long size = height * mode_cmd->pitches[i] +
+				     mode_cmd->offsets[i];
+
 		obj = drm_gem_object_lookup(file_priv, mode_cmd->handles[i]);
 		if (!obj) {
 			DRM_ERROR("failed to lookup gem object\n");
@@ -160,6 +166,12 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		}
 
 		exynos_gem[i] = to_exynos_gem(obj);
+
+		if (size > exynos_gem[i]->size) {
+			i++;
+			ret = -EINVAL;
+			goto err;
+		}
 	}
 
 	fb = exynos_drm_framebuffer_init(dev, mode_cmd, exynos_gem, i);
@@ -181,39 +193,14 @@ dma_addr_t exynos_drm_fb_dma_addr(struct drm_framebuffer *fb, int index)
 {
 	struct exynos_drm_fb *exynos_fb = to_exynos_fb(fb);
 
-	if (index >= MAX_FB_BUFFER)
-		return DMA_ERROR_CODE;
+	if (WARN_ON_ONCE(index >= MAX_FB_BUFFER))
+		return 0;
 
 	return exynos_fb->dma_addr[index];
 }
 
-static void exynos_drm_atomic_commit_tail(struct drm_atomic_state *state)
-{
-	struct drm_device *dev = state->dev;
-
-	drm_atomic_helper_commit_modeset_disables(dev, state);
-
-	drm_atomic_helper_commit_modeset_enables(dev, state);
-
-	/*
-	 * Exynos can't update planes with CRTCs and encoders disabled,
-	 * its updates routines, specially for FIMD, requires the clocks
-	 * to be enabled. So it is necessary to handle the modeset operations
-	 * *before* the commit_planes() step, this way it will always
-	 * have the relevant clocks enabled to perform the update.
-	 */
-	drm_atomic_helper_commit_planes(dev, state,
-					DRM_PLANE_COMMIT_ACTIVE_ONLY);
-
-	drm_atomic_helper_commit_hw_done(state);
-
-	drm_atomic_helper_wait_for_vblanks(dev, state);
-
-	drm_atomic_helper_cleanup_planes(dev, state);
-}
-
 static struct drm_mode_config_helper_funcs exynos_drm_mode_config_helpers = {
-	.atomic_commit_tail = exynos_drm_atomic_commit_tail,
+	.atomic_commit_tail = drm_atomic_helper_commit_tail_rpm,
 };
 
 static const struct drm_mode_config_funcs exynos_drm_mode_config_funcs = {
@@ -238,4 +225,6 @@ void exynos_drm_mode_config_init(struct drm_device *dev)
 
 	dev->mode_config.funcs = &exynos_drm_mode_config_funcs;
 	dev->mode_config.helper_private = &exynos_drm_mode_config_helpers;
+
+	dev->mode_config.allow_fb_modifiers = true;
 }

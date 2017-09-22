@@ -58,6 +58,9 @@ int main(void)
 	OFFSET(__SF_BACKCHAIN, stack_frame, back_chain);
 	OFFSET(__SF_GPRS, stack_frame, gprs);
 	OFFSET(__SF_EMPTY, stack_frame, empty1);
+	OFFSET(__SF_SIE_CONTROL, stack_frame, empty1[0]);
+	OFFSET(__SF_SIE_SAVEAREA, stack_frame, empty1[1]);
+	OFFSET(__SF_SIE_REASON, stack_frame, empty1[2]);
 	BLANK();
 	/* timeval/timezone offsets for use by vdso */
 	OFFSET(__VDSO_UPD_COUNT, vdso_data, tb_update_count);
@@ -155,6 +158,7 @@ int main(void)
 	OFFSET(__LC_LAST_UPDATE_CLOCK, lowcore, last_update_clock);
 	OFFSET(__LC_INT_CLOCK, lowcore, int_clock);
 	OFFSET(__LC_MCCK_CLOCK, lowcore, mcck_clock);
+	OFFSET(__LC_BOOT_CLOCK, lowcore, boot_clock);
 	OFFSET(__LC_CURRENT, lowcore, current_task);
 	OFFSET(__LC_KERNEL_STACK, lowcore, kernel_stack);
 	OFFSET(__LC_ASYNC_STACK, lowcore, async_stack);
@@ -175,7 +179,7 @@ int main(void)
 	/* software defined ABI-relevant lowcore locations 0xe00 - 0xe20 */
 	OFFSET(__LC_DUMP_REIPL, lowcore, ipib);
 	/* hardware defined lowcore locations 0x1000 - 0x18ff */
-	OFFSET(__LC_VX_SAVE_AREA_ADDR, lowcore, vector_save_area_addr);
+	OFFSET(__LC_MCESAD, lowcore, mcesad);
 	OFFSET(__LC_EXT_PARAMS2, lowcore, ext_params2);
 	OFFSET(__LC_FPREGS_SAVE_AREA, lowcore, floating_pt_save_area);
 	OFFSET(__LC_GPREGS_SAVE_AREA, lowcore, gpregs_save_area);

@@ -185,13 +185,13 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 	chip->owner		= THIS_MODULE;
 	chip->parent		= bcma_bus_get_host_dev(bus);
 #if IS_BUILTIN(CONFIG_OF)
-	if (cc->core->bus->hosttype == BCMA_HOSTTYPE_SOC)
-		chip->of_node	= cc->core->dev.of_node;
+	chip->of_node		= cc->core->dev.of_node;
 #endif
 	switch (bus->chipinfo.id) {
 	case BCMA_CHIP_ID_BCM4707:
 	case BCMA_CHIP_ID_BCM5357:
 	case BCMA_CHIP_ID_BCM53572:
+	case BCMA_CHIP_ID_BCM53573:
 	case BCMA_CHIP_ID_BCM47094:
 		chip->ngpio	= 32;
 		break;

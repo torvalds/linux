@@ -36,11 +36,10 @@ static void smc_rx_data_ready(struct sock *sk)
 	if (skwq_has_sleeper(wq))
 		wake_up_interruptible_sync_poll(&wq->wait, POLLIN | POLLPRI |
 						POLLRDNORM | POLLRDBAND);
+	sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
 	if ((sk->sk_shutdown == SHUTDOWN_MASK) ||
 	    (sk->sk_state == SMC_CLOSED))
 		sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_HUP);
-	else
-		sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
 	rcu_read_unlock();
 }
 
@@ -171,6 +170,7 @@ copy:
 				  copylen, conn->rmbe_size - cons.count);
 		chunk_len_sum = chunk_len;
 		chunk_off = cons.count;
+		smc_rmb_sync_sg_for_cpu(conn);
 		for (chunk = 0; chunk < 2; chunk++) {
 			if (!(flags & MSG_TRUNC)) {
 				rc = memcpy_to_msg(msg, rcvbuf_base + chunk_off,
@@ -178,6 +178,7 @@ copy:
 				if (rc) {
 					if (!read_done)
 						read_done = -EFAULT;
+					smc_rmb_sync_sg_for_device(conn);
 					goto out;
 				}
 			}
@@ -191,6 +192,7 @@ copy:
 			chunk_len_sum += chunk_len;
 			chunk_off = 0; /* modulo offset in recv ring buffer */
 		}
+		smc_rmb_sync_sg_for_device(conn);
 
 		/* update cursors */
 		if (!(flags & MSG_PEEK)) {

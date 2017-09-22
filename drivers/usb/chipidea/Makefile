@@ -15,3 +15,4 @@ obj-$(CONFIG_USB_CHIPIDEA)	+= ci_hdrc_zevio.o
 obj-$(CONFIG_USB_CHIPIDEA_PCI)	+= ci_hdrc_pci.o
 
 obj-$(CONFIG_USB_CHIPIDEA_OF)	+= usbmisc_imx.o ci_hdrc_imx.o
+obj-$(CONFIG_USB_CHIPIDEA_OF)	+= ci_hdrc_tegra.o

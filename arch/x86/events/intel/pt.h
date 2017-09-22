@@ -110,6 +110,7 @@ struct pt_pmu {
 	struct pmu		pmu;
 	u32			caps[PT_CPUID_REGS_NUM * PT_CPUID_LEAVES];
 	bool			vmx;
+	bool			branch_en_always_on;
 	unsigned long		max_nonturbo_ratio;
 	unsigned int		tsc_art_num;
 	unsigned int		tsc_art_den;
@@ -143,7 +144,6 @@ struct pt_buffer {
 	size_t			output_off;
 	unsigned long		nr_pages;
 	local_t			data_size;
-	local_t			lost;
 	local64_t		head;
 	bool			snapshot;
 	unsigned long		stop_pos, intr_pos;

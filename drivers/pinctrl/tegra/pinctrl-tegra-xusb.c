@@ -873,6 +873,10 @@ static const struct of_device_id tegra_xusb_padctl_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, tegra_xusb_padctl_of_match);
 
+/* predeclare these in order to silence sparse */
+int tegra_xusb_padctl_legacy_probe(struct platform_device *pdev);
+int tegra_xusb_padctl_legacy_remove(struct platform_device *pdev);
+
 int tegra_xusb_padctl_legacy_probe(struct platform_device *pdev)
 {
 	struct tegra_xusb_padctl *padctl;
@@ -897,7 +901,7 @@ int tegra_xusb_padctl_legacy_probe(struct platform_device *pdev)
 	if (IS_ERR(padctl->regs))
 		return PTR_ERR(padctl->regs);
 
-	padctl->rst = devm_reset_control_get(&pdev->dev, NULL);
+	padctl->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(padctl->rst))
 		return PTR_ERR(padctl->rst);
 

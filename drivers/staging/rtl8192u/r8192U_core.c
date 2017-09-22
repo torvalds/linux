@@ -269,9 +269,8 @@ int write_nic_byte_E(struct net_device *dev, int indx, u8 data)
 				 indx | 0xfe00, 0, usbdata, 1, HZ / 2);
 	kfree(usbdata);
 
-	if (status < 0){
-		netdev_err(dev, "write_nic_byte_E TimeOut! status: %d\n",
-			   status);
+	if (status < 0) {
+		netdev_err(dev, "%s TimeOut! status: %d\n", __func__, status);
 		return status;
 	}
 	return 0;
@@ -321,7 +320,7 @@ int write_nic_byte(struct net_device *dev, int indx, u8 data)
 	kfree(usbdata);
 
 	if (status < 0) {
-		netdev_err(dev, "write_nic_byte TimeOut! status: %d\n", status);
+		netdev_err(dev, "%s TimeOut! status: %d\n", __func__, status);
 		return status;
 	}
 
@@ -348,7 +347,7 @@ int write_nic_word(struct net_device *dev, int indx, u16 data)
 	kfree(usbdata);
 
 	if (status < 0) {
-		netdev_err(dev, "write_nic_word TimeOut! status: %d\n", status);
+		netdev_err(dev, "%s TimeOut! status: %d\n", __func__, status);
 		return status;
 	}
 
@@ -376,8 +375,7 @@ int write_nic_dword(struct net_device *dev, int indx, u32 data)
 
 
 	if (status < 0) {
-		netdev_err(dev, "write_nic_dword TimeOut! status: %d\n",
-			   status);
+		netdev_err(dev, "%s TimeOut! status: %d\n", __func__, status);
 		return status;
 	}
 
@@ -1797,8 +1795,8 @@ static void rtl8192_link_change(struct net_device *dev)
 		 * way, but there is no chance to set this as wep will not set
 		 * group key in wext.
 		 */
-		if (KEY_TYPE_WEP40 == ieee->pairwise_key_type ||
-		    KEY_TYPE_WEP104 == ieee->pairwise_key_type)
+		if (ieee->pairwise_key_type == KEY_TYPE_WEP40 ||
+		    ieee->pairwise_key_type == KEY_TYPE_WEP104)
 			EnableHWSecurityConfig8192(dev);
 	}
 	/*update timing params*/
@@ -1814,7 +1812,7 @@ static void rtl8192_link_change(struct net_device *dev)
 	}
 }
 
-static struct ieee80211_qos_parameters def_qos_parameters = {
+static const struct ieee80211_qos_parameters def_qos_parameters = {
 	{cpu_to_le16(3), cpu_to_le16(3), cpu_to_le16(3), cpu_to_le16(3)},
 	{cpu_to_le16(7), cpu_to_le16(7), cpu_to_le16(7), cpu_to_le16(7)},
 	{2, 2, 2, 2},/* aifs */
@@ -2071,7 +2069,7 @@ static bool GetNmodeSupportBySecCfg8192(struct net_device *dev)
 	 */
 	encrypt = (network->capability & WLAN_CAPABILITY_PRIVACY) ||
 		  (ieee->host_encrypt && crypt && crypt->ops &&
-		   (0 == strcmp(crypt->ops->name, "WEP")));
+		   (strcmp(crypt->ops->name, "WEP") == 0));
 
 	/* simply judge  */
 	if (encrypt && (wpa_ie_len == 0)) {
@@ -2519,7 +2517,7 @@ static int rtl8192_read_eeprom_info(struct net_device *dev)
 			for (i = 0; i < 3; i++) {
 				if (bLoad_From_EEPOM) {
 					ret = eprom_read(dev, (EEPROM_TxPwIndex_OFDM_24G + i) >> 1);
-					if ( ret < 0)
+					if (ret < 0)
 						return ret;
 					if (((EEPROM_TxPwIndex_OFDM_24G + i) % 2) == 0)
 						tmpValue = (u16)ret & 0x00ff;
@@ -3023,14 +3021,14 @@ static bool rtl8192_adapter_start(struct net_device *dev)
 
 			for (i = 0; i < CCKTxBBGainTableLength; i++) {
 				if (TempCCk == priv->cck_txbbgain_table[i].ccktxbb_valuearray[0]) {
-					priv->cck_present_attentuation_20Mdefault = (u8)i;
+					priv->cck_present_attenuation_20Mdefault = (u8)i;
 					break;
 				}
 			}
-			priv->cck_present_attentuation_40Mdefault = 0;
-			priv->cck_present_attentuation_difference = 0;
-			priv->cck_present_attentuation =
-				priv->cck_present_attentuation_20Mdefault;
+			priv->cck_present_attenuation_40Mdefault = 0;
+			priv->cck_present_attenuation_difference = 0;
+			priv->cck_present_attenuation =
+				priv->cck_present_attenuation_20Mdefault;
 		}
 	}
 	write_nic_byte(dev, 0x87, 0x0);
@@ -3095,7 +3093,8 @@ static RESET_TYPE TxCheckStuck(struct net_device *dev)
 	if (bCheckFwTxCnt) {
 		if (HalTxCheckStuck819xUsb(dev)) {
 			RT_TRACE(COMP_RESET,
-				 "TxCheckStuck(): Fw indicates no Tx condition!\n");
+				 "%s: Fw indicates no Tx condition!\n",
+				 __func__);
 			return RESET_TYPE_SILENT;
 		}
 	}
@@ -3237,7 +3236,7 @@ static void CamRestoreAllEntry(struct net_device *dev)
 	static u8	CAM_CONST_BROAD[] = {
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-	RT_TRACE(COMP_SEC, "CamRestoreAllEntry:\n");
+	RT_TRACE(COMP_SEC, "%s:\n", __func__);
 
 
 	if ((priv->ieee80211->pairwise_key_type == KEY_TYPE_WEP40) ||
@@ -3835,8 +3834,8 @@ static u8 HwRateToMRate90(bool bIsHT, u8 rate)
 		default:
 			ret_rate = 0xff;
 			RT_TRACE(COMP_RECV,
-				 "HwRateToMRate90(): Non supported Rate [%x], bIsHT = %d!!!\n",
-				 rate, bIsHT);
+				 "%s: Non supported Rate [%x], bIsHT = %d!!!\n",
+				 __func__, rate, bIsHT);
 			break;
 		}
 
@@ -3897,8 +3896,8 @@ static u8 HwRateToMRate90(bool bIsHT, u8 rate)
 		default:
 			ret_rate = 0xff;
 			RT_TRACE(COMP_RECV,
-				 "HwRateToMRate90(): Non supported Rate [%x], bIsHT = %d!!!\n",
-				 rate, bIsHT);
+				 "%s: Non supported Rate [%x], bIsHT = %d!!!\n",
+				 __func__, rate, bIsHT);
 			break;
 		}
 	}
@@ -4242,7 +4241,7 @@ static void rtl8192_query_rxphystatus(struct r8192_priv *priv,
 {
 	phy_sts_ofdm_819xusb_t *pofdm_buf;
 	phy_sts_cck_819xusb_t	*pcck_buf;
-	phy_ofdm_rx_status_rxsc_sgien_exintfflag *prxsc;
+	struct phy_ofdm_rx_status_rxsc_sgien_exintfflag *prxsc;
 	u8	*prxpkt;
 	u8	i, max_spatial_stream, tmp_rxsnr, tmp_rxevm, rxsc_sgien_exflg;
 	s8	rx_pwr[4], rx_pwr_all = 0;
@@ -4432,7 +4431,7 @@ static void rtl8192_query_rxphystatus(struct r8192_priv *priv,
 
 		/* record rx statistics for debug */
 		rxsc_sgien_exflg = pofdm_buf->rxsc_sgien_exflg;
-		prxsc =	(phy_ofdm_rx_status_rxsc_sgien_exintfflag *)
+		prxsc =	(struct phy_ofdm_rx_status_rxsc_sgien_exintfflag *)
 			&rxsc_sgien_exflg;
 		if (pdrvinfo->BW)	/* 40M channel */
 			priv->stats.received_bwtype[1 + prxsc->rxsc]++;
@@ -4498,7 +4497,7 @@ static void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
 	praddr = hdr->addr1;
 
 	/* Check if the received packet is acceptable. */
-	bpacket_match_bssid = (IEEE80211_FTYPE_CTL != type) &&
+	bpacket_match_bssid = (type != IEEE80211_FTYPE_CTL) &&
 			       (eqMacAddr(priv->ieee80211->current_network.bssid,  (fc & IEEE80211_FCTL_TODS) ? hdr->addr1 : (fc & IEEE80211_FCTL_FROMDS) ? hdr->addr2 : hdr->addr3))
 			       && (!pstats->bHwError) && (!pstats->bCRC) && (!pstats->bICV);
 	bpacket_toself =  bpacket_match_bssid &
@@ -5098,7 +5097,7 @@ void EnableHWSecurityConfig8192(struct net_device *dev)
 	struct ieee80211_device *ieee = priv->ieee80211;
 
 	SECR_value = SCR_TxEncEnable | SCR_RxDecEnable;
-	if (((KEY_TYPE_WEP40 == ieee->pairwise_key_type) || (KEY_TYPE_WEP104 == ieee->pairwise_key_type)) && (priv->ieee80211->auth_mode != 2)) {
+	if (((ieee->pairwise_key_type == KEY_TYPE_WEP40) || (ieee->pairwise_key_type == KEY_TYPE_WEP104)) && (priv->ieee80211->auth_mode != 2)) {
 		SECR_value |= SCR_RxUseDK;
 		SECR_value |= SCR_TxUseDK;
 	} else if ((ieee->iw_mode == IW_MODE_ADHOC) && (ieee->pairwise_key_type & (KEY_TYPE_CCMP | KEY_TYPE_TKIP))) {

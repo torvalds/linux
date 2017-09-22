@@ -122,7 +122,7 @@ associated flow of the packet. The hash is either provided by hardware
 or will be computed in the stack. Capable hardware can pass the hash in
 the receive descriptor for the packet; this would usually be the same
 hash used for RSS (e.g. computed Toeplitz hash). The hash is saved in
-skb->rx_hash and can be used elsewhere in the stack as a hash of the
+skb->hash and can be used elsewhere in the stack as a hash of the
 packet’s flow.
 
 Each receive hardware queue has an associated list of CPUs to which

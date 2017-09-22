@@ -315,6 +315,7 @@ static void intel_enable_source_psr1(struct intel_dp *intel_dp)
 	else
 		val |= EDP_PSR_TP1_TP2_SEL;
 
+	val |= I915_READ(EDP_PSR_CTL) & EDP_PSR_RESTORE_PSR_ACTIVE_CTX_MASK;
 	I915_WRITE(EDP_PSR_CTL, val);
 }
 
@@ -435,8 +436,9 @@ static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
 	}
 
 	/* PSR2 is restricted to work with panel resolutions upto 3200x2000 */
-	if (intel_crtc->config->pipe_src_w > 3200 ||
-				intel_crtc->config->pipe_src_h > 2000) {
+	if (dev_priv->psr.psr2_support &&
+	    (intel_crtc->config->pipe_src_w > 3200 ||
+	     intel_crtc->config->pipe_src_h > 2000)) {
 		dev_priv->psr.psr2_support = false;
 		return false;
 	}

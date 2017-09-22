@@ -295,7 +295,6 @@ Doing it all yourself
    settings in the PHY.
 
  int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd);
- int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd);
 
    Ethtool convenience functions.
 

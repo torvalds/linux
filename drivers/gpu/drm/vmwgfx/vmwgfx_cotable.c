@@ -30,9 +30,10 @@
  * whenever the backing MOB is evicted.
  */
 
+#include <drm/ttm/ttm_placement.h>
+
 #include "vmwgfx_drv.h"
 #include "vmwgfx_resource_priv.h"
-#include <ttm/ttm_placement.h>
 #include "vmwgfx_so.h"
 
 /**
@@ -583,7 +584,7 @@ struct vmw_resource *vmw_cotable_alloc(struct vmw_private *dev_priv,
 		return ERR_PTR(ret);
 
 	vcotbl = kzalloc(sizeof(*vcotbl), GFP_KERNEL);
-	if (unlikely(vcotbl == NULL)) {
+	if (unlikely(!vcotbl)) {
 		ret = -ENOMEM;
 		goto out_no_alloc;
 	}

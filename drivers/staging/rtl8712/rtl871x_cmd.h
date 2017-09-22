@@ -144,7 +144,7 @@ struct disconnect_parm {
  * #define IW_MODE_REPEAT	4	// Wireless Repeater (forwarder)
  * #define IW_MODE_SECOND	5	// Secondary master/repeater (backup)
  * #define IW_MODE_MONITOR	6	// Passive monitor (listen only)
-*/
+ */
 struct	setopmode_parm {
 	u8	mode;
 	u8	rsvd[3];

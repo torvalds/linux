@@ -1456,10 +1456,10 @@ enum ieee80211_state {
 
 
 
-typedef struct tx_pending_t{
+struct tx_pending {
 	int frag;
 	struct ieee80211_txb *txb;
-}tx_pending_t;
+};
 
 typedef struct _bandwidth_autoswitch {
 	long threshold_20Mhzto40Mhz;
@@ -1883,7 +1883,7 @@ struct ieee80211_device {
 	RT_POWER_SAVE_CONTROL	PowerSaveControl;
 //}
 	/* used if IEEE_SOFTMAC_TX_QUEUE is set */
-	struct  tx_pending_t tx_pending;
+	struct  tx_pending tx_pending;
 
 	/* used if IEEE_SOFTMAC_ASSOCIATE is set */
 	struct timer_list associate_timer;
@@ -2187,7 +2187,7 @@ int ieee80211_encrypt_fragment(struct ieee80211_device *ieee,
 			       struct sk_buff *frag, int hdr_len);
 
 int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev);
-void ieee80211_txb_free(struct ieee80211_txb *);
+void ieee80211_txb_free(struct ieee80211_txb *txb);
 
 
 /* ieee80211_rx.c */

@@ -131,12 +131,12 @@ static inline u32 usbtll_read(void __iomem *base, u32 reg)
 	return readl_relaxed(base + reg);
 }
 
-static inline void usbtll_writeb(void __iomem *base, u8 reg, u8 val)
+static inline void usbtll_writeb(void __iomem *base, u32 reg, u8 val)
 {
 	writeb_relaxed(val, base + reg);
 }
 
-static inline u8 usbtll_readb(void __iomem *base, u8 reg)
+static inline u8 usbtll_readb(void __iomem *base, u32 reg)
 {
 	return readb_relaxed(base + reg);
 }
@@ -373,12 +373,13 @@ int omap_tll_init(struct usbhs_omap_platform_data *pdata)
 			} else if (pdata->port_mode[i] ==
 					OMAP_EHCI_PORT_MODE_TLL) {
 				/*
-				 * Disable AutoIdle, BitStuffing
-				 * and use SDR Mode
+				 * Disable UTMI AutoIdle, BitStuffing
+				 * and use SDR Mode. Enable ULPI AutoIdle.
 				 */
 				reg &= ~(OMAP_TLL_CHANNEL_CONF_UTMIAUTOIDLE
-					| OMAP_TLL_CHANNEL_CONF_ULPINOBITSTUFF
 					| OMAP_TLL_CHANNEL_CONF_ULPIDDRMODE);
+				reg |= OMAP_TLL_CHANNEL_CONF_ULPINOBITSTUFF;
+				reg |= OMAP_TLL_CHANNEL_CONF_ULPI_ULPIAUTOIDLE;
 			} else if (pdata->port_mode[i] ==
 					OMAP_EHCI_PORT_MODE_HSIC) {
 				/*

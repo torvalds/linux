@@ -29,6 +29,7 @@
 #include <drm/drm_modes.h>
 
 struct drm_bridge;
+struct drm_panel;
 
 /**
  * struct drm_bridge_funcs - drm_bridge control functions
@@ -59,6 +60,40 @@ struct drm_bridge_funcs {
 	void (*detach)(struct drm_bridge *bridge);
 
 	/**
+	 * @mode_valid:
+	 *
+	 * This callback is used to check if a specific mode is valid in this
+	 * bridge. This should be implemented if the bridge has some sort of
+	 * restriction in the modes it can display. For example, a given bridge
+	 * may be responsible to set a clock value. If the clock can not
+	 * produce all the values for the available modes then this callback
+	 * can be used to restrict the number of modes to only the ones that
+	 * can be displayed.
+	 *
+	 * This hook is used by the probe helpers to filter the mode list in
+	 * drm_helper_probe_single_connector_modes(), and it is used by the
+	 * atomic helpers to validate modes supplied by userspace in
+	 * drm_atomic_helper_check_modeset().
+	 *
+	 * This function is optional.
+	 *
+	 * NOTE:
+	 *
+	 * Since this function is both called from the check phase of an atomic
+	 * commit, and the mode validation in the probe paths it is not allowed
+	 * to look at anything else but the passed-in mode, and validate it
+	 * against configuration-invariant hardward constraints. Any further
+	 * limits which depend upon the configuration can only be checked in
+	 * @mode_fixup.
+	 *
+	 * RETURNS:
+	 *
+	 * drm_mode_status Enum
+	 */
+	enum drm_mode_status (*mode_valid)(struct drm_bridge *crtc,
+					   const struct drm_display_mode *mode);
+
+	/**
 	 * @mode_fixup:
 	 *
 	 * This callback is used to validate and adjust a mode. The paramater
@@ -66,7 +101,7 @@ struct drm_bridge_funcs {
 	 * the display chain, either the final &drm_connector or the next
 	 * &drm_bridge. The parameter adjusted_mode is the input mode the bridge
 	 * requires. It can be modified by this callback and does not need to
-	 * match mode.
+	 * match mode. See also &drm_crtc_state.adjusted_mode for more details.
 	 *
 	 * This is the only hook that allows a bridge to reject a modeset. If
 	 * this function passes all other callbacks must succeed for this
@@ -81,6 +116,12 @@ struct drm_bridge_funcs {
 	 * just check whether a configuration would be possible). Drivers MUST
 	 * NOT touch any persistent state (hardware or software) or data
 	 * structures except the passed in @state parameter.
+	 *
+	 * Also beware that userspace can request its own custom modes, neither
+	 * core nor helpers filter modes to the list of probe modes reported by
+	 * the GETCONNECTOR IOCTL and stored in &drm_connector.modes. To ensure
+	 * that modes are filtered consistently put any bridge constraints and
+	 * limits checks into @mode_valid.
 	 *
 	 * RETURNS:
 	 *
@@ -213,6 +254,8 @@ int drm_bridge_attach(struct drm_encoder *encoder, struct drm_bridge *bridge,
 bool drm_bridge_mode_fixup(struct drm_bridge *bridge,
 			const struct drm_display_mode *mode,
 			struct drm_display_mode *adjusted_mode);
+enum drm_mode_status drm_bridge_mode_valid(struct drm_bridge *bridge,
+					   const struct drm_display_mode *mode);
 void drm_bridge_disable(struct drm_bridge *bridge);
 void drm_bridge_post_disable(struct drm_bridge *bridge);
 void drm_bridge_mode_set(struct drm_bridge *bridge,
@@ -220,5 +263,14 @@ void drm_bridge_mode_set(struct drm_bridge *bridge,
 			struct drm_display_mode *adjusted_mode);
 void drm_bridge_pre_enable(struct drm_bridge *bridge);
 void drm_bridge_enable(struct drm_bridge *bridge);
+
+#ifdef CONFIG_DRM_PANEL_BRIDGE
+struct drm_bridge *drm_panel_bridge_add(struct drm_panel *panel,
+					u32 connector_type);
+void drm_panel_bridge_remove(struct drm_bridge *bridge);
+struct drm_bridge *devm_drm_panel_bridge_add(struct device *dev,
+					     struct drm_panel *panel,
+					     u32 connector_type);
+#endif
 
 #endif

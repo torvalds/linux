@@ -39,6 +39,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/printk.h>
+#include <linux/pm_opp.h>
 #include <linux/scpi_protocol.h>
 #include <linux/slab.h>
 #include <linux/sort.h>
@@ -356,7 +357,7 @@ struct sensor_value {
 } __packed;
 
 struct dev_pstate_set {
-	u16 dev_id;
+	__le16 dev_id;
 	u8 pstate;
 } __packed;
 
@@ -538,7 +539,7 @@ static int scpi_send_message(u8 idx, void *tx_buf, unsigned int tx_len,
 	msg->tx_len = tx_len;
 	msg->rx_buf = rx_buf;
 	msg->rx_len = rx_len;
-	init_completion(&msg->done);
+	reinit_completion(&msg->done);
 
 	ret = mbox_send_message(scpi_chan->chan, msg);
 	if (ret < 0 || !rx_buf)
@@ -684,6 +685,65 @@ static struct scpi_dvfs_info *scpi_dvfs_get_info(u8 domain)
 	return info;
 }
 
+static int scpi_dev_domain_id(struct device *dev)
+{
+	struct of_phandle_args clkspec;
+
+	if (of_parse_phandle_with_args(dev->of_node, "clocks", "#clock-cells",
+				       0, &clkspec))
+		return -EINVAL;
+
+	return clkspec.args[0];
+}
+
+static struct scpi_dvfs_info *scpi_dvfs_info(struct device *dev)
+{
+	int domain = scpi_dev_domain_id(dev);
+
+	if (domain < 0)
+		return ERR_PTR(domain);
+
+	return scpi_dvfs_get_info(domain);
+}
+
+static int scpi_dvfs_get_transition_latency(struct device *dev)
+{
+	struct scpi_dvfs_info *info = scpi_dvfs_info(dev);
+
+	if (IS_ERR(info))
+		return PTR_ERR(info);
+
+	if (!info->latency)
+		return 0;
+
+	return info->latency;
+}
+
+static int scpi_dvfs_add_opps_to_device(struct device *dev)
+{
+	int idx, ret;
+	struct scpi_opp *opp;
+	struct scpi_dvfs_info *info = scpi_dvfs_info(dev);
+
+	if (IS_ERR(info))
+		return PTR_ERR(info);
+
+	if (!info->opps)
+		return -EIO;
+
+	for (opp = info->opps, idx = 0; idx < info->count; idx++, opp++) {
+		ret = dev_pm_opp_add(dev, opp->freq, opp->m_volt * 1000);
+		if (ret) {
+			dev_warn(dev, "failed to add opp %uHz %umV\n",
+				 opp->freq, opp->m_volt);
+			while (idx-- > 0)
+				dev_pm_opp_remove(dev, (--opp)->freq);
+			return ret;
+		}
+	}
+	return 0;
+}
+
 static int scpi_sensor_get_capability(u16 *sensors)
 {
 	struct sensor_capabilities cap_buf;
@@ -765,6 +825,9 @@ static struct scpi_ops scpi_ops = {
 	.dvfs_get_idx = scpi_dvfs_get_idx,
 	.dvfs_set_idx = scpi_dvfs_set_idx,
 	.dvfs_get_info = scpi_dvfs_get_info,
+	.device_domain_id = scpi_dev_domain_id,
+	.get_transition_latency = scpi_dvfs_get_transition_latency,
+	.add_opps_to_device = scpi_dvfs_add_opps_to_device,
 	.sensor_get_capability = scpi_sensor_get_capability,
 	.sensor_get_info = scpi_sensor_get_info,
 	.sensor_get_value = scpi_sensor_get_value,
@@ -872,8 +935,11 @@ static int scpi_alloc_xfer_list(struct device *dev, struct scpi_chan *ch)
 		return -ENOMEM;
 
 	ch->xfers = xfers;
-	for (i = 0; i < MAX_SCPI_XFERS; i++, xfers++)
+	for (i = 0; i < MAX_SCPI_XFERS; i++, xfers++) {
+		init_completion(&xfers->done);
 		list_add_tail(&xfers->node, &ch->xfers_list);
+	}
+
 	return 0;
 }
 
@@ -899,7 +965,7 @@ static int scpi_probe(struct platform_device *pdev)
 
 	count = of_count_phandle_with_args(np, "mboxes", "#mbox-cells");
 	if (count < 0) {
-		dev_err(dev, "no mboxes property in '%s'\n", np->full_name);
+		dev_err(dev, "no mboxes property in '%pOF'\n", np);
 		return -ENODEV;
 	}
 

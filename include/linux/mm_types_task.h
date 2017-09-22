@@ -14,6 +14,10 @@
 
 #include <asm/page.h>
 
+#ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
+#include <asm/tlbbatch.h>
+#endif
+
 #define USE_SPLIT_PTE_PTLOCKS	(NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS)
 #define USE_SPLIT_PMD_PTLOCKS	(USE_SPLIT_PTE_PTLOCKS && \
 		IS_ENABLED(CONFIG_ARCH_ENABLE_SPLIT_PMD_PTLOCK))
@@ -67,12 +71,15 @@ struct page_frag {
 struct tlbflush_unmap_batch {
 #ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
 	/*
-	 * Each bit set is a CPU that potentially has a TLB entry for one of
-	 * the PFNs being flushed. See set_tlb_ubc_flush_pending().
+	 * The arch code makes the following promise: generic code can modify a
+	 * PTE, then call arch_tlbbatch_add_mm() (which internally provides all
+	 * needed barriers), then call arch_tlbbatch_flush(), and the entries
+	 * will be flushed on all CPUs by the time that arch_tlbbatch_flush()
+	 * returns.
 	 */
-	struct cpumask cpumask;
+	struct arch_tlbflush_unmap_batch arch;
 
-	/* True if any bit in cpumask is set */
+	/* True if a flush is needed. */
 	bool flush_required;
 
 	/*

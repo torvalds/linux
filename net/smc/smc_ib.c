@@ -13,6 +13,7 @@
 
 #include <linux/random.h>
 #include <linux/workqueue.h>
+#include <linux/scatterlist.h>
 #include <rdma/ib_verbs.h>
 
 #include "smc_pnet.h"
@@ -36,24 +37,6 @@ struct smc_ib_devices smc_ib_devices = {	/* smc-registered ib devices */
 u8 local_systemid[SMC_SYSTEMID_LEN] = SMC_LOCAL_SYSTEMID_RESET;	/* unique system
 								 * identifier
 								 */
-
-int smc_ib_get_memory_region(struct ib_pd *pd, int access_flags,
-			     struct ib_mr **mr)
-{
-	int rc;
-
-	if (*mr)
-		return 0; /* already done */
-
-	/* obtain unique key -
-	 * next invocation of get_dma_mr returns a different key!
-	 */
-	*mr = pd->device->get_dma_mr(pd, access_flags);
-	rc = PTR_ERR_OR_ZERO(*mr);
-	if (IS_ERR(*mr))
-		*mr = NULL;
-	return rc;
-}
 
 static int smc_ib_modify_qp_init(struct smc_link *lnk)
 {
@@ -80,12 +63,11 @@ static int smc_ib_modify_qp_rtr(struct smc_link *lnk)
 	memset(&qp_attr, 0, sizeof(qp_attr));
 	qp_attr.qp_state = IB_QPS_RTR;
 	qp_attr.path_mtu = min(lnk->path_mtu, lnk->peer_mtu);
-	qp_attr.ah_attr.port_num = lnk->ibport;
-	qp_attr.ah_attr.ah_flags = IB_AH_GRH;
-	qp_attr.ah_attr.grh.hop_limit = 1;
-	memcpy(&qp_attr.ah_attr.grh.dgid, lnk->peer_gid,
-	       sizeof(lnk->peer_gid));
-	memcpy(&qp_attr.ah_attr.dmac, lnk->peer_mac,
+	qp_attr.ah_attr.type = RDMA_AH_ATTR_TYPE_ROCE;
+	rdma_ah_set_port_num(&qp_attr.ah_attr, lnk->ibport);
+	rdma_ah_set_grh(&qp_attr.ah_attr, NULL, 0, 0, 1, 0);
+	rdma_ah_set_dgid_raw(&qp_attr.ah_attr, lnk->peer_gid);
+	memcpy(&qp_attr.ah_attr.roce.dmac, lnk->peer_mac,
 	       sizeof(lnk->peer_mac));
 	qp_attr.dest_qp_num = lnk->peer_qpn;
 	qp_attr.rq_psn = lnk->peer_psn; /* starting receive packet seq # */
@@ -179,8 +161,6 @@ static void smc_ib_global_event_handler(struct ib_event_handler *handler,
 	u8 port_idx;
 
 	smcibdev = container_of(handler, struct smc_ib_device, event_handler);
-	if (!smc_pnet_find_ib(smcibdev->ibdev->name))
-		return;
 
 	switch (ibevent->event) {
 	case IB_EVENT_PORT_ERR:
@@ -252,14 +232,13 @@ int smc_ib_create_queue_pair(struct smc_link *lnk)
 		.recv_cq = lnk->smcibdev->roce_cq_recv,
 		.srq = NULL,
 		.cap = {
-			.max_send_wr = SMC_WR_BUF_CNT,
 				/* include unsolicited rdma_writes as well,
 				 * there are max. 2 RDMA_WRITE per 1 WR_SEND
 				 */
+			.max_send_wr = SMC_WR_BUF_CNT * 3,
 			.max_recv_wr = SMC_WR_BUF_CNT * 3,
 			.max_send_sge = SMC_IB_MAX_SEND_SGE,
 			.max_recv_sge = 1,
-			.max_inline_data = SMC_WR_TX_SIZE,
 		},
 		.sq_sig_type = IB_SIGNAL_REQ_WR,
 		.qp_type = IB_QPT_RC,
@@ -275,33 +254,117 @@ int smc_ib_create_queue_pair(struct smc_link *lnk)
 	return rc;
 }
 
-/* map a new TX or RX buffer to DMA */
-int smc_ib_buf_map(struct smc_ib_device *smcibdev, int buf_size,
-		   struct smc_buf_desc *buf_slot,
-		   enum dma_data_direction data_direction)
+void smc_ib_put_memory_region(struct ib_mr *mr)
 {
-	int rc = 0;
-
-	if (buf_slot->dma_addr[SMC_SINGLE_LINK])
-		return rc; /* already mapped */
-	buf_slot->dma_addr[SMC_SINGLE_LINK] =
-		ib_dma_map_single(smcibdev->ibdev, buf_slot->cpu_addr,
-				  buf_size, data_direction);
-	if (ib_dma_mapping_error(smcibdev->ibdev,
-				 buf_slot->dma_addr[SMC_SINGLE_LINK]))
-		rc = -EIO;
-	return rc;
+	ib_dereg_mr(mr);
 }
 
-void smc_ib_buf_unmap(struct smc_ib_device *smcibdev, int buf_size,
+static int smc_ib_map_mr_sg(struct smc_buf_desc *buf_slot)
+{
+	unsigned int offset = 0;
+	int sg_num;
+
+	/* map the largest prefix of a dma mapped SG list */
+	sg_num = ib_map_mr_sg(buf_slot->mr_rx[SMC_SINGLE_LINK],
+			      buf_slot->sgt[SMC_SINGLE_LINK].sgl,
+			      buf_slot->sgt[SMC_SINGLE_LINK].orig_nents,
+			      &offset, PAGE_SIZE);
+
+	return sg_num;
+}
+
+/* Allocate a memory region and map the dma mapped SG list of buf_slot */
+int smc_ib_get_memory_region(struct ib_pd *pd, int access_flags,
+			     struct smc_buf_desc *buf_slot)
+{
+	if (buf_slot->mr_rx[SMC_SINGLE_LINK])
+		return 0; /* already done */
+
+	buf_slot->mr_rx[SMC_SINGLE_LINK] =
+		ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG, 1 << buf_slot->order);
+	if (IS_ERR(buf_slot->mr_rx[SMC_SINGLE_LINK])) {
+		int rc;
+
+		rc = PTR_ERR(buf_slot->mr_rx[SMC_SINGLE_LINK]);
+		buf_slot->mr_rx[SMC_SINGLE_LINK] = NULL;
+		return rc;
+	}
+
+	if (smc_ib_map_mr_sg(buf_slot) != 1)
+		return -EINVAL;
+
+	return 0;
+}
+
+/* synchronize buffer usage for cpu access */
+void smc_ib_sync_sg_for_cpu(struct smc_ib_device *smcibdev,
+			    struct smc_buf_desc *buf_slot,
+			    enum dma_data_direction data_direction)
+{
+	struct scatterlist *sg;
+	unsigned int i;
+
+	/* for now there is just one DMA address */
+	for_each_sg(buf_slot->sgt[SMC_SINGLE_LINK].sgl, sg,
+		    buf_slot->sgt[SMC_SINGLE_LINK].nents, i) {
+		if (!sg_dma_len(sg))
+			break;
+		ib_dma_sync_single_for_cpu(smcibdev->ibdev,
+					   sg_dma_address(sg),
+					   sg_dma_len(sg),
+					   data_direction);
+	}
+}
+
+/* synchronize buffer usage for device access */
+void smc_ib_sync_sg_for_device(struct smc_ib_device *smcibdev,
+			       struct smc_buf_desc *buf_slot,
+			       enum dma_data_direction data_direction)
+{
+	struct scatterlist *sg;
+	unsigned int i;
+
+	/* for now there is just one DMA address */
+	for_each_sg(buf_slot->sgt[SMC_SINGLE_LINK].sgl, sg,
+		    buf_slot->sgt[SMC_SINGLE_LINK].nents, i) {
+		if (!sg_dma_len(sg))
+			break;
+		ib_dma_sync_single_for_device(smcibdev->ibdev,
+					      sg_dma_address(sg),
+					      sg_dma_len(sg),
+					      data_direction);
+	}
+}
+
+/* Map a new TX or RX buffer SG-table to DMA */
+int smc_ib_buf_map_sg(struct smc_ib_device *smcibdev,
 		      struct smc_buf_desc *buf_slot,
 		      enum dma_data_direction data_direction)
 {
-	if (!buf_slot->dma_addr[SMC_SINGLE_LINK])
+	int mapped_nents;
+
+	mapped_nents = ib_dma_map_sg(smcibdev->ibdev,
+				     buf_slot->sgt[SMC_SINGLE_LINK].sgl,
+				     buf_slot->sgt[SMC_SINGLE_LINK].orig_nents,
+				     data_direction);
+	if (!mapped_nents)
+		return -ENOMEM;
+
+	return mapped_nents;
+}
+
+void smc_ib_buf_unmap_sg(struct smc_ib_device *smcibdev,
+			 struct smc_buf_desc *buf_slot,
+			 enum dma_data_direction data_direction)
+{
+	if (!buf_slot->sgt[SMC_SINGLE_LINK].sgl->dma_address)
 		return; /* already unmapped */
-	ib_dma_unmap_single(smcibdev->ibdev, *buf_slot->dma_addr, buf_size,
-			    data_direction);
-	buf_slot->dma_addr[SMC_SINGLE_LINK] = 0;
+
+	ib_dma_unmap_sg(smcibdev->ibdev,
+			buf_slot->sgt[SMC_SINGLE_LINK].sgl,
+			buf_slot->sgt[SMC_SINGLE_LINK].orig_nents,
+			data_direction);
+	buf_slot->sgt[SMC_SINGLE_LINK].sgl->dma_address = 0;
 }
 
 static int smc_ib_fill_gid_and_mac(struct smc_ib_device *smcibdev, u8 ibport)

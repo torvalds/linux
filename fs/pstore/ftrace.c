@@ -37,6 +37,12 @@ static void notrace pstore_ftrace_call(unsigned long ip,
 {
 	unsigned long flags;
 	struct pstore_ftrace_record rec = {};
+	struct pstore_record record = {
+		.type = PSTORE_TYPE_FTRACE,
+		.buf = (char *)&rec,
+		.size = sizeof(rec),
+		.psi = psinfo,
+	};
 
 	if (unlikely(oops_in_progress))
 		return;
@@ -47,8 +53,7 @@ static void notrace pstore_ftrace_call(unsigned long ip,
 	rec.parent_ip = parent_ip;
 	pstore_ftrace_write_timestamp(&rec, pstore_ftrace_stamp++);
 	pstore_ftrace_encode_cpu(&rec, raw_smp_processor_id());
-	psinfo->write_buf(PSTORE_TYPE_FTRACE, 0, NULL, 0, (void *)&rec,
-			  0, sizeof(rec), psinfo);
+	psinfo->write(&record);
 
 	local_irq_restore(flags);
 }
@@ -117,7 +122,7 @@ void pstore_register_ftrace(void)
 {
 	struct dentry *file;
 
-	if (!psinfo->write_buf)
+	if (!psinfo->write)
 		return;
 
 	pstore_ftrace_dir = debugfs_create_dir("pstore", NULL);

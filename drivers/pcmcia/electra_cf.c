@@ -207,7 +207,7 @@ static int electra_cf_probe(struct platform_device *ofdev)
 		return -ENOMEM;
 
 	setup_timer(&cf->timer, electra_cf_timer, (unsigned long)cf);
-	cf->irq = NO_IRQ;
+	cf->irq = 0;
 
 	cf->ofdev = ofdev;
 	cf->mem_phys = mem.start;
@@ -313,7 +313,7 @@ fail3:
 fail2:
 	release_mem_region(cf->mem_phys, cf->mem_size);
 fail1:
-	if (cf->irq != NO_IRQ)
+	if (cf->irq)
 		free_irq(cf->irq, cf);
 
 	if (cf->io_virt)

@@ -86,7 +86,7 @@ static struct attribute *dev_entries[] = {
 	&dev_attr_set_freq.attr,
 	NULL,
 };
-static struct attribute_group dev_attr_group = {
+static const struct attribute_group dev_attr_group = {
 	.name	= "userspace",
 	.attrs	= dev_entries,
 };

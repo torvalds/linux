@@ -76,7 +76,10 @@ irqreturn_t xen_debug_interrupt(int irq, void *dev_id);
 
 bool xen_vcpu_stolen(int vcpu);
 
-void xen_vcpu_setup(int cpu);
+extern int xen_have_vcpu_info_placement;
+
+int xen_vcpu_setup(int cpu);
+void xen_vcpu_info_reset(int cpu);
 void xen_setup_vcpu_info_placement(void);
 
 #ifdef CONFIG_SMP
@@ -126,24 +129,36 @@ static inline void __init xen_efi_init(void)
 }
 #endif
 
-/* Declare an asm function, along with symbols needed to make it
-   inlineable */
-#define DECL_ASM(ret, name, ...)		\
-	__visible ret name(__VA_ARGS__);	\
-	extern char name##_end[] __visible;	\
-	extern char name##_reloc[] __visible
-
-DECL_ASM(void, xen_irq_enable_direct, void);
-DECL_ASM(void, xen_irq_disable_direct, void);
-DECL_ASM(unsigned long, xen_save_fl_direct, void);
-DECL_ASM(void, xen_restore_fl_direct, unsigned long);
+__visible void xen_irq_enable_direct(void);
+__visible void xen_irq_disable_direct(void);
+__visible unsigned long xen_save_fl_direct(void);
+__visible void xen_restore_fl_direct(unsigned long);
 
 /* These are not functions, and cannot be called normally */
 __visible void xen_iret(void);
 __visible void xen_sysret32(void);
 __visible void xen_sysret64(void);
-__visible void xen_adjust_exception_frame(void);
 
 extern int xen_panic_handler_init(void);
+
+int xen_cpuhp_setup(int (*cpu_up_prepare_cb)(unsigned int),
+		    int (*cpu_dead_cb)(unsigned int));
+
+void xen_pin_vcpu(int cpu);
+
+void xen_emergency_restart(void);
+#ifdef CONFIG_XEN_PV
+void xen_pv_pre_suspend(void);
+void xen_pv_post_suspend(int suspend_cancelled);
+#else
+static inline void xen_pv_pre_suspend(void) {}
+static inline void xen_pv_post_suspend(int suspend_cancelled) {}
+#endif
+
+#ifdef CONFIG_XEN_PVHVM
+void xen_hvm_post_suspend(int suspend_cancelled);
+#else
+static inline void xen_hvm_post_suspend(int suspend_cancelled) {}
+#endif
 
 #endif /* XEN_OPS_H */

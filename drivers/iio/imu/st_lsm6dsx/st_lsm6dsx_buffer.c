@@ -1,9 +1,10 @@
 /*
  * STMicroelectronics st_lsm6dsx FIFO buffer library driver
  *
- * LSM6DS3/LSM6DSM: The FIFO buffer can be configured to store data
- * from gyroscope and accelerometer. Samples are queued without any tag
- * according to a specific pattern based on 'FIFO data sets' (6 bytes each):
+ * LSM6DS3/LSM6DS3H/LSM6DSL/LSM6DSM: The FIFO buffer can be configured
+ * to store data from gyroscope and accelerometer. Samples are queued
+ * without any tag according to a specific pattern based on 'FIFO data sets'
+ * (6 bytes each):
  *  - 1st data set is reserved for gyroscope data
  *  - 2nd data set is reserved for accelerometer data
  * The FIFO pattern changes depending on the ODRs and decimation factors
@@ -30,12 +31,18 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
 
+#include <linux/platform_data/st_sensors_pdata.h>
+
 #include "st_lsm6dsx.h"
 
 #define ST_LSM6DSX_REG_FIFO_THL_ADDR		0x06
 #define ST_LSM6DSX_REG_FIFO_THH_ADDR		0x07
 #define ST_LSM6DSX_FIFO_TH_MASK			GENMASK(11, 0)
 #define ST_LSM6DSX_REG_FIFO_DEC_GXL_ADDR	0x08
+#define ST_LSM6DSX_REG_HLACTIVE_ADDR		0x12
+#define ST_LSM6DSX_REG_HLACTIVE_MASK		BIT(5)
+#define ST_LSM6DSX_REG_PP_OD_ADDR		0x12
+#define ST_LSM6DSX_REG_PP_OD_MASK		BIT(4)
 #define ST_LSM6DSX_REG_FIFO_MODE_ADDR		0x0a
 #define ST_LSM6DSX_FIFO_MODE_MASK		GENMASK(2, 0)
 #define ST_LSM6DSX_FIFO_ODR_MASK		GENMASK(6, 3)
@@ -129,8 +136,8 @@ static int st_lsm6dsx_update_decimators(struct st_lsm6dsx_hw *hw)
 	return 0;
 }
 
-static int st_lsm6dsx_set_fifo_mode(struct st_lsm6dsx_hw *hw,
-				    enum st_lsm6dsx_fifo_mode fifo_mode)
+int st_lsm6dsx_set_fifo_mode(struct st_lsm6dsx_hw *hw,
+			     enum st_lsm6dsx_fifo_mode fifo_mode)
 {
 	u8 data;
 	int err;
@@ -193,8 +200,8 @@ int st_lsm6dsx_update_watermark(struct st_lsm6dsx_sensor *sensor, u16 watermark)
 	if (err < 0)
 		goto out;
 
-	fifo_watermark = ((data & ~ST_LSM6DSX_FIFO_TH_MASK) << 8) |
-			  (fifo_watermark & ST_LSM6DSX_FIFO_TH_MASK);
+	fifo_watermark = ((data << 8) & ~ST_LSM6DSX_FIFO_TH_MASK) |
+			 (fifo_watermark & ST_LSM6DSX_FIFO_TH_MASK);
 
 	wdata = cpu_to_le16(fifo_watermark);
 	err = hw->tf->write(hw->dev, ST_LSM6DSX_REG_FIFO_THL_ADDR,
@@ -206,7 +213,7 @@ out:
 }
 
 /**
- * st_lsm6dsx_read_fifo() - LSM6DS3-LSM6DSM read FIFO routine
+ * st_lsm6dsx_read_fifo() - LSM6DS3-LSM6DS3H-LSM6DSL-LSM6DSM read FIFO routine
  * @hw: Pointer to instance of struct st_lsm6dsx_hw.
  *
  * Read samples from the hw FIFO and push them to IIO buffers.
@@ -302,7 +309,7 @@ static int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 	return read_len;
 }
 
-static int st_lsm6dsx_flush_fifo(struct st_lsm6dsx_hw *hw)
+int st_lsm6dsx_flush_fifo(struct st_lsm6dsx_hw *hw)
 {
 	int err;
 
@@ -363,7 +370,7 @@ static int st_lsm6dsx_update_fifo(struct iio_dev *iio_dev, bool enable)
 
 static irqreturn_t st_lsm6dsx_handler_irq(int irq, void *private)
 {
-	struct st_lsm6dsx_hw *hw = (struct st_lsm6dsx_hw *)private;
+	struct st_lsm6dsx_hw *hw = private;
 	struct st_lsm6dsx_sensor *sensor;
 	int i;
 
@@ -387,7 +394,7 @@ static irqreturn_t st_lsm6dsx_handler_irq(int irq, void *private)
 
 static irqreturn_t st_lsm6dsx_handler_thread(int irq, void *private)
 {
-	struct st_lsm6dsx_hw *hw = (struct st_lsm6dsx_hw *)private;
+	struct st_lsm6dsx_hw *hw = private;
 	int count;
 
 	mutex_lock(&hw->fifo_lock);
@@ -414,8 +421,11 @@ static const struct iio_buffer_setup_ops st_lsm6dsx_buffer_ops = {
 
 int st_lsm6dsx_fifo_setup(struct st_lsm6dsx_hw *hw)
 {
+	struct device_node *np = hw->dev->of_node;
+	struct st_sensors_platform_data *pdata;
 	struct iio_buffer *buffer;
 	unsigned long irq_type;
+	bool irq_active_low;
 	int i, err;
 
 	irq_type = irqd_get_trigger_type(irq_get_irq_data(hw->irq));
@@ -423,10 +433,32 @@ int st_lsm6dsx_fifo_setup(struct st_lsm6dsx_hw *hw)
 	switch (irq_type) {
 	case IRQF_TRIGGER_HIGH:
 	case IRQF_TRIGGER_RISING:
+		irq_active_low = false;
+		break;
+	case IRQF_TRIGGER_LOW:
+	case IRQF_TRIGGER_FALLING:
+		irq_active_low = true;
 		break;
 	default:
 		dev_info(hw->dev, "mode %lx unsupported\n", irq_type);
 		return -EINVAL;
+	}
+
+	err = st_lsm6dsx_write_with_mask(hw, ST_LSM6DSX_REG_HLACTIVE_ADDR,
+					 ST_LSM6DSX_REG_HLACTIVE_MASK,
+					 irq_active_low);
+	if (err < 0)
+		return err;
+
+	pdata = (struct st_sensors_platform_data *)hw->dev->platform_data;
+	if ((np && of_property_read_bool(np, "drive-open-drain")) ||
+	    (pdata && pdata->open_drain)) {
+		err = st_lsm6dsx_write_with_mask(hw, ST_LSM6DSX_REG_PP_OD_ADDR,
+						 ST_LSM6DSX_REG_PP_OD_MASK, 1);
+		if (err < 0)
+			return err;
+
+		irq_type |= IRQF_SHARED;
 	}
 
 	err = devm_request_threaded_irq(hw->dev, hw->irq,

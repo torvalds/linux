@@ -84,12 +84,12 @@ static void nfp_netvf_get_mac_addr(struct nfp_net *nn)
 	put_unaligned_be16(nn_readw(nn, NFP_NET_CFG_MACADDR + 6), &mac_addr[4]);
 
 	if (!is_valid_ether_addr(mac_addr)) {
-		eth_hw_addr_random(nn->netdev);
+		eth_hw_addr_random(nn->dp.netdev);
 		return;
 	}
 
-	ether_addr_copy(nn->netdev->dev_addr, mac_addr);
-	ether_addr_copy(nn->netdev->perm_addr, mac_addr);
+	ether_addr_copy(nn->dp.netdev->dev_addr, mac_addr);
+	ether_addr_copy(nn->dp.netdev->perm_addr, mac_addr);
 }
 
 static int nfp_netvf_pci_probe(struct pci_dev *pdev,
@@ -161,7 +161,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 		dev_warn(&pdev->dev, "OBSOLETE Firmware detected - VF isolation not available\n");
 	} else {
 		switch (fw_ver.major) {
-		case 1 ... 4:
+		case 1 ... 5:
 			stride = 4;
 			tx_bar_no = NFP_NET_Q0_BAR;
 			rx_bar_no = tx_bar_no;
@@ -202,7 +202,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	rx_bar_off = NFP_PCIE_QUEUE(startq);
 
 	/* Allocate and initialise the netdev */
-	nn = nfp_net_netdev_alloc(pdev, max_tx_rings, max_rx_rings);
+	nn = nfp_net_alloc(pdev, true, max_tx_rings, max_rx_rings);
 	if (IS_ERR(nn)) {
 		err = PTR_ERR(nn);
 		goto err_ctrl_unmap;
@@ -210,8 +210,8 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	vf->nn = nn;
 
 	nn->fw_ver = fw_ver;
-	nn->ctrl_bar = ctrl_bar;
-	nn->is_vf = 1;
+	nn->dp.ctrl_bar = ctrl_bar;
+	nn->dp.is_vf = 1;
 	nn->stride_tx = stride;
 	nn->stride_rx = stride;
 
@@ -267,8 +267,9 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	nfp_netvf_get_mac_addr(nn);
 
 	num_irqs = nfp_net_irqs_alloc(pdev, vf->irq_entries,
-				      NFP_NET_MIN_PORT_IRQS,
-				      NFP_NET_NON_Q_VECTORS + nn->num_r_vecs);
+				      NFP_NET_MIN_VNIC_IRQS,
+				      NFP_NET_NON_Q_VECTORS +
+				      nn->dp.num_r_vecs);
 	if (!num_irqs) {
 		nn_warn(nn, "Unable to allocate MSI-X Vectors. Exiting\n");
 		err = -EIO;
@@ -282,13 +283,13 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	 */
 	nn->me_freq_mhz = 1200;
 
-	err = nfp_net_netdev_init(nn->netdev);
+	err = nfp_net_init(nn);
 	if (err)
 		goto err_irqs_disable;
 
 	nfp_net_info(nn);
 	vf->ddir = nfp_net_debugfs_device_add(pdev);
-	nfp_net_debugfs_port_add(nn, vf->ddir, 0);
+	nfp_net_debugfs_vnic_add(nn, vf->ddir, 0);
 
 	return 0;
 
@@ -303,7 +304,7 @@ err_unmap_tx:
 	else
 		iounmap(vf->q_bar);
 err_netdev_free:
-	nfp_net_netdev_free(nn);
+	nfp_net_free(nn);
 err_ctrl_unmap:
 	iounmap(ctrl_bar);
 err_pci_regions:
@@ -327,7 +328,7 @@ static void nfp_netvf_pci_remove(struct pci_dev *pdev)
 	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
 	nfp_net_debugfs_dir_clean(&vf->ddir);
 
-	nfp_net_netdev_clean(nn->netdev);
+	nfp_net_clean(nn);
 
 	nfp_net_irqs_disable(pdev);
 
@@ -337,9 +338,9 @@ static void nfp_netvf_pci_remove(struct pci_dev *pdev)
 	} else {
 		iounmap(vf->q_bar);
 	}
-	iounmap(nn->ctrl_bar);
+	iounmap(nn->dp.ctrl_bar);
 
-	nfp_net_netdev_free(nn);
+	nfp_net_free(nn);
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

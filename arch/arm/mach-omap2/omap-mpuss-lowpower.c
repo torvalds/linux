@@ -64,6 +64,7 @@
 #include "prm-regbits-44xx.h"
 
 static void __iomem *sar_base;
+static u32 old_cpu1_ns_pa_addr;
 
 #if defined(CONFIG_PM) && defined(CONFIG_SMP)
 
@@ -451,6 +452,11 @@ int __init omap4_mpuss_init(void)
 
 #endif
 
+u32 omap4_get_cpu1_ns_pa_addr(void)
+{
+	return old_cpu1_ns_pa_addr;
+}
+
 /*
  * For kexec, we must set CPU1_WAKEUP_NS_PA_ADDR to point to
  * current kernel's secondary_startup() early before
@@ -460,22 +466,30 @@ int __init omap4_mpuss_init(void)
 void __init omap4_mpuss_early_init(void)
 {
 	unsigned long startup_pa;
+	void __iomem *ns_pa_addr;
 
-	if (!(cpu_is_omap44xx() || soc_is_omap54xx()))
+	if (!(soc_is_omap44xx() || soc_is_omap54xx()))
 		return;
 
 	sar_base = omap4_get_sar_ram_base();
 
-	if (cpu_is_omap443x())
+	/* Save old NS_PA_ADDR for validity checks later on */
+	if (soc_is_omap44xx())
+		ns_pa_addr = sar_base + CPU1_WAKEUP_NS_PA_ADDR_OFFSET;
+	else
+		ns_pa_addr = sar_base + OMAP5_CPU1_WAKEUP_NS_PA_ADDR_OFFSET;
+	old_cpu1_ns_pa_addr = readl_relaxed(ns_pa_addr);
+
+	if (soc_is_omap443x())
 		startup_pa = __pa_symbol(omap4_secondary_startup);
-	else if (cpu_is_omap446x())
+	else if (soc_is_omap446x())
 		startup_pa = __pa_symbol(omap4460_secondary_startup);
 	else if ((__boot_cpu_mode & MODE_MASK) == HYP_MODE)
 		startup_pa = __pa_symbol(omap5_secondary_hyp_startup);
 	else
 		startup_pa = __pa_symbol(omap5_secondary_startup);
 
-	if (cpu_is_omap44xx())
+	if (soc_is_omap44xx())
 		writel_relaxed(startup_pa, sar_base +
 			       CPU1_WAKEUP_NS_PA_ADDR_OFFSET);
 	else

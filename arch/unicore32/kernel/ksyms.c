@@ -46,8 +46,8 @@ EXPORT_SYMBOL(__strncpy_from_user);
 
 EXPORT_SYMBOL(copy_page);
 
-EXPORT_SYMBOL(__copy_from_user);
-EXPORT_SYMBOL(__copy_to_user);
+EXPORT_SYMBOL(raw_copy_from_user);
+EXPORT_SYMBOL(raw_copy_to_user);
 EXPORT_SYMBOL(__clear_user);
 
 EXPORT_SYMBOL(__ashldi3);

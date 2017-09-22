@@ -66,6 +66,7 @@ struct sockaddr_ll {
 #define PACKET_FANOUT_CBPF		6
 #define PACKET_FANOUT_EBPF		7
 #define PACKET_FANOUT_FLAG_ROLLOVER	0x1000
+#define PACKET_FANOUT_FLAG_UNIQUEID	0x2000
 #define PACKET_FANOUT_FLAG_DEFRAG	0x8000
 
 struct tpacket_stats {

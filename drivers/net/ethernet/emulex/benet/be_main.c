@@ -3241,8 +3241,9 @@ void be_detect_error(struct be_adapter *adapter)
 {
 	u32 ue_lo = 0, ue_hi = 0, ue_lo_mask = 0, ue_hi_mask = 0;
 	u32 sliport_status = 0, sliport_err1 = 0, sliport_err2 = 0;
-	u32 i;
 	struct device *dev = &adapter->pdev->dev;
+	u16 val;
+	u32 i;
 
 	if (be_check_error(adapter, BE_ERROR_HW))
 		return;
@@ -3280,15 +3281,25 @@ void be_detect_error(struct be_adapter *adapter)
 		ue_lo = (ue_lo & ~ue_lo_mask);
 		ue_hi = (ue_hi & ~ue_hi_mask);
 
-		/* On certain platforms BE hardware can indicate spurious UEs.
-		 * Allow HW to stop working completely in case of a real UE.
-		 * Hence not setting the hw_error for UE detection.
-		 */
-
 		if (ue_lo || ue_hi) {
+			/* On certain platforms BE3 hardware can indicate
+			 * spurious UEs. In case of a UE in the chip,
+			 * the POST register correctly reports either a
+			 * FAT_LOG_START state (FW is currently dumping
+			 * FAT log data) or a ARMFW_UE state. Check for the
+			 * above states to ascertain if the UE is valid or not.
+			 */
+			if (BE3_chip(adapter)) {
+				val = be_POST_stage_get(adapter);
+				if ((val & POST_STAGE_FAT_LOG_START)
+				     != POST_STAGE_FAT_LOG_START &&
+				    (val & POST_STAGE_ARMFW_UE)
+				     != POST_STAGE_ARMFW_UE)
+					return;
+			}
+
 			dev_err(dev, "Error detected in the adapter");
-			if (skyhawk_chip(adapter))
-				be_set_error(adapter, BE_ERROR_UE);
+			be_set_error(adapter, BE_ERROR_UE);
 
 			for (i = 0; ue_lo; ue_lo >>= 1, i++) {
 				if (ue_lo & 1)
@@ -3855,6 +3866,44 @@ static void be_cancel_err_detection(struct be_adapter *adapter)
 		cancel_delayed_work_sync(&err_rec->err_detection_work);
 		adapter->flags &= ~BE_FLAGS_ERR_DETECTION_SCHEDULED;
 	}
+}
+
+static int be_enable_vxlan_offloads(struct be_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	struct device *dev = &adapter->pdev->dev;
+	struct be_vxlan_port *vxlan_port;
+	__be16 port;
+	int status;
+
+	vxlan_port = list_first_entry(&adapter->vxlan_port_list,
+				      struct be_vxlan_port, list);
+	port = vxlan_port->port;
+
+	status = be_cmd_manage_iface(adapter, adapter->if_handle,
+				     OP_CONVERT_NORMAL_TO_TUNNEL);
+	if (status) {
+		dev_warn(dev, "Failed to convert normal interface to tunnel\n");
+		return status;
+	}
+	adapter->flags |= BE_FLAGS_VXLAN_OFFLOADS;
+
+	status = be_cmd_set_vxlan_port(adapter, port);
+	if (status) {
+		dev_warn(dev, "Failed to add VxLAN port\n");
+		return status;
+	}
+	adapter->vxlan_port = port;
+
+	netdev->hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+				   NETIF_F_TSO | NETIF_F_TSO6 |
+				   NETIF_F_GSO_UDP_TUNNEL;
+	netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
+	netdev->features |= NETIF_F_GSO_UDP_TUNNEL;
+
+	dev_info(dev, "Enabled VxLAN offloads for UDP port %d\n",
+		 be16_to_cpu(port));
+	return 0;
 }
 
 static void be_disable_vxlan_offloads(struct be_adapter *adapter)
@@ -4903,63 +4952,59 @@ static struct be_cmd_work *be_alloc_work(struct be_adapter *adapter,
  * those other tunnels are unexported on the fly through ndo_features_check().
  *
  * Skyhawk supports VxLAN offloads only for one UDP dport. So, if the stack
- * adds more than one port, disable offloads and don't re-enable them again
- * until after all the tunnels are removed.
+ * adds more than one port, disable offloads and re-enable them again when
+ * there's only one port left. We maintain a list of ports for this purpose.
  */
 static void be_work_add_vxlan_port(struct work_struct *work)
 {
 	struct be_cmd_work *cmd_work =
 				container_of(work, struct be_cmd_work, work);
 	struct be_adapter *adapter = cmd_work->adapter;
-	struct net_device *netdev = adapter->netdev;
 	struct device *dev = &adapter->pdev->dev;
 	__be16 port = cmd_work->info.vxlan_port;
+	struct be_vxlan_port *vxlan_port;
 	int status;
 
-	if (adapter->vxlan_port == port && adapter->vxlan_port_count) {
-		adapter->vxlan_port_aliases++;
-		goto done;
+	/* Bump up the alias count if it is an existing port */
+	list_for_each_entry(vxlan_port, &adapter->vxlan_port_list, list) {
+		if (vxlan_port->port == port) {
+			vxlan_port->port_aliases++;
+			goto done;
+		}
 	}
+
+	/* Add a new port to our list. We don't need a lock here since port
+	 * add/delete are done only in the context of a single-threaded work
+	 * queue (be_wq).
+	 */
+	vxlan_port = kzalloc(sizeof(*vxlan_port), GFP_KERNEL);
+	if (!vxlan_port)
+		goto done;
+
+	vxlan_port->port = port;
+	INIT_LIST_HEAD(&vxlan_port->list);
+	list_add_tail(&vxlan_port->list, &adapter->vxlan_port_list);
+	adapter->vxlan_port_count++;
 
 	if (adapter->flags & BE_FLAGS_VXLAN_OFFLOADS) {
 		dev_info(dev,
 			 "Only one UDP port supported for VxLAN offloads\n");
 		dev_info(dev, "Disabling VxLAN offloads\n");
-		adapter->vxlan_port_count++;
 		goto err;
 	}
 
-	if (adapter->vxlan_port_count++ >= 1)
+	if (adapter->vxlan_port_count > 1)
 		goto done;
 
-	status = be_cmd_manage_iface(adapter, adapter->if_handle,
-				     OP_CONVERT_NORMAL_TO_TUNNEL);
-	if (status) {
-		dev_warn(dev, "Failed to convert normal interface to tunnel\n");
-		goto err;
-	}
+	status = be_enable_vxlan_offloads(adapter);
+	if (!status)
+		goto done;
 
-	status = be_cmd_set_vxlan_port(adapter, port);
-	if (status) {
-		dev_warn(dev, "Failed to add VxLAN port\n");
-		goto err;
-	}
-	adapter->flags |= BE_FLAGS_VXLAN_OFFLOADS;
-	adapter->vxlan_port = port;
-
-	netdev->hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-				   NETIF_F_TSO | NETIF_F_TSO6 |
-				   NETIF_F_GSO_UDP_TUNNEL;
-	netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
-	netdev->features |= NETIF_F_GSO_UDP_TUNNEL;
-
-	dev_info(dev, "Enabled VxLAN offloads for UDP port %d\n",
-		 be16_to_cpu(port));
-	goto done;
 err:
 	be_disable_vxlan_offloads(adapter);
 done:
 	kfree(cmd_work);
+	return;
 }
 
 static void be_work_del_vxlan_port(struct work_struct *work)
@@ -4968,23 +5013,40 @@ static void be_work_del_vxlan_port(struct work_struct *work)
 				container_of(work, struct be_cmd_work, work);
 	struct be_adapter *adapter = cmd_work->adapter;
 	__be16 port = cmd_work->info.vxlan_port;
+	struct be_vxlan_port *vxlan_port;
 
-	if (adapter->vxlan_port != port)
-		goto done;
+	/* Nothing to be done if a port alias is being deleted */
+	list_for_each_entry(vxlan_port, &adapter->vxlan_port_list, list) {
+		if (vxlan_port->port == port) {
+			if (vxlan_port->port_aliases) {
+				vxlan_port->port_aliases--;
+				goto done;
+			}
+			break;
+		}
+	}
 
-	if (adapter->vxlan_port_aliases) {
-		adapter->vxlan_port_aliases--;
+	/* No port aliases left; delete the port from the list */
+	list_del(&vxlan_port->list);
+	adapter->vxlan_port_count--;
+
+	/* Disable VxLAN offload if this is the offloaded port */
+	if (adapter->vxlan_port == vxlan_port->port) {
+		WARN_ON(adapter->vxlan_port_count);
+		be_disable_vxlan_offloads(adapter);
+		dev_info(&adapter->pdev->dev,
+			 "Disabled VxLAN offloads for UDP port %d\n",
+			 be16_to_cpu(port));
 		goto out;
 	}
 
-	be_disable_vxlan_offloads(adapter);
+	/* If only 1 port is left, re-enable VxLAN offload */
+	if (adapter->vxlan_port_count == 1)
+		be_enable_vxlan_offloads(adapter);
 
-	dev_info(&adapter->pdev->dev,
-		 "Disabled VxLAN offloads for UDP port %d\n",
-		 be16_to_cpu(port));
-done:
-	adapter->vxlan_port_count--;
 out:
+	kfree(vxlan_port);
+done:
 	kfree(cmd_work);
 }
 
@@ -5027,9 +5089,25 @@ static netdev_features_t be_features_check(struct sk_buff *skb,
 	struct be_adapter *adapter = netdev_priv(dev);
 	u8 l4_hdr = 0;
 
-	/* The code below restricts offload features for some tunneled packets.
+	if (skb_is_gso(skb)) {
+		/* IPv6 TSO requests with extension hdrs are a problem
+		 * to Lancer and BE3 HW. Disable TSO6 feature.
+		 */
+		if (!skyhawk_chip(adapter) && is_ipv6_ext_hdr(skb))
+			features &= ~NETIF_F_TSO6;
+
+		/* Lancer cannot handle the packet with MSS less than 256.
+		 * Disable the GSO support in such cases
+		 */
+		if (lancer_chip(adapter) && skb_shinfo(skb)->gso_size < 256)
+			features &= ~NETIF_F_GSO_MASK;
+	}
+
+	/* The code below restricts offload features for some tunneled and
+	 * Q-in-Q packets.
 	 * Offload features for normal (non tunnel) packets are unchanged.
 	 */
+	features = vlan_features_check(skb, features);
 	if (!skb->encapsulation ||
 	    !(adapter->flags & BE_FLAGS_VXLAN_OFFLOADS))
 		return features;
@@ -5217,15 +5295,15 @@ static bool be_err_is_recoverable(struct be_adapter *adapter)
 	dev_err(&adapter->pdev->dev, "Recoverable HW error code: 0x%x\n",
 		ue_err_code);
 
-	if (jiffies - err_rec->probe_time <= initial_idle_time) {
+	if (time_before_eq(jiffies - err_rec->probe_time, initial_idle_time)) {
 		dev_err(&adapter->pdev->dev,
 			"Cannot recover within %lu sec from driver load\n",
 			jiffies_to_msecs(initial_idle_time) / MSEC_PER_SEC);
 		return false;
 	}
 
-	if (err_rec->last_recovery_time &&
-	    (jiffies - err_rec->last_recovery_time <= recovery_interval)) {
+	if (err_rec->last_recovery_time && time_before_eq(
+		jiffies - err_rec->last_recovery_time, recovery_interval)) {
 		dev_err(&adapter->pdev->dev,
 			"Cannot recover within %lu sec from last recovery\n",
 			jiffies_to_msecs(recovery_interval) / MSEC_PER_SEC);
@@ -5626,6 +5704,7 @@ static int be_drv_init(struct be_adapter *adapter)
 	/* Must be a power of 2 or else MODULO will BUG_ON */
 	adapter->be_get_temp_freq = 64;
 
+	INIT_LIST_HEAD(&adapter->vxlan_port_list);
 	return 0;
 
 free_rx_filter:

@@ -52,7 +52,7 @@ static const struct lbs_fw_table fw_table[] = {
 	{ MODEL_8682, "libertas/usb8682.bin", NULL }
 };
 
-static struct usb_device_id if_usb_table[] = {
+static const struct usb_device_id if_usb_table[] = {
 	/* Enter the device signature inside */
 	{ USB_DEVICE(0x1286, 0x2001), .driver_info = MODEL_8388 },
 	{ USB_DEVICE(0x05a3, 0x8388), .driver_info = MODEL_8388 },
@@ -111,8 +111,6 @@ static void if_usb_write_bulk_callback(struct urb *urb)
  */
 static void if_usb_free(struct if_usb_card *cardp)
 {
-	lbs_deb_enter(LBS_DEB_USB);
-
 	/* Unlink tx & rx urb */
 	usb_kill_urb(cardp->tx_urb);
 	usb_kill_urb(cardp->rx_urb);
@@ -125,8 +123,6 @@ static void if_usb_free(struct if_usb_card *cardp)
 
 	kfree(cardp->ep_out_buf);
 	cardp->ep_out_buf = NULL;
-
-	lbs_deb_leave(LBS_DEB_USB);
 }
 
 static void if_usb_setup_firmware(struct lbs_private *priv)
@@ -306,8 +302,6 @@ static void if_usb_disconnect(struct usb_interface *intf)
 	struct if_usb_card *cardp = usb_get_intfdata(intf);
 	struct lbs_private *priv = cardp->priv;
 
-	lbs_deb_enter(LBS_DEB_MAIN);
-
 	cardp->surprise_removed = 1;
 
 	if (priv) {
@@ -320,8 +314,6 @@ static void if_usb_disconnect(struct usb_interface *intf)
 
 	usb_set_intfdata(intf, NULL);
 	usb_put_dev(interface_to_usbdev(intf));
-
-	lbs_deb_leave(LBS_DEB_MAIN);
 }
 
 /**
@@ -388,8 +380,6 @@ static int if_usb_reset_device(struct if_usb_card *cardp)
 	struct cmd_header *cmd = cardp->ep_out_buf + 4;
 	int ret;
 
-	lbs_deb_enter(LBS_DEB_USB);
-
 	*(__le32 *)cardp->ep_out_buf = cpu_to_le32(CMD_TYPE_REQUEST);
 
 	cmd->command = cpu_to_le16(CMD_802_11_RESET);
@@ -406,8 +396,6 @@ static int if_usb_reset_device(struct if_usb_card *cardp)
 	if (ret && machine_is_olpc())
 		if_usb_reset_olpc_card(NULL);
 #endif
-
-	lbs_deb_leave_args(LBS_DEB_USB, "ret %d", ret);
 
 	return ret;
 }
@@ -671,8 +659,6 @@ static void if_usb_receive(struct urb *urb)
 	__le32 *pkt = (__le32 *)(skb->data + IPFIELD_ALIGN_OFFSET);
 	uint32_t event;
 
-	lbs_deb_enter(LBS_DEB_USB);
-
 	if (recvlength) {
 		if (urb->status) {
 			lbs_deb_usbd(&cardp->udev->dev, "RX URB failed: %d\n",
@@ -688,7 +674,7 @@ static void if_usb_receive(struct urb *urb)
 			    recvlength, recvtype);
 	} else if (urb->status) {
 		kfree_skb(skb);
-		goto rx_exit;
+		return;
 	}
 
 	switch (recvtype) {
@@ -724,8 +710,6 @@ static void if_usb_receive(struct urb *urb)
 
 setup_for_next:
 	if_usb_submit_rx_urb(cardp);
-rx_exit:
-	lbs_deb_leave(LBS_DEB_USB);
 }
 
 /**
@@ -835,8 +819,6 @@ static void if_usb_prog_firmware(struct lbs_private *priv, int ret,
 	int i = 0;
 	static int reset_count = 10;
 
-	lbs_deb_enter(LBS_DEB_USB);
-
 	if (ret) {
 		pr_err("failed to find firmware (%d)\n", ret);
 		goto done;
@@ -942,7 +924,6 @@ restart:
 
  done:
 	cardp->fw = NULL;
-	lbs_deb_leave(LBS_DEB_USB);
 }
 
 
@@ -952,8 +933,6 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 	struct if_usb_card *cardp = usb_get_intfdata(intf);
 	struct lbs_private *priv = cardp->priv;
 	int ret;
-
-	lbs_deb_enter(LBS_DEB_USB);
 
 	if (priv->psstate != PS_STATE_FULL_POWER) {
 		ret = -1;
@@ -978,7 +957,6 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 	usb_kill_urb(cardp->rx_urb);
 
  out:
-	lbs_deb_leave(LBS_DEB_USB);
 	return ret;
 }
 
@@ -987,13 +965,10 @@ static int if_usb_resume(struct usb_interface *intf)
 	struct if_usb_card *cardp = usb_get_intfdata(intf);
 	struct lbs_private *priv = cardp->priv;
 
-	lbs_deb_enter(LBS_DEB_USB);
-
 	if_usb_submit_rx_urb(cardp);
 
 	lbs_resume(priv);
 
-	lbs_deb_leave(LBS_DEB_USB);
 	return 0;
 }
 #else

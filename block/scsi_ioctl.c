@@ -262,11 +262,11 @@ static int blk_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
 	/*
 	 * fill in all the output members
 	 */
-	hdr->status = rq->errors & 0xff;
-	hdr->masked_status = status_byte(rq->errors);
-	hdr->msg_status = msg_byte(rq->errors);
-	hdr->host_status = host_byte(rq->errors);
-	hdr->driver_status = driver_byte(rq->errors);
+	hdr->status = req->result & 0xff;
+	hdr->masked_status = status_byte(req->result);
+	hdr->msg_status = msg_byte(req->result);
+	hdr->host_status = host_byte(req->result);
+	hdr->driver_status = driver_byte(req->result);
 	hdr->info = 0;
 	if (hdr->masked_status || hdr->host_status || hdr->driver_status)
 		hdr->info |= SG_INFO_CHECK;
@@ -326,7 +326,6 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 	req = scsi_req(rq);
-	scsi_req_init(rq);
 
 	if (hdr->cmd_len > BLK_MAX_CDB) {
 		req->cmd = kzalloc(hdr->cmd_len, GFP_KERNEL);
@@ -362,7 +361,7 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 		goto out_free_cdb;
 
 	bio = rq->bio;
-	rq->retries = 0;
+	req->retries = 0;
 
 	start_time = jiffies;
 
@@ -456,7 +455,6 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
 		goto error_free_buffer;
 	}
 	req = scsi_req(rq);
-	scsi_req_init(rq);
 
 	cmdlen = COMMAND_SIZE(opcode);
 
@@ -476,13 +474,13 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
 		goto error;
 
 	/* default.  possible overriden later */
-	rq->retries = 5;
+	req->retries = 5;
 
 	switch (opcode) {
 	case SEND_DIAGNOSTIC:
 	case FORMAT_UNIT:
 		rq->timeout = FORMAT_UNIT_TIMEOUT;
-		rq->retries = 1;
+		req->retries = 1;
 		break;
 	case START_STOP:
 		rq->timeout = START_STOP_TIMEOUT;
@@ -495,7 +493,7 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
 		break;
 	case READ_DEFECT_DATA:
 		rq->timeout = READ_DEFECT_DATA_TIMEOUT;
-		rq->retries = 1;
+		req->retries = 1;
 		break;
 	default:
 		rq->timeout = BLK_DEFAULT_SG_TIMEOUT;
@@ -509,7 +507,7 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
 
 	blk_execute_rq(q, disk, rq, 0);
 
-	err = rq->errors & 0xff;	/* only 8 bit SCSI status */
+	err = req->result & 0xff;	/* only 8 bit SCSI status */
 	if (err) {
 		if (req->sense_len && req->sense) {
 			bytes = (OMAX_SB_LEN > req->sense_len) ?
@@ -542,12 +540,12 @@ static int __blk_send_generic(struct request_queue *q, struct gendisk *bd_disk,
 	rq = blk_get_request(q, REQ_OP_SCSI_OUT, __GFP_RECLAIM);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
-	scsi_req_init(rq);
 	rq->timeout = BLK_DEFAULT_SG_TIMEOUT;
 	scsi_req(rq)->cmd[0] = cmd;
 	scsi_req(rq)->cmd[4] = data;
 	scsi_req(rq)->cmd_len = 6;
-	err = blk_execute_rq(q, bd_disk, rq, 0);
+	blk_execute_rq(q, bd_disk, rq, 0);
+	err = scsi_req(rq)->result ? -EIO : 0;
 	blk_put_request(rq);
 
 	return err;
@@ -743,10 +741,14 @@ int scsi_cmd_blk_ioctl(struct block_device *bd, fmode_t mode,
 }
 EXPORT_SYMBOL(scsi_cmd_blk_ioctl);
 
-void scsi_req_init(struct request *rq)
+/**
+ * scsi_req_init - initialize certain fields of a scsi_request structure
+ * @req: Pointer to a scsi_request structure.
+ * Initializes .__cmd[], .cmd, .cmd_len and .sense_len but no other members
+ * of struct scsi_request.
+ */
+void scsi_req_init(struct scsi_request *req)
 {
-	struct scsi_request *req = scsi_req(rq);
-
 	memset(req->__cmd, 0, sizeof(req->__cmd));
 	req->cmd = req->__cmd;
 	req->cmd_len = BLK_MAX_CDB;

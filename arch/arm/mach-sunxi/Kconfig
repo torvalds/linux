@@ -6,6 +6,7 @@ menuconfig ARCH_SUNXI
 	select GENERIC_IRQ_CHIP
 	select GPIOLIB
 	select PINCTRL
+	select PM_OPP
 	select SUN4I_TIMER
 	select RESET_CONTROLLER
 

@@ -59,16 +59,12 @@ void blk_free_flush_queue(struct blk_flush_queue *q);
 
 int blk_init_rl(struct request_list *rl, struct request_queue *q,
 		gfp_t gfp_mask);
-void blk_exit_rl(struct request_list *rl);
-void init_request_from_bio(struct request *req, struct bio *bio);
+void blk_exit_rl(struct request_queue *q, struct request_list *rl);
 void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 			struct bio *bio);
 void blk_queue_bypass_start(struct request_queue *q);
 void blk_queue_bypass_end(struct request_queue *q);
-void blk_dequeue_request(struct request *rq);
 void __blk_queue_free_tags(struct request_queue *q);
-bool __blk_end_bidi_request(struct request *rq, int error,
-			    unsigned int nr_bytes, unsigned int bidi_bytes);
 void blk_freeze_queue(struct request_queue *q);
 
 static inline void blk_queue_enter_live(struct request_queue *q)
@@ -84,9 +80,20 @@ static inline void blk_queue_enter_live(struct request_queue *q)
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 void blk_flush_integrity(void);
+bool __bio_integrity_endio(struct bio *);
+static inline bool bio_integrity_endio(struct bio *bio)
+{
+	if (bio_integrity(bio))
+		return __bio_integrity_endio(bio);
+	return true;
+}
 #else
 static inline void blk_flush_integrity(void)
 {
+}
+static inline bool bio_integrity_endio(struct bio *bio)
+{
+	return true;
 }
 #endif
 
@@ -146,6 +153,8 @@ static inline struct request *__elv_next_request(struct request_queue *q)
 	struct request *rq;
 	struct blk_flush_queue *fq = blk_get_flush_queue(q, NULL);
 
+	WARN_ON_ONCE(q->mq_ops);
+
 	while (1) {
 		if (!list_empty(&q->queue_head)) {
 			rq = list_entry_rq(q->queue_head.next);
@@ -193,6 +202,8 @@ static inline void elv_deactivate_rq(struct request_queue *q, struct request *rq
 	if (e->type->ops.sq.elevator_deactivate_req_fn)
 		e->type->ops.sq.elevator_deactivate_req_fn(q, rq);
 }
+
+struct hd_struct *__disk_get_part(struct gendisk *disk, int partno);
 
 #ifdef CONFIG_FAIL_IO_TIMEOUT
 int blk_should_fake_timeout(struct request_queue *);
@@ -319,10 +330,35 @@ static inline struct io_context *create_io_context(gfp_t gfp_mask, int node)
 extern void blk_throtl_drain(struct request_queue *q);
 extern int blk_throtl_init(struct request_queue *q);
 extern void blk_throtl_exit(struct request_queue *q);
+extern void blk_throtl_register_queue(struct request_queue *q);
 #else /* CONFIG_BLK_DEV_THROTTLING */
 static inline void blk_throtl_drain(struct request_queue *q) { }
 static inline int blk_throtl_init(struct request_queue *q) { return 0; }
 static inline void blk_throtl_exit(struct request_queue *q) { }
+static inline void blk_throtl_register_queue(struct request_queue *q) { }
 #endif /* CONFIG_BLK_DEV_THROTTLING */
+#ifdef CONFIG_BLK_DEV_THROTTLING_LOW
+extern ssize_t blk_throtl_sample_time_show(struct request_queue *q, char *page);
+extern ssize_t blk_throtl_sample_time_store(struct request_queue *q,
+	const char *page, size_t count);
+extern void blk_throtl_bio_endio(struct bio *bio);
+extern void blk_throtl_stat_add(struct request *rq, u64 time);
+#else
+static inline void blk_throtl_bio_endio(struct bio *bio) { }
+static inline void blk_throtl_stat_add(struct request *rq, u64 time) { }
+#endif
+
+#ifdef CONFIG_BOUNCE
+extern int init_emergency_isa_pool(void);
+extern void blk_queue_bounce(struct request_queue *q, struct bio **bio);
+#else
+static inline int init_emergency_isa_pool(void)
+{
+	return 0;
+}
+static inline void blk_queue_bounce(struct request_queue *q, struct bio **bio)
+{
+}
+#endif /* CONFIG_BOUNCE */
 
 #endif /* BLK_INTERNAL_H */

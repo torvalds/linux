@@ -40,7 +40,6 @@ Example:
 		port@0 {
 		    reg = <0>;
 		    phys = <&usb2phy 1>;
-		    status = "disabled";
 		};
 	};
 
@@ -75,7 +74,6 @@ Example:
 		port@0 {
 		    reg = <0>;
 		    phys = <&usb2phy 1>;
-		    status = "disabled";
 		};
 
 	};
@@ -92,6 +90,8 @@ Required properties:
 	   parent's address space
  - clocks: Clock IDs array as required by the controller.
  - clock-names: names of clocks correseponding to IDs in the clock property
+ - vdd10-supply: 1.0V powr supply
+ - vdd33-supply: 3.0V/3.3V power supply
 
 Sub-nodes:
 The dwc3 core should be added as subnode to Exynos dwc3 glue.
@@ -107,6 +107,8 @@ Example:
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
+		vdd10-supply = <&ldo11_reg>;
+		vdd33-supply = <&ldo9_reg>;
 
 		dwc3 {
 			compatible = "synopsys,dwc3";

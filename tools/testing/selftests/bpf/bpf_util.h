@@ -35,4 +35,11 @@ static inline unsigned int bpf_num_possible_cpus(void)
 	return possible_cpus;
 }
 
+#define __bpf_percpu_val_align	__attribute__((__aligned__(8)))
+
+#define BPF_DECLARE_PERCPU(type, name)				\
+	struct { type v; /* padding */ } __bpf_percpu_val_align	\
+		name[bpf_num_possible_cpus()]
+#define bpf_percpu(name, cpu) name[(cpu)].v
+
 #endif /* __BPF_UTIL__ */

@@ -17,5 +17,4 @@ tpm@57 {
 	compatible = "nuvoton,npct650", "nuvoton,npct601";
 	linux,sml-base = <0x7f 0xfd450000>;
 	linux,sml-size = <0x10000>;
-	status = "okay";
 };

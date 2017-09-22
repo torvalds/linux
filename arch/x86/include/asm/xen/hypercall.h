@@ -43,12 +43,15 @@
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
+#include <asm/smap.h>
 
 #include <xen/interface/xen.h>
 #include <xen/interface/sched.h>
 #include <xen/interface/physdev.h>
 #include <xen/interface/platform.h>
 #include <xen/interface/xen-mca.h>
+
+struct xen_dm_op_buf;
 
 /*
  * The hypercall asms have to meet several constraints:
@@ -214,10 +217,12 @@ privcmd_call(unsigned call,
 	__HYPERCALL_DECLS;
 	__HYPERCALL_5ARG(a1, a2, a3, a4, a5);
 
+	stac();
 	asm volatile("call *%[call]"
 		     : __HYPERCALL_5PARAM
 		     : [call] "a" (&hypercall_page[call])
 		     : __HYPERCALL_CLOBBER5);
+	clac();
 
 	return (long)__res;
 }
@@ -474,9 +479,13 @@ HYPERVISOR_xenpmu_op(unsigned int op, void *arg)
 
 static inline int
 HYPERVISOR_dm_op(
-	domid_t dom, unsigned int nr_bufs, void *bufs)
+	domid_t dom, unsigned int nr_bufs, struct xen_dm_op_buf *bufs)
 {
-	return _hypercall3(int, dm_op, dom, nr_bufs, bufs);
+	int ret;
+	stac();
+	ret = _hypercall3(int, dm_op, dom, nr_bufs, bufs);
+	clac();
+	return ret;
 }
 
 static inline void
@@ -543,6 +552,8 @@ static inline void
 MULTI_update_descriptor(struct multicall_entry *mcl, u64 maddr,
 			struct desc_struct desc)
 {
+	u32 *p = (u32 *) &desc;
+
 	mcl->op = __HYPERVISOR_update_descriptor;
 	if (sizeof(maddr) == sizeof(long)) {
 		mcl->args[0] = maddr;
@@ -550,8 +561,8 @@ MULTI_update_descriptor(struct multicall_entry *mcl, u64 maddr,
 	} else {
 		mcl->args[0] = maddr;
 		mcl->args[1] = maddr >> 32;
-		mcl->args[2] = desc.a;
-		mcl->args[3] = desc.b;
+		mcl->args[2] = *p++;
+		mcl->args[3] = *p;
 	}
 
 	trace_xen_mc_entry(mcl, sizeof(maddr) == sizeof(long) ? 2 : 4);

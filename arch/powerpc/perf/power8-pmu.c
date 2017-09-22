@@ -50,34 +50,11 @@ static const unsigned int event_alternatives[][MAX_ALT] = {
 
 static int power8_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 {
-	int i, j, num_alt = 0;
+	int num_alt = 0;
 
-	num_alt = isa207_get_alternatives(event, alt, event_alternatives,
-					(int)ARRAY_SIZE(event_alternatives));
-	if (flags & PPMU_ONLY_COUNT_RUN) {
-		/*
-		 * We're only counting in RUN state, so PM_CYC is equivalent to
-		 * PM_RUN_CYC and PM_INST_CMPL === PM_RUN_INST_CMPL.
-		 */
-		j = num_alt;
-		for (i = 0; i < num_alt; ++i) {
-			switch (alt[i]) {
-			case PM_CYC:
-				alt[j++] = PM_RUN_CYC;
-				break;
-			case PM_RUN_CYC:
-				alt[j++] = PM_CYC;
-				break;
-			case PM_INST_CMPL:
-				alt[j++] = PM_RUN_INST_CMPL;
-				break;
-			case PM_RUN_INST_CMPL:
-				alt[j++] = PM_INST_CMPL;
-				break;
-			}
-		}
-		num_alt = j;
-	}
+	num_alt = isa207_get_alternatives(event, alt,
+					  ARRAY_SIZE(event_alternatives), flags,
+					  event_alternatives);
 
 	return num_alt;
 }
@@ -90,6 +67,7 @@ GENERIC_EVENT_ATTR(branch-instructions,		PM_BRU_FIN);
 GENERIC_EVENT_ATTR(branch-misses,		PM_BR_MPRED_CMPL);
 GENERIC_EVENT_ATTR(cache-references,		PM_LD_REF_L1);
 GENERIC_EVENT_ATTR(cache-misses,		PM_LD_MISS_L1);
+GENERIC_EVENT_ATTR(mem_access,			MEM_ACCESS);
 
 CACHE_EVENT_ATTR(L1-dcache-load-misses,		PM_LD_MISS_L1);
 CACHE_EVENT_ATTR(L1-dcache-loads,		PM_LD_REF_L1);
@@ -120,6 +98,7 @@ static struct attribute *power8_events_attr[] = {
 	GENERIC_EVENT_PTR(PM_BR_MPRED_CMPL),
 	GENERIC_EVENT_PTR(PM_LD_REF_L1),
 	GENERIC_EVENT_PTR(PM_LD_MISS_L1),
+	GENERIC_EVENT_PTR(MEM_ACCESS),
 
 	CACHE_EVENT_PTR(PM_LD_MISS_L1),
 	CACHE_EVENT_PTR(PM_LD_REF_L1),
@@ -325,6 +304,8 @@ static struct power_pmu power8_pmu = {
 	.bhrb_filter_map	= power8_bhrb_filter_map,
 	.get_constraint		= isa207_get_constraint,
 	.get_alternatives	= power8_get_alternatives,
+	.get_mem_data_src	= isa207_get_mem_data_src,
+	.get_mem_weight		= isa207_get_mem_weight,
 	.disable_pmc		= isa207_disable_pmc,
 	.flags			= PPMU_HAS_SIER | PPMU_ARCH_207S,
 	.n_generic		= ARRAY_SIZE(power8_generic_events),

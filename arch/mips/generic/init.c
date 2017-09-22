@@ -16,6 +16,7 @@
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 
+#include <asm/bootinfo.h>
 #include <asm/fw/fw.h>
 #include <asm/irq_cpu.h>
 #include <asm/machine.h>
@@ -88,6 +89,8 @@ void __init *plat_get_fdt(void)
 	return (void *)fdt;
 }
 
+#ifdef CONFIG_RELOCATABLE
+
 void __init plat_fdt_relocated(void *new_location)
 {
 	/*
@@ -100,6 +103,8 @@ void __init plat_fdt_relocated(void *new_location)
 	if (fw_arg0 == -2)
 		fw_arg1 = (unsigned long)new_location;
 }
+
+#endif /* CONFIG_RELOCATABLE */
 
 void __init plat_mem_setup(void)
 {
@@ -120,6 +125,33 @@ void __init device_tree_init(void)
 	err = register_cps_smp_ops();
 	if (err)
 		err = register_up_smp_ops();
+}
+
+int __init apply_mips_fdt_fixups(void *fdt_out, size_t fdt_out_size,
+				 const void *fdt_in,
+				 const struct mips_fdt_fixup *fixups)
+{
+	int err;
+
+	err = fdt_open_into(fdt_in, fdt_out, fdt_out_size);
+	if (err) {
+		pr_err("Failed to open FDT\n");
+		return err;
+	}
+
+	for (; fixups->apply; fixups++) {
+		err = fixups->apply(fdt_out);
+		if (err) {
+			pr_err("Failed to apply FDT fixup \"%s\"\n",
+			       fixups->description);
+			return err;
+		}
+	}
+
+	err = fdt_pack(fdt_out);
+	if (err)
+		pr_err("Failed to pack FDT\n");
+	return err;
 }
 
 void __init plat_time_init(void)
@@ -161,7 +193,7 @@ void __init plat_time_init(void)
 		}
 	}
 
-	clocksource_probe();
+	timer_probe();
 }
 
 void __init arch_init_irq(void)

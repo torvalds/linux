@@ -64,10 +64,9 @@ struct caam_drv_private_jr {
  * Driver-private storage for a single CAAM block instance
  */
 struct caam_drv_private {
-
-	struct device *dev;
-	struct platform_device **jrpdev; /* Alloc'ed array per sub-device */
-	struct platform_device *pdev;
+#ifdef CONFIG_CAAM_QI
+	struct device *qidev;
+#endif
 
 	/* Physical-presence section */
 	struct caam_ctrl __iomem *ctrl; /* controller region */
@@ -103,11 +102,6 @@ struct caam_drv_private {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dfs_root;
 	struct dentry *ctl; /* controller dir */
-	struct dentry *ctl_rq_dequeued, *ctl_ob_enc_req, *ctl_ib_dec_req;
-	struct dentry *ctl_ob_enc_bytes, *ctl_ob_prot_bytes;
-	struct dentry *ctl_ib_dec_bytes, *ctl_ib_valid_bytes;
-	struct dentry *ctl_faultaddr, *ctl_faultdetail, *ctl_faultstatus;
-
 	struct debugfs_blob_wrapper ctl_kek_wrap, ctl_tkek_wrap, ctl_tdsk_wrap;
 	struct dentry *ctl_kek, *ctl_tkek, *ctl_tdsk;
 #endif
@@ -115,4 +109,22 @@ struct caam_drv_private {
 
 void caam_jr_algapi_init(struct device *dev);
 void caam_jr_algapi_remove(struct device *dev);
+
+#ifdef CONFIG_DEBUG_FS
+static int caam_debugfs_u64_get(void *data, u64 *val)
+{
+	*val = caam64_to_cpu(*(u64 *)data);
+	return 0;
+}
+
+static int caam_debugfs_u32_get(void *data, u64 *val)
+{
+	*val = caam32_to_cpu(*(u32 *)data);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(caam_fops_u32_ro, caam_debugfs_u32_get, NULL, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(caam_fops_u64_ro, caam_debugfs_u64_get, NULL, "%llu\n");
+#endif
+
 #endif /* INTERN_H */

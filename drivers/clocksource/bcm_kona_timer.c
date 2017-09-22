@@ -179,7 +179,7 @@ static int __init kona_timer_init(struct device_node *node)
 	} else if (!of_property_read_u32(node, "clock-frequency", &freq)) {
 		arch_timer_rate = freq;
 	} else {
-		pr_err("Kona Timer v1 unable to determine clock-frequency");
+		pr_err("Kona Timer v1 unable to determine clock-frequency\n");
 		return -EINVAL;
 	}
 
@@ -198,9 +198,9 @@ static int __init kona_timer_init(struct device_node *node)
 	return 0;
 }
 
-CLOCKSOURCE_OF_DECLARE(brcm_kona, "brcm,kona-timer", kona_timer_init);
+TIMER_OF_DECLARE(brcm_kona, "brcm,kona-timer", kona_timer_init);
 /*
  * bcm,kona-timer is deprecated by brcm,kona-timer
  * being kept here for driver compatibility
  */
-CLOCKSOURCE_OF_DECLARE(bcm_kona, "bcm,kona-timer", kona_timer_init);
+TIMER_OF_DECLARE(bcm_kona, "bcm,kona-timer", kona_timer_init);

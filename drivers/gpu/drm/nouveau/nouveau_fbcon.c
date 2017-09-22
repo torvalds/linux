@@ -278,26 +278,6 @@ nouveau_fbcon_accel_init(struct drm_device *dev)
 		info->fbops = &nouveau_fbcon_ops;
 }
 
-static void nouveau_fbcon_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-				    u16 blue, int regno)
-{
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-
-	nv_crtc->lut.r[regno] = red;
-	nv_crtc->lut.g[regno] = green;
-	nv_crtc->lut.b[regno] = blue;
-}
-
-static void nouveau_fbcon_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
-				    u16 *blue, int regno)
-{
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-
-	*red = nv_crtc->lut.r[regno];
-	*green = nv_crtc->lut.g[regno];
-	*blue = nv_crtc->lut.b[regno];
-}
-
 static void
 nouveau_fbcon_zfill(struct drm_device *dev, struct nouveau_fbdev *fbcon)
 {
@@ -445,7 +425,6 @@ nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *fbcon)
 	struct nouveau_framebuffer *nouveau_fb = nouveau_framebuffer(fbcon->helper.fb);
 
 	drm_fb_helper_unregister_fbi(&fbcon->helper);
-	drm_fb_helper_release_fbi(&fbcon->helper);
 	drm_fb_helper_fini(&fbcon->helper);
 
 	if (nouveau_fb->nvbo) {
@@ -468,8 +447,6 @@ void nouveau_fbcon_gpu_lockup(struct fb_info *info)
 }
 
 static const struct drm_fb_helper_funcs nouveau_fbcon_helper_funcs = {
-	.gamma_set = nouveau_fbcon_gamma_set,
-	.gamma_get = nouveau_fbcon_gamma_get,
 	.fb_probe = nouveau_fbcon_create,
 };
 

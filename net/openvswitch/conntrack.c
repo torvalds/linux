@@ -66,7 +66,9 @@ struct ovs_conntrack_info {
 	u8 commit : 1;
 	u8 nat : 3;                 /* enum ovs_ct_nat */
 	u8 force : 1;
+	u8 have_eventmask : 1;
 	u16 family;
+	u32 eventmask;              /* Mask of 1 << IPCT_*. */
 	struct md_mark mark;
 	struct md_labels labels;
 #ifdef CONFIG_NF_NAT_NEEDED
@@ -373,7 +375,7 @@ static int ovs_ct_init_labels(struct nf_conn *ct, struct sw_flow_key *key,
 	}
 
 	/* Labels are included in the IPCTNL_MSG_CT_NEW event only if the
-	 * IPCT_LABEL bit it set in the event cache.
+	 * IPCT_LABEL bit is set in the event cache.
 	 */
 	nf_conntrack_event_cache(IPCT_LABEL, ct);
 
@@ -514,10 +516,38 @@ ovs_ct_expect_find(struct net *net, const struct nf_conntrack_zone *zone,
 		   u16 proto, const struct sk_buff *skb)
 {
 	struct nf_conntrack_tuple tuple;
+	struct nf_conntrack_expect *exp;
 
 	if (!nf_ct_get_tuplepr(skb, skb_network_offset(skb), proto, net, &tuple))
 		return NULL;
-	return __nf_ct_expect_find(net, zone, &tuple);
+
+	exp = __nf_ct_expect_find(net, zone, &tuple);
+	if (exp) {
+		struct nf_conntrack_tuple_hash *h;
+
+		/* Delete existing conntrack entry, if it clashes with the
+		 * expectation.  This can happen since conntrack ALGs do not
+		 * check for clashes between (new) expectations and existing
+		 * conntrack entries.  nf_conntrack_in() will check the
+		 * expectations only if a conntrack entry can not be found,
+		 * which can lead to OVS finding the expectation (here) in the
+		 * init direction, but which will not be removed by the
+		 * nf_conntrack_in() call, if a matching conntrack entry is
+		 * found instead.  In this case all init direction packets
+		 * would be reported as new related packets, while reply
+		 * direction packets would be reported as un-related
+		 * established packets.
+		 */
+		h = nf_conntrack_find_get(net, zone, &tuple);
+		if (h) {
+			struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(h);
+
+			nf_ct_delete(ct, 0, 0);
+			nf_conntrack_put(&ct->ct_general);
+		}
+	}
+
+	return exp;
 }
 
 /* This replicates logic from nf_conntrack_core.c that is not exported. */
@@ -549,8 +579,8 @@ static struct nf_conn *
 ovs_ct_find_existing(struct net *net, const struct nf_conntrack_zone *zone,
 		     u8 l3num, struct sk_buff *skb, bool natted)
 {
-	struct nf_conntrack_l3proto *l3proto;
-	struct nf_conntrack_l4proto *l4proto;
+	const struct nf_conntrack_l3proto *l3proto;
+	const struct nf_conntrack_l4proto *l4proto;
 	struct nf_conntrack_tuple tuple;
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conn *ct;
@@ -599,6 +629,34 @@ ovs_ct_find_existing(struct net *net, const struct nf_conntrack_zone *zone,
 	return ct;
 }
 
+static
+struct nf_conn *ovs_ct_executed(struct net *net,
+				const struct sw_flow_key *key,
+				const struct ovs_conntrack_info *info,
+				struct sk_buff *skb,
+				bool *ct_executed)
+{
+	struct nf_conn *ct = NULL;
+
+	/* If no ct, check if we have evidence that an existing conntrack entry
+	 * might be found for this skb.  This happens when we lose a skb->_nfct
+	 * due to an upcall, or if the direction is being forced.  If the
+	 * connection was not confirmed, it is not cached and needs to be run
+	 * through conntrack again.
+	 */
+	*ct_executed = (key->ct_state & OVS_CS_F_TRACKED) &&
+		       !(key->ct_state & OVS_CS_F_INVALID) &&
+		       (key->ct_zone == info->zone.id);
+
+	if (*ct_executed || (!key->ct_state && info->force)) {
+		ct = ovs_ct_find_existing(net, &info->zone, info->family, skb,
+					  !!(key->ct_state &
+					  OVS_CS_F_NAT_MASK));
+	}
+
+	return ct;
+}
+
 /* Determine whether skb->_nfct is equal to the result of conntrack lookup. */
 static bool skb_nfct_cached(struct net *net,
 			    const struct sw_flow_key *key,
@@ -607,24 +665,17 @@ static bool skb_nfct_cached(struct net *net,
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct;
+	bool ct_executed = true;
 
 	ct = nf_ct_get(skb, &ctinfo);
-	/* If no ct, check if we have evidence that an existing conntrack entry
-	 * might be found for this skb.  This happens when we lose a skb->_nfct
-	 * due to an upcall.  If the connection was not confirmed, it is not
-	 * cached and needs to be run through conntrack again.
-	 */
-	if (!ct && key->ct_state & OVS_CS_F_TRACKED &&
-	    !(key->ct_state & OVS_CS_F_INVALID) &&
-	    key->ct_zone == info->zone.id) {
-		ct = ovs_ct_find_existing(net, &info->zone, info->family, skb,
-					  !!(key->ct_state
-					     & OVS_CS_F_NAT_MASK));
-		if (ct)
-			nf_ct_get(skb, &ctinfo);
-	}
 	if (!ct)
+		ct = ovs_ct_executed(net, key, info, skb, &ct_executed);
+
+	if (ct)
+		nf_ct_get(skb, &ctinfo);
+	else
 		return false;
+
 	if (!net_eq(net, read_pnet(&ct->ct_net)))
 		return false;
 	if (!nf_ct_zone_equal_any(info->ct, nf_ct_zone(ct)))
@@ -643,13 +694,13 @@ static bool skb_nfct_cached(struct net *net,
 		 */
 		if (nf_ct_is_confirmed(ct))
 			nf_ct_delete(ct, 0, 0);
-		else
-			nf_conntrack_put(&ct->ct_general);
+
+		nf_conntrack_put(&ct->ct_general);
 		nf_ct_set(skb, NULL, 0);
 		return false;
 	}
 
-	return true;
+	return ct_executed;
 }
 
 #ifdef CONFIG_NF_NAT_NEEDED
@@ -794,11 +845,6 @@ static int ovs_ct_nat(struct net *net, struct sw_flow_key *key,
 {
 	enum nf_nat_manip_type maniptype;
 	int err;
-
-	if (nf_ct_is_untracked(ct)) {
-		/* A NAT action may only be performed on tracked packets. */
-		return NF_ACCEPT;
-	}
 
 	/* Add NAT extension if not confirmed yet. */
 	if (!nf_ct_is_confirmed(ct) && !nf_ct_nat_ext_add(ct))
@@ -1007,6 +1053,20 @@ static int ovs_ct_commit(struct net *net, struct sw_flow_key *key,
 	if (!ct)
 		return 0;
 
+	/* Set the conntrack event mask if given.  NEW and DELETE events have
+	 * their own groups, but the NFNLGRP_CONNTRACK_UPDATE group listener
+	 * typically would receive many kinds of updates.  Setting the event
+	 * mask allows those events to be filtered.  The set event mask will
+	 * remain in effect for the lifetime of the connection unless changed
+	 * by a further CT action with both the commit flag and the eventmask
+	 * option. */
+	if (info->have_eventmask) {
+		struct nf_conntrack_ecache *cache = nf_ct_ecache_find(ct);
+
+		if (cache)
+			cache->ctmask = info->eventmask;
+	}
+
 	/* Apply changes before confirming the connection so that the initial
 	 * conntrack NEW netlink event carries the values given in the CT
 	 * action.
@@ -1084,7 +1144,7 @@ static int ovs_ct_add_helper(struct ovs_conntrack_info *info, const char *name,
 
 	help = nf_ct_helper_ext_add(info->ct, helper, GFP_KERNEL);
 	if (!help) {
-		module_put(helper->me);
+		nf_conntrack_helper_put(helper);
 		return -ENOMEM;
 	}
 
@@ -1120,15 +1180,13 @@ static int parse_nat(const struct nlattr *attr,
 		int type = nla_type(a);
 
 		if (type > OVS_NAT_ATTR_MAX) {
-			OVS_NLERR(log,
-				  "Unknown NAT attribute (type=%d, max=%d).\n",
+			OVS_NLERR(log, "Unknown NAT attribute (type=%d, max=%d)",
 				  type, OVS_NAT_ATTR_MAX);
 			return -EINVAL;
 		}
 
 		if (nla_len(a) != ovs_nat_attr_lens[type][ip_vers]) {
-			OVS_NLERR(log,
-				  "NAT attribute type %d has unexpected length (%d != %d).\n",
+			OVS_NLERR(log, "NAT attribute type %d has unexpected length (%d != %d)",
 				  type, nla_len(a),
 				  ovs_nat_attr_lens[type][ip_vers]);
 			return -EINVAL;
@@ -1138,9 +1196,7 @@ static int parse_nat(const struct nlattr *attr,
 		case OVS_NAT_ATTR_SRC:
 		case OVS_NAT_ATTR_DST:
 			if (info->nat) {
-				OVS_NLERR(log,
-					  "Only one type of NAT may be specified.\n"
-					  );
+				OVS_NLERR(log, "Only one type of NAT may be specified");
 				return -ERANGE;
 			}
 			info->nat |= OVS_CT_NAT;
@@ -1185,13 +1241,13 @@ static int parse_nat(const struct nlattr *attr,
 			break;
 
 		default:
-			OVS_NLERR(log, "Unknown nat attribute (%d).\n", type);
+			OVS_NLERR(log, "Unknown nat attribute (%d)", type);
 			return -EINVAL;
 		}
 	}
 
 	if (rem > 0) {
-		OVS_NLERR(log, "NAT attribute has %d unknown bytes.\n", rem);
+		OVS_NLERR(log, "NAT attribute has %d unknown bytes", rem);
 		return -EINVAL;
 	}
 	if (!info->nat) {
@@ -1238,6 +1294,8 @@ static const struct ovs_ct_len_tbl ovs_ct_attr_lens[OVS_CT_ATTR_MAX + 1] = {
 	/* NAT length is checked when parsing the nested attributes. */
 	[OVS_CT_ATTR_NAT]	= { .minlen = 0, .maxlen = INT_MAX },
 #endif
+	[OVS_CT_ATTR_EVENTMASK]	= { .minlen = sizeof(u32),
+				    .maxlen = sizeof(u32) },
 };
 
 static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
@@ -1248,8 +1306,8 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 
 	nla_for_each_nested(a, attr, rem) {
 		int type = nla_type(a);
-		int maxlen = ovs_ct_attr_lens[type].maxlen;
-		int minlen = ovs_ct_attr_lens[type].minlen;
+		int maxlen;
+		int minlen;
 
 		if (type > OVS_CT_ATTR_MAX) {
 			OVS_NLERR(log,
@@ -1257,6 +1315,9 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 				  type, OVS_CT_ATTR_MAX);
 			return -EINVAL;
 		}
+
+		maxlen = ovs_ct_attr_lens[type].maxlen;
+		minlen = ovs_ct_attr_lens[type].minlen;
 		if (nla_len(a) < minlen || nla_len(a) > maxlen) {
 			OVS_NLERR(log,
 				  "Conntrack attr type has unexpected length (type=%d, length=%d, expected=%d)",
@@ -1316,6 +1377,11 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 			break;
 		}
 #endif
+		case OVS_CT_ATTR_EVENTMASK:
+			info->have_eventmask = true;
+			info->eventmask = nla_get_u32(a);
+			break;
+
 		default:
 			OVS_NLERR(log, "Unknown conntrack attr (%d)",
 				  type);
@@ -1515,6 +1581,10 @@ int ovs_ct_action_to_attr(const struct ovs_conntrack_info *ct_info,
 				   ct_info->helper->name))
 			return -EMSGSIZE;
 	}
+	if (ct_info->have_eventmask &&
+	    nla_put_u32(skb, OVS_CT_ATTR_EVENTMASK, ct_info->eventmask))
+		return -EMSGSIZE;
+
 #ifdef CONFIG_NF_NAT_NEEDED
 	if (ct_info->nat && !ovs_ct_nat_to_attr(ct_info, skb))
 		return -EMSGSIZE;
@@ -1534,7 +1604,7 @@ void ovs_ct_free_action(const struct nlattr *a)
 static void __ovs_ct_free_action(struct ovs_conntrack_info *ct_info)
 {
 	if (ct_info->helper)
-		module_put(ct_info->helper->me);
+		nf_conntrack_helper_put(ct_info->helper);
 	if (ct_info->ct)
 		nf_ct_tmpl_free(ct_info->ct);
 }

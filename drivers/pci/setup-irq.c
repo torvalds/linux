@@ -15,19 +15,19 @@
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/cache.h>
+#include "pci.h"
 
-void __weak pcibios_update_irq(struct pci_dev *dev, int irq)
+void pci_assign_irq(struct pci_dev *dev)
 {
-	dev_dbg(&dev->dev, "assigning IRQ %02d\n", irq);
-	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
-}
-
-static void pdev_fixup_irq(struct pci_dev *dev,
-			   u8 (*swizzle)(struct pci_dev *, u8 *),
-			   int (*map_irq)(const struct pci_dev *, u8, u8))
-{
-	u8 pin, slot;
+	u8 pin;
+	u8 slot = -1;
 	int irq = 0;
+	struct pci_host_bridge *hbrg = pci_find_host_bridge(dev->bus);
+
+	if (!(hbrg->map_irq)) {
+		dev_dbg(&dev->dev, "runtime IRQ mapping not provided by arch\n");
+		return;
+	}
 
 	/* If this device is not on the primary bus, we need to figure out
 	   which interrupt pin it will come in on.   We know which slot it
@@ -40,29 +40,24 @@ static void pdev_fixup_irq(struct pci_dev *dev,
 	if (pin > 4)
 		pin = 1;
 
-	if (pin != 0) {
+	if (pin) {
 		/* Follow the chain of bridges, swizzling as we go.  */
-		slot = (*swizzle)(dev, &pin);
+		if (hbrg->swizzle_irq)
+			slot = (*(hbrg->swizzle_irq))(dev, &pin);
 
-		irq = (*map_irq)(dev, slot, pin);
+		/*
+		 * If a swizzling function is not used map_irq must
+		 * ignore slot
+		 */
+		irq = (*(hbrg->map_irq))(dev, slot, pin);
 		if (irq == -1)
 			irq = 0;
 	}
 	dev->irq = irq;
 
-	dev_dbg(&dev->dev, "fixup irq: got %d\n", dev->irq);
+	dev_dbg(&dev->dev, "assign IRQ: got %d\n", dev->irq);
 
 	/* Always tell the device, so the driver knows what is
 	   the real IRQ to use; the device does not use it. */
-	pcibios_update_irq(dev, irq);
+	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
 }
-
-void pci_fixup_irqs(u8 (*swizzle)(struct pci_dev *, u8 *),
-		    int (*map_irq)(const struct pci_dev *, u8, u8))
-{
-	struct pci_dev *dev = NULL;
-
-	for_each_pci_dev(dev)
-		pdev_fixup_irq(dev, swizzle, map_irq);
-}
-EXPORT_SYMBOL_GPL(pci_fixup_irqs);

@@ -308,7 +308,7 @@ static const struct of_device_id ti_dra7_master_match[] = {
 static inline void ti_dra7_xbar_reserve(int offset, int len, unsigned long *p)
 {
 	for (; len > 0; len--)
-		clear_bit(offset + (len - 1), p);
+		set_bit(offset + (len - 1), p);
 }
 
 static int ti_dra7_xbar_probe(struct platform_device *pdev)

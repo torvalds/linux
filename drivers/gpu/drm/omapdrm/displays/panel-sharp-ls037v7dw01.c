@@ -24,8 +24,6 @@ struct panel_drv_data {
 	struct omap_dss_device *in;
 	struct regulator *vcc;
 
-	int data_lines;
-
 	struct videomode vm;
 
 	struct gpio_desc *resb_gpio;	/* low = reset active min 20 us */
@@ -99,8 +97,6 @@ static int sharp_ls_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	if (ddata->data_lines)
-		in->ops.dpi->set_data_lines(in, ddata->data_lines);
 	in->ops.dpi->set_timings(in, &ddata->vm);
 
 	if (ddata->vcc) {
@@ -194,8 +190,6 @@ static struct omap_dss_driver sharp_ls_ops = {
 	.set_timings	= sharp_ls_set_timings,
 	.get_timings	= sharp_ls_get_timings,
 	.check_timings	= sharp_ls_check_timings,
-
-	.get_resolution	= omapdss_default_get_resolution,
 };
 
 static  int sharp_ls_get_gpio_of(struct device *dev, int index, int val,
@@ -289,7 +283,6 @@ static int sharp_ls_probe(struct platform_device *pdev)
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->panel.vm = ddata->vm;
-	dssdev->phy.dpi.data_lines = ddata->data_lines;
 
 	r = omapdss_register_display(dssdev);
 	if (r) {

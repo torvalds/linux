@@ -124,6 +124,14 @@ config MAILBOX_TEST
 	  Test client to help with testing new Controller driver
 	  implementations.
 
+config QCOM_APCS_IPC
+	tristate "Qualcomm APCS IPC driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	help
+	  Say y here to enable support for the APCS IPC mailbox driver,
+	  providing an interface for invoking the inter-process communication
+	  signals from the application processor to other masters.
+
 config TEGRA_HSP_MBOX
 	bool "Tegra HSP (Hardware Synchronization Primitives) Driver"
 	depends on ARCH_TEGRA_186_SOC
@@ -144,12 +152,22 @@ config XGENE_SLIMPRO_MBOX
 	  want to use the APM X-Gene SLIMpro IPCM support.
 
 config BCM_PDC_MBOX
-	tristate "Broadcom PDC Mailbox"
-	depends on ARM64 || COMPILE_TEST
+	tristate "Broadcom FlexSparx DMA Mailbox"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
 	depends on HAS_DMA
+	help
+	  Mailbox implementation for the Broadcom FlexSparx DMA ring manager,
+	  which provides access to various offload engines on Broadcom
+	  SoCs, including FA2/FA+ on Northstar Plus and PDC on Northstar 2.
+
+config BCM_FLEXRM_MBOX
+	tristate "Broadcom FlexRM Mailbox"
+	depends on ARM64
+	depends on HAS_DMA
+	select GENERIC_MSI_IRQ_DOMAIN
 	default ARCH_BCM_IPROC
 	help
-	  Mailbox implementation for the Broadcom PDC ring manager,
+	  Mailbox implementation of the Broadcom FlexRM ring manager,
 	  which provides access to various offload engines on Broadcom
-	  SoCs. Say Y here if you want to use the Broadcom PDC.
+	  SoCs. Say Y here if you want to use the Broadcom FlexRM.
 endif

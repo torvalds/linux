@@ -37,7 +37,7 @@
 
 #define HEST_PFX "HEST: "
 
-bool hest_disable;
+int hest_disable;
 EXPORT_SYMBOL_GPL(hest_disable);
 
 /* HEST table parsing */
@@ -52,6 +52,7 @@ static const int hest_esrc_len_tab[ACPI_HEST_TYPE_RESERVED] = {
 	[ACPI_HEST_TYPE_AER_ENDPOINT] = sizeof(struct acpi_hest_aer),
 	[ACPI_HEST_TYPE_AER_BRIDGE] = sizeof(struct acpi_hest_aer_bridge),
 	[ACPI_HEST_TYPE_GENERIC_ERROR] = sizeof(struct acpi_hest_generic),
+	[ACPI_HEST_TYPE_GENERIC_ERROR_V2] = sizeof(struct acpi_hest_generic_v2),
 };
 
 static int hest_esrc_len(struct acpi_hest_header *hest_hdr)
@@ -141,7 +142,8 @@ static int __init hest_parse_ghes_count(struct acpi_hest_header *hest_hdr, void 
 {
 	int *count = data;
 
-	if (hest_hdr->type == ACPI_HEST_TYPE_GENERIC_ERROR)
+	if (hest_hdr->type == ACPI_HEST_TYPE_GENERIC_ERROR ||
+	    hest_hdr->type == ACPI_HEST_TYPE_GENERIC_ERROR_V2)
 		(*count)++;
 	return 0;
 }
@@ -152,7 +154,8 @@ static int __init hest_parse_ghes(struct acpi_hest_header *hest_hdr, void *data)
 	struct ghes_arr *ghes_arr = data;
 	int rc, i;
 
-	if (hest_hdr->type != ACPI_HEST_TYPE_GENERIC_ERROR)
+	if (hest_hdr->type != ACPI_HEST_TYPE_GENERIC_ERROR &&
+	    hest_hdr->type != ACPI_HEST_TYPE_GENERIC_ERROR_V2)
 		return 0;
 
 	if (!((struct acpi_hest_generic *)hest_hdr)->enabled)
@@ -210,7 +213,7 @@ err:
 
 static int __init setup_hest_disable(char *str)
 {
-	hest_disable = 1;
+	hest_disable = HEST_DISABLED;
 	return 0;
 }
 
@@ -229,9 +232,10 @@ void __init acpi_hest_init(void)
 
 	status = acpi_get_table(ACPI_SIG_HEST, 0,
 				(struct acpi_table_header **)&hest_tab);
-	if (status == AE_NOT_FOUND)
-		goto err;
-	else if (ACPI_FAILURE(status)) {
+	if (status == AE_NOT_FOUND) {
+		hest_disable = HEST_NOT_FOUND;
+		return;
+	} else if (ACPI_FAILURE(status)) {
 		const char *msg = acpi_format_exception(status);
 		pr_err(HEST_PFX "Failed to get table, %s\n", msg);
 		rc = -EINVAL;
@@ -254,5 +258,5 @@ void __init acpi_hest_init(void)
 	pr_info(HEST_PFX "Table parsing has been initialized.\n");
 	return;
 err:
-	hest_disable = 1;
+	hest_disable = HEST_DISABLED;
 }

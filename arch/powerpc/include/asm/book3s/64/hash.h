@@ -6,19 +6,13 @@
  * Common bits between 4K and 64K pages in a linux-style PTE.
  * Additional bits may be defined in pgtable-hash64-*.h
  *
- * Note: We only support user read/write permissions. Supervisor always
- * have full read/write to pages above PAGE_OFFSET (pages below that
- * always use the user access permissions).
- *
- * We could create separate kernel read-only if we used the 3 PP bits
- * combinations that newer processors provide but we currently don't.
  */
-#define H_PAGE_BUSY		0x00800 /* software: PTE & hash are busy */
 #define H_PTE_NONE_MASK		_PAGE_HPTEFLAGS
-#define H_PAGE_F_GIX_SHIFT	57
-#define H_PAGE_F_GIX		(7ul << 57)	/* HPTE index within HPTEG */
-#define H_PAGE_F_SECOND		(1ul << 60)	/* HPTE is in 2ndary HPTEG */
-#define H_PAGE_HASHPTE		(1ul << 61)	/* PTE has associated HPTE */
+#define H_PAGE_F_GIX_SHIFT	56
+#define H_PAGE_BUSY		_RPAGE_RSV1 /* software: PTE & hash are busy */
+#define H_PAGE_F_SECOND		_RPAGE_RSV2	/* HPTE is in 2ndary HPTEG */
+#define H_PAGE_F_GIX		(_RPAGE_RSV3 | _RPAGE_RSV4 | _RPAGE_RPN44)
+#define H_PAGE_HASHPTE		_RPAGE_RPN43	/* PTE has associated HPTE */
 
 #ifdef CONFIG_PPC_64K_PAGES
 #include <asm/book3s/64/hash-64k.h>
@@ -46,7 +40,7 @@
  * Define the address range of the kernel non-linear virtual area
  */
 #define H_KERN_VIRT_START ASM_CONST(0xD000000000000000)
-#define H_KERN_VIRT_SIZE	ASM_CONST(0x0000100000000000)
+#define H_KERN_VIRT_SIZE  ASM_CONST(0x0000400000000000) /* 64T */
 
 /*
  * The vmalloc space starts at the beginning of that region, and
@@ -54,8 +48,10 @@
  * (we keep a quarter for the virtual memmap)
  */
 #define H_VMALLOC_START	H_KERN_VIRT_START
-#define H_VMALLOC_SIZE	(H_KERN_VIRT_SIZE >> 1)
+#define H_VMALLOC_SIZE	ASM_CONST(0x380000000000) /* 56T */
 #define H_VMALLOC_END	(H_VMALLOC_START + H_VMALLOC_SIZE)
+
+#define H_KERN_IO_START	H_VMALLOC_END
 
 /*
  * Region IDs
@@ -95,6 +91,10 @@ static inline int hash__pgd_bad(pgd_t pgd)
 {
 	return (pgd_val(pgd) == 0);
 }
+#ifdef CONFIG_STRICT_KERNEL_RWX
+extern void hash__mark_rodata_ro(void);
+extern void hash__mark_initmem_nx(void);
+#endif
 
 extern void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 			    pte_t *ptep, unsigned long pte, int huge);

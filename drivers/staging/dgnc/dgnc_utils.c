@@ -2,12 +2,11 @@
 #include <linux/sched/signal.h>
 #include "dgnc_utils.h"
 
-/*
- * dgnc_ms_sleep()
+/**
+ * dgnc_ms_sleep - Put the driver to sleep
+ * @ms - milliseconds to sleep
  *
- * Put the driver to sleep for x ms's
- *
- * Returns 0 if timed out, !0 (showing signal) if interrupted by a signal.
+ * Return: 0 if timed out, if interrupted by a signal return signal.
  */
 int dgnc_ms_sleep(ulong ms)
 {

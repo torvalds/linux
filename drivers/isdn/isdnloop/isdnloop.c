@@ -409,7 +409,7 @@ isdnloop_sendbuf(int channel, struct sk_buff *skb, isdnloop_card *card)
 		return -EINVAL;
 	}
 	if (len) {
-		if (!(card->flags & (channel) ? ISDNLOOP_FLAGS_B2ACTIVE : ISDNLOOP_FLAGS_B1ACTIVE))
+		if (!(card->flags & (channel ? ISDNLOOP_FLAGS_B2ACTIVE : ISDNLOOP_FLAGS_B1ACTIVE)))
 			return 0;
 		if (card->sndcount[channel] > ISDNLOOP_MAX_SQUEUE)
 			return 0;
@@ -479,7 +479,7 @@ isdnloop_fake(isdnloop_card *card, char *s, int ch)
 	}
 	if (ch >= 0)
 		sprintf(skb_put(skb, 3), "%02d;", ch);
-	memcpy(skb_put(skb, strlen(s)), s, strlen(s));
+	skb_put_data(skb, s, strlen(s));
 	skb_queue_tail(&card->dqueue, skb);
 	return 0;
 }
@@ -1142,8 +1142,6 @@ isdnloop_command(isdn_ctrl *c, isdnloop_card *card)
 		case ISDNLOOP_IOCTL_DEBUGVAR:
 			return (ulong) card;
 		case ISDNLOOP_IOCTL_STARTUP:
-			if (!access_ok(VERIFY_READ, (void *) a, sizeof(isdnloop_sdef)))
-				return -EFAULT;
 			return isdnloop_start(card, (isdnloop_sdef *) a);
 			break;
 		case ISDNLOOP_IOCTL_ADDCARD:

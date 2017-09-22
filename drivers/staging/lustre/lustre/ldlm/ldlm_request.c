@@ -57,9 +57,10 @@
 
 #define DEBUG_SUBSYSTEM S_LDLM
 
-#include "../include/lustre_dlm.h"
-#include "../include/obd_class.h"
-#include "../include/obd.h"
+#include <lustre_errno.h>
+#include <lustre_dlm.h>
+#include <obd_class.h>
+#include <obd.h>
 
 #include "ldlm_internal.h"
 
@@ -82,6 +83,33 @@ struct lock_wait_data {
 struct ldlm_async_args {
 	struct lustre_handle lock_handle;
 };
+
+/**
+ * ldlm_request_bufsize
+ *
+ * @count:	number of ldlm handles
+ * @type:	ldlm opcode
+ *
+ * If opcode=LDLM_ENQUEUE, 1 slot is already occupied,
+ * LDLM_LOCKREQ_HANDLE -1 slots are available.
+ * Otherwise, LDLM_LOCKREQ_HANDLE slots are available.
+ *
+ * Return:	size of the request buffer
+ */
+static int ldlm_request_bufsize(int count, int type)
+{
+	int avail = LDLM_LOCKREQ_HANDLES;
+
+	if (type == LDLM_ENQUEUE)
+		avail -= LDLM_ENQUEUE_CANCEL_OFF;
+
+	if (count > avail)
+		avail = (count - avail) * sizeof(struct lustre_handle);
+	else
+		avail = 0;
+
+	return sizeof(struct ldlm_request) + avail;
+}
 
 static int ldlm_expired_completion_wait(void *data)
 {
@@ -445,8 +473,8 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 
 		if (!ldlm_res_eq(&reply->lock_desc.l_resource.lr_name,
 				 &lock->l_resource->lr_name)) {
-			CDEBUG(D_INFO, "remote intent success, locking "DLDLMRES
-				       " instead of "DLDLMRES"\n",
+			CDEBUG(D_INFO, "remote intent success, locking " DLDLMRES
+				       " instead of " DLDLMRES "\n",
 			       PLDLMRES(&reply->lock_desc.l_resource),
 			       PLDLMRES(lock->l_resource));
 
@@ -1029,12 +1057,22 @@ int ldlm_cli_cancel(const struct lustre_handle *lockh,
 	struct ldlm_lock *lock;
 	LIST_HEAD(cancels);
 
-	/* concurrent cancels on the same handle can happen */
-	lock = ldlm_handle2lock_long(lockh, LDLM_FL_CANCELING);
+	lock = ldlm_handle2lock_long(lockh, 0);
 	if (!lock) {
 		LDLM_DEBUG_NOLOCK("lock is already being destroyed");
 		return 0;
 	}
+
+	lock_res_and_lock(lock);
+	/* Lock is being canceled and the caller doesn't want to wait */
+	if (ldlm_is_canceling(lock) && (cancel_flags & LCF_ASYNC)) {
+		unlock_res_and_lock(lock);
+		LDLM_LOCK_RELEASE(lock);
+		return 0;
+	}
+
+	ldlm_set_canceling(lock);
+	unlock_res_and_lock(lock);
 
 	rc = ldlm_cli_cancel_local(lock);
 	if (rc == LDLM_FL_LOCAL_ONLY || cancel_flags & LCF_LOCAL) {
@@ -1625,7 +1663,7 @@ int ldlm_cli_cancel_list(struct list_head *cancels, int count,
 
 		if (res < 0) {
 			CDEBUG_LIMIT(res == -ESHUTDOWN ? D_DLMTRACE : D_ERROR,
-				     "ldlm_cli_cancel_list: %d\n", res);
+				     "%s: %d\n", __func__, res);
 			res = count;
 		}
 
@@ -1667,7 +1705,7 @@ int ldlm_cli_cancel_unused_resource(struct ldlm_namespace *ns,
 					   0, flags | LCF_BL_AST, opaque);
 	rc = ldlm_cli_cancel_list(&cancels, count, NULL, flags);
 	if (rc != ELDLM_OK)
-		CERROR("canceling unused lock "DLDLMRES": rc = %d\n",
+		CERROR("canceling unused lock " DLDLMRES ": rc = %d\n",
 		       PLDLMRES(res), rc);
 
 	LDLM_RESOURCE_DELREF(res);

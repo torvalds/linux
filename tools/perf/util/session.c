@@ -1,5 +1,8 @@
+#include <errno.h>
+#include <inttypes.h>
 #include <linux/kernel.h>
 #include <traceevent/event-parse.h>
+#include <api/fs/fs.h>
 
 #include <byteswap.h>
 #include <unistd.h>
@@ -8,6 +11,7 @@
 
 #include "evlist.h"
 #include "evsel.h"
+#include "memswap.h"
 #include "session.h"
 #include "tool.h"
 #include "sort.h"
@@ -16,6 +20,7 @@
 #include "perf_regs.h"
 #include "asm/bug.h"
 #include "auxtrace.h"
+#include "thread.h"
 #include "thread-stack.h"
 #include "stat.h"
 
@@ -139,8 +144,14 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 			if (perf_session__open(session) < 0)
 				goto out_close;
 
-			perf_session__set_id_hdr_size(session);
-			perf_session__set_comm_exec(session);
+			/*
+			 * set session attributes that are present in perf.data
+			 * but not in pipe-mode.
+			 */
+			if (!file->is_pipe) {
+				perf_session__set_id_hdr_size(session);
+				perf_session__set_comm_exec(session);
+			}
 		}
 	} else  {
 		session->machines.host.env = &perf_env;
@@ -155,7 +166,11 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 			pr_warning("Cannot read kernel map\n");
 	}
 
-	if (tool && tool->ordering_requires_timestamps &&
+	/*
+	 * In pipe-mode, evlist is empty until PERF_RECORD_HEADER_ATTR is
+	 * processed, so perf_evlist__sample_id_all is not meaningful here.
+	 */
+	if ((!file || !file->is_pipe) && tool && tool->ordering_requires_timestamps &&
 	    tool->ordered_events && !perf_evlist__sample_id_all(session->evlist)) {
 		dump_printf("WARNING: No sample_id_all support, falling back to unordered processing\n");
 		tool->ordered_events = false;
@@ -413,6 +428,8 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->stat_round = process_stat_round_stub;
 	if (tool->time_conv == NULL)
 		tool->time_conv = process_event_op2_stub;
+	if (tool->feature == NULL)
+		tool->feature = process_event_op2_stub;
 }
 
 static void swap_sample_id_all(union perf_event *event, void *data)
@@ -1103,11 +1120,38 @@ static void dump_sample(struct perf_evsel *evsel, union perf_event *event,
 	if (sample_type & PERF_SAMPLE_DATA_SRC)
 		printf(" . data_src: 0x%"PRIx64"\n", sample->data_src);
 
+	if (sample_type & PERF_SAMPLE_PHYS_ADDR)
+		printf(" .. phys_addr: 0x%"PRIx64"\n", sample->phys_addr);
+
 	if (sample_type & PERF_SAMPLE_TRANSACTION)
 		printf("... transaction: %" PRIx64 "\n", sample->transaction);
 
 	if (sample_type & PERF_SAMPLE_READ)
 		sample_read__printf(sample, evsel->attr.read_format);
+}
+
+static void dump_read(struct perf_evsel *evsel, union perf_event *event)
+{
+	struct read_event *read_event = &event->read;
+	u64 read_format;
+
+	if (!dump_trace)
+		return;
+
+	printf(": %d %d %s %" PRIu64 "\n", event->read.pid, event->read.tid,
+	       evsel ? perf_evsel__name(evsel) : "FAIL",
+	       event->read.value);
+
+	read_format = evsel->attr.read_format;
+
+	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
+		printf("... time enabled : %" PRIu64 "\n", read_event->time_enabled);
+
+	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
+		printf("... time running : %" PRIu64 "\n", read_event->time_running);
+
+	if (read_format & PERF_FORMAT_ID)
+		printf("... id           : %" PRIu64 "\n", read_event->id);
 }
 
 static struct machine *machines__find_for_cpumode(struct machines *machines,
@@ -1239,6 +1283,8 @@ static int machines__deliver_event(struct machines *machines,
 		return tool->mmap2(tool, event, sample, machine);
 	case PERF_RECORD_COMM:
 		return tool->comm(tool, event, sample, machine);
+	case PERF_RECORD_NAMESPACES:
+		return tool->namespaces(tool, event, sample, machine);
 	case PERF_RECORD_FORK:
 		return tool->fork(tool, event, sample, machine);
 	case PERF_RECORD_EXIT:
@@ -1252,15 +1298,19 @@ static int machines__deliver_event(struct machines *machines,
 			evlist->stats.total_lost_samples += event->lost_samples.lost;
 		return tool->lost_samples(tool, event, sample, machine);
 	case PERF_RECORD_READ:
+		dump_read(evsel, event);
 		return tool->read(tool, event, sample, evsel, machine);
 	case PERF_RECORD_THROTTLE:
 		return tool->throttle(tool, event, sample, machine);
 	case PERF_RECORD_UNTHROTTLE:
 		return tool->unthrottle(tool, event, sample, machine);
 	case PERF_RECORD_AUX:
-		if (tool->aux == perf_event__process_aux &&
-		    (event->aux.flags & PERF_AUX_FLAG_TRUNCATED))
-			evlist->stats.total_aux_lost += 1;
+		if (tool->aux == perf_event__process_aux) {
+			if (event->aux.flags & PERF_AUX_FLAG_TRUNCATED)
+				evlist->stats.total_aux_lost += 1;
+			if (event->aux.flags & PERF_AUX_FLAG_PARTIAL)
+				evlist->stats.total_aux_partial += 1;
+		}
 		return tool->aux(tool, event, sample, machine);
 	case PERF_RECORD_ITRACE_START:
 		return tool->itrace_start(tool, event, sample, machine);
@@ -1351,6 +1401,8 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 	case PERF_RECORD_TIME_CONV:
 		session->time_conv = event->time_conv;
 		return tool->time_conv(tool, event, session);
+	case PERF_RECORD_HEADER_FEATURE:
+		return tool->feature(tool, event, session);
 	default:
 		return -EINVAL;
 	}
@@ -1494,6 +1546,11 @@ int perf_session__register_idle_thread(struct perf_session *session)
 		err = -1;
 	}
 
+	if (thread == NULL || thread__set_namespaces(thread, 0, NULL)) {
+		pr_err("problem inserting idle task.\n");
+		err = -1;
+	}
+
 	/* machine__findnew_thread() got the thread, so put it */
 	thread__put(thread);
 	return err;
@@ -1546,6 +1603,23 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 		ui__warning("AUX data lost %" PRIu64 " times out of %u!\n\n",
 			    stats->total_aux_lost,
 			    stats->nr_events[PERF_RECORD_AUX]);
+	}
+
+	if (session->tool->aux == perf_event__process_aux &&
+	    stats->total_aux_partial != 0) {
+		bool vmm_exclusive = false;
+
+		(void)sysfs__read_bool("module/kvm_intel/parameters/vmm_exclusive",
+		                       &vmm_exclusive);
+
+		ui__warning("AUX data had gaps in it %" PRIu64 " times out of %u!\n\n"
+		            "Are you running a KVM guest in the background?%s\n\n",
+			    stats->total_aux_partial,
+			    stats->nr_events[PERF_RECORD_AUX],
+			    vmm_exclusive ?
+			    "\nReloading kvm_intel module with vmm_exclusive=0\n"
+			    "will reduce the gaps to only guest's timeslices." :
+			    "");
 	}
 
 	if (stats->nr_unknown_events != 0) {
@@ -1628,6 +1702,7 @@ static int __perf_session__process_pipe_events(struct perf_session *session)
 	buf = malloc(cur_size);
 	if (!buf)
 		return -errno;
+	ordered_events__set_copy_on_queue(oe, true);
 more:
 	event = buf;
 	err = readn(fd, event, sizeof(struct perf_event_header));
@@ -1992,7 +2067,7 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 
 		if (!(evsel->attr.sample_type & PERF_SAMPLE_CPU)) {
 			pr_err("File does not contain CPU events. "
-			       "Remove -c option to proceed.\n");
+			       "Remove -C option to proceed.\n");
 			return -1;
 		}
 	}

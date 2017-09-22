@@ -52,7 +52,7 @@ enum qed_mib_read_type {
 
 struct qed_dcbx_app_data {
 	bool enable;		/* DCB enabled */
-	bool update;		/* Update indication */
+	u8 update;		/* Update indication */
 	u8 priority;		/* Priority */
 	u8 tc;			/* Traffic Class */
 };
@@ -84,9 +84,6 @@ struct qed_dcbx_app_metadata {
 	char *name;
 	enum qed_pci_personality personality;
 };
-
-#define QED_MFW_GET_FIELD(name, field) \
-	(((name) & (field ## _MASK)) >> (field ## _SHIFT))
 
 struct qed_dcbx_info {
 	struct lldp_status_params_s lldp_remote[LLDP_MAX_LLDP_AGENTS];
@@ -122,7 +119,7 @@ qed_dcbx_mib_update_event(struct qed_hwfn *,
 			  struct qed_ptt *, enum qed_mib_read_type);
 
 int qed_dcbx_info_alloc(struct qed_hwfn *p_hwfn);
-void qed_dcbx_info_free(struct qed_hwfn *, struct qed_dcbx_info *);
+void qed_dcbx_info_free(struct qed_hwfn *p_hwfn);
 void qed_dcbx_set_pf_update_params(struct qed_dcbx_results *p_src,
 				   struct pf_update_ramrod_data *p_dest);
 

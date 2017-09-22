@@ -41,6 +41,7 @@
 #include <asm/vdso_datapage.h>
 #include <asm/cputhreads.h>
 #include <asm/xics.h>
+#include <asm/xive.h>
 #include <asm/dbell.h>
 #include <asm/plpar_wrappers.h>
 #include <asm/code-patching.h>
@@ -54,11 +55,6 @@
  * interface by prom_hold_cpus and is spinning on secondary_hold_spinloop.
  */
 static cpumask_var_t of_spin_mask;
-
-/*
- * If we multiplex IPI mechanisms, store the appropriate XICS IPI mechanism here
- */
-static void  (*xics_cause_ipi)(int cpu, unsigned long data);
 
 /* Query where a cpu is now.  Return codes #defined in plpar_wrappers.h */
 int smp_query_cpu_stopped(unsigned int pcpu)
@@ -141,10 +137,10 @@ out:
 
 static void smp_setup_cpu(int cpu)
 {
-	if (cpu != boot_cpuid)
+	if (xive_enabled())
+		xive_smp_setup_cpu();
+	else if (cpu != boot_cpuid)
 		xics_setup_cpu();
-	if (cpu_has_feature(CPU_FTR_DBELL))
-		doorbell_setup_this_cpu();
 
 	if (firmware_has_feature(FW_FEATURE_SPLPAR))
 		vpa_init(cpu);
@@ -158,7 +154,8 @@ static void smp_setup_cpu(int cpu)
 
 static int smp_pSeries_kick_cpu(int nr)
 {
-	BUG_ON(nr < 0 || nr >= NR_CPUS);
+	if (nr < 0 || nr >= nr_cpu_ids)
+		return -EINVAL;
 
 	if (!smp_startup_cpu(nr))
 		return -ENOENT;
@@ -187,29 +184,71 @@ static int smp_pSeries_kick_cpu(int nr)
 	return 0;
 }
 
-/* Only used on systems that support multiple IPI mechanisms */
-static void pSeries_cause_ipi_mux(int cpu, unsigned long data)
+static int pseries_smp_prepare_cpu(int cpu)
 {
-	if (cpumask_test_cpu(cpu, cpu_sibling_mask(smp_processor_id())))
-		doorbell_cause_ipi(cpu, data);
+	if (xive_enabled())
+		return xive_smp_prepare_cpu(cpu);
+	return 0;
+}
+
+static void smp_pseries_cause_ipi(int cpu)
+{
+	/* POWER9 should not use this handler */
+	if (doorbell_try_core_ipi(cpu))
+		return;
+
+	icp_ops->cause_ipi(cpu);
+}
+
+static int pseries_cause_nmi_ipi(int cpu)
+{
+	int hwcpu;
+
+	if (cpu == NMI_IPI_ALL_OTHERS) {
+		hwcpu = H_SIGNAL_SYS_RESET_ALL_OTHERS;
+	} else {
+		if (cpu < 0) {
+			WARN_ONCE(true, "incorrect cpu parameter %d", cpu);
+			return 0;
+		}
+
+		hwcpu = get_hard_smp_processor_id(cpu);
+	}
+
+	if (plapr_signal_sys_reset(hwcpu) == H_SUCCESS)
+		return 1;
+
+	return 0;
+}
+
+static __init void pSeries_smp_probe_xics(void)
+{
+	xics_smp_probe();
+
+	if (cpu_has_feature(CPU_FTR_DBELL))
+		smp_ops->cause_ipi = smp_pseries_cause_ipi;
 	else
-		xics_cause_ipi(cpu, data);
+		smp_ops->cause_ipi = icp_ops->cause_ipi;
 }
 
 static __init void pSeries_smp_probe(void)
 {
-	xics_smp_probe();
-
-	if (cpu_has_feature(CPU_FTR_DBELL)) {
-		xics_cause_ipi = smp_ops->cause_ipi;
-		smp_ops->cause_ipi = pSeries_cause_ipi_mux;
-	}
+	if (xive_enabled())
+		/*
+		 * Don't use P9 doorbells when XIVE is enabled. IPIs
+		 * using MMIOs should be faster
+		 */
+		xive_smp_probe();
+	else
+		pSeries_smp_probe_xics();
 }
 
 static struct smp_ops_t pseries_smp_ops = {
 	.message_pass	= NULL,	/* Use smp_muxed_ipi_message_pass */
 	.cause_ipi	= NULL,	/* Filled at runtime by pSeries_smp_probe() */
+	.cause_nmi_ipi	= pseries_cause_nmi_ipi,
 	.probe		= pSeries_smp_probe,
+	.prepare_cpu	= pseries_smp_prepare_cpu,
 	.kick_cpu	= smp_pSeries_kick_cpu,
 	.setup_cpu	= smp_setup_cpu,
 	.cpu_bootable	= smp_generic_cpu_bootable,

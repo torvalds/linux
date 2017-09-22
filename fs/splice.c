@@ -247,11 +247,6 @@ ssize_t add_to_pipe(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
 }
 EXPORT_SYMBOL(add_to_pipe);
 
-void spd_release_page(struct splice_pipe_desc *spd, unsigned int i)
-{
-	put_page(spd->pages[i]);
-}
-
 /*
  * Check if we need to grow the arrays holding pages and partial page
  * descriptions.
@@ -369,22 +364,6 @@ static ssize_t kernel_readv(struct file *file, const struct kvec *vec,
 	return res;
 }
 
-ssize_t kernel_write(struct file *file, const char *buf, size_t count,
-			    loff_t pos)
-{
-	mm_segment_t old_fs;
-	ssize_t res;
-
-	old_fs = get_fs();
-	set_fs(get_ds());
-	/* The cast to a user pointer is valid due to the set_fs() */
-	res = vfs_write(file, (__force const char __user *)buf, count, &pos);
-	set_fs(old_fs);
-
-	return res;
-}
-EXPORT_SYMBOL(kernel_write);
-
 static ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 				 struct pipe_inode_info *pipe, size_t len,
 				 unsigned int flags)
@@ -393,7 +372,7 @@ static ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 	struct iov_iter to;
 	struct page **pages;
 	unsigned int nr_pages;
-	size_t offset, dummy, copied = 0;
+	size_t offset, base, copied = 0;
 	ssize_t res;
 	int i;
 
@@ -408,12 +387,11 @@ static ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 
 	iov_iter_pipe(&to, ITER_PIPE | READ, pipe, len + offset);
 
-	res = iov_iter_get_pages_alloc(&to, &pages, len + offset, &dummy);
+	res = iov_iter_get_pages_alloc(&to, &pages, len + offset, &base);
 	if (res <= 0)
 		return -ENOMEM;
 
-	BUG_ON(dummy);
-	nr_pages = DIV_ROUND_UP(res, PAGE_SIZE);
+	nr_pages = DIV_ROUND_UP(res + base, PAGE_SIZE);
 
 	vec = __vec;
 	if (nr_pages > PIPE_DEF_BUFFERS) {
@@ -768,7 +746,7 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 
 		iov_iter_bvec(&from, ITER_BVEC | WRITE, array, n,
 			      sd.total_len - left);
-		ret = vfs_iter_write(out, &from, &sd.pos);
+		ret = vfs_iter_write(out, &from, &sd.pos, 0);
 		if (ret <= 0)
 			break;
 
@@ -1359,6 +1337,8 @@ SYSCALL_DEFINE4(vmsplice, int, fd, const struct iovec __user *, iov,
 	struct fd f;
 	long error;
 
+	if (unlikely(flags & ~SPLICE_F_ALL))
+		return -EINVAL;
 	if (unlikely(nr_segs > UIO_MAXIOV))
 		return -EINVAL;
 	else if (unlikely(!nr_segs))
@@ -1408,6 +1388,9 @@ SYSCALL_DEFINE6(splice, int, fd_in, loff_t __user *, off_in,
 
 	if (unlikely(!len))
 		return 0;
+
+	if (unlikely(flags & ~SPLICE_F_ALL))
+		return -EINVAL;
 
 	error = -EBADF;
 	in = fdget(fd_in);
@@ -1736,6 +1719,9 @@ SYSCALL_DEFINE4(tee, int, fdin, int, fdout, size_t, len, unsigned int, flags)
 {
 	struct fd in;
 	int error;
+
+	if (unlikely(flags & ~SPLICE_F_ALL))
+		return -EINVAL;
 
 	if (unlikely(!len))
 		return 0;

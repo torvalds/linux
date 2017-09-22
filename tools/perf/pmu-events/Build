@@ -2,7 +2,7 @@ hostprogs := jevents
 
 jevents-y	+= json.o jsmn.o jevents.o
 pmu-events-y	+= pmu-events.o
-JDIR		=  pmu-events/arch/$(ARCH)
+JDIR		=  pmu-events/arch/$(SRCARCH)
 JSON		=  $(shell [ -d $(JDIR) ] &&				\
 			find $(JDIR) -name '*.json' -o -name 'mapfile.csv')
 #
@@ -10,4 +10,4 @@ JSON		=  $(shell [ -d $(JDIR) ] &&				\
 # directory and create tables in pmu-events.c.
 #
 $(OUTPUT)pmu-events/pmu-events.c: $(JSON) $(JEVENTS)
-	$(Q)$(call echo-cmd,gen)$(JEVENTS) $(ARCH) pmu-events/arch $(OUTPUT)pmu-events/pmu-events.c $(V)
+	$(Q)$(call echo-cmd,gen)$(JEVENTS) $(SRCARCH) pmu-events/arch $(OUTPUT)pmu-events/pmu-events.c $(V)

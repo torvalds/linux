@@ -837,7 +837,7 @@ done:
 	return ret;
 }
 
-static struct v4l2_subdev_core_ops tw9910_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops tw9910_subdev_core_ops = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= tw9910_g_register,
 	.s_register	= tw9910_s_register,
@@ -901,7 +901,7 @@ static int tw9910_g_tvnorms(struct v4l2_subdev *sd, v4l2_std_id *norm)
 	return 0;
 }
 
-static struct v4l2_subdev_video_ops tw9910_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops tw9910_subdev_video_ops = {
 	.s_std		= tw9910_s_std,
 	.g_std		= tw9910_g_std,
 	.s_stream	= tw9910_s_stream,
@@ -917,7 +917,7 @@ static const struct v4l2_subdev_pad_ops tw9910_subdev_pad_ops = {
 	.set_fmt	= tw9910_set_fmt,
 };
 
-static struct v4l2_subdev_ops tw9910_subdev_ops = {
+static const struct v4l2_subdev_ops tw9910_subdev_ops = {
 	.core	= &tw9910_subdev_core_ops,
 	.video	= &tw9910_subdev_video_ops,
 	.pad	= &tw9910_subdev_pad_ops,

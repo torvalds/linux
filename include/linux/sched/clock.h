@@ -23,10 +23,6 @@ extern u64 sched_clock_cpu(int cpu);
 extern void sched_clock_init(void);
 
 #ifndef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
-static inline void sched_clock_init_late(void)
-{
-}
-
 static inline void sched_clock_tick(void)
 {
 }
@@ -39,7 +35,7 @@ static inline void sched_clock_idle_sleep_event(void)
 {
 }
 
-static inline void sched_clock_idle_wakeup_event(u64 delta_ns)
+static inline void sched_clock_idle_wakeup_event(void)
 {
 }
 
@@ -53,19 +49,19 @@ static inline u64 local_clock(void)
 	return sched_clock();
 }
 #else
-extern void sched_clock_init_late(void);
-/*
- * Architectures can set this to 1 if they have specified
- * CONFIG_HAVE_UNSTABLE_SCHED_CLOCK in their arch Kconfig,
- * but then during bootup it turns out that sched_clock()
- * is reliable after all:
- */
 extern int sched_clock_stable(void);
 extern void clear_sched_clock_stable(void);
 
+/*
+ * When sched_clock_stable(), __sched_clock_offset provides the offset
+ * between local_clock() and sched_clock().
+ */
+extern u64 __sched_clock_offset;
+
 extern void sched_clock_tick(void);
+extern void sched_clock_tick_stable(void);
 extern void sched_clock_idle_sleep_event(void);
-extern void sched_clock_idle_wakeup_event(u64 delta_ns);
+extern void sched_clock_idle_wakeup_event(void);
 
 /*
  * As outlined in clock.c, provides a fast, high resolution, nanosecond

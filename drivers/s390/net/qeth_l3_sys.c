@@ -286,7 +286,7 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 		if (!addr)
 			return -ENOMEM;
 
-		addr->u.a6.addr.s6_addr32[0] = 0xfe800000;
+		addr->u.a6.addr.s6_addr32[0] = cpu_to_be32(0xfe800000);
 		addr->u.a6.addr.s6_addr32[1] = 0x00000000;
 		for (i = 8; i < 16; i++)
 			addr->u.a6.addr.s6_addr[i] =
@@ -320,7 +320,7 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 
 	addr = qeth_l3_get_addr_buffer(QETH_PROT_IPV6);
 	if (addr != NULL) {
-		addr->u.a6.addr.s6_addr32[0] = 0xfe800000;
+		addr->u.a6.addr.s6_addr32[0] = cpu_to_be32(0xfe800000);
 		addr->u.a6.addr.s6_addr32[1] = 0x00000000;
 		for (i = 8; i < 16; i++)
 			addr->u.a6.addr.s6_addr[i] = card->options.hsuid[i - 8];
@@ -350,7 +350,7 @@ static struct attribute *qeth_l3_device_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group qeth_l3_device_attr_group = {
+static const struct attribute_group qeth_l3_device_attr_group = {
 	.attrs = qeth_l3_device_attrs,
 };
 
@@ -680,7 +680,7 @@ static struct attribute *qeth_ipato_device_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group qeth_device_ipato_group = {
+static const struct attribute_group qeth_device_ipato_group = {
 	.name = "ipa_takeover",
 	.attrs = qeth_ipato_device_attrs,
 };
@@ -843,7 +843,7 @@ static struct attribute *qeth_vipa_device_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group qeth_device_vipa_group = {
+static const struct attribute_group qeth_device_vipa_group = {
 	.name = "vipa",
 	.attrs = qeth_vipa_device_attrs,
 };
@@ -895,9 +895,26 @@ static ssize_t qeth_l3_dev_rxip_add4_show(struct device *dev,
 static int qeth_l3_parse_rxipe(const char *buf, enum qeth_prot_versions proto,
 		 u8 *addr)
 {
+	__be32 ipv4_addr;
+	struct in6_addr ipv6_addr;
+
 	if (qeth_l3_string_to_ipaddr(buf, proto, addr)) {
 		return -EINVAL;
 	}
+	if (proto == QETH_PROT_IPV4) {
+		memcpy(&ipv4_addr, addr, sizeof(ipv4_addr));
+		if (ipv4_is_multicast(ipv4_addr)) {
+			QETH_DBF_MESSAGE(2, "multicast rxip not supported.\n");
+			return -EINVAL;
+		}
+	} else if (proto == QETH_PROT_IPV6) {
+		memcpy(&ipv6_addr, addr, sizeof(ipv6_addr));
+		if (ipv6_addr_is_multicast(&ipv6_addr)) {
+			QETH_DBF_MESSAGE(2, "multicast rxip not supported.\n");
+			return -EINVAL;
+		}
+	}
+
 	return 0;
 }
 
@@ -1006,7 +1023,7 @@ static struct attribute *qeth_rxip_device_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group qeth_device_rxip_group = {
+static const struct attribute_group qeth_device_rxip_group = {
 	.name = "rxip",
 	.attrs = qeth_rxip_device_attrs,
 };
@@ -1049,3 +1066,14 @@ void qeth_l3_remove_device_attributes(struct device *dev)
 	sysfs_remove_group(&dev->kobj, &qeth_device_vipa_group);
 	sysfs_remove_group(&dev->kobj, &qeth_device_rxip_group);
 }
+
+const struct attribute_group *qeth_l3_attr_groups[] = {
+	&qeth_device_attr_group,
+	&qeth_device_blkt_group,
+	/* l3 specific, see l3_{create,remove}_device_attributes(): */
+	&qeth_l3_device_attr_group,
+	&qeth_device_ipato_group,
+	&qeth_device_vipa_group,
+	&qeth_device_rxip_group,
+NULL,
+};

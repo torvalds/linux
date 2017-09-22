@@ -64,7 +64,6 @@ struct msm_kms_funcs {
 #ifdef CONFIG_DEBUG_FS
 	/* debugfs: */
 	int (*debugfs_init)(struct msm_kms *kms, struct drm_minor *minor);
-	void (*debugfs_cleanup)(struct msm_kms *kms, struct drm_minor *minor);
 #endif
 };
 
@@ -73,6 +72,9 @@ struct msm_kms {
 
 	/* irq number to be passed on to drm_irq_install */
 	int irq;
+
+	/* mapper-id used to request GEM buffer mapped for scanout: */
+	struct msm_gem_address_space *aspace;
 };
 
 /**
@@ -97,5 +99,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev);
 struct msm_kms *mdp5_kms_init(struct drm_device *dev);
 int msm_mdss_init(struct drm_device *dev);
 void msm_mdss_destroy(struct drm_device *dev);
+int msm_mdss_enable(struct msm_mdss *mdss);
+int msm_mdss_disable(struct msm_mdss *mdss);
 
 #endif /* __MSM_KMS_H__ */

@@ -11,6 +11,12 @@
 #include <asm/book3s/64/radix-4k.h>
 #endif
 
+/*
+ * For P9 DD1 only, we need to track whether the pte's huge.
+ */
+#define R_PAGE_LARGE	_RPAGE_RSV1
+
+
 #ifndef __ASSEMBLY__
 #include <asm/book3s/64/tlbflush-radix.h>
 #include <asm/cpu_has_feature.h>
@@ -104,11 +110,18 @@
  */
 #define RADIX_VMEMMAP_BASE		(RADIX_VMALLOC_END)
 
+#define RADIX_KERN_IO_START	(RADIX_KERN_VIRT_START + (RADIX_KERN_VIRT_SIZE >> 1))
+
 #ifndef __ASSEMBLY__
 #define RADIX_PTE_TABLE_SIZE	(sizeof(pte_t) << RADIX_PTE_INDEX_SIZE)
 #define RADIX_PMD_TABLE_SIZE	(sizeof(pmd_t) << RADIX_PMD_INDEX_SIZE)
 #define RADIX_PUD_TABLE_SIZE	(sizeof(pud_t) << RADIX_PUD_INDEX_SIZE)
 #define RADIX_PGD_TABLE_SIZE	(sizeof(pgd_t) << RADIX_PGD_INDEX_SIZE)
+
+#ifdef CONFIG_STRICT_KERNEL_RWX
+extern void radix__mark_rodata_ro(void);
+extern void radix__mark_initmem_nx(void);
+#endif
 
 static inline unsigned long __radix_pte_update(pte_t *ptep, unsigned long clr,
 					       unsigned long set)
@@ -246,13 +259,13 @@ static inline int radix__pgd_bad(pgd_t pgd)
 
 static inline int radix__pmd_trans_huge(pmd_t pmd)
 {
-	return !!(pmd_val(pmd) & _PAGE_PTE);
+	return (pmd_val(pmd) & (_PAGE_PTE | _PAGE_DEVMAP)) == _PAGE_PTE;
 }
 
 static inline pmd_t radix__pmd_mkhuge(pmd_t pmd)
 {
 	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
-		return __pmd(pmd_val(pmd) | _PAGE_PTE | _PAGE_LARGE);
+		return __pmd(pmd_val(pmd) | _PAGE_PTE | R_PAGE_LARGE);
 	return __pmd(pmd_val(pmd) | _PAGE_PTE);
 }
 static inline void radix__pmdp_huge_split_prepare(struct vm_area_struct *vma,

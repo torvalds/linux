@@ -1,0 +1,7 @@
+CONFIG_TEST_KMOD=m
+CONFIG_TEST_LKM=m
+CONFIG_XFS_FS=m
+
+# For the module parameter force_init_test is used
+CONFIG_TUN=m
+CONFIG_BTRFS_FS=m

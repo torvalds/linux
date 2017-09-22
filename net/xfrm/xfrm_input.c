@@ -107,6 +107,8 @@ struct sec_path *secpath_dup(struct sec_path *src)
 	sp->len = 0;
 	sp->olen = 0;
 
+	memset(sp->ovec, 0, sizeof(sp->ovec[XFRM_MAX_OFFLOAD_DEPTH]));
+
 	if (src) {
 		int i;
 
@@ -114,7 +116,7 @@ struct sec_path *secpath_dup(struct sec_path *src)
 		for (i = 0; i < sp->len; i++)
 			xfrm_state_hold(sp->xvec[i]);
 	}
-	atomic_set(&sp->refcnt, 1);
+	refcount_set(&sp->refcnt, 1);
 	return sp;
 }
 EXPORT_SYMBOL(secpath_dup);
@@ -124,7 +126,7 @@ int secpath_set(struct sk_buff *skb)
 	struct sec_path *sp;
 
 	/* Allocate new secpath or COW existing one. */
-	if (!skb->sp || atomic_read(&skb->sp->refcnt) != 1) {
+	if (!skb->sp || refcount_read(&skb->sp->refcnt) != 1) {
 		sp = secpath_dup(skb->sp);
 		if (!sp)
 			return -ENOMEM;
@@ -207,8 +209,9 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 	unsigned int family;
 	int decaps = 0;
 	int async = 0;
-	struct xfrm_offload *xo;
 	bool xfrm_gro = false;
+	bool crypto_done = false;
+	struct xfrm_offload *xo = xfrm_offload(skb);
 
 	if (encap_type < 0) {
 		x = xfrm_input_state(skb);
@@ -220,9 +223,45 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 			seq = XFRM_SKB_CB(skb)->seq.input.low;
 			goto resume;
 		}
+
 		/* encap_type < -1 indicates a GRO call. */
 		encap_type = 0;
 		seq = XFRM_SPI_SKB_CB(skb)->seq;
+
+		if (xo && (xo->flags & CRYPTO_DONE)) {
+			crypto_done = true;
+			x = xfrm_input_state(skb);
+			family = XFRM_SPI_SKB_CB(skb)->family;
+
+			if (!(xo->status & CRYPTO_SUCCESS)) {
+				if (xo->status &
+				    (CRYPTO_TRANSPORT_AH_AUTH_FAILED |
+				     CRYPTO_TRANSPORT_ESP_AUTH_FAILED |
+				     CRYPTO_TUNNEL_AH_AUTH_FAILED |
+				     CRYPTO_TUNNEL_ESP_AUTH_FAILED)) {
+
+					xfrm_audit_state_icvfail(x, skb,
+								 x->type->proto);
+					x->stats.integrity_failed++;
+					XFRM_INC_STATS(net, LINUX_MIB_XFRMINSTATEPROTOERROR);
+					goto drop;
+				}
+
+				if (xo->status & CRYPTO_INVALID_PROTOCOL) {
+					XFRM_INC_STATS(net, LINUX_MIB_XFRMINSTATEPROTOERROR);
+					goto drop;
+				}
+
+				XFRM_INC_STATS(net, LINUX_MIB_XFRMINBUFFERERROR);
+				goto drop;
+			}
+
+			if ((err = xfrm_parse_spi(skb, nexthdr, &spi, &seq)) != 0) {
+				XFRM_INC_STATS(net, LINUX_MIB_XFRMINHDRERROR);
+				goto drop;
+			}
+		}
+
 		goto lock;
 	}
 
@@ -311,7 +350,10 @@ lock:
 		skb_dst_force(skb);
 		dev_hold(skb->dev);
 
-		nexthdr = x->type->input(x, skb);
+		if (crypto_done)
+			nexthdr = x->type_offload->input_tail(x, skb);
+		else
+			nexthdr = x->type->input(x, skb);
 
 		if (nexthdr == -EINPROGRESS)
 			return 0;
@@ -387,6 +429,7 @@ resume:
 	nf_reset(skb);
 
 	if (decaps) {
+		skb->sp->olen = 0;
 		skb_dst_drop(skb);
 		gro_cells_receive(&gro_cells, skb);
 		return 0;
@@ -395,8 +438,9 @@ resume:
 		if (xo)
 			xfrm_gro = xo->flags & XFRM_GRO;
 
-		err = x->inner_mode->afinfo->transport_finish(skb, async);
+		err = x->inner_mode->afinfo->transport_finish(skb, xfrm_gro || async);
 		if (xfrm_gro) {
+			skb->sp->olen = 0;
 			skb_dst_drop(skb);
 			gro_cells_receive(&gro_cells, skb);
 			return err;

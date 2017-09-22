@@ -305,16 +305,16 @@ struct vb2_buffer {
  *			buffer in \*num_planes, the size of each plane should be
  *			set in the sizes\[\] array and optional per-plane
  *			allocator specific device in the alloc_devs\[\] array.
- *			When called from VIDIOC_REQBUFS,() \*num_planes == 0,
+ *			When called from VIDIOC_REQBUFS(), \*num_planes == 0,
  *			the driver has to use the currently configured format to
  *			determine the plane sizes and \*num_buffers is the total
  *			number of buffers that are being allocated. When called
- *			from VIDIOC_CREATE_BUFS,() \*num_planes != 0 and it
+ *			from VIDIOC_CREATE_BUFS(), \*num_planes != 0 and it
  *			describes the requested number of planes and sizes\[\]
- *			contains the requested plane sizes. If either
- *			\*num_planes or the requested sizes are invalid callback
- *			must return %-EINVAL. In this case \*num_buffers are
- *			being allocated additionally to q->num_buffers.
+ *			contains the requested plane sizes. In this case
+ *			\*num_buffers are being allocated additionally to
+ *			q->num_buffers. If either \*num_planes or the requested
+ *			sizes are invalid callback must return %-EINVAL.
  * @wait_prepare:	release any locks taken while calling vb2 functions;
  *			it is called before an ioctl needs to wait for a new
  *			buffer to arrive; required to avoid a deadlock in
@@ -427,6 +427,16 @@ struct vb2_buf_ops {
  * @dev:	device to use for the default allocation context if the driver
  *		doesn't fill in the @alloc_devs array.
  * @dma_attrs:	DMA attributes to use for the DMA.
+ * @bidirectional: when this flag is set the DMA direction for the buffers of
+ *		this queue will be overridden with DMA_BIDIRECTIONAL direction.
+ *		This is useful in cases where the hardware (firmware) writes to
+ *		a buffer which is mapped as read (DMA_TO_DEVICE), or reads from
+ *		buffer which is mapped for write (DMA_FROM_DEVICE) in order
+ *		to satisfy some internal hardware restrictions or adds a padding
+ *		needed by the processing algorithm. In case the DMA mapping is
+ *		not bidirectional but the hardware (firmware) trying to access
+ *		the buffer (in the opposite direction) this could lead to an
+ *		IOMMU protection faults.
  * @fileio_read_once:		report EOF after reading the first buffer
  * @fileio_write_immediately:	queue buffer after each write() call
  * @allow_zero_bytesused:	allow bytesused == 0 to be passed to the driver
@@ -465,6 +475,7 @@ struct vb2_buf_ops {
  * Private elements (won't appear at the uAPI book):
  * @mmap_lock:	private mutex used when buffers are allocated/freed/mmapped
  * @memory:	current memory type used
+ * @dma_dir:	DMA mapping direction.
  * @bufs:	videobuf buffer structures
  * @num_buffers: number of allocated/used buffers
  * @queued_list: list of buffers currently queued from userspace
@@ -495,6 +506,7 @@ struct vb2_queue {
 	unsigned int			io_modes;
 	struct device			*dev;
 	unsigned long			dma_attrs;
+	unsigned			bidirectional:1;
 	unsigned			fileio_read_once:1;
 	unsigned			fileio_write_immediately:1;
 	unsigned			allow_zero_bytesused:1;
@@ -516,6 +528,7 @@ struct vb2_queue {
 	/* private: internal use only */
 	struct mutex			mmap_lock;
 	unsigned int			memory;
+	enum dma_data_direction		dma_dir;
 	struct vb2_buffer		*bufs[VB2_MAX_FRAME];
 	unsigned int			num_buffers;
 

@@ -24,26 +24,22 @@
 #include <linux/kthread.h>
 
 #include "spk_priv.h"
-#include "serialio.h"
 #include "speakup.h"
 
 #define DRV_VERSION "2.14"
 #define SYNTH_CLEAR 0x03
 #define PROCSPEECH 0x0b
-static unsigned char last_char;
 
-static inline u_char get_last_char(void)
+static volatile unsigned char last_char;
+
+static void read_buff_add(u_char ch)
 {
-	u_char avail = inb_p(speakup_info.port_tts + UART_LSR) & UART_LSR_DR;
-
-	if (avail)
-		last_char = inb_p(speakup_info.port_tts + UART_RX);
-	return last_char;
+	last_char = ch;
 }
 
 static inline bool synth_full(void)
 {
-	return get_last_char() == 0x13;
+	return last_char == 0x13;
 }
 
 static void do_catch_up(struct spk_synth *synth);
@@ -124,17 +120,19 @@ static struct spk_synth synth_decext = {
 	.jiffies = 50,
 	.full = 40000,
 	.flags = SF_DEC,
+	.dev_name = SYNTH_DEFAULT_DEV,
 	.startup = SYNTH_START,
 	.checkval = SYNTH_CHECK,
 	.vars = vars,
-	.probe = spk_serial_synth_probe,
-	.release = spk_serial_release,
-	.synth_immediate = spk_synth_immediate,
+	.io_ops = &spk_ttyio_ops,
+	.probe = spk_ttyio_synth_probe,
+	.release = spk_ttyio_release,
+	.synth_immediate = spk_ttyio_synth_immediate,
 	.catch_up = do_catch_up,
 	.flush = synth_flush,
 	.is_alive = spk_synth_is_alive_restart,
 	.synth_adjust = NULL,
-	.read_buff_add = NULL,
+	.read_buff_add = read_buff_add,
 	.get_index = NULL,
 	.indexing = {
 		.command = NULL,
@@ -175,6 +173,7 @@ static void do_catch_up(struct spk_synth *synth)
 			synth->flush(synth);
 			continue;
 		}
+		synth_buffer_skip_nonlatin1();
 		if (synth_buffer_empty()) {
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			break;
@@ -185,7 +184,7 @@ static void do_catch_up(struct spk_synth *synth)
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		if (ch == '\n')
 			ch = 0x0D;
-		if (synth_full() || !spk_serial_out(ch)) {
+		if (synth_full() || !synth->io_ops->synth_out(synth, ch)) {
 			schedule_timeout(msecs_to_jiffies(delay_time_val));
 			continue;
 		}
@@ -193,22 +192,22 @@ static void do_catch_up(struct spk_synth *synth)
 		spin_lock_irqsave(&speakup_info.spinlock, flags);
 		synth_buffer_getc();
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
-		if (ch == '[')
+		if (ch == '[') {
 			in_escape = 1;
-		else if (ch == ']')
+		} else if (ch == ']') {
 			in_escape = 0;
-		else if (ch <= SPACE) {
+		} else if (ch <= SPACE) {
 			if (!in_escape && strchr(",.!?;:", last))
-				spk_serial_out(PROCSPEECH);
+				synth->io_ops->synth_out(synth, PROCSPEECH);
 			if (time_after_eq(jiffies, jiff_max)) {
 				if (!in_escape)
-					spk_serial_out(PROCSPEECH);
+					synth->io_ops->synth_out(synth, PROCSPEECH);
 				spin_lock_irqsave(&speakup_info.spinlock,
-							flags);
+						  flags);
 				jiffy_delta_val = jiffy_delta->u.n.value;
 				delay_time_val = delay_time->u.n.value;
 				spin_unlock_irqrestore(&speakup_info.spinlock,
-							flags);
+						       flags);
 				schedule_timeout(msecs_to_jiffies
 						 (delay_time_val));
 				jiff_max = jiffies + jiffy_delta_val;
@@ -217,19 +216,22 @@ static void do_catch_up(struct spk_synth *synth)
 		last = ch;
 	}
 	if (!in_escape)
-		spk_serial_out(PROCSPEECH);
+		synth->io_ops->synth_out(synth, PROCSPEECH);
 }
 
 static void synth_flush(struct spk_synth *synth)
 {
 	in_escape = 0;
-	spk_synth_immediate(synth, "\033P;10z\033\\");
+	synth->io_ops->flush_buffer();
+	synth->synth_immediate(synth, "\033P;10z\033\\");
 }
 
 module_param_named(ser, synth_decext.ser, int, 0444);
+module_param_named(dev, synth_decext.dev_name, charp, S_IRUGO);
 module_param_named(start, synth_decext.startup, short, 0444);
 
 MODULE_PARM_DESC(ser, "Set the serial port for the synthesizer (0-based).");
+MODULE_PARM_DESC(dev, "Set the device e.g. ttyUSB0, for the synthesizer.");
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
 module_spk_synth(synth_decext);

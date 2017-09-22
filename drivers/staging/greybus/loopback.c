@@ -365,11 +365,8 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb, bool error);
 
 static u32 gb_loopback_nsec_to_usec_latency(u64 elapsed_nsecs)
 {
-	u32 lat;
-
 	do_div(elapsed_nsecs, NSEC_PER_USEC);
-	lat = elapsed_nsecs;
-	return lat;
+	return elapsed_nsecs;
 }
 
 static u64 __gb_loopback_calc_latency(u64 t1, u64 t2)

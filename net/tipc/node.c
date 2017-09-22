@@ -1126,8 +1126,8 @@ int tipc_node_get_linkname(struct net *net, u32 bearer_id, u32 addr,
 		strncpy(linkname, tipc_link_name(link), len);
 		err = 0;
 	}
-exit:
 	tipc_node_read_unlock(node);
+exit:
 	tipc_node_put(node);
 	return err;
 }
@@ -1284,7 +1284,7 @@ static void tipc_node_bc_sync_rcv(struct tipc_node *n, struct tipc_msg *hdr,
 	rc = tipc_bcast_sync_rcv(n->net, n->bc_entry.link, hdr);
 
 	if (rc & TIPC_LINK_DOWN_EVT) {
-		tipc_bearer_reset_all(n->net);
+		tipc_node_reset_links(n);
 		return;
 	}
 
@@ -1351,15 +1351,9 @@ static void tipc_node_bc_rcv(struct net *net, struct sk_buff *skb, int bearer_id
 	if (!skb_queue_empty(&be->inputq1))
 		tipc_node_mcast_rcv(n);
 
-	if (rc & TIPC_LINK_DOWN_EVT) {
-		/* Reception reassembly failure => reset all links to peer */
-		if (!tipc_link_is_up(be->link))
-			tipc_node_reset_links(n);
-
-		/* Retransmission failure => reset all links to all peers */
-		if (!tipc_link_is_up(tipc_bc_sndlink(net)))
-			tipc_bearer_reset_all(net);
-	}
+	/* If reassembly or retransmission failure => reset all links to peer */
+	if (rc & TIPC_LINK_DOWN_EVT)
+		tipc_node_reset_links(n);
 
 	tipc_node_put(n);
 }
@@ -1455,10 +1449,8 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 	/* Initiate synch mode if applicable */
 	if ((usr == TUNNEL_PROTOCOL) && (mtyp == SYNCH_MSG) && (oseqno == 1)) {
 		syncpt = iseqno + exp_pkts - 1;
-		if (!tipc_link_is_up(l)) {
-			tipc_link_fsm_evt(l, LINK_ESTABLISH_EVT);
+		if (!tipc_link_is_up(l))
 			__tipc_node_link_up(n, bearer_id, xmitq);
-		}
 		if (n->state == SELF_UP_PEER_UP) {
 			n->sync_point = syncpt;
 			tipc_link_fsm_evt(l, LINK_SYNCH_BEGIN_EVT);
@@ -1559,6 +1551,8 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b)
 
 	/* Check/update node state before receiving */
 	if (unlikely(skb)) {
+		if (unlikely(skb_linearize(skb)))
+			goto discard;
 		tipc_node_write_lock(n);
 		if (tipc_node_check_state(n, skb, bearer_id, &xmitq)) {
 			if (le->link) {
@@ -1607,8 +1601,8 @@ int tipc_nl_peer_rm(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	err = nla_parse_nested(attrs, TIPC_NLA_NET_MAX,
-			       info->attrs[TIPC_NLA_NET],
-			       tipc_nl_net_policy);
+			       info->attrs[TIPC_NLA_NET], tipc_nl_net_policy,
+			       info->extack);
 	if (err)
 		return err;
 
@@ -1774,7 +1768,7 @@ int tipc_nl_node_set_link(struct sk_buff *skb, struct genl_info *info)
 
 	err = nla_parse_nested(attrs, TIPC_NLA_LINK_MAX,
 			       info->attrs[TIPC_NLA_LINK],
-			       tipc_nl_link_policy);
+			       tipc_nl_link_policy, info->extack);
 	if (err)
 		return err;
 
@@ -1902,7 +1896,7 @@ int tipc_nl_node_reset_link_stats(struct sk_buff *skb, struct genl_info *info)
 
 	err = nla_parse_nested(attrs, TIPC_NLA_LINK_MAX,
 			       info->attrs[TIPC_NLA_LINK],
-			       tipc_nl_link_policy);
+			       tipc_nl_link_policy, info->extack);
 	if (err)
 		return err;
 
@@ -2042,7 +2036,7 @@ int tipc_nl_node_set_monitor(struct sk_buff *skb, struct genl_info *info)
 
 	err = nla_parse_nested(attrs, TIPC_NLA_MON_MAX,
 			       info->attrs[TIPC_NLA_MON],
-			       tipc_nl_monitor_policy);
+			       tipc_nl_monitor_policy, info->extack);
 	if (err)
 		return err;
 
@@ -2098,6 +2092,8 @@ int tipc_nl_node_get_monitor(struct sk_buff *skb, struct genl_info *info)
 	int err;
 
 	msg.skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!msg.skb)
+		return -ENOMEM;
 	msg.portid = info->snd_portid;
 	msg.seq = info->snd_seq;
 
@@ -2163,7 +2159,7 @@ int tipc_nl_node_dump_monitor_peer(struct sk_buff *skb,
 
 		err = nla_parse_nested(mon, TIPC_NLA_MON_MAX,
 				       attrs[TIPC_NLA_MON],
-				       tipc_nl_monitor_policy);
+				       tipc_nl_monitor_policy, NULL);
 		if (err)
 			return err;
 

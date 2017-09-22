@@ -62,7 +62,7 @@ struct caps_table_struct {
 	const char *name;
 };
 
-static struct caps_table_struct ctrl_caps[] = {
+static const struct caps_table_struct ctrl_caps[] = {
 	{ OMAPFB_CAPS_MANUAL_UPDATE,  "manual update" },
 	{ OMAPFB_CAPS_TEARSYNC,       "tearing synchronization" },
 	{ OMAPFB_CAPS_PLANE_RELOCATE_MEM, "relocate plane memory" },
@@ -74,7 +74,7 @@ static struct caps_table_struct ctrl_caps[] = {
 	{ OMAPFB_CAPS_SET_BACKLIGHT,  "backlight setting" },
 };
 
-static struct caps_table_struct color_caps[] = {
+static const struct caps_table_struct color_caps[] = {
 	{ 1 << OMAPFB_COLOR_RGB565,	"RGB565", },
 	{ 1 << OMAPFB_COLOR_YUV422,	"YUV422", },
 	{ 1 << OMAPFB_COLOR_YUV420,	"YUV420", },
@@ -1384,7 +1384,7 @@ static struct attribute *panel_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group panel_attr_grp = {
+static const struct attribute_group panel_attr_grp = {
 	.name  = "panel",
 	.attrs = panel_attrs,
 };
@@ -1406,7 +1406,7 @@ static struct attribute *ctrl_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group ctrl_attr_grp = {
+static const struct attribute_group ctrl_attr_grp = {
 	.name  = "ctrl",
 	.attrs = ctrl_attrs,
 };
@@ -1608,19 +1608,6 @@ static int omapfb_find_ctrl(struct omapfb_device *fbdev)
 	return 0;
 }
 
-static void check_required_callbacks(struct omapfb_device *fbdev)
-{
-#define _C(x) (fbdev->ctrl->x != NULL)
-#define _P(x) (fbdev->panel->x != NULL)
-	BUG_ON(fbdev->ctrl == NULL || fbdev->panel == NULL);
-	BUG_ON(!(_C(init) && _C(cleanup) && _C(get_caps) &&
-		 _C(set_update_mode) && _C(setup_plane) && _C(enable_plane) &&
-		 _P(init) && _P(cleanup) && _P(enable) && _P(disable) &&
-		 _P(get_caps)));
-#undef _P
-#undef _C
-}
-
 /*
  * Called by LDM binding to probe and attach a new device.
  * Initialization sequence:
@@ -1704,8 +1691,6 @@ static int omapfb_do_probe(struct platform_device *pdev,
 	if (fbdev->ctrl->mmap != NULL)
 		omapfb_ops.fb_mmap = omapfb_mmap;
 	init_state++;
-
-	check_required_callbacks(fbdev);
 
 	r = planes_init(fbdev);
 	if (r)

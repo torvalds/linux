@@ -52,9 +52,26 @@ int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 			struct tegra_bo_tiling *tiling)
 {
 	struct tegra_fb *fb = to_tegra_fb(framebuffer);
+	uint64_t modifier = fb->base.modifier;
 
-	/* TODO: handle YUV formats? */
-	*tiling = fb->planes[0]->tiling;
+	switch (fourcc_mod_tegra_mod(modifier)) {
+	case NV_FORMAT_MOD_TEGRA_TILED:
+		tiling->mode = TEGRA_BO_TILING_MODE_TILED;
+		tiling->value = 0;
+		break;
+
+	case NV_FORMAT_MOD_TEGRA_16BX2_BLOCK(0):
+		tiling->mode = TEGRA_BO_TILING_MODE_BLOCK;
+		tiling->value = fourcc_mod_tegra_param(modifier);
+		if (tiling->value > 5)
+			return -EINVAL;
+		break;
+
+	default:
+		/* TODO: handle YUV formats? */
+		*tiling = fb->planes[0]->tiling;
+		break;
+	}
 
 	return 0;
 }
@@ -71,7 +88,7 @@ static void tegra_fb_destroy(struct drm_framebuffer *framebuffer)
 			if (bo->pages)
 				vunmap(bo->vaddr);
 
-			drm_gem_object_unreference_unlocked(&bo->gem);
+			drm_gem_object_put_unlocked(&bo->gem);
 		}
 	}
 
@@ -178,7 +195,7 @@ struct drm_framebuffer *tegra_fb_create(struct drm_device *drm,
 
 unreference:
 	while (i--)
-		drm_gem_object_unreference_unlocked(&planes[i]->gem);
+		drm_gem_object_put_unlocked(&planes[i]->gem);
 
 	return ERR_PTR(err);
 }
@@ -225,7 +242,7 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info)) {
 		dev_err(drm->dev, "failed to allocate framebuffer info\n");
-		drm_gem_object_unreference_unlocked(&bo->gem);
+		drm_gem_object_put_unlocked(&bo->gem);
 		return PTR_ERR(info);
 	}
 
@@ -234,8 +251,8 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 		err = PTR_ERR(fbdev->fb);
 		dev_err(drm->dev, "failed to allocate DRM framebuffer: %d\n",
 			err);
-		drm_gem_object_unreference_unlocked(&bo->gem);
-		goto release;
+		drm_gem_object_put_unlocked(&bo->gem);
+		return PTR_ERR(fbdev->fb);
 	}
 
 	fb = &fbdev->fb->base;
@@ -272,8 +289,6 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 
 destroy:
 	drm_framebuffer_remove(fb);
-release:
-	drm_fb_helper_release_fbi(helper);
 	return err;
 }
 
@@ -339,7 +354,6 @@ fini:
 static void tegra_fbdev_exit(struct tegra_fbdev *fbdev)
 {
 	drm_fb_helper_unregister_fbi(&fbdev->base);
-	drm_fb_helper_release_fbi(&fbdev->base);
 
 	if (fbdev->fb)
 		drm_framebuffer_remove(&fbdev->fb->base);

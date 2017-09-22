@@ -1052,7 +1052,7 @@ struct cx88_core *cx88_core_get(struct pci_dev *pci)
 			mutex_unlock(&devlist);
 			return NULL;
 		}
-		atomic_inc(&core->refcount);
+		refcount_inc(&core->refcount);
 		mutex_unlock(&devlist);
 		return core;
 	}
@@ -1073,7 +1073,7 @@ void cx88_core_put(struct cx88_core *core, struct pci_dev *pci)
 	release_mem_region(pci_resource_start(pci, 0),
 			   pci_resource_len(pci, 0));
 
-	if (!atomic_dec_and_test(&core->refcount))
+	if (!refcount_dec_and_test(&core->refcount))
 		return;
 
 	mutex_lock(&devlist);

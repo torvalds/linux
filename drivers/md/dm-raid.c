@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2010-2011 Neil Brown
- * Copyright (C) 2010-2016 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 Red Hat, Inc. All rights reserved.
  *
  * This file is released under the GPL.
  */
@@ -79,7 +79,10 @@ struct raid_dev {
 #define __CTR_FLAG_RAID10_USE_NEAR_SETS 14 /* 2 */ /* Only with raid10! */
 
 /* New for v1.10.0 */
-#define __CTR_FLAG_JOURNAL_DEV		15 /* 2 */ /* Only with raid4/5/6! */
+#define __CTR_FLAG_JOURNAL_DEV		15 /* 2 */ /* Only with raid4/5/6 (journal device)! */
+
+/* New for v1.11.1 */
+#define __CTR_FLAG_JOURNAL_MODE		16 /* 2 */ /* Only with raid4/5/6 (journal mode)! */
 
 /*
  * Flags for rs->ctr_flags field.
@@ -100,6 +103,7 @@ struct raid_dev {
 #define CTR_FLAG_DATA_OFFSET		(1 << __CTR_FLAG_DATA_OFFSET)
 #define CTR_FLAG_RAID10_USE_NEAR_SETS	(1 << __CTR_FLAG_RAID10_USE_NEAR_SETS)
 #define CTR_FLAG_JOURNAL_DEV		(1 << __CTR_FLAG_JOURNAL_DEV)
+#define CTR_FLAG_JOURNAL_MODE		(1 << __CTR_FLAG_JOURNAL_MODE)
 
 #define RESUME_STAY_FROZEN_FLAGS (CTR_FLAG_DELTA_DISKS | CTR_FLAG_DATA_OFFSET)
 
@@ -175,7 +179,8 @@ struct raid_dev {
 				 CTR_FLAG_REGION_SIZE | \
 				 CTR_FLAG_DELTA_DISKS | \
 				 CTR_FLAG_DATA_OFFSET | \
-				 CTR_FLAG_JOURNAL_DEV)
+				 CTR_FLAG_JOURNAL_DEV | \
+				 CTR_FLAG_JOURNAL_MODE)
 
 #define RAID6_VALID_FLAGS	(CTR_FLAG_SYNC | \
 				 CTR_FLAG_REBUILD | \
@@ -186,7 +191,8 @@ struct raid_dev {
 				 CTR_FLAG_REGION_SIZE | \
 				 CTR_FLAG_DELTA_DISKS | \
 				 CTR_FLAG_DATA_OFFSET | \
-				 CTR_FLAG_JOURNAL_DEV)
+				 CTR_FLAG_JOURNAL_DEV | \
+				 CTR_FLAG_JOURNAL_MODE)
 /* ...valid options definitions per raid level */
 
 /*
@@ -202,6 +208,7 @@ struct raid_dev {
 #define RT_FLAG_RS_BITMAP_LOADED	2
 #define RT_FLAG_UPDATE_SBS		3
 #define RT_FLAG_RESHAPE_RS		4
+#define RT_FLAG_RS_SUSPENDED		5
 
 /* Array elements of 64 bit needed for rebuild/failed disk bits */
 #define DISKS_ARRAY_ELEMS ((MAX_RAID_DEVICES + (sizeof(uint64_t) * 8 - 1)) / sizeof(uint64_t) / 8)
@@ -239,6 +246,7 @@ struct raid_set {
 	struct journal_dev {
 		struct dm_dev *dev;
 		struct md_rdev rdev;
+		int mode;
 	} journal_dev;
 
 	struct raid_dev dev[0];
@@ -326,6 +334,7 @@ static struct arg_name_flag {
 	{ CTR_FLAG_DELTA_DISKS, "delta_disks"},
 	{ CTR_FLAG_RAID10_USE_NEAR_SETS, "raid10_use_near_sets"},
 	{ CTR_FLAG_JOURNAL_DEV, "journal_dev" },
+	{ CTR_FLAG_JOURNAL_MODE, "journal_mode" },
 };
 
 /* Return argument name string for given @flag */
@@ -342,6 +351,39 @@ static const char *dm_raid_arg_name_by_flag(const uint32_t flag)
 		DMERR("%s called with more than one flag!", __func__);
 
 	return NULL;
+}
+
+/* Define correlation of raid456 journal cache modes and dm-raid target line parameters */
+static struct {
+	const int mode;
+	const char *param;
+} _raid456_journal_mode[] = {
+	{ R5C_JOURNAL_MODE_WRITE_THROUGH , "writethrough" },
+	{ R5C_JOURNAL_MODE_WRITE_BACK    , "writeback" }
+};
+
+/* Return MD raid4/5/6 journal mode for dm @journal_mode one */
+static int dm_raid_journal_mode_to_md(const char *mode)
+{
+	int m = ARRAY_SIZE(_raid456_journal_mode);
+
+	while (m--)
+		if (!strcasecmp(mode, _raid456_journal_mode[m].param))
+			return _raid456_journal_mode[m].mode;
+
+	return -EINVAL;
+}
+
+/* Return dm-raid raid4/5/6 journal mode string for @mode */
+static const char *md_journal_mode_to_dm_raid(const int mode)
+{
+	int m = ARRAY_SIZE(_raid456_journal_mode);
+
+	while (m--)
+		if (mode == _raid456_journal_mode[m].mode)
+			return _raid456_journal_mode[m].param;
+
+	return "unknown";
 }
 
 /*
@@ -523,9 +565,10 @@ static const char *raid10_md_layout_to_format(int layout)
 	if (__raid10_near_copies(layout) > 1)
 		return "near";
 
-	WARN_ON(__raid10_far_copies(layout) < 2);
+	if (__raid10_far_copies(layout) > 1)
+		return "far";
 
-	return "far";
+	return "unknown";
 }
 
 /* Return md raid10 algorithm for @name */
@@ -1183,7 +1226,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 			continue;
 		}
 
-		/* "journal_dev dev" */
+		/* "journal_dev <dev>" */
 		if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_JOURNAL_DEV))) {
 			int r;
 			struct md_rdev *jdev;
@@ -1211,7 +1254,29 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 				rs->ti->error = "No space for raid4/5/6 journal";
 				return -ENOSPC;
 			}
+			rs->journal_dev.mode = R5C_JOURNAL_MODE_WRITE_THROUGH;
 			set_bit(Journal, &jdev->flags);
+			continue;
+		}
+
+		/* "journal_mode <mode>" ("journal_dev" mandatory!) */
+		if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_JOURNAL_MODE))) {
+			int r;
+
+			if (!test_bit(__CTR_FLAG_JOURNAL_DEV, &rs->ctr_flags)) {
+				rs->ti->error = "raid4/5/6 'journal_mode' is invalid without 'journal_dev'";
+				return -EINVAL;
+			}
+			if (test_and_set_bit(__CTR_FLAG_JOURNAL_MODE, &rs->ctr_flags)) {
+				rs->ti->error = "Only one raid4/5/6 'journal_mode' argument allowed";
+				return -EINVAL;
+			}
+			r = dm_raid_journal_mode_to_md(arg);
+			if (r < 0) {
+				rs->ti->error = "Invalid 'journal_mode' argument";
+				return r;
+			}
+			rs->journal_dev.mode = r;
 			continue;
 		}
 
@@ -1508,7 +1573,7 @@ static sector_t __rdev_sectors(struct raid_set *rs)
 			return rdev->sectors;
 	}
 
-	BUG(); /* Constructor ensures we got some. */
+	return 0;
 }
 
 /* Calculate the sectors per device and per array used for @rs */
@@ -1864,7 +1929,7 @@ struct dm_raid_superblock {
 	/********************************************************************
 	 * BELOW FOLLOW V1.9.0 EXTENSIONS TO THE PRISTINE SUPERBLOCK FORMAT!!!
 	 *
-	 * FEATURE_FLAG_SUPPORTS_V190 in the features member indicates that those exist
+	 * FEATURE_FLAG_SUPPORTS_V190 in the compat_features member indicates that those exist
 	 */
 
 	__le32 flags; /* Flags defining array states for reshaping */
@@ -2029,6 +2094,11 @@ static void super_sync(struct mddev *mddev, struct md_rdev *rdev)
 	sb->layout = cpu_to_le32(mddev->layout);
 	sb->stripe_sectors = cpu_to_le32(mddev->chunk_sectors);
 
+	/********************************************************************
+	 * BELOW FOLLOW V1.9.0 EXTENSIONS TO THE PRISTINE SUPERBLOCK FORMAT!!!
+	 *
+	 * FEATURE_FLAG_SUPPORTS_V190 in the compat_features member indicates that those exist
+	 */
 	sb->new_level = cpu_to_le32(mddev->new_level);
 	sb->new_layout = cpu_to_le32(mddev->new_layout);
 	sb->new_stripe_sectors = cpu_to_le32(mddev->new_chunk_sectors);
@@ -2375,8 +2445,14 @@ static int super_validate(struct raid_set *rs, struct md_rdev *rdev)
 	mddev->bitmap_info.default_offset = mddev->bitmap_info.offset;
 
 	if (!test_and_clear_bit(FirstUse, &rdev->flags)) {
-		/* Retrieve device size stored in superblock to be prepared for shrink */
-		rdev->sectors = le64_to_cpu(sb->sectors);
+		/*
+		 * Retrieve rdev size stored in superblock to be prepared for shrink.
+		 * Check extended superblock members are present otherwise the size
+		 * will not be set!
+		 */
+		if (le32_to_cpu(sb->compat_features) & FEATURE_FLAG_SUPPORTS_V190)
+			rdev->sectors = le64_to_cpu(sb->sectors);
+
 		rdev->recovery_offset = le64_to_cpu(sb->disk_recovery_offset);
 		if (rdev->recovery_offset == MaxSector)
 			set_bit(In_sync, &rdev->flags);
@@ -2466,11 +2542,6 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 	if (!freshest)
 		return 0;
 
-	if (validate_raid_redundancy(rs)) {
-		rs->ti->error = "Insufficient redundancy to activate array";
-		return -EINVAL;
-	}
-
 	/*
 	 * Validation of the freshest device provides the source of
 	 * validation for the remaining devices.
@@ -2478,6 +2549,11 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 	rs->ti->error = "Unable to assemble array: Invalid superblocks";
 	if (super_validate(rs, freshest))
 		return -EINVAL;
+
+	if (validate_raid_redundancy(rs)) {
+		rs->ti->error = "Insufficient redundancy to activate array";
+		return -EINVAL;
+	}
 
 	rdev_for_each(rdev, mddev)
 		if (!test_bit(Journal, &rdev->flags) &&
@@ -2813,7 +2889,9 @@ static void configure_discard_support(struct raid_set *rs)
 	/* Assume discards not supported until after checks below. */
 	ti->discards_supported = false;
 
-	/* RAID level 4,5,6 require discard_zeroes_data for data integrity! */
+	/*
+	 * XXX: RAID level 4,5,6 require zeroing for safety.
+	 */
 	raid456 = (rs->md.level == 4 || rs->md.level == 5 || rs->md.level == 6);
 
 	for (i = 0; i < rs->raid_disks; i++) {
@@ -2827,8 +2905,6 @@ static void configure_discard_support(struct raid_set *rs)
 			return;
 
 		if (raid456) {
-			if (!q->limits.discard_zeroes_data)
-				return;
 			if (!devices_handle_discard_safely) {
 				DMERR("raid456 discard support disabled due to discard_zeroes_data uncertainty.");
 				DMERR("Set dm-raid.devices_handle_discard_safely=Y to override.");
@@ -2867,7 +2943,7 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	bool resize;
 	struct raid_type *rt;
 	unsigned int num_raid_params, num_raid_devs;
-	sector_t calculated_dev_sectors;
+	sector_t calculated_dev_sectors, rdev_sectors;
 	struct raid_set *rs = NULL;
 	const char *arg;
 	struct rs_layout rs_layout;
@@ -2943,7 +3019,14 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (r)
 		goto bad;
 
-	resize = calculated_dev_sectors != __rdev_sectors(rs);
+	rdev_sectors = __rdev_sectors(rs);
+	if (!rdev_sectors) {
+		ti->error = "Invalid rdev size";
+		r = -EINVAL;
+		goto bad;
+	}
+
+	resize = calculated_dev_sectors != rdev_sectors;
 
 	INIT_WORK(&rs->md.event_work, do_table_event);
 	ti->private = rs;
@@ -3076,7 +3159,18 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	rs->callbacks.congested_fn = raid_is_congested;
 	dm_table_add_target_callbacks(ti->table, &rs->callbacks);
 
+	/* If raid4/5/6 journal mode explictely requested (only possible with journal dev) -> set it */
+	if (test_bit(__CTR_FLAG_JOURNAL_MODE, &rs->ctr_flags)) {
+		r = r5c_journal_mode_set(&rs->md, rs->journal_dev.mode);
+		if (r) {
+			ti->error = "Failed to set raid4/5/6 journal mode";
+			mddev_unlock(&rs->md);
+			goto bad_journal_mode_set;
+		}
+	}
+
 	mddev_suspend(&rs->md);
+	set_bit(RT_FLAG_RS_SUSPENDED, &rs->runtime_flags);
 
 	/* Try to adjust the raid4/5/6 stripe cache size to the stripe size */
 	if (rs_is_raid456(rs)) {
@@ -3109,6 +3203,7 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	mddev_unlock(&rs->md);
 	return 0;
 
+bad_journal_mode_set:
 bad_stripe_cache:
 bad_check_reshape:
 	md_stop(&rs->md);
@@ -3180,18 +3275,18 @@ static const char *decipher_sync_action(struct mddev *mddev)
  * Status characters:
  *
  *  'D' = Dead/Failed raid set component or raid4/5/6 journal device
- *  'a' = Alive but not in-sync
- *  'A' = Alive and in-sync raid set component or alive raid4/5/6 journal device
+ *  'a' = Alive but not in-sync raid set component _or_ alive raid4/5/6 'write_back' journal device
+ *  'A' = Alive and in-sync raid set component _or_ alive raid4/5/6 'write_through' journal device
  *  '-' = Non-existing device (i.e. uspace passed '- -' into the ctr)
  */
-static const char *__raid_dev_status(struct md_rdev *rdev, bool array_in_sync)
+static const char *__raid_dev_status(struct raid_set *rs, struct md_rdev *rdev, bool array_in_sync)
 {
 	if (!rdev->bdev)
 		return "-";
 	else if (test_bit(Faulty, &rdev->flags))
 		return "D";
 	else if (test_bit(Journal, &rdev->flags))
-		return "A";
+		return (rs->journal_dev.mode == R5C_JOURNAL_MODE_WRITE_THROUGH) ? "A" : "a";
 	else if (!array_in_sync || !test_bit(In_sync, &rdev->flags))
 		return "a";
 	else
@@ -3315,7 +3410,7 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 
 		/* HM FIXME: do we want another state char for raid0? It shows 'D'/'A'/'-' now */
 		for (i = 0; i < rs->raid_disks; i++)
-			DMEMIT(__raid_dev_status(&rs->dev[i].rdev, array_in_sync));
+			DMEMIT(__raid_dev_status(rs, &rs->dev[i].rdev, array_in_sync));
 
 		/*
 		 * In-sync/Reshape ratio:
@@ -3366,7 +3461,7 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 		 * v1.10.0+:
 		 */
 		DMEMIT(" %s", test_bit(__CTR_FLAG_JOURNAL_DEV, &rs->ctr_flags) ?
-			      __raid_dev_status(&rs->journal_dev.rdev, 0) : "-");
+			      __raid_dev_status(rs, &rs->journal_dev.rdev, 0) : "-");
 		break;
 
 	case STATUSTYPE_TABLE:
@@ -3381,39 +3476,30 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 				  write_mostly_params +
 				  hweight32(rs->ctr_flags & CTR_FLAG_OPTIONS_NO_ARGS) +
 				  hweight32(rs->ctr_flags & CTR_FLAG_OPTIONS_ONE_ARG) * 2 +
-				  (test_bit(__CTR_FLAG_JOURNAL_DEV, &rs->ctr_flags) ? 2 : 0);
+				  (test_bit(__CTR_FLAG_JOURNAL_DEV, &rs->ctr_flags) ? 2 : 0) +
+				  (test_bit(__CTR_FLAG_JOURNAL_MODE, &rs->ctr_flags) ? 2 : 0);
+
 		/* Emit table line */
+		/* This has to be in the documented order for userspace! */
 		DMEMIT("%s %u %u", rs->raid_type->name, raid_param_cnt, mddev->new_chunk_sectors);
-		if (test_bit(__CTR_FLAG_RAID10_FORMAT, &rs->ctr_flags))
-			DMEMIT(" %s %s", dm_raid_arg_name_by_flag(CTR_FLAG_RAID10_FORMAT),
-					 raid10_md_layout_to_format(mddev->layout));
-		if (test_bit(__CTR_FLAG_RAID10_COPIES, &rs->ctr_flags))
-			DMEMIT(" %s %d", dm_raid_arg_name_by_flag(CTR_FLAG_RAID10_COPIES),
-					 raid10_md_layout_to_copies(mddev->layout));
-		if (test_bit(__CTR_FLAG_NOSYNC, &rs->ctr_flags))
-			DMEMIT(" %s", dm_raid_arg_name_by_flag(CTR_FLAG_NOSYNC));
 		if (test_bit(__CTR_FLAG_SYNC, &rs->ctr_flags))
 			DMEMIT(" %s", dm_raid_arg_name_by_flag(CTR_FLAG_SYNC));
-		if (test_bit(__CTR_FLAG_REGION_SIZE, &rs->ctr_flags))
-			DMEMIT(" %s %llu", dm_raid_arg_name_by_flag(CTR_FLAG_REGION_SIZE),
-					   (unsigned long long) to_sector(mddev->bitmap_info.chunksize));
-		if (test_bit(__CTR_FLAG_DATA_OFFSET, &rs->ctr_flags))
-			DMEMIT(" %s %llu", dm_raid_arg_name_by_flag(CTR_FLAG_DATA_OFFSET),
-					   (unsigned long long) rs->data_offset);
-		if (test_bit(__CTR_FLAG_DAEMON_SLEEP, &rs->ctr_flags))
-			DMEMIT(" %s %lu", dm_raid_arg_name_by_flag(CTR_FLAG_DAEMON_SLEEP),
-					  mddev->bitmap_info.daemon_sleep);
-		if (test_bit(__CTR_FLAG_DELTA_DISKS, &rs->ctr_flags))
-			DMEMIT(" %s %d", dm_raid_arg_name_by_flag(CTR_FLAG_DELTA_DISKS),
-					 max(rs->delta_disks, mddev->delta_disks));
-		if (test_bit(__CTR_FLAG_STRIPE_CACHE, &rs->ctr_flags))
-			DMEMIT(" %s %d", dm_raid_arg_name_by_flag(CTR_FLAG_STRIPE_CACHE),
-					 max_nr_stripes);
+		if (test_bit(__CTR_FLAG_NOSYNC, &rs->ctr_flags))
+			DMEMIT(" %s", dm_raid_arg_name_by_flag(CTR_FLAG_NOSYNC));
 		if (rebuild_disks)
 			for (i = 0; i < rs->raid_disks; i++)
 				if (test_bit(rs->dev[i].rdev.raid_disk, (void *) rs->rebuild_disks))
 					DMEMIT(" %s %u", dm_raid_arg_name_by_flag(CTR_FLAG_REBUILD),
 							 rs->dev[i].rdev.raid_disk);
+		if (test_bit(__CTR_FLAG_DAEMON_SLEEP, &rs->ctr_flags))
+			DMEMIT(" %s %lu", dm_raid_arg_name_by_flag(CTR_FLAG_DAEMON_SLEEP),
+					  mddev->bitmap_info.daemon_sleep);
+		if (test_bit(__CTR_FLAG_MIN_RECOVERY_RATE, &rs->ctr_flags))
+			DMEMIT(" %s %d", dm_raid_arg_name_by_flag(CTR_FLAG_MIN_RECOVERY_RATE),
+					 mddev->sync_speed_min);
+		if (test_bit(__CTR_FLAG_MAX_RECOVERY_RATE, &rs->ctr_flags))
+			DMEMIT(" %s %d", dm_raid_arg_name_by_flag(CTR_FLAG_MAX_RECOVERY_RATE),
+					 mddev->sync_speed_max);
 		if (write_mostly_params)
 			for (i = 0; i < rs->raid_disks; i++)
 				if (test_bit(WriteMostly, &rs->dev[i].rdev.flags))
@@ -3422,15 +3508,30 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 		if (test_bit(__CTR_FLAG_MAX_WRITE_BEHIND, &rs->ctr_flags))
 			DMEMIT(" %s %lu", dm_raid_arg_name_by_flag(CTR_FLAG_MAX_WRITE_BEHIND),
 					  mddev->bitmap_info.max_write_behind);
-		if (test_bit(__CTR_FLAG_MAX_RECOVERY_RATE, &rs->ctr_flags))
-			DMEMIT(" %s %d", dm_raid_arg_name_by_flag(CTR_FLAG_MAX_RECOVERY_RATE),
-					 mddev->sync_speed_max);
-		if (test_bit(__CTR_FLAG_MIN_RECOVERY_RATE, &rs->ctr_flags))
-			DMEMIT(" %s %d", dm_raid_arg_name_by_flag(CTR_FLAG_MIN_RECOVERY_RATE),
-					 mddev->sync_speed_min);
+		if (test_bit(__CTR_FLAG_STRIPE_CACHE, &rs->ctr_flags))
+			DMEMIT(" %s %d", dm_raid_arg_name_by_flag(CTR_FLAG_STRIPE_CACHE),
+					 max_nr_stripes);
+		if (test_bit(__CTR_FLAG_REGION_SIZE, &rs->ctr_flags))
+			DMEMIT(" %s %llu", dm_raid_arg_name_by_flag(CTR_FLAG_REGION_SIZE),
+					   (unsigned long long) to_sector(mddev->bitmap_info.chunksize));
+		if (test_bit(__CTR_FLAG_RAID10_COPIES, &rs->ctr_flags))
+			DMEMIT(" %s %d", dm_raid_arg_name_by_flag(CTR_FLAG_RAID10_COPIES),
+					 raid10_md_layout_to_copies(mddev->layout));
+		if (test_bit(__CTR_FLAG_RAID10_FORMAT, &rs->ctr_flags))
+			DMEMIT(" %s %s", dm_raid_arg_name_by_flag(CTR_FLAG_RAID10_FORMAT),
+					 raid10_md_layout_to_format(mddev->layout));
+		if (test_bit(__CTR_FLAG_DELTA_DISKS, &rs->ctr_flags))
+			DMEMIT(" %s %d", dm_raid_arg_name_by_flag(CTR_FLAG_DELTA_DISKS),
+					 max(rs->delta_disks, mddev->delta_disks));
+		if (test_bit(__CTR_FLAG_DATA_OFFSET, &rs->ctr_flags))
+			DMEMIT(" %s %llu", dm_raid_arg_name_by_flag(CTR_FLAG_DATA_OFFSET),
+					   (unsigned long long) rs->data_offset);
 		if (test_bit(__CTR_FLAG_JOURNAL_DEV, &rs->ctr_flags))
 			DMEMIT(" %s %s", dm_raid_arg_name_by_flag(CTR_FLAG_JOURNAL_DEV),
 					__get_dev_name(rs->journal_dev.dev));
+		if (test_bit(__CTR_FLAG_JOURNAL_MODE, &rs->ctr_flags))
+			DMEMIT(" %s %s", dm_raid_arg_name_by_flag(CTR_FLAG_JOURNAL_MODE),
+					 md_journal_mode_to_dm_raid(rs->journal_dev.mode));
 		DMEMIT(" %d", rs->raid_disks);
 		for (i = 0; i < rs->raid_disks; i++)
 			DMEMIT(" %s %s", __get_dev_name(rs->dev[i].meta_dev),
@@ -3527,7 +3628,7 @@ static void raid_postsuspend(struct dm_target *ti)
 {
 	struct raid_set *rs = ti->private;
 
-	if (!rs->md.suspended)
+	if (!test_and_set_bit(RT_FLAG_RS_SUSPENDED, &rs->runtime_flags))
 		mddev_suspend(&rs->md);
 
 	rs->md.ro = 1;
@@ -3661,7 +3762,7 @@ static int rs_start_reshape(struct raid_set *rs)
 		return r;
 
 	/* Need to be resumed to be able to start reshape, recovery is frozen until raid_resume() though */
-	if (mddev->suspended)
+	if (test_and_clear_bit(RT_FLAG_RS_SUSPENDED, &rs->runtime_flags))
 		mddev_resume(mddev);
 
 	/*
@@ -3688,8 +3789,8 @@ static int rs_start_reshape(struct raid_set *rs)
 	}
 
 	/* Suspend because a resume will happen in raid_resume() */
-	if (!mddev->suspended)
-		mddev_suspend(mddev);
+	set_bit(RT_FLAG_RS_SUSPENDED, &rs->runtime_flags);
+	mddev_suspend(mddev);
 
 	/*
 	 * Now reshape got set up, update superblocks to
@@ -3726,7 +3827,7 @@ static int raid_preresume(struct dm_target *ti)
 		return r;
 
 	/* Resize bitmap to adjust to changed region size (aka MD bitmap chunksize) */
-	if (test_bit(RT_FLAG_RS_BITMAP_LOADED, &rs->runtime_flags) &&
+	if (test_bit(RT_FLAG_RS_BITMAP_LOADED, &rs->runtime_flags) && mddev->bitmap &&
 	    mddev->bitmap_info.chunksize != to_bytes(rs->requested_bitmap_chunk_sectors)) {
 		r = bitmap_resize(mddev->bitmap, mddev->dev_sectors,
 				  to_bytes(rs->requested_bitmap_chunk_sectors), 0);
@@ -3785,13 +3886,13 @@ static void raid_resume(struct dm_target *ti)
 	if (!(rs->ctr_flags & RESUME_STAY_FROZEN_FLAGS))
 		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 
-	if (mddev->suspended)
+	if (test_and_clear_bit(RT_FLAG_RS_SUSPENDED, &rs->runtime_flags))
 		mddev_resume(mddev);
 }
 
 static struct target_type raid_target = {
 	.name = "raid",
-	.version = {1, 10, 1},
+	.version = {1, 12, 1},
 	.module = THIS_MODULE,
 	.ctr = raid_ctr,
 	.dtr = raid_dtr,

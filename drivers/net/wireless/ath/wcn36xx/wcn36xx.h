@@ -195,12 +195,15 @@ struct wcn36xx {
 	void __iomem		*ccu_base;
 	void __iomem		*dxe_base;
 
-	struct qcom_smd_channel *smd_channel;
+	struct rpmsg_endpoint	*smd_channel;
 
 	struct qcom_smem_state  *tx_enable_state;
 	unsigned		tx_enable_state_bit;
 	struct qcom_smem_state	*tx_rings_empty_state;
 	unsigned		tx_rings_empty_state_bit;
+
+	/* prevents concurrent FW reconfiguration */
+	struct mutex		conf_mutex;
 
 	/*
 	 * smd_buf must be protected with smd_mutex to garantee

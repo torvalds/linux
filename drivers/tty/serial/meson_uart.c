@@ -286,7 +286,7 @@ static int meson_uart_startup(struct uart_port *port)
 	writel(val, port->membase + AML_UART_MISC);
 
 	ret = request_irq(port->irq, meson_uart_interrupt, 0,
-			  meson_uart_type(port), port);
+			  port->name, port);
 
 	return ret;
 }
@@ -298,8 +298,6 @@ static void meson_uart_change_speed(struct uart_port *port, unsigned long baud)
 	while (!meson_uart_tx_empty(port))
 		cpu_relax();
 
-	val = readl(port->membase + AML_UART_REG5);
-	val &= ~AML_UART_BAUD_MASK;
 	if (port->uartclk == 24000000) {
 		val = ((port->uartclk / 3) / baud) - 1;
 		val |= AML_UART_BAUD_XTAL;
@@ -355,7 +353,7 @@ static void meson_uart_set_termios(struct uart_port *port,
 	if (cflags & CSTOPB)
 		val |= AML_UART_STOP_BIN_2SB;
 	else
-		val &= ~AML_UART_STOP_BIN_1SB;
+		val |= AML_UART_STOP_BIN_1SB;
 
 	if (cflags & CRTSCTS)
 		val &= ~AML_UART_TWO_WIRE_EN;
@@ -395,51 +393,25 @@ static int meson_uart_verify_port(struct uart_port *port,
 	return ret;
 }
 
-static int meson_uart_res_size(struct uart_port *port)
-{
-	struct platform_device *pdev = to_platform_device(port->dev);
-	struct resource *res;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(port->dev, "cannot obtain I/O memory region");
-		return -ENODEV;
-	}
-
-	return resource_size(res);
-}
-
 static void meson_uart_release_port(struct uart_port *port)
 {
-	int size = meson_uart_res_size(port);
-
-	if (port->flags & UPF_IOREMAP) {
-		devm_release_mem_region(port->dev, port->mapbase, size);
-		devm_iounmap(port->dev, port->membase);
-		port->membase = NULL;
-	}
+	devm_iounmap(port->dev, port->membase);
+	port->membase = NULL;
+	devm_release_mem_region(port->dev, port->mapbase, port->mapsize);
 }
 
 static int meson_uart_request_port(struct uart_port *port)
 {
-	int size = meson_uart_res_size(port);
-
-	if (size < 0)
-		return size;
-
-	if (!devm_request_mem_region(port->dev, port->mapbase, size,
+	if (!devm_request_mem_region(port->dev, port->mapbase, port->mapsize,
 				     dev_name(port->dev))) {
 		dev_err(port->dev, "Memory region busy\n");
 		return -EBUSY;
 	}
 
-	if (port->flags & UPF_IOREMAP) {
-		port->membase = devm_ioremap_nocache(port->dev,
-						     port->mapbase,
-						     size);
-		if (port->membase == NULL)
-			return -ENOMEM;
-	}
+	port->membase = devm_ioremap_nocache(port->dev, port->mapbase,
+					     port->mapsize);
+	if (!port->membase)
+		return -ENOMEM;
 
 	return 0;
 }
@@ -452,7 +424,7 @@ static void meson_uart_config_port(struct uart_port *port, int flags)
 	}
 }
 
-static struct uart_ops meson_uart_ops = {
+static const struct uart_ops meson_uart_ops = {
 	.set_mctrl      = meson_uart_set_mctrl,
 	.get_mctrl      = meson_uart_get_mctrl,
 	.tx_empty	= meson_uart_tx_empty,
@@ -470,6 +442,14 @@ static struct uart_ops meson_uart_ops = {
 };
 
 #ifdef CONFIG_SERIAL_MESON_CONSOLE
+static void meson_uart_enable_tx_engine(struct uart_port *port)
+{
+	u32 val;
+
+	val = readl(port->membase + AML_UART_CONTROL);
+	val |= AML_UART_TX_EN;
+	writel(val, port->membase + AML_UART_CONTROL);
+}
 
 static void meson_console_putchar(struct uart_port *port, int ch)
 {
@@ -499,7 +479,6 @@ static void meson_serial_port_write(struct uart_port *port, const char *s,
 	}
 
 	val = readl(port->membase + AML_UART_CONTROL);
-	val |= AML_UART_TX_EN;
 	tmp = val & ~(AML_UART_TX_INT_EN | AML_UART_RX_INT_EN);
 	writel(tmp, port->membase + AML_UART_CONTROL);
 
@@ -537,6 +516,8 @@ static int meson_serial_console_setup(struct console *co, char *options)
 	port = meson_ports[co->index];
 	if (!port || !port->membase)
 		return -ENODEV;
+
+	meson_uart_enable_tx_engine(port);
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -576,10 +557,15 @@ meson_serial_early_console_setup(struct earlycon_device *device, const char *opt
 	if (!device->port.membase)
 		return -ENODEV;
 
+	meson_uart_enable_tx_engine(&device->port);
 	device->con->write = meson_serial_early_console_write;
 	return 0;
 }
+/* Legacy bindings, should be removed when no more used */
 OF_EARLYCON_DECLARE(meson, "amlogic,meson-uart",
+		    meson_serial_early_console_setup);
+/* Stable bindings */
+OF_EARLYCON_DECLARE(meson, "amlogic,meson-ao-uart",
 		    meson_serial_early_console_setup);
 
 #define MESON_SERIAL_CONSOLE	(&meson_serial_console)
@@ -595,11 +581,76 @@ static struct uart_driver meson_uart_driver = {
 	.cons		= MESON_SERIAL_CONSOLE,
 };
 
+static inline struct clk *meson_uart_probe_clock(struct device *dev,
+						 const char *id)
+{
+	struct clk *clk = NULL;
+	int ret;
+
+	clk = devm_clk_get(dev, id);
+	if (IS_ERR(clk))
+		return clk;
+
+	ret = clk_prepare_enable(clk);
+	if (ret) {
+		dev_err(dev, "couldn't enable clk\n");
+		return ERR_PTR(ret);
+	}
+
+	devm_add_action_or_reset(dev,
+			(void(*)(void *))clk_disable_unprepare,
+			clk);
+
+	return clk;
+}
+
+/*
+ * This function gets clocks in the legacy non-stable DT bindings.
+ * This code will be remove once all the platforms switch to the
+ * new DT bindings.
+ */
+static int meson_uart_probe_clocks_legacy(struct platform_device *pdev,
+					  struct uart_port *port)
+{
+	struct clk *clk = NULL;
+
+	clk = meson_uart_probe_clock(&pdev->dev, NULL);
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+
+	port->uartclk = clk_get_rate(clk);
+
+	return 0;
+}
+
+static int meson_uart_probe_clocks(struct platform_device *pdev,
+				   struct uart_port *port)
+{
+	struct clk *clk_xtal = NULL;
+	struct clk *clk_pclk = NULL;
+	struct clk *clk_baud = NULL;
+
+	clk_pclk = meson_uart_probe_clock(&pdev->dev, "pclk");
+	if (IS_ERR(clk_pclk))
+		return PTR_ERR(clk_pclk);
+
+	clk_xtal = meson_uart_probe_clock(&pdev->dev, "xtal");
+	if (IS_ERR(clk_xtal))
+		return PTR_ERR(clk_xtal);
+
+	clk_baud = meson_uart_probe_clock(&pdev->dev, "baud");
+	if (IS_ERR(clk_baud))
+		return PTR_ERR(clk_baud);
+
+	port->uartclk = clk_get_rate(clk_baud);
+
+	return 0;
+}
+
 static int meson_uart_probe(struct platform_device *pdev)
 {
 	struct resource *res_mem, *res_irq;
 	struct uart_port *port;
-	struct clk *clk;
 	int ret = 0;
 
 	if (pdev->dev.of_node)
@@ -625,15 +676,20 @@ static int meson_uart_probe(struct platform_device *pdev)
 	if (!port)
 		return -ENOMEM;
 
-	clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	/* Use legacy way until all platforms switch to new bindings */
+	if (of_device_is_compatible(pdev->dev.of_node, "amlogic,meson-uart"))
+		ret = meson_uart_probe_clocks_legacy(pdev, port);
+	else
+		ret = meson_uart_probe_clocks(pdev, port);
 
-	port->uartclk = clk_get_rate(clk);
+	if (ret)
+		return ret;
+
 	port->iotype = UPIO_MEM;
 	port->mapbase = res_mem->start;
+	port->mapsize = resource_size(res_mem);
 	port->irq = res_irq->start;
-	port->flags = UPF_BOOT_AUTOCONF | UPF_IOREMAP | UPF_LOW_LATENCY;
+	port->flags = UPF_BOOT_AUTOCONF | UPF_LOW_LATENCY;
 	port->dev = &pdev->dev;
 	port->line = pdev->id;
 	port->type = PORT_MESON;
@@ -668,9 +724,14 @@ static int meson_uart_remove(struct platform_device *pdev)
 	return 0;
 }
 
-
 static const struct of_device_id meson_uart_dt_match[] = {
+	/* Legacy bindings, should be removed when no more used */
 	{ .compatible = "amlogic,meson-uart" },
+	/* Stable bindings */
+	{ .compatible = "amlogic,meson6-uart" },
+	{ .compatible = "amlogic,meson8-uart" },
+	{ .compatible = "amlogic,meson8b-uart" },
+	{ .compatible = "amlogic,meson-gx-uart" },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, meson_uart_dt_match);

@@ -118,7 +118,6 @@ defkeymap.c
 devlist.h*
 devicetable-offsets.h
 dnotify_test
-docproc
 dslm
 dtc
 elf2ecoff
@@ -207,6 +206,8 @@ r200_reg_safe.h
 r300_reg_safe.h
 r420_reg_safe.h
 r600_reg_safe.h
+randomize_layout_hash.h
+randomize_layout_seed.h
 recordmcount
 relocs
 rlim_names.h
@@ -258,5 +259,4 @@ wakeup.bin
 wakeup.elf
 wakeup.lds
 zImage*
-zconf.hash.c
 zoffset.h

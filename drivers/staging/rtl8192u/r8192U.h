@@ -34,7 +34,7 @@
 #include <linux/proc_fs.h>
 #include <linux/if_arp.h>
 #include <linux/random.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include "ieee80211/ieee80211.h"
 
 #define RTL8192U
@@ -793,12 +793,12 @@ typedef struct _phy_cck_rx_status_report_819xusb {
 } phy_sts_cck_819xusb_t;
 
 
-typedef struct _phy_ofdm_rx_status_rxsc_sgien_exintfflag {
+struct phy_ofdm_rx_status_rxsc_sgien_exintfflag {
 	u8			reserved:4;
 	u8			rxsc:2;
 	u8			sgi_en:1;
 	u8			ex_intf_flag:1;
-} phy_ofdm_rx_status_rxsc_sgien_exintfflag;
+};
 
 typedef enum _RT_CUSTOMER_ID {
 	RT_CID_DEFAULT = 0,
@@ -1041,10 +1041,10 @@ typedef struct r8192_priv {
 	u8 rfc_txpowertrackingindex;
 	u8 rfc_txpowertrackingindex_real;
 
-	s8 cck_present_attentuation;
-	u8 cck_present_attentuation_20Mdefault;
-	u8 cck_present_attentuation_40Mdefault;
-	s8 cck_present_attentuation_difference;
+	s8 cck_present_attenuation;
+	u8 cck_present_attenuation_20Mdefault;
+	u8 cck_present_attenuation_40Mdefault;
+	s8 cck_present_attenuation_difference;
 	bool btxpower_tracking;
 	bool bcck_in_ch14;
 	bool btxpowerdata_readfromEEPORM;
@@ -1147,9 +1147,9 @@ int write_nic_word(struct net_device *dev, int x, u16 y);
 int write_nic_dword(struct net_device *dev, int x, u32 y);
 void force_pci_posting(struct net_device *dev);
 
-void rtl8192_rtx_disable(struct net_device *);
-void rtl8192_rx_enable(struct net_device *);
-void rtl8192_tx_enable(struct net_device *);
+void rtl8192_rtx_disable(struct net_device *dev);
+void rtl8192_rx_enable(struct net_device *dev);
+void rtl8192_tx_enable(struct net_device *dev);
 
 void rtl8192_disassociate(struct net_device *dev);
 void rtl8185_set_rf_pins_enable(struct net_device *dev, u32 a);

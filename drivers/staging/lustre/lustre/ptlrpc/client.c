@@ -34,12 +34,12 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-#include "../include/obd_support.h"
-#include "../include/obd_class.h"
-#include "../include/lustre_lib.h"
-#include "../include/lustre_ha.h"
-#include "../include/lustre_import.h"
-#include "../include/lustre_req_layout.h"
+#include <obd_support.h>
+#include <obd_class.h>
+#include <lustre_lib.h>
+#include <lustre_ha.h>
+#include <lustre_import.h>
+#include <lustre_req_layout.h>
 
 #include "ptlrpc_internal.h"
 
@@ -78,7 +78,7 @@ struct ptlrpc_connection *ptlrpc_uuid_to_connection(struct obd_uuid *uuid)
 {
 	struct ptlrpc_connection *c;
 	lnet_nid_t self;
-	lnet_process_id_t peer;
+	struct lnet_process_id peer;
 	int err;
 
 	/*
@@ -151,7 +151,7 @@ struct ptlrpc_bulk_desc *ptlrpc_new_bulk(unsigned int nfrags,
 	 * node. Negotiated ocd_brw_size will always be <= this number.
 	 */
 	for (i = 0; i < PTLRPC_BULK_OPS_COUNT; i++)
-		LNetInvalidateHandle(&desc->bd_mds[i]);
+		LNetInvalidateMDHandle(&desc->bd_mds[i]);
 
 	return desc;
 free_desc:
@@ -367,9 +367,8 @@ void ptlrpc_at_adj_net_latency(struct ptlrpc_request *req,
 		 */
 		CDEBUG((lustre_msg_get_flags(req->rq_reqmsg) & MSG_RESENT) ?
 		       D_ADAPTTO : D_WARNING,
-		       "Reported service time %u > total measured time "
-		       CFS_DURATION_T"\n", service_time,
-		       (long)(now - req->rq_sent));
+		       "Reported service time %u > total measured time %lld\n",
+		       service_time, now - req->rq_sent);
 		return;
 	}
 
@@ -742,7 +741,7 @@ int ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 
 	/* Let's setup deadline for req/reply/bulk unlink for opcode. */
 	if (cfs_fail_val == opcode) {
-		time_t *fail_t = NULL, *fail2_t = NULL;
+		time64_t *fail_t = NULL, *fail2_t = NULL;
 
 		if (CFS_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_BULK_UNLINK)) {
 			fail_t = &request->rq_bulk_deadline;
@@ -3116,13 +3115,20 @@ void ptlrpc_set_bulk_mbits(struct ptlrpc_request *req)
 
 	LASSERT(bd);
 
-	if (!req->rq_resend) {
-		/* this request has a new xid, just use it as bulk matchbits */
-		req->rq_mbits = req->rq_xid;
-
-	} else { /* needs to generate a new matchbits for resend */
+	/*
+	 * Generate new matchbits for all resend requests, including
+	 * resend replay.
+	 */
+	if (req->rq_resend) {
 		u64 old_mbits = req->rq_mbits;
 
+		/*
+		 * First time resend on -EINPROGRESS will generate new xid,
+		 * so we can actually use the rq_xid as rq_mbits in such case,
+		 * however, it's bit hard to distinguish such resend with a
+		 * 'resend for the -EINPROGRESS resend'. To make it simple,
+		 * we opt to generate mbits for all resend cases.
+		 */
 		if ((bd->bd_import->imp_connect_data.ocd_connect_flags &
 		     OBD_CONNECT_BULK_MBITS)) {
 			req->rq_mbits = ptlrpc_next_xid();
@@ -3131,12 +3137,21 @@ void ptlrpc_set_bulk_mbits(struct ptlrpc_request *req)
 			spin_lock(&req->rq_import->imp_lock);
 			list_del_init(&req->rq_unreplied_list);
 			ptlrpc_assign_next_xid_nolock(req);
-			req->rq_mbits = req->rq_xid;
 			spin_unlock(&req->rq_import->imp_lock);
+			req->rq_mbits = req->rq_xid;
 		}
 
 		CDEBUG(D_HA, "resend bulk old x%llu new x%llu\n",
 		       old_mbits, req->rq_mbits);
+	} else if (!(lustre_msg_get_flags(req->rq_reqmsg) & MSG_REPLAY)) {
+		/* Request being sent first time, use xid as matchbits. */
+		req->rq_mbits = req->rq_xid;
+	} else {
+		/*
+		 * Replay request, xid and matchbits have already been
+		 * correctly assigned.
+		 */
+		return;
 	}
 
 	/*
@@ -3144,8 +3159,7 @@ void ptlrpc_set_bulk_mbits(struct ptlrpc_request *req)
 	 * that server can infer the number of bulks that were prepared,
 	 * see LU-1431
 	 */
-	req->rq_mbits += ((bd->bd_iov_count + LNET_MAX_IOV - 1) /
-			  LNET_MAX_IOV) - 1;
+	req->rq_mbits += DIV_ROUND_UP(bd->bd_iov_count, LNET_MAX_IOV) - 1;
 }
 
 /**

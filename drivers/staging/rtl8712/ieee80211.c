@@ -166,7 +166,7 @@ static uint r8712_get_rateset_len(u8 *rateset)
 
 int r8712_generate_ie(struct registry_priv *pregistrypriv)
 {
-	int sz = 0, rateLen;
+	int sz = 0, rate_len;
 	struct wlan_bssid_ex *pdev_network = &pregistrypriv->dev_network;
 	u8 *ie = pdev_network->IEs;
 
@@ -191,15 +191,16 @@ int r8712_generate_ie(struct registry_priv *pregistrypriv)
 			  pdev_network->Ssid.Ssid, &sz);
 	/*supported rates*/
 	set_supported_rate(pdev_network->rates, pregistrypriv->wireless_mode);
-	rateLen = r8712_get_rateset_len(pdev_network->rates);
-	if (rateLen > 8) {
+	rate_len = r8712_get_rateset_len(pdev_network->rates);
+	if (rate_len > 8) {
 		ie = r8712_set_ie(ie, _SUPPORTEDRATES_IE_, 8,
 				  pdev_network->rates, &sz);
-		ie = r8712_set_ie(ie, _EXT_SUPPORTEDRATES_IE_, (rateLen - 8),
+		ie = r8712_set_ie(ie, _EXT_SUPPORTEDRATES_IE_, (rate_len - 8),
 				  (pdev_network->rates + 8), &sz);
-	} else
+	} else {
 		ie = r8712_set_ie(ie, _SUPPORTEDRATES_IE_,
-				  rateLen, pdev_network->rates, &sz);
+				  rate_len, pdev_network->rates, &sz);
+	}
 	/*DS parameter set*/
 	ie = r8712_set_ie(ie, _DSSET_IE_, 1,
 			  (u8 *)&pdev_network->Configuration.DSConfig, &sz);
@@ -288,8 +289,9 @@ int r8712_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
 		/* No WPA IE - fail silently */
 		return _FAIL;
 	}
-	if ((*wpa_ie != _WPA_IE_ID_) || (*(wpa_ie + 1) != (u8)(wpa_ie_len - 2))
-	     || (memcmp(wpa_ie + 2, (void *)WPA_OUI_TYPE, WPA_SELECTOR_LEN)))
+	if ((*wpa_ie != _WPA_IE_ID_) ||
+	    (*(wpa_ie + 1) != (u8)(wpa_ie_len - 2)) ||
+	    (memcmp(wpa_ie + 2, (void *)WPA_OUI_TYPE, WPA_SELECTOR_LEN)))
 		return _FAIL;
 	pos = wpa_ie;
 	pos += 8;

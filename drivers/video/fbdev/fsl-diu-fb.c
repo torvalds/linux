@@ -388,7 +388,7 @@ struct fsl_diu_data {
 /* Determine the DMA address of a member of the fsl_diu_data structure */
 #define DMA_ADDR(p, f) ((p)->dma_addr + offsetof(struct fsl_diu_data, f))
 
-static struct mfb_info mfb_template[] = {
+static const struct mfb_info mfb_template[] = {
 	{
 		.index = PLANE0,
 		.id = "Panel0",
@@ -1868,7 +1868,7 @@ static int __init fsl_diu_setup(char *options)
 }
 #endif
 
-static struct of_device_id fsl_diu_match[] = {
+static const struct of_device_id fsl_diu_match[] = {
 #ifdef CONFIG_PPC_MPC512x
 	{
 		.compatible = "fsl,mpc5121-diu",

@@ -236,7 +236,6 @@ bsg_map_hdr(struct bsg_device *bd, struct sg_io_v4 *hdr, fmode_t has_write_perm)
 	rq = blk_get_request(q, op, GFP_KERNEL);
 	if (IS_ERR(rq))
 		return rq;
-	scsi_req_init(rq);
 
 	ret = blk_fill_sgv4_hdr_rq(q, rq, hdr, bd, has_write_perm);
 	if (ret)
@@ -294,14 +293,14 @@ out:
  * async completion call-back from the block layer, when scsi/ide/whatever
  * calls end_that_request_last() on a request
  */
-static void bsg_rq_end_io(struct request *rq, int uptodate)
+static void bsg_rq_end_io(struct request *rq, blk_status_t status)
 {
 	struct bsg_command *bc = rq->end_io_data;
 	struct bsg_device *bd = bc->bd;
 	unsigned long flags;
 
-	dprintk("%s: finished rq %p bc %p, bio %p stat %d\n",
-		bd->name, rq, bc, bc->bio, uptodate);
+	dprintk("%s: finished rq %p bc %p, bio %p\n",
+		bd->name, rq, bc, bc->bio);
 
 	bc->hdr.duration = jiffies_to_msecs(jiffies - bc->hdr.duration);
 
@@ -391,13 +390,13 @@ static int blk_complete_sgv4_hdr_rq(struct request *rq, struct sg_io_v4 *hdr,
 	struct scsi_request *req = scsi_req(rq);
 	int ret = 0;
 
-	dprintk("rq %p bio %p 0x%x\n", rq, bio, rq->errors);
+	dprintk("rq %p bio %p 0x%x\n", rq, bio, req->result);
 	/*
 	 * fill in all the output members
 	 */
-	hdr->device_status = rq->errors & 0xff;
-	hdr->transport_status = host_byte(rq->errors);
-	hdr->driver_status = driver_byte(rq->errors);
+	hdr->device_status = req->result & 0xff;
+	hdr->transport_status = host_byte(req->result);
+	hdr->driver_status = driver_byte(req->result);
 	hdr->info = 0;
 	if (hdr->device_status || hdr->transport_status || hdr->driver_status)
 		hdr->info |= SG_INFO_CHECK;
@@ -431,8 +430,8 @@ static int blk_complete_sgv4_hdr_rq(struct request *rq, struct sg_io_v4 *hdr,
 	 * just a protocol response (i.e. non negative), that gets
 	 * processed above.
 	 */
-	if (!ret && rq->errors < 0)
-		ret = rq->errors;
+	if (!ret && req->result < 0)
+		ret = req->result;
 
 	blk_rq_unmap_user(bio);
 	scsi_req_free_cmd(req);
@@ -650,7 +649,7 @@ bsg_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 
 	dprintk("%s: write %zd bytes\n", bd->name, count);
 
-	if (unlikely(segment_eq(get_fs(), KERNEL_DS)))
+	if (unlikely(uaccess_kernel()))
 		return -EINVAL;
 
 	bsg_set_block(bd, file);
@@ -750,6 +749,12 @@ static struct bsg_device *bsg_add_device(struct inode *inode,
 #ifdef BSG_DEBUG
 	unsigned char buf[32];
 #endif
+
+	if (!blk_queue_scsi_passthrough(rq)) {
+		WARN_ONCE(true, "Attempt to register a non-SCSI queue\n");
+		return ERR_PTR(-EINVAL);
+	}
+
 	if (!blk_get_queue(rq))
 		return ERR_PTR(-ENXIO);
 
@@ -927,15 +932,8 @@ static long bsg_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		return ret;
 	}
-	/*
-	 * block device ioctls
-	 */
 	default:
-#if 0
-		return ioctl_by_bdev(bd->bdev, cmd, arg);
-#else
 		return -ENOTTY;
-#endif
 	}
 }
 

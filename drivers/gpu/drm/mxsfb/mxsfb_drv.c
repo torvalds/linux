@@ -130,7 +130,7 @@ static int mxsfb_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
 	return drm_fb_cma_prepare_fb(&pipe->plane, plane_state);
 }
 
-struct drm_simple_display_pipe_funcs mxsfb_funcs = {
+static struct drm_simple_display_pipe_funcs mxsfb_funcs = {
 	.enable		= mxsfb_pipe_enable,
 	.disable	= mxsfb_pipe_disable,
 	.update		= mxsfb_pipe_update,
@@ -190,7 +190,7 @@ static int mxsfb_load(struct drm_device *drm, unsigned long flags)
 	}
 
 	ret = drm_simple_display_pipe_init(drm, &mxsfb->pipe, &mxsfb_funcs,
-			mxsfb_formats, ARRAY_SIZE(mxsfb_formats),
+			mxsfb_formats, ARRAY_SIZE(mxsfb_formats), NULL,
 			&mxsfb->connector);
 	if (ret < 0) {
 		dev_err(drm->dev, "Cannot setup simple display pipe\n");
@@ -225,6 +225,7 @@ static int mxsfb_load(struct drm_device *drm, unsigned long flags)
 	mxsfb->fbdev = drm_fbdev_cma_init(drm, 32,
 					  drm->mode_config.num_connector);
 	if (IS_ERR(mxsfb->fbdev)) {
+		ret = PTR_ERR(mxsfb->fbdev);
 		mxsfb->fbdev = NULL;
 		dev_err(drm->dev, "Failed to init FB CMA area\n");
 		goto err_cma;
@@ -255,7 +256,6 @@ static void mxsfb_unload(struct drm_device *drm)
 
 	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);
-	drm_vblank_cleanup(drm);
 
 	pm_runtime_get_sync(drm->dev);
 	drm_irq_uninstall(drm);
@@ -322,19 +322,7 @@ static irqreturn_t mxsfb_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static const struct file_operations fops = {
-	.owner		= THIS_MODULE,
-	.open		= drm_open,
-	.release	= drm_release,
-	.unlocked_ioctl	= drm_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= drm_compat_ioctl,
-#endif
-	.poll		= drm_poll,
-	.read		= drm_read,
-	.llseek		= noop_llseek,
-	.mmap		= drm_gem_cma_mmap,
-};
+DEFINE_DRM_GEM_CMA_FOPS(fops);
 
 static struct drm_driver mxsfb_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET |
@@ -344,14 +332,11 @@ static struct drm_driver mxsfb_driver = {
 	.irq_handler		= mxsfb_irq_handler,
 	.irq_preinstall		= mxsfb_irq_preinstall,
 	.irq_uninstall		= mxsfb_irq_preinstall,
-	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= mxsfb_enable_vblank,
 	.disable_vblank		= mxsfb_disable_vblank,
-	.gem_free_object	= drm_gem_cma_free_object,
+	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.dumb_create		= drm_gem_cma_dumb_create,
-	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
-	.dumb_destroy		= drm_gem_dumb_destroy,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
 	.gem_prime_export	= drm_gem_prime_export,

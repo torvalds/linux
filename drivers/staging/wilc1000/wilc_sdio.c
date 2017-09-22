@@ -1,11 +1,8 @@
-/* ////////////////////////////////////////////////////////////////////////// */
-/*  */
-/* Copyright (c) Atmel Corporation.  All rights reserved. */
-/*  */
-/* Module Name:  wilc_sdio.c */
-/*  */
-/*  */
-/* //////////////////////////////////////////////////////////////////////////// */
+/*
+ * Copyright (c) Atmel Corporation.  All rights reserved.
+ *
+ * Module Name:  wilc_sdio.c
+ */
 
 #include <linux/string.h>
 #include "wilc_wlan_if.h"
@@ -77,7 +74,7 @@ static int wilc_sdio_cmd52(struct wilc *wilc, struct sdio_cmd52 *cmd)
 	sdio_release_host(func);
 
 	if (ret)
-		dev_err(&func->dev, "wilc_sdio_cmd52..failed, err(%d)\n", ret);
+		dev_err(&func->dev, "%s..failed, err(%d)\n", __func__, ret);
 	return ret;
 }
 
@@ -106,7 +103,7 @@ static int wilc_sdio_cmd53(struct wilc *wilc, struct sdio_cmd53 *cmd)
 	sdio_release_host(func);
 
 	if (ret)
-		dev_err(&func->dev, "wilc_sdio_cmd53..failed, err(%d)\n", ret);
+		dev_err(&func->dev, "%s..failed, err(%d)\n", __func__,  ret);
 
 	return ret;
 }
@@ -246,15 +243,11 @@ static void wilc_sdio_disable_interrupt(struct wilc *dev)
 	struct sdio_func *func = container_of(dev->dev, struct sdio_func, dev);
 	int ret;
 
-	dev_dbg(&func->dev, "wilc_sdio_disable_interrupt IN\n");
-
 	sdio_claim_host(func);
 	ret = sdio_release_irq(func);
 	if (ret < 0)
 		dev_err(&func->dev, "can't release sdio_irq, err(%d)\n", ret);
 	sdio_release_host(func);
-
-	dev_info(&func->dev, "wilc_sdio_disable_interrupt OUT\n");
 }
 
 /********************************************

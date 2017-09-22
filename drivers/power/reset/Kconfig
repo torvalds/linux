@@ -58,14 +58,23 @@ config POWER_RESET_BRCMKONA
 
 config POWER_RESET_BRCMSTB
 	bool "Broadcom STB reset driver"
-	depends on ARM || MIPS || COMPILE_TEST
+	depends on ARM || ARM64 || MIPS || COMPILE_TEST
 	depends on MFD_SYSCON
-	default ARCH_BRCMSTB
+	default ARCH_BRCMSTB || BMIPS_GENERIC
 	help
 	  This driver provides restart support for Broadcom STB boards.
 
 	  Say Y here if you have a Broadcom STB board and you wish
 	  to have restart support.
+
+config POWER_RESET_GEMINI_POWEROFF
+	bool "Cortina Gemini power-off driver"
+	depends on ARCH_GEMINI || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	default ARCH_GEMINI
+	help
+	  This driver supports turning off the Cortina Gemini SoC.
+	  Select this if you're building a kernel with Gemini SoC support.
 
 config POWER_RESET_GPIO
 	bool "GPIO power-off driver"

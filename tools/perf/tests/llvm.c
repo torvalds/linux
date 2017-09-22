@@ -132,7 +132,7 @@ out:
 	return ret;
 }
 
-int test__llvm(int subtest)
+int test__llvm(struct test *test __maybe_unused, int subtest)
 {
 	int ret;
 	void *obj_buf = NULL;

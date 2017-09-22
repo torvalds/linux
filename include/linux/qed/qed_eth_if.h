@@ -47,8 +47,7 @@ struct qed_queue_start_common_params {
 	/* Relative, but relevant only for PFs */
 	u8 stats_id;
 
-	/* These are always absolute */
-	u16 sb;
+	struct qed_sb_info *p_sb;
 	u8 sb_idx;
 };
 
@@ -74,6 +73,9 @@ struct qed_dev_eth_info {
 
 	/* Legacy VF - this affects the datapath, so qede has to know */
 	bool is_legacy;
+
+	/* Might depend on available resources [in case of VF] */
+	bool xdp_supported;
 };
 
 struct qed_update_vport_rss_params {
@@ -158,15 +160,27 @@ struct qed_tunn_params {
 struct qed_eth_cb_ops {
 	struct qed_common_cb_ops common;
 	void (*force_mac) (void *dev, u8 *mac, bool forced);
+	void (*ports_update)(void *dev, u16 vxlan_port, u16 geneve_port);
 };
 
 #define QED_MAX_PHC_DRIFT_PPB   291666666
 
 enum qed_ptp_filter_type {
-	QED_PTP_FILTER_L2,
-	QED_PTP_FILTER_IPV4,
-	QED_PTP_FILTER_IPV4_IPV6,
-	QED_PTP_FILTER_L2_IPV4_IPV6
+	QED_PTP_FILTER_NONE,
+	QED_PTP_FILTER_ALL,
+	QED_PTP_FILTER_V1_L4_EVENT,
+	QED_PTP_FILTER_V1_L4_GEN,
+	QED_PTP_FILTER_V2_L4_EVENT,
+	QED_PTP_FILTER_V2_L4_GEN,
+	QED_PTP_FILTER_V2_L2_EVENT,
+	QED_PTP_FILTER_V2_L2_GEN,
+	QED_PTP_FILTER_V2_EVENT,
+	QED_PTP_FILTER_V2_GEN
+};
+
+enum qed_ptp_hwtstamp_tx_type {
+	QED_PTP_HWTSTAMP_TX_OFF,
+	QED_PTP_HWTSTAMP_TX_ON,
 };
 
 #ifdef CONFIG_DCB
@@ -229,8 +243,8 @@ struct qed_eth_dcbnl_ops {
 #endif
 
 struct qed_eth_ptp_ops {
-	int (*hwtstamp_tx_on)(struct qed_dev *);
-	int (*cfg_rx_filters)(struct qed_dev *, enum qed_ptp_filter_type);
+	int (*cfg_filters)(struct qed_dev *, enum qed_ptp_filter_type,
+			   enum qed_ptp_hwtstamp_tx_type);
 	int (*read_rx_ts)(struct qed_dev *, u64 *);
 	int (*read_tx_ts)(struct qed_dev *, u64 *);
 	int (*read_cc)(struct qed_dev *, u64 *);
@@ -301,6 +315,15 @@ struct qed_eth_ops {
 
 	int (*tunn_config)(struct qed_dev *cdev,
 			   struct qed_tunn_params *params);
+
+	int (*ntuple_filter_config)(struct qed_dev *cdev, void *cookie,
+				    dma_addr_t mapping, u16 length,
+				    u16 vport_id, u16 rx_queue_id,
+				    bool add_filter);
+
+	int (*configure_arfs_searcher)(struct qed_dev *cdev,
+				       bool en_searcher);
+	int (*get_coalesce)(struct qed_dev *cdev, u16 *coal, void *handle);
 };
 
 const struct qed_eth_ops *qed_get_eth_ops(void);

@@ -99,6 +99,15 @@ config DRM_FBDEV_EMULATION
 
 	  If in doubt, say "Y".
 
+config DRM_FBDEV_OVERALLOC
+	int "Overallocation of the fbdev buffer"
+	depends on DRM_FBDEV_EMULATION
+	default 100
+	help
+	  Defines the fbdev buffer overallocation in percent. Default
+	  is 100. Typical values for double buffering will be 200,
+	  triple buffering 300.
+
 config DRM_LOAD_EDID_FIRMWARE
 	bool "Allow to specify an EDID data set instead of probing for it"
 	depends on DRM_KMS_HELPER
@@ -237,6 +246,8 @@ source "drivers/gpu/drm/fsl-dcu/Kconfig"
 
 source "drivers/gpu/drm/tegra/Kconfig"
 
+source "drivers/gpu/drm/stm/Kconfig"
+
 source "drivers/gpu/drm/panel/Kconfig"
 
 source "drivers/gpu/drm/bridge/Kconfig"
@@ -264,6 +275,8 @@ source "drivers/gpu/drm/mxsfb/Kconfig"
 source "drivers/gpu/drm/meson/Kconfig"
 
 source "drivers/gpu/drm/tinydrm/Kconfig"
+
+source "drivers/gpu/drm/pl111/Kconfig"
 
 # Keep legacy drivers last
 

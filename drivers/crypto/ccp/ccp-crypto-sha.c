@@ -1,7 +1,7 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) SHA crypto API support
  *
- * Copyright (C) 2013,2016 Advanced Micro Devices, Inc.
+ * Copyright (C) 2013,2017 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  * Author: Gary R Hook <gary.hook@amd.com>
@@ -18,6 +18,7 @@
 #include <linux/crypto.h>
 #include <crypto/algapi.h>
 #include <crypto/hash.h>
+#include <crypto/hmac.h>
 #include <crypto/internal/hash.h>
 #include <crypto/sha.h>
 #include <crypto/scatterwalk.h>
@@ -145,6 +146,12 @@ static int ccp_do_sha_update(struct ahash_request *req, unsigned int nbytes,
 		break;
 	case CCP_SHA_TYPE_256:
 		rctx->cmd.u.sha.ctx_len = SHA256_DIGEST_SIZE;
+		break;
+	case CCP_SHA_TYPE_384:
+		rctx->cmd.u.sha.ctx_len = SHA384_DIGEST_SIZE;
+		break;
+	case CCP_SHA_TYPE_512:
+		rctx->cmd.u.sha.ctx_len = SHA512_DIGEST_SIZE;
 		break;
 	default:
 		/* Should never get here */
@@ -302,8 +309,8 @@ static int ccp_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
 	}
 
 	for (i = 0; i < block_size; i++) {
-		ctx->u.sha.ipad[i] = ctx->u.sha.key[i] ^ 0x36;
-		ctx->u.sha.opad[i] = ctx->u.sha.key[i] ^ 0x5c;
+		ctx->u.sha.ipad[i] = ctx->u.sha.key[i] ^ HMAC_IPAD_VALUE;
+		ctx->u.sha.opad[i] = ctx->u.sha.key[i] ^ HMAC_OPAD_VALUE;
 	}
 
 	sg_init_one(&ctx->u.sha.opad_sg, ctx->u.sha.opad, block_size);
@@ -392,6 +399,22 @@ static struct ccp_sha_def sha_algs[] = {
 		.type		= CCP_SHA_TYPE_256,
 		.digest_size	= SHA256_DIGEST_SIZE,
 		.block_size	= SHA256_BLOCK_SIZE,
+	},
+	{
+		.version	= CCP_VERSION(5, 0),
+		.name		= "sha384",
+		.drv_name	= "sha384-ccp",
+		.type		= CCP_SHA_TYPE_384,
+		.digest_size	= SHA384_DIGEST_SIZE,
+		.block_size	= SHA384_BLOCK_SIZE,
+	},
+	{
+		.version	= CCP_VERSION(5, 0),
+		.name		= "sha512",
+		.drv_name	= "sha512-ccp",
+		.type		= CCP_SHA_TYPE_512,
+		.digest_size	= SHA512_DIGEST_SIZE,
+		.block_size	= SHA512_BLOCK_SIZE,
 	},
 };
 

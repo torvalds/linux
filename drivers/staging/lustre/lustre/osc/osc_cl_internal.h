@@ -42,11 +42,11 @@
 #ifndef OSC_CL_INTERNAL_H
 #define OSC_CL_INTERNAL_H
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
-#include "../include/obd.h"
+#include <obd.h>
 /* osc_build_res_name() */
-#include "../include/cl_object.h"
+#include <cl_object.h>
 #include "osc_internal.h"
 
 /** \defgroup osc osc
@@ -62,7 +62,9 @@ struct osc_io {
 	/** super class */
 	struct cl_io_slice oi_cl;
 	/** true if this io is lockless. */
-	unsigned int		oi_lockless;
+	unsigned int		oi_lockless:1,
+	/** true if this io is counted as active IO */
+				oi_is_active:1;
 	/** how many LRU pages are reserved for this IO */
 	unsigned long		oi_lru_reserved;
 

@@ -1,10 +1,3 @@
-/**
- * \file drm_debugfs.c
- * debugfs support for DRM
- *
- * \author Ben Gamari <bgamari@gmail.com>
- */
-
 /*
  * Created: Sun Dec 21 13:08:50 2008 by bgamari@gmail.com
  *
@@ -34,9 +27,12 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/export.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_debugfs.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_atomic.h>
+#include <drm/drmP.h>
+
 #include "drm_internal.h"
 #include "drm_crtc_internal.h"
 
@@ -72,16 +68,15 @@ static const struct file_operations drm_debugfs_fops = {
 
 
 /**
- * Initialize a given set of debugfs files for a device
- *
- * \param files The array of files to create
- * \param count The number of files given
- * \param root DRI debugfs dir entry.
- * \param minor device minor number
- * \return Zero on success, non-zero on failure
+ * drm_debugfs_create_files - Initialize a given set of debugfs files for DRM
+ * 			minor
+ * @files: The array of files to create
+ * @count: The number of files given
+ * @root: DRI debugfs dir entry.
+ * @minor: device minor number
  *
  * Create a given set of debugfs files represented by an array of
- * &drm_info_list in the given root directory. These files will be removed
+ * &struct drm_info_list in the given root directory. These files will be removed
  * automatically on drm_debugfs_cleanup().
  */
 int drm_debugfs_create_files(const struct drm_info_list *files, int count,
@@ -130,17 +125,6 @@ fail:
 }
 EXPORT_SYMBOL(drm_debugfs_create_files);
 
-/**
- * Initialize the DRI debugfs filesystem for a device
- *
- * \param dev DRM device
- * \param minor device minor number
- * \param root DRI debugfs dir entry.
- *
- * Create the DRI debugfs root entry "/sys/kernel/debug/dri", the device debugfs root entry
- * "/sys/kernel/debug/dri/%minor%/", and each entry in debugfs_list as
- * "/sys/kernel/debug/dri/%minor%/%name%".
- */
 int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 		     struct dentry *root)
 {
@@ -186,16 +170,6 @@ int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 }
 
 
-/**
- * Remove a list of debugfs files
- *
- * \param files The list of files
- * \param count The number of files
- * \param minor The minor of which we should remove the files
- * \return always zero.
- *
- * Remove all debugfs entries created by debugfs_init().
- */
 int drm_debugfs_remove_files(const struct drm_info_list *files, int count,
 			     struct drm_minor *minor)
 {
@@ -232,23 +206,10 @@ static void drm_debugfs_remove_all_files(struct drm_minor *minor)
 	mutex_unlock(&minor->debugfs_lock);
 }
 
-/**
- * Cleanup the debugfs filesystem resources.
- *
- * \param minor device minor number.
- * \return always zero.
- *
- * Remove all debugfs entries created by debugfs_init().
- */
 int drm_debugfs_cleanup(struct drm_minor *minor)
 {
-	struct drm_device *dev = minor->dev;
-
 	if (!minor->debugfs_root)
 		return 0;
-
-	if (dev->driver->debugfs_cleanup)
-		dev->driver->debugfs_cleanup(minor);
 
 	drm_debugfs_remove_all_files(minor);
 
@@ -261,30 +222,8 @@ int drm_debugfs_cleanup(struct drm_minor *minor)
 static int connector_show(struct seq_file *m, void *data)
 {
 	struct drm_connector *connector = m->private;
-	const char *status;
 
-	switch (connector->force) {
-	case DRM_FORCE_ON:
-		status = "on\n";
-		break;
-
-	case DRM_FORCE_ON_DIGITAL:
-		status = "digital\n";
-		break;
-
-	case DRM_FORCE_OFF:
-		status = "off\n";
-		break;
-
-	case DRM_FORCE_UNSPECIFIED:
-		status = "unspecified\n";
-		break;
-
-	default:
-		return 0;
-	}
-
-	seq_puts(m, status);
+	seq_printf(m, "%s\n", drm_get_connector_force_name(connector->force));
 
 	return 0;
 }

@@ -128,7 +128,7 @@ static struct vendor_data vendor_arm = {
 	.get_fifosize		= get_fifosize_arm,
 };
 
-static struct vendor_data vendor_sbsa = {
+static const struct vendor_data vendor_sbsa = {
 	.reg_offset		= pl011_std_offsets,
 	.fr_busy		= UART01x_FR_BUSY,
 	.fr_dsr			= UART01x_FR_DSR,
@@ -142,16 +142,8 @@ static struct vendor_data vendor_sbsa = {
 	.fixed_options		= true,
 };
 
-/*
- * Erratum 44 for QDF2432v1 and QDF2400v1 SoCs describes the BUSY bit as
- * occasionally getting stuck as 1. To avoid the potential for a hang, check
- * TXFE == 0 instead of BUSY == 1. This may not be suitable for all UART
- * implementations, so only do so if an affected platform is detected in
- * parse_spcr().
- */
-static bool qdf2400_e44_present = false;
-
-static struct vendor_data vendor_qdt_qdf2400_e44 = {
+#ifdef CONFIG_ACPI_SPCR_TABLE
+static const struct vendor_data vendor_qdt_qdf2400_e44 = {
 	.reg_offset		= pl011_std_offsets,
 	.fr_busy		= UART011_FR_TXFE,
 	.fr_dsr			= UART01x_FR_DSR,
@@ -165,6 +157,7 @@ static struct vendor_data vendor_qdt_qdf2400_e44 = {
 	.always_enabled		= true,
 	.fixed_options		= true,
 };
+#endif
 
 static u16 pl011_st_offsets[REG_ARRAY_SIZE] = {
 	[REG_DR] = UART01x_DR,
@@ -1327,14 +1320,15 @@ static void pl011_stop_tx(struct uart_port *port)
 	pl011_dma_tx_stop(uap);
 }
 
-static void pl011_tx_chars(struct uart_amba_port *uap, bool from_irq);
+static bool pl011_tx_chars(struct uart_amba_port *uap, bool from_irq);
 
 /* Start TX with programmed I/O only (no DMA) */
 static void pl011_start_tx_pio(struct uart_amba_port *uap)
 {
-	uap->im |= UART011_TXIM;
-	pl011_write(uap->im, uap, REG_IMSC);
-	pl011_tx_chars(uap, false);
+	if (pl011_tx_chars(uap, false)) {
+		uap->im |= UART011_TXIM;
+		pl011_write(uap->im, uap, REG_IMSC);
+	}
 }
 
 static void pl011_start_tx(struct uart_port *port)
@@ -1414,25 +1408,26 @@ static bool pl011_tx_char(struct uart_amba_port *uap, unsigned char c,
 	return true;
 }
 
-static void pl011_tx_chars(struct uart_amba_port *uap, bool from_irq)
+/* Returns true if tx interrupts have to be (kept) enabled  */
+static bool pl011_tx_chars(struct uart_amba_port *uap, bool from_irq)
 {
 	struct circ_buf *xmit = &uap->port.state->xmit;
 	int count = uap->fifosize >> 1;
 
 	if (uap->port.x_char) {
 		if (!pl011_tx_char(uap, uap->port.x_char, from_irq))
-			return;
+			return true;
 		uap->port.x_char = 0;
 		--count;
 	}
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&uap->port)) {
 		pl011_stop_tx(&uap->port);
-		return;
+		return false;
 	}
 
 	/* If we are using DMA mode, try to send some characters. */
 	if (pl011_dma_tx_irq(uap))
-		return;
+		return true;
 
 	do {
 		if (likely(from_irq) && count-- == 0)
@@ -1447,8 +1442,11 @@ static void pl011_tx_chars(struct uart_amba_port *uap, bool from_irq)
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&uap->port);
 
-	if (uart_circ_empty(xmit))
+	if (uart_circ_empty(xmit)) {
 		pl011_stop_tx(&uap->port);
+		return false;
+	}
+	return true;
 }
 
 static void pl011_modem_status(struct uart_amba_port *uap)
@@ -2370,12 +2368,14 @@ static int __init pl011_console_match(struct console *co, char *name, int idx,
 	resource_size_t addr;
 	int i;
 
-	if (strcmp(name, "qdf2400_e44") == 0) {
-		pr_info_once("UART: Working around QDF2400 SoC erratum 44");
-		qdf2400_e44_present = true;
-	} else if (strcmp(name, "pl011") != 0 || strcmp(name, "ttyAMA") != 0) {
+	/*
+	 * Systems affected by the Qualcomm Technologies QDF2400 E44 erratum
+	 * have a distinct console name, so make sure we check for that.
+	 * The actual implementation of the erratum occurs in the probe
+	 * function.
+	 */
+	if ((strcmp(name, "qdf2400_e44") != 0) && (strcmp(name, "pl011") != 0))
 		return -ENODEV;
-	}
 
 	if (uart_parse_earlycon(options, &iotype, &addr, &options))
 		return -ENODEV;
@@ -2452,18 +2452,52 @@ static void pl011_early_write(struct console *con, const char *s, unsigned n)
 	uart_console_write(&dev->port, s, n, pl011_putc);
 }
 
+/*
+ * On non-ACPI systems, earlycon is enabled by specifying
+ * "earlycon=pl011,<address>" on the kernel command line.
+ *
+ * On ACPI ARM64 systems, an "early" console is enabled via the SPCR table,
+ * by specifying only "earlycon" on the command line.  Because it requires
+ * SPCR, the console starts after ACPI is parsed, which is later than a
+ * traditional early console.
+ *
+ * To get the traditional early console that starts before ACPI is parsed,
+ * specify the full "earlycon=pl011,<address>" option.
+ */
 static int __init pl011_early_console_setup(struct earlycon_device *device,
 					    const char *opt)
 {
 	if (!device->port.membase)
 		return -ENODEV;
 
-	device->con->write = qdf2400_e44_present ?
-				qdf2400_e44_early_write : pl011_early_write;
+	device->con->write = pl011_early_write;
+
 	return 0;
 }
 OF_EARLYCON_DECLARE(pl011, "arm,pl011", pl011_early_console_setup);
 OF_EARLYCON_DECLARE(pl011, "arm,sbsa-uart", pl011_early_console_setup);
+
+/*
+ * On Qualcomm Datacenter Technologies QDF2400 SOCs affected by
+ * Erratum 44, traditional earlycon can be enabled by specifying
+ * "earlycon=qdf2400_e44,<address>".  Any options are ignored.
+ *
+ * Alternatively, you can just specify "earlycon", and the early console
+ * will be enabled with the information from the SPCR table.  In this
+ * case, the SPCR code will detect the need for the E44 work-around,
+ * and set the console name to "qdf2400_e44".
+ */
+static int __init
+qdf2400_e44_early_console_setup(struct earlycon_device *device,
+				const char *opt)
+{
+	if (!device->port.membase)
+		return -ENODEV;
+
+	device->con->write = qdf2400_e44_early_write;
+	return 0;
+}
+EARLYCON_DECLARE(qdf2400_e44, qdf2400_e44_early_console_setup);
 
 #else
 #define AMBA_CONSOLE	NULL
@@ -2695,11 +2729,17 @@ static int sbsa_uart_probe(struct platform_device *pdev)
 	}
 	uap->port.irq	= ret;
 
-	uap->reg_offset	= vendor_sbsa.reg_offset;
-	uap->vendor	= qdf2400_e44_present ?
-					&vendor_qdt_qdf2400_e44 : &vendor_sbsa;
+#ifdef CONFIG_ACPI_SPCR_TABLE
+	if (qdf2400_e44_present) {
+		dev_info(&pdev->dev, "working around QDF2400 SoC erratum 44\n");
+		uap->vendor = &vendor_qdt_qdf2400_e44;
+	} else
+#endif
+		uap->vendor = &vendor_sbsa;
+
+	uap->reg_offset	= uap->vendor->reg_offset;
 	uap->fifosize	= 32;
-	uap->port.iotype = vendor_sbsa.access_32b ? UPIO_MEM32 : UPIO_MEM;
+	uap->port.iotype = uap->vendor->access_32b ? UPIO_MEM32 : UPIO_MEM;
 	uap->port.ops	= &sbsa_uart_pops;
 	uap->fixed_baud = baudrate;
 
@@ -2747,7 +2787,7 @@ static struct platform_driver arm_sbsa_uart_platform_driver = {
 	},
 };
 
-static struct amba_id pl011_ids[] = {
+static const struct amba_id pl011_ids[] = {
 	{
 		.id	= 0x00041011,
 		.mask	= 0x000fffff,

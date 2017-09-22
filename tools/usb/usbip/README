@@ -244,7 +244,7 @@ Detach the imported device:
     - See 'Debug Tips' on the project wiki.
 	- http://usbip.wiki.sourceforge.net/how-to-debug-usbip
     - usbip-host.ko must be bound to the target device.
-	- See /proc/bus/usb/devices and find "Driver=..." lines of the device.
+	- See /sys/kernel/debug/usb/devices and find "Driver=..." lines of the device.
     - Target USB gadget must be bound to vudc
       (using USB gadget susbsys, not usbip bind command)
     - Shutdown firewall.

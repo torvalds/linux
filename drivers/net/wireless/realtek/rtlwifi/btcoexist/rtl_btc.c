@@ -41,46 +41,84 @@ static struct rtl_btc_ops rtl_btc_operation = {
 	.btc_periodical = rtl_btc_periodical,
 	.btc_halt_notify = rtl_btc_halt_notify,
 	.btc_btinfo_notify = rtl_btc_btinfo_notify,
+	.btc_btmpinfo_notify = rtl_btc_btmpinfo_notify,
 	.btc_is_limited_dig = rtl_btc_is_limited_dig,
 	.btc_is_disable_edca_turbo = rtl_btc_is_disable_edca_turbo,
 	.btc_is_bt_disabled = rtl_btc_is_bt_disabled,
 	.btc_special_packet_notify = rtl_btc_special_packet_notify,
+	.btc_record_pwr_mode = rtl_btc_record_pwr_mode,
+	.btc_get_lps_val = rtl_btc_get_lps_val,
+	.btc_get_rpwm_val = rtl_btc_get_rpwm_val,
+	.btc_is_bt_ctrl_lps = rtl_btc_is_bt_ctrl_lps,
+	.btc_is_bt_lps_on = rtl_btc_is_bt_lps_on,
+	.btc_get_ampdu_cfg = rtl_btc_get_ampdu_cfg,
 };
+
+void rtl_btc_record_pwr_mode(struct rtl_priv *rtlpriv, u8 *buf, u8 len)
+{
+	u8 safe_len;
+
+	safe_len = sizeof(gl_bt_coexist.pwr_mode_val);
+
+	if (safe_len > len)
+		safe_len = len;
+
+	memcpy(gl_bt_coexist.pwr_mode_val, buf, safe_len);
+}
+
+u8 rtl_btc_get_lps_val(struct rtl_priv *rtlpriv)
+{
+	return gl_bt_coexist.bt_info.lps_val;
+}
+
+u8 rtl_btc_get_rpwm_val(struct rtl_priv *rtlpriv)
+{
+	return gl_bt_coexist.bt_info.rpwm_val;
+}
+
+bool rtl_btc_is_bt_ctrl_lps(struct rtl_priv *rtlpriv)
+{
+	return gl_bt_coexist.bt_info.bt_ctrl_lps;
+}
+
+bool rtl_btc_is_bt_lps_on(struct rtl_priv *rtlpriv)
+{
+	return gl_bt_coexist.bt_info.bt_lps_on;
+}
+
+void rtl_btc_get_ampdu_cfg(struct rtl_priv *rtlpriv, u8 *reject_agg,
+			   u8 *ctrl_agg_size, u8 *agg_size)
+{
+	if (reject_agg)
+		*reject_agg = gl_bt_coexist.bt_info.reject_agg_pkt;
+	if (ctrl_agg_size)
+		*ctrl_agg_size = gl_bt_coexist.bt_info.bt_ctrl_agg_buf_size;
+	if (agg_size)
+		*agg_size = gl_bt_coexist.bt_info.agg_buf_size;
+}
 
 void rtl_btc_init_variables(struct rtl_priv *rtlpriv)
 {
-	exhalbtc_initlize_variables(rtlpriv);
+	exhalbtc_initlize_variables();
+	exhalbtc_bind_bt_coex_withadapter(rtlpriv);
 }
 
 void rtl_btc_init_hal_vars(struct rtl_priv *rtlpriv)
 {
-	u8 ant_num;
-	u8 bt_exist;
-	u8 bt_type;
-
-	ant_num = rtl_get_hwpg_ant_num(rtlpriv);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-		 "%s, antNum is %d\n", __func__, ant_num);
-
-	bt_exist = rtl_get_hwpg_bt_exist(rtlpriv);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-		 "%s, bt_exist is %d\n", __func__, bt_exist);
-	exhalbtc_set_bt_exist(bt_exist);
-
-	bt_type = rtl_get_hwpg_bt_type(rtlpriv);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "%s, bt_type is %d\n",
-		 __func__, bt_type);
-	exhalbtc_set_chip_type(bt_type);
-
-	if (rtlpriv->cfg->mod_params->ant_sel == 1)
-		exhalbtc_set_ant_num(rtlpriv, BT_COEX_ANT_TYPE_DETECTED, 1);
-	else
-		exhalbtc_set_ant_num(rtlpriv, BT_COEX_ANT_TYPE_PG, ant_num);
+	/* move ant_num, bt_type and single_ant_path to
+	 * exhalbtc_bind_bt_coex_withadapter()
+	 */
 }
 
 void rtl_btc_init_hw_config(struct rtl_priv *rtlpriv)
 {
-	exhalbtc_init_hw_config(&gl_bt_coexist);
+	u8 bt_exist;
+
+	bt_exist = rtl_get_hwpg_bt_exist(rtlpriv);
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
+		"%s, bt_exist is %d\n", __func__, bt_exist);
+
+	exhalbtc_init_hw_config(&gl_bt_coexist, !bt_exist);
 	exhalbtc_init_coex_dm(&gl_bt_coexist);
 }
 
@@ -118,12 +156,41 @@ void rtl_btc_periodical(struct rtl_priv *rtlpriv)
 
 void rtl_btc_halt_notify(void)
 {
-	exhalbtc_halt_notify(&gl_bt_coexist);
+	struct btc_coexist *btcoexist = &gl_bt_coexist;
+
+	exhalbtc_halt_notify(btcoexist);
 }
 
 void rtl_btc_btinfo_notify(struct rtl_priv *rtlpriv, u8 *tmp_buf, u8 length)
 {
 	exhalbtc_bt_info_notify(&gl_bt_coexist, tmp_buf, length);
+}
+
+void rtl_btc_btmpinfo_notify(struct rtl_priv *rtlpriv, u8 *tmp_buf, u8 length)
+{
+	u8 extid, seq, len;
+	u16 bt_real_fw_ver;
+	u8 bt_fw_ver;
+
+	if ((length < 4) || (!tmp_buf))
+		return;
+
+	extid = tmp_buf[0];
+	/* not response from BT FW then exit*/
+	if (extid != 1) /* C2H_TRIG_BY_BT_FW = 1 */
+		return;
+
+	len = tmp_buf[1] >> 4;
+	seq = tmp_buf[2] >> 4;
+
+	/* BT Firmware version response */
+	if (seq == 0x0E) {
+		bt_real_fw_ver = tmp_buf[3] | (tmp_buf[4] << 8);
+		bt_fw_ver = tmp_buf[5];
+
+		gl_bt_coexist.bt_info.bt_real_fw_ver = bt_real_fw_ver;
+		gl_bt_coexist.bt_info.bt_fw_ver = bt_fw_ver;
+	}
 }
 
 bool rtl_btc_is_limited_dig(struct rtl_priv *rtlpriv)

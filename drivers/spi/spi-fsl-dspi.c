@@ -1002,7 +1002,8 @@ static int dspi_probe(struct platform_device *pdev)
 	if (IS_ERR(dspi->regmap)) {
 		dev_err(&pdev->dev, "failed to init regmap: %ld\n",
 				PTR_ERR(dspi->regmap));
-		return PTR_ERR(dspi->regmap);
+		ret = PTR_ERR(dspi->regmap);
+		goto out_master_put;
 	}
 
 	dspi_init(dspi);
@@ -1031,7 +1032,8 @@ static int dspi_probe(struct platform_device *pdev)
 		goto out_master_put;
 
 	if (dspi->devtype_data->trans_mode == DSPI_DMA_MODE) {
-		if (dspi_request_dma(dspi, res->start)) {
+		ret = dspi_request_dma(dspi, res->start);
+		if (ret < 0) {
 			dev_err(&pdev->dev, "can't get dma channels\n");
 			goto out_clk_put;
 		}

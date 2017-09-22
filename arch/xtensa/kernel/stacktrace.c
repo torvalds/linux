@@ -23,14 +23,6 @@
  */
 extern int common_exception_return;
 
-/* A struct that maps to the part of the frame containing the a0 and
- * a1 registers.
- */
-struct frame_start {
-	unsigned long a0;
-	unsigned long a1;
-};
-
 void xtensa_backtrace_user(struct pt_regs *regs, unsigned int depth,
 			   int (*ufn)(struct stackframe *frame, void *data),
 			   void *data)
@@ -96,25 +88,15 @@ void xtensa_backtrace_user(struct pt_regs *regs, unsigned int depth,
 	/* Start from the a1 register. */
 	/* a1 = regs->areg[1]; */
 	while (a0 != 0 && depth--) {
-		struct frame_start frame_start;
-		/* Get the location for a1, a0 for the
-		 * previous frame from the current a1.
-		 */
-		unsigned long *psp = (unsigned long *)a1;
-
-		psp -= 4;
+		pc = MAKE_PC_FROM_RA(a0, pc);
 
 		/* Check if the region is OK to access. */
-		if (!access_ok(VERIFY_READ, psp, sizeof(frame_start)))
+		if (!access_ok(VERIFY_READ, &SPILL_SLOT(a1, 0), 8))
 			return;
 		/* Copy a1, a0 from user space stack frame. */
-		if (__copy_from_user_inatomic(&frame_start, psp,
-					      sizeof(frame_start)))
+		if (__get_user(a0, &SPILL_SLOT(a1, 0)) ||
+		    __get_user(a1, &SPILL_SLOT(a1, 1)))
 			return;
-
-		pc = MAKE_PC_FROM_RA(a0, pc);
-		a0 = frame_start.a0;
-		a1 = frame_start.a1;
 
 		frame.pc = pc;
 		frame.sp = a1;
@@ -147,7 +129,6 @@ void xtensa_backtrace_kernel(struct pt_regs *regs, unsigned int depth,
 	 */
 	while (a1 > sp_start && a1 < sp_end && depth--) {
 		struct stackframe frame;
-		unsigned long *psp = (unsigned long *)a1;
 
 		frame.pc = pc;
 		frame.sp = a1;
@@ -171,8 +152,8 @@ void xtensa_backtrace_kernel(struct pt_regs *regs, unsigned int depth,
 		sp_start = a1;
 
 		pc = MAKE_PC_FROM_RA(a0, pc);
-		a0 = *(psp - 4);
-		a1 = *(psp - 3);
+		a0 = SPILL_SLOT(a1, 0);
+		a1 = SPILL_SLOT(a1, 1);
 	}
 }
 EXPORT_SYMBOL(xtensa_backtrace_kernel);
@@ -196,8 +177,8 @@ void walk_stackframe(unsigned long *sp,
 
 		sp = (unsigned long *)a1;
 
-		a0 = *(sp - 4);
-		a1 = *(sp - 3);
+		a0 = SPILL_SLOT(a1, 0);
+		a1 = SPILL_SLOT(a1, 1);
 
 		if (a1 <= (unsigned long)sp)
 			break;

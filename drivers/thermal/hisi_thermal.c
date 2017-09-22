@@ -206,7 +206,7 @@ static int hisi_thermal_get_temp(void *_sensor, int *temp)
 	return 0;
 }
 
-static struct thermal_zone_of_device_ops hisi_of_thermal_ops = {
+static const struct thermal_zone_of_device_ops hisi_of_thermal_ops = {
 	.get_temp = hisi_thermal_get_temp,
 };
 
@@ -397,8 +397,11 @@ static int hisi_thermal_suspend(struct device *dev)
 static int hisi_thermal_resume(struct device *dev)
 {
 	struct hisi_thermal_data *data = dev_get_drvdata(dev);
+	int ret;
 
-	clk_prepare_enable(data->clk);
+	ret = clk_prepare_enable(data->clk);
+	if (ret)
+		return ret;
 
 	data->irq_enabled = true;
 	hisi_thermal_enable_bind_irq_sensor(data);

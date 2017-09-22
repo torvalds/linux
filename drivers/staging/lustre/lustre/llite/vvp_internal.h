@@ -37,8 +37,8 @@
 #ifndef VVP_INTERNAL_H
 #define VVP_INTERNAL_H
 
-#include "../include/lustre/lustre_idl.h"
-#include "../include/cl_object.h"
+#include <uapi/linux/lustre/lustre_idl.h>
+#include <cl_object.h>
 
 enum obd_notify_event;
 struct inode;

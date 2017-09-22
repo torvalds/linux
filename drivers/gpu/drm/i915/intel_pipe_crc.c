@@ -36,31 +36,6 @@ struct pipe_crc_info {
 	enum pipe pipe;
 };
 
-/* As the drm_debugfs_init() routines are called before dev->dev_private is
- * allocated we need to hook into the minor for release.
- */
-static int drm_add_fake_info_node(struct drm_minor *minor,
-				  struct dentry *ent, const void *key)
-{
-	struct drm_info_node *node;
-
-	node = kmalloc(sizeof(*node), GFP_KERNEL);
-	if (node == NULL) {
-		debugfs_remove(ent);
-		return -ENOMEM;
-	}
-
-	node->minor = minor;
-	node->dent = ent;
-	node->info_ent = (void *) key;
-
-	mutex_lock(&minor->debugfs_lock);
-	list_add(&node->list, &minor->debugfs_list);
-	mutex_unlock(&minor->debugfs_lock);
-
-	return 0;
-}
-
 static int i915_pipe_crc_open(struct inode *inode, struct file *filep)
 {
 	struct pipe_crc_info *info = inode->i_private;
@@ -105,7 +80,7 @@ static int i915_pipe_crc_release(struct inode *inode, struct file *filep)
 
 static int pipe_crc_data_count(struct intel_pipe_crc *pipe_crc)
 {
-	assert_spin_locked(&pipe_crc->lock);
+	lockdep_assert_held(&pipe_crc->lock);
 	return CIRC_CNT(pipe_crc->head, pipe_crc->tail,
 			INTEL_PIPE_CRC_ENTRIES_NR);
 }
@@ -208,22 +183,6 @@ static struct pipe_crc_info i915_pipe_crc_data[I915_MAX_PIPES] = {
 		.pipe = PIPE_C,
 	},
 };
-
-static int i915_pipe_crc_create(struct dentry *root, struct drm_minor *minor,
-				enum pipe pipe)
-{
-	struct drm_i915_private *dev_priv = to_i915(minor->dev);
-	struct dentry *ent;
-	struct pipe_crc_info *info = &i915_pipe_crc_data[pipe];
-
-	info->dev_priv = dev_priv;
-	ent = debugfs_create_file(info->name, S_IRUGO, root, info,
-				  &i915_pipe_crc_fops);
-	if (!ent)
-		return -ENOMEM;
-
-	return drm_add_fake_info_node(minor, ent, info);
-}
 
 static const char * const pipe_crc_sources[] = {
 	"none",
@@ -554,16 +513,20 @@ static void hsw_trans_edp_pipe_A_crc_wa(struct drm_i915_private *dev_priv,
 	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, PIPE_A);
 	struct intel_crtc_state *pipe_config;
 	struct drm_atomic_state *state;
+	struct drm_modeset_acquire_ctx ctx;
 	int ret = 0;
 
-	drm_modeset_lock_all(dev);
+	drm_modeset_acquire_init(&ctx, 0);
+
 	state = drm_atomic_state_alloc(dev);
 	if (!state) {
 		ret = -ENOMEM;
 		goto unlock;
 	}
 
-	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(&crtc->base);
+	state->acquire_ctx = &ctx;
+
+retry:
 	pipe_config = intel_atomic_get_crtc_state(state, crtc);
 	if (IS_ERR(pipe_config)) {
 		ret = PTR_ERR(pipe_config);
@@ -578,10 +541,17 @@ static void hsw_trans_edp_pipe_A_crc_wa(struct drm_i915_private *dev_priv,
 	ret = drm_atomic_commit(state);
 
 put_state:
+	if (ret == -EDEADLK) {
+		drm_atomic_state_clear(state);
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	}
+
 	drm_atomic_state_put(state);
 unlock:
 	WARN(ret, "Toggling workaround to %i returns %i\n", enable, ret);
-	drm_modeset_unlock_all(dev);
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
 }
 
 static int ivb_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
@@ -883,19 +853,12 @@ static ssize_t display_crc_ctl_write(struct file *file, const char __user *ubuf,
 		return -E2BIG;
 	}
 
-	tmpbuf = kmalloc(len + 1, GFP_KERNEL);
-	if (!tmpbuf)
-		return -ENOMEM;
-
-	if (copy_from_user(tmpbuf, ubuf, len)) {
-		ret = -EFAULT;
-		goto out;
-	}
-	tmpbuf[len] = '\0';
+	tmpbuf = memdup_user_nul(ubuf, len);
+	if (IS_ERR(tmpbuf))
+		return PTR_ERR(tmpbuf);
 
 	ret = display_crc_ctl_parse(dev_priv, tmpbuf, len);
 
-out:
 	kfree(tmpbuf);
 	if (ret < 0)
 		return ret;
@@ -928,27 +891,22 @@ void intel_display_crc_init(struct drm_i915_private *dev_priv)
 
 int intel_pipe_crc_create(struct drm_minor *minor)
 {
-	int ret, i;
-
-	for (i = 0; i < ARRAY_SIZE(i915_pipe_crc_data); i++) {
-		ret = i915_pipe_crc_create(minor->debugfs_root, minor, i);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-void intel_pipe_crc_cleanup(struct drm_minor *minor)
-{
+	struct drm_i915_private *dev_priv = to_i915(minor->dev);
+	struct dentry *ent;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(i915_pipe_crc_data); i++) {
-		struct drm_info_list *info_list =
-			(struct drm_info_list *)&i915_pipe_crc_data[i];
+		struct pipe_crc_info *info = &i915_pipe_crc_data[i];
 
-		drm_debugfs_remove_files(info_list, 1, minor);
+		info->dev_priv = dev_priv;
+		ent = debugfs_create_file(info->name, S_IRUGO,
+					  minor->debugfs_root, info,
+					  &i915_pipe_crc_fops);
+		if (!ent)
+			return -ENOMEM;
 	}
+
+	return 0;
 }
 
 int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name,

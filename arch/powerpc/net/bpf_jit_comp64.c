@@ -25,11 +25,7 @@ int bpf_jit_enable __read_mostly;
 
 static void bpf_jit_fill_ill_insns(void *area, unsigned int size)
 {
-	int *p = area;
-
-	/* Fill whole space with trap instructions */
-	while (p < (int *)((char *)area + size))
-		*p++ = BREAKPOINT_INSTRUCTION;
+	memset32(area, BREAKPOINT_INSTRUCTION, size/4);
 }
 
 static inline void bpf_flush_icache(void *start, void *end)
@@ -795,11 +791,23 @@ emit_clear:
 		case BPF_JMP | BPF_JSGT | BPF_X:
 			true_cond = COND_GT;
 			goto cond_branch;
+		case BPF_JMP | BPF_JLT | BPF_K:
+		case BPF_JMP | BPF_JLT | BPF_X:
+		case BPF_JMP | BPF_JSLT | BPF_K:
+		case BPF_JMP | BPF_JSLT | BPF_X:
+			true_cond = COND_LT;
+			goto cond_branch;
 		case BPF_JMP | BPF_JGE | BPF_K:
 		case BPF_JMP | BPF_JGE | BPF_X:
 		case BPF_JMP | BPF_JSGE | BPF_K:
 		case BPF_JMP | BPF_JSGE | BPF_X:
 			true_cond = COND_GE;
+			goto cond_branch;
+		case BPF_JMP | BPF_JLE | BPF_K:
+		case BPF_JMP | BPF_JLE | BPF_X:
+		case BPF_JMP | BPF_JSLE | BPF_K:
+		case BPF_JMP | BPF_JSLE | BPF_X:
+			true_cond = COND_LE;
 			goto cond_branch;
 		case BPF_JMP | BPF_JEQ | BPF_K:
 		case BPF_JMP | BPF_JEQ | BPF_X:
@@ -817,14 +825,18 @@ emit_clear:
 cond_branch:
 			switch (code) {
 			case BPF_JMP | BPF_JGT | BPF_X:
+			case BPF_JMP | BPF_JLT | BPF_X:
 			case BPF_JMP | BPF_JGE | BPF_X:
+			case BPF_JMP | BPF_JLE | BPF_X:
 			case BPF_JMP | BPF_JEQ | BPF_X:
 			case BPF_JMP | BPF_JNE | BPF_X:
 				/* unsigned comparison */
 				PPC_CMPLD(dst_reg, src_reg);
 				break;
 			case BPF_JMP | BPF_JSGT | BPF_X:
+			case BPF_JMP | BPF_JSLT | BPF_X:
 			case BPF_JMP | BPF_JSGE | BPF_X:
+			case BPF_JMP | BPF_JSLE | BPF_X:
 				/* signed comparison */
 				PPC_CMPD(dst_reg, src_reg);
 				break;
@@ -834,7 +846,9 @@ cond_branch:
 			case BPF_JMP | BPF_JNE | BPF_K:
 			case BPF_JMP | BPF_JEQ | BPF_K:
 			case BPF_JMP | BPF_JGT | BPF_K:
+			case BPF_JMP | BPF_JLT | BPF_K:
 			case BPF_JMP | BPF_JGE | BPF_K:
+			case BPF_JMP | BPF_JLE | BPF_K:
 				/*
 				 * Need sign-extended load, so only positive
 				 * values can be used as imm in cmpldi
@@ -849,7 +863,9 @@ cond_branch:
 				}
 				break;
 			case BPF_JMP | BPF_JSGT | BPF_K:
+			case BPF_JMP | BPF_JSLT | BPF_K:
 			case BPF_JMP | BPF_JSGE | BPF_K:
+			case BPF_JMP | BPF_JSLE | BPF_K:
 				/*
 				 * signed comparison, so any 16-bit value
 				 * can be used in cmpdi
@@ -938,7 +954,7 @@ common_load:
 		/*
 		 * Tail call
 		 */
-		case BPF_JMP | BPF_CALL | BPF_X:
+		case BPF_JMP | BPF_TAIL_CALL:
 			ctx->seen |= SEEN_TAILCALL;
 			bpf_jit_emit_tail_call(image, ctx, addrs[i + 1]);
 			break;
@@ -1052,6 +1068,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 
 	fp->bpf_func = (void *)image;
 	fp->jited = 1;
+	fp->jited_len = alloclen;
 
 	bpf_flush_icache(bpf_hdr, (u8 *)bpf_hdr + (bpf_hdr->pages * PAGE_SIZE));
 

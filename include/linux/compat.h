@@ -27,7 +27,7 @@
 #endif
 
 #ifndef __SC_DELOUSE
-#define __SC_DELOUSE(t,v) ((t)(unsigned long)(v))
+#define __SC_DELOUSE(t,v) ((__force t)(unsigned long)(v))
 #endif
 
 #define COMPAT_SYSCALL_DEFINE0(name) \
@@ -94,6 +94,10 @@ struct compat_itimerval {
 	struct compat_timeval	it_value;
 };
 
+struct itimerval;
+int get_compat_itimerval(struct itimerval *, const struct compat_itimerval __user *);
+int put_compat_itimerval(struct compat_itimerval __user *, const struct itimerval *);
+
 struct compat_tms {
 	compat_clock_t		tms_utime;
 	compat_clock_t		tms_stime;
@@ -128,6 +132,10 @@ struct compat_timex {
 	compat_int_t:32; compat_int_t:32; compat_int_t:32;
 };
 
+struct timex;
+int compat_get_timex(struct timex *, const struct compat_timex __user *);
+int compat_put_timex(struct compat_timex __user *, const struct timex *);
+
 #define _COMPAT_NSIG_WORDS	(_COMPAT_NSIG / _COMPAT_NSIG_BPW)
 
 typedef struct {
@@ -156,15 +164,12 @@ extern int compat_get_timespec(struct timespec *, const void __user *);
 extern int compat_put_timespec(const struct timespec *, void __user *);
 extern int compat_get_timeval(struct timeval *, const void __user *);
 extern int compat_put_timeval(const struct timeval *, void __user *);
-
-/*
- * This function convert a timespec if necessary and returns a *user
- * space* pointer.  If no conversion is necessary, it returns the
- * initial pointer.  NULL is a legitimate argument and will always
- * output NULL.
- */
-extern int compat_convert_timespec(struct timespec __user **,
-				   const void __user *);
+extern int compat_get_timespec64(struct timespec64 *, const void __user *);
+extern int compat_put_timespec64(const struct timespec64 *, void __user *);
+extern int get_compat_itimerspec64(struct itimerspec64 *its,
+			const struct compat_itimerspec __user *uits);
+extern int put_compat_itimerspec64(const struct itimerspec64 *its,
+			struct compat_itimerspec __user *uits);
 
 struct compat_iovec {
 	compat_uptr_t	iov_base;
@@ -295,6 +300,13 @@ struct compat_old_sigaction {
 };
 #endif
 
+struct compat_keyctl_kdf_params {
+	compat_uptr_t hashname;
+	compat_uptr_t otherinfo;
+	__u32 otherinfolen;
+	__u32 __spare[8];
+};
+
 struct compat_statfs;
 struct compat_statfs64;
 struct compat_old_linux_dirent;
@@ -344,10 +356,10 @@ asmlinkage ssize_t compat_sys_pwritev(compat_ulong_t fd,
 		compat_ulong_t vlen, u32 pos_low, u32 pos_high);
 asmlinkage ssize_t compat_sys_preadv2(compat_ulong_t fd,
 		const struct compat_iovec __user *vec,
-		compat_ulong_t vlen, u32 pos_low, u32 pos_high, int flags);
+		compat_ulong_t vlen, u32 pos_low, u32 pos_high, rwf_t flags);
 asmlinkage ssize_t compat_sys_pwritev2(compat_ulong_t fd,
 		const struct compat_iovec __user *vec,
-		compat_ulong_t vlen, u32 pos_low, u32 pos_high, int flags);
+		compat_ulong_t vlen, u32 pos_low, u32 pos_high, rwf_t flags);
 
 #ifdef __ARCH_WANT_COMPAT_SYS_PREADV64
 asmlinkage long compat_sys_preadv64(unsigned long fd,
@@ -359,6 +371,18 @@ asmlinkage long compat_sys_preadv64(unsigned long fd,
 asmlinkage long compat_sys_pwritev64(unsigned long fd,
 		const struct compat_iovec __user *vec,
 		unsigned long vlen, loff_t pos);
+#endif
+
+#ifdef __ARCH_WANT_COMPAT_SYS_PREADV64V2
+asmlinkage long  compat_sys_readv64v2(unsigned long fd,
+		const struct compat_iovec __user *vec,
+		unsigned long vlen, loff_t pos, rwf_t flags);
+#endif
+
+#ifdef __ARCH_WANT_COMPAT_SYS_PWRITEV64V2
+asmlinkage long compat_sys_pwritev64v2(unsigned long fd,
+		const struct compat_iovec __user *vec,
+		unsigned long vlen, loff_t pos, rwf_t flags);
 #endif
 
 asmlinkage long compat_sys_lseek(unsigned int, compat_off_t, unsigned int);
@@ -381,8 +405,7 @@ asmlinkage long compat_sys_wait4(compat_pid_t pid,
 
 #define BITS_PER_COMPAT_LONG    (8*sizeof(compat_long_t))
 
-#define BITS_TO_COMPAT_LONGS(bits) \
-	(((bits)+BITS_PER_COMPAT_LONG-1)/BITS_PER_COMPAT_LONG)
+#define BITS_TO_COMPAT_LONGS(bits) DIV_ROUND_UP(bits, BITS_PER_COMPAT_LONG)
 
 long compat_get_bitmap(unsigned long *mask, const compat_ulong_t __user *umask,
 		       unsigned long bitmap_size);
@@ -528,11 +551,6 @@ asmlinkage long compat_sys_old_readdir(unsigned int fd,
 asmlinkage long compat_sys_getdents(unsigned int fd,
 				    struct compat_linux_dirent __user *dirent,
 				    unsigned int count);
-#ifdef __ARCH_WANT_COMPAT_SYS_GETDENTS64
-asmlinkage long compat_sys_getdents64(unsigned int fd,
-				      struct linux_dirent64 __user *dirent,
-				      unsigned int count);
-#endif
 asmlinkage long compat_sys_vmsplice(int fd, const struct compat_iovec __user *,
 				    unsigned int nr_segs, unsigned int flags);
 asmlinkage long compat_sys_open(const char __user *filename, int flags,
@@ -722,6 +740,8 @@ asmlinkage long compat_sys_sched_rr_get_interval(compat_pid_t pid,
 
 asmlinkage long compat_sys_fanotify_mark(int, unsigned int, __u32, __u32,
 					    int, const char __user *);
+
+asmlinkage long compat_sys_arch_prctl(int option, unsigned long arg2);
 
 /*
  * For most but not all architectures, "am I in a compat syscall?" and

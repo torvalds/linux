@@ -376,7 +376,12 @@ lpfc_config_link(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 	mb->un.varCfgLnk.rttov = phba->fc_rttov;
 	mb->un.varCfgLnk.altov = phba->fc_altov;
 	mb->un.varCfgLnk.crtov = phba->fc_crtov;
-	mb->un.varCfgLnk.citov = phba->fc_citov;
+	mb->un.varCfgLnk.cscn = 0;
+	if (phba->bbcredit_support && phba->cfg_enable_bbcr) {
+		mb->un.varCfgLnk.cscn = 1;
+		mb->un.varCfgLnk.bbscn = bf_get(lpfc_bbscn_def,
+						 &phba->sli4_hba.bbscn_params);
+	}
 
 	if (phba->cfg_ack0 && (phba->sli_rev < LPFC_SLI_REV4))
 		mb->un.varCfgLnk.ack0_enable = 1;
@@ -2083,9 +2088,12 @@ lpfc_request_features(struct lpfc_hba *phba, struct lpfcMboxq *mboxq)
 	if (phba->max_vpi && phba->cfg_enable_npiv)
 		bf_set(lpfc_mbx_rq_ftr_rq_npiv, &mboxq->u.mqe.un.req_ftrs, 1);
 
-	if (phba->nvmet_support)
+	if (phba->nvmet_support) {
 		bf_set(lpfc_mbx_rq_ftr_rq_mrqp, &mboxq->u.mqe.un.req_ftrs, 1);
-
+		/* iaab/iaar NOT set for now */
+		 bf_set(lpfc_mbx_rq_ftr_rq_iaab, &mboxq->u.mqe.un.req_ftrs, 0);
+		 bf_set(lpfc_mbx_rq_ftr_rq_iaar, &mboxq->u.mqe.un.req_ftrs, 0);
+	}
 	return;
 }
 
@@ -2136,6 +2144,7 @@ lpfc_reg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport, dma_addr_t phys)
 {
 	struct lpfc_mbx_reg_vfi *reg_vfi;
 	struct lpfc_hba *phba = vport->phba;
+	uint8_t bbscn_fabric = 0, bbscn_max = 0, bbscn_def = 0;
 
 	memset(mbox, 0, sizeof(*mbox));
 	reg_vfi = &mbox->u.mqe.un.reg_vfi;
@@ -2165,16 +2174,39 @@ lpfc_reg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport, dma_addr_t phys)
 		bf_set(lpfc_reg_vfi_vp, reg_vfi, 0);
 		bf_set(lpfc_reg_vfi_upd, reg_vfi, 1);
 	}
+
+	bf_set(lpfc_reg_vfi_bbcr, reg_vfi, 0);
+	bf_set(lpfc_reg_vfi_bbscn, reg_vfi, 0);
+	bbscn_fabric = (phba->fc_fabparam.cmn.bbRcvSizeMsb >> 4) & 0xF;
+
+	if (phba->bbcredit_support && phba->cfg_enable_bbcr  &&
+	    bbscn_fabric != 0) {
+		bbscn_max = bf_get(lpfc_bbscn_max,
+				   &phba->sli4_hba.bbscn_params);
+		if (bbscn_fabric <= bbscn_max) {
+			bbscn_def = bf_get(lpfc_bbscn_def,
+					   &phba->sli4_hba.bbscn_params);
+
+			if (bbscn_fabric > bbscn_def)
+				bf_set(lpfc_reg_vfi_bbscn, reg_vfi,
+				       bbscn_fabric);
+			else
+				bf_set(lpfc_reg_vfi_bbscn, reg_vfi, bbscn_def);
+
+			bf_set(lpfc_reg_vfi_bbcr, reg_vfi, 1);
+		}
+	}
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_MBOX,
 			"3134 Register VFI, mydid:x%x, fcfi:%d, "
 			" vfi:%d, vpi:%d, fc_pname:%x%x fc_flag:x%x"
-			" port_state:x%x topology chg:%d\n",
+			" port_state:x%x topology chg:%d bbscn_fabric :%d\n",
 			vport->fc_myDID,
 			phba->fcf.fcfi,
 			phba->sli4_hba.vfi_ids[vport->vfi],
 			phba->vpi_ids[vport->vpi],
 			reg_vfi->wwn[0], reg_vfi->wwn[1], vport->fc_flag,
-			vport->port_state, phba->fc_topology_changed);
+			vport->port_state, phba->fc_topology_changed,
+			bbscn_fabric);
 }
 
 /**

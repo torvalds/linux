@@ -38,11 +38,18 @@
 #include "util/bpf-loader.h"
 #include "util/trigger.h"
 #include "util/perf-hooks.h"
+#include "util/time-utils.h"
+#include "util/units.h"
 #include "asm/bug.h"
 
+#include <errno.h>
+#include <inttypes.h>
+#include <poll.h>
 #include <unistd.h>
 #include <sched.h>
+#include <signal.h>
 #include <sys/mman.h>
+#include <sys/wait.h>
 #include <asm/bug.h>
 #include <linux/time64.h>
 
@@ -446,7 +453,7 @@ try_again:
 	}
 
 	if (perf_evlist__apply_filters(evlist, &pos)) {
-		error("failed to set filter \"%s\" on event %s with %d (%s)\n",
+		pr_err("failed to set filter \"%s\" on event %s with %d (%s)\n",
 			pos->filter, perf_evsel__name(pos), errno,
 			str_error_r(errno, msg, sizeof(msg)));
 		rc = -1;
@@ -454,7 +461,7 @@ try_again:
 	}
 
 	if (perf_evlist__apply_drv_configs(evlist, &pos, &err_term)) {
-		error("failed to set config \"%s\" on event %s with %d (%s)\n",
+		pr_err("failed to set config \"%s\" on event %s with %d (%s)\n",
 		      err_term->val.drv_cfg, perf_evsel__name(pos), errno,
 		      str_error_r(errno, msg, sizeof(msg)));
 		rc = -1;
@@ -792,6 +799,13 @@ static int record__synthesize(struct record *rec, bool tail)
 		return 0;
 
 	if (file->is_pipe) {
+		err = perf_event__synthesize_features(
+			tool, session, rec->evlist, process_synthesized_event);
+		if (err < 0) {
+			pr_err("Couldn't synthesize features.\n");
+			return err;
+		}
+
 		err = perf_event__synthesize_attrs(tool, session,
 						   process_synthesized_event);
 		if (err < 0) {
@@ -875,6 +889,9 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	signal(SIGINT, sig_handler);
 	signal(SIGTERM, sig_handler);
 	signal(SIGSEGV, sigsegv_handler);
+
+	if (rec->opts.record_namespaces)
+		tool->namespace_events = true;
 
 	if (rec->opts.auxtrace_snapshot_mode || rec->switch_output.enabled) {
 		signal(SIGUSR2, snapshot_sig_handler);
@@ -983,6 +1000,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	 */
 	if (forks) {
 		union perf_event *event;
+		pid_t tgid;
 
 		event = malloc(sizeof(event->comm) + machine->id_hdr_size);
 		if (event == NULL) {
@@ -996,10 +1014,30 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		 * cannot see a correct process name for those events.
 		 * Synthesize COMM event to prevent it.
 		 */
-		perf_event__synthesize_comm(tool, event,
-					    rec->evlist->workload.pid,
-					    process_synthesized_event,
-					    machine);
+		tgid = perf_event__synthesize_comm(tool, event,
+						   rec->evlist->workload.pid,
+						   process_synthesized_event,
+						   machine);
+		free(event);
+
+		if (tgid == -1)
+			goto out_child;
+
+		event = malloc(sizeof(event->namespaces) +
+			       (NR_NAMESPACES * sizeof(struct perf_ns_link_info)) +
+			       machine->id_hdr_size);
+		if (event == NULL) {
+			err = -ENOMEM;
+			goto out_child;
+		}
+
+		/*
+		 * Synthesize NAMESPACES event for the command specified.
+		 */
+		perf_event__synthesize_namespaces(tool, event,
+						  rec->evlist->workload.pid,
+						  tgid, process_synthesized_event,
+						  machine);
 		free(event);
 
 		perf_evlist__start_workload(rec->evlist);
@@ -1497,6 +1535,7 @@ static struct record record = {
 		.fork		= perf_event__process_fork,
 		.exit		= perf_event__process_exit,
 		.comm		= perf_event__process_comm,
+		.namespaces	= perf_event__process_namespaces,
 		.mmap		= perf_event__process_mmap,
 		.mmap2		= perf_event__process_mmap2,
 		.ordered_events	= true,
@@ -1565,6 +1604,8 @@ static struct option __record_options[] = {
 	OPT_BOOLEAN('s', "stat", &record.opts.inherit_stat,
 		    "per thread counts"),
 	OPT_BOOLEAN('d', "data", &record.opts.sample_address, "Record the sample addresses"),
+	OPT_BOOLEAN(0, "phys-data", &record.opts.sample_phys_addr,
+		    "Record the sample physical addresses"),
 	OPT_BOOLEAN(0, "sample-cpu", &record.opts.sample_cpu, "Record the sample cpu"),
 	OPT_BOOLEAN_SET('T', "timestamp", &record.opts.sample_time,
 			&record.opts.sample_time_set,
@@ -1611,6 +1652,8 @@ static struct option __record_options[] = {
 			  "opts", "AUX area tracing Snapshot Mode", ""),
 	OPT_UINTEGER(0, "proc-map-timeout", &record.opts.proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
+	OPT_BOOLEAN(0, "namespaces", &record.opts.record_namespaces,
+		    "Record namespaces events"),
 	OPT_BOOLEAN(0, "switch-events", &record.opts.record_switch_events,
 		    "Record context switch events"),
 	OPT_BOOLEAN_FLAG(0, "all-kernel", &record.opts.all_kernel,
@@ -1640,7 +1683,7 @@ static struct option __record_options[] = {
 
 struct option *record_options = __record_options;
 
-int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_record(int argc, const char **argv)
 {
 	int err;
 	struct record *rec = &record;
@@ -1787,7 +1830,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 		record.opts.tail_synthesize = true;
 
 	if (rec->evlist->nr_entries == 0 &&
-	    perf_evlist__add_default(rec->evlist) < 0) {
+	    __perf_evlist__add_default(rec->evlist, !record.opts.no_samples) < 0) {
 		pr_err("Not enough memory for event selector list\n");
 		goto out;
 	}

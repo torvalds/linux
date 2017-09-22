@@ -32,9 +32,9 @@
 
 #define DEBUG_SUBSYSTEM S_LOV
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
-#include "../include/obd_class.h"
+#include <obd_class.h>
 #include "lov_internal.h"
 
 /** Merge the lock value block(&lvb) attributes and KMS from each of the
@@ -57,7 +57,7 @@ int lov_merge_lvb_kms(struct lov_stripe_md *lsm,
 	assert_spin_locked(&lsm->lsm_lock);
 	LASSERT(lsm->lsm_lock_owner == current_pid());
 
-	CDEBUG(D_INODE, "MDT ID "DOSTID" initial value: s=%llu m=%llu a=%llu c=%llu b=%llu\n",
+	CDEBUG(D_INODE, "MDT ID " DOSTID " initial value: s=%llu m=%llu a=%llu c=%llu b=%llu\n",
 	       POSTID(&lsm->lsm_oi), lvb->lvb_size, lvb->lvb_mtime,
 	       lvb->lvb_atime, lvb->lvb_ctime, lvb->lvb_blocks);
 	for (i = 0; i < lsm->lsm_stripe_count; i++) {
@@ -89,7 +89,7 @@ int lov_merge_lvb_kms(struct lov_stripe_md *lsm,
 		if (loi->loi_lvb.lvb_ctime > current_ctime)
 			current_ctime = loi->loi_lvb.lvb_ctime;
 
-		CDEBUG(D_INODE, "MDT ID "DOSTID" on OST[%u]: s=%llu m=%llu a=%llu c=%llu b=%llu\n",
+		CDEBUG(D_INODE, "MDT ID " DOSTID " on OST[%u]: s=%llu m=%llu a=%llu c=%llu b=%llu\n",
 		       POSTID(&lsm->lsm_oi), loi->loi_ost_idx,
 		       loi->loi_lvb.lvb_size, loi->loi_lvb.lvb_mtime,
 		       loi->loi_lvb.lvb_atime, loi->loi_lvb.lvb_ctime,

@@ -279,6 +279,8 @@ static int __init hip04_smp_init(void)
 					 &hip04_boot_method[0], 4);
 	if (ret)
 		goto err;
+
+	ret = -ENODEV;
 	np_sctl = of_find_compatible_node(NULL, NULL, "hisilicon,sysctrl");
 	if (!np_sctl)
 		goto err;

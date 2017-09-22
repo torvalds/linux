@@ -78,6 +78,7 @@
 				interrupts = <27 IRQ_TYPE_LEVEL_LOW>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				eeprom-length = <512>;
 
 				ports {
 					#address-cells = <1>;
@@ -163,6 +164,7 @@
 				interrupts = <26 IRQ_TYPE_LEVEL_LOW>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				eeprom-length = <512>;
 
 				ports {
 					#address-cells = <1>;
@@ -239,7 +241,7 @@
 			#size-cells = <0>;
 			reg = <4>;
 
-			switch2: switch2@0 {
+			switch2: switch@0 {
 				compatible = "marvell,mv88e6085";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -456,18 +458,6 @@
 			VF610_PAD_PTB20__GPIO_42	0x33e1
 			VF610_PAD_PTB19__GPIO_41	0x33e2
 			VF610_PAD_PTB18__GPIO_40	0x33e2
-		>;
-	};
-
-	pinctrl_gpio_switch0: pinctrl-gpio-switch0 {
-		fsl,pins = <
-			VF610_PAD_PTB5__GPIO_27		0x219d
-		>;
-	};
-
-	pinctrl_gpio_switch1: pinctrl-gpio-switch1 {
-		fsl,pins = <
-			VF610_PAD_PTB4__GPIO_26		0x219d
 		>;
 	};
 

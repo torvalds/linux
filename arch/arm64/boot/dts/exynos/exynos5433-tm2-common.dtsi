@@ -106,6 +106,13 @@
 		};
 	};
 
+	irda_regulator: irda-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpr3 3 GPIO_ACTIVE_HIGH>;
+		regulator-name = "irda_regulator";
+	};
+
 	sound {
 		compatible = "samsung,tm2-audio";
 		audio-codec = <&wm5110>;
@@ -273,9 +280,6 @@
 
 &decon {
 	status = "okay";
-
-	i80-if-timings {
-	};
 };
 
 &decon_tv {
@@ -298,23 +302,11 @@
 	status = "okay";
 	vddcore-supply = <&ldo6_reg>;
 	vddio-supply = <&ldo7_reg>;
+	samsung,burst-clock-frequency = <512000000>;
+	samsung,esc-clock-frequency = <16000000>;
 	samsung,pll-clock-frequency = <24000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&te_irq>;
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@1 {
-			reg = <1>;
-
-			dsi_out: endpoint {
-				samsung,burst-clock-frequency = <512000000>;
-				samsung,esc-clock-frequency = <16000000>;
-			};
-		};
-	};
 };
 
 &hdmi {
@@ -749,6 +741,19 @@
 	};
 };
 
+&hsi2c_5 {
+	status = "okay";
+
+	stmfts: touchscreen@49 {
+		compatible = "st,stmfts";
+		reg = <0x49>;
+		interrupt-parent = <&gpa1>;
+		interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
+		avdd-supply = <&ldo30_reg>;
+		vdd-supply = <&ldo31_reg>;
+	};
+};
+
 &hsi2c_7 {
 	status = "okay";
 
@@ -824,7 +829,6 @@
 
 &mshc_0 {
 	status = "okay";
-	num-slots = <1>;
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
 	cap-mmc-highspeed;
@@ -846,7 +850,6 @@
 
 &mshc_2 {
 	status = "okay";
-	num-slots = <1>;
 	cap-sd-highspeed;
 	disable-wp;
 	cd-gpios = <&gpa2 4 GPIO_ACTIVE_HIGH>;
@@ -894,7 +897,7 @@
 		PIN(INPUT, gpa0-7, NONE, FAST_SR1);
 
 		PIN(INPUT, gpa1-0, UP, FAST_SR1);
-		PIN(INPUT, gpa1-1, NONE, FAST_SR1);
+		PIN(INPUT, gpa1-1, UP, FAST_SR1);
 		PIN(INPUT, gpa1-2, NONE, FAST_SR1);
 		PIN(INPUT, gpa1-3, DOWN, FAST_SR1);
 		PIN(INPUT, gpa1-4, DOWN, FAST_SR1);
@@ -1074,7 +1077,6 @@
 		PIN(INPUT, gpg3-0, DOWN, FAST_SR1);
 		PIN(INPUT, gpg3-1, DOWN, FAST_SR1);
 		PIN(INPUT, gpg3-5, DOWN, FAST_SR1);
-		PIN(INPUT, gpg3-7, DOWN, FAST_SR1);
 	};
 };
 
@@ -1095,9 +1097,6 @@
 
 &mic {
 	status = "okay";
-
-	i80-if-timings {
-	};
 };
 
 &pmu_system_controller {
@@ -1152,6 +1151,24 @@
 	};
 };
 
+&spi_3 {
+	status = "okay";
+	no-cs-readback;
+
+	irled@0 {
+		compatible = "ir-spi-led";
+		reg = <0x0>;
+		spi-max-frequency = <5000000>;
+		power-supply = <&irda_regulator>;
+		duty-cycle = <60>;
+		led-active-low;
+
+		controller-data {
+			samsung,spi-feedback-delay = <0>;
+		};
+	};
+};
+
 &timer {
 	clock-frequency = <24000000>;
 };
@@ -1177,8 +1194,9 @@
 	status = "okay";
 };
 
-&usbdrd_dwc3_0 {
+&usbdrd_dwc3 {
 	dr_mode = "otg";
+	extcon = <&muic>;
 };
 
 &usbdrd30_phy {

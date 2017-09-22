@@ -406,9 +406,16 @@ static const struct i2c_device_id ltc3676_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ltc3676_i2c_id);
 
+static const struct of_device_id ltc3676_of_match[] = {
+	{ .compatible = "lltc,ltc3676" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ltc3676_of_match);
+
 static struct i2c_driver ltc3676_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
+		.of_match_table = of_match_ptr(ltc3676_of_match),
 	},
 	.probe = ltc3676_regulator_probe,
 	.id_table = ltc3676_i2c_id,

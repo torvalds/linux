@@ -34,6 +34,7 @@
 #include <asm/uv/bios.h>
 #include <asm/uv/uv.h>
 #include <asm/apic.h>
+#include <asm/e820/api.h>
 #include <asm/ipi.h>
 #include <asm/smp.h>
 #include <asm/x86_init.h>
@@ -525,27 +526,15 @@ static void uv_init_apic_ldr(void)
 }
 
 static int
-uv_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-			  const struct cpumask *andmask,
-			  unsigned int *apicid)
+uv_cpu_mask_to_apicid(const struct cpumask *mask, struct irq_data *irqdata,
+		      unsigned int *apicid)
 {
-	int unsigned cpu;
+	int ret = default_cpu_mask_to_apicid(mask, irqdata, apicid);
 
-	/*
-	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
-	 * May as well be the first.
-	 */
-	for_each_cpu_and(cpu, cpumask, andmask) {
-		if (cpumask_test_cpu(cpu, cpu_online_mask))
-			break;
-	}
+	if (!ret)
+		*apicid |= uv_apicid_hibits;
 
-	if (likely(cpu < nr_cpu_ids)) {
-		*apicid = per_cpu(x86_cpu_to_apicid, cpu) | uv_apicid_hibits;
-		return 0;
-	}
-
-	return -EINVAL;
+	return ret;
 }
 
 static unsigned int x2apic_get_apic_id(unsigned long x)
@@ -613,7 +602,7 @@ static struct apic apic_x2apic_uv_x __ro_after_init = {
 	.get_apic_id			= x2apic_get_apic_id,
 	.set_apic_id			= set_apic_id,
 
-	.cpu_mask_to_apicid_and		= uv_cpu_mask_to_apicid_and,
+	.cpu_mask_to_apicid		= uv_cpu_mask_to_apicid,
 
 	.send_IPI			= uv_send_IPI_one,
 	.send_IPI_mask			= uv_send_IPI_mask,
@@ -1105,7 +1094,8 @@ void __init uv_init_hub_info(struct uv_hub_info_s *hi)
 	node_id.v		= uv_read_local_mmr(UVH_NODE_ID);
 	uv_cpuid.gnode_shift	= max_t(unsigned int, uv_cpuid.gnode_shift, mn.n_val);
 	hi->gnode_extra		= (node_id.s.node_id & ~((1 << uv_cpuid.gnode_shift) - 1)) >> 1;
-	hi->gnode_upper		= (unsigned long)hi->gnode_extra << mn.m_val;
+	if (mn.m_val)
+		hi->gnode_upper	= (u64)hi->gnode_extra << mn.m_val;
 
 	if (uv_gp_table) {
 		hi->global_mmr_base	= uv_gp_table->mmr_base;

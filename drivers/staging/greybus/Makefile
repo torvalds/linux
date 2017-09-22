@@ -91,4 +91,4 @@ obj-$(CONFIG_GREYBUS_USB)		+= gb-usb.o
 # Greybus Platform driver
 gb-arche-y	:= arche-platform.o arche-apb-ctrl.o
 
-obj-$(CONFIG_USB_HSIC_USB3613)	+= gb-arche.o
+obj-$(CONFIG_GREYBUS_ARCHE)	+= gb-arche.o

@@ -73,11 +73,16 @@ static int xfrm6_tunnel_check_size(struct sk_buff *skb)
 	int mtu, ret = 0;
 	struct dst_entry *dst = skb_dst(skb);
 
+	if (skb->ignore_df)
+		goto out;
+
 	mtu = dst_mtu(dst);
 	if (mtu < IPV6_MIN_MTU)
 		mtu = IPV6_MIN_MTU;
 
-	if (!skb->ignore_df && skb->len > mtu) {
+	if ((!skb_is_gso(skb) && skb->len > mtu) ||
+	    (skb_is_gso(skb) &&
+	     skb_gso_network_seglen(skb) > ip6_skb_dst_mtu(skb))) {
 		skb->dev = dst->dev;
 		skb->protocol = htons(ETH_P_IPV6);
 
@@ -89,7 +94,7 @@ static int xfrm6_tunnel_check_size(struct sk_buff *skb)
 			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 		ret = -EMSGSIZE;
 	}
-
+out:
 	return ret;
 }
 

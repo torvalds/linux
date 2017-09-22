@@ -86,7 +86,7 @@ typedef struct {
 	char *device_name;
 } hfc4s8s_param;
 
-static struct pci_device_id hfc4s8s_ids[] = {
+static const struct pci_device_id hfc4s8s_ids[] = {
 	{.vendor = PCI_VENDOR_ID_CCD,
 	 .device = PCI_DEVICE_ID_4S,
 	 .subvendor = 0x1397,
@@ -1396,9 +1396,8 @@ setup_instance(hfc4s8s_hw *hw)
 		l1p = hw->l1 + i;
 		spin_lock_init(&l1p->lock);
 		l1p->hw = hw;
-		l1p->l1_timer.function = (void *) hfc_l1_timer;
-		l1p->l1_timer.data = (long) (l1p);
-		init_timer(&l1p->l1_timer);
+		setup_timer(&l1p->l1_timer, (void *)hfc_l1_timer,
+			    (long)(l1p));
 		l1p->st_num = i;
 		skb_queue_head_init(&l1p->d_tx_queue);
 		l1p->d_if.ifc.priv = hw->l1 + i;

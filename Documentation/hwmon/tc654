@@ -2,7 +2,7 @@ Kernel driver tc654
 ===================
 
 Supported chips:
-  * Microship TC654 and TC655
+  * Microchip TC654 and TC655
     Prefix: 'tc654'
     Datasheet: http://ww1.microchip.com/downloads/en/DeviceDoc/20001734C.pdf
 

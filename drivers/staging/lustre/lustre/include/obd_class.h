@@ -32,13 +32,12 @@
 #ifndef __CLASS_OBD_H
 #define __CLASS_OBD_H
 
-#include "obd_support.h"
-#include "lustre_import.h"
-#include "lustre_net.h"
-#include "obd.h"
-#include "lustre_lib.h"
-#include "lustre/lustre_idl.h"
-#include "lprocfs_status.h"
+#include <obd_support.h>
+#include <lustre_import.h>
+#include <lustre_net.h>
+#include <obd.h>
+#include <lustre_lib.h>
+#include <lprocfs_status.h>
 
 #define OBD_STATFS_NODELAY      0x0001  /* requests should be send without delay
 					 * and resends for avoid deadlocks
@@ -46,14 +45,7 @@
 #define OBD_STATFS_FROM_CACHE   0x0002  /* the statfs callback should not update
 					 * obd_osfs_age
 					 */
-#define OBD_STATFS_PTLRPCD      0x0004  /* requests will be sent via ptlrpcd
-					 * instead of a specific set. This
-					 * means that we cannot rely on the set
-					 * interpret routine to be called.
-					 * lov_statfs_fini() must thus be called
-					 * by the request interpret routine
-					 */
-#define OBD_STATFS_FOR_MDT0	0x0008	/* The statfs is only for retrieving
+#define OBD_STATFS_FOR_MDT0	0x0004	/* The statfs is only for retrieving
 					 * information from MDT0.
 					 */
 
@@ -112,10 +104,29 @@ struct llog_handle;
 struct llog_rec_hdr;
 typedef int (*llog_cb_t)(const struct lu_env *, struct llog_handle *,
 			 struct llog_rec_hdr *, void *);
+
 /* obd_config.c */
+char *lustre_cfg_string(struct lustre_cfg *lcfg, u32 index);
 int class_process_config(struct lustre_cfg *lcfg);
 int class_process_proc_param(char *prefix, struct lprocfs_vars *lvars,
 			     struct lustre_cfg *lcfg, void *data);
+
+/* For interoperability */
+struct cfg_interop_param {
+	char *old_param;
+	char *new_param;
+};
+
+int class_find_param(char *buf, char *key, char **valp);
+struct cfg_interop_param *class_find_old_param(const char *param,
+					       struct cfg_interop_param *ptr);
+int class_get_next_param(char **params, char *copy);
+int class_parse_nid(char *buf, lnet_nid_t *nid, char **endh);
+int class_parse_nid_quiet(char *buf, lnet_nid_t *nid, char **endh);
+int class_parse_net(char *buf, u32 *net, char **endh);
+int class_match_nid(char *buf, char *key, lnet_nid_t nid);
+int class_match_net(char *buf, char *key, u32 net);
+
 struct obd_device *class_incref(struct obd_device *obd,
 				const char *scope, const void *source);
 void class_decref(struct obd_device *obd,
@@ -1565,5 +1576,8 @@ struct root_squash_info {
 	struct list_head	rsi_nosquash_nids;
 	struct rw_semaphore	rsi_sem;
 };
+
+/* linux-module.c */
+int obd_ioctl_getdata(char **buf, int *len, void __user *arg);
 
 #endif /* __LINUX_OBD_CLASS_H */

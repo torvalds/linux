@@ -26,16 +26,26 @@ available subsections can be seen below.
    regulator
    iio/index
    input
-   usb
+   usb/index
+   pci
    spi
    i2c
    hsi
    edac
+   scsi
+   libata
+   mtdnand
    miscellaneous
+   w1
+   rapidio
+   s390-drivers
    vme
    80211/index
    uio-howto
    firmware/index
+   pinctl
+   gpio
+   misc_devices
 
 .. only::  subproject and html
 

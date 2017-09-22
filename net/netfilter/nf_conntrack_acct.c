@@ -55,7 +55,7 @@ seq_print_acct(struct seq_file *s, const struct nf_conn *ct, int dir)
 };
 EXPORT_SYMBOL_GPL(seq_print_acct);
 
-static struct nf_ct_ext_type acct_extend __read_mostly = {
+static const struct nf_ct_ext_type acct_extend = {
 	.len	= sizeof(struct nf_conn_acct),
 	.align	= __alignof__(struct nf_conn_acct),
 	.id	= NF_CT_EXT_ACCT,

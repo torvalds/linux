@@ -32,27 +32,27 @@ enum {
 
 static inline void wbt_clear_state(struct blk_issue_stat *stat)
 {
-	stat->time &= BLK_STAT_TIME_MASK;
+	stat->stat &= ~BLK_STAT_RES_MASK;
 }
 
 static inline enum wbt_flags wbt_stat_to_mask(struct blk_issue_stat *stat)
 {
-	return (stat->time & BLK_STAT_MASK) >> BLK_STAT_SHIFT;
+	return (stat->stat & BLK_STAT_RES_MASK) >> BLK_STAT_RES_SHIFT;
 }
 
 static inline void wbt_track(struct blk_issue_stat *stat, enum wbt_flags wb_acct)
 {
-	stat->time |= ((u64) wb_acct) << BLK_STAT_SHIFT;
+	stat->stat |= ((u64) wb_acct) << BLK_STAT_RES_SHIFT;
 }
 
 static inline bool wbt_is_tracked(struct blk_issue_stat *stat)
 {
-	return (stat->time >> BLK_STAT_SHIFT) & WBT_TRACKED;
+	return (stat->stat >> BLK_STAT_RES_SHIFT) & WBT_TRACKED;
 }
 
 static inline bool wbt_is_read(struct blk_issue_stat *stat)
 {
-	return (stat->time >> BLK_STAT_SHIFT) & WBT_READ;
+	return (stat->stat >> BLK_STAT_RES_SHIFT) & WBT_READ;
 }
 
 struct rq_wait {
@@ -81,7 +81,7 @@ struct rq_wb {
 	u64 win_nsec;				/* default window size */
 	u64 cur_win_nsec;			/* current window size */
 
-	struct timer_list window_timer;
+	struct blk_stat_callback *cb;
 
 	s64 sync_issue;
 	void *sync_cookie;
@@ -117,6 +117,7 @@ void wbt_update_limits(struct rq_wb *);
 void wbt_requeue(struct rq_wb *, struct blk_issue_stat *);
 void wbt_issue(struct rq_wb *, struct blk_issue_stat *);
 void wbt_disable_default(struct request_queue *);
+void wbt_enable_default(struct request_queue *);
 
 void wbt_set_queue_depth(struct rq_wb *, unsigned int);
 void wbt_set_write_cache(struct rq_wb *, bool);
@@ -153,6 +154,9 @@ static inline void wbt_issue(struct rq_wb *rwb, struct blk_issue_stat *stat)
 {
 }
 static inline void wbt_disable_default(struct request_queue *q)
+{
+}
+static inline void wbt_enable_default(struct request_queue *q)
 {
 }
 static inline void wbt_set_queue_depth(struct rq_wb *rwb, unsigned int depth)

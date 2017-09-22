@@ -1591,7 +1591,7 @@ static int __bnx2x_vlan_mac_execute_step(struct bnx2x *bp,
 	if (rc != 0) {
 		__bnx2x_vlan_mac_h_pend(bp, o, *ramrod_flags);
 
-		/* Calling function should not diffrentiate between this case
+		/* Calling function should not differentiate between this case
 		 * and the case in which there is already a pending ramrod
 		 */
 		rc = 1;

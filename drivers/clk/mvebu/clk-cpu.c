@@ -186,11 +186,11 @@ static void __init of_cpu_clk_setup(struct device_node *node)
 	for_each_node_by_type(dn, "cpu")
 		ncpus++;
 
-	cpuclk = kzalloc(ncpus * sizeof(*cpuclk), GFP_KERNEL);
+	cpuclk = kcalloc(ncpus, sizeof(*cpuclk), GFP_KERNEL);
 	if (WARN_ON(!cpuclk))
 		goto cpuclk_out;
 
-	clks = kzalloc(ncpus * sizeof(*clks), GFP_KERNEL);
+	clks = kcalloc(ncpus, sizeof(*clks), GFP_KERNEL);
 	if (WARN_ON(!clks))
 		goto clks_out;
 

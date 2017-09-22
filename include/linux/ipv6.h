@@ -37,6 +37,7 @@ struct ipv6_devconf {
 	__s32		accept_ra_rtr_pref;
 	__s32		rtr_probe_interval;
 #ifdef CONFIG_IPV6_ROUTE_INFO
+	__s32		accept_ra_rt_info_min_plen;
 	__s32		accept_ra_rt_info_max_plen;
 #endif
 #endif
@@ -70,6 +71,7 @@ struct ipv6_devconf {
 #endif
 	__u32		enhanced_dad;
 	__u32		addr_gen_mode;
+	__s32		disable_policy;
 
 	struct ctl_table_header *sysctl_header;
 };
@@ -126,6 +128,7 @@ struct inet6_skb_parm {
 #define IP6SKB_FRAGMENTED      16
 #define IP6SKB_HOPBYHOP        32
 #define IP6SKB_L3SLAVE         64
+#define IP6SKB_JUMBOGRAM      128
 };
 
 #if defined(CONFIG_NET_L3_MASTER_DEV)
@@ -148,6 +151,21 @@ static inline int inet6_iif(const struct sk_buff *skb)
 	bool l3_slave = ipv6_l3mdev_skb(IP6CB(skb)->flags);
 
 	return l3_slave ? skb->skb_iif : IP6CB(skb)->iif;
+}
+
+static inline bool inet6_is_jumbogram(const struct sk_buff *skb)
+{
+	return !!(IP6CB(skb)->flags & IP6SKB_JUMBOGRAM);
+}
+
+/* can not be used in TCP layer after tcp_v6_fill_cb */
+static inline int inet6_sdif(const struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
+	if (skb && ipv6_l3mdev_skb(IP6CB(skb)->flags))
+		return IP6CB(skb)->iif;
+#endif
+	return 0;
 }
 
 /* can not be used in TCP layer after tcp_v6_fill_cb */

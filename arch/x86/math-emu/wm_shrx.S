@@ -92,6 +92,7 @@ L_more_than_95:
 	popl	%esi
 	leave
 	ret
+ENDPROC(FPU_shrx)
 
 
 /*---------------------------------------------------------------------------+
@@ -202,3 +203,4 @@ Ls_more_than_95:
 	popl	%esi
 	leave
 	ret
+ENDPROC(FPU_shrxs)

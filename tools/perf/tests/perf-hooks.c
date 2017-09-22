@@ -27,7 +27,7 @@ static void the_hook(void *_hook_flags)
 	*p = 0;
 }
 
-int test__perf_hooks(int subtest __maybe_unused)
+int test__perf_hooks(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int hook_flags = 0;
 

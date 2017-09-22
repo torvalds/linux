@@ -755,6 +755,7 @@ static int octeon_mgmt_ioctl_hwtstamp(struct net_device *netdev,
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+	case HWTSTAMP_FILTER_NTP_ALL:
 		p->has_rx_tstamp = have_hw_timestamps;
 		config.rx_filter = HWTSTAMP_FILTER_ALL;
 		if (p->has_rx_tstamp) {

@@ -37,8 +37,9 @@
 #include <asm/io.h>
 #include <asm/serial.h>
 
-static unsigned int __init serial8250_early_in(struct uart_port *port, int offset)
+static unsigned int serial8250_early_in(struct uart_port *port, int offset)
 {
+	int reg_offset = offset;
 	offset <<= port->regshift;
 
 	switch (port->iotype) {
@@ -52,13 +53,16 @@ static unsigned int __init serial8250_early_in(struct uart_port *port, int offse
 		return ioread32be(port->membase + offset);
 	case UPIO_PORT:
 		return inb(port->iobase + offset);
+	case UPIO_AU:
+		return port->serial_in(port, reg_offset);
 	default:
 		return 0;
 	}
 }
 
-static void __init serial8250_early_out(struct uart_port *port, int offset, int value)
+static void serial8250_early_out(struct uart_port *port, int offset, int value)
 {
+	int reg_offset = offset;
 	offset <<= port->regshift;
 
 	switch (port->iotype) {
@@ -77,12 +81,15 @@ static void __init serial8250_early_out(struct uart_port *port, int offset, int 
 	case UPIO_PORT:
 		outb(value, port->iobase + offset);
 		break;
+	case UPIO_AU:
+		port->serial_out(port, reg_offset, value);
+		break;
 	}
 }
 
 #define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
 
-static void __init serial_putc(struct uart_port *port, int c)
+static void serial_putc(struct uart_port *port, int c)
 {
 	unsigned int status;
 
@@ -96,7 +103,7 @@ static void __init serial_putc(struct uart_port *port, int c)
 	}
 }
 
-static void __init early_serial8250_write(struct console *console,
+static void early_serial8250_write(struct console *console,
 					const char *s, unsigned int count)
 {
 	struct earlycon_device *device = console->data;
@@ -170,5 +177,22 @@ static int __init early_omap8250_setup(struct earlycon_device *device,
 OF_EARLYCON_DECLARE(omap8250, "ti,omap2-uart", early_omap8250_setup);
 OF_EARLYCON_DECLARE(omap8250, "ti,omap3-uart", early_omap8250_setup);
 OF_EARLYCON_DECLARE(omap8250, "ti,omap4-uart", early_omap8250_setup);
+
+#endif
+
+#ifdef CONFIG_SERIAL_8250_RT288X
+
+unsigned int au_serial_in(struct uart_port *p, int offset);
+void au_serial_out(struct uart_port *p, int offset, int value);
+
+static int __init early_au_setup(struct earlycon_device *dev, const char *opt)
+{
+	dev->port.serial_in = au_serial_in;
+	dev->port.serial_out = au_serial_out;
+	dev->port.iotype = UPIO_AU;
+	dev->con->write = early_serial8250_write;
+	return 0;
+}
+OF_EARLYCON_DECLARE(palmchip, "ralink,rt2880-uart", early_au_setup);
 
 #endif

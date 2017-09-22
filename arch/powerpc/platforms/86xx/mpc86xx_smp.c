@@ -105,6 +105,7 @@ smp_86xx_setup_cpu(int cpu_nr)
 
 
 struct smp_ops_t smp_86xx_ops = {
+	.cause_nmi_ipi = NULL,
 	.message_pass = smp_mpic_message_pass,
 	.probe = smp_mpic_probe,
 	.kick_cpu = smp_86xx_kick_cpu,

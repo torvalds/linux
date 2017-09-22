@@ -260,11 +260,11 @@ static int nau8825_sema_acquire(struct nau8825 *nau8825, long timeout)
 	if (timeout) {
 		ret = down_timeout(&nau8825->xtalk_sem, timeout);
 		if (ret < 0)
-			dev_warn(nau8825->dev, "Acquire semaphone timeout\n");
+			dev_warn(nau8825->dev, "Acquire semaphore timeout\n");
 	} else {
 		ret = down_interruptible(&nau8825->xtalk_sem);
 		if (ret < 0)
-			dev_warn(nau8825->dev, "Acquire semaphone fail\n");
+			dev_warn(nau8825->dev, "Acquire semaphore fail\n");
 	}
 
 	return ret;
@@ -1299,7 +1299,7 @@ static int nau8825_hw_params(struct snd_pcm_substream *substream,
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_I2S_PCM_CTRL1,
 		NAU8825_I2S_DL_MASK, val_len);
 
-	/* Release the semaphone. */
+	/* Release the semaphore. */
 	nau8825_sema_release(nau8825);
 
 	return 0;
@@ -1361,7 +1361,7 @@ static int nau8825_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_I2S_PCM_CTRL2,
 		NAU8825_I2S_MS_MASK, ctrl2_val);
 
-	/* Release the semaphone. */
+	/* Release the semaphore. */
 	nau8825_sema_release(nau8825);
 
 	return 0;
@@ -1612,7 +1612,6 @@ static int nau8825_jack_insert(struct nau8825 *nau8825)
 		snd_soc_dapm_sync(dapm);
 		break;
 	case 2:
-	case 3:
 		dev_dbg(nau8825->dev, "CTIA (micgnd2) mic connected\n");
 		type = SND_JACK_HEADSET;
 
@@ -1631,6 +1630,11 @@ static int nau8825_jack_insert(struct nau8825 *nau8825)
 		snd_soc_dapm_force_enable_pin(dapm, "MICBIAS");
 		snd_soc_dapm_force_enable_pin(dapm, "SAR");
 		snd_soc_dapm_sync(dapm);
+		break;
+	case 3:
+		/* detect error case */
+		dev_err(nau8825->dev, "detection error; disable mic function\n");
+		type = SND_JACK_HEADPHONE;
 		break;
 	}
 
@@ -1682,7 +1686,7 @@ static irqreturn_t nau8825_interrupt(int irq, void *data)
 	} else if (active_irq & NAU8825_HEADSET_COMPLETION_IRQ) {
 		if (nau8825_is_jack_inserted(regmap)) {
 			event |= nau8825_jack_insert(nau8825);
-			if (!nau8825->high_imped) {
+			if (!nau8825->xtalk_bypass && !nau8825->high_imped) {
 				/* Apply the cross talk suppression in the
 				 * headset without high impedance.
 				 */
@@ -2136,7 +2140,7 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 
 		break;
 	case NAU8825_CLK_MCLK:
-		/* Acquire the semaphone to synchronize the playback and
+		/* Acquire the semaphore to synchronize the playback and
 		 * interrupt handler. In order to avoid the playback inter-
 		 * fered by cross talk process, the driver make the playback
 		 * preparation halted until cross talk process finish.
@@ -2146,7 +2150,7 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 		/* MCLK not changed by clock tree */
 		regmap_update_bits(regmap, NAU8825_REG_CLK_DIVIDER,
 			NAU8825_CLK_MCLK_SRC_MASK, 0);
-		/* Release the semaphone. */
+		/* Release the semaphore. */
 		nau8825_sema_release(nau8825);
 
 		ret = nau8825_mclk_prepare(nau8825, freq);
@@ -2184,7 +2188,7 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 
 		break;
 	case NAU8825_CLK_FLL_MCLK:
-		/* Acquire the semaphone to synchronize the playback and
+		/* Acquire the semaphore to synchronize the playback and
 		 * interrupt handler. In order to avoid the playback inter-
 		 * fered by cross talk process, the driver make the playback
 		 * preparation halted until cross talk process finish.
@@ -2197,7 +2201,7 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 		regmap_update_bits(regmap, NAU8825_REG_FLL3,
 			NAU8825_FLL_CLK_SRC_MASK | NAU8825_GAIN_ERR_MASK,
 			NAU8825_FLL_CLK_SRC_MCLK | 0);
-		/* Release the semaphone. */
+		/* Release the semaphore. */
 		nau8825_sema_release(nau8825);
 
 		ret = nau8825_mclk_prepare(nau8825, freq);
@@ -2206,7 +2210,7 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 
 		break;
 	case NAU8825_CLK_FLL_BLK:
-		/* Acquire the semaphone to synchronize the playback and
+		/* Acquire the semaphore to synchronize the playback and
 		 * interrupt handler. In order to avoid the playback inter-
 		 * fered by cross talk process, the driver make the playback
 		 * preparation halted until cross talk process finish.
@@ -2222,7 +2226,7 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 			NAU8825_FLL_CLK_SRC_MASK | NAU8825_GAIN_ERR_MASK,
 			NAU8825_FLL_CLK_SRC_BLK |
 			(0xf << NAU8825_GAIN_ERR_SFT));
-		/* Release the semaphone. */
+		/* Release the semaphore. */
 		nau8825_sema_release(nau8825);
 
 		if (nau8825->mclk_freq) {
@@ -2232,7 +2236,7 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 
 		break;
 	case NAU8825_CLK_FLL_FS:
-		/* Acquire the semaphone to synchronize the playback and
+		/* Acquire the semaphore to synchronize the playback and
 		 * interrupt handler. In order to avoid the playback inter-
 		 * fered by cross talk process, the driver make the playback
 		 * preparation halted until cross talk process finish.
@@ -2248,7 +2252,7 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 			NAU8825_FLL_CLK_SRC_MASK | NAU8825_GAIN_ERR_MASK,
 			NAU8825_FLL_CLK_SRC_FS |
 			(0xf << NAU8825_GAIN_ERR_SFT));
-		/* Release the semaphone. */
+		/* Release the semaphore. */
 		nau8825_sema_release(nau8825);
 
 		if (nau8825->mclk_freq) {
@@ -2328,6 +2332,13 @@ static int nau8825_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_OFF:
+		/* Reset the configuration of jack type for detection */
+		/* Detach 2kOhm Resistors from MICBIAS to MICGND1/2 */
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_MIC_BIAS,
+			NAU8825_MICBIAS_JKSLV | NAU8825_MICBIAS_JKR2, 0);
+		/* ground HPL/HPR, MICGRND1/2 */
+		regmap_update_bits(nau8825->regmap,
+			NAU8825_REG_HSD_CTRL, 0xf, 0xf);
 		/* Cancel and reset cross talk detection funciton */
 		nau8825_xtalk_cancel(nau8825);
 		/* Turn off all interruptions before system shutdown. Keep the
@@ -2351,6 +2362,10 @@ static int __maybe_unused nau8825_suspend(struct snd_soc_codec *codec)
 
 	disable_irq(nau8825->irq);
 	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
+	/* Power down codec power; don't suppoet button wakeup */
+	snd_soc_dapm_disable_pin(nau8825->dapm, "SAR");
+	snd_soc_dapm_disable_pin(nau8825->dapm, "MICBIAS");
+	snd_soc_dapm_sync(nau8825->dapm);
 	regcache_cache_only(nau8825->regmap, true);
 	regcache_mark_dirty(nau8825->regmap);
 
@@ -2373,7 +2388,7 @@ static int __maybe_unused nau8825_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver nau8825_codec_driver = {
+static const struct snd_soc_codec_driver nau8825_codec_driver = {
 	.probe = nau8825_codec_probe,
 	.remove = nau8825_codec_remove,
 	.set_sysclk = nau8825_set_sysclk,
@@ -2425,10 +2440,13 @@ static void nau8825_print_device_properties(struct nau8825 *nau8825)
 			nau8825->jack_insert_debounce);
 	dev_dbg(dev, "jack-eject-debounce:  %d\n",
 			nau8825->jack_eject_debounce);
+	dev_dbg(dev, "crosstalk-bypass:     %d\n",
+			nau8825->xtalk_bypass);
 }
 
 static int nau8825_read_device_properties(struct device *dev,
 	struct nau8825 *nau8825) {
+	int ret;
 
 	nau8825->jkdet_enable = device_property_read_bool(dev,
 		"nuvoton,jkdet-enable");
@@ -2436,30 +2454,60 @@ static int nau8825_read_device_properties(struct device *dev,
 		"nuvoton,jkdet-pull-enable");
 	nau8825->jkdet_pull_up = device_property_read_bool(dev,
 		"nuvoton,jkdet-pull-up");
-	device_property_read_u32(dev, "nuvoton,jkdet-polarity",
+	ret = device_property_read_u32(dev, "nuvoton,jkdet-polarity",
 		&nau8825->jkdet_polarity);
-	device_property_read_u32(dev, "nuvoton,micbias-voltage",
+	if (ret)
+		nau8825->jkdet_polarity = 1;
+	ret = device_property_read_u32(dev, "nuvoton,micbias-voltage",
 		&nau8825->micbias_voltage);
-	device_property_read_u32(dev, "nuvoton,vref-impedance",
+	if (ret)
+		nau8825->micbias_voltage = 6;
+	ret = device_property_read_u32(dev, "nuvoton,vref-impedance",
 		&nau8825->vref_impedance);
-	device_property_read_u32(dev, "nuvoton,sar-threshold-num",
+	if (ret)
+		nau8825->vref_impedance = 2;
+	ret = device_property_read_u32(dev, "nuvoton,sar-threshold-num",
 		&nau8825->sar_threshold_num);
-	device_property_read_u32_array(dev, "nuvoton,sar-threshold",
+	if (ret)
+		nau8825->sar_threshold_num = 4;
+	ret = device_property_read_u32_array(dev, "nuvoton,sar-threshold",
 		nau8825->sar_threshold, nau8825->sar_threshold_num);
-	device_property_read_u32(dev, "nuvoton,sar-hysteresis",
+	if (ret) {
+		nau8825->sar_threshold[0] = 0x08;
+		nau8825->sar_threshold[1] = 0x12;
+		nau8825->sar_threshold[2] = 0x26;
+		nau8825->sar_threshold[3] = 0x73;
+	}
+	ret = device_property_read_u32(dev, "nuvoton,sar-hysteresis",
 		&nau8825->sar_hysteresis);
-	device_property_read_u32(dev, "nuvoton,sar-voltage",
+	if (ret)
+		nau8825->sar_hysteresis = 0;
+	ret = device_property_read_u32(dev, "nuvoton,sar-voltage",
 		&nau8825->sar_voltage);
-	device_property_read_u32(dev, "nuvoton,sar-compare-time",
+	if (ret)
+		nau8825->sar_voltage = 6;
+	ret = device_property_read_u32(dev, "nuvoton,sar-compare-time",
 		&nau8825->sar_compare_time);
-	device_property_read_u32(dev, "nuvoton,sar-sampling-time",
+	if (ret)
+		nau8825->sar_compare_time = 1;
+	ret = device_property_read_u32(dev, "nuvoton,sar-sampling-time",
 		&nau8825->sar_sampling_time);
-	device_property_read_u32(dev, "nuvoton,short-key-debounce",
+	if (ret)
+		nau8825->sar_sampling_time = 1;
+	ret = device_property_read_u32(dev, "nuvoton,short-key-debounce",
 		&nau8825->key_debounce);
-	device_property_read_u32(dev, "nuvoton,jack-insert-debounce",
+	if (ret)
+		nau8825->key_debounce = 3;
+	ret = device_property_read_u32(dev, "nuvoton,jack-insert-debounce",
 		&nau8825->jack_insert_debounce);
-	device_property_read_u32(dev, "nuvoton,jack-eject-debounce",
+	if (ret)
+		nau8825->jack_insert_debounce = 7;
+	ret = device_property_read_u32(dev, "nuvoton,jack-eject-debounce",
 		&nau8825->jack_eject_debounce);
+	if (ret)
+		nau8825->jack_eject_debounce = 0;
+	nau8825->xtalk_bypass = device_property_read_bool(dev,
+		"nuvoton,crosstalk-bypass");
 
 	nau8825->mclk = devm_clk_get(dev, "mclk");
 	if (PTR_ERR(nau8825->mclk) == -EPROBE_DEFER) {
@@ -2515,7 +2563,7 @@ static int nau8825_i2c_probe(struct i2c_client *i2c,
 		return PTR_ERR(nau8825->regmap);
 	nau8825->dev = dev;
 	nau8825->irq = i2c->irq;
-	/* Initiate parameters, semaphone and work queue which are needed in
+	/* Initiate parameters, semaphore and work queue which are needed in
 	 * cross talk suppression measurment function.
 	 */
 	nau8825->xtalk_state = NAU8825_XTALK_DONE;

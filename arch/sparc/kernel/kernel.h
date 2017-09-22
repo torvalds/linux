@@ -37,7 +37,6 @@ void handle_stdfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr
 /* smp_64.c */
 void __irq_entry smp_call_function_client(int irq, struct pt_regs *regs);
 void __irq_entry smp_call_function_single_client(int irq, struct pt_regs *regs);
-void __irq_entry smp_new_mmu_context_version_client(int irq, struct pt_regs *regs);
 void __irq_entry smp_penguin_jailcell(int irq, struct pt_regs *regs);
 void __irq_entry smp_receive_signal_client(int irq, struct pt_regs *regs);
 
@@ -52,6 +51,9 @@ void do_sigreturn32(struct pt_regs *regs);
 asmlinkage void do_rt_sigreturn32(struct pt_regs *regs);
 void do_signal32(struct pt_regs * regs);
 asmlinkage int do_sys32_sigstack(u32 u_ssptr, u32 u_ossptr, unsigned long sp);
+
+/* time_64.c */
+void __init time_init_early(void);
 
 /* compat_audit.c */
 extern unsigned int sparc32_dir_class[];

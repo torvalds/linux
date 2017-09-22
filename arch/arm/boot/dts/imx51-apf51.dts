@@ -36,7 +36,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec>;
 	phy-mode = "mii";
-	phy-reset-gpios = <&gpio3 0 GPIO_ACTIVE_HIGH>;
+	phy-reset-gpios = <&gpio3 0 GPIO_ACTIVE_LOW>;
 	phy-reset-duration = <1>;
 	status = "okay";
 };

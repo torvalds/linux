@@ -739,6 +739,8 @@ static int ethoc_open(struct net_device *dev)
 	if (ret)
 		return ret;
 
+	napi_enable(&priv->napi);
+
 	ethoc_init_ring(priv, dev->mem_start);
 	ethoc_reset(priv);
 
@@ -754,7 +756,6 @@ static int ethoc_open(struct net_device *dev)
 	priv->old_duplex = -1;
 
 	phy_start(dev->phydev);
-	napi_enable(&priv->napi);
 
 	if (netif_msg_ifup(priv)) {
 		dev_info(&dev->dev, "I/O: %08lx Memory: %08lx-%08lx\n",
@@ -1148,14 +1149,14 @@ static int ethoc_probe(struct platform_device *pdev)
 
 	/* Allow the platform setup code to pass in a MAC address. */
 	if (pdata) {
-		memcpy(netdev->dev_addr, pdata->hwaddr, IFHWADDRLEN);
+		ether_addr_copy(netdev->dev_addr, pdata->hwaddr);
 		priv->phy_id = pdata->phy_id;
 	} else {
 		const void *mac;
 
 		mac = of_get_mac_address(pdev->dev.of_node);
 		if (mac)
-			memcpy(netdev->dev_addr, mac, IFHWADDRLEN);
+			ether_addr_copy(netdev->dev_addr, mac);
 		priv->phy_id = -1;
 	}
 

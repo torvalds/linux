@@ -1495,9 +1495,7 @@ int setup_hfcsx(struct IsdnCard *card)
 	} else
 		return (0);	/* no valid card type */
 
-	cs->dbusytimer.function = (void *) hfcsx_dbusy_timer;
-	cs->dbusytimer.data = (long) cs;
-	init_timer(&cs->dbusytimer);
+	setup_timer(&cs->dbusytimer, (void *)hfcsx_dbusy_timer, (long)cs);
 	INIT_WORK(&cs->tqueue, hfcsx_bh);
 	cs->readisac = NULL;
 	cs->writeisac = NULL;
@@ -1507,11 +1505,9 @@ int setup_hfcsx(struct IsdnCard *card)
 	cs->BC_Write_Reg = NULL;
 	cs->irq_func = &hfcsx_interrupt;
 
-	cs->hw.hfcsx.timer.function = (void *) hfcsx_Timer;
-	cs->hw.hfcsx.timer.data = (long) cs;
 	cs->hw.hfcsx.b_fifo_size = 0; /* fifo size still unknown */
 	cs->hw.hfcsx.cirm = ccd_sp_irqtab[cs->irq & 0xF]; /* RAM not evaluated */
-	init_timer(&cs->hw.hfcsx.timer);
+	setup_timer(&cs->hw.hfcsx.timer, (void *)hfcsx_Timer, (long)cs);
 
 	reset_hfcsx(cs);
 	cs->cardmsg = &hfcsx_card_msg;

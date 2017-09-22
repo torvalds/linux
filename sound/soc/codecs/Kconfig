@@ -49,6 +49,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS35L32 if I2C
 	select SND_SOC_CS35L33 if I2C
 	select SND_SOC_CS35L34 if I2C
+	select SND_SOC_CS35L35 if I2C
 	select SND_SOC_CS42L42 if I2C
 	select SND_SOC_CS42L51_I2C if I2C
 	select SND_SOC_CS42L52 if I2C && INPUT
@@ -59,6 +60,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS4271_I2C if I2C
 	select SND_SOC_CS4271_SPI if SPI_MASTER
 	select SND_SOC_CS42XX8_I2C if I2C
+	select SND_SOC_CS43130 if I2C
 	select SND_SOC_CS4349 if I2C
 	select SND_SOC_CS47L24 if MFD_CS47L24
 	select SND_SOC_CS53L30 if I2C
@@ -69,9 +71,12 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_DA7219 if I2C
 	select SND_SOC_DA732X if I2C
 	select SND_SOC_DA9055 if I2C
-	select SND_SOC_DMIC
+	select SND_SOC_DIO2125
+	select SND_SOC_DMIC if GPIOLIB
+	select SND_SOC_ES8316 if I2C
 	select SND_SOC_ES8328_SPI if SPI_MASTER
 	select SND_SOC_ES8328_I2C if I2C
+	select SND_SOC_ES7134
 	select SND_SOC_GTM601
 	select SND_SOC_HDAC_HDMI
 	select SND_SOC_ICS43432
@@ -89,6 +94,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX9867 if I2C
 	select SND_SOC_MAX98925 if I2C
 	select SND_SOC_MAX98926 if I2C
+	select SND_SOC_MAX98927 if I2C
 	select SND_SOC_MAX9850 if I2C
 	select SND_SOC_MAX9860 if I2C
 	select SND_SOC_MAX9768 if I2C
@@ -97,6 +103,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ML26124 if I2C
 	select SND_SOC_NAU8540 if I2C
 	select SND_SOC_NAU8810 if I2C
+	select SND_SOC_NAU8824 if I2C
 	select SND_SOC_NAU8825 if I2C
 	select SND_SOC_HDMI_CODEC
 	select SND_SOC_PCM1681 if I2C
@@ -108,6 +115,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_PCM5102A
 	select SND_SOC_PCM512x_I2C if I2C
 	select SND_SOC_PCM512x_SPI if SPI_MASTER
+	select SND_SOC_RT274 if I2C
 	select SND_SOC_RT286 if I2C
 	select SND_SOC_RT298 if I2C
 	select SND_SOC_RT5514 if I2C
@@ -167,6 +175,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8400 if MFD_WM8400
 	select SND_SOC_WM8510 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8523 if I2C
+	select SND_SOC_WM8524 if GPIOLIB
 	select SND_SOC_WM8580 if I2C
 	select SND_SOC_WM8711 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8727
@@ -303,12 +312,14 @@ config SND_SOC_ADAU1761
 	select SND_SOC_ADAU17X1
 
 config SND_SOC_ADAU1761_I2C
-	tristate
+	tristate "Analog Devices AU1761 CODEC - I2C"
+	depends on I2C
 	select SND_SOC_ADAU1761
 	select REGMAP_I2C
 
 config SND_SOC_ADAU1761_SPI
-	tristate
+	tristate "Analog Devices AU1761 CODEC - SPI"
+	depends on SPI
 	select SND_SOC_ADAU1761
 	select REGMAP_SPI
 
@@ -408,6 +419,10 @@ config SND_SOC_CS35L34
 	tristate "Cirrus Logic CS35L34 CODEC"
 	depends on I2C
 
+config SND_SOC_CS35L35
+	tristate "Cirrus Logic CS35L35 CODEC"
+	depends on I2C
+
 config SND_SOC_CS42L42
 	tristate "Cirrus Logic CS42L42 CODEC"
 	depends on I2C
@@ -474,6 +489,11 @@ config SND_SOC_CS42XX8_I2C
 	select SND_SOC_CS42XX8
 	select REGMAP_I2C
 
+# Cirrus Logic CS43130 HiFi DAC
+config SND_SOC_CS43130
+        tristate "Cirrus Logic CS43130 CODEC"
+        depends on I2C
+
 # Cirrus Logic CS4349 HiFi DAC
 config SND_SOC_CS4349
 	tristate "Cirrus Logic CS4349 CODEC"
@@ -516,6 +536,10 @@ config SND_SOC_DA732X
 config SND_SOC_DA9055
 	tristate
 
+config SND_SOC_DIO2125
+	tristate "Dioo DIO2125 Amplifier"
+	select GPIOLIB
+
 config SND_SOC_DMIC
 	tristate
 
@@ -524,6 +548,13 @@ config SND_SOC_HDMI_CODEC
 	select SND_PCM_ELD
 	select SND_PCM_IEC958
 	select HDMI
+
+config SND_SOC_ES7134
+       tristate "Everest Semi ES7134 CODEC"
+
+config SND_SOC_ES8316
+	tristate "Everest Semi ES8316 CODEC"
+	depends on I2C
 
 config SND_SOC_ES8328
 	tristate
@@ -587,6 +618,10 @@ config SND_SOC_MAX98925
 
 config SND_SOC_MAX98926
 	tristate
+
+config SND_SOC_MAX98927
+	tristate "Maxim Integrated MAX98927 Speaker Amplifier"
+	depends on I2C
 
 config SND_SOC_MAX9850
 	tristate
@@ -689,10 +724,16 @@ config SND_SOC_RL6231
 
 config SND_SOC_RL6347A
 	tristate
+	default y if SND_SOC_RT274=y
 	default y if SND_SOC_RT286=y
 	default y if SND_SOC_RT298=y
+	default m if SND_SOC_RT274=m
 	default m if SND_SOC_RT286=m
 	default m if SND_SOC_RT298=m
+
+config SND_SOC_RT274
+	tristate
+	depends on I2C
 
 config SND_SOC_RT286
 	tristate
@@ -940,6 +981,10 @@ config SND_SOC_WM8523
 	tristate "Wolfson Microelectronics WM8523 DAC"
 	depends on I2C
 
+config SND_SOC_WM8524
+	tristate "Wolfson Microelectronics WM8524 DAC"
+	depends on GPIOLIB
+
 config SND_SOC_WM8580
 	tristate "Wolfson Microelectronics WM8580 and WM8581 CODECs"
 	depends on I2C
@@ -1092,6 +1137,11 @@ config SND_SOC_WM9713
 	tristate
 	select REGMAP_AC97
 
+config SND_SOC_ZX_AUD96P22
+	tristate "ZTE ZX AUD96P22 CODEC"
+	depends on I2C
+	select REGMAP_I2C
+
 # Amp
 config SND_SOC_LM4857
 	tristate
@@ -1114,6 +1164,10 @@ config SND_SOC_NAU8540
 
 config SND_SOC_NAU8810
 	tristate "Nuvoton Technology Corporation NAU88C10 CODEC"
+	depends on I2C
+
+config SND_SOC_NAU8824
+	tristate "Nuvoton Technology Corporation NAU88L24 CODEC"
 	depends on I2C
 
 config SND_SOC_NAU8825

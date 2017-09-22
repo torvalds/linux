@@ -12,7 +12,7 @@ The following terms are used in this document:
    control and configuration, and a parallel or a serial bus for data.
  - camera host - an interface, to which a camera is connected. Typically a
    specialised interface, present on many SoCs, e.g. PXA27x and PXA3xx, SuperH,
-   AVR32, i.MX27, i.MX31.
+   i.MX27, i.MX31.
  - camera host bus - a connection between a camera host and a camera. Can be
    parallel or serial, consists of data and control lines, e.g. clock, vertical
    and horizontal synchronization signals.

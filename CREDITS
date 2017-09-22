@@ -1034,6 +1034,10 @@ S: 2037 Walnut #6
 S: Boulder, Colorado 80302
 S: USA
 
+N: Hans-Christian Noren Egtvedt
+E: egtvedt@samfundet.no
+D: AVR32 architecture maintainer.
+
 N: Heiko Eißfeldt
 E: heiko@colossus.escape.de heiko@unifix.de
 D: verify_area stuff, generic SCSI fixes
@@ -2086,7 +2090,7 @@ S: Kuala Lumpur, Malaysia
 
 N: Mohit Kumar
 D: ST Microelectronics SPEAr13xx PCI host bridge driver
-D: Synopsys Designware PCI host bridge driver
+D: Synopsys DesignWare PCI host bridge driver
 
 N: Gabor Kuti
 E: seasons@falcon.sch.bme.hu
@@ -2602,11 +2606,9 @@ E: tmolina@cablespeed.com
 D: bug fixes, documentation, minor hackery
 
 N: Paul Moore
-E: paul.moore@hp.com
-D: NetLabel author
-S: Hewlett-Packard
-S: 110 Spit Brook Road
-S: Nashua, NH 03062
+E: paul@paul-moore.com
+W: http://www.paul-moore.com
+D: NetLabel, SELinux, audit
 
 N: James Morris
 E: jmorris@namei.org
@@ -3397,6 +3399,10 @@ S: 1001 Denison Street
 S: Suite 101
 S: Markham, Ontario L3R 2Z6
 S: Canada
+
+N: Haavard Skinnemoen
+M: Haavard Skinnemoen <hskinnemoen@gmail.com>
+D: AVR32 architecture port to Linux and maintainer.
 
 N: Rick Sladkey
 E: jrs@world.std.com

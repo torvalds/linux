@@ -127,8 +127,6 @@ struct brcmf_pub {
 
 	struct brcmf_fweh_info fweh;
 
-	struct brcmf_fws_info *fws;
-
 	struct brcmf_ampdu_rx_reorder
 		*reorder_flows[BRCMF_AMPDU_RX_REORDER_MAXFLOWS];
 

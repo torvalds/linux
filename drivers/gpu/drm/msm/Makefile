@@ -1,4 +1,4 @@
-ccflags-y := -Iinclude/drm -Idrivers/gpu/drm/msm
+ccflags-y := -Idrivers/gpu/drm/msm
 ccflags-$(CONFIG_DRM_MSM_DSI) += -Idrivers/gpu/drm/msm/dsi
 
 msm-y := \
@@ -40,6 +40,7 @@ msm-y := \
 	mdp/mdp5/mdp5_mdss.o \
 	mdp/mdp5/mdp5_kms.o \
 	mdp/mdp5/mdp5_pipe.o \
+	mdp/mdp5/mdp5_mixer.o \
 	mdp/mdp5/mdp5_plane.o \
 	mdp/mdp5/mdp5_smp.o \
 	msm_atomic.o \

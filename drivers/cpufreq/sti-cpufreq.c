@@ -65,8 +65,8 @@ static int sti_cpufreq_fetch_major(void) {
 	ret = of_property_read_u32_index(np, "st,syscfg",
 					 MAJOR_ID_INDEX, &major_offset);
 	if (ret) {
-		dev_err(dev, "No major number offset provided in %s [%d]\n",
-			np->full_name, ret);
+		dev_err(dev, "No major number offset provided in %pOF [%d]\n",
+			np, ret);
 		return ret;
 	}
 
@@ -92,8 +92,8 @@ static int sti_cpufreq_fetch_minor(void)
 					 MINOR_ID_INDEX, &minor_offset);
 	if (ret) {
 		dev_err(dev,
-			"No minor number offset provided %s [%d]\n",
-			np->full_name, ret);
+			"No minor number offset provided %pOF [%d]\n",
+			np, ret);
 		return ret;
 	}
 
@@ -236,7 +236,7 @@ use_defaults:
 	return 0;
 }
 
-static int sti_cpufreq_fetch_syscon_regsiters(void)
+static int sti_cpufreq_fetch_syscon_registers(void)
 {
 	struct device *dev = ddata.cpu;
 	struct device_node *np = dev->of_node;
@@ -275,7 +275,7 @@ static int sti_cpufreq_init(void)
 		goto skip_voltage_scaling;
 	}
 
-	ret = sti_cpufreq_fetch_syscon_regsiters();
+	ret = sti_cpufreq_fetch_syscon_registers();
 	if (ret)
 		goto skip_voltage_scaling;
 

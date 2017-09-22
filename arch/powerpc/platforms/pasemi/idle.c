@@ -53,11 +53,14 @@ static int pasemi_system_reset_exception(struct pt_regs *regs)
 		regs->nip = regs->link;
 
 	switch (regs->msr & SRR1_WAKEMASK) {
-	case SRR1_WAKEEE:
-		do_IRQ(regs);
-		break;
 	case SRR1_WAKEDEC:
-		timer_interrupt(regs);
+		set_dec(1);
+	case SRR1_WAKEEE:
+		/*
+		 * Handle these when interrupts get re-enabled and we take
+		 * them as regular exceptions. We are in an NMI context
+		 * and can't handle these here.
+		 */
 		break;
 	default:
 		/* do system reset */

@@ -111,12 +111,10 @@ static int snd_ctl_elem_info_compat(struct snd_ctl_file *ctl,
 	if (get_user(data->value.enumerated.item, &data32->value.enumerated.item))
 		goto error;
 
-	snd_power_lock(ctl->card);
 	err = snd_power_wait(ctl->card, SNDRV_CTL_POWER_D0);
-	if (err >= 0)
-		err = snd_ctl_elem_info(ctl, data);
-	snd_power_unlock(ctl->card);
-
+	if (err < 0)
+		goto error;
+	err = snd_ctl_elem_info(ctl, data);
 	if (err < 0)
 		goto error;
 	/* restore info to 32bit */
@@ -315,14 +313,13 @@ static int ctl_elem_read_user(struct snd_card *card,
 	if (err < 0)
 		goto error;
 
-	snd_power_lock(card);
 	err = snd_power_wait(card, SNDRV_CTL_POWER_D0);
-	if (err >= 0)
-		err = snd_ctl_elem_read(card, data);
-	snd_power_unlock(card);
-	if (err >= 0)
-		err = copy_ctl_value_to_user(userdata, valuep, data,
-					     type, count);
+	if (err < 0)
+		goto error;
+	err = snd_ctl_elem_read(card, data);
+	if (err < 0)
+		goto error;
+	err = copy_ctl_value_to_user(userdata, valuep, data, type, count);
  error:
 	kfree(data);
 	return err;
@@ -344,14 +341,13 @@ static int ctl_elem_write_user(struct snd_ctl_file *file,
 	if (err < 0)
 		goto error;
 
-	snd_power_lock(card);
 	err = snd_power_wait(card, SNDRV_CTL_POWER_D0);
-	if (err >= 0)
-		err = snd_ctl_elem_write(card, file, data);
-	snd_power_unlock(card);
-	if (err >= 0)
-		err = copy_ctl_value_to_user(userdata, valuep, data,
-					     type, count);
+	if (err < 0)
+		goto error;
+	err = snd_ctl_elem_write(card, file, data);
+	if (err < 0)
+		goto error;
+	err = copy_ctl_value_to_user(userdata, valuep, data, type, count);
  error:
 	kfree(data);
 	return err;

@@ -9,7 +9,9 @@
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 #include <linux/err.h>
+#include <linux/kernel.h>
 #include <linux/string.h>
+#include <errno.h>
 #include "perf.h"
 #include "debug.h"
 #include "bpf-loader.h"
@@ -17,6 +19,7 @@
 #include "probe-event.h"
 #include "probe-finder.h" // for MAX_PROBES
 #include "parse-events.h"
+#include "strfilter.h"
 #include "llvm-utils.h"
 #include "c++/clang-c.h"
 
@@ -1243,7 +1246,7 @@ int bpf__config_obj(struct bpf_object *obj,
 	if (!obj || !term || !term->config)
 		return -EINVAL;
 
-	if (!prefixcmp(term->config, "map:")) {
+	if (strstarts(term->config, "map:")) {
 		key_scan_pos = sizeof("map:") - 1;
 		err = bpf__obj_config_map(obj, term, evlist, &key_scan_pos);
 		goto out;

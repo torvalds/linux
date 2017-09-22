@@ -36,7 +36,7 @@
 #include "cobalt-omnitek.h"
 
 /* add your revision and whatnot here */
-static struct pci_device_id cobalt_pci_tbl[] = {
+static const struct pci_device_id cobalt_pci_tbl[] = {
 	{PCI_VENDOR_ID_CISCO, PCI_DEVICE_ID_COBALT,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0,}
@@ -205,6 +205,8 @@ void cobalt_pcie_status_show(struct cobalt *cobalt)
 
 	offset = pci_find_capability(pci_dev, PCI_CAP_ID_EXP);
 	bus_offset = pci_find_capability(pci_bus_dev, PCI_CAP_ID_EXP);
+	if (!offset || !bus_offset)
+		return;
 
 	/* Device */
 	pci_read_config_dword(pci_dev, offset + PCI_EXP_DEVCAP, &capa);

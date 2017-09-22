@@ -22,6 +22,8 @@
 #ifndef _OCTEON_DEVICE_H_
 #define  _OCTEON_DEVICE_H_
 
+#include <linux/interrupt.h>
+
 /** PCI VendorId Device Id */
 #define  OCTEON_CN68XX_PCIID          0x91177d
 #define  OCTEON_CN66XX_PCIID          0x92177d
@@ -192,6 +194,8 @@ struct octeon_reg_list {
 };
 
 #define OCTEON_CONSOLE_MAX_READ_BYTES 512
+typedef int (*octeon_console_print_fn)(struct octeon_device *oct,
+				       u32 num, char *pre, char *suf);
 struct octeon_console {
 	u32 active;
 	u32 waiting;
@@ -199,6 +203,7 @@ struct octeon_console {
 	u32 buffer_size;
 	u64 input_base_addr;
 	u64 output_base_addr;
+	octeon_console_print_fn print;
 	char leftover[OCTEON_CONSOLE_MAX_READ_BYTES];
 };
 
@@ -453,9 +458,6 @@ struct octeon_device {
 	/** List of dispatch functions */
 	struct octeon_dispatch_list dispatch;
 
-	/* Interrupt Moderation */
-	struct oct_intrmod_cfg intrmod;
-
 	u32 int_status;
 
 	u64 droq_intr;
@@ -517,6 +519,9 @@ struct octeon_device {
 
 	void *msix_entries;
 
+	/* when requesting IRQs, the names are stored here */
+	void *irq_name_storage;
+
 	struct octeon_sriov_info sriov_info;
 
 	struct octeon_pf_vf_hs_word pfvf_hsword;
@@ -538,6 +543,21 @@ struct octeon_device {
 	u32 priv_flags;
 
 	void *watchdog_task;
+
+	u32 rx_coalesce_usecs;
+	u32 rx_max_coalesced_frames;
+	u32 tx_max_coalesced_frames;
+
+	bool cores_crashed;
+
+	struct {
+		int bus;
+		int dev;
+		int func;
+	} loc;
+
+	atomic_t *adapter_refcount; /* reference count of adapter */
+	bool ptp_enable;
 };
 
 #define  OCT_DRV_ONLINE 1
@@ -551,11 +571,7 @@ struct octeon_device {
 #define CHIP_CONF(oct, TYPE)             \
 	(((struct octeon_ ## TYPE  *)((oct)->chip))->conf)
 
-struct oct_intrmod_cmd {
-	struct octeon_device *oct_dev;
-	struct octeon_soft_command *sc;
-	struct oct_intrmod_cfg *cfg;
-};
+#define MAX_IO_PENDING_PKT_COUNT 100
 
 /*------------------ Function Prototypes ----------------------*/
 
@@ -571,6 +587,23 @@ void octeon_free_device_mem(struct octeon_device *oct);
  */
 struct octeon_device *octeon_allocate_device(u32 pci_id,
 					     u32 priv_size);
+
+/** Register a device's bus location at initialization time.
+ *  @param octeon_dev - pointer to the octeon device structure.
+ *  @param bus        - PCIe bus #
+ *  @param dev        - PCIe device #
+ *  @param func       - PCIe function #
+ *  @param is_pf      - TRUE for PF, FALSE for VF
+ *  @return reference count of device's adapter
+ */
+int octeon_register_device(struct octeon_device *oct,
+			   int bus, int dev, int func, int is_pf);
+
+/** Deregister a device at de-initialization time.
+ *  @param octeon_dev - pointer to the octeon device structure.
+ *  @return reference count of device's adapter
+ */
+int octeon_deregister_device(struct octeon_device *oct);
 
 /**  Initialize the driver's dispatch list which is a mix of a hash table
  *  and a linked list. This is done at driver load time.
@@ -715,11 +748,17 @@ int octeon_init_consoles(struct octeon_device *oct);
 /**
  * Adds access to a console to the device.
  *
- * @param oct which octeon to add to
- * @param console_num which console
+ * @param oct:          which octeon to add to
+ * @param console_num:  which console
+ * @param dbg_enb:      ptr to debug enablement string, one of:
+ *                    * NULL for no debug output (i.e. disabled)
+ *                    * empty string enables debug output (via default method)
+ *                    * specific string to enable debug console output
+ *
  * @return Zero on success, negative on failure.
  */
-int octeon_add_console(struct octeon_device *oct, u32 console_num);
+int octeon_add_console(struct octeon_device *oct, u32 console_num,
+		       char *dbg_enb);
 
 /** write or read from a console */
 int octeon_console_write(struct octeon_device *oct, u32 console_num,

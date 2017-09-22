@@ -75,12 +75,14 @@ static int kgd_init_pipeline(struct kgd_dev *kgd, uint32_t pipe_id,
 				uint32_t hpd_size, uint64_t hpd_gpu_addr);
 static int kgd_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id);
 static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
-			uint32_t queue_id, uint32_t __user *wptr);
+			uint32_t queue_id, uint32_t __user *wptr,
+			uint32_t wptr_shift, uint32_t wptr_mask,
+			struct mm_struct *mm);
 static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd);
 static bool kgd_hqd_is_occupied(struct kgd_dev *kgd, uint64_t queue_address,
 				uint32_t pipe_id, uint32_t queue_id);
 
-static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
+static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd, uint32_t reset_type,
 				unsigned int timeout, uint32_t pipe_id,
 				uint32_t queue_id);
 static bool kgd_hqd_sdma_is_occupied(struct kgd_dev *kgd, void *mqd);
@@ -179,13 +181,27 @@ void radeon_kfd_device_probe(struct radeon_device *rdev)
 
 void radeon_kfd_device_init(struct radeon_device *rdev)
 {
+	int i, queue, pipe, mec;
+
 	if (rdev->kfd) {
 		struct kgd2kfd_shared_resources gpu_resources = {
 			.compute_vmid_bitmap = 0xFF00,
-
-			.first_compute_pipe = 1,
-			.compute_pipe_count = 4 - 1,
+			.num_pipe_per_mec = 4,
+			.num_queue_per_pipe = 8
 		};
+
+		bitmap_zero(gpu_resources.queue_bitmap, KGD_MAX_QUEUES);
+
+		for (i = 0; i < KGD_MAX_QUEUES; ++i) {
+			queue = i % gpu_resources.num_queue_per_pipe;
+			pipe = (i / gpu_resources.num_queue_per_pipe)
+				% gpu_resources.num_pipe_per_mec;
+			mec = (i / gpu_resources.num_queue_per_pipe)
+				/ gpu_resources.num_pipe_per_mec;
+
+			if (mec == 0 && pipe > 0)
+				set_bit(i, gpu_resources.queue_bitmap);
+		}
 
 		radeon_doorbell_get_kfd_info(rdev,
 				&gpu_resources.doorbell_physical_address,
@@ -423,18 +439,7 @@ static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
 static int kgd_init_pipeline(struct kgd_dev *kgd, uint32_t pipe_id,
 				uint32_t hpd_size, uint64_t hpd_gpu_addr)
 {
-	uint32_t mec = (pipe_id / CIK_PIPE_PER_MEC) + 1;
-	uint32_t pipe = (pipe_id % CIK_PIPE_PER_MEC);
-
-	lock_srbm(kgd, mec, pipe, 0, 0);
-	write_register(kgd, CP_HPD_EOP_BASE_ADDR,
-			lower_32_bits(hpd_gpu_addr >> 8));
-	write_register(kgd, CP_HPD_EOP_BASE_ADDR_HI,
-			upper_32_bits(hpd_gpu_addr >> 8));
-	write_register(kgd, CP_HPD_EOP_VMID, 0);
-	write_register(kgd, CP_HPD_EOP_CONTROL, hpd_size);
-	unlock_srbm(kgd);
-
+	/* nothing to do here */
 	return 0;
 }
 
@@ -479,7 +484,9 @@ static inline struct cik_sdma_rlc_registers *get_sdma_mqd(void *mqd)
 }
 
 static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
-			uint32_t queue_id, uint32_t __user *wptr)
+			uint32_t queue_id, uint32_t __user *wptr,
+			uint32_t wptr_shift, uint32_t wptr_mask,
+			struct mm_struct *mm)
 {
 	uint32_t wptr_shadow, is_wptr_shadow_valid;
 	struct cik_mqd *m;
@@ -633,7 +640,7 @@ static bool kgd_hqd_sdma_is_occupied(struct kgd_dev *kgd, void *mqd)
 	return false;
 }
 
-static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
+static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd, uint32_t reset_type,
 				unsigned int timeout, uint32_t pipe_id,
 				uint32_t queue_id)
 {
@@ -782,7 +789,8 @@ static uint32_t kgd_address_watch_get_offset(struct kgd_dev *kgd,
 					unsigned int watch_point_id,
 					unsigned int reg_offset)
 {
-	return watchRegs[watch_point_id * ADDRESS_WATCH_REG_MAX + reg_offset];
+	return watchRegs[watch_point_id * ADDRESS_WATCH_REG_MAX + reg_offset]
+		/ 4;
 }
 
 static bool get_atc_vmid_pasid_mapping_valid(struct kgd_dev *kgd, uint8_t vmid)

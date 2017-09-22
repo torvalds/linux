@@ -121,7 +121,7 @@ struct drm_gem_cma_object *drm_gem_cma_create(struct drm_device *drm,
 	return cma_obj;
 
 error:
-	drm_gem_object_unreference_unlocked(&cma_obj->base);
+	drm_gem_object_put_unlocked(&cma_obj->base);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(drm_gem_cma_create);
@@ -163,7 +163,7 @@ drm_gem_cma_create_with_handle(struct drm_file *file_priv,
 	 */
 	ret = drm_gem_handle_create(file_priv, gem_obj, handle);
 	/* drop reference from allocate - handle holds it now. */
-	drm_gem_object_unreference_unlocked(gem_obj);
+	drm_gem_object_put_unlocked(gem_obj);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -177,7 +177,7 @@ drm_gem_cma_create_with_handle(struct drm_file *file_priv,
  * This function frees the backing memory of the CMA GEM object, cleans up the
  * GEM object state and frees the memory used to store the object itself.
  * Drivers using the CMA helpers should set this as their
- * &drm_driver.gem_free_object callback.
+ * &drm_driver.gem_free_object_unlocked callback.
  */
 void drm_gem_cma_free_object(struct drm_gem_object *gem_obj)
 {
@@ -264,41 +264,6 @@ int drm_gem_cma_dumb_create(struct drm_file *file_priv,
 }
 EXPORT_SYMBOL_GPL(drm_gem_cma_dumb_create);
 
-/**
- * drm_gem_cma_dumb_map_offset - return the fake mmap offset for a CMA GEM
- *     object
- * @file_priv: DRM file-private structure containing the GEM object
- * @drm: DRM device
- * @handle: GEM object handle
- * @offset: return location for the fake mmap offset
- *
- * This function look up an object by its handle and returns the fake mmap
- * offset associated with it. Drivers using the CMA helpers should set this
- * as their &drm_driver.dumb_map_offset callback.
- *
- * Returns:
- * 0 on success or a negative error code on failure.
- */
-int drm_gem_cma_dumb_map_offset(struct drm_file *file_priv,
-				struct drm_device *drm, u32 handle,
-				u64 *offset)
-{
-	struct drm_gem_object *gem_obj;
-
-	gem_obj = drm_gem_object_lookup(file_priv, handle);
-	if (!gem_obj) {
-		dev_err(drm->dev, "failed to lookup GEM object\n");
-		return -EINVAL;
-	}
-
-	*offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
-
-	drm_gem_object_unreference_unlocked(gem_obj);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(drm_gem_cma_dumb_map_offset);
-
 const struct vm_operations_struct drm_gem_cma_vm_ops = {
 	.open = drm_gem_vm_open,
 	.close = drm_gem_vm_close,
@@ -337,6 +302,9 @@ static int drm_gem_cma_mmap_obj(struct drm_gem_cma_object *cma_obj,
  * faulting. Drivers which employ the CMA helpers should use this function
  * as their ->mmap() handler in the DRM device file's file_operations
  * structure.
+ *
+ * Instead of directly referencing this function, drivers should use the
+ * DEFINE_DRM_GEM_CMA_FOPS().macro.
  *
  * Returns:
  * 0 on success or a negative error code on failure.
@@ -387,7 +355,7 @@ unsigned long drm_gem_cma_get_unmapped_area(struct file *filp,
 	struct drm_device *dev = priv->minor->dev;
 	struct drm_vma_offset_node *node;
 
-	if (drm_device_is_unplugged(dev))
+	if (drm_dev_is_unplugged(dev))
 		return -ENODEV;
 
 	drm_vma_offset_lock_lookup(dev->vma_offset_manager);
@@ -416,13 +384,13 @@ unsigned long drm_gem_cma_get_unmapped_area(struct file *filp,
 		return -EINVAL;
 
 	if (!drm_vma_node_is_allowed(node, priv)) {
-		drm_gem_object_unreference_unlocked(obj);
+		drm_gem_object_put_unlocked(obj);
 		return -EACCES;
 	}
 
 	cma_obj = to_drm_gem_cma_obj(obj);
 
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 	return cma_obj->vaddr ? (unsigned long)cma_obj->vaddr : -EINVAL;
 }

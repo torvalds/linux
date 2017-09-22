@@ -62,11 +62,13 @@ struct hwicap_drvdata {
 
 struct hwicap_driver_config {
 	/* Read configuration data given by size into the data buffer.
-	   Return 0 if successful. */
+	 * Return 0 if successful.
+	 */
 	int (*get_configuration)(struct hwicap_drvdata *drvdata, u32 *data,
 			u32 size);
 	/* Write configuration data given by size from the data buffer.
-	   Return 0 if successful. */
+	 * Return 0 if successful.
+	 */
 	int (*set_configuration)(struct hwicap_drvdata *drvdata, u32 *data,
 			u32 size);
 	/* Get the status register, bit pattern given by:
@@ -193,11 +195,12 @@ struct config_registers {
  * hwicap_type_1_read - Generates a Type 1 read packet header.
  * @reg: is the address of the register to be read back.
  *
+ * Return:
  * Generates a Type 1 read packet header, which is used to indirectly
  * read registers in the configuration logic.  This packet must then
  * be sent through the icap device, and a return packet received with
  * the information.
- **/
+ */
 static inline u32 hwicap_type_1_read(u32 reg)
 {
 	return (XHI_TYPE_1 << XHI_TYPE_SHIFT) |
@@ -208,7 +211,9 @@ static inline u32 hwicap_type_1_read(u32 reg)
 /**
  * hwicap_type_1_write - Generates a Type 1 write packet header
  * @reg: is the address of the register to be read back.
- **/
+ *
+ * Return: Type 1 write packet header
+ */
 static inline u32 hwicap_type_1_write(u32 reg)
 {
 	return (XHI_TYPE_1 << XHI_TYPE_SHIFT) |

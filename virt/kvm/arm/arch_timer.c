@@ -21,6 +21,7 @@
 #include <linux/kvm_host.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/uaccess.h>
 
 #include <clocksource/arm_arch_timer.h>
 #include <asm/arch_timer.h>
@@ -34,6 +35,16 @@
 static struct timecounter *timecounter;
 static unsigned int host_vtimer_irq;
 static u32 host_vtimer_irq_flags;
+
+static const struct kvm_irq_level default_ptimer_irq = {
+	.irq	= 30,
+	.level	= 1,
+};
+
+static const struct kvm_irq_level default_vtimer_irq = {
+	.irq	= 27,
+	.level	= 1,
+};
 
 void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu)
 {
@@ -95,7 +106,7 @@ static void kvm_timer_inject_irq_work(struct work_struct *work)
 	 * If the vcpu is blocked we want to wake it up so that it will see
 	 * the timer has expired when entering the guest.
 	 */
-	kvm_vcpu_kick(vcpu);
+	kvm_vcpu_wake_up(vcpu);
 }
 
 static u64 kvm_timer_compute_delta(struct arch_timer_context *timer_ctx)
@@ -184,28 +195,48 @@ bool kvm_timer_should_fire(struct arch_timer_context *timer_ctx)
 	return cval <= now;
 }
 
+/*
+ * Reflect the timer output level into the kvm_run structure
+ */
+void kvm_timer_update_run(struct kvm_vcpu *vcpu)
+{
+	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
+	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
+	struct kvm_sync_regs *regs = &vcpu->run->s.regs;
+
+	/* Populate the device bitmap with the timer states */
+	regs->device_irq_level &= ~(KVM_ARM_DEV_EL1_VTIMER |
+				    KVM_ARM_DEV_EL1_PTIMER);
+	if (vtimer->irq.level)
+		regs->device_irq_level |= KVM_ARM_DEV_EL1_VTIMER;
+	if (ptimer->irq.level)
+		regs->device_irq_level |= KVM_ARM_DEV_EL1_PTIMER;
+}
+
 static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level,
 				 struct arch_timer_context *timer_ctx)
 {
 	int ret;
-
-	BUG_ON(!vgic_initialized(vcpu->kvm));
 
 	timer_ctx->active_cleared_last = false;
 	timer_ctx->irq.level = new_level;
 	trace_kvm_timer_update_irq(vcpu->vcpu_id, timer_ctx->irq.irq,
 				   timer_ctx->irq.level);
 
-	ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id, timer_ctx->irq.irq,
-				  timer_ctx->irq.level);
-	WARN_ON(ret);
+	if (likely(irqchip_in_kernel(vcpu->kvm))) {
+		ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
+					  timer_ctx->irq.irq,
+					  timer_ctx->irq.level,
+					  timer_ctx);
+		WARN_ON(ret);
+	}
 }
 
 /*
  * Check if there was a change in the timer state (should we raise or lower
  * the line level to the GIC).
  */
-static int kvm_timer_update_state(struct kvm_vcpu *vcpu)
+static void kvm_timer_update_state(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
 	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
@@ -217,16 +248,14 @@ static int kvm_timer_update_state(struct kvm_vcpu *vcpu)
 	 * because the guest would never see the interrupt.  Instead wait
 	 * until we call this function from kvm_timer_flush_hwstate.
 	 */
-	if (!vgic_initialized(vcpu->kvm) || !timer->enabled)
-		return -ENODEV;
+	if (unlikely(!timer->enabled))
+		return;
 
 	if (kvm_timer_should_fire(vtimer) != vtimer->irq.level)
 		kvm_timer_update_irq(vcpu, !vtimer->irq.level, vtimer);
 
 	if (kvm_timer_should_fire(ptimer) != ptimer->irq.level)
 		kvm_timer_update_irq(vcpu, !ptimer->irq.level, ptimer);
-
-	return 0;
 }
 
 /* Schedule the background timer for the emulated timer. */
@@ -286,24 +315,11 @@ void kvm_timer_unschedule(struct kvm_vcpu *vcpu)
 	timer_disarm(timer);
 }
 
-/**
- * kvm_timer_flush_hwstate - prepare to move the virt timer to the cpu
- * @vcpu: The vcpu pointer
- *
- * Check if the virtual timer has expired while we were running in the host,
- * and inject an interrupt if that was the case.
- */
-void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu)
+static void kvm_timer_flush_hwstate_vgic(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
 	bool phys_active;
 	int ret;
-
-	if (kvm_timer_update_state(vcpu))
-		return;
-
-	/* Set the background timer for the physical timer emulation. */
-	kvm_timer_emulate(vcpu, vcpu_ptimer(vcpu));
 
 	/*
 	* If we enter the guest with the virtual input level to the VGIC
@@ -356,11 +372,72 @@ void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu)
 	vtimer->active_cleared_last = !phys_active;
 }
 
+bool kvm_timer_should_notify_user(struct kvm_vcpu *vcpu)
+{
+	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
+	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
+	struct kvm_sync_regs *sregs = &vcpu->run->s.regs;
+	bool vlevel, plevel;
+
+	if (likely(irqchip_in_kernel(vcpu->kvm)))
+		return false;
+
+	vlevel = sregs->device_irq_level & KVM_ARM_DEV_EL1_VTIMER;
+	plevel = sregs->device_irq_level & KVM_ARM_DEV_EL1_PTIMER;
+
+	return vtimer->irq.level != vlevel ||
+	       ptimer->irq.level != plevel;
+}
+
+static void kvm_timer_flush_hwstate_user(struct kvm_vcpu *vcpu)
+{
+	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
+
+	/*
+	 * To prevent continuously exiting from the guest, we mask the
+	 * physical interrupt such that the guest can make forward progress.
+	 * Once we detect the output level being deasserted, we unmask the
+	 * interrupt again so that we exit from the guest when the timer
+	 * fires.
+	*/
+	if (vtimer->irq.level)
+		disable_percpu_irq(host_vtimer_irq);
+	else
+		enable_percpu_irq(host_vtimer_irq, 0);
+}
+
+/**
+ * kvm_timer_flush_hwstate - prepare timers before running the vcpu
+ * @vcpu: The vcpu pointer
+ *
+ * Check if the virtual timer has expired while we were running in the host,
+ * and inject an interrupt if that was the case, making sure the timer is
+ * masked or disabled on the host so that we keep executing.  Also schedule a
+ * software timer for the physical timer if it is enabled.
+ */
+void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu)
+{
+	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+
+	if (unlikely(!timer->enabled))
+		return;
+
+	kvm_timer_update_state(vcpu);
+
+	/* Set the background timer for the physical timer emulation. */
+	kvm_timer_emulate(vcpu, vcpu_ptimer(vcpu));
+
+	if (unlikely(!irqchip_in_kernel(vcpu->kvm)))
+		kvm_timer_flush_hwstate_user(vcpu);
+	else
+		kvm_timer_flush_hwstate_vgic(vcpu);
+}
+
 /**
  * kvm_timer_sync_hwstate - sync timer state from cpu
  * @vcpu: The vcpu pointer
  *
- * Check if the virtual timer has expired while we were running in the guest,
+ * Check if any of the timers have expired while we were running in the guest,
  * and inject an interrupt if that was the case.
  */
 void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu)
@@ -380,21 +457,10 @@ void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu)
 	kvm_timer_update_state(vcpu);
 }
 
-int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
-			 const struct kvm_irq_level *virt_irq,
-			 const struct kvm_irq_level *phys_irq)
+int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
 	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
-
-	/*
-	 * The vcpu timer irq number cannot be determined in
-	 * kvm_timer_vcpu_init() because it is called much before
-	 * kvm_vcpu_set_target(). To handle this, we determine
-	 * vcpu timer irq number when the vcpu is reset.
-	 */
-	vtimer->irq.irq = virt_irq->irq;
-	ptimer->irq.irq = phys_irq->irq;
 
 	/*
 	 * The bits in CNTV_CTL are architecturally reset to UNKNOWN for ARMv8
@@ -431,6 +497,8 @@ static void update_vtimer_cntvoff(struct kvm_vcpu *vcpu, u64 cntvoff)
 void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
+	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
 
 	/* Synchronize cntvoff across all vtimers of a VM. */
 	update_vtimer_cntvoff(vcpu, kvm_phys_timer_read());
@@ -439,6 +507,9 @@ void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
 	INIT_WORK(&timer->expired, kvm_timer_inject_irq_work);
 	hrtimer_init(&timer->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	timer->timer.function = kvm_timer_expire;
+
+	vtimer->irq.irq = default_vtimer_irq.irq;
+	ptimer->irq.irq = default_ptimer_irq.irq;
 }
 
 static void kvm_timer_init_interrupt(void *info)
@@ -548,6 +619,30 @@ void kvm_timer_vcpu_terminate(struct kvm_vcpu *vcpu)
 	kvm_vgic_unmap_phys_irq(vcpu, vtimer->irq.irq);
 }
 
+static bool timer_irqs_are_valid(struct kvm_vcpu *vcpu)
+{
+	int vtimer_irq, ptimer_irq;
+	int i, ret;
+
+	vtimer_irq = vcpu_vtimer(vcpu)->irq.irq;
+	ret = kvm_vgic_set_owner(vcpu, vtimer_irq, vcpu_vtimer(vcpu));
+	if (ret)
+		return false;
+
+	ptimer_irq = vcpu_ptimer(vcpu)->irq.irq;
+	ret = kvm_vgic_set_owner(vcpu, ptimer_irq, vcpu_ptimer(vcpu));
+	if (ret)
+		return false;
+
+	kvm_for_each_vcpu(i, vcpu, vcpu->kvm) {
+		if (vcpu_vtimer(vcpu)->irq.irq != vtimer_irq ||
+		    vcpu_ptimer(vcpu)->irq.irq != ptimer_irq)
+			return false;
+	}
+
+	return true;
+}
+
 int kvm_timer_enable(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
@@ -559,6 +654,18 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 
 	if (timer->enabled)
 		return 0;
+
+	/* Without a VGIC we do not map virtual IRQs to physical IRQs */
+	if (!irqchip_in_kernel(vcpu->kvm))
+		goto no_vgic;
+
+	if (!vgic_initialized(vcpu->kvm))
+		return -ENODEV;
+
+	if (!timer_irqs_are_valid(vcpu)) {
+		kvm_debug("incorrectly configured timer irqs\n");
+		return -EINVAL;
+	}
 
 	/*
 	 * Find the physical IRQ number corresponding to the host_vtimer_irq
@@ -583,8 +690,8 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 	if (ret)
 		return ret;
 
+no_vgic:
 	timer->enabled = 1;
-
 	return 0;
 }
 
@@ -608,4 +715,80 @@ void kvm_timer_init_vhe(void)
 	val &= ~(CNTHCTL_EL1PCEN << cnthctl_shift);
 	val |= (CNTHCTL_EL1PCTEN << cnthctl_shift);
 	write_sysreg(val, cnthctl_el2);
+}
+
+static void set_timer_irqs(struct kvm *kvm, int vtimer_irq, int ptimer_irq)
+{
+	struct kvm_vcpu *vcpu;
+	int i;
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		vcpu_vtimer(vcpu)->irq.irq = vtimer_irq;
+		vcpu_ptimer(vcpu)->irq.irq = ptimer_irq;
+	}
+}
+
+int kvm_arm_timer_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
+{
+	int __user *uaddr = (int __user *)(long)attr->addr;
+	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
+	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
+	int irq;
+
+	if (!irqchip_in_kernel(vcpu->kvm))
+		return -EINVAL;
+
+	if (get_user(irq, uaddr))
+		return -EFAULT;
+
+	if (!(irq_is_ppi(irq)))
+		return -EINVAL;
+
+	if (vcpu->arch.timer_cpu.enabled)
+		return -EBUSY;
+
+	switch (attr->attr) {
+	case KVM_ARM_VCPU_TIMER_IRQ_VTIMER:
+		set_timer_irqs(vcpu->kvm, irq, ptimer->irq.irq);
+		break;
+	case KVM_ARM_VCPU_TIMER_IRQ_PTIMER:
+		set_timer_irqs(vcpu->kvm, vtimer->irq.irq, irq);
+		break;
+	default:
+		return -ENXIO;
+	}
+
+	return 0;
+}
+
+int kvm_arm_timer_get_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
+{
+	int __user *uaddr = (int __user *)(long)attr->addr;
+	struct arch_timer_context *timer;
+	int irq;
+
+	switch (attr->attr) {
+	case KVM_ARM_VCPU_TIMER_IRQ_VTIMER:
+		timer = vcpu_vtimer(vcpu);
+		break;
+	case KVM_ARM_VCPU_TIMER_IRQ_PTIMER:
+		timer = vcpu_ptimer(vcpu);
+		break;
+	default:
+		return -ENXIO;
+	}
+
+	irq = timer->irq.irq;
+	return put_user(irq, uaddr);
+}
+
+int kvm_arm_timer_has_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
+{
+	switch (attr->attr) {
+	case KVM_ARM_VCPU_TIMER_IRQ_VTIMER:
+	case KVM_ARM_VCPU_TIMER_IRQ_PTIMER:
+		return 0;
+	}
+
+	return -ENXIO;
 }

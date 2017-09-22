@@ -209,7 +209,8 @@ static int bpf_parse_prog(struct nlattr *attr, struct bpf_lwt_prog *prog,
 	int ret;
 	u32 fd;
 
-	ret = nla_parse_nested(tb, LWT_BPF_PROG_MAX, attr, bpf_prog_policy);
+	ret = nla_parse_nested(tb, LWT_BPF_PROG_MAX, attr, bpf_prog_policy,
+			       NULL);
 	if (ret < 0)
 		return ret;
 
@@ -239,7 +240,8 @@ static const struct nla_policy bpf_nl_policy[LWT_BPF_MAX + 1] = {
 
 static int bpf_build_state(struct nlattr *nla,
 			   unsigned int family, const void *cfg,
-			   struct lwtunnel_state **ts)
+			   struct lwtunnel_state **ts,
+			   struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[LWT_BPF_MAX + 1];
 	struct lwtunnel_state *newts;
@@ -249,7 +251,7 @@ static int bpf_build_state(struct nlattr *nla,
 	if (family != AF_INET && family != AF_INET6)
 		return -EAFNOSUPPORT;
 
-	ret = nla_parse_nested(tb, LWT_BPF_MAX, nla, bpf_nl_policy);
+	ret = nla_parse_nested(tb, LWT_BPF_MAX, nla, bpf_nl_policy, extack);
 	if (ret < 0)
 		return ret;
 

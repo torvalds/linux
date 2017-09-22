@@ -128,7 +128,7 @@ static void qcom_cc_gdsc_unregister(void *data)
 
 /*
  * Backwards compatibility with old DTs. Register a pass-through factor 1/1
- * clock to translate 'path' clk into 'name' clk and regsiter the 'path'
+ * clock to translate 'path' clk into 'name' clk and register the 'path'
  * clk as a fixed rate clock if it isn't present.
  */
 static int _qcom_cc_register_board_clk(struct device *dev, const char *path,

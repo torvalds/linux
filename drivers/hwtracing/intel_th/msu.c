@@ -27,7 +27,9 @@
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
 
-#include <asm/cacheflush.h>
+#ifdef CONFIG_X86
+#include <asm/set_memory.h>
+#endif
 
 #include "intel_th.h"
 #include "msu.h"
@@ -707,17 +709,17 @@ static int msc_buffer_win_alloc(struct msc *msc, unsigned int nr_blocks)
 	}
 
 	for (i = 0; i < nr_blocks; i++) {
-		win->block[i].bdesc = dma_alloc_coherent(msc_dev(msc), size,
-							 &win->block[i].addr,
-							 GFP_KERNEL);
+		win->block[i].bdesc =
+			dma_alloc_coherent(msc_dev(msc)->parent->parent, size,
+					   &win->block[i].addr, GFP_KERNEL);
+
+		if (!win->block[i].bdesc)
+			goto err_nomem;
 
 #ifdef CONFIG_X86
 		/* Set the page as uncached */
 		set_memory_uc((unsigned long)win->block[i].bdesc, 1);
 #endif
-
-		if (!win->block[i].bdesc)
-			goto err_nomem;
 	}
 
 	win->msc = msc;

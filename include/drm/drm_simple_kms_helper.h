@@ -72,7 +72,7 @@ struct drm_simple_display_pipe_funcs {
 	 * the hardware lacks vblank support entirely.
 	 */
 	void (*update)(struct drm_simple_display_pipe *pipe,
-		       struct drm_plane_state *plane_state);
+		       struct drm_plane_state *old_plane_state);
 
 	/**
 	 * @prepare_fb:
@@ -122,6 +122,7 @@ int drm_simple_display_pipe_init(struct drm_device *dev,
 			struct drm_simple_display_pipe *pipe,
 			const struct drm_simple_display_pipe_funcs *funcs,
 			const uint32_t *formats, unsigned int format_count,
+			const uint64_t *format_modifiers,
 			struct drm_connector *connector);
 
 #endif /* __LINUX_DRM_SIMPLE_KMS_HELPER_H */

@@ -22,41 +22,9 @@ static DEFINE_PER_CPU(bool, hard_watchdog_warn);
 static DEFINE_PER_CPU(bool, watchdog_nmi_touch);
 static DEFINE_PER_CPU(struct perf_event *, watchdog_ev);
 
-/* boot commands */
-/*
- * Should we panic when a soft-lockup or hard-lockup occurs:
- */
-unsigned int __read_mostly hardlockup_panic =
-			CONFIG_BOOTPARAM_HARDLOCKUP_PANIC_VALUE;
 static unsigned long hardlockup_allcpu_dumped;
-/*
- * We may not want to enable hard lockup detection by default in all cases,
- * for example when running the kernel as a guest on a hypervisor. In these
- * cases this function can be called to disable hard lockup detection. This
- * function should only be executed once by the boot processor before the
- * kernel command line parameters are parsed, because otherwise it is not
- * possible to override this in hardlockup_panic_setup().
- */
-void hardlockup_detector_disable(void)
-{
-	watchdog_enabled &= ~NMI_WATCHDOG_ENABLED;
-}
 
-static int __init hardlockup_panic_setup(char *str)
-{
-	if (!strncmp(str, "panic", 5))
-		hardlockup_panic = 1;
-	else if (!strncmp(str, "nopanic", 7))
-		hardlockup_panic = 0;
-	else if (!strncmp(str, "0", 1))
-		watchdog_enabled &= ~NMI_WATCHDOG_ENABLED;
-	else if (!strncmp(str, "1", 1))
-		watchdog_enabled |= NMI_WATCHDOG_ENABLED;
-	return 1;
-}
-__setup("nmi_watchdog=", hardlockup_panic_setup);
-
-void touch_nmi_watchdog(void)
+void arch_touch_nmi_watchdog(void)
 {
 	/*
 	 * Using __raw here because some code paths have
@@ -66,9 +34,64 @@ void touch_nmi_watchdog(void)
 	 * going off.
 	 */
 	raw_cpu_write(watchdog_nmi_touch, true);
-	touch_softlockup_watchdog();
 }
-EXPORT_SYMBOL(touch_nmi_watchdog);
+EXPORT_SYMBOL(arch_touch_nmi_watchdog);
+
+#ifdef CONFIG_HARDLOCKUP_CHECK_TIMESTAMP
+static DEFINE_PER_CPU(ktime_t, last_timestamp);
+static DEFINE_PER_CPU(unsigned int, nmi_rearmed);
+static ktime_t watchdog_hrtimer_sample_threshold __read_mostly;
+
+void watchdog_update_hrtimer_threshold(u64 period)
+{
+	/*
+	 * The hrtimer runs with a period of (watchdog_threshold * 2) / 5
+	 *
+	 * So it runs effectively with 2.5 times the rate of the NMI
+	 * watchdog. That means the hrtimer should fire 2-3 times before
+	 * the NMI watchdog expires. The NMI watchdog on x86 is based on
+	 * unhalted CPU cycles, so if Turbo-Mode is enabled the CPU cycles
+	 * might run way faster than expected and the NMI fires in a
+	 * smaller period than the one deduced from the nominal CPU
+	 * frequency. Depending on the Turbo-Mode factor this might be fast
+	 * enough to get the NMI period smaller than the hrtimer watchdog
+	 * period and trigger false positives.
+	 *
+	 * The sample threshold is used to check in the NMI handler whether
+	 * the minimum time between two NMI samples has elapsed. That
+	 * prevents false positives.
+	 *
+	 * Set this to 4/5 of the actual watchdog threshold period so the
+	 * hrtimer is guaranteed to fire at least once within the real
+	 * watchdog threshold.
+	 */
+	watchdog_hrtimer_sample_threshold = period * 2;
+}
+
+static bool watchdog_check_timestamp(void)
+{
+	ktime_t delta, now = ktime_get_mono_fast_ns();
+
+	delta = now - __this_cpu_read(last_timestamp);
+	if (delta < watchdog_hrtimer_sample_threshold) {
+		/*
+		 * If ktime is jiffies based, a stalled timer would prevent
+		 * jiffies from being incremented and the filter would look
+		 * at a stale timestamp and never trigger.
+		 */
+		if (__this_cpu_inc_return(nmi_rearmed) < 10)
+			return false;
+	}
+	__this_cpu_write(nmi_rearmed, 0);
+	__this_cpu_write(last_timestamp, now);
+	return true;
+}
+#else
+static inline bool watchdog_check_timestamp(void)
+{
+	return true;
+}
+#endif
 
 static struct perf_event_attr wd_hw_attr = {
 	.type		= PERF_TYPE_HARDWARE,
@@ -93,6 +116,9 @@ static void watchdog_overflow_callback(struct perf_event *event,
 		__this_cpu_write(watchdog_nmi_touch, false);
 		return;
 	}
+
+	if (!watchdog_check_timestamp())
+		return;
 
 	/* check for a hardlockup
 	 * This is done by making sure our timer interrupt

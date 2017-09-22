@@ -40,6 +40,7 @@
 #include <linux/list.h>
 
 #include "item.h"
+#include "trap.h"
 #include "core_acl_flex_actions.h"
 
 enum mlxsw_afa_set_type {
@@ -567,6 +568,89 @@ static char *mlxsw_afa_block_append_action(struct mlxsw_afa_block *block,
 	return oneact + MLXSW_AFA_PAYLOAD_OFFSET;
 }
 
+/* VLAN Action
+ * -----------
+ * VLAN action is used for manipulating VLANs. It can be used to implement QinQ,
+ * VLAN translation, change of PCP bits of the VLAN tag, push, pop as swap VLANs
+ * and more.
+ */
+
+#define MLXSW_AFA_VLAN_CODE 0x02
+#define MLXSW_AFA_VLAN_SIZE 1
+
+enum mlxsw_afa_vlan_vlan_tag_cmd {
+	MLXSW_AFA_VLAN_VLAN_TAG_CMD_NOP,
+	MLXSW_AFA_VLAN_VLAN_TAG_CMD_PUSH_TAG,
+	MLXSW_AFA_VLAN_VLAN_TAG_CMD_POP_TAG,
+};
+
+enum mlxsw_afa_vlan_cmd {
+	MLXSW_AFA_VLAN_CMD_NOP,
+	MLXSW_AFA_VLAN_CMD_SET_OUTER,
+	MLXSW_AFA_VLAN_CMD_SET_INNER,
+	MLXSW_AFA_VLAN_CMD_COPY_OUTER_TO_INNER,
+	MLXSW_AFA_VLAN_CMD_COPY_INNER_TO_OUTER,
+	MLXSW_AFA_VLAN_CMD_SWAP,
+};
+
+/* afa_vlan_vlan_tag_cmd
+ * Tag command: push, pop, nop VLAN header.
+ */
+MLXSW_ITEM32(afa, vlan, vlan_tag_cmd, 0x00, 29, 3);
+
+/* afa_vlan_vid_cmd */
+MLXSW_ITEM32(afa, vlan, vid_cmd, 0x04, 29, 3);
+
+/* afa_vlan_vid */
+MLXSW_ITEM32(afa, vlan, vid, 0x04, 0, 12);
+
+/* afa_vlan_ethertype_cmd */
+MLXSW_ITEM32(afa, vlan, ethertype_cmd, 0x08, 29, 3);
+
+/* afa_vlan_ethertype
+ * Index to EtherTypes in Switch VLAN EtherType Register (SVER).
+ */
+MLXSW_ITEM32(afa, vlan, ethertype, 0x08, 24, 3);
+
+/* afa_vlan_pcp_cmd */
+MLXSW_ITEM32(afa, vlan, pcp_cmd, 0x08, 13, 3);
+
+/* afa_vlan_pcp */
+MLXSW_ITEM32(afa, vlan, pcp, 0x08, 8, 3);
+
+static inline void
+mlxsw_afa_vlan_pack(char *payload,
+		    enum mlxsw_afa_vlan_vlan_tag_cmd vlan_tag_cmd,
+		    enum mlxsw_afa_vlan_cmd vid_cmd, u16 vid,
+		    enum mlxsw_afa_vlan_cmd pcp_cmd, u8 pcp,
+		    enum mlxsw_afa_vlan_cmd ethertype_cmd, u8 ethertype)
+{
+	mlxsw_afa_vlan_vlan_tag_cmd_set(payload, vlan_tag_cmd);
+	mlxsw_afa_vlan_vid_cmd_set(payload, vid_cmd);
+	mlxsw_afa_vlan_vid_set(payload, vid);
+	mlxsw_afa_vlan_pcp_cmd_set(payload, pcp_cmd);
+	mlxsw_afa_vlan_pcp_set(payload, pcp);
+	mlxsw_afa_vlan_ethertype_cmd_set(payload, ethertype_cmd);
+	mlxsw_afa_vlan_ethertype_set(payload, ethertype);
+}
+
+int mlxsw_afa_block_append_vlan_modify(struct mlxsw_afa_block *block,
+				       u16 vid, u8 pcp, u8 et)
+{
+	char *act = mlxsw_afa_block_append_action(block,
+						  MLXSW_AFA_VLAN_CODE,
+						  MLXSW_AFA_VLAN_SIZE);
+
+	if (!act)
+		return -ENOBUFS;
+	mlxsw_afa_vlan_pack(act, MLXSW_AFA_VLAN_VLAN_TAG_CMD_NOP,
+			    MLXSW_AFA_VLAN_CMD_SET_OUTER, vid,
+			    MLXSW_AFA_VLAN_CMD_SET_OUTER, pcp,
+			    MLXSW_AFA_VLAN_CMD_SET_OUTER, et);
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_vlan_modify);
+
 /* Trap / Discard Action
  * ---------------------
  * The Trap / Discard action enables trapping / mirroring packets to the CPU
@@ -579,6 +663,16 @@ static char *mlxsw_afa_block_append_action(struct mlxsw_afa_block *block,
 #define MLXSW_AFA_TRAPDISC_CODE 0x03
 #define MLXSW_AFA_TRAPDISC_SIZE 1
 
+enum mlxsw_afa_trapdisc_trap_action {
+	MLXSW_AFA_TRAPDISC_TRAP_ACTION_NOP = 0,
+	MLXSW_AFA_TRAPDISC_TRAP_ACTION_TRAP = 2,
+};
+
+/* afa_trapdisc_trap_action
+ * Trap Action.
+ */
+MLXSW_ITEM32(afa, trapdisc, trap_action, 0x00, 24, 4);
+
 enum mlxsw_afa_trapdisc_forward_action {
 	MLXSW_AFA_TRAPDISC_FORWARD_ACTION_DISCARD = 3,
 };
@@ -588,11 +682,20 @@ enum mlxsw_afa_trapdisc_forward_action {
  */
 MLXSW_ITEM32(afa, trapdisc, forward_action, 0x00, 0, 4);
 
+/* afa_trapdisc_trap_id
+ * Trap ID to configure.
+ */
+MLXSW_ITEM32(afa, trapdisc, trap_id, 0x04, 0, 9);
+
 static inline void
 mlxsw_afa_trapdisc_pack(char *payload,
-			enum mlxsw_afa_trapdisc_forward_action forward_action)
+			enum mlxsw_afa_trapdisc_trap_action trap_action,
+			enum mlxsw_afa_trapdisc_forward_action forward_action,
+			u16 trap_id)
 {
+	mlxsw_afa_trapdisc_trap_action_set(payload, trap_action);
 	mlxsw_afa_trapdisc_forward_action_set(payload, forward_action);
+	mlxsw_afa_trapdisc_trap_id_set(payload, trap_id);
 }
 
 int mlxsw_afa_block_append_drop(struct mlxsw_afa_block *block)
@@ -603,10 +706,26 @@ int mlxsw_afa_block_append_drop(struct mlxsw_afa_block *block)
 
 	if (!act)
 		return -ENOBUFS;
-	mlxsw_afa_trapdisc_pack(act, MLXSW_AFA_TRAPDISC_FORWARD_ACTION_DISCARD);
+	mlxsw_afa_trapdisc_pack(act, MLXSW_AFA_TRAPDISC_TRAP_ACTION_NOP,
+				MLXSW_AFA_TRAPDISC_FORWARD_ACTION_DISCARD, 0);
 	return 0;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_drop);
+
+int mlxsw_afa_block_append_trap(struct mlxsw_afa_block *block)
+{
+	char *act = mlxsw_afa_block_append_action(block,
+						  MLXSW_AFA_TRAPDISC_CODE,
+						  MLXSW_AFA_TRAPDISC_SIZE);
+
+	if (!act)
+		return -ENOBUFS;
+	mlxsw_afa_trapdisc_pack(act, MLXSW_AFA_TRAPDISC_TRAP_ACTION_TRAP,
+				MLXSW_AFA_TRAPDISC_FORWARD_ACTION_DISCARD,
+				MLXSW_TRAP_ID_ACL0);
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_trap);
 
 /* Forwarding Action
  * -----------------
@@ -677,3 +796,98 @@ err_append_action:
 	return err;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_fwd);
+
+/* Policing and Counting Action
+ * ----------------------------
+ * Policing and Counting action is used for binding policer and counter
+ * to ACL rules.
+ */
+
+#define MLXSW_AFA_POLCNT_CODE 0x08
+#define MLXSW_AFA_POLCNT_SIZE 1
+
+enum mlxsw_afa_polcnt_counter_set_type {
+	/* No count */
+	MLXSW_AFA_POLCNT_COUNTER_SET_TYPE_NO_COUNT = 0x00,
+	/* Count packets and bytes */
+	MLXSW_AFA_POLCNT_COUNTER_SET_TYPE_PACKETS_BYTES = 0x03,
+	/* Count only packets */
+	MLXSW_AFA_POLCNT_COUNTER_SET_TYPE_PACKETS = 0x05,
+};
+
+/* afa_polcnt_counter_set_type
+ * Counter set type for flow counters.
+ */
+MLXSW_ITEM32(afa, polcnt, counter_set_type, 0x04, 24, 8);
+
+/* afa_polcnt_counter_index
+ * Counter index for flow counters.
+ */
+MLXSW_ITEM32(afa, polcnt, counter_index, 0x04, 0, 24);
+
+static inline void
+mlxsw_afa_polcnt_pack(char *payload,
+		      enum mlxsw_afa_polcnt_counter_set_type set_type,
+		      u32 counter_index)
+{
+	mlxsw_afa_polcnt_counter_set_type_set(payload, set_type);
+	mlxsw_afa_polcnt_counter_index_set(payload, counter_index);
+}
+
+int mlxsw_afa_block_append_counter(struct mlxsw_afa_block *block,
+				   u32 counter_index)
+{
+	char *act = mlxsw_afa_block_append_action(block,
+						  MLXSW_AFA_POLCNT_CODE,
+						  MLXSW_AFA_POLCNT_SIZE);
+	if (!act)
+		return -ENOBUFS;
+	mlxsw_afa_polcnt_pack(act, MLXSW_AFA_POLCNT_COUNTER_SET_TYPE_PACKETS_BYTES,
+			      counter_index);
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_counter);
+
+/* Virtual Router and Forwarding Domain Action
+ * -------------------------------------------
+ * Virtual Switch action is used for manipulate the Virtual Router (VR),
+ * MPLS label space and the Forwarding Identifier (FID).
+ */
+
+#define MLXSW_AFA_VIRFWD_CODE 0x0E
+#define MLXSW_AFA_VIRFWD_SIZE 1
+
+enum mlxsw_afa_virfwd_fid_cmd {
+	/* Do nothing */
+	MLXSW_AFA_VIRFWD_FID_CMD_NOOP,
+	/* Set the Forwarding Identifier (FID) to fid */
+	MLXSW_AFA_VIRFWD_FID_CMD_SET,
+};
+
+/* afa_virfwd_fid_cmd */
+MLXSW_ITEM32(afa, virfwd, fid_cmd, 0x08, 29, 3);
+
+/* afa_virfwd_fid
+ * The FID value.
+ */
+MLXSW_ITEM32(afa, virfwd, fid, 0x08, 0, 16);
+
+static inline void mlxsw_afa_virfwd_pack(char *payload,
+					 enum mlxsw_afa_virfwd_fid_cmd fid_cmd,
+					 u16 fid)
+{
+	mlxsw_afa_virfwd_fid_cmd_set(payload, fid_cmd);
+	mlxsw_afa_virfwd_fid_set(payload, fid);
+}
+
+int mlxsw_afa_block_append_fid_set(struct mlxsw_afa_block *block, u16 fid)
+{
+	char *act = mlxsw_afa_block_append_action(block,
+						  MLXSW_AFA_VIRFWD_CODE,
+						  MLXSW_AFA_VIRFWD_SIZE);
+	if (!act)
+		return -ENOBUFS;
+	mlxsw_afa_virfwd_pack(act, MLXSW_AFA_VIRFWD_FID_CMD_SET, fid);
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_fid_set);

@@ -43,11 +43,6 @@ large discards are issued, setting this value lower will make Linux issue
 smaller discards and potentially help reduce latencies induced by large
 discard operations.
 
-discard_zeroes_data (RO)
-------------------------
-When read, this file will show if the discarded block are zeroed by the
-device or not. If its value is '1' the blocks are zeroed otherwise not.
-
 hw_sector_size (RO)
 -------------------
 This is the hardware sector size of the device, in bytes.
@@ -192,5 +187,11 @@ scaling back writes. Writing a value of '0' to this file disables the
 feature. Writing a value of '-1' to this file resets the value to the
 default setting.
 
+throttle_sample_time (RW)
+-------------------------
+This is the time window that blk-throttle samples data, in millisecond.
+blk-throttle makes decision based on the samplings. Lower time means cgroups
+have more smooth throughput, but higher CPU overhead. This exists only when
+CONFIG_BLK_DEV_THROTTLING_LOW is enabled.
 
 Jens Axboe <jens.axboe@oracle.com>, February 2009

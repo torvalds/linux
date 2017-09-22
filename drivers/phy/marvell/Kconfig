@@ -1,0 +1,61 @@
+#
+# Phy drivers for Marvell platforms
+#
+config ARMADA375_USBCLUSTER_PHY
+	def_bool y
+	depends on MACH_ARMADA_375 || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	select GENERIC_PHY
+
+config PHY_BERLIN_SATA
+	tristate "Marvell Berlin SATA PHY driver"
+	depends on ARCH_BERLIN && HAS_IOMEM && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the SATA PHY on Marvell Berlin SoCs.
+
+config PHY_BERLIN_USB
+	tristate "Marvell Berlin USB PHY Driver"
+	depends on ARCH_BERLIN && RESET_CONTROLLER && HAS_IOMEM && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the USB PHY on Marvell Berlin SoCs.
+
+config PHY_MVEBU_CP110_COMPHY
+	tristate "Marvell CP110 comphy driver"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on OF
+	select GENERIC_PHY
+	help
+	  This driver allows to control the comphy, an hardware block providing
+	  shared serdes PHYs on Marvell Armada 7k/8k (in the CP110). Its serdes
+	  lanes can be used by various controllers (Ethernet, sata, usb,
+	  PCIe...).
+
+config PHY_MVEBU_SATA
+	def_bool y
+	depends on ARCH_DOVE || MACH_DOVE || MACH_KIRKWOOD
+	depends on OF
+	select GENERIC_PHY
+
+config PHY_PXA_28NM_HSIC
+	tristate "Marvell USB HSIC 28nm PHY Driver"
+	depends on HAS_IOMEM
+	select GENERIC_PHY
+	help
+	  Enable this to support Marvell USB HSIC PHY driver for Marvell
+	  SoC. This driver will do the PHY initialization and shutdown.
+	  The PHY driver will be used by Marvell ehci driver.
+
+	  To compile this driver as a module, choose M here.
+
+config PHY_PXA_28NM_USB2
+	tristate "Marvell USB 2.0 28nm PHY Driver"
+	depends on HAS_IOMEM
+	select GENERIC_PHY
+	help
+	  Enable this to support Marvell USB 2.0 PHY driver for Marvell
+	  SoC. This driver will do the PHY initialization and shutdown.
+	  The PHY driver will be used by Marvell udc/ehci/otg driver.
+
+	  To compile this driver as a module, choose M here.

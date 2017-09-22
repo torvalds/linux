@@ -237,7 +237,6 @@ int sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd)
 	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
 	sector_t sector = blk_rq_pos(rq);
 	sector_t block = sectors_to_logical(sdkp->device, sector);
-	unsigned int zno = block >> sdkp->zone_shift;
 
 	if (!sd_is_zoned(sdkp))
 		/* Not a zoned device */
@@ -249,11 +248,6 @@ int sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd)
 	if (sector & (sd_zbc_zone_sectors(sdkp) - 1))
 		/* Unaligned request */
 		return BLKPREP_KILL;
-
-	/* Do not allow concurrent reset and writes */
-	if (sdkp->zones_wlock &&
-	    test_and_set_bit(zno, sdkp->zones_wlock))
-		return BLKPREP_DEFER;
 
 	cmd->cmd_len = 16;
 	memset(cmd->cmnd, 0, cmd->cmd_len);
@@ -269,7 +263,7 @@ int sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd)
 	return BLKPREP_OK;
 }
 
-int sd_zbc_setup_write_cmnd(struct scsi_cmnd *cmd)
+int sd_zbc_write_lock_zone(struct scsi_cmnd *cmd)
 {
 	struct request *rq = cmd->request;
 	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
@@ -300,24 +294,24 @@ int sd_zbc_setup_write_cmnd(struct scsi_cmnd *cmd)
 	    test_and_set_bit(zno, sdkp->zones_wlock))
 		return BLKPREP_DEFER;
 
+	WARN_ON_ONCE(cmd->flags & SCMD_ZONE_WRITE_LOCK);
+	cmd->flags |= SCMD_ZONE_WRITE_LOCK;
+
 	return BLKPREP_OK;
 }
 
-static void sd_zbc_unlock_zone(struct request *rq)
+void sd_zbc_write_unlock_zone(struct scsi_cmnd *cmd)
 {
+	struct request *rq = cmd->request;
 	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
 
-	if (sdkp->zones_wlock) {
+	if (sdkp->zones_wlock && cmd->flags & SCMD_ZONE_WRITE_LOCK) {
 		unsigned int zno = sd_zbc_zone_no(sdkp, blk_rq_pos(rq));
 		WARN_ON_ONCE(!test_bit(zno, sdkp->zones_wlock));
+		cmd->flags &= ~SCMD_ZONE_WRITE_LOCK;
 		clear_bit_unlock(zno, sdkp->zones_wlock);
 		smp_mb__after_atomic();
 	}
-}
-
-void sd_zbc_cancel_write_cmnd(struct scsi_cmnd *cmd)
-{
-	sd_zbc_unlock_zone(cmd->request);
 }
 
 void sd_zbc_complete(struct scsi_cmnd *cmd,
@@ -328,38 +322,32 @@ void sd_zbc_complete(struct scsi_cmnd *cmd,
 	struct request *rq = cmd->request;
 
 	switch (req_op(rq)) {
-	case REQ_OP_WRITE:
-	case REQ_OP_WRITE_SAME:
 	case REQ_OP_ZONE_RESET:
 
-		/* Unlock the zone */
-		sd_zbc_unlock_zone(rq);
-
-		if (!result ||
-		    sshdr->sense_key != ILLEGAL_REQUEST)
-			break;
-
-		switch (sshdr->asc) {
-		case 0x24:
+		if (result &&
+		    sshdr->sense_key == ILLEGAL_REQUEST &&
+		    sshdr->asc == 0x24)
 			/*
-			 * INVALID FIELD IN CDB error: For a zone reset,
-			 * this means that a reset of a conventional
-			 * zone was attempted. Nothing to worry about in
-			 * this case, so be quiet about the error.
+			 * INVALID FIELD IN CDB error: reset of a conventional
+			 * zone was attempted. Nothing to worry about, so be
+			 * quiet about the error.
 			 */
-			if (req_op(rq) == REQ_OP_ZONE_RESET)
-				rq->rq_flags |= RQF_QUIET;
-			break;
-		case 0x21:
+			rq->rq_flags |= RQF_QUIET;
+		break;
+
+	case REQ_OP_WRITE:
+	case REQ_OP_WRITE_ZEROES:
+	case REQ_OP_WRITE_SAME:
+
+		if (result &&
+		    sshdr->sense_key == ILLEGAL_REQUEST &&
+		    sshdr->asc == 0x21)
 			/*
 			 * INVALID ADDRESS FOR WRITE error: It is unlikely that
 			 * retrying write requests failed with any kind of
 			 * alignement error will result in success. So don't.
 			 */
 			cmd->allowed = 0;
-			break;
-		}
-
 		break;
 
 	case REQ_OP_ZONE_REPORT:
@@ -564,8 +552,7 @@ static int sd_zbc_setup(struct scsi_disk *sdkp)
 int sd_zbc_read_zones(struct scsi_disk *sdkp,
 		      unsigned char *buf)
 {
-	sector_t capacity;
-	int ret = 0;
+	int ret;
 
 	if (!sd_is_zoned(sdkp))
 		/*
@@ -597,7 +584,6 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp,
 	ret = sd_zbc_check_capacity(sdkp, buf);
 	if (ret)
 		goto err;
-	capacity = logical_to_sectors(sdkp->device, sdkp->capacity);
 
 	/*
 	 * Check zone size: only devices with a constant zone size (except

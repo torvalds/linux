@@ -96,7 +96,7 @@
 #define CHIP_DEF(id, family, flags)					\
 	{ PCI_VENDOR_ID_ATI, id, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (flags) | (CHIP_FAMILY_##family) }
 
-static struct pci_device_id radeonfb_pci_table[] = {
+static const struct pci_device_id radeonfb_pci_table[] = {
         /* Radeon Xpress 200m */
 	CHIP_DEF(PCI_CHIP_RS480_5955,   RS480,  CHIP_HAS_CRTC2 | CHIP_IS_IGP | CHIP_IS_MOBILITY),
 	CHIP_DEF(PCI_CHIP_RS482_5975,	RS480,	CHIP_HAS_CRTC2 | CHIP_IS_IGP | CHIP_IS_MOBILITY),
@@ -2241,7 +2241,7 @@ static ssize_t radeon_show_edid2(struct file *filp, struct kobject *kobj,
 	return radeon_show_one_edid(buf, off, count, rinfo->mon2_EDID);
 }
 
-static struct bin_attribute edid1_attr = {
+static const struct bin_attribute edid1_attr = {
 	.attr   = {
 		.name	= "edid1",
 		.mode	= 0444,
@@ -2250,7 +2250,7 @@ static struct bin_attribute edid1_attr = {
 	.read	= radeon_show_edid1,
 };
 
-static struct bin_attribute edid2_attr = {
+static const struct bin_attribute edid2_attr = {
 	.attr   = {
 		.name	= "edid2",
 		.mode	= 0444,
@@ -2453,8 +2453,8 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 		err |= sysfs_create_bin_file(&rinfo->pdev->dev.kobj,
 						&edid2_attr);
 	if (err)
-		pr_warning("%s() Creating sysfs files failed, continuing\n",
-			   __func__);
+		pr_warn("%s() Creating sysfs files failed, continuing\n",
+			__func__);
 
 	/* save current mode regs before we switch into the new one
 	 * so we can restore this upon __exit

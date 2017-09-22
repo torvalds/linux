@@ -32,9 +32,9 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 
 #include <linux/statfs.h>
-#include "../include/obd_cksum.h"
-#include "../include/obd_class.h"
-#include "../include/lprocfs_status.h"
+#include <obd_cksum.h>
+#include <obd_class.h>
+#include <lprocfs_status.h>
 #include <linux/seq_file.h>
 #include "osc_internal.h"
 
@@ -229,7 +229,7 @@ static ssize_t osc_cached_mb_seq_write(struct file *file,
 	rc = atomic_long_read(&cli->cl_lru_in_list) - pages_number;
 	if (rc > 0) {
 		struct lu_env *env;
-		int refcheck;
+		u16 refcheck;
 
 		env = cl_env_get(&refcheck);
 		if (!IS_ERR(env)) {
@@ -831,7 +831,7 @@ static struct attribute *osc_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group osc_attr_group = {
+static const struct attribute_group osc_attr_group = {
 	.attrs = osc_attrs,
 };
 

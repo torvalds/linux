@@ -7,7 +7,7 @@
 /*
  * PERSISTENT_RESERVE_OUT service action codes
  *
- * spc4r17 section 6.14.2 Table 171
+ * spc5r04b section 6.15.2 Table 174
  */
 #define PRO_REGISTER				0x00
 #define PRO_RESERVE				0x01
@@ -17,10 +17,11 @@
 #define PRO_PREEMPT_AND_ABORT			0x05
 #define PRO_REGISTER_AND_IGNORE_EXISTING_KEY	0x06
 #define PRO_REGISTER_AND_MOVE			0x07
+#define PRO_REPLACE_LOST_RESERVATION	0x08
 /*
  * PERSISTENT_RESERVE_IN service action codes
  *
- * spc4r17 section 6.13.1 Table 159
+ * spc5r04b section 6.14.1 Table 162
  */
 #define PRI_READ_KEYS				0x00
 #define PRI_READ_RESERVATION			0x01
@@ -29,13 +30,13 @@
 /*
  * PERSISTENT_RESERVE_ SCOPE field
  *
- * spc4r17 section 6.13.3.3 Table 163
+ * spc5r04b section 6.14.3.2 Table 166
  */
 #define PR_SCOPE_LU_SCOPE			0x00
 /*
  * PERSISTENT_RESERVE_* TYPE field
  *
- * spc4r17 section 6.13.3.4 Table 164
+ * spc5r04b section 6.14.3.3 Table 167
  */
 #define PR_TYPE_WRITE_EXCLUSIVE			0x01
 #define PR_TYPE_EXCLUSIVE_ACCESS		0x03

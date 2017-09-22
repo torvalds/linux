@@ -51,12 +51,15 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct resource reg;
 	resource_size_t iobase = 0;
-	LIST_HEAD(res);
+	LIST_HEAD(resources);
+	struct pci_host_bridge *bridge;
 	int ret;
 
-	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
-	if (!pcie)
+	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
+	if (!bridge)
 		return -ENOMEM;
+
+	pcie = pci_host_bridge_priv(bridge);
 
 	pcie->dev = dev;
 	pcie->type = (enum iproc_pcie_type) of_device_get_match_data(dev);
@@ -67,7 +70,8 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	pcie->base = devm_ioremap(dev, reg.start, resource_size(&reg));
+	pcie->base = devm_pci_remap_cfgspace(dev, reg.start,
+					     resource_size(&reg));
 	if (!pcie->base) {
 		dev_err(dev, "unable to map controller registers\n");
 		return -ENOMEM;
@@ -96,10 +100,10 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 		pcie->phy = NULL;
 	}
 
-	ret = of_pci_get_host_bridge_resources(np, 0, 0xff, &res, &iobase);
+	ret = of_pci_get_host_bridge_resources(np, 0, 0xff, &resources,
+					       &iobase);
 	if (ret) {
-		dev_err(dev,
-			"unable to get PCI host bridge resources\n");
+		dev_err(dev, "unable to get PCI host bridge resources\n");
 		return ret;
 	}
 
@@ -112,14 +116,15 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 		pcie->map_irq = of_irq_parse_and_map_pci;
 	}
 
-	ret = iproc_pcie_setup(pcie, &res);
-	if (ret)
+	ret = iproc_pcie_setup(pcie, &resources);
+	if (ret) {
 		dev_err(dev, "PCIe controller setup failed\n");
-
-	pci_free_resource_list(&res);
+		pci_free_resource_list(&resources);
+		return ret;
+	}
 
 	platform_set_drvdata(pdev, pcie);
-	return ret;
+	return 0;
 }
 
 static int iproc_pcie_pltfm_remove(struct platform_device *pdev)
@@ -129,6 +134,13 @@ static int iproc_pcie_pltfm_remove(struct platform_device *pdev)
 	return iproc_pcie_remove(pcie);
 }
 
+static void iproc_pcie_pltfm_shutdown(struct platform_device *pdev)
+{
+	struct iproc_pcie *pcie = platform_get_drvdata(pdev);
+
+	iproc_pcie_shutdown(pcie);
+}
+
 static struct platform_driver iproc_pcie_pltfm_driver = {
 	.driver = {
 		.name = "iproc-pcie",
@@ -136,6 +148,7 @@ static struct platform_driver iproc_pcie_pltfm_driver = {
 	},
 	.probe = iproc_pcie_pltfm_probe,
 	.remove = iproc_pcie_pltfm_remove,
+	.shutdown = iproc_pcie_pltfm_shutdown,
 };
 module_platform_driver(iproc_pcie_pltfm_driver);
 

@@ -263,7 +263,7 @@ void amp_read_loc_assoc_frag(struct hci_dev *hdev, u8 phy_handle)
 	struct hci_cp_read_local_amp_assoc cp;
 	struct amp_assoc *loc_assoc = &hdev->loc_assoc;
 	struct hci_request req;
-	int err = 0;
+	int err;
 
 	BT_DBG("%s handle %d", hdev->name, phy_handle);
 
@@ -282,7 +282,7 @@ void amp_read_loc_assoc(struct hci_dev *hdev, struct amp_mgr *mgr)
 {
 	struct hci_cp_read_local_amp_assoc cp;
 	struct hci_request req;
-	int err = 0;
+	int err;
 
 	memset(&hdev->loc_assoc, 0, sizeof(struct amp_assoc));
 	memset(&cp, 0, sizeof(cp));
@@ -292,7 +292,7 @@ void amp_read_loc_assoc(struct hci_dev *hdev, struct amp_mgr *mgr)
 	set_bit(READ_LOC_AMP_ASSOC, &mgr->state);
 	hci_req_init(&req, hdev);
 	hci_req_add(&req, HCI_OP_READ_LOCAL_AMP_ASSOC, sizeof(cp), &cp);
-	hci_req_run_skb(&req, read_local_amp_assoc_complete);
+	err = hci_req_run_skb(&req, read_local_amp_assoc_complete);
 	if (err < 0)
 		a2mp_send_getampassoc_rsp(hdev, A2MP_STATUS_INVALID_CTRL_ID);
 }
@@ -303,7 +303,7 @@ void amp_read_loc_assoc_final_data(struct hci_dev *hdev,
 	struct hci_cp_read_local_amp_assoc cp;
 	struct amp_mgr *mgr = hcon->amp_mgr;
 	struct hci_request req;
-	int err = 0;
+	int err;
 
 	cp.phy_handle = hcon->handle;
 	cp.len_so_far = cpu_to_le16(0);
@@ -314,7 +314,7 @@ void amp_read_loc_assoc_final_data(struct hci_dev *hdev,
 	/* Read Local AMP Assoc final link information data */
 	hci_req_init(&req, hdev);
 	hci_req_add(&req, HCI_OP_READ_LOCAL_AMP_ASSOC, sizeof(cp), &cp);
-	hci_req_run_skb(&req, read_local_amp_assoc_complete);
+	err = hci_req_run_skb(&req, read_local_amp_assoc_complete);
 	if (err < 0)
 		a2mp_send_getampassoc_rsp(hdev, A2MP_STATUS_INVALID_CTRL_ID);
 }

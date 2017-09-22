@@ -42,8 +42,6 @@
  *     aggregated as a single large packet
  * napi: This parameter used to enable/disable NAPI (polling Rx)
  *     Possible values '1' for enable and '0' for disable. Default is '1'
- * ufo: This parameter used to enable/disable UDP Fragmentation Offload(UFO)
- *      Possible values '1' for enable and '0' for disable. Default is '0'
  * vlan_tag_strip: This can be used to enable or disable vlan stripping.
  *                 Possible values '1' for enable , '0' for disable.
  *                 Default is '2' - which means disable in promisc mode
@@ -453,7 +451,6 @@ S2IO_PARM_INT(lro_max_pkts, 0xFFFF);
 S2IO_PARM_INT(indicate_max_pkts, 0);
 
 S2IO_PARM_INT(napi, 1);
-S2IO_PARM_INT(ufo, 0);
 S2IO_PARM_INT(vlan_tag_strip, NO_STRIP_IN_PROMISC);
 
 static unsigned int tx_fifo_len[MAX_TX_FIFOS] =
@@ -2459,7 +2456,6 @@ static int fill_rx_buffers(struct s2io_nic *nic, struct ring_info *ring,
 	struct buffAdd *ba;
 	struct RxD_t *first_rxdp = NULL;
 	u64 Buffer0_ptr = 0, Buffer1_ptr = 0;
-	int rxd_index = 0;
 	struct RxD1 *rxdp1;
 	struct RxD3 *rxdp3;
 	struct swStat *swstats = &ring->nic->mac_control.stats_info->sw_stat;
@@ -2473,10 +2469,6 @@ static int fill_rx_buffers(struct s2io_nic *nic, struct ring_info *ring,
 		off = ring->rx_curr_put_info.offset;
 
 		rxdp = ring->rx_blocks[block_no].rxds[off].virt_addr;
-
-		rxd_index = off + 1;
-		if (block_no)
-			rxd_index += (block_no * ring->rxd_count);
 
 		if ((block_no == block_no1) &&
 		    (off == ring->rx_curr_get_info.offset) &&
@@ -4133,32 +4125,6 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	frg_len = skb_headlen(skb);
-	if (offload_type == SKB_GSO_UDP) {
-		int ufo_size;
-
-		ufo_size = s2io_udp_mss(skb);
-		ufo_size &= ~7;
-		txdp->Control_1 |= TXD_UFO_EN;
-		txdp->Control_1 |= TXD_UFO_MSS(ufo_size);
-		txdp->Control_1 |= TXD_BUFFER0_SIZE(8);
-#ifdef __BIG_ENDIAN
-		/* both variants do cpu_to_be64(be32_to_cpu(...)) */
-		fifo->ufo_in_band_v[put_off] =
-			(__force u64)skb_shinfo(skb)->ip6_frag_id;
-#else
-		fifo->ufo_in_band_v[put_off] =
-			(__force u64)skb_shinfo(skb)->ip6_frag_id << 32;
-#endif
-		txdp->Host_Control = (unsigned long)fifo->ufo_in_band_v;
-		txdp->Buffer_Pointer = pci_map_single(sp->pdev,
-						      fifo->ufo_in_band_v,
-						      sizeof(u64),
-						      PCI_DMA_TODEVICE);
-		if (pci_dma_mapping_error(sp->pdev, txdp->Buffer_Pointer))
-			goto pci_map_failed;
-		txdp++;
-	}
-
 	txdp->Buffer_Pointer = pci_map_single(sp->pdev, skb->data,
 					      frg_len, PCI_DMA_TODEVICE);
 	if (pci_dma_mapping_error(sp->pdev, txdp->Buffer_Pointer))
@@ -4166,8 +4132,6 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	txdp->Host_Control = (unsigned long)skb;
 	txdp->Control_1 |= TXD_BUFFER0_SIZE(frg_len);
-	if (offload_type == SKB_GSO_UDP)
-		txdp->Control_1 |= TXD_UFO_EN;
 
 	frg_cnt = skb_shinfo(skb)->nr_frags;
 	/* For fragmented SKB. */
@@ -4182,13 +4146,8 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 							     skb_frag_size(frag),
 							     DMA_TO_DEVICE);
 		txdp->Control_1 = TXD_BUFFER0_SIZE(skb_frag_size(frag));
-		if (offload_type == SKB_GSO_UDP)
-			txdp->Control_1 |= TXD_UFO_EN;
 	}
 	txdp->Control_1 |= TXD_GATHER_CODE_LAST;
-
-	if (offload_type == SKB_GSO_UDP)
-		frg_cnt++; /* as Txd0 was used for inband header */
 
 	tx_fifo = mac_control->tx_FIFO_start[queue];
 	val64 = fifo->list_info[put_off].list_phy_addr;
@@ -7915,11 +7874,6 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		NETIF_F_RXCSUM | NETIF_F_LRO;
 	dev->features |= dev->hw_features |
 		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
-	if (sp->device_type & XFRAME_II_DEVICE) {
-		dev->hw_features |= NETIF_F_UFO;
-		if (ufo)
-			dev->features |= NETIF_F_UFO;
-	}
 	if (sp->high_dma_flag == true)
 		dev->features |= NETIF_F_HIGHDMA;
 	dev->watchdog_timeo = WATCH_DOG_TIMEOUT;
@@ -8152,10 +8106,6 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	DBG_PRINT(ERR_DBG, "%s: Large receive offload enabled\n",
 		  dev->name);
-	if (ufo)
-		DBG_PRINT(ERR_DBG,
-			  "%s: UDP Fragmentation Offload(UFO) enabled\n",
-			  dev->name);
 	/* Initialize device name */
 	snprintf(sp->name, sizeof(sp->name), "%s Neterion %s", dev->name,
 		 sp->product_name);

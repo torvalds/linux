@@ -198,7 +198,7 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 
 	ret = mgag200_framebuffer_init(dev, &mfbdev->mfb, &mode_cmd, gobj);
 	if (ret)
-		goto err_framebuffer_init;
+		goto err_alloc_fbi;
 
 	mfbdev->sysram = sysram;
 	mfbdev->size = size;
@@ -210,7 +210,6 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 
 	strcpy(info->fix.id, "mgadrmfb");
 
-	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &mgag200fb_ops;
 
 	/* setup aperture base/size for vesafb takeover */
@@ -230,12 +229,10 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 
 	return 0;
 
-err_framebuffer_init:
-	drm_fb_helper_release_fbi(helper);
 err_alloc_fbi:
 	vfree(sysram);
 err_sysram:
-	drm_gem_object_unreference_unlocked(gobj);
+	drm_gem_object_put_unlocked(gobj);
 
 	return ret;
 }
@@ -246,10 +243,9 @@ static int mga_fbdev_destroy(struct drm_device *dev,
 	struct mga_framebuffer *mfb = &mfbdev->mfb;
 
 	drm_fb_helper_unregister_fbi(&mfbdev->helper);
-	drm_fb_helper_release_fbi(&mfbdev->helper);
 
 	if (mfb->obj) {
-		drm_gem_object_unreference_unlocked(mfb->obj);
+		drm_gem_object_put_unlocked(mfb->obj);
 		mfb->obj = NULL;
 	}
 	drm_fb_helper_fini(&mfbdev->helper);
@@ -261,8 +257,6 @@ static int mga_fbdev_destroy(struct drm_device *dev,
 }
 
 static const struct drm_fb_helper_funcs mga_fb_helper_funcs = {
-	.gamma_set = mga_crtc_fb_gamma_set,
-	.gamma_get = mga_crtc_fb_gamma_get,
 	.fb_probe = mgag200fb_create,
 };
 

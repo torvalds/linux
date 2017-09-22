@@ -185,7 +185,7 @@ static void __init _register_dpll(struct clk_hw *hw,
 	dd->clk_bypass = __clk_get_hw(clk);
 
 	/* register the clock */
-	clk = clk_register(NULL, &clk_hw->hw);
+	clk = ti_clk_register(NULL, &clk_hw->hw, node->name);
 
 	if (!IS_ERR(clk)) {
 		omap2_init_clk_hw_omap_clocks(&clk_hw->hw);
@@ -203,17 +203,10 @@ cleanup:
 }
 
 #if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_ATAGS)
-static void __iomem *_get_reg(u8 module, u16 offset)
+void _get_reg(u8 module, u16 offset, struct clk_omap_reg *reg)
 {
-	u32 reg;
-	struct clk_omap_reg *reg_setup;
-
-	reg_setup = (struct clk_omap_reg *)&reg;
-
-	reg_setup->index = module;
-	reg_setup->offset = offset;
-
-	return (void __iomem *)reg;
+	reg->index = module;
+	reg->offset = offset;
 }
 
 struct clk *ti_clk_register_dpll(struct ti_clk *setup)
@@ -248,7 +241,6 @@ struct clk *ti_clk_register_dpll(struct ti_clk *setup)
 	clk_hw->dpll_data = dd;
 	clk_hw->ops = &clkhwops_omap3_dpll;
 	clk_hw->hw.init = &init;
-	clk_hw->flags = MEMMAP_ADDRESSING;
 
 	init.name = setup->name;
 	init.ops = ops;
@@ -256,10 +248,10 @@ struct clk *ti_clk_register_dpll(struct ti_clk *setup)
 	init.num_parents = dpll->num_parents;
 	init.parent_names = dpll->parents;
 
-	dd->control_reg = _get_reg(dpll->module, dpll->control_reg);
-	dd->idlest_reg = _get_reg(dpll->module, dpll->idlest_reg);
-	dd->mult_div1_reg = _get_reg(dpll->module, dpll->mult_div1_reg);
-	dd->autoidle_reg = _get_reg(dpll->module, dpll->autoidle_reg);
+	_get_reg(dpll->module, dpll->control_reg, &dd->control_reg);
+	_get_reg(dpll->module, dpll->idlest_reg, &dd->idlest_reg);
+	_get_reg(dpll->module, dpll->mult_div1_reg, &dd->mult_div1_reg);
+	_get_reg(dpll->module, dpll->autoidle_reg, &dd->autoidle_reg);
 
 	dd->modes = dpll->modes;
 	dd->div1_mask = dpll->div1_mask;
@@ -288,7 +280,7 @@ struct clk *ti_clk_register_dpll(struct ti_clk *setup)
 	if (dpll->flags & CLKF_J_TYPE)
 		dd->flags |= DPLL_J_TYPE;
 
-	clk = clk_register(NULL, &clk_hw->hw);
+	clk = ti_clk_register(NULL, &clk_hw->hw, setup->name);
 
 	if (!IS_ERR(clk))
 		return clk;
@@ -339,8 +331,24 @@ static void _register_dpll_x2(struct device_node *node,
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
+#if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5) || \
+	defined(CONFIG_SOC_DRA7XX)
+	if (hw_ops == &clkhwops_omap4_dpllmx) {
+		int ret;
+
+		/* Check if register defined, if not, drop hw-ops */
+		ret = of_property_count_elems_of_size(node, "reg", 1);
+		if (ret <= 0) {
+			clk_hw->ops = NULL;
+		} else if (ti_clk_get_reg_addr(node, 0, &clk_hw->clksel_reg)) {
+			kfree(clk_hw);
+			return;
+		}
+	}
+#endif
+
 	/* register the clock */
-	clk = clk_register(NULL, &clk_hw->hw);
+	clk = ti_clk_register(NULL, &clk_hw->hw, name);
 
 	if (IS_ERR(clk)) {
 		kfree(clk_hw);
@@ -380,7 +388,6 @@ static void __init of_ti_dpll_setup(struct device_node *node,
 	clk_hw->dpll_data = dd;
 	clk_hw->ops = &clkhwops_omap3_dpll;
 	clk_hw->hw.init = init;
-	clk_hw->flags = MEMMAP_ADDRESSING;
 
 	init->name = node->name;
 	init->ops = ops;
@@ -399,7 +406,8 @@ static void __init of_ti_dpll_setup(struct device_node *node,
 
 	init->parent_names = parent_names;
 
-	dd->control_reg = ti_clk_get_reg_addr(node, 0);
+	if (ti_clk_get_reg_addr(node, 0, &dd->control_reg))
+		goto cleanup;
 
 	/*
 	 * Special case for OMAP2 DPLL, register order is different due to
@@ -407,25 +415,22 @@ static void __init of_ti_dpll_setup(struct device_node *node,
 	 * missing idlest_mask.
 	 */
 	if (!dd->idlest_mask) {
-		dd->mult_div1_reg = ti_clk_get_reg_addr(node, 1);
+		if (ti_clk_get_reg_addr(node, 1, &dd->mult_div1_reg))
+			goto cleanup;
 #ifdef CONFIG_ARCH_OMAP2
 		clk_hw->ops = &clkhwops_omap2xxx_dpll;
 		omap2xxx_clkt_dpllcore_init(&clk_hw->hw);
 #endif
 	} else {
-		dd->idlest_reg = ti_clk_get_reg_addr(node, 1);
-		if (IS_ERR(dd->idlest_reg))
+		if (ti_clk_get_reg_addr(node, 1, &dd->idlest_reg))
 			goto cleanup;
 
-		dd->mult_div1_reg = ti_clk_get_reg_addr(node, 2);
+		if (ti_clk_get_reg_addr(node, 2, &dd->mult_div1_reg))
+			goto cleanup;
 	}
 
-	if (IS_ERR(dd->control_reg) || IS_ERR(dd->mult_div1_reg))
-		goto cleanup;
-
 	if (dd->autoidle_mask) {
-		dd->autoidle_reg = ti_clk_get_reg_addr(node, 3);
-		if (IS_ERR(dd->autoidle_reg))
+		if (ti_clk_get_reg_addr(node, 3, &dd->autoidle_reg))
 			goto cleanup;
 	}
 

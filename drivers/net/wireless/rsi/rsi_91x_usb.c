@@ -17,6 +17,7 @@
 
 #include <linux/module.h>
 #include "rsi_usb.h"
+#include "rsi_hal.h"
 
 /**
  * rsi_usb_card_write() - This function writes to the USB Card.
@@ -28,19 +29,24 @@
  * Return: status: 0 on success, a negative error code on failure.
  */
 static int rsi_usb_card_write(struct rsi_hw *adapter,
-			      void *buf,
+			      u8 *buf,
 			      u16 len,
 			      u8 endpoint)
 {
 	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
 	int status;
-	s32 transfer;
+	u8 *seg = dev->tx_buffer;
+	int transfer;
+	int ep = dev->bulkout_endpoint_addr[endpoint - 1];
 
+	memset(seg, 0, len + RSI_USB_TX_HEAD_ROOM);
+	memcpy(seg + RSI_USB_TX_HEAD_ROOM, buf, len);
+	len += RSI_USB_TX_HEAD_ROOM;
+	transfer = len;
 	status = usb_bulk_msg(dev->usbdev,
-			      usb_sndbulkpipe(dev->usbdev,
-			      dev->bulkout_endpoint_addr[endpoint - 1]),
-			      buf,
-			      len,
+			      usb_sndbulkpipe(dev->usbdev, ep),
+			      (void *)seg,
+			      (int)len,
 			      &transfer,
 			      HZ * 5);
 
@@ -67,23 +73,19 @@ static int rsi_write_multiple(struct rsi_hw *adapter,
 			      u8 *data,
 			      u32 count)
 {
-	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
-	u8 *seg = dev->tx_buffer;
+	struct rsi_91x_usbdev *dev =
+		(struct rsi_91x_usbdev *)adapter->rsi_dev;
+
+	if (!adapter)
+		return -ENODEV;
+
+	if (endpoint == 0)
+		return -EINVAL;
 
 	if (dev->write_fail)
-		return 0;
+		return -ENETDOWN;
 
-	if (endpoint == MGMT_EP) {
-		memset(seg, 0, RSI_USB_TX_HEAD_ROOM);
-		memcpy(seg + RSI_USB_TX_HEAD_ROOM, data, count);
-	} else {
-		seg = ((u8 *)data - RSI_USB_TX_HEAD_ROOM);
-	}
-
-	return rsi_usb_card_write(adapter,
-				  seg,
-				  count + RSI_USB_TX_HEAD_ROOM,
-				  endpoint);
+	return rsi_usb_card_write(adapter, data, count, endpoint);
 }
 
 /**
@@ -141,6 +143,9 @@ static int rsi_find_bulk_in_and_out_endpoints(struct usb_interface *interface,
 	return 0;
 }
 
+#define RSI_USB_REQ_OUT	(USB_TYPE_VENDOR | USB_DIR_OUT | USB_RECIP_DEVICE)
+#define RSI_USB_REQ_IN	(USB_TYPE_VENDOR | USB_DIR_IN | USB_RECIP_DEVICE)
+
 /* rsi_usb_reg_read() - This function reads data from given register address.
  * @usbdev: Pointer to the usb_device structure.
  * @reg: Address of the register to be read.
@@ -157,18 +162,21 @@ static int rsi_usb_reg_read(struct usb_device *usbdev,
 	u8 *buf;
 	int status = -ENOMEM;
 
-	buf  = kmalloc(0x04, GFP_KERNEL);
+	buf  = kmalloc(RSI_USB_CTRL_BUF_SIZE, GFP_KERNEL);
 	if (!buf)
 		return status;
+
+	if (len > RSI_USB_CTRL_BUF_SIZE)
+		return -EINVAL;
 
 	status = usb_control_msg(usbdev,
 				 usb_rcvctrlpipe(usbdev, 0),
 				 USB_VENDOR_REGISTER_READ,
-				 USB_TYPE_VENDOR,
+				 RSI_USB_REQ_IN,
 				 ((reg & 0xffff0000) >> 16), (reg & 0xffff),
 				 (void *)buf,
 				 len,
-				 HZ * 5);
+				 USB_CTRL_GET_TIMEOUT);
 
 	*value = (buf[0] | (buf[1] << 8));
 	if (status < 0) {
@@ -199,9 +207,12 @@ static int rsi_usb_reg_write(struct usb_device *usbdev,
 	u8 *usb_reg_buf;
 	int status = -ENOMEM;
 
-	usb_reg_buf  = kmalloc(0x04, GFP_KERNEL);
+	usb_reg_buf  = kmalloc(RSI_USB_CTRL_BUF_SIZE, GFP_KERNEL);
 	if (!usb_reg_buf)
 		return status;
+
+	if (len > RSI_USB_CTRL_BUF_SIZE)
+		return -EINVAL;
 
 	usb_reg_buf[0] = (value & 0x00ff);
 	usb_reg_buf[1] = (value & 0xff00) >> 8;
@@ -211,12 +222,12 @@ static int rsi_usb_reg_write(struct usb_device *usbdev,
 	status = usb_control_msg(usbdev,
 				 usb_sndctrlpipe(usbdev, 0),
 				 USB_VENDOR_REGISTER_WRITE,
-				 USB_TYPE_VENDOR,
+				 RSI_USB_REQ_OUT,
 				 ((reg & 0xffff0000) >> 16),
 				 (reg & 0xffff),
 				 (void *)usb_reg_buf,
 				 len,
-				 HZ * 5);
+				 USB_CTRL_SET_TIMEOUT);
 	if (status < 0) {
 		rsi_dbg(ERR_ZONE,
 			"%s: Reg write failed with error code :%d\n",
@@ -273,6 +284,46 @@ static int rsi_rx_urb_submit(struct rsi_hw *adapter)
 	return status;
 }
 
+static int rsi_usb_read_register_multiple(struct rsi_hw *adapter, u32 addr,
+					  u8 *data, u16 count)
+{
+	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
+	u8 *buf;
+	u16 transfer;
+	int status;
+
+	if (!addr)
+		return -EINVAL;
+
+	buf = kzalloc(RSI_USB_BUF_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	while (count) {
+		transfer = min_t(u16, count, RSI_USB_BUF_SIZE);
+		status = usb_control_msg(dev->usbdev,
+					 usb_rcvctrlpipe(dev->usbdev, 0),
+					 USB_VENDOR_REGISTER_READ,
+					 RSI_USB_REQ_IN,
+					 ((addr & 0xffff0000) >> 16),
+					 (addr & 0xffff), (void *)buf,
+					 transfer, USB_CTRL_GET_TIMEOUT);
+		if (status < 0) {
+			rsi_dbg(ERR_ZONE,
+				"Reg read failed with error code :%d\n",
+				 status);
+			kfree(buf);
+			return status;
+		}
+		memcpy(data, buf, transfer);
+		count -= transfer;
+		data += transfer;
+		addr += transfer;
+	}
+	kfree(buf);
+	return 0;
+}
+
 /**
  * rsi_usb_write_register_multiple() - This function writes multiple bytes of
  *				       information to multiple registers.
@@ -283,41 +334,40 @@ static int rsi_rx_urb_submit(struct rsi_hw *adapter)
  *
  * Return: status: 0 on success, a negative error code on failure.
  */
-int rsi_usb_write_register_multiple(struct rsi_hw *adapter,
-				    u32 addr,
-				    u8 *data,
-				    u32 count)
+static int rsi_usb_write_register_multiple(struct rsi_hw *adapter, u32 addr,
+					   u8 *data, u16 count)
 {
 	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
 	u8 *buf;
-	u8 transfer;
+	u16 transfer;
 	int status = 0;
 
-	buf = kzalloc(4096, GFP_KERNEL);
+	buf = kzalloc(RSI_USB_BUF_SIZE, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
 	while (count) {
-		transfer = (u8)(min_t(u32, count, 4096));
+		transfer = min_t(u16, count, RSI_USB_BUF_SIZE);
 		memcpy(buf, data, transfer);
 		status = usb_control_msg(dev->usbdev,
 					 usb_sndctrlpipe(dev->usbdev, 0),
 					 USB_VENDOR_REGISTER_WRITE,
-					 USB_TYPE_VENDOR,
+					 RSI_USB_REQ_OUT,
 					 ((addr & 0xffff0000) >> 16),
 					 (addr & 0xffff),
 					 (void *)buf,
 					 transfer,
-					 HZ * 5);
+					 USB_CTRL_SET_TIMEOUT);
 		if (status < 0) {
 			rsi_dbg(ERR_ZONE,
 				"Reg write failed with error code :%d\n",
 				status);
-		} else {
-			count -= transfer;
-			data += transfer;
-			addr += transfer;
+			kfree(buf);
+			return status;
 		}
+		count -= transfer;
+		data += transfer;
+		addr += transfer;
 	}
 
 	kfree(buf);
@@ -337,16 +387,94 @@ static int rsi_usb_host_intf_write_pkt(struct rsi_hw *adapter,
 				       u8 *pkt,
 				       u32 len)
 {
-	u32 queueno = ((pkt[1] >> 4) & 0xf);
+	u32 queueno = ((pkt[1] >> 4) & 0x7);
 	u8 endpoint;
 
-	endpoint = ((queueno == RSI_WIFI_MGMT_Q) ? MGMT_EP : DATA_EP);
+	endpoint = ((queueno == RSI_WIFI_MGMT_Q || queueno == RSI_WIFI_DATA_Q ||
+		     queueno == RSI_COEX_Q) ? WLAN_EP : BT_EP);
 
 	return rsi_write_multiple(adapter,
 				  endpoint,
 				  (u8 *)pkt,
 				  len);
 }
+
+static int rsi_usb_master_reg_read(struct rsi_hw *adapter, u32 reg,
+				   u32 *value, u16 len)
+{
+	struct usb_device *usbdev =
+		((struct rsi_91x_usbdev *)adapter->rsi_dev)->usbdev;
+	u16 temp;
+	int ret;
+
+	ret = rsi_usb_reg_read(usbdev, reg, &temp, len);
+	if (ret < 0)
+		return ret;
+	*value = temp;
+
+	return 0;
+}
+
+static int rsi_usb_master_reg_write(struct rsi_hw *adapter,
+				    unsigned long reg,
+				    unsigned long value, u16 len)
+{
+	struct usb_device *usbdev =
+		((struct rsi_91x_usbdev *)adapter->rsi_dev)->usbdev;
+
+	return rsi_usb_reg_write(usbdev, reg, value, len);
+}
+
+static int rsi_usb_load_data_master_write(struct rsi_hw *adapter,
+					  u32 base_address,
+					  u32 instructions_sz, u16 block_size,
+					  u8 *ta_firmware)
+{
+	u16 num_blocks;
+	u32 cur_indx, i;
+	u8 temp_buf[256];
+	int status;
+
+	num_blocks = instructions_sz / block_size;
+	rsi_dbg(INFO_ZONE, "num_blocks: %d\n", num_blocks);
+
+	for (cur_indx = 0, i = 0; i < num_blocks; i++, cur_indx += block_size) {
+		memcpy(temp_buf, ta_firmware + cur_indx, block_size);
+		status = rsi_usb_write_register_multiple(adapter, base_address,
+							 (u8 *)(temp_buf),
+							 block_size);
+		if (status < 0)
+			return status;
+
+		rsi_dbg(INFO_ZONE, "%s: loading block: %d\n", __func__, i);
+		base_address += block_size;
+	}
+
+	if (instructions_sz % block_size) {
+		memset(temp_buf, 0, block_size);
+		memcpy(temp_buf, ta_firmware + cur_indx,
+		       instructions_sz % block_size);
+		status = rsi_usb_write_register_multiple
+						(adapter, base_address,
+						 (u8 *)temp_buf,
+						 instructions_sz % block_size);
+		if (status < 0)
+			return status;
+		rsi_dbg(INFO_ZONE,
+			"Written Last Block in Address 0x%x Successfully\n",
+			cur_indx);
+	}
+	return 0;
+}
+
+static struct rsi_host_intf_ops usb_host_intf_ops = {
+	.write_pkt		= rsi_usb_host_intf_write_pkt,
+	.read_reg_multiple	= rsi_usb_read_register_multiple,
+	.write_reg_multiple	= rsi_usb_write_register_multiple,
+	.master_reg_read	= rsi_usb_master_reg_read,
+	.master_reg_write	= rsi_usb_master_reg_write,
+	.load_data_master_write	= rsi_usb_load_data_master_write,
+};
 
 /**
  * rsi_deinit_usb_interface() - This function deinitializes the usb interface.
@@ -410,12 +538,14 @@ static int rsi_init_usb_interface(struct rsi_hw *adapter,
 	}
 	rsi_dev->rx_usb_urb[0]->transfer_buffer = adapter->priv->rx_data_pkt;
 	rsi_dev->tx_blk_size = 252;
+	adapter->block_size = rsi_dev->tx_blk_size;
 
 	/* Initializing function callbacks */
 	adapter->rx_urb_submit = rsi_rx_urb_submit;
-	adapter->host_intf_write_pkt = rsi_usb_host_intf_write_pkt;
 	adapter->check_hw_queue_status = rsi_usb_check_queue_status;
 	adapter->determine_event_timeout = rsi_usb_event_timeout;
+	adapter->rsi_host_intf = RSI_HOST_INTF_USB;
+	adapter->host_intf_ops = &usb_host_intf_ops;
 
 	rsi_init_event(&rsi_dev->rx_thread.event);
 	status = rsi_create_kthread(common, &rsi_dev->rx_thread,
@@ -440,6 +570,77 @@ fail_rx:
 fail_tx:
 	kfree(common->rx_data_pkt);
 	return status;
+}
+
+static int usb_ulp_read_write(struct rsi_hw *adapter, u16 addr, u32 data,
+			      u16 len_in_bits)
+{
+	int ret;
+
+	ret = rsi_usb_master_reg_write
+			(adapter, RSI_GSPI_DATA_REG1,
+			 ((addr << 6) | ((data >> 16) & 0xffff)), 2);
+	if (ret < 0)
+		return ret;
+
+	ret = rsi_usb_master_reg_write(adapter, RSI_GSPI_DATA_REG0,
+				       (data & 0xffff), 2);
+	if (ret < 0)
+		return ret;
+
+	/* Initializing GSPI for ULP read/writes */
+	rsi_usb_master_reg_write(adapter, RSI_GSPI_CTRL_REG0,
+				 RSI_GSPI_CTRL_REG0_VALUE, 2);
+
+	ret = rsi_usb_master_reg_write(adapter, RSI_GSPI_CTRL_REG1,
+				       ((len_in_bits - 1) | RSI_GSPI_TRIG), 2);
+	if (ret < 0)
+		return ret;
+
+	msleep(20);
+
+	return 0;
+}
+
+static int rsi_reset_card(struct rsi_hw *adapter)
+{
+	int ret;
+
+	rsi_dbg(INFO_ZONE, "Resetting Card...\n");
+	rsi_usb_master_reg_write(adapter, RSI_TA_HOLD_REG, 0xE, 4);
+
+	/* This msleep will ensure Thread-Arch processor to go to hold
+	 * and any pending dma transfers to rf in device to finish.
+	 */
+	msleep(100);
+
+	ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_1,
+				 RSI_ULP_WRITE_2, 32);
+	if (ret < 0)
+		goto fail;
+	ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_2,
+				 RSI_ULP_WRITE_0, 32);
+	if (ret < 0)
+		goto fail;
+	ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_DELAY_TIMER_1,
+				 RSI_ULP_WRITE_50, 32);
+	if (ret < 0)
+		goto fail;
+	ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_DELAY_TIMER_2,
+				 RSI_ULP_WRITE_0, 32);
+	if (ret < 0)
+		goto fail;
+	ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_ENABLE,
+				 RSI_ULP_TIMER_ENABLE, 32);
+	if (ret < 0)
+		goto fail;
+
+	rsi_dbg(INFO_ZONE, "Reset card done\n");
+	return ret;
+
+fail:
+	rsi_dbg(ERR_ZONE, "Reset card failed\n");
+	return ret;
 }
 
 /**
@@ -467,6 +668,7 @@ static int rsi_probe(struct usb_interface *pfunction,
 			__func__);
 		return -ENOMEM;
 	}
+	adapter->rsi_host_intf = RSI_HOST_INTF_USB;
 
 	status = rsi_init_usb_interface(adapter, pfunction);
 	if (status) {
@@ -480,25 +682,20 @@ static int rsi_probe(struct usb_interface *pfunction,
 	dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
 
 	status = rsi_usb_reg_read(dev->usbdev, FW_STATUS_REG, &fw_status, 2);
-	if (status)
+	if (status < 0)
 		goto err1;
 	else
 		fw_status &= 1;
 
 	if (!fw_status) {
-		status = rsi_usb_device_init(adapter->priv);
+		rsi_dbg(INIT_ZONE, "Loading firmware...\n");
+		status = rsi_hal_device_init(adapter);
 		if (status) {
 			rsi_dbg(ERR_ZONE, "%s: Failed in device init\n",
 				__func__);
 			goto err1;
 		}
-
-		status = rsi_usb_reg_write(dev->usbdev,
-					   USB_INTERNAL_REG_1,
-					   RSI_USB_READY_MAGIC_NUM, 1);
-		if (status)
-			goto err1;
-		rsi_dbg(INIT_ZONE, "%s: Performed device init\n", __func__);
+		rsi_dbg(INIT_ZONE, "%s: Device Init Done\n", __func__);
 	}
 
 	status = rsi_rx_urb_submit(adapter);
@@ -529,6 +726,7 @@ static void rsi_disconnect(struct usb_interface *pfunction)
 		return;
 
 	rsi_mac80211_detach(adapter);
+	rsi_reset_card(adapter);
 	rsi_deinit_usb_interface(adapter);
 	rsi_91x_deinit(adapter);
 
@@ -554,6 +752,7 @@ static const struct usb_device_id rsi_dev_table[] = {
 	{ USB_DEVICE(0x041B, 0x0301) },
 	{ USB_DEVICE(0x041B, 0x0201) },
 	{ USB_DEVICE(0x041B, 0x9330) },
+	{ USB_DEVICE(0x1618, 0x9113) },
 	{ /* Blank */},
 };
 

@@ -21,10 +21,15 @@
 struct vsp1_device;
 struct vsp1_dl_list;
 struct vsp1_pipeline;
+struct vsp1_partition;
+struct vsp1_partition_window;
 
 enum vsp1_entity_type {
+	VSP1_ENTITY_BRS,
 	VSP1_ENTITY_BRU,
 	VSP1_ENTITY_CLU,
+	VSP1_ENTITY_HGO,
+	VSP1_ENTITY_HGT,
 	VSP1_ENTITY_HSI,
 	VSP1_ENTITY_HST,
 	VSP1_ENTITY_LIF,
@@ -79,12 +84,17 @@ struct vsp1_route {
  *		selection rectangles, ...)
  * @max_width:	Return the max supported width of data that the entity can
  *		process in a single operation.
+ * @partition:	Process the partition construction based on this entity's
+ *		configuration.
  */
 struct vsp1_entity_operations {
 	void (*destroy)(struct vsp1_entity *);
 	void (*configure)(struct vsp1_entity *, struct vsp1_pipeline *,
 			  struct vsp1_dl_list *, enum vsp1_entity_params);
 	unsigned int (*max_width)(struct vsp1_entity *, struct vsp1_pipeline *);
+	void (*partition)(struct vsp1_entity *, struct vsp1_pipeline *,
+			  struct vsp1_partition *, unsigned int,
+			  struct vsp1_partition_window *);
 };
 
 struct vsp1_entity {
@@ -102,7 +112,8 @@ struct vsp1_entity {
 	struct media_pad *pads;
 	unsigned int source_pad;
 
-	struct media_entity *sink;
+	struct vsp1_entity **sources;
+	struct vsp1_entity *sink;
 	unsigned int sink_pad;
 
 	struct v4l2_subdev subdev;
@@ -142,8 +153,11 @@ vsp1_entity_get_pad_selection(struct vsp1_entity *entity,
 int vsp1_entity_init_cfg(struct v4l2_subdev *subdev,
 			 struct v4l2_subdev_pad_config *cfg);
 
-void vsp1_entity_route_setup(struct vsp1_entity *source,
+void vsp1_entity_route_setup(struct vsp1_entity *entity,
+			     struct vsp1_pipeline *pipe,
 			     struct vsp1_dl_list *dl);
+
+struct media_pad *vsp1_entity_remote_pad(struct media_pad *pad);
 
 int vsp1_subdev_get_pad_format(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_pad_config *cfg,

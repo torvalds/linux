@@ -901,6 +901,8 @@ static void bnx2x_vf_flr(struct bnx2x *bp, struct bnx2x_virtf *vf)
 	/* release VF resources */
 	bnx2x_vf_free_resc(bp, vf);
 
+	vf->malicious = false;
+
 	/* re-open the mailbox */
 	bnx2x_vf_enable_mbx(bp, vf->abs_vfid);
 	return;
@@ -1822,8 +1824,10 @@ get_vf:
 		   vf->abs_vfid, qidx);
 		bnx2x_vf_handle_rss_update_eqe(bp, vf);
 	case EVENT_RING_OPCODE_VF_FLR:
-	case EVENT_RING_OPCODE_MALICIOUS_VF:
 		/* Do nothing for now */
+		return 0;
+	case EVENT_RING_OPCODE_MALICIOUS_VF:
+		vf->malicious = true;
 		return 0;
 	}
 
@@ -1901,6 +1905,13 @@ void bnx2x_iov_adjust_stats_req(struct bnx2x *bp)
 		if (vf->state != VF_ENABLED) {
 			DP_AND((BNX2X_MSG_IOV | BNX2X_MSG_STATS),
 			       "vf %d not enabled so no stats for it\n",
+			       vf->abs_vfid);
+			continue;
+		}
+
+		if (vf->malicious) {
+			DP_AND((BNX2X_MSG_IOV | BNX2X_MSG_STATS),
+			       "vf %d malicious so no stats for it\n",
 			       vf->abs_vfid);
 			continue;
 		}
@@ -3042,7 +3053,7 @@ void bnx2x_vf_pci_dealloc(struct bnx2x *bp)
 {
 	BNX2X_PCI_FREE(bp->vf2pf_mbox, bp->vf2pf_mbox_mapping,
 		       sizeof(struct bnx2x_vf_mbx_msg));
-	BNX2X_PCI_FREE(bp->vf2pf_mbox, bp->pf2vf_bulletin_mapping,
+	BNX2X_PCI_FREE(bp->pf2vf_bulletin, bp->pf2vf_bulletin_mapping,
 		       sizeof(union pf_vf_bulletin));
 }
 

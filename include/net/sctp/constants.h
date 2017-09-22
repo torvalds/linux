@@ -42,7 +42,7 @@
 
 #include <linux/sctp.h>
 #include <linux/ipv6.h> /* For ipv6hdr. */
-#include <net/tcp_states.h>  /* For TCP states used in sctp_sock_state_t */
+#include <net/tcp_states.h>  /* For TCP states used in enum sctp_sock_state */
 
 /* Value used for stream negotiation. */
 enum { SCTP_MAX_STREAM = 0xffff };
@@ -71,20 +71,18 @@ enum { SCTP_DEFAULT_INSTREAMS = SCTP_MAX_STREAM };
 					 SCTP_NUM_AUTH_CHUNK_TYPES)
 
 /* These are the different flavours of event.  */
-typedef enum {
-
+enum sctp_event {
 	SCTP_EVENT_T_CHUNK = 1,
 	SCTP_EVENT_T_TIMEOUT,
 	SCTP_EVENT_T_OTHER,
 	SCTP_EVENT_T_PRIMITIVE
-
-} sctp_event_t;
+};
 
 /* As a convenience for the state machine, we append SCTP_EVENT_* and
  * SCTP_ULP_* to the list of possible chunks.
  */
 
-typedef enum {
+enum sctp_event_timeout {
 	SCTP_EVENT_TIMEOUT_NONE = 0,
 	SCTP_EVENT_TIMEOUT_T1_COOKIE,
 	SCTP_EVENT_TIMEOUT_T1_INIT,
@@ -96,21 +94,21 @@ typedef enum {
 	SCTP_EVENT_TIMEOUT_RECONF,
 	SCTP_EVENT_TIMEOUT_SACK,
 	SCTP_EVENT_TIMEOUT_AUTOCLOSE,
-} sctp_event_timeout_t;
+};
 
 #define SCTP_EVENT_TIMEOUT_MAX		SCTP_EVENT_TIMEOUT_AUTOCLOSE
 #define SCTP_NUM_TIMEOUT_TYPES		(SCTP_EVENT_TIMEOUT_MAX + 1)
 
-typedef enum {
+enum sctp_event_other {
 	SCTP_EVENT_NO_PENDING_TSN = 0,
 	SCTP_EVENT_ICMP_PROTO_UNREACH,
-} sctp_event_other_t;
+};
 
 #define SCTP_EVENT_OTHER_MAX		SCTP_EVENT_ICMP_PROTO_UNREACH
 #define SCTP_NUM_OTHER_TYPES		(SCTP_EVENT_OTHER_MAX + 1)
 
 /* These are primitive requests from the ULP.  */
-typedef enum {
+enum sctp_event_primitive {
 	SCTP_PRIMITIVE_ASSOCIATE = 0,
 	SCTP_PRIMITIVE_SHUTDOWN,
 	SCTP_PRIMITIVE_ABORT,
@@ -118,7 +116,7 @@ typedef enum {
 	SCTP_PRIMITIVE_REQUESTHEARTBEAT,
 	SCTP_PRIMITIVE_ASCONF,
 	SCTP_PRIMITIVE_RECONF,
-} sctp_event_primitive_t;
+};
 
 #define SCTP_EVENT_PRIMITIVE_MAX	SCTP_PRIMITIVE_RECONF
 #define SCTP_NUM_PRIMITIVE_TYPES	(SCTP_EVENT_PRIMITIVE_MAX + 1)
@@ -126,25 +124,25 @@ typedef enum {
 /* We define here a utility type for manipulating subtypes.
  * The subtype constructors all work like this:
  *
- * 	sctp_subtype_t foo = SCTP_ST_CHUNK(SCTP_CID_INIT);
+ *   union sctp_subtype foo = SCTP_ST_CHUNK(SCTP_CID_INIT);
  */
 
-typedef union {
-	sctp_cid_t chunk;
-	sctp_event_timeout_t timeout;
-	sctp_event_other_t other;
-	sctp_event_primitive_t primitive;
-} sctp_subtype_t;
+union sctp_subtype {
+	enum sctp_cid chunk;
+	enum sctp_event_timeout timeout;
+	enum sctp_event_other other;
+	enum sctp_event_primitive primitive;
+};
 
 #define SCTP_SUBTYPE_CONSTRUCTOR(_name, _type, _elt) \
-static inline sctp_subtype_t	\
+static inline union sctp_subtype	\
 SCTP_ST_## _name (_type _arg)		\
-{ sctp_subtype_t _retval; _retval._elt = _arg; return _retval; }
+{ union sctp_subtype _retval; _retval._elt = _arg; return _retval; }
 
-SCTP_SUBTYPE_CONSTRUCTOR(CHUNK,		sctp_cid_t,		chunk)
-SCTP_SUBTYPE_CONSTRUCTOR(TIMEOUT,	sctp_event_timeout_t,	timeout)
-SCTP_SUBTYPE_CONSTRUCTOR(OTHER,		sctp_event_other_t,	other)
-SCTP_SUBTYPE_CONSTRUCTOR(PRIMITIVE,	sctp_event_primitive_t,	primitive)
+SCTP_SUBTYPE_CONSTRUCTOR(CHUNK,		enum sctp_cid,		chunk)
+SCTP_SUBTYPE_CONSTRUCTOR(TIMEOUT,	enum sctp_event_timeout, timeout)
+SCTP_SUBTYPE_CONSTRUCTOR(OTHER,		enum sctp_event_other,	other)
+SCTP_SUBTYPE_CONSTRUCTOR(PRIMITIVE,	enum sctp_event_primitive, primitive)
 
 
 #define sctp_chunk_is_data(a) (a->chunk_hdr->type == SCTP_CID_DATA)
@@ -152,11 +150,10 @@ SCTP_SUBTYPE_CONSTRUCTOR(PRIMITIVE,	sctp_event_primitive_t,	primitive)
 /* Calculate the actual data size in a data chunk */
 #define SCTP_DATA_SNDSIZE(c) ((int)((unsigned long)(c->chunk_end)\
 		       		- (unsigned long)(c->chunk_hdr)\
-				- sizeof(sctp_data_chunk_t)))
+				- sizeof(struct sctp_data_chunk)))
 
 /* Internal error codes */
-typedef enum {
-
+enum sctp_ierror {
 	SCTP_IERROR_NO_ERROR	        = 0,
 	SCTP_IERROR_BASE		= 1000,
 	SCTP_IERROR_NO_COOKIE,
@@ -177,12 +174,12 @@ typedef enum {
 	SCTP_IERROR_PROTO_VIOLATION,
 	SCTP_IERROR_ERROR,
 	SCTP_IERROR_ABORT,
-} sctp_ierror_t;
+};
 
 
 
 /* SCTP state defines for internal state machine */
-typedef enum {
+enum sctp_state {
 
 	SCTP_STATE_CLOSED		= 0,
 	SCTP_STATE_COOKIE_WAIT		= 1,
@@ -193,7 +190,7 @@ typedef enum {
 	SCTP_STATE_SHUTDOWN_RECEIVED	= 6,
 	SCTP_STATE_SHUTDOWN_ACK_SENT	= 7,
 
-} sctp_state_t;
+};
 
 #define SCTP_STATE_MAX			SCTP_STATE_SHUTDOWN_ACK_SENT
 #define SCTP_STATE_NUM_STATES		(SCTP_STATE_MAX + 1)
@@ -214,19 +211,19 @@ typedef enum {
  * - A socket in SCTP_SS_ESTABLISHED state indicates that it has a single 
  *   association.
  */
-typedef enum {
+enum sctp_sock_state {
 	SCTP_SS_CLOSED         = TCP_CLOSE,
 	SCTP_SS_LISTENING      = TCP_LISTEN,
 	SCTP_SS_ESTABLISHING   = TCP_SYN_SENT,
 	SCTP_SS_ESTABLISHED    = TCP_ESTABLISHED,
 	SCTP_SS_CLOSING        = TCP_CLOSE_WAIT,
-} sctp_sock_state_t;
+};
 
 /* These functions map various type to printable names.  */
-const char *sctp_cname(const sctp_subtype_t);	/* chunk types */
-const char *sctp_oname(const sctp_subtype_t);	/* other events */
-const char *sctp_tname(const sctp_subtype_t);	/* timeouts */
-const char *sctp_pname(const sctp_subtype_t);	/* primitives */
+const char *sctp_cname(const union sctp_subtype id);	/* chunk types */
+const char *sctp_oname(const union sctp_subtype id);	/* other events */
+const char *sctp_tname(const union sctp_subtype id);	/* timeouts */
+const char *sctp_pname(const union sctp_subtype id);	/* primitives */
 
 /* This is a table of printable names of sctp_state_t's.  */
 extern const char *const sctp_state_tbl[];
@@ -312,19 +309,19 @@ enum { SCTP_MAX_GABS = 16 };
 /* These return values describe the success or failure of a number of
  * routines which form the lower interface to SCTP_outqueue.
  */
-typedef enum {
+enum sctp_xmit {
 	SCTP_XMIT_OK,
 	SCTP_XMIT_PMTU_FULL,
 	SCTP_XMIT_RWND_FULL,
 	SCTP_XMIT_DELAY,
-} sctp_xmit_t;
+};
 
 /* These are the commands for manipulating transports.  */
-typedef enum {
+enum sctp_transport_cmd {
 	SCTP_TRANSPORT_UP,
 	SCTP_TRANSPORT_DOWN,
 	SCTP_TRANSPORT_PF,
-} sctp_transport_cmd_t;
+};
 
 /* These are the address scopes defined mainly for IPv4 addresses
  * based on draft of SCTP IPv4 scoping <draft-stewart-tsvwg-sctp-ipv4-00.txt>.
@@ -333,20 +330,22 @@ typedef enum {
  * At this point, the IPv6 scopes will be mapped to these internal scopes
  * as much as possible.
  */
-typedef enum {
+enum sctp_scope {
 	SCTP_SCOPE_GLOBAL,		/* IPv4 global addresses */
 	SCTP_SCOPE_PRIVATE,		/* IPv4 private addresses */
 	SCTP_SCOPE_LINK,		/* IPv4 link local address */
 	SCTP_SCOPE_LOOPBACK,		/* IPv4 loopback address */
 	SCTP_SCOPE_UNUSABLE,		/* IPv4 unusable addresses */
-} sctp_scope_t;
+};
 
-typedef enum {
+enum {
 	SCTP_SCOPE_POLICY_DISABLE,	/* Disable IPv4 address scoping */
 	SCTP_SCOPE_POLICY_ENABLE,	/* Enable IPv4 address scoping */
 	SCTP_SCOPE_POLICY_PRIVATE,	/* Follow draft but allow IPv4 private addresses */
 	SCTP_SCOPE_POLICY_LINK,		/* Follow draft but allow IPv4 link local addresses */
-} sctp_scope_policy_t;
+};
+
+#define SCTP_SCOPE_POLICY_MAX	SCTP_SCOPE_POLICY_LINK
 
 /* Based on IPv4 scoping <draft-stewart-tsvwg-sctp-ipv4-00.txt>,
  * SCTP IPv4 unusable addresses: 0.0.0.0/8, 224.0.0.0/4, 198.18.0.0/24,
@@ -370,20 +369,20 @@ typedef enum {
 						   peer */
 
 /* Reasons to retransmit. */
-typedef enum {
+enum sctp_retransmit_reason {
 	SCTP_RTXR_T3_RTX,
 	SCTP_RTXR_FAST_RTX,
 	SCTP_RTXR_PMTUD,
 	SCTP_RTXR_T1_RTX,
-} sctp_retransmit_reason_t;
+};
 
 /* Reasons to lower cwnd. */
-typedef enum {
+enum sctp_lower_cwnd {
 	SCTP_LOWER_CWND_T3_RTX,
 	SCTP_LOWER_CWND_FAST_RTX,
 	SCTP_LOWER_CWND_ECNE,
 	SCTP_LOWER_CWND_INACTIVE,
-} sctp_lower_cwnd_t;
+};
 
 
 /* SCTP-AUTH Necessary constants */

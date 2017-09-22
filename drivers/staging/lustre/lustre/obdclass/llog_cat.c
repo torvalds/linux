@@ -44,7 +44,7 @@
 
 #define DEBUG_SUBSYSTEM S_LOG
 
-#include "../include/obd_class.h"
+#include <obd_class.h>
 
 #include "llog_internal.h"
 
@@ -78,7 +78,7 @@ static int llog_cat_id2handle(const struct lu_env *env,
 		if (ostid_id(&cgl->lgl_oi) == ostid_id(&logid->lgl_oi) &&
 		    ostid_seq(&cgl->lgl_oi) == ostid_seq(&logid->lgl_oi)) {
 			if (cgl->lgl_ogen != logid->lgl_ogen) {
-				CERROR("%s: log "DOSTID" generation %x != %x\n",
+				CERROR("%s: log " DOSTID " generation %x != %x\n",
 				       loghandle->lgh_ctxt->loc_obd->obd_name,
 				       POSTID(&logid->lgl_oi), cgl->lgl_ogen,
 				       logid->lgl_ogen);
@@ -95,7 +95,7 @@ static int llog_cat_id2handle(const struct lu_env *env,
 	rc = llog_open(env, cathandle->lgh_ctxt, &loghandle, logid, NULL,
 		       LLOG_OPEN_EXISTS);
 	if (rc < 0) {
-		CERROR("%s: error opening log id "DOSTID":%x: rc = %d\n",
+		CERROR("%s: error opening log id " DOSTID ":%x: rc = %d\n",
 		       cathandle->lgh_ctxt->loc_obd->obd_name,
 		       POSTID(&logid->lgl_oi), logid->lgl_ogen, rc);
 		return rc;
@@ -152,13 +152,13 @@ static int llog_cat_process_cb(const struct lu_env *env,
 		CERROR("invalid record in catalog\n");
 		return -EINVAL;
 	}
-	CDEBUG(D_HA, "processing log "DOSTID":%x at index %u of catalog "
-	       DOSTID"\n", POSTID(&lir->lid_id.lgl_oi), lir->lid_id.lgl_ogen,
+	CDEBUG(D_HA, "processing log " DOSTID ":%x at index %u of catalog "
+	       DOSTID "\n", POSTID(&lir->lid_id.lgl_oi), lir->lid_id.lgl_ogen,
 	       rec->lrh_index, POSTID(&cat_llh->lgh_id.lgl_oi));
 
 	rc = llog_cat_id2handle(env, cat_llh, &llh, &lir->lid_id);
 	if (rc) {
-		CERROR("%s: cannot find handle for llog "DOSTID": %d\n",
+		CERROR("%s: cannot find handle for llog " DOSTID ": %d\n",
 		       cat_llh->lgh_ctxt->loc_obd->obd_name,
 		       POSTID(&lir->lid_id.lgl_oi), rc);
 		return rc;
@@ -204,7 +204,7 @@ static int llog_cat_process_or_fork(const struct lu_env *env,
 	if (llh->llh_cat_idx > cat_llh->lgh_last_idx) {
 		struct llog_process_cat_data cd;
 
-		CWARN("catlog "DOSTID" crosses index zero\n",
+		CWARN("catlog " DOSTID " crosses index zero\n",
 		      POSTID(&cat_llh->lgh_id.lgl_oi));
 
 		cd.lpcd_first_idx = llh->llh_cat_idx;

@@ -35,10 +35,11 @@
  * Max bus-specific overhead incurred by request/responses.
  * I2C requires 1 additional byte for requests.
  * I2C requires 2 additional bytes for responses.
+ * SPI requires up to 32 additional bytes for responses.
  * */
 #define EC_PROTO_VERSION_UNKNOWN	0
 #define EC_MAX_REQUEST_OVERHEAD		1
-#define EC_MAX_RESPONSE_OVERHEAD	2
+#define EC_MAX_RESPONSE_OVERHEAD	32
 
 /*
  * Command interface between EC and AP, for LPC, I2C and SPI interfaces.
@@ -148,6 +149,7 @@ struct cros_ec_device {
 
 	struct ec_response_get_next_event event_data;
 	int event_size;
+	u32 host_event_wake_mask;
 };
 
 /**
@@ -171,6 +173,8 @@ struct cros_ec_platform {
 	u16 cmd_offset;
 };
 
+struct cros_ec_debugfs;
+
 /*
  * struct cros_ec_dev - ChromeOS EC device entry point
  *
@@ -178,6 +182,7 @@ struct cros_ec_platform {
  * @cdev: Character device structure in /dev
  * @ec_dev: cros_ec_device structure to talk to the physical device
  * @dev: pointer to the platform device
+ * @debug_info: cros_ec_debugfs structure for debugging information
  * @cmd_offset: offset to apply for each command.
  */
 struct cros_ec_dev {
@@ -185,6 +190,7 @@ struct cros_ec_dev {
 	struct cdev cdev;
 	struct cros_ec_device *ec_dev;
 	struct device *dev;
+	struct cros_ec_debugfs *debug_info;
 	u16 cmd_offset;
 	u32 features[2];
 };
@@ -294,14 +300,44 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev);
  * cros_ec_get_next_event -  Fetch next event from the ChromeOS EC
  *
  * @ec_dev: Device to fetch event from
+ * @wake_event: Pointer to a bool set to true upon return if the event might be
+ *              treated as a wake event. Ignored if null.
  *
  * Returns: 0 on success, Linux error number on failure
  */
-int cros_ec_get_next_event(struct cros_ec_device *ec_dev);
+int cros_ec_get_next_event(struct cros_ec_device *ec_dev, bool *wake_event);
+
+/**
+ * cros_ec_get_host_event - Return a mask of event set by the EC.
+ *
+ * When MKBP is supported, when the EC raises an interrupt,
+ * We collect the events raised and call the functions in the ec notifier.
+ *
+ * This function is a helper to know which events are raised.
+ */
+u32 cros_ec_get_host_event(struct cros_ec_device *ec_dev);
 
 /* sysfs stuff */
 extern struct attribute_group cros_ec_attr_group;
 extern struct attribute_group cros_ec_lightbar_attr_group;
 extern struct attribute_group cros_ec_vbc_attr_group;
+
+/* ACPI GPE handler */
+#ifdef CONFIG_ACPI
+
+int cros_ec_acpi_install_gpe_handler(struct device *dev);
+void cros_ec_acpi_remove_gpe_handler(void);
+void cros_ec_acpi_clear_gpe(void);
+
+#else /* CONFIG_ACPI */
+
+static inline int cros_ec_acpi_install_gpe_handler(struct device *dev)
+{
+	return -ENODEV;
+}
+static inline void cros_ec_acpi_remove_gpe_handler(void) {}
+static inline void cros_ec_acpi_clear_gpe(void) {}
+
+#endif /* CONFIG_ACPI */
 
 #endif /* __LINUX_MFD_CROS_EC_H */

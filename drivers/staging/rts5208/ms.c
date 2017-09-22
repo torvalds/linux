@@ -2594,7 +2594,7 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 	u16 start, end, phy_blk, log_blk, tmp_blk, idx;
 	u8 extra[MS_EXTRA_SIZE], us1, us2;
 
-	dev_dbg(rtsx_dev(chip), "ms_build_l2p_tbl: %d\n", seg_no);
+	dev_dbg(rtsx_dev(chip), "%s: %d\n", __func__, seg_no);
 
 	if (!ms_card->segment) {
 		retval = ms_init_l2p_tbl(chip);
@@ -3064,7 +3064,8 @@ static int mspro_rw_multi_sector(struct scsi_cmnd *srb,
 
 		if (detect_card_cd(chip, MS_CARD) != STATUS_SUCCESS) {
 			chip->rw_need_retry = 0;
-			dev_dbg(rtsx_dev(chip), "No card exist, exit mspro_rw_multi_sector\n");
+			dev_dbg(rtsx_dev(chip), "No card exist, exit %s\n",
+				__func__);
 			rtsx_trace(chip);
 			return STATUS_FAIL;
 		}
@@ -3101,7 +3102,7 @@ static int mspro_read_format_progress(struct rtsx_chip *chip,
 	u8 cnt, tmp;
 	u8 data[8];
 
-	dev_dbg(rtsx_dev(chip), "mspro_read_format_progress, short_data_len = %d\n",
+	dev_dbg(rtsx_dev(chip), "%s, short_data_len = %d\n", __func__,
 		short_data_len);
 
 	retval = ms_switch_clock(chip);

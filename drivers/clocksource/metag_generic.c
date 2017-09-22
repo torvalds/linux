@@ -114,7 +114,9 @@ static int arch_timer_starting_cpu(unsigned int cpu)
 
 	clk->mult = div_sc(hwtimer_freq, NSEC_PER_SEC, clk->shift);
 	clk->max_delta_ns = clockevent_delta2ns(0x7fffffff, clk);
+	clk->max_delta_ticks = 0x7fffffff;
 	clk->min_delta_ns = clockevent_delta2ns(0xf, clk);
+	clk->min_delta_ticks = 0xf;
 	clk->cpumask = cpumask_of(cpu);
 
 	clockevents_register_device(clk);

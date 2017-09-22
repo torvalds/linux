@@ -218,8 +218,8 @@ struct hv_per_cpu_context {
 
 struct hv_context {
 	/* We only support running on top of Hyper-V
-	* So at this point this really can only contain the Hyper-V ID
-	*/
+	 * So at this point this really can only contain the Hyper-V ID
+	 */
 	u64 guestid;
 
 	void *tsc_page;
@@ -229,17 +229,6 @@ struct hv_context {
 	struct hv_per_cpu_context __percpu *cpu_context;
 
 	/*
-	 * Hypervisor's notion of virtual processor ID is different from
-	 * Linux' notion of CPU ID. This information can only be retrieved
-	 * in the context of the calling CPU. Setup a map for easy access
-	 * to this information:
-	 *
-	 * vp_index[a] is the Hyper-V's processor ID corresponding to
-	 * Linux cpuid 'a'.
-	 */
-	u32 vp_index[NR_CPUS];
-
-	/*
 	 * To manage allocations in a NUMA node.
 	 * Array indexed by numa node ID.
 	 */
@@ -247,14 +236,6 @@ struct hv_context {
 };
 
 extern struct hv_context hv_context;
-
-struct hv_ring_buffer_debug_info {
-	u32 current_interrupt_mask;
-	u32 current_read_index;
-	u32 current_write_index;
-	u32 bytes_avail_toread;
-	u32 bytes_avail_towrite;
-};
 
 /* Hv Interface */
 
@@ -289,9 +270,6 @@ int hv_ringbuffer_read(struct vmbus_channel *channel,
 		       void *buffer, u32 buflen, u32 *buffer_actual_len,
 		       u64 *requestid, bool raw);
 
-void hv_ringbuffer_get_debuginfo(const struct hv_ring_buffer_info *ring_info,
-				 struct hv_ring_buffer_debug_info *debug_info);
-
 /*
  * Maximum channels is determined by the size of the interrupt page
  * which is PAGE_SIZE. 1/2 of PAGE_SIZE is for send endpoint interrupt
@@ -314,6 +292,13 @@ enum vmbus_connect_state {
 #define MAX_SIZE_CHANNEL_MESSAGE	HV_MESSAGE_PAYLOAD_BYTE_COUNT
 
 struct vmbus_connection {
+	/*
+	 * CPU on which the initial host contact was made.
+	 */
+	int connect_cpu;
+
+	atomic_t offer_in_progress;
+
 	enum vmbus_connect_state conn_state;
 
 	atomic_t next_gpadl_handle;
@@ -376,7 +361,7 @@ struct vmbus_channel_message_table_entry {
 	void (*message_handler)(struct vmbus_channel_message_header *msg);
 };
 
-extern struct vmbus_channel_message_table_entry
+extern const struct vmbus_channel_message_table_entry
 	channel_message_table[CHANNELMSG_COUNT];
 
 
@@ -403,17 +388,17 @@ int vmbus_post_msg(void *buffer, size_t buflen, bool can_sleep);
 void vmbus_on_event(unsigned long data);
 void vmbus_on_msg_dpc(unsigned long data);
 
-int hv_kvp_init(struct hv_util_service *);
+int hv_kvp_init(struct hv_util_service *srv);
 void hv_kvp_deinit(void);
-void hv_kvp_onchannelcallback(void *);
+void hv_kvp_onchannelcallback(void *context);
 
-int hv_vss_init(struct hv_util_service *);
+int hv_vss_init(struct hv_util_service *srv);
 void hv_vss_deinit(void);
-void hv_vss_onchannelcallback(void *);
+void hv_vss_onchannelcallback(void *context);
 
-int hv_fcopy_init(struct hv_util_service *);
+int hv_fcopy_init(struct hv_util_service *srv);
 void hv_fcopy_deinit(void);
-void hv_fcopy_onchannelcallback(void *);
+void hv_fcopy_onchannelcallback(void *context);
 void vmbus_initiate_unload(bool crash);
 
 static inline void hv_poll_channel(struct vmbus_channel *channel,
@@ -422,6 +407,10 @@ static inline void hv_poll_channel(struct vmbus_channel *channel,
 	if (!channel)
 		return;
 
+	if (in_interrupt() && (channel->target_cpu == smp_processor_id())) {
+		cb(channel);
+		return;
+	}
 	smp_call_function_single(channel->target_cpu, cb, channel, true);
 }
 

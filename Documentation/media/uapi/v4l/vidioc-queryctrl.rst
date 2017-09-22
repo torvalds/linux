@@ -32,6 +32,8 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
+    Pointer to struct :c:type:`v4l2_queryctl`, :c:type:`v4l2_query_ext_ctrl`
+    or :c:type`v4l2_querymenu` (depending on the ioctl).
 
 
 Description
@@ -274,7 +276,7 @@ See also the examples in :ref:`control`.
 
 
 
-.. tabularcolumns:: |p{1.2cm}|p{0.6cm}|p{1.6cm}|p{13.5cm}|
+.. tabularcolumns:: |p{1.2cm}|p{1.0cm}|p{1.7cm}|p{13.0cm}|
 
 .. _v4l2-querymenu:
 
@@ -301,12 +303,12 @@ See also the examples in :ref:`control`.
       - ``name``\ [32]
       - Name of the menu item, a NUL-terminated ASCII string. This
 	information is intended for the user. This field is valid for
-	``V4L2_CTRL_FLAG_MENU`` type controls.
+	``V4L2_CTRL_TYPE_MENU`` type controls.
     * -
       - __s64
       - ``value``
       - Value of the integer menu item. This field is valid for
-	``V4L2_CTRL_FLAG_INTEGER_MENU`` type controls.
+	``V4L2_CTRL_TYPE_INTEGER_MENU`` type controls.
     * - __u32
       -
       - ``reserved``
@@ -507,6 +509,19 @@ See also the examples in :ref:`control`.
 	represents an action on the hardware. For example: clearing an
 	error flag or triggering the flash. All the controls of the type
 	``V4L2_CTRL_TYPE_BUTTON`` have this flag set.
+    * .. _FLAG_MODIFY_LAYOUT:
+
+      - ``V4L2_CTRL_FLAG_MODIFY_LAYOUT``
+      - 0x0400
+      - Changing this control value may modify the layout of the
+        buffer (for video devices) or the media bus format (for sub-devices).
+
+	A typical example would be the ``V4L2_CID_ROTATE`` control.
+
+	Note that typically controls with this flag will also set the
+	``V4L2_CTRL_FLAG_GRABBED`` flag when buffers are allocated or
+	streaming is in progress since most drivers do not support changing
+	the format in that case.
 
 
 Return Value

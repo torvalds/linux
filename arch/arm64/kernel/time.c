@@ -50,7 +50,6 @@ unsigned long profile_pc(struct pt_regs *regs)
 		return regs->pc;
 
 	frame.fp = regs->regs[29];
-	frame.sp = regs->sp;
 	frame.pc = regs->pc;
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	frame.graph = -1; /* no task info */
@@ -70,7 +69,7 @@ void __init time_init(void)
 	u32 arch_timer_rate;
 
 	of_clk_init(NULL);
-	clocksource_probe();
+	timer_probe();
 
 	tick_setup_hrtimer_broadcast();
 

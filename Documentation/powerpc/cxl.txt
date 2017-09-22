@@ -21,7 +21,7 @@ Introduction
 Hardware overview
 =================
 
-          POWER8               FPGA
+         POWER8/9             FPGA
        +----------+        +---------+
        |          |        |         |
        |   CPU    |        |   AFU   |
@@ -34,7 +34,7 @@ Hardware overview
        |   | CAPP |<------>|         |
        +---+------+  PCIE  +---------+
 
-    The POWER8 chip has a Coherently Attached Processor Proxy (CAPP)
+    The POWER8/9 chip has a Coherently Attached Processor Proxy (CAPP)
     unit which is part of the PCIe Host Bridge (PHB). This is managed
     by Linux by calls into OPAL. Linux doesn't directly program the
     CAPP.
@@ -59,6 +59,17 @@ Hardware overview
     the fault. The context to which this fault is serviced is based on
     who owns that acceleration function.
 
+    POWER8 <-----> PSL Version 8 is compliant to the CAIA Version 1.0.
+    POWER9 <-----> PSL Version 9 is compliant to the CAIA Version 2.0.
+    This PSL Version 9 provides new features such as:
+    * Interaction with the nest MMU on the P9 chip.
+    * Native DMA support.
+    * Supports sending ASB_Notify messages for host thread wakeup.
+    * Supports Atomic operations.
+    * ....
+
+    Cards with a PSL9 won't work on a POWER8 system and cards with a
+    PSL8 won't work on a POWER9 system.
 
 AFU Modes
 =========

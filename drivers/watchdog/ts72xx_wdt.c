@@ -112,7 +112,7 @@ static const struct watchdog_info ts72xx_wdt_ident = {
 	.identity		= "TS-72XX WDT",
 };
 
-static struct watchdog_ops ts72xx_wdt_ops = {
+static const struct watchdog_ops ts72xx_wdt_ops = {
 	.owner		= THIS_MODULE,
 	.start		= ts72xx_wdt_start,
 	.stop		= ts72xx_wdt_stop,

@@ -295,10 +295,37 @@ static const struct pinctrl_pin_desc vf610_pinctrl_pads[] = {
 	IMX_PINCTRL_PIN(VF610_PAD_PTA7),
 };
 
+static int vf610_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
+					struct pinctrl_gpio_range *range,
+					unsigned offset, bool input)
+{
+	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
+	struct imx_pinctrl_soc_info *info = ipctl->info;
+	const struct imx_pin_reg *pin_reg;
+	u32 reg;
+
+	pin_reg = &info->pin_regs[offset];
+	if (pin_reg->mux_reg == -1)
+		return -EINVAL;
+
+	/* IBE always enabled allows us to read the value "on the wire" */
+	reg = readl(ipctl->base + pin_reg->mux_reg);
+	if (input)
+		reg &= ~0x2;
+	else
+		reg |= 0x2;
+	writel(reg, ipctl->base + pin_reg->mux_reg);
+
+	return 0;
+}
+
 static struct imx_pinctrl_soc_info vf610_pinctrl_info = {
 	.pins = vf610_pinctrl_pads,
 	.npins = ARRAY_SIZE(vf610_pinctrl_pads),
 	.flags = SHARE_MUX_CONF_REG | ZERO_OFFSET_VALID,
+	.gpio_set_direction = vf610_pmx_gpio_set_direction,
+	.mux_mask = 0x700000,
+	.mux_shift = 20,
 };
 
 static const struct of_device_id vf610_pinctrl_of_match[] = {

@@ -33,7 +33,6 @@
 #include <linux/string.h>
 #include <linux/inet.h>
 #include <linux/pagemap.h>
-#include <linux/seq_file.h>
 #include <linux/mount.h>
 #include <linux/idr.h>
 #include <linux/sched.h>
@@ -72,10 +71,12 @@ static int v9fs_set_super(struct super_block *s, void *data)
  *
  */
 
-static void
+static int
 v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 		int flags, void *data)
 {
+	int ret;
+
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_blocksize_bits = fls(v9ses->maxdata - 1);
 	sb->s_blocksize = 1 << sb->s_blocksize_bits;
@@ -85,7 +86,11 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 		sb->s_xattr = v9fs_xattr_handlers;
 	} else
 		sb->s_op = &v9fs_super_ops;
-	sb->s_bdi = &v9ses->bdi;
+
+	ret = super_setup_bdi(sb);
+	if (ret)
+		return ret;
+
 	if (v9ses->cache)
 		sb->s_bdi->ra_pages = (VM_MAX_READAHEAD * 1024)/PAGE_SIZE;
 
@@ -98,7 +103,7 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 		sb->s_flags |= MS_POSIXACL;
 #endif
 
-	save_mount_options(sb, data);
+	return 0;
 }
 
 /**
@@ -138,7 +143,9 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 		retval = PTR_ERR(sb);
 		goto clunk_fid;
 	}
-	v9fs_fill_super(sb, v9ses, flags, data);
+	retval = v9fs_fill_super(sb, v9ses, flags, data);
+	if (retval)
+		goto release_sb;
 
 	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
 		sb->s_d_op = &v9fs_cached_dentry_operations;
@@ -340,7 +347,7 @@ static const struct super_operations v9fs_super_ops = {
 	.destroy_inode = v9fs_destroy_inode,
 	.statfs = simple_statfs,
 	.evict_inode = v9fs_evict_inode,
-	.show_options = generic_show_options,
+	.show_options = v9fs_show_options,
 	.umount_begin = v9fs_umount_begin,
 	.write_inode = v9fs_write_inode,
 };
@@ -351,7 +358,7 @@ static const struct super_operations v9fs_super_ops_dotl = {
 	.statfs = v9fs_statfs,
 	.drop_inode = v9fs_drop_inode,
 	.evict_inode = v9fs_evict_inode,
-	.show_options = generic_show_options,
+	.show_options = v9fs_show_options,
 	.umount_begin = v9fs_umount_begin,
 	.write_inode = v9fs_write_inode_dotl,
 };

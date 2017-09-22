@@ -261,6 +261,8 @@ struct tty_port {
  */
 #define TTY_PORT_CTS_FLOW	3	/* h/w flow control enabled */
 #define TTY_PORT_CHECK_CD	4	/* carrier detect enabled */
+#define TTY_PORT_KOPENED	5	/* device exclusively opened by
+					   kernel */
 
 /*
  * Where all of the state associated with a tty is kept while the tty
@@ -316,7 +318,6 @@ struct tty_struct {
 
 	struct tty_struct *link;
 	struct fasync_struct *fasync;
-	int alt_speed;		/* For magic substitution of 38400 bps */
 	wait_queue_head_t write_wait;
 	wait_queue_head_t read_wait;
 	struct work_struct hangup_work;
@@ -333,7 +334,7 @@ struct tty_struct {
 	/* If the tty has a pending do_SAK, queue it here - akpm */
 	struct work_struct SAK_work;
 	struct tty_port *port;
-};
+} __randomize_layout;
 
 /* Each of a tty's open files has private_data pointing to tty_file_private */
 struct tty_file_private {
@@ -390,7 +391,6 @@ static inline bool tty_throttled(struct tty_struct *tty)
 }
 
 #ifdef CONFIG_TTY
-extern void console_init(void);
 extern void tty_kref_put(struct tty_struct *tty);
 extern struct pid *tty_get_pgrp(struct tty_struct *tty);
 extern void tty_vhangup_self(void);
@@ -401,9 +401,10 @@ extern struct tty_struct *get_current_tty(void);
 /* tty_io.c */
 extern int __init tty_init(void);
 extern const char *tty_name(const struct tty_struct *tty);
+extern struct tty_struct *tty_kopen(dev_t device);
+extern void tty_kclose(struct tty_struct *tty);
+extern int tty_dev_name_to_number(const char *name, dev_t *number);
 #else
-static inline void console_init(void)
-{ }
 static inline void tty_kref_put(struct tty_struct *tty)
 { }
 static inline struct pid *tty_get_pgrp(struct tty_struct *tty)
@@ -423,6 +424,12 @@ static inline int __init tty_init(void)
 { return 0; }
 static inline const char *tty_name(const struct tty_struct *tty)
 { return "(none)"; }
+static inline struct tty_struct *tty_kopen(dev_t device)
+{ return ERR_PTR(-ENODEV); }
+static inline void tty_kclose(struct tty_struct *tty)
+{ }
+static inline int tty_dev_name_to_number(const char *name, dev_t *number)
+{ return -ENOTSUPP; }
 #endif
 
 extern struct ktermios tty_std_termios;
@@ -478,9 +485,13 @@ extern int tty_do_resize(struct tty_struct *tty, struct winsize *ws);
 extern int is_current_pgrp_orphaned(void);
 extern void tty_hangup(struct tty_struct *tty);
 extern void tty_vhangup(struct tty_struct *tty);
+extern void tty_vhangup_session(struct tty_struct *tty);
 extern int tty_hung_up_p(struct file *filp);
 extern void do_SAK(struct tty_struct *tty);
 extern void __do_SAK(struct tty_struct *tty);
+extern void tty_open_proc_set_tty(struct file *filp, struct tty_struct *tty);
+extern int tty_signal_session_leader(struct tty_struct *tty, int exit_session);
+extern void session_clear_tty(struct pid *session);
 extern void no_tty(void);
 extern void tty_buffer_free_all(struct tty_port *port);
 extern void tty_buffer_flush(struct tty_struct *tty, struct tty_ldisc *ld);
@@ -528,6 +539,8 @@ extern void tty_ldisc_flush(struct tty_struct *tty);
 extern long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 extern int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 			unsigned int cmd, unsigned long arg);
+extern long tty_jobctrl_ioctl(struct tty_struct *tty, struct tty_struct *real_tty,
+			      struct file *file, unsigned int cmd, unsigned long arg);
 extern int tty_perform_flush(struct tty_struct *tty, unsigned long arg);
 extern void tty_default_fops(struct file_operations *fops);
 extern struct tty_struct *alloc_tty_struct(struct tty_driver *driver, int idx);
@@ -555,6 +568,15 @@ extern struct device *tty_port_register_device_attr(struct tty_port *port,
 		struct tty_driver *driver, unsigned index,
 		struct device *device, void *drvdata,
 		const struct attribute_group **attr_grp);
+extern struct device *tty_port_register_device_serdev(struct tty_port *port,
+		struct tty_driver *driver, unsigned index,
+		struct device *device);
+extern struct device *tty_port_register_device_attr_serdev(struct tty_port *port,
+		struct tty_driver *driver, unsigned index,
+		struct device *device, void *drvdata,
+		const struct attribute_group **attr_grp);
+extern void tty_port_unregister_device(struct tty_port *port,
+		struct tty_driver *driver, unsigned index);
 extern int tty_port_alloc_xmit_buf(struct tty_port *port);
 extern void tty_port_free_xmit_buf(struct tty_port *port);
 extern void tty_port_destroy(struct tty_port *port);
@@ -633,6 +655,19 @@ static inline void tty_port_set_initialized(struct tty_port *port, bool val)
 		clear_bit(TTY_PORT_INITIALIZED, &port->iflags);
 }
 
+static inline bool tty_port_kopened(struct tty_port *port)
+{
+	return test_bit(TTY_PORT_KOPENED, &port->iflags);
+}
+
+static inline void tty_port_set_kopened(struct tty_port *port, bool val)
+{
+	if (val)
+		set_bit(TTY_PORT_KOPENED, &port->iflags);
+	else
+		clear_bit(TTY_PORT_KOPENED, &port->iflags);
+}
+
 extern struct tty_struct *tty_port_tty_get(struct tty_port *port);
 extern void tty_port_tty_set(struct tty_port *port, struct tty_struct *tty);
 extern int tty_port_carrier_raised(struct tty_port *port);
@@ -669,7 +704,11 @@ extern int tty_ldisc_receive_buf(struct tty_ldisc *ld, const unsigned char *p,
 
 /* n_tty.c */
 extern void n_tty_inherit_ops(struct tty_ldisc_ops *ops);
+#ifdef CONFIG_TTY
 extern void __init n_tty_init(void);
+#else
+static inline void n_tty_init(void) { }
+#endif
 
 /* tty_audit.c */
 #ifdef CONFIG_AUDIT

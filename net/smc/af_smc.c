@@ -101,7 +101,7 @@ struct proto smc_proto = {
 	.unhash		= smc_unhash_sk,
 	.obj_size	= sizeof(struct smc_sock),
 	.h.smc_hash	= &smc_v4_hashinfo,
-	.slab_flags	= SLAB_DESTROY_BY_RCU,
+	.slab_flags	= SLAB_TYPESAFE_BY_RCU,
 };
 EXPORT_SYMBOL_GPL(smc_proto);
 
@@ -147,7 +147,6 @@ static int smc_release(struct socket *sock)
 		schedule_delayed_work(&smc->sock_put_work,
 				      SMC_CLOSE_SOCK_PUT_DELAY);
 	}
-	sk->sk_prot->unhash(sk);
 	release_sock(sk);
 
 	sock_put(sk);
@@ -339,6 +338,12 @@ static int smc_clnt_conf_first_link(struct smc_sock *smc, union ib_gid *gid)
 		return SMC_CLC_DECL_INTERR;
 
 	smc_wr_remember_qp_attr(link);
+
+	rc = smc_wr_reg_send(link,
+			     smc->conn.rmb_desc->mr_rx[SMC_SINGLE_LINK]);
+	if (rc)
+		return SMC_CLC_DECL_INTERR;
+
 	/* send CONFIRM LINK response over RoCE fabric */
 	rc = smc_llc_send_confirm_link(link,
 				       link->smcibdev->mac[link->ibport - 1],
@@ -431,12 +436,8 @@ static int smc_connect_rdma(struct smc_sock *smc)
 
 	smc_conn_save_peer_info(smc, &aclc);
 
-	rc = smc_sndbuf_create(smc);
-	if (rc) {
-		reason_code = SMC_CLC_DECL_MEM;
-		goto decline_rdma_unlock;
-	}
-	rc = smc_rmb_create(smc);
+	/* create send buffer and rmb */
+	rc = smc_buf_create(smc);
 	if (rc) {
 		reason_code = SMC_CLC_DECL_MEM;
 		goto decline_rdma_unlock;
@@ -451,13 +452,29 @@ static int smc_connect_rdma(struct smc_sock *smc)
 		goto decline_rdma_unlock;
 	}
 
+	smc_close_init(smc);
+	smc_rx_init(smc);
+
 	if (local_contact == SMC_FIRST_CONTACT) {
 		rc = smc_ib_ready_link(link);
 		if (rc) {
 			reason_code = SMC_CLC_DECL_INTERR;
 			goto decline_rdma_unlock;
 		}
+	} else {
+		struct smc_buf_desc *buf_desc = smc->conn.rmb_desc;
+
+		if (!buf_desc->reused) {
+			/* register memory region for new rmb */
+			rc = smc_wr_reg_send(link,
+					     buf_desc->mr_rx[SMC_SINGLE_LINK]);
+			if (rc) {
+				reason_code = SMC_CLC_DECL_INTERR;
+				goto decline_rdma_unlock;
+			}
+		}
 	}
+	smc_rmb_sync_sg_for_device(&smc->conn);
 
 	rc = smc_clc_send_confirm(smc);
 	if (rc)
@@ -477,7 +494,6 @@ static int smc_connect_rdma(struct smc_sock *smc)
 
 	mutex_unlock(&smc_create_lgr_pending);
 	smc_tx_init(smc);
-	smc_rx_init(smc);
 
 out_connected:
 	smc_copy_sock_settings_to_clc(smc);
@@ -637,7 +653,8 @@ struct sock *smc_accept_dequeue(struct sock *parent,
 
 		smc_accept_unlink(new_sk);
 		if (new_sk->sk_state == SMC_CLOSED) {
-			/* tbd in follow-on patch: close this sock */
+			new_sk->sk_prot->unhash(new_sk);
+			sock_put(new_sk);
 			continue;
 		}
 		if (new_sock)
@@ -657,8 +674,13 @@ void smc_close_non_accepted(struct sock *sk)
 	if (!sk->sk_lingertime)
 		/* wait for peer closing */
 		sk->sk_lingertime = SMC_MAX_STREAM_WAIT_TIMEOUT;
-	if (!smc->use_fallback)
+	if (smc->use_fallback) {
+		sk->sk_state = SMC_CLOSED;
+	} else {
 		smc_close_active(smc);
+		sock_set_flag(sk, SOCK_DEAD);
+		sk->sk_shutdown |= SHUTDOWN_MASK;
+	}
 	if (smc->clcsock) {
 		struct socket *tcp;
 
@@ -666,11 +688,9 @@ void smc_close_non_accepted(struct sock *sk)
 		smc->clcsock = NULL;
 		sock_release(tcp);
 	}
-	sock_set_flag(sk, SOCK_DEAD);
-	sk->sk_shutdown |= SHUTDOWN_MASK;
 	if (smc->use_fallback) {
 		schedule_delayed_work(&smc->sock_put_work, TCP_TIMEWAIT_LEN);
-	} else {
+	} else if (sk->sk_state == SMC_CLOSED) {
 		smc_conn_free(&smc->conn);
 		schedule_delayed_work(&smc->sock_put_work,
 				      SMC_CLOSE_SOCK_PUT_DELAY);
@@ -687,6 +707,12 @@ static int smc_serv_conf_first_link(struct smc_sock *smc)
 	int rc;
 
 	link = &lgr->lnk[SMC_SINGLE_LINK];
+
+	rc = smc_wr_reg_send(link,
+			     smc->conn.rmb_desc->mr_rx[SMC_SINGLE_LINK]);
+	if (rc)
+		return SMC_CLC_DECL_INTERR;
+
 	/* send CONFIRM LINK request to client over the RoCE fabric */
 	rc = smc_llc_send_confirm_link(link,
 				       link->smcibdev->mac[link->ibport - 1],
@@ -774,11 +800,6 @@ static void smc_listen_work(struct work_struct *work)
 	mutex_lock(&smc_create_lgr_pending);
 	local_contact = smc_conn_create(new_smc, peeraddr.sin_addr.s_addr,
 					smcibdev, ibport, &pclc.lcl, 0);
-	if (local_contact == SMC_REUSE_CONTACT)
-		/* lock no longer needed, free it due to following
-		 * smc_clc_wait_msg() call
-		 */
-		mutex_unlock(&smc_create_lgr_pending);
 	if (local_contact < 0) {
 		rc = local_contact;
 		if (rc == -ENOMEM)
@@ -789,16 +810,30 @@ static void smc_listen_work(struct work_struct *work)
 	}
 	link = &new_smc->conn.lgr->lnk[SMC_SINGLE_LINK];
 
-	rc = smc_sndbuf_create(new_smc);
+	/* create send buffer and rmb */
+	rc = smc_buf_create(new_smc);
 	if (rc) {
 		reason_code = SMC_CLC_DECL_MEM;
 		goto decline_rdma;
 	}
-	rc = smc_rmb_create(new_smc);
-	if (rc) {
-		reason_code = SMC_CLC_DECL_MEM;
-		goto decline_rdma;
+
+	smc_close_init(new_smc);
+	smc_rx_init(new_smc);
+
+	if (local_contact != SMC_FIRST_CONTACT) {
+		struct smc_buf_desc *buf_desc = new_smc->conn.rmb_desc;
+
+		if (!buf_desc->reused) {
+			/* register memory region for new rmb */
+			rc = smc_wr_reg_send(link,
+					     buf_desc->mr_rx[SMC_SINGLE_LINK]);
+			if (rc) {
+				reason_code = SMC_CLC_DECL_INTERR;
+				goto decline_rdma;
+			}
+		}
 	}
+	smc_rmb_sync_sg_for_device(&new_smc->conn);
 
 	rc = smc_clc_send_accept(new_smc, local_contact);
 	if (rc)
@@ -839,15 +874,13 @@ static void smc_listen_work(struct work_struct *work)
 	}
 
 	smc_tx_init(new_smc);
-	smc_rx_init(new_smc);
 
 out_connected:
 	sk_refcnt_debug_inc(newsmcsk);
 	if (newsmcsk->sk_state == SMC_INIT)
 		newsmcsk->sk_state = SMC_ACTIVE;
 enqueue:
-	if (local_contact == SMC_FIRST_CONTACT)
-		mutex_unlock(&smc_create_lgr_pending);
+	mutex_unlock(&smc_create_lgr_pending);
 	lock_sock_nested(&lsmc->sk, SINGLE_DEPTH_NESTING);
 	if (lsmc->sk.sk_state == SMC_LISTEN) {
 		smc_accept_enqueue(&lsmc->sk, newsmcsk);

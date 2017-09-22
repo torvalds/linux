@@ -1,5 +1,5 @@
-#ifndef __ASM_POWERPC_CPUFEATURES_H
-#define __ASM_POWERPC_CPUFEATURES_H
+#ifndef __ASM_POWERPC_CPU_HAS_FEATURE_H
+#define __ASM_POWERPC_CPU_HAS_FEATURE_H
 
 #ifndef __ASSEMBLY__
 
@@ -52,4 +52,4 @@ static inline bool cpu_has_feature(unsigned long feature)
 #endif
 
 #endif /* __ASSEMBLY__ */
-#endif /* __ASM_POWERPC_CPUFEATURE_H */
+#endif /* __ASM_POWERPC_CPU_HAS_FEATURE_H */

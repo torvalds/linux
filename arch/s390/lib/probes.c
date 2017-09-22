@@ -4,6 +4,7 @@
  *    Copyright IBM Corp. 2014
  */
 
+#include <linux/errno.h>
 #include <asm/kprobes.h>
 #include <asm/dis.h>
 

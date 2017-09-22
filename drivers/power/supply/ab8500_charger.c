@@ -3238,7 +3238,7 @@ static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 			BUS_PP_PRECHG_CURRENT_MASK, 0);
 		if (ret) {
 			dev_err(di->dev,
-				"failed to setup usb power path prechage current\n");
+				"failed to setup usb power path precharge current\n");
 			goto out;
 		}
 	}

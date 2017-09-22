@@ -721,7 +721,7 @@ static struct attribute *uncore_pmu_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group uncore_pmu_attr_group = {
+static const struct attribute_group uncore_pmu_attr_group = {
 	.attrs = uncore_pmu_attrs,
 };
 
@@ -1170,7 +1170,7 @@ static int uncore_event_cpu_online(unsigned int cpu)
 		pmu = type->pmus;
 		for (i = 0; i < type->num_boxes; i++, pmu++) {
 			box = pmu->boxes[pkg];
-			if (!box && atomic_inc_return(&box->refcnt) == 1)
+			if (box && atomic_inc_return(&box->refcnt) == 1)
 				uncore_box_init(box);
 		}
 	}

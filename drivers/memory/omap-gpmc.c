@@ -460,12 +460,12 @@ static int get_gpmc_timing_reg(
 		if (l)
 			time_ns_min = gpmc_clk_ticks_to_ns(l - 1, cs, cd) + 1;
 		time_ns = gpmc_clk_ticks_to_ns(l, cs, cd);
-		pr_info("gpmc,%s = <%u> /* %u ns - %u ns; %i ticks%s*/\n",
+		pr_info("gpmc,%s = <%u>; /* %u ns - %u ns; %i ticks%s*/\n",
 			name, time_ns, time_ns_min, time_ns, l,
 			invalid ? "; invalid " : " ");
 	} else {
 		/* raw format */
-		pr_info("gpmc,%s = <%u>%s\n", name, l,
+		pr_info("gpmc,%s = <%u>;%s\n", name, l,
 			invalid ? " /* invalid */" : "");
 	}
 
@@ -512,7 +512,7 @@ static void gpmc_cs_show_timings(int cs, const char *desc)
 	pr_info("gpmc cs%i access configuration:\n", cs);
 	GPMC_GET_RAW_BOOL(GPMC_CS_CONFIG1,  4,  4, "time-para-granularity");
 	GPMC_GET_RAW(GPMC_CS_CONFIG1,  8,  9, "mux-add-data");
-	GPMC_GET_RAW_MAX(GPMC_CS_CONFIG1, 12, 13,
+	GPMC_GET_RAW_SHIFT_MAX(GPMC_CS_CONFIG1, 12, 13, 1,
 			 GPMC_CONFIG1_DEVICESIZE_MAX, "device-width");
 	GPMC_GET_RAW(GPMC_CS_CONFIG1, 16, 17, "wait-pin");
 	GPMC_GET_RAW_BOOL(GPMC_CS_CONFIG1, 21, 21, "wait-on-write");
@@ -1930,8 +1930,8 @@ static int gpmc_probe_onenand_child(struct platform_device *pdev,
 	struct omap_onenand_platform_data *gpmc_onenand_data;
 
 	if (of_property_read_u32(child, "reg", &val) < 0) {
-		dev_err(&pdev->dev, "%s has no 'reg' property\n",
-			child->full_name);
+		dev_err(&pdev->dev, "%pOF has no 'reg' property\n",
+			child);
 		return -ENODEV;
 	}
 
@@ -1947,9 +1947,7 @@ static int gpmc_probe_onenand_child(struct platform_device *pdev,
 	if (!of_property_read_u32(child, "dma-channel", &val))
 		gpmc_onenand_data->dma_channel = val;
 
-	gpmc_onenand_init(gpmc_onenand_data);
-
-	return 0;
+	return gpmc_onenand_init(gpmc_onenand_data);
 }
 #else
 static int gpmc_probe_onenand_child(struct platform_device *pdev,
@@ -1981,14 +1979,14 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	struct gpmc_device *gpmc = platform_get_drvdata(pdev);
 
 	if (of_property_read_u32(child, "reg", &cs) < 0) {
-		dev_err(&pdev->dev, "%s has no 'reg' property\n",
-			child->full_name);
+		dev_err(&pdev->dev, "%pOF has no 'reg' property\n",
+			child);
 		return -ENODEV;
 	}
 
 	if (of_address_to_resource(child, 0, &res) < 0) {
-		dev_err(&pdev->dev, "%s has malformed 'reg' property\n",
-			child->full_name);
+		dev_err(&pdev->dev, "%pOF has malformed 'reg' property\n",
+			child);
 		return -ENODEV;
 	}
 
@@ -2085,8 +2083,11 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	} else {
 		ret = of_property_read_u32(child, "bank-width",
 					   &gpmc_s.device_width);
-		if (ret < 0)
+		if (ret < 0) {
+			dev_err(&pdev->dev, "%pOF has no 'bank-width' property\n",
+				child);
 			goto err;
+		}
 	}
 
 	/* Reserve wait pin if it is required and valid */

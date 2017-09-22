@@ -37,26 +37,6 @@ static const struct file_operations hibmc_fops = {
 	.llseek		= no_llseek,
 };
 
-static int hibmc_enable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-	struct hibmc_drm_private *priv =
-		(struct hibmc_drm_private *)dev->dev_private;
-
-	writel(HIBMC_RAW_INTERRUPT_EN_VBLANK(1),
-	       priv->mmio + HIBMC_RAW_INTERRUPT_EN);
-
-	return 0;
-}
-
-static void hibmc_disable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-	struct hibmc_drm_private *priv =
-		(struct hibmc_drm_private *)dev->dev_private;
-
-	writel(HIBMC_RAW_INTERRUPT_EN_VBLANK(0),
-	       priv->mmio + HIBMC_RAW_INTERRUPT_EN);
-}
-
 irqreturn_t hibmc_drm_interrupt(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *)arg;
@@ -84,13 +64,9 @@ static struct drm_driver hibmc_driver = {
 	.desc			= "hibmc drm driver",
 	.major			= 1,
 	.minor			= 0,
-	.get_vblank_counter	= drm_vblank_no_hw_counter,
-	.enable_vblank		= hibmc_enable_vblank,
-	.disable_vblank		= hibmc_disable_vblank,
 	.gem_free_object_unlocked = hibmc_gem_free_object,
 	.dumb_create            = hibmc_dumb_create,
 	.dumb_map_offset        = hibmc_dumb_mmap_offset,
-	.dumb_destroy           = drm_gem_dumb_destroy,
 	.irq_handler		= hibmc_drm_interrupt,
 };
 
@@ -299,11 +275,12 @@ static int hibmc_unload(struct drm_device *dev)
 
 	hibmc_fbdev_fini(priv);
 
+	drm_atomic_helper_shutdown(dev);
+
 	if (dev->irq_enabled)
 		drm_irq_uninstall(dev);
 	if (priv->msi_enabled)
 		pci_disable_msi(dev->pdev);
-	drm_vblank_cleanup(dev);
 
 	hibmc_kms_fini(priv);
 	hibmc_mm_fini(priv);

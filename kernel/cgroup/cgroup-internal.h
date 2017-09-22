@@ -5,6 +5,7 @@
 #include <linux/kernfs.h>
 #include <linux/workqueue.h>
 #include <linux/list.h>
+#include <linux/refcount.h>
 
 /*
  * A cgroup can be associated with multiple css_sets as different tasks may
@@ -31,6 +32,9 @@ struct cgroup_taskset {
 	/* the src and dst cset list running through cset->mg_node */
 	struct list_head	src_csets;
 	struct list_head	dst_csets;
+
+	/* the number of tasks in the set */
+	int			nr_tasks;
 
 	/* the subsys currently being processed */
 	int			ssid;
@@ -134,7 +138,7 @@ static inline void put_css_set(struct css_set *cset)
 	 * can see it. Similar to atomic_dec_and_lock(), but for an
 	 * rwlock
 	 */
-	if (atomic_add_unless(&cset->refcount, -1, 1))
+	if (refcount_dec_not_one(&cset->refcount))
 		return;
 
 	spin_lock_irqsave(&css_set_lock, flags);
@@ -147,11 +151,13 @@ static inline void put_css_set(struct css_set *cset)
  */
 static inline void get_css_set(struct css_set *cset)
 {
-	atomic_inc(&cset->refcount);
+	refcount_inc(&cset->refcount);
 }
 
 bool cgroup_ssid_enabled(int ssid);
 bool cgroup_on_dfl(const struct cgroup *cgrp);
+bool cgroup_is_thread_root(struct cgroup *cgrp);
+bool cgroup_is_threaded(struct cgroup *cgrp);
 
 struct cgroup_root *cgroup_root_from_kf(struct kernfs_root *kf_root);
 struct cgroup *task_cgroup_from_root(struct task_struct *task,
@@ -163,13 +169,13 @@ int cgroup_path_ns_locked(struct cgroup *cgrp, char *buf, size_t buflen,
 
 void cgroup_free_root(struct cgroup_root *root);
 void init_cgroup_root(struct cgroup_root *root, struct cgroup_sb_opts *opts);
-int cgroup_setup_root(struct cgroup_root *root, u16 ss_mask);
+int cgroup_setup_root(struct cgroup_root *root, u16 ss_mask, int ref_flags);
 int rebind_subsystems(struct cgroup_root *dst_root, u16 ss_mask);
 struct dentry *cgroup_do_mount(struct file_system_type *fs_type, int flags,
 			       struct cgroup_root *root, unsigned long magic,
 			       struct cgroup_namespace *ns);
 
-bool cgroup_may_migrate_to(struct cgroup *dst_cgrp);
+int cgroup_migrate_vet_dst(struct cgroup *dst_cgrp);
 void cgroup_migrate_finish(struct cgroup_mgctx *mgctx);
 void cgroup_migrate_add_src(struct css_set *src_cset, struct cgroup *dst_cgrp,
 			    struct cgroup_mgctx *mgctx);
@@ -179,10 +185,10 @@ int cgroup_migrate(struct task_struct *leader, bool threadgroup,
 
 int cgroup_attach_task(struct cgroup *dst_cgrp, struct task_struct *leader,
 		       bool threadgroup);
-ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
-			     size_t nbytes, loff_t off, bool threadgroup);
-ssize_t cgroup_procs_write(struct kernfs_open_file *of, char *buf, size_t nbytes,
-			   loff_t off);
+struct task_struct *cgroup_procs_write_start(char *buf, bool threadgroup)
+	__acquires(&cgroup_threadgroup_rwsem);
+void cgroup_procs_write_finish(struct task_struct *task)
+	__releases(&cgroup_threadgroup_rwsem);
 
 void cgroup_lock_and_drain_offline(struct cgroup *cgrp);
 
@@ -190,6 +196,8 @@ int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name, umode_t mode);
 int cgroup_rmdir(struct kernfs_node *kn);
 int cgroup_show_path(struct seq_file *sf, struct kernfs_node *kf_node,
 		     struct kernfs_root *kf_root);
+
+int cgroup_task_count(const struct cgroup *cgrp);
 
 /*
  * namespace.c

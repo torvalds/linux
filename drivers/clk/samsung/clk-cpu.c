@@ -410,7 +410,7 @@ int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
 {
 	struct exynos_cpuclk *cpuclk;
 	struct clk_init_data init;
-	struct clk *clk;
+	struct clk *parent_clk;
 	int ret = 0;
 
 	cpuclk = kzalloc(sizeof(*cpuclk), GFP_KERNEL);
@@ -440,15 +440,15 @@ int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
 		goto free_cpuclk;
 	}
 
-	clk = __clk_lookup(parent);
-	if (!clk) {
+	parent_clk = __clk_lookup(parent);
+	if (!parent_clk) {
 		pr_err("%s: could not lookup parent clock %s\n",
 				__func__, parent);
 		ret = -EINVAL;
 		goto free_cpuclk;
 	}
 
-	ret = clk_notifier_register(clk, &cpuclk->clk_nb);
+	ret = clk_notifier_register(parent_clk, &cpuclk->clk_nb);
 	if (ret) {
 		pr_err("%s: failed to register clock notifier for %s\n",
 				__func__, name);
@@ -463,20 +463,19 @@ int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
 		goto unregister_clk_nb;
 	}
 
-	clk = clk_register(NULL, &cpuclk->hw);
-	if (IS_ERR(clk)) {
+	ret = clk_hw_register(NULL, &cpuclk->hw);
+	if (ret) {
 		pr_err("%s: could not register cpuclk %s\n", __func__,	name);
-		ret = PTR_ERR(clk);
 		goto free_cpuclk_data;
 	}
 
-	samsung_clk_add_lookup(ctx, clk, lookup_id);
+	samsung_clk_add_lookup(ctx, &cpuclk->hw, lookup_id);
 	return 0;
 
 free_cpuclk_data:
 	kfree(cpuclk->cfg);
 unregister_clk_nb:
-	clk_notifier_unregister(__clk_lookup(parent), &cpuclk->clk_nb);
+	clk_notifier_unregister(parent_clk, &cpuclk->clk_nb);
 free_cpuclk:
 	kfree(cpuclk);
 	return ret;

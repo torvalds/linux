@@ -115,6 +115,8 @@ SECTIONS
 	__data_lma = LOADADDR(.data);
 	__data_len = SIZEOF(.data);
 
+	BUG_TABLE
+
 	/* The init section should be last, so when we free it, it goes into
 	 * the general memory pool, and (hopefully) will decrease fragmentation
 	 * a tiny bit. The init section has a _requirement_ that it be

@@ -67,19 +67,12 @@ static inline void vtime_account_system(struct task_struct *tsk) { }
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
 extern void arch_vtime_task_switch(struct task_struct *tsk);
-extern void vtime_account_user(struct task_struct *tsk);
 extern void vtime_user_enter(struct task_struct *tsk);
-
-static inline void vtime_user_exit(struct task_struct *tsk)
-{
-	vtime_account_user(tsk);
-}
-
+extern void vtime_user_exit(struct task_struct *tsk);
 extern void vtime_guest_enter(struct task_struct *tsk);
 extern void vtime_guest_exit(struct task_struct *tsk);
 extern void vtime_init_idle(struct task_struct *tsk, int cpu);
 #else /* !CONFIG_VIRT_CPU_ACCOUNTING_GEN  */
-static inline void vtime_account_user(struct task_struct *tsk) { }
 static inline void vtime_user_enter(struct task_struct *tsk) { }
 static inline void vtime_user_exit(struct task_struct *tsk) { }
 static inline void vtime_guest_enter(struct task_struct *tsk) { }

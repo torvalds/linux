@@ -87,12 +87,9 @@ do {								    \
 #define LIBCFS_VMALLOC_SIZE	(2 << PAGE_SHIFT) /* 2 pages */
 #endif
 
-#define LIBCFS_ALLOC_PRE(size, mask)					    \
-do {									    \
-	LASSERT(!in_interrupt() ||					    \
-		((size) <= LIBCFS_VMALLOC_SIZE &&			    \
-		 !gfpflags_allow_blocking(mask)));			    \
-} while (0)
+#define LIBCFS_ALLOC_PRE(size, mask)					\
+	LASSERT(!in_interrupt() || ((size) <= LIBCFS_VMALLOC_SIZE &&	\
+				    !gfpflags_allow_blocking(mask)))
 
 #define LIBCFS_ALLOC_POST(ptr, size)					    \
 do {									    \
@@ -157,18 +154,6 @@ do {								    \
 
 /******************************************************************************/
 
-/* htonl hack - either this, or compile with -O2. Stupid byteorder/generic.h */
-#if defined(__GNUC__) && (__GNUC__ >= 2) && !defined(__OPTIMIZE__)
-#define ___htonl(x) __cpu_to_be32(x)
-#define ___htons(x) __cpu_to_be16(x)
-#define ___ntohl(x) __be32_to_cpu(x)
-#define ___ntohs(x) __be16_to_cpu(x)
-#define htonl(x) ___htonl(x)
-#define ntohl(x) ___ntohl(x)
-#define htons(x) ___htons(x)
-#define ntohs(x) ___ntohs(x)
-#endif
-
 void libcfs_debug_dumplog(void);
 int libcfs_debug_init(unsigned long bufsize);
 int libcfs_debug_cleanup(void);
@@ -187,46 +172,28 @@ void  cfs_array_free(void *vars);
 #if LASSERT_ATOMIC_ENABLED
 
 /** assert value of @a is equal to @v */
-#define LASSERT_ATOMIC_EQ(a, v)				 \
-do {							    \
-	LASSERTF(atomic_read(a) == v,		       \
-		 "value: %d\n", atomic_read((a)));	  \
-} while (0)
+#define LASSERT_ATOMIC_EQ(a, v)			\
+	LASSERTF(atomic_read(a) == v, "value: %d\n", atomic_read((a)))
 
 /** assert value of @a is unequal to @v */
-#define LASSERT_ATOMIC_NE(a, v)				 \
-do {							    \
-	LASSERTF(atomic_read(a) != v,		       \
-		 "value: %d\n", atomic_read((a)));	  \
-} while (0)
+#define LASSERT_ATOMIC_NE(a, v)		\
+	LASSERTF(atomic_read(a) != v, "value: %d\n", atomic_read((a)))
 
 /** assert value of @a is little than @v */
-#define LASSERT_ATOMIC_LT(a, v)				 \
-do {							    \
-	LASSERTF(atomic_read(a) < v,			\
-		 "value: %d\n", atomic_read((a)));	  \
-} while (0)
+#define LASSERT_ATOMIC_LT(a, v)		\
+	LASSERTF(atomic_read(a) < v, "value: %d\n", atomic_read((a)))
 
 /** assert value of @a is little/equal to @v */
-#define LASSERT_ATOMIC_LE(a, v)				 \
-do {							    \
-	LASSERTF(atomic_read(a) <= v,		       \
-		 "value: %d\n", atomic_read((a)));	  \
-} while (0)
+#define LASSERT_ATOMIC_LE(a, v)		\
+	LASSERTF(atomic_read(a) <= v, "value: %d\n", atomic_read((a)))
 
 /** assert value of @a is great than @v */
-#define LASSERT_ATOMIC_GT(a, v)				 \
-do {							    \
-	LASSERTF(atomic_read(a) > v,			\
-		 "value: %d\n", atomic_read((a)));	  \
-} while (0)
+#define LASSERT_ATOMIC_GT(a, v)		\
+	LASSERTF(atomic_read(a) > v, "value: %d\n", atomic_read((a)))
 
 /** assert value of @a is great/equal to @v */
-#define LASSERT_ATOMIC_GE(a, v)				 \
-do {							    \
-	LASSERTF(atomic_read(a) >= v,		       \
-		 "value: %d\n", atomic_read((a)));	  \
-} while (0)
+#define LASSERT_ATOMIC_GE(a, v)		\
+	LASSERTF(atomic_read(a) >= v, "value: %d\n", atomic_read((a)))
 
 /** assert value of @a is great than @v1 and little than @v2 */
 #define LASSERT_ATOMIC_GT_LT(a, v1, v2)			 \
@@ -328,19 +295,5 @@ static inline size_t cfs_round_strlen(char *fset)
 {
 	return cfs_size_round((int)strlen(fset) + 1);
 }
-
-#define LOGL(var, len, ptr)				       \
-do {							    \
-	if (var)						\
-		memcpy((char *)ptr, (const char *)var, len);    \
-	ptr += cfs_size_round(len);			     \
-} while (0)
-
-#define LOGU(var, len, ptr)				       \
-do {							    \
-	if (var)						\
-		memcpy((char *)var, (const char *)ptr, len);    \
-	ptr += cfs_size_round(len);			     \
-} while (0)
 
 #endif

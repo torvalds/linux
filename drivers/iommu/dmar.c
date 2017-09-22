@@ -311,7 +311,7 @@ static int dmar_pci_bus_add_dev(struct dmar_pci_notify_info *info)
 				((void *)drhd) + drhd->header.length,
 				dmaru->segment,
 				dmaru->devices, dmaru->devices_cnt);
-		if (ret != 0)
+		if (ret)
 			break;
 	}
 	if (ret >= 0)
@@ -391,7 +391,7 @@ static int dmar_parse_one_drhd(struct acpi_dmar_header *header, void *arg)
 {
 	struct acpi_dmar_hardware_unit *drhd;
 	struct dmar_drhd_unit *dmaru;
-	int ret = 0;
+	int ret;
 
 	drhd = (struct acpi_dmar_hardware_unit *)header;
 	dmaru = dmar_find_dmaru(drhd);
@@ -551,17 +551,16 @@ static int __init dmar_table_detect(void)
 		status = AE_NOT_FOUND;
 	}
 
-	return (ACPI_SUCCESS(status) ? 1 : 0);
+	return ACPI_SUCCESS(status) ? 0 : -ENOENT;
 }
 
 static int dmar_walk_remapping_entries(struct acpi_dmar_header *start,
 				       size_t len, struct dmar_res_callback *cb)
 {
-	int ret = 0;
 	struct acpi_dmar_header *iter, *next;
 	struct acpi_dmar_header *end = ((void *)start) + len;
 
-	for (iter = start; iter < end && ret == 0; iter = next) {
+	for (iter = start; iter < end; iter = next) {
 		next = (void *)iter + iter->length;
 		if (iter->length == 0) {
 			/* Avoid looping forever on bad ACPI tables */
@@ -570,8 +569,7 @@ static int dmar_walk_remapping_entries(struct acpi_dmar_header *start,
 		} else if (next > end) {
 			/* Avoid passing table end */
 			pr_warn(FW_BUG "Record passes table end\n");
-			ret = -EINVAL;
-			break;
+			return -EINVAL;
 		}
 
 		if (cb->print_entry)
@@ -582,15 +580,19 @@ static int dmar_walk_remapping_entries(struct acpi_dmar_header *start,
 			pr_debug("Unknown DMAR structure type %d\n",
 				 iter->type);
 		} else if (cb->cb[iter->type]) {
+			int ret;
+
 			ret = cb->cb[iter->type](iter, cb->arg[iter->type]);
+			if (ret)
+				return ret;
 		} else if (!cb->ignore_unhandled) {
 			pr_warn("No handler for DMAR structure type %d\n",
 				iter->type);
-			ret = -EINVAL;
+			return -EINVAL;
 		}
 	}
 
-	return ret;
+	return 0;
 }
 
 static inline int dmar_walk_dmar_table(struct acpi_table_dmar *dmar,
@@ -607,8 +609,8 @@ static int __init
 parse_dmar_table(void)
 {
 	struct acpi_table_dmar *dmar;
-	int ret = 0;
 	int drhd_count = 0;
+	int ret;
 	struct dmar_res_callback cb = {
 		.print_entry = true,
 		.ignore_unhandled = true,
@@ -891,17 +893,17 @@ int __init detect_intel_iommu(void)
 
 	down_write(&dmar_global_lock);
 	ret = dmar_table_detect();
-	if (ret)
-		ret = !dmar_walk_dmar_table((struct acpi_table_dmar *)dmar_tbl,
-					    &validate_drhd_cb);
-	if (ret && !no_iommu && !iommu_detected && !dmar_disabled) {
+	if (!ret)
+		ret = dmar_walk_dmar_table((struct acpi_table_dmar *)dmar_tbl,
+					   &validate_drhd_cb);
+	if (!ret && !no_iommu && !iommu_detected && !dmar_disabled) {
 		iommu_detected = 1;
 		/* Make sure ACS will be enabled */
 		pci_request_acs();
 	}
 
 #ifdef CONFIG_X86
-	if (ret)
+	if (!ret)
 		x86_init.iommu.iommu_init = intel_iommu_init;
 #endif
 
@@ -911,9 +913,8 @@ int __init detect_intel_iommu(void)
 	}
 	up_write(&dmar_global_lock);
 
-	return ret ? 1 : -ENODEV;
+	return ret ? ret : 1;
 }
-
 
 static void unmap_iommu(struct intel_iommu *iommu)
 {
@@ -1342,7 +1343,7 @@ void qi_flush_dev_iotlb(struct intel_iommu *iommu, u16 sid, u16 qdep,
 
 	if (mask) {
 		BUG_ON(addr & ((1 << (VTD_PAGE_SHIFT + mask)) - 1));
-		addr |= (1 << (VTD_PAGE_SHIFT + mask - 1)) - 1;
+		addr |= (1ULL << (VTD_PAGE_SHIFT + mask - 1)) - 1;
 		desc.high = QI_DEV_IOTLB_ADDR(addr) | QI_DEV_IOTLB_SIZE;
 	} else
 		desc.high = QI_DEV_IOTLB_ADDR(addr);
@@ -1807,10 +1808,9 @@ IOMMU_INIT_POST(detect_intel_iommu);
  * for Directed-IO Architecture Specifiction, Rev 2.2, Section 8.8
  * "Remapping Hardware Unit Hot Plug".
  */
-static u8 dmar_hp_uuid[] = {
-	/* 0000 */    0xA6, 0xA3, 0xC1, 0xD8, 0x9B, 0xBE, 0x9B, 0x4C,
-	/* 0008 */    0x91, 0xBF, 0xC3, 0xCB, 0x81, 0xFC, 0x5D, 0xAF
-};
+static guid_t dmar_hp_guid =
+	GUID_INIT(0xD8C1A3A6, 0xBE9B, 0x4C9B,
+		  0x91, 0xBF, 0xC3, 0xCB, 0x81, 0xFC, 0x5D, 0xAF);
 
 /*
  * Currently there's only one revision and BIOS will not check the revision id,
@@ -1823,7 +1823,7 @@ static u8 dmar_hp_uuid[] = {
 
 static inline bool dmar_detect_dsm(acpi_handle handle, int func)
 {
-	return acpi_check_dsm(handle, dmar_hp_uuid, DMAR_DSM_REV_ID, 1 << func);
+	return acpi_check_dsm(handle, &dmar_hp_guid, DMAR_DSM_REV_ID, 1 << func);
 }
 
 static int dmar_walk_dsm_resource(acpi_handle handle, int func,
@@ -1842,7 +1842,7 @@ static int dmar_walk_dsm_resource(acpi_handle handle, int func,
 	if (!dmar_detect_dsm(handle, func))
 		return 0;
 
-	obj = acpi_evaluate_dsm_typed(handle, dmar_hp_uuid, DMAR_DSM_REV_ID,
+	obj = acpi_evaluate_dsm_typed(handle, &dmar_hp_guid, DMAR_DSM_REV_ID,
 				      func, NULL, ACPI_TYPE_BUFFER);
 	if (!obj)
 		return -ENODEV;

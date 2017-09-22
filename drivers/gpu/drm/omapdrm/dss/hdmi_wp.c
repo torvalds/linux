@@ -147,15 +147,17 @@ void hdmi_wp_video_config_interface(struct hdmi_wp_data *wp,
 				    struct videomode *vm)
 {
 	u32 r;
-	bool vsync_pol, hsync_pol;
+	bool vsync_inv, hsync_inv;
 	DSSDBG("Enter hdmi_wp_video_config_interface\n");
 
-	vsync_pol = !!(vm->flags & DISPLAY_FLAGS_VSYNC_HIGH);
-	hsync_pol = !!(vm->flags & DISPLAY_FLAGS_HSYNC_HIGH);
+	vsync_inv = !!(vm->flags & DISPLAY_FLAGS_VSYNC_LOW);
+	hsync_inv = !!(vm->flags & DISPLAY_FLAGS_HSYNC_LOW);
 
 	r = hdmi_read_reg(wp->base, HDMI_WP_VIDEO_CFG);
-	r = FLD_MOD(r, vsync_pol, 7, 7);
-	r = FLD_MOD(r, hsync_pol, 6, 6);
+	r = FLD_MOD(r, 1, 7, 7);	/* VSYNC_POL to dispc active high */
+	r = FLD_MOD(r, 1, 6, 6);	/* HSYNC_POL to dispc active high */
+	r = FLD_MOD(r, vsync_inv, 5, 5);	/* CORE_VSYNC_INV */
+	r = FLD_MOD(r, hsync_inv, 4, 4);	/* CORE_HSYNC_INV */
 	r = FLD_MOD(r, !!(vm->flags & DISPLAY_FLAGS_INTERLACED), 3, 3);
 	r = FLD_MOD(r, 1, 1, 0); /* HDMI_TIMING_MASTER_24BIT */
 	hdmi_write_reg(wp->base, HDMI_WP_VIDEO_CFG, r);
@@ -176,9 +178,7 @@ void hdmi_wp_video_config_timing(struct hdmi_wp_data *wp,
 	 * However, we don't support OMAP5 ES1 at all, so we can just check for
 	 * OMAP4 here.
 	 */
-	if (omapdss_get_version() == OMAPDSS_VER_OMAP4430_ES1 ||
-	    omapdss_get_version() == OMAPDSS_VER_OMAP4430_ES2 ||
-	    omapdss_get_version() == OMAPDSS_VER_OMAP4)
+	if (wp->version == 4)
 		hsync_len_offset = 0;
 
 	timing_h |= FLD_VAL(vm->hback_porch, 31, 20);
@@ -233,9 +233,7 @@ void hdmi_wp_audio_config_format(struct hdmi_wp_data *wp,
 	DSSDBG("Enter hdmi_wp_audio_config_format\n");
 
 	r = hdmi_read_reg(wp->base, HDMI_WP_AUDIO_CFG);
-	if (omapdss_get_version() == OMAPDSS_VER_OMAP4430_ES1 ||
-	    omapdss_get_version() == OMAPDSS_VER_OMAP4430_ES2 ||
-	    omapdss_get_version() == OMAPDSS_VER_OMAP4) {
+	if (wp->version == 4) {
 		r = FLD_MOD(r, aud_fmt->stereo_channels, 26, 24);
 		r = FLD_MOD(r, aud_fmt->active_chnnls_msk, 23, 16);
 	}
@@ -280,22 +278,18 @@ int hdmi_wp_audio_core_req_enable(struct hdmi_wp_data *wp, bool enable)
 	return 0;
 }
 
-int hdmi_wp_init(struct platform_device *pdev, struct hdmi_wp_data *wp)
+int hdmi_wp_init(struct platform_device *pdev, struct hdmi_wp_data *wp,
+		 unsigned int version)
 {
 	struct resource *res;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "wp");
-	if (!res) {
-		DSSERR("can't get WP mem resource\n");
-		return -EINVAL;
-	}
-	wp->phys_base = res->start;
-
 	wp->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(wp->base)) {
-		DSSERR("can't ioremap HDMI WP\n");
+	if (IS_ERR(wp->base))
 		return PTR_ERR(wp->base);
-	}
+
+	wp->phys_base = res->start;
+	wp->version = version;
 
 	return 0;
 }

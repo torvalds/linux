@@ -510,10 +510,10 @@ static void hns_dsafv2_sbm_bp_wl_cfg(struct dsaf_device *dsaf_dev)
 		o_sbm_bp_cfg = dsaf_read_dev(dsaf_dev, reg);
 		dsaf_set_field(o_sbm_bp_cfg,
 			       DSAFV2_SBM_CFG3_SET_BUF_NUM_NO_PFC_M,
-			       DSAFV2_SBM_CFG3_SET_BUF_NUM_NO_PFC_S, 48);
+			       DSAFV2_SBM_CFG3_SET_BUF_NUM_NO_PFC_S, 55);
 		dsaf_set_field(o_sbm_bp_cfg,
 			       DSAFV2_SBM_CFG3_RESET_BUF_NUM_NO_PFC_M,
-			       DSAFV2_SBM_CFG3_RESET_BUF_NUM_NO_PFC_S, 80);
+			       DSAFV2_SBM_CFG3_RESET_BUF_NUM_NO_PFC_S, 110);
 		dsaf_write_dev(dsaf_dev, reg, o_sbm_bp_cfg);
 
 		/* for no enable pfc mode */
@@ -521,10 +521,10 @@ static void hns_dsafv2_sbm_bp_wl_cfg(struct dsaf_device *dsaf_dev)
 		o_sbm_bp_cfg = dsaf_read_dev(dsaf_dev, reg);
 		dsaf_set_field(o_sbm_bp_cfg,
 			       DSAFV2_SBM_CFG4_SET_BUF_NUM_NO_PFC_M,
-			       DSAFV2_SBM_CFG4_SET_BUF_NUM_NO_PFC_S, 192);
+			       DSAFV2_SBM_CFG4_SET_BUF_NUM_NO_PFC_S, 128);
 		dsaf_set_field(o_sbm_bp_cfg,
 			       DSAFV2_SBM_CFG4_RESET_BUF_NUM_NO_PFC_M,
-			       DSAFV2_SBM_CFG4_RESET_BUF_NUM_NO_PFC_S, 240);
+			       DSAFV2_SBM_CFG4_RESET_BUF_NUM_NO_PFC_S, 192);
 		dsaf_write_dev(dsaf_dev, reg, o_sbm_bp_cfg);
 	}
 
@@ -1519,6 +1519,7 @@ static void hns_dsaf_set_mac_key(
 	mac_key->high.bits.mac_3 = addr[3];
 	mac_key->low.bits.mac_4 = addr[4];
 	mac_key->low.bits.mac_5 = addr[5];
+	mac_key->low.bits.port_vlan = 0;
 	dsaf_set_field(mac_key->low.bits.port_vlan, DSAF_TBL_TCAM_KEY_VLAN_M,
 		       DSAF_TBL_TCAM_KEY_VLAN_S, vlan_id);
 	dsaf_set_field(mac_key->low.bits.port_vlan, DSAF_TBL_TCAM_KEY_PORT_M,
@@ -1645,87 +1646,6 @@ int hns_dsaf_rm_mac_addr(
 				      mac_entry->in_vlan_id,
 				      mac_entry->in_port_num,
 				      mac_entry->addr);
-}
-
-/**
- * hns_dsaf_set_mac_mc_entry - set mac mc-entry
- * @dsaf_dev: dsa fabric device struct pointer
- * @mac_entry: mc-mac entry
- */
-int hns_dsaf_set_mac_mc_entry(
-	struct dsaf_device *dsaf_dev,
-	struct dsaf_drv_mac_multi_dest_entry *mac_entry)
-{
-	u16 entry_index = DSAF_INVALID_ENTRY_IDX;
-	struct dsaf_drv_tbl_tcam_key mac_key;
-	struct dsaf_tbl_tcam_mcast_cfg mac_data;
-	struct dsaf_drv_priv *priv =
-	    (struct dsaf_drv_priv *)hns_dsaf_dev_priv(dsaf_dev);
-	struct dsaf_drv_soft_mac_tbl *soft_mac_entry = priv->soft_mac_tbl;
-	struct dsaf_drv_tbl_tcam_key tmp_mac_key;
-	struct dsaf_tbl_tcam_data tcam_data;
-
-	/* mac addr check */
-	if (MAC_IS_ALL_ZEROS(mac_entry->addr)) {
-		dev_err(dsaf_dev->dev, "set uc %s Mac %pM err!\n",
-			dsaf_dev->ae_dev.name, mac_entry->addr);
-		return -EINVAL;
-	}
-
-	/*config key */
-	hns_dsaf_set_mac_key(dsaf_dev, &mac_key,
-			     mac_entry->in_vlan_id,
-			     mac_entry->in_port_num, mac_entry->addr);
-
-	/* entry ie exist? */
-	entry_index = hns_dsaf_find_soft_mac_entry(dsaf_dev, &mac_key);
-	if (entry_index == DSAF_INVALID_ENTRY_IDX) {
-		/*if hasnot, find enpty entry*/
-		entry_index = hns_dsaf_find_empty_mac_entry(dsaf_dev);
-		if (entry_index == DSAF_INVALID_ENTRY_IDX) {
-			/*if hasnot empty, error*/
-			dev_err(dsaf_dev->dev,
-				"set_uc_entry failed, %s Mac key(%#x:%#x)\n",
-				dsaf_dev->ae_dev.name,
-				mac_key.high.val, mac_key.low.val);
-			return -EINVAL;
-		}
-
-		/* config hardware entry */
-		memset(mac_data.tbl_mcast_port_msk,
-		       0, sizeof(mac_data.tbl_mcast_port_msk));
-	} else {
-		/* config hardware entry */
-		hns_dsaf_tcam_mc_get(dsaf_dev, entry_index, &tcam_data,
-				     &mac_data);
-
-		tmp_mac_key.high.val =
-			le32_to_cpu(tcam_data.tbl_tcam_data_high);
-		tmp_mac_key.low.val = le32_to_cpu(tcam_data.tbl_tcam_data_low);
-	}
-	mac_data.tbl_mcast_old_en = 0;
-	mac_data.tbl_mcast_item_vld = 1;
-	dsaf_set_field(mac_data.tbl_mcast_port_msk[0],
-		       0x3F, 0, mac_entry->port_mask[0]);
-
-	dev_dbg(dsaf_dev->dev,
-		"set_uc_entry, %s key(%#x:%#x) entry_index%d\n",
-		dsaf_dev->ae_dev.name, mac_key.high.val,
-		mac_key.low.val, entry_index);
-
-	tcam_data.tbl_tcam_data_high = cpu_to_le32(mac_key.high.val);
-	tcam_data.tbl_tcam_data_low = cpu_to_le32(mac_key.low.val);
-
-	hns_dsaf_tcam_mc_cfg(dsaf_dev, entry_index, &tcam_data, NULL,
-			     &mac_data);
-
-	/* config software entry */
-	soft_mac_entry += entry_index;
-	soft_mac_entry->index = entry_index;
-	soft_mac_entry->tcam_key.high.val = mac_key.high.val;
-	soft_mac_entry->tcam_key.low.val = mac_key.low.val;
-
-	return 0;
 }
 
 static void hns_dsaf_mc_mask_bit_clear(char *dst, const char *src)
@@ -2087,166 +2007,6 @@ int hns_dsaf_clr_mac_mc_port(struct dsaf_device *dsaf_dev, u8 mac_id,
 	}
 
 	return ret;
-}
-
-/**
- * hns_dsaf_get_mac_uc_entry - get mac uc entry
- * @dsaf_dev: dsa fabric device struct pointer
- * @mac_entry: mac entry
- */
-int hns_dsaf_get_mac_uc_entry(struct dsaf_device *dsaf_dev,
-			      struct dsaf_drv_mac_single_dest_entry *mac_entry)
-{
-	u16 entry_index = DSAF_INVALID_ENTRY_IDX;
-	struct dsaf_drv_tbl_tcam_key mac_key;
-
-	struct dsaf_tbl_tcam_ucast_cfg mac_data;
-	struct dsaf_tbl_tcam_data tcam_data;
-
-	/* check macaddr */
-	if (MAC_IS_ALL_ZEROS(mac_entry->addr) ||
-	    MAC_IS_BROADCAST(mac_entry->addr)) {
-		dev_err(dsaf_dev->dev, "get_entry failed,addr %pM\n",
-			mac_entry->addr);
-		return -EINVAL;
-	}
-
-	/*config key */
-	hns_dsaf_set_mac_key(dsaf_dev, &mac_key, mac_entry->in_vlan_id,
-			     mac_entry->in_port_num, mac_entry->addr);
-
-	/*check exist? */
-	entry_index = hns_dsaf_find_soft_mac_entry(dsaf_dev, &mac_key);
-	if (entry_index == DSAF_INVALID_ENTRY_IDX) {
-		/*find none, error */
-		dev_err(dsaf_dev->dev,
-			"get_uc_entry failed, %s Mac key(%#x:%#x)\n",
-			dsaf_dev->ae_dev.name,
-			mac_key.high.val, mac_key.low.val);
-		return -EINVAL;
-	}
-	dev_dbg(dsaf_dev->dev,
-		"get_uc_entry, %s Mac key(%#x:%#x) entry_index%d\n",
-		dsaf_dev->ae_dev.name, mac_key.high.val,
-		mac_key.low.val, entry_index);
-
-	/* read entry */
-	hns_dsaf_tcam_uc_get(dsaf_dev, entry_index, &tcam_data, &mac_data);
-
-	mac_key.high.val = le32_to_cpu(tcam_data.tbl_tcam_data_high);
-	mac_key.low.val = le32_to_cpu(tcam_data.tbl_tcam_data_low);
-
-	mac_entry->port_num = mac_data.tbl_ucast_out_port;
-
-	return 0;
-}
-
-/**
- * hns_dsaf_get_mac_mc_entry - get mac mc entry
- * @dsaf_dev: dsa fabric device struct pointer
- * @mac_entry: mac entry
- */
-int hns_dsaf_get_mac_mc_entry(struct dsaf_device *dsaf_dev,
-			      struct dsaf_drv_mac_multi_dest_entry *mac_entry)
-{
-	u16 entry_index = DSAF_INVALID_ENTRY_IDX;
-	struct dsaf_drv_tbl_tcam_key mac_key;
-
-	struct dsaf_tbl_tcam_mcast_cfg mac_data;
-	struct dsaf_tbl_tcam_data tcam_data;
-
-	/*check mac addr */
-	if (MAC_IS_ALL_ZEROS(mac_entry->addr) ||
-	    MAC_IS_BROADCAST(mac_entry->addr)) {
-		dev_err(dsaf_dev->dev, "get_entry failed,addr %pM\n",
-			mac_entry->addr);
-		return -EINVAL;
-	}
-
-	/*config key */
-	hns_dsaf_set_mac_key(dsaf_dev, &mac_key, mac_entry->in_vlan_id,
-			     mac_entry->in_port_num, mac_entry->addr);
-
-	/*check exist? */
-	entry_index = hns_dsaf_find_soft_mac_entry(dsaf_dev, &mac_key);
-	if (entry_index == DSAF_INVALID_ENTRY_IDX) {
-		/* find none, error */
-		dev_err(dsaf_dev->dev,
-			"get_mac_uc_entry failed, %s Mac key(%#x:%#x)\n",
-			dsaf_dev->ae_dev.name, mac_key.high.val,
-			mac_key.low.val);
-		return -EINVAL;
-	}
-	dev_dbg(dsaf_dev->dev,
-		"get_mac_uc_entry, %s Mac key(%#x:%#x) entry_index%d\n",
-		dsaf_dev->ae_dev.name, mac_key.high.val,
-		mac_key.low.val, entry_index);
-
-	/*read entry */
-	hns_dsaf_tcam_mc_get(dsaf_dev, entry_index, &tcam_data, &mac_data);
-
-	mac_key.high.val = le32_to_cpu(tcam_data.tbl_tcam_data_high);
-	mac_key.low.val = le32_to_cpu(tcam_data.tbl_tcam_data_low);
-
-	mac_entry->port_mask[0] = mac_data.tbl_mcast_port_msk[0] & 0x3F;
-	return 0;
-}
-
-/**
- * hns_dsaf_get_mac_entry_by_index - get mac entry by tab index
- * @dsaf_dev: dsa fabric device struct pointer
- * @entry_index: tab entry index
- * @mac_entry: mac entry
- */
-int hns_dsaf_get_mac_entry_by_index(
-	struct dsaf_device *dsaf_dev,
-	u16 entry_index, struct dsaf_drv_mac_multi_dest_entry *mac_entry)
-{
-	struct dsaf_drv_tbl_tcam_key mac_key;
-
-	struct dsaf_tbl_tcam_mcast_cfg mac_data;
-	struct dsaf_tbl_tcam_ucast_cfg mac_uc_data;
-	struct dsaf_tbl_tcam_data tcam_data;
-	char mac_addr[ETH_ALEN] = {0};
-
-	if (entry_index >= dsaf_dev->tcam_max_num) {
-		/* find none, del error */
-		dev_err(dsaf_dev->dev, "get_uc_entry failed, %s\n",
-			dsaf_dev->ae_dev.name);
-		return -EINVAL;
-	}
-
-	/* mc entry, do read opt */
-	hns_dsaf_tcam_mc_get(dsaf_dev, entry_index, &tcam_data, &mac_data);
-
-	mac_key.high.val = le32_to_cpu(tcam_data.tbl_tcam_data_high);
-	mac_key.low.val = le32_to_cpu(tcam_data.tbl_tcam_data_low);
-
-	mac_entry->port_mask[0] = mac_data.tbl_mcast_port_msk[0] & 0x3F;
-
-	/***get mac addr*/
-	mac_addr[0] = mac_key.high.bits.mac_0;
-	mac_addr[1] = mac_key.high.bits.mac_1;
-	mac_addr[2] = mac_key.high.bits.mac_2;
-	mac_addr[3] = mac_key.high.bits.mac_3;
-	mac_addr[4] = mac_key.low.bits.mac_4;
-	mac_addr[5] = mac_key.low.bits.mac_5;
-	/**is mc or uc*/
-	if (MAC_IS_MULTICAST((u8 *)mac_addr) ||
-	    MAC_IS_L3_MULTICAST((u8 *)mac_addr)) {
-		/**mc donot do*/
-	} else {
-		/*is not mc, just uc... */
-		hns_dsaf_tcam_uc_get(dsaf_dev, entry_index, &tcam_data,
-				     &mac_uc_data);
-
-		mac_key.high.val = le32_to_cpu(tcam_data.tbl_tcam_data_high);
-		mac_key.low.val = le32_to_cpu(tcam_data.tbl_tcam_data_low);
-
-		mac_entry->port_mask[0] = (1 << mac_uc_data.tbl_ucast_out_port);
-	}
-
-	return 0;
 }
 
 static struct dsaf_device *hns_dsaf_alloc_dev(struct device *dev,
@@ -2924,10 +2684,11 @@ void hns_dsaf_set_promisc_tcam(struct dsaf_device *dsaf_dev,
 	/* find the tcam entry index for promisc */
 	entry_index = dsaf_promisc_tcam_entry(port);
 
+	memset(&tbl_tcam_data, 0, sizeof(tbl_tcam_data));
+	memset(&tbl_tcam_mask, 0, sizeof(tbl_tcam_mask));
+
 	/* config key mask */
 	if (enable) {
-		memset(&tbl_tcam_data, 0, sizeof(tbl_tcam_data));
-		memset(&tbl_tcam_mask, 0, sizeof(tbl_tcam_mask));
 		dsaf_set_field(tbl_tcam_data.low.bits.port_vlan,
 			       DSAF_TBL_TCAM_KEY_PORT_M,
 			       DSAF_TBL_TCAM_KEY_PORT_S, port);

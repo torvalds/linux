@@ -15,8 +15,13 @@ TRACE_DEFINE_ENUM(META);
 TRACE_DEFINE_ENUM(META_FLUSH);
 TRACE_DEFINE_ENUM(INMEM);
 TRACE_DEFINE_ENUM(INMEM_DROP);
+TRACE_DEFINE_ENUM(INMEM_INVALIDATE);
+TRACE_DEFINE_ENUM(INMEM_REVOKE);
 TRACE_DEFINE_ENUM(IPU);
 TRACE_DEFINE_ENUM(OPU);
+TRACE_DEFINE_ENUM(HOT);
+TRACE_DEFINE_ENUM(WARM);
+TRACE_DEFINE_ENUM(COLD);
 TRACE_DEFINE_ENUM(CURSEG_HOT_DATA);
 TRACE_DEFINE_ENUM(CURSEG_WARM_DATA);
 TRACE_DEFINE_ENUM(CURSEG_COLD_DATA);
@@ -42,6 +47,7 @@ TRACE_DEFINE_ENUM(CP_FASTBOOT);
 TRACE_DEFINE_ENUM(CP_SYNC);
 TRACE_DEFINE_ENUM(CP_RECOVERY);
 TRACE_DEFINE_ENUM(CP_DISCARD);
+TRACE_DEFINE_ENUM(CP_TRIMMED);
 
 #define show_block_type(type)						\
 	__print_symbolic(type,						\
@@ -51,12 +57,19 @@ TRACE_DEFINE_ENUM(CP_DISCARD);
 		{ META_FLUSH,	"META_FLUSH" },				\
 		{ INMEM,	"INMEM" },				\
 		{ INMEM_DROP,	"INMEM_DROP" },				\
+		{ INMEM_INVALIDATE,	"INMEM_INVALIDATE" },		\
 		{ INMEM_REVOKE,	"INMEM_REVOKE" },			\
 		{ IPU,		"IN-PLACE" },				\
 		{ OPU,		"OUT-OF-PLACE" })
 
-#define F2FS_OP_FLAGS (REQ_RAHEAD | REQ_SYNC | REQ_PREFLUSH | REQ_META |\
-			REQ_PRIO)
+#define show_block_temp(temp)						\
+	__print_symbolic(temp,						\
+		{ HOT,		"HOT" },				\
+		{ WARM,		"WARM" },				\
+		{ COLD,		"COLD" })
+
+#define F2FS_OP_FLAGS (REQ_RAHEAD | REQ_SYNC | REQ_META | REQ_PRIO |	\
+			REQ_PREFLUSH | REQ_FUA)
 #define F2FS_BIO_FLAG_MASK(t)	(t & F2FS_OP_FLAGS)
 
 #define show_bio_type(op,op_flags)	show_bio_op(op),		\
@@ -75,16 +88,13 @@ TRACE_DEFINE_ENUM(CP_DISCARD);
 		{ REQ_OP_WRITE_ZEROES,		"WRITE_ZEROES" })
 
 #define show_bio_op_flags(flags)					\
-	__print_symbolic(F2FS_BIO_FLAG_MASK(flags),			\
-		{ REQ_RAHEAD, 		"(RA)" },			\
-		{ REQ_SYNC, 		"(S)" },			\
-		{ REQ_SYNC | REQ_PRIO,	"(SP)" },			\
-		{ REQ_META, 		"(M)" },			\
-		{ REQ_META | REQ_PRIO,	"(MP)" },			\
-		{ REQ_SYNC | REQ_PREFLUSH , "(SF)" },			\
-		{ REQ_SYNC | REQ_META | REQ_PRIO, "(SMP)" },		\
-		{ REQ_PREFLUSH | REQ_META | REQ_PRIO, "(FMP)" },	\
-		{ 0, " \b" })
+	__print_flags(F2FS_BIO_FLAG_MASK(flags), "|",			\
+		{ REQ_RAHEAD,		"R" },				\
+		{ REQ_SYNC,		"S" },				\
+		{ REQ_META,		"M" },				\
+		{ REQ_PRIO,		"P" },				\
+		{ REQ_PREFLUSH,		"PF" },				\
+		{ REQ_FUA,		"FUA" })
 
 #define show_data_type(type)						\
 	__print_symbolic(type,						\
@@ -117,12 +127,14 @@ TRACE_DEFINE_ENUM(CP_DISCARD);
 		{ GC_CB,	"Cost-Benefit" })
 
 #define show_cpreason(type)						\
-	__print_symbolic(type,						\
+	__print_flags(type, "|",					\
 		{ CP_UMOUNT,	"Umount" },				\
 		{ CP_FASTBOOT,	"Fastboot" },				\
 		{ CP_SYNC,	"Sync" },				\
 		{ CP_RECOVERY,	"Recovery" },				\
-		{ CP_DISCARD,	"Discard" })
+		{ CP_DISCARD,	"Discard" },				\
+		{ CP_UMOUNT,	"Umount" },				\
+		{ CP_TRIMMED,	"Trimmed" })
 
 struct victim_sel_policy;
 struct f2fs_map_blocks;
@@ -531,14 +543,14 @@ TRACE_EVENT(f2fs_map_blocks,
 
 TRACE_EVENT(f2fs_background_gc,
 
-	TP_PROTO(struct super_block *sb, long wait_ms,
+	TP_PROTO(struct super_block *sb, unsigned int wait_ms,
 			unsigned int prefree, unsigned int free),
 
 	TP_ARGS(sb, wait_ms, prefree, free),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
-		__field(long,	wait_ms)
+		__field(unsigned int,	wait_ms)
 		__field(unsigned int,	prefree)
 		__field(unsigned int,	free)
 	),
@@ -550,11 +562,118 @@ TRACE_EVENT(f2fs_background_gc,
 		__entry->free		= free;
 	),
 
-	TP_printk("dev = (%d,%d), wait_ms = %ld, prefree = %u, free = %u",
+	TP_printk("dev = (%d,%d), wait_ms = %u, prefree = %u, free = %u",
 		show_dev(__entry->dev),
 		__entry->wait_ms,
 		__entry->prefree,
 		__entry->free)
+);
+
+TRACE_EVENT(f2fs_gc_begin,
+
+	TP_PROTO(struct super_block *sb, bool sync, bool background,
+			long long dirty_nodes, long long dirty_dents,
+			long long dirty_imeta, unsigned int free_sec,
+			unsigned int free_seg, int reserved_seg,
+			unsigned int prefree_seg),
+
+	TP_ARGS(sb, sync, background, dirty_nodes, dirty_dents, dirty_imeta,
+		free_sec, free_seg, reserved_seg, prefree_seg),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev)
+		__field(bool,		sync)
+		__field(bool,		background)
+		__field(long long,	dirty_nodes)
+		__field(long long,	dirty_dents)
+		__field(long long,	dirty_imeta)
+		__field(unsigned int,	free_sec)
+		__field(unsigned int,	free_seg)
+		__field(int,		reserved_seg)
+		__field(unsigned int,	prefree_seg)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= sb->s_dev;
+		__entry->sync		= sync;
+		__entry->background	= background;
+		__entry->dirty_nodes	= dirty_nodes;
+		__entry->dirty_dents	= dirty_dents;
+		__entry->dirty_imeta	= dirty_imeta;
+		__entry->free_sec	= free_sec;
+		__entry->free_seg	= free_seg;
+		__entry->reserved_seg	= reserved_seg;
+		__entry->prefree_seg	= prefree_seg;
+	),
+
+	TP_printk("dev = (%d,%d), sync = %d, background = %d, nodes = %lld, "
+		"dents = %lld, imeta = %lld, free_sec:%u, free_seg:%u, "
+		"rsv_seg:%d, prefree_seg:%u",
+		show_dev(__entry->dev),
+		__entry->sync,
+		__entry->background,
+		__entry->dirty_nodes,
+		__entry->dirty_dents,
+		__entry->dirty_imeta,
+		__entry->free_sec,
+		__entry->free_seg,
+		__entry->reserved_seg,
+		__entry->prefree_seg)
+);
+
+TRACE_EVENT(f2fs_gc_end,
+
+	TP_PROTO(struct super_block *sb, int ret, int seg_freed,
+			int sec_freed, long long dirty_nodes,
+			long long dirty_dents, long long dirty_imeta,
+			unsigned int free_sec, unsigned int free_seg,
+			int reserved_seg, unsigned int prefree_seg),
+
+	TP_ARGS(sb, ret, seg_freed, sec_freed, dirty_nodes, dirty_dents,
+		dirty_imeta, free_sec, free_seg, reserved_seg, prefree_seg),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev)
+		__field(int,		ret)
+		__field(int,		seg_freed)
+		__field(int,		sec_freed)
+		__field(long long,	dirty_nodes)
+		__field(long long,	dirty_dents)
+		__field(long long,	dirty_imeta)
+		__field(unsigned int,	free_sec)
+		__field(unsigned int,	free_seg)
+		__field(int,		reserved_seg)
+		__field(unsigned int,	prefree_seg)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= sb->s_dev;
+		__entry->ret		= ret;
+		__entry->seg_freed	= seg_freed;
+		__entry->sec_freed	= sec_freed;
+		__entry->dirty_nodes	= dirty_nodes;
+		__entry->dirty_dents	= dirty_dents;
+		__entry->dirty_imeta	= dirty_imeta;
+		__entry->free_sec	= free_sec;
+		__entry->free_seg	= free_seg;
+		__entry->reserved_seg	= reserved_seg;
+		__entry->prefree_seg	= prefree_seg;
+	),
+
+	TP_printk("dev = (%d,%d), ret = %d, seg_freed = %d, sec_freed = %d, "
+		"nodes = %lld, dents = %lld, imeta = %lld, free_sec:%u, "
+		"free_seg:%u, rsv_seg:%d, prefree_seg:%u",
+		show_dev(__entry->dev),
+		__entry->ret,
+		__entry->seg_freed,
+		__entry->sec_freed,
+		__entry->dirty_nodes,
+		__entry->dirty_dents,
+		__entry->dirty_imeta,
+		__entry->free_sec,
+		__entry->free_seg,
+		__entry->reserved_seg,
+		__entry->prefree_seg)
 );
 
 TRACE_EVENT(f2fs_get_victim,
@@ -754,6 +873,7 @@ DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
 		__field(block_t, new_blkaddr)
 		__field(int, op)
 		__field(int, op_flags)
+		__field(int, temp)
 		__field(int, type)
 	),
 
@@ -765,16 +885,18 @@ DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
 		__entry->new_blkaddr	= fio->new_blkaddr;
 		__entry->op		= fio->op;
 		__entry->op_flags	= fio->op_flags;
+		__entry->temp		= fio->temp;
 		__entry->type		= fio->type;
 	),
 
 	TP_printk("dev = (%d,%d), ino = %lu, page_index = 0x%lx, "
-		"oldaddr = 0x%llx, newaddr = 0x%llx, rw = %s%s, type = %s",
+		"oldaddr = 0x%llx, newaddr = 0x%llx, rw = %s(%s), type = %s_%s",
 		show_dev_ino(__entry),
 		(unsigned long)__entry->index,
 		(unsigned long long)__entry->old_blkaddr,
 		(unsigned long long)__entry->new_blkaddr,
 		show_bio_type(__entry->op, __entry->op_flags),
+		show_block_temp(__entry->temp),
 		show_block_type(__entry->type))
 );
 
@@ -787,7 +909,7 @@ DEFINE_EVENT_CONDITION(f2fs__submit_page_bio, f2fs_submit_page_bio,
 	TP_CONDITION(page->mapping)
 );
 
-DEFINE_EVENT_CONDITION(f2fs__submit_page_bio, f2fs_submit_page_mbio,
+DEFINE_EVENT_CONDITION(f2fs__submit_page_bio, f2fs_submit_page_write,
 
 	TP_PROTO(struct page *page, struct f2fs_io_info *fio),
 
@@ -814,7 +936,7 @@ DECLARE_EVENT_CLASS(f2fs__bio,
 
 	TP_fast_assign(
 		__entry->dev		= sb->s_dev;
-		__entry->target		= bio->bi_bdev->bd_dev;
+		__entry->target		= bio_dev(bio);
 		__entry->op		= bio_op(bio);
 		__entry->op_flags	= bio->bi_opf;
 		__entry->type		= type;
@@ -822,7 +944,7 @@ DECLARE_EVENT_CLASS(f2fs__bio,
 		__entry->size		= bio->bi_iter.bi_size;
 	),
 
-	TP_printk("dev = (%d,%d)/(%d,%d), rw = %s%s, %s, sector = %lld, size = %u",
+	TP_printk("dev = (%d,%d)/(%d,%d), rw = %s(%s), %s, sector = %lld, size = %u",
 		show_dev(__entry->target),
 		show_dev(__entry->dev),
 		show_bio_type(__entry->op, __entry->op_flags),
@@ -1126,7 +1248,7 @@ TRACE_EVENT(f2fs_write_checkpoint,
 		__entry->msg)
 );
 
-TRACE_EVENT(f2fs_issue_discard,
+DECLARE_EVENT_CLASS(f2fs_discard,
 
 	TP_PROTO(struct block_device *dev, block_t blkstart, block_t blklen),
 
@@ -1148,6 +1270,20 @@ TRACE_EVENT(f2fs_issue_discard,
 		show_dev(__entry->dev),
 		(unsigned long long)__entry->blkstart,
 		(unsigned long long)__entry->blklen)
+);
+
+DEFINE_EVENT(f2fs_discard, f2fs_queue_discard,
+
+	TP_PROTO(struct block_device *dev, block_t blkstart, block_t blklen),
+
+	TP_ARGS(dev, blkstart, blklen)
+);
+
+DEFINE_EVENT(f2fs_discard, f2fs_issue_discard,
+
+	TP_PROTO(struct block_device *dev, block_t blkstart, block_t blklen),
+
+	TP_ARGS(dev, blkstart, blklen)
 );
 
 TRACE_EVENT(f2fs_issue_reset_zone,
@@ -1174,26 +1310,29 @@ TRACE_EVENT(f2fs_issue_reset_zone,
 TRACE_EVENT(f2fs_issue_flush,
 
 	TP_PROTO(struct block_device *dev, unsigned int nobarrier,
-					unsigned int flush_merge),
+				unsigned int flush_merge, int ret),
 
-	TP_ARGS(dev, nobarrier, flush_merge),
+	TP_ARGS(dev, nobarrier, flush_merge, ret),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
 		__field(unsigned int, nobarrier)
 		__field(unsigned int, flush_merge)
+		__field(int,  ret)
 	),
 
 	TP_fast_assign(
 		__entry->dev	= dev->bd_dev;
 		__entry->nobarrier = nobarrier;
 		__entry->flush_merge = flush_merge;
+		__entry->ret = ret;
 	),
 
-	TP_printk("dev = (%d,%d), %s %s",
+	TP_printk("dev = (%d,%d), %s %s, ret = %d",
 		show_dev(__entry->dev),
 		__entry->nobarrier ? "skip (nobarrier)" : "issue",
-		__entry->flush_merge ? " with flush_merge" : "")
+		__entry->flush_merge ? " with flush_merge" : "",
+		__entry->ret)
 );
 
 TRACE_EVENT(f2fs_lookup_extent_tree_start,

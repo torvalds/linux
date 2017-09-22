@@ -99,7 +99,7 @@ static long ccu_nm_round_rate(struct clk_hw *hw, unsigned long rate,
 	struct ccu_nm *nm = hw_to_ccu_nm(hw);
 	struct _ccu_nm _nm;
 
-	_nm.min_n = nm->n.min;
+	_nm.min_n = nm->n.min ?: 1;
 	_nm.max_n = nm->n.max ?: 1 << nm->n.width;
 	_nm.min_m = 1;
 	_nm.max_m = nm->m.max ?: 1 << nm->m.width;
@@ -117,12 +117,25 @@ static int ccu_nm_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long flags;
 	u32 reg;
 
-	if (ccu_frac_helper_has_rate(&nm->common, &nm->frac, rate))
-		return ccu_frac_helper_set_rate(&nm->common, &nm->frac, rate);
-	else
-		ccu_frac_helper_disable(&nm->common, &nm->frac);
+	if (ccu_frac_helper_has_rate(&nm->common, &nm->frac, rate)) {
+		spin_lock_irqsave(nm->common.lock, flags);
 
-	_nm.min_n = 1;
+		/* most SoCs require M to be 0 if fractional mode is used */
+		reg = readl(nm->common.base + nm->common.reg);
+		reg &= ~GENMASK(nm->m.width + nm->m.shift - 1, nm->m.shift);
+		writel(reg, nm->common.base + nm->common.reg);
+
+		spin_unlock_irqrestore(nm->common.lock, flags);
+
+		ccu_frac_helper_enable(&nm->common, &nm->frac);
+
+		return ccu_frac_helper_set_rate(&nm->common, &nm->frac,
+						rate, nm->lock);
+	} else {
+		ccu_frac_helper_disable(&nm->common, &nm->frac);
+	}
+
+	_nm.min_n = nm->n.min ?: 1;
 	_nm.max_n = nm->n.max ?: 1 << nm->n.width;
 	_nm.min_m = 1;
 	_nm.max_m = nm->m.max ?: 1 << nm->m.width;

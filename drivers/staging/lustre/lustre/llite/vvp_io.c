@@ -37,7 +37,7 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/obd.h"
+#include <obd.h>
 
 #include "llite_internal.h"
 #include "vvp_internal.h"
@@ -219,6 +219,7 @@ static int vvp_io_one_lock_index(const struct lu_env *env, struct cl_io *io,
 	if (vio->vui_fd && (vio->vui_fd->fd_flags & LL_FILE_GROUP_LOCKED)) {
 		descr->cld_mode = CLM_GROUP;
 		descr->cld_gid  = vio->vui_fd->fd_grouplock.lg_gid;
+		enqflags |= CEF_LOCK_MATCH;
 	} else {
 		descr->cld_mode  = mode;
 	}
@@ -324,7 +325,7 @@ static void vvp_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 		io->ci_need_restart = vio->vui_layout_gen != gen;
 		if (io->ci_need_restart) {
 			CDEBUG(D_VFSTRACE,
-			       DFID" layout changed from %d to %d.\n",
+			       DFID " layout changed from %d to %d.\n",
 			       PFID(lu_object_fid(&obj->co_lu)),
 			       vio->vui_layout_gen, gen);
 			/* today successful restore is the only possible case */
@@ -449,6 +450,7 @@ static void vvp_io_advance(const struct lu_env *env,
 {
 	struct cl_object *obj = ios->cis_io->ci_obj;
 	struct vvp_io	 *vio = cl2vvp_io(env, ios);
+
 	CLOBINVRNT(env, obj, vvp_object_invariant(obj));
 
 	vio->vui_tot_count -= nob;

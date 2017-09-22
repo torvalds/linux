@@ -14,12 +14,16 @@
 #include <linux/llist.h>
 
 typedef void (*smp_call_func_t)(void *info);
-struct call_single_data {
+struct __call_single_data {
 	struct llist_node llist;
 	smp_call_func_t func;
 	void *info;
 	unsigned int flags;
 };
+
+/* Use __aligned() to avoid to use 2 cache lines for 1 csd */
+typedef struct __call_single_data call_single_data_t
+	__aligned(sizeof(struct __call_single_data));
 
 /* total number of cpus in this system (may exceed NR_CPUS) */
 extern unsigned int total_cpus;
@@ -48,7 +52,7 @@ void on_each_cpu_cond(bool (*cond_func)(int cpu, void *info),
 		smp_call_func_t func, void *info, bool wait,
 		gfp_t gfp_flags);
 
-int smp_call_function_single_async(int cpu, struct call_single_data *csd);
+int smp_call_function_single_async(int cpu, call_single_data_t *csd);
 
 #ifdef CONFIG_SMP
 
@@ -120,6 +124,13 @@ extern unsigned int setup_max_cpus;
 extern void __init setup_nr_cpu_ids(void);
 extern void __init smp_init(void);
 
+extern int __boot_cpu_id;
+
+static inline int get_boot_cpu_id(void)
+{
+	return __boot_cpu_id;
+}
+
 #else /* !SMP */
 
 static inline void smp_send_stop(void) { }
@@ -157,6 +168,11 @@ static inline void smp_init(void) { up_late_init(); }
 #else
 static inline void smp_init(void) { }
 #endif
+
+static inline int get_boot_cpu_id(void)
+{
+	return 0;
+}
 
 #endif /* !SMP */
 

@@ -369,6 +369,12 @@ timeout: Watchdog timeout in seconds. (0<timeout<N, default=60)
 nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)
 -------------------------------------------------
+uniphier_wdt:
+timeout: Watchdog timeout in power of two seconds.
+	(1 <= timeout <= 128, default=64)
+nowayout: Watchdog cannot be stopped once started
+	(default=kernel config parameter)
+-------------------------------------------------
 w83627hf_wdt:
 wdt_io: w83627hf/thf WDT io port (default 0x2E)
 timeout: Watchdog timeout in seconds. 1 <= timeout <= 255, default=60.

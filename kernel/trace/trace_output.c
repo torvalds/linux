@@ -4,7 +4,6 @@
  * Copyright (C) 2008 Red Hat Inc, Steven Rostedt <srostedt@redhat.com>
  *
  */
-
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/ftrace.h>
@@ -341,31 +340,41 @@ static inline const char *kretprobed(const char *name)
 static void
 seq_print_sym_short(struct trace_seq *s, const char *fmt, unsigned long address)
 {
-#ifdef CONFIG_KALLSYMS
 	char str[KSYM_SYMBOL_LEN];
+#ifdef CONFIG_KALLSYMS
 	const char *name;
 
 	kallsyms_lookup(address, NULL, NULL, NULL, str);
 
 	name = kretprobed(str);
 
-	trace_seq_printf(s, fmt, name);
+	if (name && strlen(name)) {
+		trace_seq_printf(s, fmt, name);
+		return;
+	}
 #endif
+	snprintf(str, KSYM_SYMBOL_LEN, "0x%08lx", address);
+	trace_seq_printf(s, fmt, str);
 }
 
 static void
 seq_print_sym_offset(struct trace_seq *s, const char *fmt,
 		     unsigned long address)
 {
-#ifdef CONFIG_KALLSYMS
 	char str[KSYM_SYMBOL_LEN];
+#ifdef CONFIG_KALLSYMS
 	const char *name;
 
 	sprint_symbol(str, address);
 	name = kretprobed(str);
 
-	trace_seq_printf(s, fmt, name);
+	if (name && strlen(name)) {
+		trace_seq_printf(s, fmt, name);
+		return;
+	}
 #endif
+	snprintf(str, KSYM_SYMBOL_LEN, "0x%08lx", address);
+	trace_seq_printf(s, fmt, str);
 }
 
 #ifndef CONFIG_64BIT
@@ -587,6 +596,15 @@ int trace_print_context(struct trace_iterator *iter)
 
 	trace_seq_printf(s, "%16s-%-5d [%03d] ",
 			       comm, entry->pid, iter->cpu);
+
+	if (tr->trace_flags & TRACE_ITER_RECORD_TGID) {
+		unsigned int tgid = trace_find_tgid(entry->pid);
+
+		if (!tgid)
+			trace_seq_printf(s, "(-----) ");
+		else
+			trace_seq_printf(s, "(%5d) ", tgid);
+	}
 
 	if (tr->trace_flags & TRACE_ITER_IRQ_INFO)
 		trace_print_lat_fmt(s, entry);
@@ -1161,11 +1179,11 @@ trace_hwlat_print(struct trace_iterator *iter, int flags,
 
 	trace_assign_type(field, entry);
 
-	trace_seq_printf(s, "#%-5u inner/outer(us): %4llu/%-5llu ts:%ld.%09ld",
+	trace_seq_printf(s, "#%-5u inner/outer(us): %4llu/%-5llu ts:%lld.%09ld",
 			 field->seqnum,
 			 field->duration,
 			 field->outer_duration,
-			 field->timestamp.tv_sec,
+			 (long long)field->timestamp.tv_sec,
 			 field->timestamp.tv_nsec);
 
 	if (field->nmi_count) {
@@ -1195,10 +1213,10 @@ trace_hwlat_raw(struct trace_iterator *iter, int flags,
 
 	trace_assign_type(field, iter->ent);
 
-	trace_seq_printf(s, "%llu %lld %ld %09ld %u\n",
+	trace_seq_printf(s, "%llu %lld %lld %09ld %u\n",
 			 field->duration,
 			 field->outer_duration,
-			 field->timestamp.tv_sec,
+			 (long long)field->timestamp.tv_sec,
 			 field->timestamp.tv_nsec,
 			 field->seqnum);
 

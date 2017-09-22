@@ -128,7 +128,7 @@ void snd_device_disconnect(struct snd_card *card, void *device_data)
 	if (dev)
 		__snd_device_disconnect(dev);
 	else
-		dev_dbg(card->dev, "device disconnect %p (from %pF), not found\n",
+		dev_dbg(card->dev, "device disconnect %p (from %pS), not found\n",
 			device_data, __builtin_return_address(0));
 }
 EXPORT_SYMBOL_GPL(snd_device_disconnect);
@@ -152,7 +152,7 @@ void snd_device_free(struct snd_card *card, void *device_data)
 	if (dev)
 		__snd_device_free(dev);
 	else
-		dev_dbg(card->dev, "device free %p (from %pF), not found\n",
+		dev_dbg(card->dev, "device free %p (from %pS), not found\n",
 			device_data, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(snd_device_free);

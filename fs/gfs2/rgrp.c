@@ -483,13 +483,6 @@ void gfs2_rgrp_verify(struct gfs2_rgrpd *rgd)
 	}
 }
 
-static inline int rgrp_contains_block(struct gfs2_rgrpd *rgd, u64 block)
-{
-	u64 first = rgd->rd_data0;
-	u64 last = first + rgd->rd_data;
-	return first <= block && block < last;
-}
-
 /**
  * gfs2_blk2rgrpd - Find resource group for a given data/meta block number
  * @sdp: The GFS2 superblock
@@ -712,10 +705,7 @@ void gfs2_clear_rgrpd(struct gfs2_sbd *sdp)
 		rb_erase(n, &sdp->sd_rindex_tree);
 
 		if (gl) {
-			spin_lock(&gl->gl_lockref.lock);
-			gl->gl_object = NULL;
-			spin_unlock(&gl->gl_lockref.lock);
-			gfs2_glock_add_to_lru(gl);
+			glock_clear_object(gl, rgd);
 			gfs2_glock_put(gl);
 		}
 
@@ -924,7 +914,7 @@ static int read_rindex_entry(struct gfs2_inode *ip)
 	error = rgd_insert(rgd);
 	spin_unlock(&sdp->sd_rindex_spin);
 	if (!error) {
-		rgd->rd_gl->gl_object = rgd;
+		glock_set_object(rgd->rd_gl, rgd);
 		rgd->rd_gl->gl_vm.start = (rgd->rd_addr * bsize) & PAGE_MASK;
 		rgd->rd_gl->gl_vm.end = PAGE_ALIGN((rgd->rd_addr +
 						    rgd->rd_length) * bsize) - 1;

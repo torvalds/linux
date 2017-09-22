@@ -119,23 +119,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	return 0;
 }
 
-#ifndef CONFIG_MMU
-/*
- * Return saved PC of a blocked thread.
- */
-unsigned long thread_saved_pc(struct task_struct *tsk)
-{
-	struct cpu_context *ctx =
-		&(((struct thread_info *)(tsk->stack))->cpu_context);
-
-	/* Check whether the thread is blocked in resume() */
-	if (in_sched_functions(ctx->r15))
-		return (unsigned long)ctx->r15;
-	else
-		return ctx->r14;
-}
-#endif
-
 unsigned long get_wchan(struct task_struct *p)
 {
 /* TBD (used by procfs) */

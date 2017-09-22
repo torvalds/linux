@@ -67,7 +67,7 @@ PPC64_CACHES:
  *   flush all bytes from start through stop-1 inclusive
  */
 
-_GLOBAL(flush_icache_range)
+_GLOBAL_TOC(flush_icache_range)
 BEGIN_FTR_SECTION
 	PURGE_PREFETCHED_INS
 	blr
@@ -120,7 +120,7 @@ EXPORT_SYMBOL(flush_icache_range)
  *
  *    flush all bytes from start to stop-1 inclusive
  */
-_GLOBAL(flush_dcache_range)
+_GLOBAL_TOC(flush_dcache_range)
 
 /*
  * Flush the data cache to memory 
@@ -613,6 +613,18 @@ _GLOBAL(kexec_sequence)
 
 	li	r0,0
 	std	r0,16(r1)
+
+BEGIN_FTR_SECTION
+	/*
+	 * This is the best time to turn AMR/IAMR off.
+	 * key 0 is used in radix for supervisor<->user
+	 * protection, but on hash key 0 is reserved
+	 * ideally we want to enter with a clean state.
+	 * NOTE, we rely on r0 being 0 from above.
+	 */
+	mtspr	SPRN_IAMR,r0
+	mtspr	SPRN_AMOR,r0
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 
 	/* save regs for local vars on new stack.
 	 * yes, we won't go back, but ...

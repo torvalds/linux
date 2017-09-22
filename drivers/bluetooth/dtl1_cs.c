@@ -226,7 +226,7 @@ static void dtl1_receive(struct dtl1_info *info)
 			}
 		}
 
-		*skb_put(info->rx_skb, 1) = inb(iobase + UART_RX);
+		skb_put_u8(info->rx_skb, inb(iobase + UART_RX));
 		nsh = (struct nsh *)info->rx_skb->data;
 
 		info->rx_count--;
@@ -414,7 +414,7 @@ static int dtl1_hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	skb_reserve(s, NSHL);
 	skb_copy_from_linear_data(skb, skb_put(s, skb->len), skb->len);
 	if (skb->len & 0x0001)
-		*skb_put(s, 1) = 0;	/* PAD */
+		skb_put_u8(s, 0);	/* PAD */
 
 	/* Prepend skb with Nokia frame header and queue */
 	memcpy(skb_push(s, NSHL), &nsh, NSHL);

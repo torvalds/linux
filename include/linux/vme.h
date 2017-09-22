@@ -92,7 +92,7 @@ extern struct bus_type vme_bus_type;
 #define VME_SLOT_ALL		-2
 
 /**
- * Structure representing a VME device
+ * struct vme_dev - Structure representing a VME device
  * @num: The device number
  * @bridge: Pointer to the bridge device this device is on
  * @dev: Internal device structure
@@ -107,6 +107,16 @@ struct vme_dev {
 	struct list_head bridge_list;
 };
 
+/**
+ * struct vme_driver - Structure representing a VME driver
+ * @name: Driver name, should be unique among VME drivers and usually the same
+ *        as the module name.
+ * @match: Callback used to determine whether probe should be run.
+ * @probe: Callback for device binding, called when new device is detected.
+ * @remove: Callback, called on device removal.
+ * @driver: Underlying generic device driver structure.
+ * @devices: List of VME devices (struct vme_dev) associated with this driver.
+ */
 struct vme_driver {
 	const char *name;
 	int (*match)(struct vme_dev *);

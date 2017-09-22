@@ -99,7 +99,7 @@ static int hisi_pcie_init(struct pci_config_window *cfg)
 		return -ENOMEM;
 	}
 
-	reg_base = devm_ioremap(dev, res->start, resource_size(res));
+	reg_base = devm_pci_remap_cfgspace(dev, res->start, resource_size(res));
 	if (!reg_base)
 		return -ENOMEM;
 
@@ -223,7 +223,7 @@ static int hisi_pcie_link_up(struct dw_pcie *pci)
 	return hisi_pcie->soc_ops->hisi_pcie_link_up(hisi_pcie);
 }
 
-static struct dw_pcie_host_ops hisi_pcie_host_ops = {
+static const struct dw_pcie_host_ops hisi_pcie_host_ops = {
 	.rd_own_conf = hisi_pcie_cfg_read,
 	.wr_own_conf = hisi_pcie_cfg_write,
 };
@@ -268,7 +268,6 @@ static int hisi_pcie_probe(struct platform_device *pdev)
 	struct dw_pcie *pci;
 	struct hisi_pcie *hisi_pcie;
 	struct resource *reg;
-	struct device_driver *driver;
 	int ret;
 
 	hisi_pcie = devm_kzalloc(dev, sizeof(*hisi_pcie), GFP_KERNEL);
@@ -282,8 +281,6 @@ static int hisi_pcie_probe(struct platform_device *pdev)
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;
 
-	driver = dev->driver;
-
 	hisi_pcie->pci = pci;
 
 	hisi_pcie->soc_ops = of_device_get_match_data(dev);
@@ -296,10 +293,9 @@ static int hisi_pcie_probe(struct platform_device *pdev)
 	}
 
 	reg = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rc_dbi");
-	pci->dbi_base = devm_ioremap_resource(dev, reg);
+	pci->dbi_base = devm_pci_remap_cfg_resource(dev, reg);
 	if (IS_ERR(pci->dbi_base))
 		return PTR_ERR(pci->dbi_base);
-
 	platform_set_drvdata(pdev, hisi_pcie);
 
 	ret = hisi_add_pcie_port(hisi_pcie, pdev);
@@ -334,6 +330,7 @@ static struct platform_driver hisi_pcie_driver = {
 	.driver = {
 		   .name = "hisi-pcie",
 		   .of_match_table = hisi_pcie_of_match,
+		   .suppress_bind_attrs = true,
 	},
 };
 builtin_platform_driver(hisi_pcie_driver);
@@ -360,7 +357,7 @@ static int hisi_pcie_platform_init(struct pci_config_window *cfg)
 		return -EINVAL;
 	}
 
-	reg_base = devm_ioremap(dev, res->start, resource_size(res));
+	reg_base = devm_pci_remap_cfgspace(dev, res->start, resource_size(res));
 	if (!reg_base)
 		return -ENOMEM;
 
@@ -380,8 +377,12 @@ struct pci_ecam_ops hisi_pcie_platform_ops = {
 
 static const struct of_device_id hisi_pcie_almost_ecam_of_match[] = {
 	{
-		.compatible = "hisilicon,pcie-almost-ecam",
+		.compatible =  "hisilicon,hip06-pcie-ecam",
 		.data	    = (void *) &hisi_pcie_platform_ops,
+	},
+	{
+		.compatible =  "hisilicon,hip07-pcie-ecam",
+		.data       = (void *) &hisi_pcie_platform_ops,
 	},
 	{},
 };
@@ -391,6 +392,7 @@ static struct platform_driver hisi_pcie_almost_ecam_driver = {
 	.driver = {
 		   .name = "hisi-pcie-almost-ecam",
 		   .of_match_table = hisi_pcie_almost_ecam_of_match,
+		   .suppress_bind_attrs = true,
 	},
 };
 builtin_platform_driver(hisi_pcie_almost_ecam_driver);

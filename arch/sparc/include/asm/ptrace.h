@@ -83,7 +83,8 @@ unsigned long profile_pc(struct pt_regs *);
 
 #define MAX_REG_OFFSET (offsetof(struct pt_regs, magic))
 
-extern int regs_query_register_offset(const char *name);
+int regs_query_register_offset(const char *name);
+unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n);
 
 /**
  * regs_get_register() - get register value from its offset

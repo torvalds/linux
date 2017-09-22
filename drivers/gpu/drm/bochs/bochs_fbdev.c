@@ -23,9 +23,9 @@ static int bochsfb_mmap(struct fb_info *info,
 static struct fb_ops bochsfb_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
-	.fb_fillrect = drm_fb_helper_sys_fillrect,
-	.fb_copyarea = drm_fb_helper_sys_copyarea,
-	.fb_imageblit = drm_fb_helper_sys_imageblit,
+	.fb_fillrect = drm_fb_helper_cfb_fillrect,
+	.fb_copyarea = drm_fb_helper_cfb_copyarea,
+	.fb_imageblit = drm_fb_helper_cfb_imageblit,
 	.fb_mmap = bochsfb_mmap,
 };
 
@@ -107,10 +107,8 @@ static int bochsfb_create(struct drm_fb_helper *helper,
 	info->par = &bochs->fb.helper;
 
 	ret = bochs_framebuffer_init(bochs->dev, &bochs->fb.gfb, &mode_cmd, gobj);
-	if (ret) {
-		drm_fb_helper_release_fbi(helper);
+	if (ret)
 		return ret;
-	}
 
 	bochs->fb.size = size;
 
@@ -120,7 +118,6 @@ static int bochsfb_create(struct drm_fb_helper *helper,
 
 	strcpy(info->fix.id, "bochsdrmfb");
 
-	info->flags = FBINFO_DEFAULT;
 	info->fbops = &bochsfb_ops;
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
@@ -134,6 +131,7 @@ static int bochsfb_create(struct drm_fb_helper *helper,
 	info->fix.smem_start = 0;
 	info->fix.smem_len = size;
 
+	bochs->fb.initialized = true;
 	return 0;
 }
 
@@ -144,14 +142,12 @@ static int bochs_fbdev_destroy(struct bochs_device *bochs)
 	DRM_DEBUG_DRIVER("\n");
 
 	drm_fb_helper_unregister_fbi(&bochs->fb.helper);
-	drm_fb_helper_release_fbi(&bochs->fb.helper);
 
 	if (gfb->obj) {
 		drm_gem_object_unreference_unlocked(gfb->obj);
 		gfb->obj = NULL;
 	}
 
-	drm_fb_helper_fini(&bochs->fb.helper);
 	drm_framebuffer_unregister_private(&gfb->base);
 	drm_framebuffer_cleanup(&gfb->base);
 
@@ -183,7 +179,6 @@ int bochs_fbdev_init(struct bochs_device *bochs)
 	if (ret)
 		goto fini;
 
-	bochs->fb.initialized = true;
 	return 0;
 
 fini:
@@ -193,9 +188,11 @@ fini:
 
 void bochs_fbdev_fini(struct bochs_device *bochs)
 {
-	if (!bochs->fb.initialized)
-		return;
+	if (bochs->fb.initialized)
+		bochs_fbdev_destroy(bochs);
 
-	bochs_fbdev_destroy(bochs);
+	if (bochs->fb.helper.fbdev)
+		drm_fb_helper_fini(&bochs->fb.helper);
+
 	bochs->fb.initialized = false;
 }

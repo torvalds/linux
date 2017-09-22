@@ -60,9 +60,10 @@ static const size_t max_zpage_size = PAGE_SIZE / 4 * 3;
 
 /* Flags for zram pages (table[page_no].value) */
 enum zram_pageflags {
-	/* Page consists entirely of zeros */
+	/* Page consists the same element */
 	ZRAM_SAME = ZRAM_FLAG_SHIFT,
 	ZRAM_ACCESS,	/* page is now accessed */
+	ZRAM_WB,	/* page is stored on backing_device */
 
 	__NR_ZRAM_PAGEFLAGS,
 };
@@ -92,13 +93,9 @@ struct zram_stats {
 	atomic64_t writestall;		/* no. of write slow paths */
 };
 
-struct zram_meta {
+struct zram {
 	struct zram_table_entry *table;
 	struct zs_pool *mem_pool;
-};
-
-struct zram {
-	struct zram_meta *meta;
 	struct zcomp *comp;
 	struct gendisk *disk;
 	/* Prevent concurrent execution of device init */
@@ -119,5 +116,13 @@ struct zram {
 	 * zram is claimed so open request will be failed
 	 */
 	bool claim; /* Protected by bdev->bd_mutex */
+#ifdef CONFIG_ZRAM_WRITEBACK
+	struct file *backing_dev;
+	struct block_device *bdev;
+	unsigned int old_block_size;
+	unsigned long *bitmap;
+	unsigned long nr_pages;
+	spinlock_t bitmap_lock;
+#endif
 };
 #endif

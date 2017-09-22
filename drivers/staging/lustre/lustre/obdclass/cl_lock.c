@@ -37,11 +37,11 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include "../include/obd_class.h"
-#include "../include/obd_support.h"
-#include "../include/lustre_fid.h"
+#include <obd_class.h>
+#include <obd_support.h>
+#include <lustre_fid.h>
 #include <linux/list.h>
-#include "../include/cl_object.h"
+#include <cl_object.h>
 #include "cl_internal.h"
 
 static void cl_lock_trace0(int level, const struct lu_env *env,
@@ -246,7 +246,7 @@ void cl_lock_descr_print(const struct lu_env *env, void *cookie,
 	const struct lu_fid  *fid;
 
 	fid = lu_object_fid(&descr->cld_obj->co_lu);
-	(*printer)(env, cookie, DDESCR"@"DFID, PDESCR(descr), PFID(fid));
+	(*printer)(env, cookie, DDESCR "@" DFID, PDESCR(descr), PFID(fid));
 }
 EXPORT_SYMBOL(cl_lock_descr_print);
 

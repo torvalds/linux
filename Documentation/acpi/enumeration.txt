@@ -367,10 +367,10 @@ resulting child platform device.
 
 Device Tree namespace link device ID
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The Device Tree protocol uses device indentification based on the "compatible"
+The Device Tree protocol uses device identification based on the "compatible"
 property whose value is a string or an array of strings recognized as device
 identifiers by drivers and the driver core.  The set of all those strings may be
-regarded as a device indentification namespace analogous to the ACPI/PNP device
+regarded as a device identification namespace analogous to the ACPI/PNP device
 ID namespace.  Consequently, in principle it should not be necessary to allocate
 a new (and arguably redundant) ACPI/PNP device ID for a devices with an existing
 identification string in the Device Tree (DT) namespace, especially if that ID
@@ -381,7 +381,7 @@ In ACPI, the device identification object called _CID (Compatible ID) is used to
 list the IDs of devices the given one is compatible with, but those IDs must
 belong to one of the namespaces prescribed by the ACPI specification (see
 Section 6.1.2 of ACPI 6.0 for details) and the DT namespace is not one of them.
-Moreover, the specification mandates that either a _HID or an _ADR identificaion
+Moreover, the specification mandates that either a _HID or an _ADR identification
 object be present for all ACPI objects representing devices (Section 6.1 of ACPI
 6.0).  For non-enumerable bus types that object must be _HID and its value must
 be a device ID from one of the namespaces prescribed by the specification too.

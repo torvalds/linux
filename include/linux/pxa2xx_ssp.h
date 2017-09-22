@@ -196,6 +196,7 @@ enum pxa_ssp_type {
 	LPSS_BSW_SSP,
 	LPSS_SPT_SSP,
 	LPSS_BXT_SSP,
+	LPSS_CNL_SSP,
 };
 
 struct ssp_device {

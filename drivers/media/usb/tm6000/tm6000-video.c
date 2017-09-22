@@ -631,7 +631,7 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev)
 		urb = usb_alloc_urb(max_packets, GFP_KERNEL);
 		if (!urb) {
 			tm6000_uninit_isoc(dev);
-			usb_free_urb(urb);
+			tm6000_free_urb_buffers(dev);
 			return -ENOMEM;
 		}
 		dev->isoc_ctl.urb[i] = urb;
@@ -801,7 +801,7 @@ static void buffer_release(struct videobuf_queue *vq, struct videobuf_buffer *vb
 	free_buffer(vq, buf);
 }
 
-static struct videobuf_queue_ops tm6000_video_qops = {
+static const struct videobuf_queue_ops tm6000_video_qops = {
 	.buf_setup      = buffer_setup,
 	.buf_prepare    = buffer_prepare,
 	.buf_queue      = buffer_queue,
@@ -1532,7 +1532,7 @@ static int tm6000_mmap(struct file *file, struct vm_area_struct * vma)
 	return res;
 }
 
-static struct v4l2_file_operations tm6000_fops = {
+static const struct v4l2_file_operations tm6000_fops = {
 	.owner = THIS_MODULE,
 	.open = tm6000_open,
 	.release = tm6000_release,

@@ -8,6 +8,7 @@
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/hashtable.h>
+#include <linux/libfdt.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_irq.h>
@@ -45,46 +46,54 @@ static struct unittest_results {
 static void __init of_unittest_find_node_by_name(void)
 {
 	struct device_node *np;
-	const char *options;
+	const char *options, *name;
 
 	np = of_find_node_by_path("/testcase-data");
-	unittest(np && !strcmp("/testcase-data", np->full_name),
+	name = kasprintf(GFP_KERNEL, "%pOF", np);
+	unittest(np && !strcmp("/testcase-data", name),
 		"find /testcase-data failed\n");
 	of_node_put(np);
+	kfree(name);
 
 	/* Test if trailing '/' works */
 	np = of_find_node_by_path("/testcase-data/");
 	unittest(!np, "trailing '/' on /testcase-data/ should fail\n");
 
 	np = of_find_node_by_path("/testcase-data/phandle-tests/consumer-a");
-	unittest(np && !strcmp("/testcase-data/phandle-tests/consumer-a", np->full_name),
+	name = kasprintf(GFP_KERNEL, "%pOF", np);
+	unittest(np && !strcmp("/testcase-data/phandle-tests/consumer-a", name),
 		"find /testcase-data/phandle-tests/consumer-a failed\n");
 	of_node_put(np);
+	kfree(name);
 
 	np = of_find_node_by_path("testcase-alias");
-	unittest(np && !strcmp("/testcase-data", np->full_name),
+	name = kasprintf(GFP_KERNEL, "%pOF", np);
+	unittest(np && !strcmp("/testcase-data", name),
 		"find testcase-alias failed\n");
 	of_node_put(np);
+	kfree(name);
 
 	/* Test if trailing '/' works on aliases */
 	np = of_find_node_by_path("testcase-alias/");
 	unittest(!np, "trailing '/' on testcase-alias/ should fail\n");
 
 	np = of_find_node_by_path("testcase-alias/phandle-tests/consumer-a");
-	unittest(np && !strcmp("/testcase-data/phandle-tests/consumer-a", np->full_name),
+	name = kasprintf(GFP_KERNEL, "%pOF", np);
+	unittest(np && !strcmp("/testcase-data/phandle-tests/consumer-a", name),
 		"find testcase-alias/phandle-tests/consumer-a failed\n");
 	of_node_put(np);
+	kfree(name);
 
 	np = of_find_node_by_path("/testcase-data/missing-path");
-	unittest(!np, "non-existent path returned node %s\n", np->full_name);
+	unittest(!np, "non-existent path returned node %pOF\n", np);
 	of_node_put(np);
 
 	np = of_find_node_by_path("missing-alias");
-	unittest(!np, "non-existent alias returned node %s\n", np->full_name);
+	unittest(!np, "non-existent alias returned node %pOF\n", np);
 	of_node_put(np);
 
 	np = of_find_node_by_path("testcase-alias/missing-path");
-	unittest(!np, "non-existent alias with relative path returned node %s\n", np->full_name);
+	unittest(!np, "non-existent alias with relative path returned node %pOF\n", np);
 	of_node_put(np);
 
 	np = of_find_node_opts_by_path("/testcase-data:testoption", &options);
@@ -238,6 +247,63 @@ static void __init of_unittest_check_tree_linkage(void)
 	pr_debug("allnodes list size (%i); sibling lists size (%i)\n", allnode_count, child_count);
 }
 
+static void __init of_unittest_printf_one(struct device_node *np, const char *fmt,
+					  const char *expected)
+{
+	unsigned char buf[strlen(expected)+10];
+	int size, i;
+
+	/* Baseline; check conversion with a large size limit */
+	memset(buf, 0xff, sizeof(buf));
+	size = snprintf(buf, sizeof(buf) - 2, fmt, np);
+
+	/* use strcmp() instead of strncmp() here to be absolutely sure strings match */
+	unittest((strcmp(buf, expected) == 0) && (buf[size+1] == 0xff),
+		"sprintf failed; fmt='%s' expected='%s' rslt='%s'\n",
+		fmt, expected, buf);
+
+	/* Make sure length limits work */
+	size++;
+	for (i = 0; i < 2; i++, size--) {
+		/* Clear the buffer, and make sure it works correctly still */
+		memset(buf, 0xff, sizeof(buf));
+		snprintf(buf, size+1, fmt, np);
+		unittest(strncmp(buf, expected, size) == 0 && (buf[size+1] == 0xff),
+			"snprintf failed; size=%i fmt='%s' expected='%s' rslt='%s'\n",
+			size, fmt, expected, buf);
+	}
+}
+
+static void __init of_unittest_printf(void)
+{
+	struct device_node *np;
+	const char *full_name = "/testcase-data/platform-tests/test-device@1/dev@100";
+	char phandle_str[16] = "";
+
+	np = of_find_node_by_path(full_name);
+	if (!np) {
+		unittest(np, "testcase data missing\n");
+		return;
+	}
+
+	num_to_str(phandle_str, sizeof(phandle_str), np->phandle);
+
+	of_unittest_printf_one(np, "%pOF",  full_name);
+	of_unittest_printf_one(np, "%pOFf", full_name);
+	of_unittest_printf_one(np, "%pOFp", phandle_str);
+	of_unittest_printf_one(np, "%pOFP", "dev@100");
+	of_unittest_printf_one(np, "ABC %pOFP ABC", "ABC dev@100 ABC");
+	of_unittest_printf_one(np, "%10pOFP", "   dev@100");
+	of_unittest_printf_one(np, "%-10pOFP", "dev@100   ");
+	of_unittest_printf_one(of_root, "%pOFP", "/");
+	of_unittest_printf_one(np, "%pOFF", "----");
+	of_unittest_printf_one(np, "%pOFPF", "dev@100:----");
+	of_unittest_printf_one(np, "%pOFPFPc", "dev@100:----:dev@100:test-sub-device");
+	of_unittest_printf_one(np, "%pOFc", "test-sub-device");
+	of_unittest_printf_one(np, "%pOFC",
+			"\"test-sub-device\",\"test-compat2\",\"test-compat3\"");
+}
+
 struct node_hash {
 	struct hlist_node node;
 	struct device_node *np;
@@ -257,8 +323,8 @@ static void __init of_unittest_check_phandles(void)
 
 		hash_for_each_possible(phandle_ht, nh, node, np->phandle) {
 			if (nh->np->phandle == np->phandle) {
-				pr_info("Duplicate phandle! %i used by %s and %s\n",
-					np->phandle, nh->np->full_name, np->full_name);
+				pr_info("Duplicate phandle! %i used by %pOF and %pOF\n",
+					np->phandle, nh->np, np);
 				dup_count++;
 				break;
 			}
@@ -348,8 +414,8 @@ static void __init of_unittest_parse_phandle_with_args(void)
 			passed = false;
 		}
 
-		unittest(passed, "index %i - data error on node %s rc=%i\n",
-			 i, args.np->full_name, rc);
+		unittest(passed, "index %i - data error on node %pOF rc=%i\n",
+			 i, args.np, rc);
 	}
 
 	/* Check for missing list property */
@@ -532,7 +598,7 @@ static void __init of_unittest_changeset(void)
 
 	/* Make sure node names are constructed correctly */
 	unittest((np = of_find_node_by_path("/testcase-data/changeset/n2/n21")),
-		 "'%s' not added\n", n21->full_name);
+		 "'%pOF' not added\n", n21);
 	of_node_put(np);
 
 	unittest(!of_changeset_revert(&chgset), "revert failed\n");
@@ -563,8 +629,8 @@ static void __init of_unittest_parse_interrupts(void)
 		passed &= (args.args_count == 1);
 		passed &= (args.args[0] == (i + 1));
 
-		unittest(passed, "index %i - data error on node %s rc=%i\n",
-			 i, args.np->full_name, rc);
+		unittest(passed, "index %i - data error on node %pOF rc=%i\n",
+			 i, args.np, rc);
 	}
 	of_node_put(np);
 
@@ -609,8 +675,8 @@ static void __init of_unittest_parse_interrupts(void)
 		default:
 			passed = false;
 		}
-		unittest(passed, "index %i - data error on node %s rc=%i\n",
-			 i, args.np->full_name, rc);
+		unittest(passed, "index %i - data error on node %pOF rc=%i\n",
+			 i, args.np, rc);
 	}
 	of_node_put(np);
 }
@@ -679,8 +745,8 @@ static void __init of_unittest_parse_interrupts_extended(void)
 			passed = false;
 		}
 
-		unittest(passed, "index %i - data error on node %s rc=%i\n",
-			 i, args.np->full_name, rc);
+		unittest(passed, "index %i - data error on node %pOF rc=%i\n",
+			 i, args.np, rc);
 	}
 	of_node_put(np);
 }
@@ -859,8 +925,11 @@ static int attach_node_and_children(struct device_node *np)
 {
 	struct device_node *next, *dup, *child;
 	unsigned long flags;
+	const char *full_name;
 
-	dup = of_find_node_by_path(np->full_name);
+	full_name = kasprintf(GFP_KERNEL, "%pOF", np);
+	dup = of_find_node_by_path(full_name);
+	kfree(full_name);
 	if (dup) {
 		update_node_properties(np, dup);
 		return 0;
@@ -965,7 +1034,7 @@ static int unittest_probe(struct platform_device *pdev)
 
 	}
 
-	dev_dbg(dev, "%s for node @%s\n", __func__, np->full_name);
+	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
 
 	of_platform_populate(np, NULL, NULL, &pdev->dev);
 
@@ -977,7 +1046,7 @@ static int unittest_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 
-	dev_dbg(dev, "%s for node @%s\n", __func__, np->full_name);
+	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
 	return 0;
 }
 
@@ -1591,7 +1660,7 @@ static int unittest_i2c_bus_probe(struct platform_device *pdev)
 
 	}
 
-	dev_dbg(dev, "%s for node @%s\n", __func__, np->full_name);
+	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
 
 	std = devm_kzalloc(dev, sizeof(*std), GFP_KERNEL);
 	if (!std) {
@@ -1629,7 +1698,7 @@ static int unittest_i2c_bus_remove(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct unittest_i2c_bus_data *std = platform_get_drvdata(pdev);
 
-	dev_dbg(dev, "%s for node @%s\n", __func__, np->full_name);
+	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
 	i2c_del_adapter(&std->adap);
 
 	return 0;
@@ -1660,7 +1729,7 @@ static int unittest_i2c_dev_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	dev_dbg(dev, "%s for node @%s\n", __func__, np->full_name);
+	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
 
 	return 0;
 };
@@ -1670,7 +1739,7 @@ static int unittest_i2c_dev_remove(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	struct device_node *np = client->dev.of_node;
 
-	dev_dbg(dev, "%s for node @%s\n", __func__, np->full_name);
+	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
 	return 0;
 }
 
@@ -1705,7 +1774,7 @@ static int unittest_i2c_mux_probe(struct i2c_client *client,
 	struct i2c_mux_core *muxc;
 	u32 reg, max_reg;
 
-	dev_dbg(dev, "%s for node @%s\n", __func__, np->full_name);
+	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
 
 	if (!np) {
 		dev_err(dev, "No OF node\n");
@@ -1750,7 +1819,7 @@ static int unittest_i2c_mux_remove(struct i2c_client *client)
 	struct device_node *np = client->dev.of_node;
 	struct i2c_mux_core *muxc = i2c_get_clientdata(client);
 
-	dev_dbg(dev, "%s for node @%s\n", __func__, np->full_name);
+	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
 	i2c_mux_del_adapters(muxc);
 	return 0;
 }
@@ -1925,6 +1994,330 @@ out:
 static inline void __init of_unittest_overlay(void) { }
 #endif
 
+#ifdef CONFIG_OF_OVERLAY
+
+/*
+ * __dtb_ot_begin[] and __dtb_ot_end[] are created by cmd_dt_S_dtb
+ * in scripts/Makefile.lib
+ */
+
+#define OVERLAY_INFO_EXTERN(name) \
+	extern uint8_t __dtb_##name##_begin[]; \
+	extern uint8_t __dtb_##name##_end[]
+
+#define OVERLAY_INFO(name, expected) \
+{	.dtb_begin	 = __dtb_##name##_begin, \
+	.dtb_end	 = __dtb_##name##_end, \
+	.expected_result = expected, \
+}
+
+struct overlay_info {
+	uint8_t		   *dtb_begin;
+	uint8_t		   *dtb_end;
+	void		   *data;
+	struct device_node *np_overlay;
+	int		   expected_result;
+	int		   overlay_id;
+};
+
+OVERLAY_INFO_EXTERN(overlay_base);
+OVERLAY_INFO_EXTERN(overlay);
+OVERLAY_INFO_EXTERN(overlay_bad_phandle);
+OVERLAY_INFO_EXTERN(overlay_bad_symbol);
+
+/* order of entries is hard-coded into users of overlays[] */
+static struct overlay_info overlays[] = {
+	OVERLAY_INFO(overlay_base, -9999),
+	OVERLAY_INFO(overlay, 0),
+	OVERLAY_INFO(overlay_bad_phandle, -EINVAL),
+	OVERLAY_INFO(overlay_bad_symbol, -EINVAL),
+	{}
+};
+
+static struct device_node *overlay_base_root;
+
+/*
+ * Create base device tree for the overlay unittest.
+ *
+ * This is called from very early boot code.
+ *
+ * Do as much as possible the same way as done in __unflatten_device_tree
+ * and other early boot steps for the normal FDT so that the overlay base
+ * unflattened tree will have the same characteristics as the real tree
+ * (such as having memory allocated by the early allocator).  The goal
+ * is to test "the real thing" as much as possible, and test "test setup
+ * code" as little as possible.
+ *
+ * Have to stop before resolving phandles, because that uses kmalloc.
+ */
+void __init unittest_unflatten_overlay_base(void)
+{
+	struct overlay_info *info;
+	u32 data_size;
+	u32 size;
+
+	info = &overlays[0];
+
+	if (info->expected_result != -9999) {
+		pr_err("No dtb 'overlay_base' to attach\n");
+		return;
+	}
+
+	data_size = info->dtb_end - info->dtb_begin;
+	if (!data_size) {
+		pr_err("No dtb 'overlay_base' to attach\n");
+		return;
+	}
+
+	size = fdt_totalsize(info->dtb_begin);
+	if (size != data_size) {
+		pr_err("dtb 'overlay_base' header totalsize != actual size");
+		return;
+	}
+
+	info->data = early_init_dt_alloc_memory_arch(size,
+					     roundup_pow_of_two(FDT_V17_SIZE));
+	if (!info->data) {
+		pr_err("alloc for dtb 'overlay_base' failed");
+		return;
+	}
+
+	memcpy(info->data, info->dtb_begin, size);
+
+	__unflatten_device_tree(info->data, NULL, &info->np_overlay,
+				early_init_dt_alloc_memory_arch, true);
+	overlay_base_root = info->np_overlay;
+}
+
+/*
+ * The purpose of of_unittest_overlay_data_add is to add an
+ * overlay in the normal fashion.  This is a test of the whole
+ * picture, instead of testing individual elements.
+ *
+ * A secondary purpose is to be able to verify that the contents of
+ * /proc/device-tree/ contains the updated structure and values from
+ * the overlay.  That must be verified separately in user space.
+ *
+ * Return 0 on unexpected error.
+ */
+static int __init overlay_data_add(int onum)
+{
+	struct overlay_info *info;
+	int k;
+	int ret;
+	u32 size;
+	u32 size_from_header;
+
+	for (k = 0, info = overlays; info; info++, k++) {
+		if (k == onum)
+			break;
+	}
+	if (onum > k)
+		return 0;
+
+	size = info->dtb_end - info->dtb_begin;
+	if (!size) {
+		pr_err("no overlay to attach, %d\n", onum);
+		ret = 0;
+	}
+
+	size_from_header = fdt_totalsize(info->dtb_begin);
+	if (size_from_header != size) {
+		pr_err("overlay header totalsize != actual size, %d", onum);
+		return 0;
+	}
+
+	/*
+	 * Must create permanent copy of FDT because of_fdt_unflatten_tree()
+	 * will create pointers to the passed in FDT in the EDT.
+	 */
+	info->data = kmemdup(info->dtb_begin, size, GFP_KERNEL);
+	if (!info->data) {
+		pr_err("unable to allocate memory for data, %d\n", onum);
+		return 0;
+	}
+
+	of_fdt_unflatten_tree(info->data, NULL, &info->np_overlay);
+	if (!info->np_overlay) {
+		pr_err("unable to unflatten overlay, %d\n", onum);
+		ret = 0;
+		goto out_free_data;
+	}
+	of_node_set_flag(info->np_overlay, OF_DETACHED);
+
+	ret = of_resolve_phandles(info->np_overlay);
+	if (ret) {
+		pr_err("resolve ot phandles (ret=%d), %d\n", ret, onum);
+		goto out_free_np_overlay;
+	}
+
+	ret = of_overlay_create(info->np_overlay);
+	if (ret < 0) {
+		pr_err("of_overlay_create() (ret=%d), %d\n", ret, onum);
+		goto out_free_np_overlay;
+	} else {
+		info->overlay_id = ret;
+		ret = 0;
+	}
+
+	pr_debug("__dtb_overlay_begin applied, overlay id %d\n", ret);
+
+	goto out;
+
+out_free_np_overlay:
+	/*
+	 * info->np_overlay is the unflattened device tree
+	 * It has not been spliced into the live tree.
+	 */
+
+	/* todo: function to free unflattened device tree */
+
+out_free_data:
+	kfree(info->data);
+
+out:
+	return (ret == info->expected_result);
+}
+
+/*
+ * The purpose of of_unittest_overlay_high_level is to add an overlay
+ * in the normal fashion.  This is a test of the whole picture,
+ * instead of individual elements.
+ *
+ * The first part of the function is _not_ normal overlay usage; it is
+ * finishing splicing the base overlay device tree into the live tree.
+ */
+static __init void of_unittest_overlay_high_level(void)
+{
+	struct device_node *last_sibling;
+	struct device_node *np;
+	struct device_node *of_symbols;
+	struct device_node *overlay_base_symbols;
+	struct device_node **pprev;
+	struct property *prop;
+	int ret;
+
+	if (!overlay_base_root) {
+		unittest(0, "overlay_base_root not initialized\n");
+		return;
+	}
+
+	/*
+	 * Could not fixup phandles in unittest_unflatten_overlay_base()
+	 * because kmalloc() was not yet available.
+	 */
+	of_resolve_phandles(overlay_base_root);
+
+	/*
+	 * do not allow overlay_base to duplicate any node already in
+	 * tree, this greatly simplifies the code
+	 */
+
+	/*
+	 * remove overlay_base_root node "__local_fixups", after
+	 * being used by of_resolve_phandles()
+	 */
+	pprev = &overlay_base_root->child;
+	for (np = overlay_base_root->child; np; np = np->sibling) {
+		if (!of_node_cmp(np->name, "__local_fixups__")) {
+			*pprev = np->sibling;
+			break;
+		}
+		pprev = &np->sibling;
+	}
+
+	/* remove overlay_base_root node "__symbols__" if in live tree */
+	of_symbols = of_get_child_by_name(of_root, "__symbols__");
+	if (of_symbols) {
+		/* will have to graft properties from node into live tree */
+		pprev = &overlay_base_root->child;
+		for (np = overlay_base_root->child; np; np = np->sibling) {
+			if (!of_node_cmp(np->name, "__symbols__")) {
+				overlay_base_symbols = np;
+				*pprev = np->sibling;
+				break;
+			}
+			pprev = &np->sibling;
+		}
+	}
+
+	for (np = overlay_base_root->child; np; np = np->sibling) {
+		if (of_get_child_by_name(of_root, np->name)) {
+			unittest(0, "illegal node name in overlay_base %s",
+				np->name);
+			return;
+		}
+	}
+
+	/*
+	 * overlay 'overlay_base' is not allowed to have root
+	 * properties, so only need to splice nodes into main device tree.
+	 *
+	 * root node of *overlay_base_root will not be freed, it is lost
+	 * memory.
+	 */
+
+	for (np = overlay_base_root->child; np; np = np->sibling)
+		np->parent = of_root;
+
+	mutex_lock(&of_mutex);
+
+	for (last_sibling = np = of_root->child; np; np = np->sibling)
+		last_sibling = np;
+
+	if (last_sibling)
+		last_sibling->sibling = overlay_base_root->child;
+	else
+		of_root->child = overlay_base_root->child;
+
+	for_each_of_allnodes_from(overlay_base_root, np)
+		__of_attach_node_sysfs(np);
+
+	if (of_symbols) {
+		for_each_property_of_node(overlay_base_symbols, prop) {
+			ret = __of_add_property(of_symbols, prop);
+			if (ret) {
+				unittest(0,
+					 "duplicate property '%s' in overlay_base node __symbols__",
+					 prop->name);
+				goto err_unlock;
+			}
+			ret = __of_add_property_sysfs(of_symbols, prop);
+			if (ret) {
+				unittest(0,
+					 "unable to add property '%s' in overlay_base node __symbols__ to sysfs",
+					 prop->name);
+				goto err_unlock;
+			}
+		}
+	}
+
+	mutex_unlock(&of_mutex);
+
+
+	/* now do the normal overlay usage test */
+
+	unittest(overlay_data_add(1),
+		 "Adding overlay 'overlay' failed\n");
+
+	unittest(overlay_data_add(2),
+		 "Adding overlay 'overlay_bad_phandle' failed\n");
+
+	unittest(overlay_data_add(3),
+		 "Adding overlay 'overlay_bad_symbol' failed\n");
+
+	return;
+
+err_unlock:
+	mutex_unlock(&of_mutex);
+}
+
+#else
+
+static inline __init void of_unittest_overlay_high_level(void) {}
+
+#endif
+
 static int __init of_unittest(void)
 {
 	struct device_node *np;
@@ -1950,6 +2343,7 @@ static int __init of_unittest(void)
 	of_unittest_find_node_by_name();
 	of_unittest_dynamic();
 	of_unittest_parse_phandle_with_args();
+	of_unittest_printf();
 	of_unittest_property_string();
 	of_unittest_property_copy();
 	of_unittest_changeset();
@@ -1961,6 +2355,8 @@ static int __init of_unittest(void)
 
 	/* Double check linkage after removing testcase data */
 	of_unittest_check_tree_linkage();
+
+	of_unittest_overlay_high_level();
 
 	pr_info("end of unittest - %i passed, %i failed\n",
 		unittest_results.passed, unittest_results.failed);

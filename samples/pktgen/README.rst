@@ -21,7 +21,9 @@ across the sample scripts.  Usage example is printed on errors::
   -d : ($DEST_IP)   destination IP
   -m : ($DST_MAC)   destination MAC-addr
   -t : ($THREADS)   threads to start
+  -f : ($F_THREAD)  index of first thread (zero indexed CPU number)
   -c : ($SKB_CLONE) SKB clones send before alloc new SKB
+  -n : ($COUNT)     num messages to send per thread, 0 means indefinitely
   -b : ($BURST)     HW level bursting of SKBs
   -v : ($VERBOSE)   verbose
   -x : ($DEBUG)     debug

@@ -32,17 +32,17 @@
 
 #define DEBUG_SUBSYSTEM S_MDC
 
-# include <linux/module.h>
+#include <linux/module.h>
 
-#include "../include/lustre_intent.h"
-#include "../include/obd.h"
-#include "../include/obd_class.h"
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_fid.h"
-#include "../include/lustre_mdc.h"
-#include "../include/lustre_net.h"
-#include "../include/lustre_req_layout.h"
-#include "../include/lustre_swab.h"
+#include <lustre_intent.h>
+#include <obd.h>
+#include <obd_class.h>
+#include <lustre_dlm.h>
+#include <lustre_fid.h>
+#include <lustre_mdc.h>
+#include <lustre_net.h>
+#include <lustre_req_layout.h>
+#include <lustre_swab.h>
 
 #include "mdc_internal.h"
 
@@ -830,7 +830,7 @@ resend:
 		ptlrpc_req_finished(req);
 		resends++;
 
-		CDEBUG(D_HA, "%s: resend:%d op:%d "DFID"/"DFID"\n",
+		CDEBUG(D_HA, "%s: resend:%d op:%d " DFID "/" DFID "\n",
 		       obddev->obd_name, resends, it->it_op,
 		       PFID(&op_data->op_fid1), PFID(&op_data->op_fid2));
 
@@ -911,13 +911,13 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 		OBD_FAIL_TIMEOUT(OBD_FAIL_MDC_ENQUEUE_PAUSE, obd_timeout);
 	}
 
-	if (it->it_op & IT_CREAT) {
+	if (it->it_op & IT_CREAT)
 		/* XXX this belongs in ll_create_it */
-	} else if (it->it_op == IT_OPEN) {
+		;
+	else if (it->it_op == IT_OPEN)
 		LASSERT(!it_disposition(it, DISP_OPEN_CREATE));
-	} else {
+	else
 		LASSERT(it->it_op & (IT_GETATTR | IT_LOOKUP | IT_LAYOUT));
-	}
 
 	/* If we already have a matching lock, then cancel the new
 	 * one.  We have to set the data here instead of in
@@ -933,7 +933,7 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 
 		LASSERTF(fid_res_name_eq(&mdt_body->mbo_fid1,
 					 &lock->l_resource->lr_name),
-			 "Lock res_id: "DLDLMRES", fid: "DFID"\n",
+			 "Lock res_id: " DLDLMRES ", fid: " DFID "\n",
 			 PLDLMRES(lock->l_resource), PFID(&mdt_body->mbo_fid1));
 		LDLM_LOCK_PUT(lock);
 
@@ -1030,7 +1030,7 @@ int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
  * If we're performing a creation, that means that unless the creation
  * failed with EEXIST, we should fake up a negative dentry.
  *
- * For everything else, we want to lookup to succeed.
+ * For everything else, we want the lookup to succeed.
  *
  * One additional note: if CREATE or OPEN succeeded, we add an extra
  * reference to the request because we need to keep it around until
@@ -1040,7 +1040,7 @@ int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
  * exactly what it_status refers to.
  *
  * If DISP_OPEN_OPEN is set, then it_status refers to the open() call,
- * otherwise if DISP_OPEN_CREATE is set, then it status is the
+ * otherwise if DISP_OPEN_CREATE is set, then it_status is the
  * creation failure mode.  In either case, one of DISP_LOOKUP_NEG or
  * DISP_LOOKUP_POS will be set, indicating whether the child lookup
  * was successful.
@@ -1063,7 +1063,7 @@ int mdc_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 
 	LASSERT(it);
 
-	CDEBUG(D_DLMTRACE, "(name: %.*s,"DFID") in obj "DFID
+	CDEBUG(D_DLMTRACE, "(name: %.*s," DFID ") in obj " DFID
 		", intent: %s flags %#Lo\n", (int)op_data->op_namelen,
 		op_data->op_name, PFID(&op_data->op_fid2),
 		PFID(&op_data->op_fid1), ldlm_it2str(it->it_op),

@@ -116,7 +116,6 @@ int __init dio_find(int deviceid)
 	 */
 	int scode, id;
 	u_char prid, secid, i;
-	mm_segment_t fs;
 
 	for (scode = 0; scode < DIO_SCMAX; scode++) {
 		void *va;
@@ -135,17 +134,12 @@ int __init dio_find(int deviceid)
 		else
 			va = ioremap(pa, PAGE_SIZE);
 
-		fs = get_fs();
-		set_fs(KERNEL_DS);
-
-                if (get_user(i, (unsigned char *)va + DIO_IDOFF)) {
-			set_fs(fs);
+                if (probe_kernel_read(&i, (unsigned char *)va + DIO_IDOFF, 1)) {
 			if (scode >= DIOII_SCBASE)
 				iounmap(va);
                         continue;             /* no board present at that select code */
 		}
 
-		set_fs(fs);
 		prid = DIO_ID(va);
 
                 if (DIO_NEEDSSECID(prid)) {
@@ -170,7 +164,6 @@ int __init dio_find(int deviceid)
 static int __init dio_init(void)
 {
 	int scode;
-	mm_segment_t fs;
 	int i;
 	struct dio_dev *dev;
 	int error;
@@ -214,17 +207,11 @@ static int __init dio_init(void)
 		else
 			va = ioremap(pa, PAGE_SIZE);
 
-		fs = get_fs();
-		set_fs(KERNEL_DS);
-
-                if (get_user(i, (unsigned char *)va + DIO_IDOFF)) {
-			set_fs(fs);
+                if (probe_kernel_read(&i, (unsigned char *)va + DIO_IDOFF, 1)) {
 			if (scode >= DIOII_SCBASE)
 				iounmap(va);
                         continue;              /* no board present at that select code */
 		}
-
-		set_fs(fs);
 
                 /* Found a board, allocate it an entry in the list */
 		dev = kzalloc(sizeof(struct dio_dev), GFP_KERNEL);

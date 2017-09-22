@@ -931,14 +931,14 @@ static int s5p_mfc_queue_setup(struct vb2_queue *vq,
 		psize[1] = ctx->chroma_size;
 
 		if (IS_MFCV6_PLUS(dev))
-			alloc_devs[0] = ctx->dev->mem_dev_l;
+			alloc_devs[0] = ctx->dev->mem_dev[BANK_L_CTX];
 		else
-			alloc_devs[0] = ctx->dev->mem_dev_r;
-		alloc_devs[1] = ctx->dev->mem_dev_l;
+			alloc_devs[0] = ctx->dev->mem_dev[BANK_R_CTX];
+		alloc_devs[1] = ctx->dev->mem_dev[BANK_L_CTX];
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE &&
 		   ctx->state == MFCINST_INIT) {
 		psize[0] = ctx->dec_src_buf_size;
-		alloc_devs[0] = ctx->dev->mem_dev_l;
+		alloc_devs[0] = ctx->dev->mem_dev[BANK_L_CTX];
 	} else {
 		mfc_err("This video node is dedicated to decoding. Decoding not initialized\n");
 		return -EINVAL;

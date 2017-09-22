@@ -66,6 +66,8 @@
  * Lewisburg Supersku (PCH)	0xa223	32	hard	yes	yes	yes
  * Kaby Lake PCH-H (PCH)	0xa2a3	32	hard	yes	yes	yes
  * Gemini Lake (SOC)		0x31d4	32	hard	yes	yes	yes
+ * Cannon Lake-H (PCH)		0xa323	32	hard	yes	yes	yes
+ * Cannon Lake-LP (PCH)		0x9da3	32	hard	yes	yes	yes
  *
  * Features supported by this driver:
  * Software PEC				no
@@ -226,10 +228,12 @@
 #define PCI_DEVICE_ID_INTEL_LYNXPOINT_LP_SMBUS		0x9c22
 #define PCI_DEVICE_ID_INTEL_WILDCATPOINT_LP_SMBUS	0x9ca2
 #define PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_SMBUS	0x9d23
+#define PCI_DEVICE_ID_INTEL_CANNONLAKE_LP_SMBUS		0x9da3
 #define PCI_DEVICE_ID_INTEL_SUNRISEPOINT_H_SMBUS	0xa123
 #define PCI_DEVICE_ID_INTEL_LEWISBURG_SMBUS		0xa1a3
 #define PCI_DEVICE_ID_INTEL_LEWISBURG_SSKU_SMBUS	0xa223
 #define PCI_DEVICE_ID_INTEL_KABYLAKE_PCH_H_SMBUS	0xa2a3
+#define PCI_DEVICE_ID_INTEL_CANNONLAKE_H_SMBUS		0xa323
 
 struct i801_mux_config {
 	char *gpio_chip;
@@ -1026,6 +1030,8 @@ static const struct pci_device_id i801_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LEWISBURG_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LEWISBURG_SSKU_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_KABYLAKE_PCH_H_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CANNONLAKE_H_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CANNONLAKE_LP_SMBUS) },
 	{ 0, }
 };
 
@@ -1326,6 +1332,7 @@ static void i801_add_tco(struct i801_priv *priv)
 	u32 tco_base, tco_ctl;
 	u32 base_addr, ctrl_val;
 	u64 base64_addr;
+	u8 hidden;
 
 	if (!(priv->features & FEATURE_TCO))
 		return;
@@ -1370,8 +1377,10 @@ static void i801_add_tco(struct i801_priv *priv)
 
 	devfn = PCI_DEVFN(PCI_SLOT(pci_dev->devfn), 1);
 
-	/* Unhide the P2SB device */
-	pci_bus_write_config_byte(pci_dev->bus, devfn, 0xe1, 0x0);
+	/* Unhide the P2SB device, if it is hidden */
+	pci_bus_read_config_byte(pci_dev->bus, devfn, 0xe1, &hidden);
+	if (hidden)
+		pci_bus_write_config_byte(pci_dev->bus, devfn, 0xe1, 0x0);
 
 	pci_bus_read_config_dword(pci_dev->bus, devfn, SBREG_BAR, &base_addr);
 	base64_addr = base_addr & 0xfffffff0;
@@ -1379,8 +1388,9 @@ static void i801_add_tco(struct i801_priv *priv)
 	pci_bus_read_config_dword(pci_dev->bus, devfn, SBREG_BAR + 0x4, &base_addr);
 	base64_addr |= (u64)base_addr << 32;
 
-	/* Hide the P2SB device */
-	pci_bus_write_config_byte(pci_dev->bus, devfn, 0xe1, 0x1);
+	/* Hide the P2SB device, if it was hidden before */
+	if (hidden)
+		pci_bus_write_config_byte(pci_dev->bus, devfn, 0xe1, hidden);
 	spin_unlock(&p2sb_spinlock);
 
 	res = &tco_res[ICH_RES_MEM_OFF];
@@ -1499,6 +1509,8 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	switch (dev->device) {
 	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_H_SMBUS:
 	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_SMBUS:
+	case PCI_DEVICE_ID_INTEL_CANNONLAKE_H_SMBUS:
+	case PCI_DEVICE_ID_INTEL_CANNONLAKE_LP_SMBUS:
 	case PCI_DEVICE_ID_INTEL_LEWISBURG_SMBUS:
 	case PCI_DEVICE_ID_INTEL_LEWISBURG_SSKU_SMBUS:
 	case PCI_DEVICE_ID_INTEL_DNV_SMBUS:

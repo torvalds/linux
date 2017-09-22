@@ -38,15 +38,15 @@
 
 #define DEBUG_SUBSYSTEM S_FID
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 #include <linux/module.h>
 
-#include "../include/obd.h"
-#include "../include/obd_class.h"
-#include "../include/obd_support.h"
-#include "../include/lustre_fid.h"
+#include <obd.h>
+#include <obd_class.h>
+#include <obd_support.h>
+#include <lustre_fid.h>
 /* mdc RPC locks */
-#include "../include/lustre_mdc.h"
+#include <lustre_mdc.h>
 #include "fid_internal.h"
 
 static struct dentry *seq_debugfs_dir;
@@ -192,7 +192,7 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 }
 
 static int seq_fid_alloc_prep(struct lu_client_seq *seq,
-			      wait_queue_t *link)
+			      wait_queue_entry_t *link)
 {
 	if (seq->lcs_update) {
 		add_wait_queue(&seq->lcs_waitq, link);
@@ -223,7 +223,7 @@ static void seq_fid_alloc_fini(struct lu_client_seq *seq)
 int seq_client_alloc_fid(const struct lu_env *env,
 			 struct lu_client_seq *seq, struct lu_fid *fid)
 {
-	wait_queue_t link;
+	wait_queue_entry_t link;
 	int rc;
 
 	LASSERT(seq);
@@ -259,7 +259,7 @@ int seq_client_alloc_fid(const struct lu_env *env,
 			return rc;
 		}
 
-		CDEBUG(D_INFO, "%s: Switch to sequence [0x%16.16Lx]\n",
+		CDEBUG(D_INFO, "%s: Switch to sequence [0x%16.16llx]\n",
 		       seq->lcs_name, seqnr);
 
 		seq->lcs_fid.f_oid = LUSTRE_FID_INIT_OID;
@@ -279,7 +279,7 @@ int seq_client_alloc_fid(const struct lu_env *env,
 	*fid = seq->lcs_fid;
 	mutex_unlock(&seq->lcs_mutex);
 
-	CDEBUG(D_INFO, "%s: Allocated FID "DFID"\n", seq->lcs_name,  PFID(fid));
+	CDEBUG(D_INFO, "%s: Allocated FID " DFID "\n", seq->lcs_name,  PFID(fid));
 	return rc;
 }
 EXPORT_SYMBOL(seq_client_alloc_fid);
@@ -290,7 +290,7 @@ EXPORT_SYMBOL(seq_client_alloc_fid);
  */
 void seq_client_flush(struct lu_client_seq *seq)
 {
-	wait_queue_t link;
+	wait_queue_entry_t link;
 
 	LASSERT(seq);
 	init_waitqueue_entry(&link, current);

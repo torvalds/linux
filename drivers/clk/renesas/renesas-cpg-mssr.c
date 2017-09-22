@@ -257,13 +257,18 @@ static void __init cpg_mssr_register_core_clk(const struct cpg_core_clk *core,
 					      const struct cpg_mssr_info *info,
 					      struct cpg_mssr_priv *priv)
 {
-	struct clk *clk = NULL, *parent;
+	struct clk *clk = ERR_PTR(-ENOTSUPP), *parent;
 	struct device *dev = priv->dev;
 	unsigned int id = core->id, div = core->div;
 	const char *parent_name;
 
 	WARN_DEBUG(id >= priv->num_core_clks);
 	WARN_DEBUG(PTR_ERR(priv->clks[id]) != -ENOENT);
+
+	if (!core->name) {
+		/* Skip NULLified clock */
+		return;
+	}
 
 	switch (core->type) {
 	case CLK_TYPE_IN:
@@ -334,6 +339,11 @@ static void __init cpg_mssr_register_mod_clk(const struct mssr_mod_clk *mod,
 	WARN_DEBUG(id >= priv->num_core_clks + priv->num_mod_clks);
 	WARN_DEBUG(mod->parent >= priv->num_core_clks + priv->num_mod_clks);
 	WARN_DEBUG(PTR_ERR(priv->clks[id]) != -ENOENT);
+
+	if (!mod->name) {
+		/* Skip NULLified clock */
+		return;
+	}
 
 	parent = priv->clks[mod->parent];
 	if (IS_ERR(parent)) {
@@ -467,7 +477,7 @@ fail_put:
 
 void cpg_mssr_detach_dev(struct generic_pm_domain *unused, struct device *dev)
 {
-	if (!list_empty(&dev->power.subsys_data->clock_list))
+	if (!pm_clk_no_clocks(dev))
 		pm_clk_destroy(dev);
 }
 
@@ -617,28 +627,63 @@ static inline int cpg_mssr_reset_controller_register(struct cpg_mssr_priv *priv)
 
 
 static const struct of_device_id cpg_mssr_match[] = {
-#ifdef CONFIG_ARCH_R8A7743
+#ifdef CONFIG_CLK_R8A7743
 	{
 		.compatible = "renesas,r8a7743-cpg-mssr",
 		.data = &r8a7743_cpg_mssr_info,
 	},
 #endif
-#ifdef CONFIG_ARCH_R8A7745
+#ifdef CONFIG_CLK_R8A7745
 	{
 		.compatible = "renesas,r8a7745-cpg-mssr",
 		.data = &r8a7745_cpg_mssr_info,
 	},
 #endif
-#ifdef CONFIG_ARCH_R8A7795
+#ifdef CONFIG_CLK_R8A7790
+	{
+		.compatible = "renesas,r8a7790-cpg-mssr",
+		.data = &r8a7790_cpg_mssr_info,
+	},
+#endif
+#ifdef CONFIG_CLK_R8A7791
+	{
+		.compatible = "renesas,r8a7791-cpg-mssr",
+		.data = &r8a7791_cpg_mssr_info,
+	},
+	/* R-Car M2-N is (almost) identical to R-Car M2-W w.r.t. clocks. */
+	{
+		.compatible = "renesas,r8a7793-cpg-mssr",
+		.data = &r8a7791_cpg_mssr_info,
+	},
+#endif
+#ifdef CONFIG_CLK_R8A7792
+	{
+		.compatible = "renesas,r8a7792-cpg-mssr",
+		.data = &r8a7792_cpg_mssr_info,
+	},
+#endif
+#ifdef CONFIG_CLK_R8A7794
+	{
+		.compatible = "renesas,r8a7794-cpg-mssr",
+		.data = &r8a7794_cpg_mssr_info,
+	},
+#endif
+#ifdef CONFIG_CLK_R8A7795
 	{
 		.compatible = "renesas,r8a7795-cpg-mssr",
 		.data = &r8a7795_cpg_mssr_info,
 	},
 #endif
-#ifdef CONFIG_ARCH_R8A7796
+#ifdef CONFIG_CLK_R8A7796
 	{
 		.compatible = "renesas,r8a7796-cpg-mssr",
 		.data = &r8a7796_cpg_mssr_info,
+	},
+#endif
+#ifdef CONFIG_CLK_R8A77995
+	{
+		.compatible = "renesas,r8a77995-cpg-mssr",
+		.data = &r8a77995_cpg_mssr_info,
 	},
 #endif
 	{ /* sentinel */ }
@@ -660,7 +705,7 @@ static int __init cpg_mssr_probe(struct platform_device *pdev)
 	struct clk **clks;
 	int error;
 
-	info = of_match_node(cpg_mssr_match, np)->data;
+	info = of_device_get_match_data(dev);
 	if (info->init) {
 		error = info->init(dev);
 		if (error)
@@ -733,6 +778,46 @@ static int __init cpg_mssr_init(void)
 }
 
 subsys_initcall(cpg_mssr_init);
+
+void __init cpg_core_nullify_range(struct cpg_core_clk *core_clks,
+				   unsigned int num_core_clks,
+				   unsigned int first_clk,
+				   unsigned int last_clk)
+{
+	unsigned int i;
+
+	for (i = 0; i < num_core_clks; i++)
+		if (core_clks[i].id >= first_clk &&
+		    core_clks[i].id <= last_clk)
+			core_clks[i].name = NULL;
+}
+
+void __init mssr_mod_nullify(struct mssr_mod_clk *mod_clks,
+			     unsigned int num_mod_clks,
+			     const unsigned int *clks, unsigned int n)
+{
+	unsigned int i, j;
+
+	for (i = 0, j = 0; i < num_mod_clks && j < n; i++)
+		if (mod_clks[i].id == clks[j]) {
+			mod_clks[i].name = NULL;
+			j++;
+		}
+}
+
+void __init mssr_mod_reparent(struct mssr_mod_clk *mod_clks,
+			      unsigned int num_mod_clks,
+			      const struct mssr_mod_reparent *clks,
+			      unsigned int n)
+{
+	unsigned int i, j;
+
+	for (i = 0, j = 0; i < num_mod_clks && j < n; i++)
+		if (mod_clks[i].id == clks[j].clk) {
+			mod_clks[i].parent = clks[j].parent;
+			j++;
+		}
+}
 
 MODULE_DESCRIPTION("Renesas CPG/MSSR Driver");
 MODULE_LICENSE("GPL v2");

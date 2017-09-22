@@ -148,6 +148,7 @@ cat << EOF
 #define __IGNORE_sysfs
 #define __IGNORE_uselib
 #define __IGNORE__sysctl
+#define __IGNORE_arch_prctl
 
 /* ... including the "new" 32-bit uid syscalls */
 #define __IGNORE_lchown32
@@ -201,15 +202,12 @@ EOF
 }
 
 syscall_list() {
-    grep '^[0-9]' "$1" | sort -n | (
+    grep '^[0-9]' "$1" | sort -n |
 	while read nr abi name entry ; do
-	    cat <<EOF
-#if !defined(__NR_${name}) && !defined(__IGNORE_${name})
-#warning syscall ${name} not implemented
-#endif
-EOF
+		echo "#if !defined(__NR_${name}) && !defined(__IGNORE_${name})"
+		echo "#warning syscall ${name} not implemented"
+		echo "#endif"
 	done
-    )
 }
 
 (ignore_list && syscall_list $(dirname $0)/../arch/x86/entry/syscalls/syscall_32.tbl) | \

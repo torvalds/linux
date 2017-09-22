@@ -480,11 +480,11 @@ static void waveform_ao_timer(unsigned long arg)
 			/* output the last scan */
 			for (i = 0; i < cmd->scan_end_arg; i++) {
 				unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+				unsigned short *pd;
 
-				if (comedi_buf_read_samples(s,
-							    &devpriv->
-							     ao_loopbacks[chan],
-							    1) == 0) {
+				pd = &devpriv->ao_loopbacks[chan];
+
+				if (!comedi_buf_read_samples(s, pd, 1)) {
 					/* unexpected underrun! (cancelled?) */
 					async->events |= COMEDI_CB_OVERFLOW;
 					goto underrun;

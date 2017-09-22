@@ -44,12 +44,12 @@
 #ifndef _LUSTRE_DLM_H__
 #define _LUSTRE_DLM_H__
 
-#include "lustre_lib.h"
-#include "lustre_net.h"
-#include "lustre_import.h"
-#include "lustre_handles.h"
-#include "interval_tree.h"	/* for interval_node{}, ldlm_extent */
-#include "lu_ref.h"
+#include <lustre_lib.h>
+#include <lustre_net.h>
+#include <lustre_import.h>
+#include <lustre_handles.h>
+#include <interval_tree.h>	/* for interval_node{}, ldlm_extent */
+#include <lu_ref.h>
 
 #include "lustre_dlm_flags.h"
 
@@ -812,13 +812,6 @@ struct ldlm_lock {
 	/** referenced export object */
 	struct obd_export	*l_exp_refs_target;
 #endif
-	/**
-	 * export blocking dlm lock list, protected by
-	 * l_export->exp_bl_list_lock.
-	 * Lock order of waiting_lists_spinlock, exp_bl_list_lock and res lock
-	 * is: res lock -> exp_bl_list_lock -> wanting_lists_spinlock.
-	 */
-	struct list_head		l_exp_list;
 };
 
 /**
@@ -1192,6 +1185,10 @@ ldlm_namespace_new(struct obd_device *obd, char *name,
 		   enum ldlm_side client, enum ldlm_appetite apt,
 		   enum ldlm_ns_type ns_type);
 int ldlm_namespace_cleanup(struct ldlm_namespace *ns, __u64 flags);
+void ldlm_namespace_free_prior(struct ldlm_namespace *ns,
+			       struct obd_import *imp,
+			       int force);
+void ldlm_namespace_free_post(struct ldlm_namespace *ns);
 void ldlm_namespace_get(struct ldlm_namespace *ns);
 void ldlm_namespace_put(struct ldlm_namespace *ns);
 int ldlm_debugfs_setup(void);
@@ -1338,6 +1335,19 @@ void ldlm_pool_fini(struct ldlm_pool *pl);
 void ldlm_pool_add(struct ldlm_pool *pl, struct ldlm_lock *lock);
 void ldlm_pool_del(struct ldlm_pool *pl, struct ldlm_lock *lock);
 /** @} */
+
+static inline int ldlm_extent_overlap(const struct ldlm_extent *ex1,
+				      const struct ldlm_extent *ex2)
+{
+	return ex1->start <= ex2->end && ex2->start <= ex1->end;
+}
+
+/* check if @ex1 contains @ex2 */
+static inline int ldlm_extent_contain(const struct ldlm_extent *ex1,
+				      const struct ldlm_extent *ex2)
+{
+	return ex1->start <= ex2->start && ex1->end >= ex2->end;
+}
 
 #endif
 /** @} LDLM */

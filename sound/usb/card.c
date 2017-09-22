@@ -332,6 +332,7 @@ static int snd_usb_audio_dev_free(struct snd_device *device)
 static int snd_usb_audio_create(struct usb_interface *intf,
 				struct usb_device *dev, int idx,
 				const struct snd_usb_audio_quirk *quirk,
+				unsigned int usb_id,
 				struct snd_usb_audio **rchip)
 {
 	struct snd_card *card;
@@ -381,8 +382,7 @@ static int snd_usb_audio_create(struct usb_interface *intf,
 	atomic_set(&chip->usage_count, 0);
 	atomic_set(&chip->shutdown, 0);
 
-	chip->usb_id = USB_ID(le16_to_cpu(dev->descriptor.idVendor),
-			      le16_to_cpu(dev->descriptor.idProduct));
+	chip->usb_id = usb_id;
 	INIT_LIST_HEAD(&chip->pcm_list);
 	INIT_LIST_HEAD(&chip->ep_list);
 	INIT_LIST_HEAD(&chip->midi_list);
@@ -486,7 +486,7 @@ static bool get_alias_id(struct usb_device *dev, unsigned int *id)
 	return false;
 }
 
-static struct usb_device_id usb_audio_ids[]; /* defined below */
+static const struct usb_device_id usb_audio_ids[]; /* defined below */
 
 /* look for the corresponding quirk */
 static const struct snd_usb_audio_quirk *
@@ -569,7 +569,7 @@ static int usb_audio_probe(struct usb_interface *intf,
 			    (vid[i] == -1 || vid[i] == USB_ID_VENDOR(id)) &&
 			    (pid[i] == -1 || pid[i] == USB_ID_PRODUCT(id))) {
 				err = snd_usb_audio_create(intf, dev, i, quirk,
-							   &chip);
+							   id, &chip);
 				if (err < 0)
 					goto __error;
 				chip->pm_intf = intf;
@@ -814,7 +814,7 @@ static int usb_audio_reset_resume(struct usb_interface *intf)
 #define usb_audio_reset_resume	NULL
 #endif		/* CONFIG_PM */
 
-static struct usb_device_id usb_audio_ids [] = {
+static const struct usb_device_id usb_audio_ids [] = {
 #include "quirks-table.h"
     { .match_flags = (USB_DEVICE_ID_MATCH_INT_CLASS | USB_DEVICE_ID_MATCH_INT_SUBCLASS),
       .bInterfaceClass = USB_CLASS_AUDIO,

@@ -70,7 +70,7 @@
 * (3) both long and short but short preferred and long only when necesarry
 *
 * These modes must be selected compile time via compile switches.
-* Compile switch settings for the diffrent modes:
+* Compile switch settings for the different modes:
 * (1) DRXDAPFASI_LONG_ADDR_ALLOWED=0, DRXDAPFASI_SHORT_ADDR_ALLOWED=1
 * (2) DRXDAPFASI_LONG_ADDR_ALLOWED=1, DRXDAPFASI_SHORT_ADDR_ALLOWED=0
 * (3) DRXDAPFASI_LONG_ADDR_ALLOWED=1, DRXDAPFASI_SHORT_ADDR_ALLOWED=1

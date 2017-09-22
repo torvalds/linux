@@ -48,7 +48,7 @@ Note that not all combinations are supported - only values 0 through 5.
 For example, the following will turn on the warnings, but without
 fixing up or sending SIGBUS signals:
 
-	echo 1 > /proc/sys/debug/alignment
+	echo 1 > /proc/cpu/alignment
 
 You can also read the content of the same file to get statistical
 information on unaligned access occurrences plus the current mode of

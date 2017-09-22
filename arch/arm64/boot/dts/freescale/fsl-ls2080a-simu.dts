@@ -1,7 +1,7 @@
 /*
  * Device Tree file for Freescale LS2080a software Simulator model
  *
- * Copyright (C) 2014-2015, Freescale Semiconductor
+ * Copyright 2014-2015 Freescale Semiconductor, Inc.
  *
  * Bhupesh Sharma <bhupesh.sharma@freescale.com>
  *
@@ -51,11 +51,6 @@
 / {
 	model = "Freescale Layerscape 2080a software Simulator model";
 	compatible = "fsl,ls2080a-simu", "fsl,ls2080a";
-
-	aliases {
-		serial0 = &serial0;
-		serial1 = &serial1;
-	};
 
 	ethernet@2210000 {
 		compatible = "smsc,lan91c111";

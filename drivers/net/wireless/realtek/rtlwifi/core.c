@@ -629,7 +629,8 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	/*For LPS */
-	if (changed & IEEE80211_CONF_CHANGE_PS) {
+	if ((changed & IEEE80211_CONF_CHANGE_PS) &&
+	    rtlpriv->psc.swctrl_lps && !rtlpriv->psc.fwctrl_lps) {
 		cancel_delayed_work(&rtlpriv->works.ps_work);
 		cancel_delayed_work(&rtlpriv->works.ps_rfon_wq);
 		if (conf->flags & IEEE80211_CONF_PS) {
@@ -1463,6 +1464,9 @@ static void rtl_op_sw_scan_complete(struct ieee80211_hw *hw,
 	RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD, "\n");
 	mac->act_scanning = false;
 	mac->skip_scan = false;
+
+	rtlpriv->btcoexist.btc_info.ap_num = rtlpriv->scan_list.num;
+
 	if (rtlpriv->link_info.higher_busytraffic)
 		return;
 
@@ -1500,6 +1504,8 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	int err = 0;
 	u8 mac_addr[ETH_ALEN];
 	u8 bcast_addr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+
+	rtlpriv->btcoexist.btc_info.in_4way = false;
 
 	if (rtlpriv->cfg->mod_params->sw_crypto || rtlpriv->sec.use_sw_sec) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
@@ -1670,6 +1676,8 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		 *so don't use rtl_cam_reset_all_entry
 		 *or clear all entry here.
 		 */
+		rtl_wait_tx_report_acked(hw, 500); /* wait 500ms for TX ack */
+
 		rtl_cam_delete_one_entry(hw, mac_addr, key_idx);
 		break;
 	default:

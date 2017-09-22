@@ -300,18 +300,6 @@ static void hns_xgmac_set_tx_auto_pause_frames(void *mac_drv, u16 enable)
 }
 
 /**
- *hns_xgmac_get_id - get xgmac port id
- *@mac_drv: mac driver
- *@newval:xgmac max frame length
- */
-static void hns_xgmac_get_id(void *mac_drv, u8 *mac_id)
-{
-	struct mac_driver *drv = (struct mac_driver *)mac_drv;
-
-	*mac_id = drv->mac_id;
-}
-
-/**
  *hns_xgmac_config_max_frame_length - set xgmac max frame length
  *@mac_drv: mac driver
  *@newval:xgmac max frame length
@@ -793,7 +781,7 @@ static void hns_xgmac_get_strings(u32 stringset, u8 *data)
  */
 static int hns_xgmac_get_sset_count(int stringset)
 {
-	if (stringset == ETH_SS_STATS)
+	if (stringset == ETH_SS_STATS || stringset == ETH_SS_PRIV_FLAGS)
 		return ARRAY_SIZE(g_xgmac_stats_string);
 
 	return 0;
@@ -833,7 +821,6 @@ void *hns_xgmac_config(struct hns_mac_cb *mac_cb, struct mac_params *mac_param)
 	mac_drv->config_half_duplex = NULL;
 	mac_drv->set_rx_ignore_pause_frames =
 		hns_xgmac_set_rx_ignore_pause_frames;
-	mac_drv->mac_get_id = hns_xgmac_get_id;
 	mac_drv->mac_free = hns_xgmac_free;
 	mac_drv->adjust_link = NULL;
 	mac_drv->set_tx_auto_pause_frames = hns_xgmac_set_tx_auto_pause_frames;

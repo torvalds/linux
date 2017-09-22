@@ -141,14 +141,14 @@ struct zpa2326_private {
 	struct regulator               *vdd;
 };
 
-#define zpa2326_err(_idev, _format, _arg...) \
-	dev_err(_idev->dev.parent, _format, ##_arg)
+#define zpa2326_err(idev, fmt, ...)					\
+	dev_err(idev->dev.parent, fmt "\n", ##__VA_ARGS__)
 
-#define zpa2326_warn(_idev, _format, _arg...) \
-	dev_warn(_idev->dev.parent, _format, ##_arg)
+#define zpa2326_warn(idev, fmt, ...)					\
+	dev_warn(idev->dev.parent, fmt "\n", ##__VA_ARGS__)
 
-#define zpa2326_dbg(_idev, _format, _arg...) \
-	dev_dbg(_idev->dev.parent, _format, ##_arg)
+#define zpa2326_dbg(idev, fmt, ...)					\
+	dev_dbg(idev->dev.parent, fmt "\n", ##__VA_ARGS__)
 
 bool zpa2326_isreg_writeable(struct device *dev, unsigned int reg)
 {
@@ -751,7 +751,7 @@ static void zpa2326_suspend(struct iio_dev *indio_dev)
  */
 static irqreturn_t zpa2326_handle_irq(int irq, void *data)
 {
-	struct iio_dev *indio_dev = (struct iio_dev *)data;
+	struct iio_dev *indio_dev = data;
 
 	if (iio_buffer_enabled(indio_dev)) {
 		/* Timestamping needed for buffered sampling only. */
@@ -790,7 +790,7 @@ static irqreturn_t zpa2326_handle_irq(int irq, void *data)
  */
 static irqreturn_t zpa2326_handle_threaded_irq(int irq, void *data)
 {
-	struct iio_dev         *indio_dev = (struct iio_dev *)data;
+	struct iio_dev         *indio_dev = data;
 	struct zpa2326_private *priv = iio_priv(indio_dev);
 	unsigned int            val;
 	bool                    cont;
@@ -867,12 +867,13 @@ static int zpa2326_wait_oneshot_completion(const struct iio_dev   *indio_dev,
 {
 	int          ret;
 	unsigned int val;
+	long     timeout;
 
 	zpa2326_dbg(indio_dev, "waiting for one shot completion interrupt");
 
-	ret = wait_for_completion_interruptible_timeout(
+	timeout = wait_for_completion_interruptible_timeout(
 		&private->data_ready, ZPA2326_CONVERSION_JIFFIES);
-	if (ret > 0)
+	if (timeout > 0)
 		/*
 		 * Interrupt handler completed before timeout: return operation
 		 * status.
@@ -882,13 +883,16 @@ static int zpa2326_wait_oneshot_completion(const struct iio_dev   *indio_dev,
 	/* Clear all interrupts just to be sure. */
 	regmap_read(private->regmap, ZPA2326_INT_SOURCE_REG, &val);
 
-	if (!ret)
+	if (!timeout) {
 		/* Timed out. */
+		zpa2326_warn(indio_dev, "no one shot interrupt occurred (%ld)",
+			     timeout);
 		ret = -ETIME;
-
-	if (ret != -ERESTARTSYS)
-		zpa2326_warn(indio_dev, "no one shot interrupt occurred (%d)",
-			     ret);
+	} else if (timeout < 0) {
+		zpa2326_warn(indio_dev,
+			     "wait for one shot interrupt cancelled");
+		ret = -ERESTARTSYS;
+	}
 
 	return ret;
 }

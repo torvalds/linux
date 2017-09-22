@@ -521,23 +521,25 @@ static void exynos_pcie_enable_interrupts(struct exynos_pcie *ep)
 		exynos_pcie_msi_init(ep);
 }
 
-static u32 exynos_pcie_readl_dbi(struct dw_pcie *pci, u32 reg)
+static u32 exynos_pcie_read_dbi(struct dw_pcie *pci, void __iomem *base,
+				u32 reg, size_t size)
 {
 	struct exynos_pcie *ep = to_exynos_pcie(pci);
 	u32 val;
 
 	exynos_pcie_sideband_dbi_r_mode(ep, true);
-	val = readl(pci->dbi_base + reg);
+	dw_pcie_read(base + reg, size, &val);
 	exynos_pcie_sideband_dbi_r_mode(ep, false);
 	return val;
 }
 
-static void exynos_pcie_writel_dbi(struct dw_pcie *pci, u32 reg, u32 val)
+static void exynos_pcie_write_dbi(struct dw_pcie *pci, void __iomem *base,
+				  u32 reg, size_t size, u32 val)
 {
 	struct exynos_pcie *ep = to_exynos_pcie(pci);
 
 	exynos_pcie_sideband_dbi_w_mode(ep, true);
-	writel(val, pci->dbi_base + reg);
+	dw_pcie_write(base + reg, size, val);
 	exynos_pcie_sideband_dbi_w_mode(ep, false);
 }
 
@@ -579,16 +581,18 @@ static int exynos_pcie_link_up(struct dw_pcie *pci)
 	return 0;
 }
 
-static void exynos_pcie_host_init(struct pcie_port *pp)
+static int exynos_pcie_host_init(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct exynos_pcie *ep = to_exynos_pcie(pci);
 
 	exynos_pcie_establish_link(ep);
 	exynos_pcie_enable_interrupts(ep);
+
+	return 0;
 }
 
-static struct dw_pcie_host_ops exynos_pcie_host_ops = {
+static const struct dw_pcie_host_ops exynos_pcie_host_ops = {
 	.rd_own_conf = exynos_pcie_rd_own_conf,
 	.wr_own_conf = exynos_pcie_wr_own_conf,
 	.host_init = exynos_pcie_host_init,
@@ -603,9 +607,9 @@ static int __init exynos_add_pcie_port(struct exynos_pcie *ep,
 	int ret;
 
 	pp->irq = platform_get_irq(pdev, 1);
-	if (!pp->irq) {
+	if (pp->irq < 0) {
 		dev_err(dev, "failed to get irq\n");
-		return -ENODEV;
+		return pp->irq;
 	}
 	ret = devm_request_irq(dev, pp->irq, exynos_pcie_irq_handler,
 				IRQF_SHARED, "exynos-pcie", ep);
@@ -616,9 +620,9 @@ static int __init exynos_add_pcie_port(struct exynos_pcie *ep,
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		pp->msi_irq = platform_get_irq(pdev, 0);
-		if (!pp->msi_irq) {
+		if (pp->msi_irq < 0) {
 			dev_err(dev, "failed to get msi irq\n");
-			return -ENODEV;
+			return pp->msi_irq;
 		}
 
 		ret = devm_request_irq(dev, pp->msi_irq,
@@ -644,8 +648,8 @@ static int __init exynos_add_pcie_port(struct exynos_pcie *ep,
 }
 
 static const struct dw_pcie_ops dw_pcie_ops = {
-	.readl_dbi = exynos_pcie_readl_dbi,
-	.writel_dbi = exynos_pcie_writel_dbi,
+	.read_dbi = exynos_pcie_read_dbi,
+	.write_dbi = exynos_pcie_write_dbi,
 	.link_up = exynos_pcie_link_up,
 };
 

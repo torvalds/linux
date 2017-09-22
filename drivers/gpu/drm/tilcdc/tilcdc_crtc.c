@@ -23,6 +23,7 @@
 #include <linux/workqueue.h>
 #include <linux/completion.h>
 #include <linux/dma-mapping.h>
+#include <linux/of_graph.h>
 
 #include "tilcdc_drv.h"
 #include "tilcdc_regs.h"
@@ -503,6 +504,12 @@ static void tilcdc_crtc_enable(struct drm_crtc *crtc)
 	mutex_unlock(&tilcdc_crtc->enable_lock);
 }
 
+static void tilcdc_crtc_atomic_enable(struct drm_crtc *crtc,
+				      struct drm_crtc_state *old_state)
+{
+	tilcdc_crtc_enable(crtc);
+}
+
 static void tilcdc_crtc_off(struct drm_crtc *crtc, bool shutdown)
 {
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
@@ -561,6 +568,12 @@ static void tilcdc_crtc_disable(struct drm_crtc *crtc)
 	tilcdc_crtc_off(crtc, false);
 }
 
+static void tilcdc_crtc_atomic_disable(struct drm_crtc *crtc,
+				       struct drm_crtc_state *old_state)
+{
+	tilcdc_crtc_disable(crtc);
+}
+
 void tilcdc_crtc_shutdown(struct drm_crtc *crtc)
 {
 	tilcdc_crtc_off(crtc, true);
@@ -579,7 +592,7 @@ static void tilcdc_crtc_recover_work(struct work_struct *work)
 
 	dev_info(crtc->dev->dev, "%s: Reset CRTC", __func__);
 
-	drm_modeset_lock_crtc(crtc, NULL);
+	drm_modeset_lock(&crtc->mutex, NULL);
 
 	if (!tilcdc_crtc_is_on(crtc))
 		goto out;
@@ -587,7 +600,7 @@ static void tilcdc_crtc_recover_work(struct work_struct *work)
 	tilcdc_crtc_disable(crtc);
 	tilcdc_crtc_enable(crtc);
 out:
-	drm_modeset_unlock_crtc(crtc);
+	drm_modeset_unlock(&crtc->mutex);
 }
 
 static void tilcdc_crtc_destroy(struct drm_crtc *crtc)
@@ -595,9 +608,9 @@ static void tilcdc_crtc_destroy(struct drm_crtc *crtc)
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct tilcdc_drm_private *priv = crtc->dev->dev_private;
 
-	drm_modeset_lock_crtc(crtc, NULL);
+	drm_modeset_lock(&crtc->mutex, NULL);
 	tilcdc_crtc_disable(crtc);
-	drm_modeset_unlock_crtc(crtc);
+	drm_modeset_unlock(&crtc->mutex);
 
 	flush_workqueue(priv->wq);
 
@@ -706,6 +719,15 @@ static int tilcdc_crtc_atomic_check(struct drm_crtc *crtc,
 	return 0;
 }
 
+static int tilcdc_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	return 0;
+}
+
+static void tilcdc_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+}
+
 static const struct drm_crtc_funcs tilcdc_crtc_funcs = {
 	.destroy        = tilcdc_crtc_destroy,
 	.set_config     = drm_atomic_helper_set_config,
@@ -713,13 +735,15 @@ static const struct drm_crtc_funcs tilcdc_crtc_funcs = {
 	.reset		= drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank	= tilcdc_crtc_enable_vblank,
+	.disable_vblank	= tilcdc_crtc_disable_vblank,
 };
 
 static const struct drm_crtc_helper_funcs tilcdc_crtc_helper_funcs = {
 		.mode_fixup     = tilcdc_crtc_mode_fixup,
-		.enable		= tilcdc_crtc_enable,
-		.disable	= tilcdc_crtc_disable,
 		.atomic_check	= tilcdc_crtc_atomic_check,
+		.atomic_enable	= tilcdc_crtc_atomic_enable,
+		.atomic_disable	= tilcdc_crtc_atomic_disable,
 };
 
 int tilcdc_crtc_max_width(struct drm_crtc *crtc)
@@ -845,7 +869,7 @@ void tilcdc_crtc_update_clk(struct drm_crtc *crtc)
 	struct tilcdc_drm_private *priv = dev->dev_private;
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 
-	drm_modeset_lock_crtc(crtc, NULL);
+	drm_modeset_lock(&crtc->mutex, NULL);
 	if (tilcdc_crtc->lcd_fck_rate != clk_get_rate(priv->clk)) {
 		if (tilcdc_crtc_is_on(crtc)) {
 			pm_runtime_get_sync(dev->dev);
@@ -857,7 +881,7 @@ void tilcdc_crtc_update_clk(struct drm_crtc *crtc)
 			pm_runtime_put_sync(dev->dev);
 		}
 	}
-	drm_modeset_unlock_crtc(crtc);
+	drm_modeset_unlock(&crtc->mutex);
 }
 
 #define SYNC_LOST_COUNT_LIMIT 50
@@ -1024,19 +1048,10 @@ int tilcdc_crtc_create(struct drm_device *dev)
 	drm_crtc_helper_add(crtc, &tilcdc_crtc_helper_funcs);
 
 	if (priv->is_componentized) {
-		struct device_node *ports =
-			of_get_child_by_name(dev->dev->of_node, "ports");
-
-		if (ports) {
-			crtc->port = of_get_child_by_name(ports, "port");
-			of_node_put(ports);
-		} else {
-			crtc->port =
-				of_get_child_by_name(dev->dev->of_node, "port");
-		}
+		crtc->port = of_graph_get_port_by_id(dev->dev->of_node, 0);
 		if (!crtc->port) { /* This should never happen */
-			dev_err(dev->dev, "Port node not found in %s\n",
-				dev->dev->of_node->full_name);
+			dev_err(dev->dev, "Port node not found in %pOF\n",
+				dev->dev->of_node);
 			ret = -EINVAL;
 			goto fail;
 		}

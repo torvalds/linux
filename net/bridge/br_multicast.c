@@ -2031,8 +2031,6 @@ void br_multicast_dev_del(struct net_bridge *br)
 
 out:
 	spin_unlock_bh(&br->multicast_lock);
-
-	free_percpu(br->mcast_stats);
 }
 
 int br_multicast_set_router(struct net_bridge *br, unsigned long val)
@@ -2177,6 +2175,14 @@ unlock:
 
 	return err;
 }
+
+bool br_multicast_enabled(const struct net_device *dev)
+{
+	struct net_bridge *br = netdev_priv(dev);
+
+	return !br->multicast_disabled;
+}
+EXPORT_SYMBOL_GPL(br_multicast_enabled);
 
 int br_multicast_set_querier(struct net_bridge *br, unsigned long val)
 {
@@ -2529,6 +2535,11 @@ int br_multicast_init_stats(struct net_bridge *br)
 		return -ENOMEM;
 
 	return 0;
+}
+
+void br_multicast_uninit_stats(struct net_bridge *br)
+{
+	free_percpu(br->mcast_stats);
 }
 
 static void mcast_stats_add_dir(u64 *dst, u64 *src)

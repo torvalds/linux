@@ -1,0 +1,74 @@
+Qualcomm GLINK edge binding
+
+This binding describes a Qualcomm GLINK edge, a fifo based mechanism for
+communication between subsystem-pairs on various Qualcomm platforms. Two types
+of edges can be described by the binding; the GLINK RPM edge and a SMEM based
+edge.
+
+- compatible:
+	Usage: required for glink-rpm
+	Value type: <stringlist>
+	Definition: must be "qcom,glink-rpm"
+
+- interrupts:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: should specify the IRQ used by the remote processor to
+		    signal this processor about communication related events
+
+- qcom,rpm-msg-ram:
+	Usage: required for glink-rpm
+	Value type: <prop-encoded-array>
+	Definition: handle to RPM message memory resource
+
+- mboxes:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: reference to the "rpm_hlos" mailbox in APCS, as described
+		    in mailbox/mailbox.txt
+
+= GLINK DEVICES
+Each subnode of the GLINK node represent function tied to a virtual
+communication channel. The name of the nodes are not important. The properties
+of these nodes are defined by the individual bindings for the specific function
+- but must contain the following property:
+
+- qcom,glink-channels:
+	Usage: required
+	Value type: <stringlist>
+	Definition: a list of channels tied to this function, used for matching
+		    the function to a set of virtual channels
+
+= EXAMPLE
+The following example represents the GLINK RPM node on a MSM8996 device, with
+the function for the "rpm_request" channel defined, which is used for
+regualtors and root clocks.
+
+	apcs_glb: mailbox@9820000 {
+		compatible = "qcom,msm8996-apcs-hmss-global";
+		reg = <0x9820000 0x1000>;
+
+		#mbox-cells = <1>;
+	};
+
+	rpm_msg_ram: memory@68000 {
+		compatible = "qcom,rpm-msg-ram";
+		reg = <0x68000 0x6000>;
+	};
+
+	rpm-glink {
+		compatible = "qcom,glink-rpm";
+
+		interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
+
+		qcom,rpm-msg-ram = <&rpm_msg_ram>;
+
+		mboxes = <&apcs_glb 0>;
+
+		rpm-requests {
+			compatible = "qcom,rpm-msm8996";
+			qcom,glink-channels = "rpm_requests";
+
+			...
+		};
+	};

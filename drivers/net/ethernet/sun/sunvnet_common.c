@@ -1,7 +1,7 @@
 /* sunvnet.c: Sun LDOM Virtual Network Driver.
  *
  * Copyright (C) 2007, 2008 David S. Miller <davem@davemloft.net>
- * Copyright (C) 2016 Oracle. All rights reserved.
+ * Copyright (C) 2016-2017 Oracle. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -43,7 +43,6 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION("1.1");
 
 static int __vnet_tx_trigger(struct vnet_port *port, u32 start);
-static void vnet_port_reset(struct vnet_port *port);
 
 static inline u32 vnet_tx_dring_avail(struct vio_dring_state *dr)
 {
@@ -304,7 +303,7 @@ static struct sk_buff *alloc_and_align_skb(struct net_device *dev,
 	return skb;
 }
 
-static inline void vnet_fullcsum(struct sk_buff *skb)
+static inline void vnet_fullcsum_ipv4(struct sk_buff *skb)
 {
 	struct iphdr *iph = ip_hdr(skb);
 	int offset = skb_transport_offset(skb);
@@ -335,6 +334,40 @@ static inline void vnet_fullcsum(struct sk_buff *skb)
 						skb->csum);
 	}
 }
+
+#if IS_ENABLED(CONFIG_IPV6)
+static inline void vnet_fullcsum_ipv6(struct sk_buff *skb)
+{
+	struct ipv6hdr *ip6h = ipv6_hdr(skb);
+	int offset = skb_transport_offset(skb);
+
+	if (skb->protocol != htons(ETH_P_IPV6))
+		return;
+	if (ip6h->nexthdr != IPPROTO_TCP &&
+	    ip6h->nexthdr != IPPROTO_UDP)
+		return;
+	skb->ip_summed = CHECKSUM_NONE;
+	skb->csum_level = 1;
+	skb->csum = 0;
+	if (ip6h->nexthdr == IPPROTO_TCP) {
+		struct tcphdr *ptcp = tcp_hdr(skb);
+
+		ptcp->check = 0;
+		skb->csum = skb_checksum(skb, offset, skb->len - offset, 0);
+		ptcp->check = csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
+					      skb->len - offset, IPPROTO_TCP,
+					      skb->csum);
+	} else if (ip6h->nexthdr == IPPROTO_UDP) {
+		struct udphdr *pudp = udp_hdr(skb);
+
+		pudp->check = 0;
+		skb->csum = skb_checksum(skb, offset, skb->len - offset, 0);
+		pudp->check = csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
+					      skb->len - offset, IPPROTO_UDP,
+					      skb->csum);
+	}
+}
+#endif
 
 static int vnet_rx_one(struct vnet_port *port, struct vio_net_desc *desc)
 {
@@ -395,9 +428,14 @@ static int vnet_rx_one(struct vnet_port *port, struct vio_net_desc *desc)
 				struct iphdr *iph = ip_hdr(skb);
 				int ihl = iph->ihl * 4;
 
-				skb_reset_transport_header(skb);
 				skb_set_transport_header(skb, ihl);
-				vnet_fullcsum(skb);
+				vnet_fullcsum_ipv4(skb);
+#if IS_ENABLED(CONFIG_IPV6)
+			} else if (skb->protocol == htons(ETH_P_IPV6)) {
+				skb_set_transport_header(skb,
+							 sizeof(struct ipv6hdr));
+				vnet_fullcsum_ipv6(skb);
+#endif
 			}
 		}
 		if (dext->flags & VNET_PKT_HCK_IPV4_HDRCKSUM_OK) {
@@ -410,8 +448,12 @@ static int vnet_rx_one(struct vnet_port *port, struct vio_net_desc *desc)
 
 	skb->ip_summed = port->switch_port ? CHECKSUM_NONE : CHECKSUM_PARTIAL;
 
+	if (unlikely(is_multicast_ether_addr(eth_hdr(skb)->h_dest)))
+		dev->stats.multicast++;
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += len;
+	port->stats.rx_packets++;
+	port->stats.rx_bytes += len;
 	napi_gro_receive(&port->napi, skb);
 	return 0;
 
@@ -747,6 +789,13 @@ static int vnet_event_napi(struct vnet_port *port, int budget)
 
 	/* RESET takes precedent over any other event */
 	if (port->rx_event & LDC_EVENT_RESET) {
+		/* a link went down */
+
+		if (port->vsw == 1) {
+			netif_tx_stop_all_queues(dev);
+			netif_carrier_off(dev);
+		}
+
 		vio_link_state_change(vio, LDC_EVENT_RESET);
 		vnet_port_reset(port);
 		vio_port_up(vio);
@@ -762,12 +811,21 @@ static int vnet_event_napi(struct vnet_port *port, int budget)
 			maybe_tx_wakeup(port);
 
 		port->rx_event = 0;
+		port->stats.event_reset++;
 		return 0;
 	}
 
 	if (port->rx_event & LDC_EVENT_UP) {
+		/* a link came up */
+
+		if (port->vsw == 1) {
+			netif_carrier_on(port->dev);
+			netif_tx_start_all_queues(port->dev);
+		}
+
 		vio_link_state_change(vio, LDC_EVENT_UP);
 		port->rx_event = 0;
+		port->stats.event_up++;
 		return 0;
 	}
 
@@ -1096,24 +1154,47 @@ static inline struct sk_buff *vnet_skb_shape(struct sk_buff *skb, int ncookies)
 		if (skb->ip_summed == CHECKSUM_PARTIAL)
 			start = skb_checksum_start_offset(skb);
 		if (start) {
-			struct iphdr *iph = ip_hdr(nskb);
 			int offset = start + nskb->csum_offset;
 
+			/* copy the headers, no csum here */
 			if (skb_copy_bits(skb, 0, nskb->data, start)) {
 				dev_kfree_skb(nskb);
 				dev_kfree_skb(skb);
 				return NULL;
 			}
+
+			/* copy the rest, with csum calculation */
 			*(__sum16 *)(skb->data + offset) = 0;
 			csum = skb_copy_and_csum_bits(skb, start,
 						      nskb->data + start,
 						      skb->len - start, 0);
-			if (iph->protocol == IPPROTO_TCP ||
-			    iph->protocol == IPPROTO_UDP) {
-				csum = csum_tcpudp_magic(iph->saddr, iph->daddr,
-							 skb->len - start,
-							 iph->protocol, csum);
+
+			/* add in the header checksums */
+			if (skb->protocol == htons(ETH_P_IP)) {
+				struct iphdr *iph = ip_hdr(nskb);
+
+				if (iph->protocol == IPPROTO_TCP ||
+				    iph->protocol == IPPROTO_UDP) {
+					csum = csum_tcpudp_magic(iph->saddr,
+								 iph->daddr,
+								 skb->len - start,
+								 iph->protocol,
+								 csum);
+				}
+			} else if (skb->protocol == htons(ETH_P_IPV6)) {
+				struct ipv6hdr *ip6h = ipv6_hdr(nskb);
+
+				if (ip6h->nexthdr == IPPROTO_TCP ||
+				    ip6h->nexthdr == IPPROTO_UDP) {
+					csum = csum_ipv6_magic(&ip6h->saddr,
+							       &ip6h->daddr,
+							       skb->len - start,
+							       ip6h->nexthdr,
+							       csum);
+				}
 			}
+
+			/* save the final result */
 			*(__sum16 *)(nskb->data + offset) = csum;
 
 			nskb->ip_summed = CHECKSUM_NONE;
@@ -1299,8 +1380,14 @@ int sunvnet_start_xmit_common(struct sk_buff *skb, struct net_device *dev,
 	if (unlikely(!skb))
 		goto out_dropped;
 
-	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		vnet_fullcsum(skb);
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		if (skb->protocol == htons(ETH_P_IP))
+			vnet_fullcsum_ipv4(skb);
+#if IS_ENABLED(CONFIG_IPV6)
+		else if (skb->protocol == htons(ETH_P_IPV6))
+			vnet_fullcsum_ipv6(skb);
+#endif
+	}
 
 	dr = &port->vio.drings[VIO_DRIVER_TX_RING];
 	i = skb_get_queue_mapping(skb);
@@ -1417,6 +1504,8 @@ ldc_start_done:
 
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += port->tx_bufs[txi].skb->len;
+	port->stats.tx_packets++;
+	port->stats.tx_bytes += port->tx_bufs[txi].skb->len;
 
 	dr->prod = (dr->prod + 1) & (VNET_TX_RING_SIZE - 1);
 	if (unlikely(vnet_tx_dring_avail(dr) < 1)) {
@@ -1631,7 +1720,7 @@ void sunvnet_port_free_tx_bufs_common(struct vnet_port *port)
 }
 EXPORT_SYMBOL_GPL(sunvnet_port_free_tx_bufs_common);
 
-static void vnet_port_reset(struct vnet_port *port)
+void vnet_port_reset(struct vnet_port *port)
 {
 	del_timer(&port->clean_timer);
 	sunvnet_port_free_tx_bufs_common(port);
@@ -1639,6 +1728,7 @@ static void vnet_port_reset(struct vnet_port *port)
 	port->tso = (port->vsw == 0);  /* no tso in vsw, misbehaves in bridge */
 	port->tsolen = 0;
 }
+EXPORT_SYMBOL_GPL(vnet_port_reset);
 
 static int vnet_port_alloc_tx_ring(struct vnet_port *port)
 {
@@ -1708,20 +1798,32 @@ EXPORT_SYMBOL_GPL(sunvnet_poll_controller_common);
 void sunvnet_port_add_txq_common(struct vnet_port *port)
 {
 	struct vnet *vp = port->vp;
-	int n;
+	int smallest = 0;
+	int i;
 
-	n = vp->nports++;
-	n = n & (VNET_MAX_TXQS - 1);
-	port->q_index = n;
-	netif_tx_wake_queue(netdev_get_tx_queue(VNET_PORT_TO_NET_DEVICE(port),
-						port->q_index));
+	/* find the first least-used q
+	 * When there are more ldoms than q's, we start to
+	 * double up on ports per queue.
+	 */
+	for (i = 0; i < VNET_MAX_TXQS; i++) {
+		if (vp->q_used[i] == 0) {
+			smallest = i;
+			break;
+		}
+		if (vp->q_used[i] < vp->q_used[smallest])
+			smallest = i;
+	}
+
+	vp->nports++;
+	vp->q_used[smallest]++;
+	port->q_index = smallest;
 }
 EXPORT_SYMBOL_GPL(sunvnet_port_add_txq_common);
 
 void sunvnet_port_rm_txq_common(struct vnet_port *port)
 {
 	port->vp->nports--;
-	netif_tx_stop_queue(netdev_get_tx_queue(VNET_PORT_TO_NET_DEVICE(port),
-						port->q_index));
+	port->vp->q_used[port->q_index]--;
+	port->q_index = 0;
 }
 EXPORT_SYMBOL_GPL(sunvnet_port_rm_txq_common);

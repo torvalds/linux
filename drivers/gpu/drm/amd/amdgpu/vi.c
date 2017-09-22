@@ -21,7 +21,7 @@
  *
  */
 #include <linux/slab.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
 #include "amdgpu_ih.h"
@@ -463,95 +463,83 @@ static void vi_detect_hw_virtualization(struct amdgpu_device *adev)
 	}
 }
 
-static const struct amdgpu_allowed_register_entry tonga_allowed_read_registers[] = {
-	{mmGB_MACROTILE_MODE7, true},
-};
-
-static const struct amdgpu_allowed_register_entry cz_allowed_read_registers[] = {
-	{mmGB_TILE_MODE7, true},
-	{mmGB_TILE_MODE12, true},
-	{mmGB_TILE_MODE17, true},
-	{mmGB_TILE_MODE23, true},
-	{mmGB_MACROTILE_MODE7, true},
-};
-
 static const struct amdgpu_allowed_register_entry vi_allowed_read_registers[] = {
-	{mmGRBM_STATUS, false},
-	{mmGRBM_STATUS2, false},
-	{mmGRBM_STATUS_SE0, false},
-	{mmGRBM_STATUS_SE1, false},
-	{mmGRBM_STATUS_SE2, false},
-	{mmGRBM_STATUS_SE3, false},
-	{mmSRBM_STATUS, false},
-	{mmSRBM_STATUS2, false},
-	{mmSRBM_STATUS3, false},
-	{mmSDMA0_STATUS_REG + SDMA0_REGISTER_OFFSET, false},
-	{mmSDMA0_STATUS_REG + SDMA1_REGISTER_OFFSET, false},
-	{mmCP_STAT, false},
-	{mmCP_STALLED_STAT1, false},
-	{mmCP_STALLED_STAT2, false},
-	{mmCP_STALLED_STAT3, false},
-	{mmCP_CPF_BUSY_STAT, false},
-	{mmCP_CPF_STALLED_STAT1, false},
-	{mmCP_CPF_STATUS, false},
-	{mmCP_CPC_BUSY_STAT, false},
-	{mmCP_CPC_STALLED_STAT1, false},
-	{mmCP_CPC_STATUS, false},
-	{mmGB_ADDR_CONFIG, false},
-	{mmMC_ARB_RAMCFG, false},
-	{mmGB_TILE_MODE0, false},
-	{mmGB_TILE_MODE1, false},
-	{mmGB_TILE_MODE2, false},
-	{mmGB_TILE_MODE3, false},
-	{mmGB_TILE_MODE4, false},
-	{mmGB_TILE_MODE5, false},
-	{mmGB_TILE_MODE6, false},
-	{mmGB_TILE_MODE7, false},
-	{mmGB_TILE_MODE8, false},
-	{mmGB_TILE_MODE9, false},
-	{mmGB_TILE_MODE10, false},
-	{mmGB_TILE_MODE11, false},
-	{mmGB_TILE_MODE12, false},
-	{mmGB_TILE_MODE13, false},
-	{mmGB_TILE_MODE14, false},
-	{mmGB_TILE_MODE15, false},
-	{mmGB_TILE_MODE16, false},
-	{mmGB_TILE_MODE17, false},
-	{mmGB_TILE_MODE18, false},
-	{mmGB_TILE_MODE19, false},
-	{mmGB_TILE_MODE20, false},
-	{mmGB_TILE_MODE21, false},
-	{mmGB_TILE_MODE22, false},
-	{mmGB_TILE_MODE23, false},
-	{mmGB_TILE_MODE24, false},
-	{mmGB_TILE_MODE25, false},
-	{mmGB_TILE_MODE26, false},
-	{mmGB_TILE_MODE27, false},
-	{mmGB_TILE_MODE28, false},
-	{mmGB_TILE_MODE29, false},
-	{mmGB_TILE_MODE30, false},
-	{mmGB_TILE_MODE31, false},
-	{mmGB_MACROTILE_MODE0, false},
-	{mmGB_MACROTILE_MODE1, false},
-	{mmGB_MACROTILE_MODE2, false},
-	{mmGB_MACROTILE_MODE3, false},
-	{mmGB_MACROTILE_MODE4, false},
-	{mmGB_MACROTILE_MODE5, false},
-	{mmGB_MACROTILE_MODE6, false},
-	{mmGB_MACROTILE_MODE7, false},
-	{mmGB_MACROTILE_MODE8, false},
-	{mmGB_MACROTILE_MODE9, false},
-	{mmGB_MACROTILE_MODE10, false},
-	{mmGB_MACROTILE_MODE11, false},
-	{mmGB_MACROTILE_MODE12, false},
-	{mmGB_MACROTILE_MODE13, false},
-	{mmGB_MACROTILE_MODE14, false},
-	{mmGB_MACROTILE_MODE15, false},
-	{mmCC_RB_BACKEND_DISABLE, false, true},
-	{mmGC_USER_RB_BACKEND_DISABLE, false, true},
-	{mmGB_BACKEND_MAP, false, false},
-	{mmPA_SC_RASTER_CONFIG, false, true},
-	{mmPA_SC_RASTER_CONFIG_1, false, true},
+	{mmGRBM_STATUS},
+	{mmGRBM_STATUS2},
+	{mmGRBM_STATUS_SE0},
+	{mmGRBM_STATUS_SE1},
+	{mmGRBM_STATUS_SE2},
+	{mmGRBM_STATUS_SE3},
+	{mmSRBM_STATUS},
+	{mmSRBM_STATUS2},
+	{mmSRBM_STATUS3},
+	{mmSDMA0_STATUS_REG + SDMA0_REGISTER_OFFSET},
+	{mmSDMA0_STATUS_REG + SDMA1_REGISTER_OFFSET},
+	{mmCP_STAT},
+	{mmCP_STALLED_STAT1},
+	{mmCP_STALLED_STAT2},
+	{mmCP_STALLED_STAT3},
+	{mmCP_CPF_BUSY_STAT},
+	{mmCP_CPF_STALLED_STAT1},
+	{mmCP_CPF_STATUS},
+	{mmCP_CPC_BUSY_STAT},
+	{mmCP_CPC_STALLED_STAT1},
+	{mmCP_CPC_STATUS},
+	{mmGB_ADDR_CONFIG},
+	{mmMC_ARB_RAMCFG},
+	{mmGB_TILE_MODE0},
+	{mmGB_TILE_MODE1},
+	{mmGB_TILE_MODE2},
+	{mmGB_TILE_MODE3},
+	{mmGB_TILE_MODE4},
+	{mmGB_TILE_MODE5},
+	{mmGB_TILE_MODE6},
+	{mmGB_TILE_MODE7},
+	{mmGB_TILE_MODE8},
+	{mmGB_TILE_MODE9},
+	{mmGB_TILE_MODE10},
+	{mmGB_TILE_MODE11},
+	{mmGB_TILE_MODE12},
+	{mmGB_TILE_MODE13},
+	{mmGB_TILE_MODE14},
+	{mmGB_TILE_MODE15},
+	{mmGB_TILE_MODE16},
+	{mmGB_TILE_MODE17},
+	{mmGB_TILE_MODE18},
+	{mmGB_TILE_MODE19},
+	{mmGB_TILE_MODE20},
+	{mmGB_TILE_MODE21},
+	{mmGB_TILE_MODE22},
+	{mmGB_TILE_MODE23},
+	{mmGB_TILE_MODE24},
+	{mmGB_TILE_MODE25},
+	{mmGB_TILE_MODE26},
+	{mmGB_TILE_MODE27},
+	{mmGB_TILE_MODE28},
+	{mmGB_TILE_MODE29},
+	{mmGB_TILE_MODE30},
+	{mmGB_TILE_MODE31},
+	{mmGB_MACROTILE_MODE0},
+	{mmGB_MACROTILE_MODE1},
+	{mmGB_MACROTILE_MODE2},
+	{mmGB_MACROTILE_MODE3},
+	{mmGB_MACROTILE_MODE4},
+	{mmGB_MACROTILE_MODE5},
+	{mmGB_MACROTILE_MODE6},
+	{mmGB_MACROTILE_MODE7},
+	{mmGB_MACROTILE_MODE8},
+	{mmGB_MACROTILE_MODE9},
+	{mmGB_MACROTILE_MODE10},
+	{mmGB_MACROTILE_MODE11},
+	{mmGB_MACROTILE_MODE12},
+	{mmGB_MACROTILE_MODE13},
+	{mmGB_MACROTILE_MODE14},
+	{mmGB_MACROTILE_MODE15},
+	{mmCC_RB_BACKEND_DISABLE, true},
+	{mmGC_USER_RB_BACKEND_DISABLE, true},
+	{mmGB_BACKEND_MAP, false},
+	{mmPA_SC_RASTER_CONFIG, true},
+	{mmPA_SC_RASTER_CONFIG_1, true},
 };
 
 static uint32_t vi_get_register_value(struct amdgpu_device *adev,
@@ -653,51 +641,17 @@ static uint32_t vi_get_register_value(struct amdgpu_device *adev,
 static int vi_read_register(struct amdgpu_device *adev, u32 se_num,
 			    u32 sh_num, u32 reg_offset, u32 *value)
 {
-	const struct amdgpu_allowed_register_entry *asic_register_table = NULL;
-	const struct amdgpu_allowed_register_entry *asic_register_entry;
-	uint32_t size, i;
+	uint32_t i;
 
 	*value = 0;
-	switch (adev->asic_type) {
-	case CHIP_TOPAZ:
-		asic_register_table = tonga_allowed_read_registers;
-		size = ARRAY_SIZE(tonga_allowed_read_registers);
-		break;
-	case CHIP_FIJI:
-	case CHIP_TONGA:
-	case CHIP_POLARIS11:
-	case CHIP_POLARIS10:
-	case CHIP_POLARIS12:
-	case CHIP_CARRIZO:
-	case CHIP_STONEY:
-		asic_register_table = cz_allowed_read_registers;
-		size = ARRAY_SIZE(cz_allowed_read_registers);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if (asic_register_table) {
-		for (i = 0; i < size; i++) {
-			asic_register_entry = asic_register_table + i;
-			if (reg_offset != asic_register_entry->reg_offset)
-				continue;
-			if (!asic_register_entry->untouched)
-				*value = vi_get_register_value(adev,
-							       asic_register_entry->grbm_indexed,
-							       se_num, sh_num, reg_offset);
-			return 0;
-		}
-	}
-
 	for (i = 0; i < ARRAY_SIZE(vi_allowed_read_registers); i++) {
+		bool indexed = vi_allowed_read_registers[i].grbm_indexed;
+
 		if (reg_offset != vi_allowed_read_registers[i].reg_offset)
 			continue;
 
-		if (!vi_allowed_read_registers[i].untouched)
-			*value = vi_get_register_value(adev,
-						       vi_allowed_read_registers[i].grbm_indexed,
-						       se_num, sh_num, reg_offset);
+		*value = vi_get_register_value(adev, indexed, se_num, sh_num,
+					       reg_offset);
 		return 0;
 	}
 	return -EINVAL;
@@ -751,6 +705,11 @@ static int vi_asic_reset(struct amdgpu_device *adev)
 	return r;
 }
 
+static u32 vi_get_config_memsize(struct amdgpu_device *adev)
+{
+	return RREG32(mmCONFIG_MEMSIZE);
+}
+
 static int vi_set_uvd_clock(struct amdgpu_device *adev, u32 clock,
 			u32 cntl_reg, u32 status_reg)
 {
@@ -790,6 +749,8 @@ static int vi_set_uvd_clocks(struct amdgpu_device *adev, u32 vclk, u32 dclk)
 		return r;
 
 	r = vi_set_uvd_clock(adev, dclk, ixCG_DCLK_CNTL, ixCG_DCLK_STATUS);
+	if (r)
+		return r;
 
 	return 0;
 }
@@ -900,7 +861,11 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.get_xclk = &vi_get_xclk,
 	.set_uvd_clocks = &vi_set_uvd_clocks,
 	.set_vce_clocks = &vi_set_vce_clocks,
+	.get_config_memsize = &vi_get_config_memsize,
 };
+
+#define CZ_REV_BRISTOL(rev)	 \
+	((rev >= 0xC8 && rev <= 0xCE) || (rev >= 0xE1 && rev <= 0xE6))
 
 static int vi_common_early_init(void *handle)
 {
@@ -928,11 +893,6 @@ static int vi_common_early_init(void *handle)
 	if (amdgpu_get_ip_block(adev, AMD_IP_BLOCK_TYPE_SMC) &&
 		(amdgpu_ip_block_mask & (1 << AMD_IP_BLOCK_TYPE_SMC)))
 		smc_enabled = true;
-
-	if (amdgpu_sriov_vf(adev)) {
-		amdgpu_virt_init_setting(adev);
-		xgpu_vi_mailbox_set_irq_funcs(adev);
-	}
 
 	adev->rev_id = vi_get_rev_id(adev);
 	adev->external_rev_id = 0xFF;
@@ -1027,7 +987,25 @@ static int vi_common_early_init(void *handle)
 		adev->external_rev_id = adev->rev_id + 0x50;
 		break;
 	case CHIP_POLARIS12:
-		adev->cg_flags = AMD_CG_SUPPORT_UVD_MGCG;
+		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
+			AMD_CG_SUPPORT_GFX_RLC_LS |
+			AMD_CG_SUPPORT_GFX_CP_LS |
+			AMD_CG_SUPPORT_GFX_CGCG |
+			AMD_CG_SUPPORT_GFX_CGLS |
+			AMD_CG_SUPPORT_GFX_3D_CGCG |
+			AMD_CG_SUPPORT_GFX_3D_CGLS |
+			AMD_CG_SUPPORT_SDMA_MGCG |
+			AMD_CG_SUPPORT_SDMA_LS |
+			AMD_CG_SUPPORT_BIF_MGCG |
+			AMD_CG_SUPPORT_BIF_LS |
+			AMD_CG_SUPPORT_HDP_MGCG |
+			AMD_CG_SUPPORT_HDP_LS |
+			AMD_CG_SUPPORT_ROM_MGCG |
+			AMD_CG_SUPPORT_MC_MGCG |
+			AMD_CG_SUPPORT_MC_LS |
+			AMD_CG_SUPPORT_DRM_LS |
+			AMD_CG_SUPPORT_UVD_MGCG |
+			AMD_CG_SUPPORT_VCE_MGCG;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x64;
 		break;
@@ -1038,7 +1016,6 @@ static int vi_common_early_init(void *handle)
 			AMD_CG_SUPPORT_GFX_RLC_LS |
 			AMD_CG_SUPPORT_GFX_CP_LS |
 			AMD_CG_SUPPORT_GFX_CGTS |
-			AMD_CG_SUPPORT_GFX_MGLS |
 			AMD_CG_SUPPORT_GFX_CGTS_LS |
 			AMD_CG_SUPPORT_GFX_CGCG |
 			AMD_CG_SUPPORT_GFX_CGLS |
@@ -1050,9 +1027,8 @@ static int vi_common_early_init(void *handle)
 			AMD_CG_SUPPORT_VCE_MGCG;
 		/* rev0 hardware requires workarounds to support PG */
 		adev->pg_flags = 0;
-		if (adev->rev_id != 0x00) {
-			adev->pg_flags |=
-				AMD_PG_SUPPORT_GFX_SMG |
+		if (adev->rev_id != 0x00 || CZ_REV_BRISTOL(adev->pdev->revision)) {
+			adev->pg_flags |= AMD_PG_SUPPORT_GFX_SMG |
 				AMD_PG_SUPPORT_GFX_PIPELINE |
 				AMD_PG_SUPPORT_CP |
 				AMD_PG_SUPPORT_UVD |
@@ -1067,7 +1043,6 @@ static int vi_common_early_init(void *handle)
 			AMD_CG_SUPPORT_GFX_RLC_LS |
 			AMD_CG_SUPPORT_GFX_CP_LS |
 			AMD_CG_SUPPORT_GFX_CGTS |
-			AMD_CG_SUPPORT_GFX_MGLS |
 			AMD_CG_SUPPORT_GFX_CGTS_LS |
 			AMD_CG_SUPPORT_GFX_CGCG |
 			AMD_CG_SUPPORT_GFX_CGLS |
@@ -1090,8 +1065,13 @@ static int vi_common_early_init(void *handle)
 		return -EINVAL;
 	}
 
-	if (amdgpu_smc_load_fw && smc_enabled)
-		adev->firmware.smu_load = true;
+	if (amdgpu_sriov_vf(adev)) {
+		amdgpu_virt_init_setting(adev);
+		xgpu_vi_mailbox_set_irq_funcs(adev);
+	}
+
+	/* vi use smc load by default */
+	adev->firmware.load_type = amdgpu_ucode_get_load_type(adev, amdgpu_fw_load_type);
 
 	amdgpu_get_pcie_info(adev);
 
@@ -1391,27 +1371,30 @@ static int vi_common_set_clockgating_state(void *handle,
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
 	switch (adev->asic_type) {
 	case CHIP_FIJI:
 		vi_update_bif_medium_grain_light_sleep(adev,
-				state == AMD_CG_STATE_GATE ? true : false);
+				state == AMD_CG_STATE_GATE);
 		vi_update_hdp_medium_grain_clock_gating(adev,
-				state == AMD_CG_STATE_GATE ? true : false);
+				state == AMD_CG_STATE_GATE);
 		vi_update_hdp_light_sleep(adev,
-				state == AMD_CG_STATE_GATE ? true : false);
+				state == AMD_CG_STATE_GATE);
 		vi_update_rom_medium_grain_clock_gating(adev,
-				state == AMD_CG_STATE_GATE ? true : false);
+				state == AMD_CG_STATE_GATE);
 		break;
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
 		vi_update_bif_medium_grain_light_sleep(adev,
-				state == AMD_CG_STATE_GATE ? true : false);
+				state == AMD_CG_STATE_GATE);
 		vi_update_hdp_medium_grain_clock_gating(adev,
-				state == AMD_CG_STATE_GATE ? true : false);
+				state == AMD_CG_STATE_GATE);
 		vi_update_hdp_light_sleep(adev,
-				state == AMD_CG_STATE_GATE ? true : false);
+				state == AMD_CG_STATE_GATE);
 		vi_update_drm_light_sleep(adev,
-				state == AMD_CG_STATE_GATE ? true : false);
+				state == AMD_CG_STATE_GATE);
 		break;
 	case CHIP_TONGA:
 	case CHIP_POLARIS10:
@@ -1434,6 +1417,9 @@ static void vi_common_get_clockgating_state(void *handle, u32 *flags)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int data;
+
+	if (amdgpu_sriov_vf(adev))
+		*flags = 0;
 
 	/* AMD_CG_SUPPORT_BIF_LS */
 	data = RREG32_PCIE(ixPCIE_CNTL2);

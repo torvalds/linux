@@ -380,7 +380,7 @@ static inline int eirr_to_irq(unsigned long eirr)
 /*
  * IRQ STACK - used for irq handler
  */
-#define IRQ_STACK_SIZE      (4096 << 2) /* 16k irq stack size */
+#define IRQ_STACK_SIZE      (4096 << 3) /* 32k irq stack size */
 
 union irq_stack_union {
 	unsigned long stack[IRQ_STACK_SIZE/sizeof(unsigned long)];
@@ -411,6 +411,10 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 	/* if sr7 != 0, we interrupted a userspace process which we do not want
 	 * to check for stack overflow. We will only check the kernel stack. */
 	if (regs->sr[7])
+		return;
+
+	/* exit if already in panic */
+	if (sysctl_panic_on_stackoverflow < 0)
 		return;
 
 	/* calculate kernel stack usage */
@@ -454,8 +458,10 @@ check_kernel_stack:
 #ifdef CONFIG_IRQSTACKS
 panic_check:
 #endif
-	if (sysctl_panic_on_stackoverflow)
+	if (sysctl_panic_on_stackoverflow) {
+		sysctl_panic_on_stackoverflow = -1; /* disable further checks */
 		panic("low stack detected by irq handler - check messages\n");
+	}
 #endif
 }
 

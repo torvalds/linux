@@ -257,7 +257,7 @@ static void dw8250_set_termios(struct uart_port *p, struct ktermios *termios,
 {
 	unsigned int baud = tty_termios_baud_rate(termios);
 	struct dw8250_data *d = p->private_data;
-	unsigned int rate;
+	long rate;
 	int ret;
 
 	if (IS_ERR(d->clk) || !old)
@@ -265,7 +265,12 @@ static void dw8250_set_termios(struct uart_port *p, struct ktermios *termios,
 
 	clk_disable_unprepare(d->clk);
 	rate = clk_round_rate(d->clk, baud * 16);
-	ret = clk_set_rate(d->clk, rate);
+	if (rate < 0)
+		ret = rate;
+	else if (rate == 0)
+		ret = -ENOENT;
+	else
+		ret = clk_set_rate(d->clk, rate);
 	clk_prepare_enable(d->clk);
 
 	if (!ret)
@@ -524,13 +529,12 @@ static int dw8250_probe(struct platform_device *pdev)
 		}
 	}
 
-	data->rst = devm_reset_control_get_optional(dev, NULL);
-	if (IS_ERR(data->rst) && PTR_ERR(data->rst) == -EPROBE_DEFER) {
-		err = -EPROBE_DEFER;
+	data->rst = devm_reset_control_get_optional_exclusive(dev, NULL);
+	if (IS_ERR(data->rst)) {
+		err = PTR_ERR(data->rst);
 		goto err_pclk;
 	}
-	if (!IS_ERR(data->rst))
-		reset_control_deassert(data->rst);
+	reset_control_deassert(data->rst);
 
 	dw8250_quirks(p, data);
 
@@ -562,8 +566,7 @@ static int dw8250_probe(struct platform_device *pdev)
 	return 0;
 
 err_reset:
-	if (!IS_ERR(data->rst))
-		reset_control_assert(data->rst);
+	reset_control_assert(data->rst);
 
 err_pclk:
 	if (!IS_ERR(data->pclk))
@@ -584,8 +587,7 @@ static int dw8250_remove(struct platform_device *pdev)
 
 	serial8250_unregister_port(data->line);
 
-	if (!IS_ERR(data->rst))
-		reset_control_assert(data->rst);
+	reset_control_assert(data->rst);
 
 	if (!IS_ERR(data->pclk))
 		clk_disable_unprepare(data->pclk);

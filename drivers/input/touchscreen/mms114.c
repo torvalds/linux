@@ -11,9 +11,9 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/i2c.h>
-#include <linux/i2c/mms114.h>
 #include <linux/input/mt.h>
 #include <linux/interrupt.h>
+#include <linux/platform_data/mms114.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 

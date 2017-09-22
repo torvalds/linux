@@ -5,6 +5,7 @@
  */
 
 #include <errno.h>
+#include <stdlib.h>
 #include <sys/ptrace.h>
 #ifdef __i386__
 #include <sys/user.h>
@@ -26,17 +27,18 @@ int save_i387_registers(int pid, unsigned long *fp_regs)
 
 int save_fp_registers(int pid, unsigned long *fp_regs)
 {
+#ifdef PTRACE_GETREGSET
 	struct iovec iov;
 
 	if (have_xstate_support) {
 		iov.iov_base = fp_regs;
-		iov.iov_len = sizeof(struct _xstate);
+		iov.iov_len = FP_SIZE * sizeof(unsigned long);
 		if (ptrace(PTRACE_GETREGSET, pid, NT_X86_XSTATE, &iov) < 0)
 			return -errno;
 		return 0;
-	} else {
+	} else
+#endif
 		return save_i387_registers(pid, fp_regs);
-	}
 }
 
 int restore_i387_registers(int pid, unsigned long *fp_regs)
@@ -48,17 +50,17 @@ int restore_i387_registers(int pid, unsigned long *fp_regs)
 
 int restore_fp_registers(int pid, unsigned long *fp_regs)
 {
+#ifdef PTRACE_SETREGSET
 	struct iovec iov;
-
 	if (have_xstate_support) {
 		iov.iov_base = fp_regs;
-		iov.iov_len = sizeof(struct _xstate);
+		iov.iov_len = FP_SIZE * sizeof(unsigned long);
 		if (ptrace(PTRACE_SETREGSET, pid, NT_X86_XSTATE, &iov) < 0)
 			return -errno;
 		return 0;
-	} else {
+	} else
+#endif
 		return restore_i387_registers(pid, fp_regs);
-	}
 }
 
 #ifdef __i386__
@@ -122,13 +124,21 @@ int put_fp_registers(int pid, unsigned long *regs)
 
 void arch_init_registers(int pid)
 {
-	struct _xstate fp_regs;
+#ifdef PTRACE_GETREGSET
+	void * fp_regs;
 	struct iovec iov;
 
-	iov.iov_base = &fp_regs;
-	iov.iov_len = sizeof(struct _xstate);
+	fp_regs = malloc(FP_SIZE * sizeof(unsigned long));
+	if(fp_regs == NULL)
+		return;
+
+	iov.iov_base = fp_regs;
+	iov.iov_len = FP_SIZE * sizeof(unsigned long);
 	if (ptrace(PTRACE_GETREGSET, pid, NT_X86_XSTATE, &iov) == 0)
 		have_xstate_support = 1;
+
+	free(fp_regs);
+#endif
 }
 #endif
 

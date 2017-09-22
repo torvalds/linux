@@ -246,6 +246,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_OVERLAY_PUT_IMAGE	0x27
 #define DRM_I915_OVERLAY_ATTRS	0x28
 #define DRM_I915_GEM_EXECBUFFER2	0x29
+#define DRM_I915_GEM_EXECBUFFER2_WR	DRM_I915_GEM_EXECBUFFER2
 #define DRM_I915_GET_SPRITE_COLORKEY	0x2a
 #define DRM_I915_SET_SPRITE_COLORKEY	0x2b
 #define DRM_I915_GEM_WAIT	0x2c
@@ -259,6 +260,8 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_GEM_CONTEXT_GETPARAM	0x34
 #define DRM_I915_GEM_CONTEXT_SETPARAM	0x35
 #define DRM_I915_PERF_OPEN		0x36
+#define DRM_I915_PERF_ADD_CONFIG	0x37
+#define DRM_I915_PERF_REMOVE_CONFIG	0x38
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -280,6 +283,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_GEM_INIT		DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_INIT, struct drm_i915_gem_init)
 #define DRM_IOCTL_I915_GEM_EXECBUFFER	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_EXECBUFFER, struct drm_i915_gem_execbuffer)
 #define DRM_IOCTL_I915_GEM_EXECBUFFER2	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_EXECBUFFER2, struct drm_i915_gem_execbuffer2)
+#define DRM_IOCTL_I915_GEM_EXECBUFFER2_WR	DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_EXECBUFFER2_WR, struct drm_i915_gem_execbuffer2)
 #define DRM_IOCTL_I915_GEM_PIN		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_PIN, struct drm_i915_gem_pin)
 #define DRM_IOCTL_I915_GEM_UNPIN	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_UNPIN, struct drm_i915_gem_unpin)
 #define DRM_IOCTL_I915_GEM_BUSY		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_BUSY, struct drm_i915_gem_busy)
@@ -313,6 +317,8 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_GETPARAM, struct drm_i915_gem_context_param)
 #define DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_SETPARAM, struct drm_i915_gem_context_param)
 #define DRM_IOCTL_I915_PERF_OPEN	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_PERF_OPEN, struct drm_i915_perf_open_param)
+#define DRM_IOCTL_I915_PERF_ADD_CONFIG	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_PERF_ADD_CONFIG, struct drm_i915_perf_oa_config)
+#define DRM_IOCTL_I915_PERF_REMOVE_CONFIG	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_PERF_REMOVE_CONFIG, __u64)
 
 /* Allow drivers to submit batchbuffers directly to hardware, relying
  * on the security mechanisms provided by hardware.
@@ -396,6 +402,43 @@ typedef struct drm_i915_irq_wait {
  */
 #define I915_PARAM_HAS_SCHEDULER	 41
 #define I915_PARAM_HUC_STATUS		 42
+
+/* Query whether DRM_I915_GEM_EXECBUFFER2 supports the ability to opt-out of
+ * synchronisation with implicit fencing on individual objects.
+ * See EXEC_OBJECT_ASYNC.
+ */
+#define I915_PARAM_HAS_EXEC_ASYNC	 43
+
+/* Query whether DRM_I915_GEM_EXECBUFFER2 supports explicit fence support -
+ * both being able to pass in a sync_file fd to wait upon before executing,
+ * and being able to return a new sync_file fd that is signaled when the
+ * current request is complete. See I915_EXEC_FENCE_IN and I915_EXEC_FENCE_OUT.
+ */
+#define I915_PARAM_HAS_EXEC_FENCE	 44
+
+/* Query whether DRM_I915_GEM_EXECBUFFER2 supports the ability to capture
+ * user specified bufffers for post-mortem debugging of GPU hangs. See
+ * EXEC_OBJECT_CAPTURE.
+ */
+#define I915_PARAM_HAS_EXEC_CAPTURE	 45
+
+#define I915_PARAM_SLICE_MASK		 46
+
+/* Assuming it's uniform for each slice, this queries the mask of subslices
+ * per-slice for this system.
+ */
+#define I915_PARAM_SUBSLICE_MASK	 47
+
+/*
+ * Query whether DRM_I915_GEM_EXECBUFFER2 supports supplying the batch buffer
+ * as the first execobject as opposed to the last. See I915_EXEC_BATCH_FIRST.
+ */
+#define I915_PARAM_HAS_EXEC_BATCH_FIRST	 48
+
+/* Query whether DRM_I915_GEM_EXECBUFFER2 supports supplying an array of
+ * drm_i915_gem_exec_fence structures.  See I915_EXEC_FENCE_ARRAY.
+ */
+#define I915_PARAM_HAS_EXEC_FENCE_ARRAY  49
 
 typedef struct drm_i915_getparam {
 	__s32 param;
@@ -651,6 +694,8 @@ struct drm_i915_gem_relocation_entry {
 #define I915_GEM_DOMAIN_VERTEX		0x00000020
 /** GTT domain - aperture and scanout */
 #define I915_GEM_DOMAIN_GTT		0x00000040
+/** WC domain - uncached access */
+#define I915_GEM_DOMAIN_WC		0x00000080
 /** @} */
 
 struct drm_i915_gem_exec_object {
@@ -737,8 +782,36 @@ struct drm_i915_gem_exec_object2 {
 #define EXEC_OBJECT_SUPPORTS_48B_ADDRESS (1<<3)
 #define EXEC_OBJECT_PINNED		 (1<<4)
 #define EXEC_OBJECT_PAD_TO_SIZE		 (1<<5)
+/* The kernel implicitly tracks GPU activity on all GEM objects, and
+ * synchronises operations with outstanding rendering. This includes
+ * rendering on other devices if exported via dma-buf. However, sometimes
+ * this tracking is too coarse and the user knows better. For example,
+ * if the object is split into non-overlapping ranges shared between different
+ * clients or engines (i.e. suballocating objects), the implicit tracking
+ * by kernel assumes that each operation affects the whole object rather
+ * than an individual range, causing needless synchronisation between clients.
+ * The kernel will also forgo any CPU cache flushes prior to rendering from
+ * the object as the client is expected to be also handling such domain
+ * tracking.
+ *
+ * The kernel maintains the implicit tracking in order to manage resources
+ * used by the GPU - this flag only disables the synchronisation prior to
+ * rendering with this object in this execbuf.
+ *
+ * Opting out of implicit synhronisation requires the user to do its own
+ * explicit tracking to avoid rendering corruption. See, for example,
+ * I915_PARAM_HAS_EXEC_FENCE to order execbufs and execute them asynchronously.
+ */
+#define EXEC_OBJECT_ASYNC		(1<<6)
+/* Request that the contents of this execobject be copied into the error
+ * state upon a GPU hang involving this batch for post-mortem debugging.
+ * These buffers are recorded in no particular order as "user" in
+ * /sys/class/drm/cardN/error. Query I915_PARAM_HAS_EXEC_CAPTURE to see
+ * if the kernel supports this flag.
+ */
+#define EXEC_OBJECT_CAPTURE		(1<<7)
 /* All remaining bits are MBZ and RESERVED FOR FUTURE USE */
-#define __EXEC_OBJECT_UNKNOWN_FLAGS -(EXEC_OBJECT_PAD_TO_SIZE<<1)
+#define __EXEC_OBJECT_UNKNOWN_FLAGS -(EXEC_OBJECT_CAPTURE<<1)
 	__u64 flags;
 
 	union {
@@ -746,6 +819,17 @@ struct drm_i915_gem_exec_object2 {
 		__u64 pad_to_size;
 	};
 	__u64 rsvd2;
+};
+
+struct drm_i915_gem_exec_fence {
+	/**
+	 * User's handle for a drm_syncobj to wait on or signal.
+	 */
+	__u32 handle;
+
+#define I915_EXEC_FENCE_WAIT            (1<<0)
+#define I915_EXEC_FENCE_SIGNAL          (1<<1)
+	__u32 flags;
 };
 
 struct drm_i915_gem_execbuffer2 {
@@ -762,7 +846,11 @@ struct drm_i915_gem_execbuffer2 {
 	__u32 DR1;
 	__u32 DR4;
 	__u32 num_cliprects;
-	/** This is a struct drm_clip_rect *cliprects */
+	/**
+	 * This is a struct drm_clip_rect *cliprects if I915_EXEC_FENCE_ARRAY
+	 * is not set.  If I915_EXEC_FENCE_ARRAY is set, then this is a
+	 * struct drm_i915_gem_exec_fence *fences.
+	 */
 	__u64 cliprects_ptr;
 #define I915_EXEC_RING_MASK              (7<<0)
 #define I915_EXEC_DEFAULT                (0<<0)
@@ -828,7 +916,49 @@ struct drm_i915_gem_execbuffer2 {
  */
 #define I915_EXEC_RESOURCE_STREAMER     (1<<15)
 
-#define __I915_EXEC_UNKNOWN_FLAGS -(I915_EXEC_RESOURCE_STREAMER<<1)
+/* Setting I915_EXEC_FENCE_IN implies that lower_32_bits(rsvd2) represent
+ * a sync_file fd to wait upon (in a nonblocking manner) prior to executing
+ * the batch.
+ *
+ * Returns -EINVAL if the sync_file fd cannot be found.
+ */
+#define I915_EXEC_FENCE_IN		(1<<16)
+
+/* Setting I915_EXEC_FENCE_OUT causes the ioctl to return a sync_file fd
+ * in the upper_32_bits(rsvd2) upon success. Ownership of the fd is given
+ * to the caller, and it should be close() after use. (The fd is a regular
+ * file descriptor and will be cleaned up on process termination. It holds
+ * a reference to the request, but nothing else.)
+ *
+ * The sync_file fd can be combined with other sync_file and passed either
+ * to execbuf using I915_EXEC_FENCE_IN, to atomic KMS ioctls (so that a flip
+ * will only occur after this request completes), or to other devices.
+ *
+ * Using I915_EXEC_FENCE_OUT requires use of
+ * DRM_IOCTL_I915_GEM_EXECBUFFER2_WR ioctl so that the result is written
+ * back to userspace. Failure to do so will cause the out-fence to always
+ * be reported as zero, and the real fence fd to be leaked.
+ */
+#define I915_EXEC_FENCE_OUT		(1<<17)
+
+/*
+ * Traditionally the execbuf ioctl has only considered the final element in
+ * the execobject[] to be the executable batch. Often though, the client
+ * will known the batch object prior to construction and being able to place
+ * it into the execobject[] array first can simplify the relocation tracking.
+ * Setting I915_EXEC_BATCH_FIRST tells execbuf to use element 0 of the
+ * execobject[] as the * batch instead (the default is to use the last
+ * element).
+ */
+#define I915_EXEC_BATCH_FIRST		(1<<18)
+
+/* Setting I915_FENCE_ARRAY implies that num_cliprects and cliprects_ptr
+ * define an array of i915_gem_exec_fence structures which specify a set of
+ * dma fences to wait upon or signal.
+ */
+#define I915_EXEC_FENCE_ARRAY   (1<<19)
+
+#define __I915_EXEC_UNKNOWN_FLAGS (-(I915_EXEC_FENCE_ARRAY<<1))
 
 #define I915_EXEC_CONTEXT_ID_MASK	(0xffffffff)
 #define i915_execbuffer2_set_context_id(eb2, context) \
@@ -1232,13 +1362,18 @@ struct drm_i915_gem_context_param {
 };
 
 enum drm_i915_oa_format {
-	I915_OA_FORMAT_A13 = 1,
-	I915_OA_FORMAT_A29,
-	I915_OA_FORMAT_A13_B8_C8,
-	I915_OA_FORMAT_B4_C8,
-	I915_OA_FORMAT_A45_B8_C8,
-	I915_OA_FORMAT_B4_C8_A16,
-	I915_OA_FORMAT_C4_B8,
+	I915_OA_FORMAT_A13 = 1,	    /* HSW only */
+	I915_OA_FORMAT_A29,	    /* HSW only */
+	I915_OA_FORMAT_A13_B8_C8,   /* HSW only */
+	I915_OA_FORMAT_B4_C8,	    /* HSW only */
+	I915_OA_FORMAT_A45_B8_C8,   /* HSW only */
+	I915_OA_FORMAT_B4_C8_A16,   /* HSW only */
+	I915_OA_FORMAT_C4_B8,	    /* HSW+ */
+
+	/* Gen8+ */
+	I915_OA_FORMAT_A12,
+	I915_OA_FORMAT_A12_B8_C8,
+	I915_OA_FORMAT_A32u40_A4u32_B8_C8,
 
 	I915_OA_FORMAT_MAX	    /* non-ABI */
 };
@@ -1361,6 +1496,22 @@ enum drm_i915_perf_record_type {
 	DRM_I915_PERF_RECORD_OA_BUFFER_LOST = 3,
 
 	DRM_I915_PERF_RECORD_MAX /* non-ABI */
+};
+
+/**
+ * Structure to upload perf dynamic configuration into the kernel.
+ */
+struct drm_i915_perf_oa_config {
+	/** String formatted like "%08x-%04x-%04x-%04x-%012x" */
+	char uuid[36];
+
+	__u32 n_mux_regs;
+	__u32 n_boolean_regs;
+	__u32 n_flex_regs;
+
+	__u64 __user mux_regs_ptr;
+	__u64 __user boolean_regs_ptr;
+	__u64 __user flex_regs_ptr;
 };
 
 #if defined(__cplusplus)

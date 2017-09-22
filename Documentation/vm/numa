@@ -79,11 +79,8 @@ memory, Linux must decide whether to order the zonelists such that allocations
 fall back to the same zone type on a different node, or to a different zone
 type on the same node.  This is an important consideration because some zones,
 such as DMA or DMA32, represent relatively scarce resources.  Linux chooses
-a default zonelist order based on the sizes of the various zone types relative
-to the total memory of the node and the total memory of the system.  The
-default zonelist order may be overridden using the numa_zonelist_order kernel
-boot parameter or sysctl.  [see Documentation/admin-guide/kernel-parameters.rst and
-Documentation/sysctl/vm.txt]
+a default Node ordered zonelist. This means it tries to fallback to other zones
+from the same node before using remote nodes which are ordered by NUMA distance.
 
 By default, Linux will attempt to satisfy memory allocation requests from the
 node to which the CPU that executes the request is assigned.  Specifically,

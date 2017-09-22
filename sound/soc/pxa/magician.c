@@ -255,12 +255,12 @@ static int magician_capture_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops magician_capture_ops = {
+static const struct snd_soc_ops magician_capture_ops = {
 	.startup = magician_startup,
 	.hw_params = magician_capture_hw_params,
 };
 
-static struct snd_soc_ops magician_playback_ops = {
+static const struct snd_soc_ops magician_playback_ops = {
 	.startup = magician_startup,
 	.hw_params = magician_playback_hw_params,
 };

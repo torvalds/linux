@@ -3,3 +3,4 @@
 #include <asm/fpu.h>
 #include <asm-generic/asm-prototypes.h>
 #include <asm/uaccess.h>
+#include <asm/ftrace.h>

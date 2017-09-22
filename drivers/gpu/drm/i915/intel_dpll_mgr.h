@@ -128,6 +128,10 @@ struct intel_dpll_hw_state {
 	/* HDMI only, 0 when used for DP */
 	uint32_t cfgcr1, cfgcr2;
 
+	/* cnl */
+	uint32_t cfgcr0;
+	/* CNL also uses cfgcr1 */
+
 	/* bxt */
 	uint32_t ebb0, ebb4, pll0, pll1, pll2, pll3, pll6, pll8, pll9, pll10,
 		 pcsdw12;
@@ -281,21 +285,5 @@ void intel_shared_dpll_init(struct drm_device *dev);
 
 void intel_dpll_dump_hw_state(struct drm_i915_private *dev_priv,
 			      struct intel_dpll_hw_state *hw_state);
-
-/* BXT dpll related functions */
-bool bxt_ddi_dp_set_dpll_hw_state(int clock,
-			  struct intel_dpll_hw_state *dpll_hw_state);
-
-
-/* SKL dpll related functions */
-bool skl_ddi_dp_set_dpll_hw_state(int clock,
-				  struct intel_dpll_hw_state *dpll_hw_state);
-struct intel_shared_dpll *skl_find_link_pll(struct drm_i915_private *dev_priv,
-					    int clock);
-
-
-/* HSW dpll related functions */
-struct intel_shared_dpll *hsw_ddi_dp_get_dpll(struct intel_encoder *encoder,
-					      int clock);
 
 #endif /* _INTEL_DPLL_MGR_H_ */

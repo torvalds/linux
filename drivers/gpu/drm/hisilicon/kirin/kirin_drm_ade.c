@@ -178,6 +178,19 @@ static void ade_init(struct ade_hw_ctx *ctx)
 			FRM_END_START_MASK, REG_EFFECTIVE_IN_ADEEN_FRMEND);
 }
 
+static bool ade_crtc_mode_fixup(struct drm_crtc *crtc,
+				const struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode)
+{
+	struct ade_crtc *acrtc = to_ade_crtc(crtc);
+	struct ade_hw_ctx *ctx = acrtc->ctx;
+
+	adjusted_mode->clock =
+		clk_round_rate(ctx->ade_pix_clk, mode->clock * 1000) / 1000;
+	return true;
+}
+
+
 static void ade_set_pix_clk(struct ade_hw_ctx *ctx,
 			    struct drm_display_mode *mode,
 			    struct drm_display_mode *adj_mode)
@@ -302,9 +315,8 @@ static void ade_set_medianoc_qos(struct ade_crtc *acrtc)
 			   SOCKET_QOS_EN, SOCKET_QOS_EN);
 }
 
-static int ade_enable_vblank(struct drm_device *dev, unsigned int pipe)
+static int ade_crtc_enable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_crtc *crtc = drm_crtc_from_index(dev, pipe);
 	struct ade_crtc *acrtc = to_ade_crtc(crtc);
 	struct ade_hw_ctx *ctx = acrtc->ctx;
 	void __iomem *base = ctx->base;
@@ -318,9 +330,8 @@ static int ade_enable_vblank(struct drm_device *dev, unsigned int pipe)
 	return 0;
 }
 
-static void ade_disable_vblank(struct drm_device *dev, unsigned int pipe)
+static void ade_crtc_disable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_crtc *crtc = drm_crtc_from_index(dev, pipe);
 	struct ade_crtc *acrtc = to_ade_crtc(crtc);
 	struct ade_hw_ctx *ctx = acrtc->ctx;
 	void __iomem *base = ctx->base;
@@ -469,7 +480,8 @@ static void ade_dump_regs(void __iomem *base)
 static void ade_dump_regs(void __iomem *base) { }
 #endif
 
-static void ade_crtc_enable(struct drm_crtc *crtc)
+static void ade_crtc_atomic_enable(struct drm_crtc *crtc,
+				   struct drm_crtc_state *old_state)
 {
 	struct ade_crtc *acrtc = to_ade_crtc(crtc);
 	struct ade_hw_ctx *ctx = acrtc->ctx;
@@ -491,7 +503,8 @@ static void ade_crtc_enable(struct drm_crtc *crtc)
 	acrtc->enable = true;
 }
 
-static void ade_crtc_disable(struct drm_crtc *crtc)
+static void ade_crtc_atomic_disable(struct drm_crtc *crtc,
+				    struct drm_crtc_state *old_state)
 {
 	struct ade_crtc *acrtc = to_ade_crtc(crtc);
 	struct ade_hw_ctx *ctx = acrtc->ctx;
@@ -555,11 +568,12 @@ static void ade_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs ade_crtc_helper_funcs = {
-	.enable		= ade_crtc_enable,
-	.disable	= ade_crtc_disable,
+	.mode_fixup	= ade_crtc_mode_fixup,
 	.mode_set_nofb	= ade_crtc_mode_set_nofb,
 	.atomic_begin	= ade_crtc_atomic_begin,
 	.atomic_flush	= ade_crtc_atomic_flush,
+	.atomic_enable	= ade_crtc_atomic_enable,
+	.atomic_disable	= ade_crtc_atomic_disable,
 };
 
 static const struct drm_crtc_funcs ade_crtc_funcs = {
@@ -567,9 +581,10 @@ static const struct drm_crtc_funcs ade_crtc_funcs = {
 	.set_config	= drm_atomic_helper_set_config,
 	.page_flip	= drm_atomic_helper_page_flip,
 	.reset		= drm_atomic_helper_crtc_reset,
-	.set_property = drm_atomic_helper_crtc_set_property,
 	.atomic_duplicate_state	= drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state	= drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank	= ade_crtc_enable_vblank,
+	.disable_vblank	= ade_crtc_disable_vblank,
 };
 
 static int ade_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
@@ -583,8 +598,7 @@ static int ade_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 	 */
 	port = of_get_child_by_name(dev->dev->of_node, "port");
 	if (!port) {
-		DRM_ERROR("no port node found in %s\n",
-			  dev->dev->of_node->full_name);
+		DRM_ERROR("no port node found in %pOF\n", dev->dev->of_node);
 		return -EINVAL;
 	}
 	of_node_put(port);
@@ -889,7 +903,6 @@ static const struct drm_plane_helper_funcs ade_plane_helper_funcs = {
 static struct drm_plane_funcs ade_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
-	.set_property = drm_atomic_helper_plane_set_property,
 	.destroy = drm_plane_cleanup,
 	.reset = drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
@@ -909,7 +922,7 @@ static int ade_plane_init(struct drm_device *dev, struct ade_plane *aplane,
 		return ret;
 
 	ret = drm_universal_plane_init(dev, &aplane->base, 1, &ade_plane_funcs,
-				       fmts, fmts_cnt, type, NULL);
+				       fmts, fmts_cnt, NULL, type, NULL);
 	if (ret) {
 		DRM_ERROR("fail to init plane, ch=%d\n", aplane->ch);
 		return ret;
@@ -1025,9 +1038,6 @@ static int ade_drm_init(struct platform_device *pdev)
 			       IRQF_SHARED, dev->driver->name, acrtc);
 	if (ret)
 		return ret;
-	dev->driver->get_vblank_counter = drm_vblank_no_hw_counter;
-	dev->driver->enable_vblank = ade_enable_vblank;
-	dev->driver->disable_vblank = ade_disable_vblank;
 
 	return 0;
 }

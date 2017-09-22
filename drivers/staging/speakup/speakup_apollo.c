@@ -22,9 +22,9 @@
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/kthread.h>
+#include <linux/serial_reg.h>	/* for UART_MCR* constants */
 
 #include "spk_priv.h"
-#include "serialio.h"
 #include "speakup.h"
 
 #define DRV_VERSION "2.21"
@@ -105,12 +105,14 @@ static struct spk_synth synth_apollo = {
 	.trigger = 50,
 	.jiffies = 50,
 	.full = 40000,
+	.dev_name = SYNTH_DEFAULT_DEV,
 	.startup = SYNTH_START,
 	.checkval = SYNTH_CHECK,
 	.vars = vars,
-	.probe = spk_serial_synth_probe,
-	.release = spk_serial_release,
-	.synth_immediate = spk_synth_immediate,
+	.io_ops = &spk_ttyio_ops,
+	.probe = spk_ttyio_synth_probe,
+	.release = spk_ttyio_release,
+	.synth_immediate = spk_ttyio_synth_immediate,
 	.catch_up = do_catch_up,
 	.flush = spk_synth_flush,
 	.is_alive = spk_synth_is_alive_restart,
@@ -160,6 +162,7 @@ static void do_catch_up(struct spk_synth *synth)
 			synth->flush(synth);
 			continue;
 		}
+		synth_buffer_skip_nonlatin1();
 		if (synth_buffer_empty()) {
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			break;
@@ -168,10 +171,9 @@ static void do_catch_up(struct spk_synth *synth)
 		set_current_state(TASK_INTERRUPTIBLE);
 		full_time_val = full_time->u.n.value;
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
-		if (!spk_serial_out(ch)) {
-			outb(UART_MCR_DTR, speakup_info.port_tts + UART_MCR);
-			outb(UART_MCR_DTR | UART_MCR_RTS,
-					speakup_info.port_tts + UART_MCR);
+		if (!synth->io_ops->synth_out(synth, ch)) {
+			synth->io_ops->tiocmset(0, UART_MCR_RTS);
+			synth->io_ops->tiocmset(UART_MCR_RTS, 0);
 			schedule_timeout(msecs_to_jiffies(full_time_val));
 			continue;
 		}
@@ -181,7 +183,7 @@ static void do_catch_up(struct spk_synth *synth)
 			full_time_val = full_time->u.n.value;
 			delay_time_val = delay_time->u.n.value;
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
-			if (spk_serial_out(synth->procspeech))
+			if (synth->io_ops->synth_out(synth, synth->procspeech))
 				schedule_timeout(msecs_to_jiffies
 						 (delay_time_val));
 			else
@@ -194,13 +196,15 @@ static void do_catch_up(struct spk_synth *synth)
 		synth_buffer_getc();
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	}
-	spk_serial_out(PROCSPEECH);
+	synth->io_ops->synth_out(synth, PROCSPEECH);
 }
 
 module_param_named(ser, synth_apollo.ser, int, 0444);
+module_param_named(dev, synth_apollo.dev_name, charp, S_IRUGO);
 module_param_named(start, synth_apollo.startup, short, 0444);
 
 MODULE_PARM_DESC(ser, "Set the serial port for the synthesizer (0-based).");
+MODULE_PARM_DESC(dev, "Set the device e.g. ttyUSB0, for the synthesizer.");
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
 module_spk_synth(synth_apollo);

@@ -37,11 +37,17 @@
 #define PP_ASSERT_WITH_CODE(cond, msg, code)	\
 	do {					\
 		if (!(cond)) {			\
-			pr_warning("%s\n", msg);	\
+			pr_warn("%s\n", msg);	\
 			code;			\
 		}				\
 	} while (0)
 
+#define PP_ASSERT(cond, msg)	\
+	do {					\
+		if (!(cond)) {			\
+			pr_warn("%s\n", msg);	\
+		}				\
+	} while (0)
 
 #define PP_DBG_LOG(fmt, ...) \
 	do { \

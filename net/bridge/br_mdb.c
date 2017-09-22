@@ -323,7 +323,8 @@ static void __br_mdb_notify(struct net_device *dev, struct net_bridge_port *p,
 			__mdb_entry_to_br_ip(entry, &complete_info->ip);
 			mdb.obj.complete_priv = complete_info;
 			mdb.obj.complete = br_mdb_complete;
-			switchdev_port_obj_add(port_dev, &mdb.obj);
+			if (switchdev_port_obj_add(port_dev, &mdb.obj))
+				kfree(complete_info);
 		}
 	} else if (port_dev && type == RTM_DELMDB) {
 		switchdev_port_obj_del(port_dev, &mdb.obj);
@@ -464,7 +465,8 @@ static int br_mdb_parse(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net_device *dev;
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(*bpm), tb, MDBA_SET_ENTRY_MAX, NULL);
+	err = nlmsg_parse(nlh, sizeof(*bpm), tb, MDBA_SET_ENTRY_MAX, NULL,
+			  NULL);
 	if (err < 0)
 		return err;
 
@@ -568,7 +570,8 @@ static int __br_mdb_add(struct net *net, struct net_bridge *br,
 	return ret;
 }
 
-static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh,
+		      struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct net_bridge_vlan_group *vg;
@@ -597,7 +600,7 @@ static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh)
 		return -EINVAL;
 
 	vg = nbp_vlan_group(p);
-	if (br_vlan_enabled(br) && vg && entry->vid == 0) {
+	if (br_vlan_enabled(br->dev) && vg && entry->vid == 0) {
 		list_for_each_entry(v, &vg->vlan_list, vlist) {
 			entry->vid = v->vid;
 			err = __br_mdb_add(net, br, entry);
@@ -662,7 +665,8 @@ unlock:
 	return err;
 }
 
-static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
+		      struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct net_bridge_vlan_group *vg;
@@ -691,7 +695,7 @@ static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh)
 		return -EINVAL;
 
 	vg = nbp_vlan_group(p);
-	if (br_vlan_enabled(br) && vg && entry->vid == 0) {
+	if (br_vlan_enabled(br->dev) && vg && entry->vid == 0) {
 		list_for_each_entry(v, &vg->vlan_list, vlist) {
 			entry->vid = v->vid;
 			err = __br_mdb_del(br, entry);
@@ -709,9 +713,9 @@ static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 void br_mdb_init(void)
 {
-	rtnl_register(PF_BRIDGE, RTM_GETMDB, NULL, br_mdb_dump, NULL);
-	rtnl_register(PF_BRIDGE, RTM_NEWMDB, br_mdb_add, NULL, NULL);
-	rtnl_register(PF_BRIDGE, RTM_DELMDB, br_mdb_del, NULL, NULL);
+	rtnl_register(PF_BRIDGE, RTM_GETMDB, NULL, br_mdb_dump, 0);
+	rtnl_register(PF_BRIDGE, RTM_NEWMDB, br_mdb_add, NULL, 0);
+	rtnl_register(PF_BRIDGE, RTM_DELMDB, br_mdb_del, NULL, 0);
 }
 
 void br_mdb_uninit(void)

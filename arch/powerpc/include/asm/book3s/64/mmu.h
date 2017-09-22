@@ -59,12 +59,15 @@ extern struct patb_entry *partition_tb;
 #define PRTS_MASK	0x1f		/* process table size field */
 #define PRTB_MASK	0x0ffffffffffff000UL
 
-/*
- * Limit process table to PAGE_SIZE table. This
- * also limit the max pid we can support.
- * MAX_USER_CONTEXT * 16 bytes of space.
- */
-#define PRTB_SIZE_SHIFT	(CONTEXT_BITS + 4)
+/* Number of supported PID bits */
+extern unsigned int mmu_pid_bits;
+
+/* Base PID to allocate from */
+extern unsigned int mmu_base_pid;
+
+#define PRTB_SIZE_SHIFT	(mmu_pid_bits + 4)
+#define PRTB_ENTRIES	(1ul << mmu_pid_bits)
+
 /*
  * Power9 currently only support 64K partition table size.
  */
@@ -73,13 +76,23 @@ extern struct patb_entry *partition_tb;
 typedef unsigned long mm_context_id_t;
 struct spinlock;
 
+/* Maximum possible number of NPUs in a system. */
+#define NV_MAX_NPUS 8
+
 typedef struct {
 	mm_context_id_t id;
 	u16 user_psize;		/* page size index */
 
+	/* Number of bits in the mm_cpumask */
+	atomic_t active_cpus;
+
+	/* NPU NMMU context */
+	struct npu_context *npu_context;
+
 #ifdef CONFIG_PPC_MM_SLICES
 	u64 low_slices_psize;	/* SLB page size encodings */
 	unsigned char high_slices_psize[SLICE_ARRAY_SIZE];
+	unsigned long addr_limit;
 #else
 	u16 sllp;		/* SLB page size encoding */
 #endif
@@ -87,11 +100,6 @@ typedef struct {
 #ifdef CONFIG_PPC_SUBPAGE_PROT
 	struct subpage_prot_table spt;
 #endif /* CONFIG_PPC_SUBPAGE_PROT */
-#ifdef CONFIG_PPC_ICSWX
-	struct spinlock *cop_lockp; /* guard acop and cop_pid */
-	unsigned long acop;	/* mask of enabled coprocessor types */
-	unsigned int cop_pid;	/* pid value used with coprocessors */
-#endif /* CONFIG_PPC_ICSWX */
 #ifdef CONFIG_PPC_64K_PAGES
 	/* for 4K PTE fragment support */
 	void *pte_frag;

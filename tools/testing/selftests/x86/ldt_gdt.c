@@ -409,6 +409,51 @@ static void *threadproc(void *ctx)
 	}
 }
 
+#ifdef __i386__
+
+#ifndef SA_RESTORE
+#define SA_RESTORER 0x04000000
+#endif
+
+/*
+ * The UAPI header calls this 'struct sigaction', which conflicts with
+ * glibc.  Sigh.
+ */
+struct fake_ksigaction {
+	void *handler;  /* the real type is nasty */
+	unsigned long sa_flags;
+	void (*sa_restorer)(void);
+	unsigned char sigset[8];
+};
+
+static void fix_sa_restorer(int sig)
+{
+	struct fake_ksigaction ksa;
+
+	if (syscall(SYS_rt_sigaction, sig, NULL, &ksa, 8) == 0) {
+		/*
+		 * glibc has a nasty bug: it sometimes writes garbage to
+		 * sa_restorer.  This interacts quite badly with anything
+		 * that fiddles with SS because it can trigger legacy
+		 * stack switching.  Patch it up.  See:
+		 *
+		 * https://sourceware.org/bugzilla/show_bug.cgi?id=21269
+		 */
+		if (!(ksa.sa_flags & SA_RESTORER) && ksa.sa_restorer) {
+			ksa.sa_restorer = NULL;
+			if (syscall(SYS_rt_sigaction, sig, &ksa, NULL,
+				    sizeof(ksa.sigset)) != 0)
+				err(1, "rt_sigaction");
+		}
+	}
+}
+#else
+static void fix_sa_restorer(int sig)
+{
+	/* 64-bit glibc works fine. */
+}
+#endif
+
 static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
 		       int flags)
 {
@@ -420,6 +465,7 @@ static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
 	if (sigaction(sig, &sa, 0))
 		err(1, "sigaction");
 
+	fix_sa_restorer(sig);
 }
 
 static jmp_buf jmpbuf;

@@ -38,7 +38,7 @@
 # define __maybe_unused		__attribute__ ((__unused__))
 #endif
 
-static __maybe_unused void sock_setfilter(int fd, int lvl, int optnum)
+static __maybe_unused void pair_udp_setfilter(int fd)
 {
 	/* the filter below checks for all of the following conditions that
 	 * are based on the contents of create_payload()
@@ -76,21 +76,14 @@ static __maybe_unused void sock_setfilter(int fd, int lvl, int optnum)
 	};
 	struct sock_fprog bpf_prog;
 
-	if (lvl == SOL_PACKET && optnum == PACKET_FANOUT_DATA)
-		bpf_filter[5].code = 0x16;   /* RET A			      */
-
 	bpf_prog.filter = bpf_filter;
 	bpf_prog.len = sizeof(bpf_filter) / sizeof(struct sock_filter);
-	if (setsockopt(fd, lvl, optnum, &bpf_prog,
+
+	if (setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf_prog,
 		       sizeof(bpf_prog))) {
 		perror("setsockopt SO_ATTACH_FILTER");
 		exit(1);
 	}
-}
-
-static __maybe_unused void pair_udp_setfilter(int fd)
-{
-	sock_setfilter(fd, SOL_SOCKET, SO_ATTACH_FILTER);
 }
 
 static __maybe_unused void pair_udp_open(int fds[], uint16_t port)

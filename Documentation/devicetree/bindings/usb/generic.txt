@@ -22,6 +22,7 @@ Optional properties:
 			property is used if any real OTG features(HNP/SRP/ADP)
 			is enabled, if ADP is required, otg-rev should be
 			0x0200 or above.
+ - companion: phandle of a companion
  - hnp-disable: tells OTG controllers we want to disable OTG HNP, normally HNP
 			is the basic function of real OTG except you want it
 			to be a srp-capable only B device.

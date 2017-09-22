@@ -22,12 +22,11 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include "ion.h"
-#include "ion_priv.h"
 
 struct ion_chunk_heap {
 	struct ion_heap heap;
 	struct gen_pool *pool;
-	ion_phys_addr_t base;
+	phys_addr_t base;
 	unsigned long chunk_size;
 	unsigned long size;
 	unsigned long allocated;
@@ -35,7 +34,7 @@ struct ion_chunk_heap {
 
 static int ion_chunk_heap_allocate(struct ion_heap *heap,
 				   struct ion_buffer *buffer,
-				   unsigned long size, unsigned long align,
+				   unsigned long size,
 				   unsigned long flags)
 {
 	struct ion_chunk_heap *chunk_heap =
@@ -45,9 +44,6 @@ static int ion_chunk_heap_allocate(struct ion_heap *heap,
 	int ret, i;
 	unsigned long num_chunks;
 	unsigned long allocated_size;
-
-	if (align > chunk_heap->chunk_size)
-		return -EINVAL;
 
 	allocated_size = ALIGN(size, chunk_heap->chunk_size);
 	num_chunks = allocated_size / chunk_heap->chunk_size;
@@ -104,10 +100,6 @@ static void ion_chunk_heap_free(struct ion_buffer *buffer)
 
 	ion_heap_buffer_zero(buffer);
 
-	if (ion_buffer_cached(buffer))
-		dma_sync_sg_for_device(NULL, table->sgl, table->nents,
-				       DMA_BIDIRECTIONAL);
-
 	for_each_sg(table->sgl, sg, table->nents, i) {
 		gen_pool_free(chunk_heap->pool, page_to_phys(sg_page(sg)),
 			      sg->length);
@@ -135,8 +127,6 @@ struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *heap_data)
 	page = pfn_to_page(PFN_DOWN(heap_data->base));
 	size = heap_data->size;
 
-	ion_pages_sync_for_device(NULL, page, size, DMA_BIDIRECTIONAL);
-
 	ret = ion_heap_pages_zero(page, size, pgprot_writecombine(PAGE_KERNEL));
 	if (ret)
 		return ERR_PTR(ret);
@@ -160,8 +150,8 @@ struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *heap_data)
 	chunk_heap->heap.ops = &chunk_heap_ops;
 	chunk_heap->heap.type = ION_HEAP_TYPE_CHUNK;
 	chunk_heap->heap.flags = ION_HEAP_FLAG_DEFER_FREE;
-	pr_debug("%s: base %lu size %zu align %ld\n", __func__,
-		 chunk_heap->base, heap_data->size, heap_data->align);
+	pr_debug("%s: base %pa size %zu\n", __func__,
+		 &chunk_heap->base, heap_data->size);
 
 	return &chunk_heap->heap;
 
@@ -170,12 +160,3 @@ error_gen_pool_create:
 	return ERR_PTR(ret);
 }
 
-void ion_chunk_heap_destroy(struct ion_heap *heap)
-{
-	struct ion_chunk_heap *chunk_heap =
-	     container_of(heap, struct  ion_chunk_heap, heap);
-
-	gen_pool_destroy(chunk_heap->pool);
-	kfree(chunk_heap);
-	chunk_heap = NULL;
-}

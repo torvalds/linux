@@ -16,7 +16,6 @@
 #include <linux/rbtree.h>
 #include "util/symbol.h"
 #include "util/callchain.h"
-#include "util/strlist.h"
 #include "util/values.h"
 
 #include "perf.h"
@@ -38,10 +37,19 @@
 #include "arch/common.h"
 #include "util/time-utils.h"
 #include "util/auxtrace.h"
+#include "util/units.h"
+#include "util/branch.h"
 
 #include <dlfcn.h>
+#include <errno.h>
+#include <inttypes.h>
+#include <regex.h>
+#include <signal.h>
 #include <linux/bitmap.h>
 #include <linux/stringify.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 struct report {
 	struct perf_tool	tool;
@@ -66,6 +74,7 @@ struct report {
 	u64			queue_size;
 	int			socket_filter;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
+	struct branch_type_stat	brtype_stat;
 };
 
 static int report__config(const char *var, const char *value, void *cb)
@@ -87,10 +96,9 @@ static int report__config(const char *var, const char *value, void *cb)
 		symbol_conf.cumulate_callchain = perf_config_bool(var, value);
 		return 0;
 	}
-	if (!strcmp(var, "report.queue-size")) {
-		rep->queue_size = perf_config_u64(var, value);
-		return 0;
-	}
+	if (!strcmp(var, "report.queue-size"))
+		return perf_config_u64(&rep->queue_size, var, value);
+
 	if (!strcmp(var, "report.sort_order")) {
 		default_sort_order = strdup(value);
 		return 0;
@@ -107,41 +115,58 @@ static int hist_iter__report_callback(struct hist_entry_iter *iter,
 	struct report *rep = arg;
 	struct hist_entry *he = iter->he;
 	struct perf_evsel *evsel = iter->evsel;
+	struct perf_sample *sample = iter->sample;
 	struct mem_info *mi;
 	struct branch_info *bi;
 
 	if (!ui__has_annotation())
 		return 0;
 
-	hist__account_cycles(iter->sample->branch_stack, al, iter->sample,
+	hist__account_cycles(sample->branch_stack, al, sample,
 			     rep->nonany_branch_mode);
 
 	if (sort__mode == SORT_MODE__BRANCH) {
 		bi = he->branch_info;
-		err = addr_map_symbol__inc_samples(&bi->from, evsel->idx);
+		err = addr_map_symbol__inc_samples(&bi->from, sample, evsel->idx);
 		if (err)
 			goto out;
 
-		err = addr_map_symbol__inc_samples(&bi->to, evsel->idx);
+		err = addr_map_symbol__inc_samples(&bi->to, sample, evsel->idx);
 
 	} else if (rep->mem_mode) {
 		mi = he->mem_info;
-		err = addr_map_symbol__inc_samples(&mi->daddr, evsel->idx);
+		err = addr_map_symbol__inc_samples(&mi->daddr, sample, evsel->idx);
 		if (err)
 			goto out;
 
-		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
+		err = hist_entry__inc_addr_samples(he, sample, evsel->idx, al->addr);
 
 	} else if (symbol_conf.cumulate_callchain) {
 		if (single)
-			err = hist_entry__inc_addr_samples(he, evsel->idx,
+			err = hist_entry__inc_addr_samples(he, sample, evsel->idx,
 							   al->addr);
 	} else {
-		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
+		err = hist_entry__inc_addr_samples(he, sample, evsel->idx, al->addr);
 	}
 
 out:
 	return err;
+}
+
+static int hist_iter__branch_callback(struct hist_entry_iter *iter,
+				      struct addr_location *al __maybe_unused,
+				      bool single __maybe_unused,
+				      void *arg)
+{
+	struct hist_entry *he = iter->he;
+	struct report *rep = arg;
+	struct branch_info *bi;
+
+	bi = he->branch_info;
+	branch_type_count(&rep->brtype_stat, &bi->flags,
+			  bi->from.addr, bi->to.addr);
+
+	return 0;
 }
 
 static int process_sample_event(struct perf_tool *tool,
@@ -182,6 +207,8 @@ static int process_sample_event(struct perf_tool *tool,
 		 */
 		if (!sample->branch_stack)
 			goto out_put;
+
+		iter.add_entry_cb = hist_iter__branch_callback;
 		iter.ops = &hist_iter_branch;
 	} else if (rep->mem_mode) {
 		iter.ops = &hist_iter_mem;
@@ -214,17 +241,13 @@ static int process_read_event(struct perf_tool *tool,
 		const char *name = evsel ? perf_evsel__name(evsel) : "unknown";
 		int err = perf_read_values_add_value(&rep->show_threads_values,
 					   event->read.pid, event->read.tid,
-					   event->read.id,
+					   evsel->idx,
 					   name,
 					   event->read.value);
 
 		if (err)
 			return err;
 	}
-
-	dump_printf(": %d %d %s %" PRIu64 "\n", event->read.pid, event->read.tid,
-		    evsel ? perf_evsel__name(evsel) : "FAIL",
-		    event->read.value);
 
 	return 0;
 }
@@ -252,10 +275,11 @@ static int report__setup_sample_type(struct report *rep)
 				    "'perf record' without -g?\n");
 			return -EINVAL;
 		}
-		if (symbol_conf.use_callchain) {
-			ui__error("Selected -g or --branch-history but no "
-				  "callchain data. Did\n"
-				  "you call 'perf record' without -g?\n");
+		if (symbol_conf.use_callchain &&
+			!symbol_conf.show_branchflag_count) {
+			ui__error("Selected -g or --branch-history.\n"
+				  "But no callchain or branch data.\n"
+				  "Did you call 'perf record' without -g or -b?\n");
 			return -1;
 		}
 	} else if (!callchain_param.enabled &&
@@ -390,12 +414,12 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 
 		hists__fprintf_nr_sample_events(hists, rep, evname, stdout);
 		hists__fprintf(hists, !quiet, 0, 0, rep->min_percent, stdout,
-			       symbol_conf.use_callchain);
+			       symbol_conf.use_callchain ||
+			       symbol_conf.show_branchflag_count);
 		fprintf(stdout, "\n\n");
 	}
 
-	if (sort_order == NULL &&
-	    parent_pattern == default_parent_pattern)
+	if (!quiet)
 		fprintf(stdout, "#\n# (%s)\n#\n", help);
 
 	if (rep->show_threads) {
@@ -404,6 +428,9 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 					 style);
 		perf_read_values_destroy(&rep->show_threads_values);
 	}
+
+	if (sort__mode == SORT_MODE__BRANCH)
+		branch_type_stat_display(stdout, &rep->brtype_stat);
 
 	return 0;
 }
@@ -552,6 +579,7 @@ static int __cmd_report(struct report *rep)
 			ui__error("failed to set cpu bitmap\n");
 			return ret;
 		}
+		session->itrace_synth_opts->cpu_bitmap = rep->cpu_bitmap;
 	}
 
 	if (rep->show_threads) {
@@ -682,7 +710,7 @@ const char report_callchain_help[] = "Display call graph (stack chain/backtrace)
 				     CALLCHAIN_REPORT_HELP
 				     "\n\t\t\t\tDefault: " CALLCHAIN_DEFAULT_OPT;
 
-int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_report(int argc, const char **argv)
 {
 	struct perf_session *session;
 	struct itrace_synth_opts itrace_synth_opts = { .set = 0, };
@@ -701,6 +729,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 			.mmap		 = perf_event__process_mmap,
 			.mmap2		 = perf_event__process_mmap2,
 			.comm		 = perf_event__process_comm,
+			.namespaces	 = perf_event__process_namespaces,
 			.exit		 = perf_event__process_exit,
 			.fork		 = perf_event__process_fork,
 			.lost		 = perf_event__process_lost,
@@ -711,6 +740,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 			.id_index	 = perf_event__process_id_index,
 			.auxtrace_info	 = perf_event__process_auxtrace_info,
 			.auxtrace	 = perf_event__process_auxtrace,
+			.feature	 = perf_event__process_feature,
 			.ordered_events	 = true,
 			.ordering_requires_timestamps = true,
 		},
@@ -845,6 +875,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 			     stdio__config_color, "always"),
 	OPT_STRING(0, "time", &report.time_str, "str",
 		   "Time span of interest (start,stop)"),
+	OPT_BOOLEAN(0, "inline", &symbol_conf.inline_name,
+		    "Show inline function"),
 	OPT_END()
 	};
 	struct perf_data_file file = {
@@ -934,6 +966,8 @@ repeat:
 	if (has_br_stack && branch_call_mode)
 		symbol_conf.show_branchflag_count = true;
 
+	memset(&report.brtype_stat, 0, sizeof(struct branch_type_stat));
+
 	/*
 	 * Branch mode is a tristate:
 	 * -1 means default, so decide based on the file having branch data.
@@ -979,6 +1013,10 @@ repeat:
 	/* Force tty output for header output and per-thread stat. */
 	if (report.header || report.header_only || report.show_threads)
 		use_browser = 0;
+	if (report.header || report.header_only)
+		report.tool.show_feat_hdr = SHOW_FEAT_HEADER;
+	if (report.show_full_info)
+		report.tool.show_feat_hdr = SHOW_FEAT_HEADER_FULL_INFO;
 
 	if (strcmp(input_name, "-") != 0)
 		setup_browser(true);

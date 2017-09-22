@@ -44,14 +44,6 @@
 /* hbqinfo output buffer size */
 #define LPFC_HBQINFO_SIZE 8192
 
-enum {
-	DUMP_FCP,
-	DUMP_NVME,
-	DUMP_MBX,
-	DUMP_ELS,
-	DUMP_NVMELS,
-};
-
 /* nvmestat output buffer size */
 #define LPFC_NVMESTAT_SIZE 8192
 #define LPFC_NVMEKTIME_SIZE 8192
@@ -283,7 +275,21 @@ struct lpfc_idiag {
 	struct lpfc_idiag_offset offset;
 	void *ptr_private;
 };
+
+#else
+
+#define lpfc_nvmeio_data(phba, fmt, arg...) \
+	no_printk(fmt, ##arg)
+
 #endif
+
+enum {
+	DUMP_FCP,
+	DUMP_NVME,
+	DUMP_MBX,
+	DUMP_ELS,
+	DUMP_NVMELS,
+};
 
 /* Mask for discovery_trace */
 #define LPFC_DISC_TRC_ELS_CMD		0x1	/* Trace ELS commands */
@@ -472,15 +478,15 @@ lpfc_debug_dump_cq(struct lpfc_hba *phba, int qtype, int wqidx)
 		return;
 
 	for (eqidx = 0; eqidx < phba->io_channel_irqs; eqidx++) {
-		eq = phba->sli4_hba.hba_eq[eqidx];
-		if (cq->assoc_qid == eq->queue_id)
+		if (cq->assoc_qid == phba->sli4_hba.hba_eq[eqidx]->queue_id)
 			break;
 	}
 	if (eqidx == phba->io_channel_irqs) {
 		pr_err("Couldn't find EQ for CQ. Using EQ[0]\n");
 		eqidx = 0;
-		eq = phba->sli4_hba.hba_eq[0];
 	}
+
+	eq = phba->sli4_hba.hba_eq[eqidx];
 
 	if (qtype == DUMP_FCP || qtype == DUMP_NVME)
 		pr_err("%s CQ: WQ[Idx:%d|Qid%d]->CQ[Idx%d|Qid%d]"

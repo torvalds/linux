@@ -3464,7 +3464,7 @@ static struct attribute *il3945_sysfs_entries[] = {
 	NULL
 };
 
-static struct attribute_group il3945_attribute_group = {
+static const struct attribute_group il3945_attribute_group = {
 	.name = NULL,		/* put in device directory */
 	.attrs = il3945_sysfs_entries,
 };
@@ -3591,6 +3591,8 @@ il3945_setup_mac(struct il_priv *il)
 		    &il->bands[NL80211_BAND_5GHZ];
 
 	il_leds_init(il);
+
+	wiphy_ext_feature_set(il->hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
 	ret = ieee80211_register_hw(il->hw);
 	if (ret) {

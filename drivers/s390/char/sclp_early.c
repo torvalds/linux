@@ -39,8 +39,9 @@ struct read_info_sccb {
 	u8	fac84;			/* 84 */
 	u8	fac85;			/* 85 */
 	u8	_pad_86[91 - 86];	/* 86-90 */
-	u8	flags;			/* 91 */
-	u8	_pad_92[99 - 92];	/* 92-98 */
+	u8	fac91;			/* 91 */
+	u8	_pad_92[98 - 92];	/* 92-97 */
+	u8	fac98;			/* 98 */
 	u8	hamaxpow;		/* 99 */
 	u32	rnsize2;		/* 100-103 */
 	u64	rnmax2;			/* 104-111 */
@@ -99,8 +100,11 @@ static void __init sclp_early_facilities_detect(struct read_info_sccb *sccb)
 	sclp.has_pfmfi = !!(sccb->fac117 & 0x40);
 	sclp.has_ibs = !!(sccb->fac117 & 0x20);
 	sclp.has_hvs = !!(sccb->fac119 & 0x80);
+	sclp.has_kss = !!(sccb->fac98 & 0x01);
 	if (sccb->fac85 & 0x02)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_ESOP;
+	if (sccb->fac91 & 0x40)
+		S390_lowcore.machine_flags |= MACHINE_FLAG_TLB_GUEST;
 	sclp.rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
 	sclp.rzm = sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
 	sclp.rzm <<= 20;
@@ -137,7 +141,7 @@ static void __init sclp_early_facilities_detect(struct read_info_sccb *sccb)
 
 	/* Save IPL information */
 	sclp_ipl_info.is_valid = 1;
-	if (sccb->flags & 0x2)
+	if (sccb->fac91 & 0x2)
 		sclp_ipl_info.has_dump = 1;
 	memcpy(&sclp_ipl_info.loadparm, &sccb->loadparm, LOADPARM_LEN);
 

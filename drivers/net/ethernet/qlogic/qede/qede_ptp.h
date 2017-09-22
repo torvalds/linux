@@ -40,10 +40,8 @@
 void qede_ptp_rx_ts(struct qede_dev *edev, struct sk_buff *skb);
 void qede_ptp_tx_ts(struct qede_dev *edev, struct sk_buff *skb);
 int qede_ptp_hw_ts(struct qede_dev *edev, struct ifreq *req);
-void qede_ptp_start(struct qede_dev *edev, bool init_tc);
-void qede_ptp_stop(struct qede_dev *edev);
-void qede_ptp_remove(struct qede_dev *edev);
-int qede_ptp_register_phc(struct qede_dev *edev);
+void qede_ptp_disable(struct qede_dev *edev);
+int qede_ptp_enable(struct qede_dev *edev, bool init_tc);
 int qede_ptp_get_ts_info(struct qede_dev *edev, struct ethtool_ts_info *ts);
 
 static inline void qede_ptp_record_rx_ts(struct qede_dev *edev,

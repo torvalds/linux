@@ -1,4 +1,3 @@
-ccflags-y := -Iinclude/drm
 ifeq (, $(findstring -W,$(EXTRA_CFLAGS)))
 	ccflags-y += -Werror
 endif

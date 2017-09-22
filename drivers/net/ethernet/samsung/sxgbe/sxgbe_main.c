@@ -387,7 +387,7 @@ static void sxgbe_free_rx_buffers(struct net_device *dev,
 /**
  * init_tx_ring - init the TX descriptor ring
  * @dev: net device structure
- * @tx_ring: ring to be intialised
+ * @tx_ring: ring to be initialised
  * @tx_rsize: ring size
  * Description:  this function initializes the DMA TX descriptor
  */
@@ -437,7 +437,7 @@ dmamem_err:
 /**
  * free_rx_ring - free the RX descriptor ring
  * @dev: net device structure
- * @rx_ring: ring to be intialised
+ * @rx_ring: ring to be initialised
  * @rx_rsize: ring size
  * Description:  this function initializes the DMA RX descriptor
  */
@@ -453,7 +453,7 @@ static void free_rx_ring(struct device *dev, struct sxgbe_rx_queue *rx_ring,
 /**
  * init_rx_ring - init the RX descriptor ring
  * @dev: net device structure
- * @rx_ring: ring to be intialised
+ * @rx_ring: ring to be initialised
  * @rx_rsize: ring size
  * Description:  this function initializes the DMA RX descriptor
  */
@@ -539,7 +539,7 @@ err_free_dma_rx:
 /**
  * free_tx_ring - free the TX descriptor ring
  * @dev: net device structure
- * @tx_ring: ring to be intialised
+ * @tx_ring: ring to be initialised
  * @tx_rsize: ring size
  * Description:  this function initializes the DMA TX descriptor
  */
@@ -1418,8 +1418,7 @@ static netdev_tx_t sxgbe_xmit(struct sk_buff *skb, struct net_device *dev)
 		priv->hw->desc->tx_enable_tstamp(first_desc);
 	}
 
-	if (!tqueue->hwts_tx_en)
-		skb_tx_timestamp(skb);
+	skb_tx_timestamp(skb);
 
 	priv->hw->dma->enable_dma_transmission(priv->ioaddr, txq_index);
 

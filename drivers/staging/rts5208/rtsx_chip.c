@@ -616,8 +616,8 @@ int rtsx_reset_chip(struct rtsx_chip *chip)
 		else
 			retval = rtsx_pre_handle_sdio_new(chip);
 
-		dev_dbg(rtsx_dev(chip), "chip->need_reset = 0x%x (rtsx_reset_chip)\n",
-			(unsigned int)(chip->need_reset));
+		dev_dbg(rtsx_dev(chip), "chip->need_reset = 0x%x (%s)\n",
+			(unsigned int)(chip->need_reset), __func__);
 #else  /* HW_AUTO_SWITCH_SD_BUS */
 		retval = rtsx_pre_handle_sdio_old(chip);
 #endif  /* HW_AUTO_SWITCH_SD_BUS */
@@ -1490,7 +1490,7 @@ int rtsx_write_register(struct rtsx_chip *chip, u16 addr, u8 mask, u8 data)
 
 	for (i = 0; i < MAX_RW_REG_CNT; i++) {
 		val = rtsx_readl(chip, RTSX_HAIMR);
-		if ((val & (1 << 31)) == 0) {
+		if ((val & BIT(31)) == 0) {
 			if (data != (u8)val) {
 				rtsx_trace(chip);
 				return STATUS_FAIL;
@@ -1518,7 +1518,7 @@ int rtsx_read_register(struct rtsx_chip *chip, u16 addr, u8 *data)
 
 	for (i = 0; i < MAX_RW_REG_CNT; i++) {
 		val = rtsx_readl(chip, RTSX_HAIMR);
-		if ((val & (1 << 31)) == 0)
+		if ((val & BIT(31)) == 0)
 			break;
 	}
 

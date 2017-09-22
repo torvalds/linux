@@ -44,7 +44,14 @@ int __init efi_alloc_page_tables(void)
 }
 
 void efi_sync_low_kernel_mappings(void) {}
-void __init efi_dump_pagetable(void) {}
+
+void __init efi_dump_pagetable(void)
+{
+#ifdef CONFIG_EFI_PGT_DUMP
+	ptdump_walk_pgd_level(NULL, swapper_pg_dir);
+#endif
+}
+
 int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 {
 	return 0;
@@ -68,7 +75,7 @@ pgd_t * __init efi_call_phys_prolog(void)
 	load_cr3(initial_page_table);
 	__flush_tlb_all();
 
-	gdt_descr.address = __pa(get_cpu_gdt_table(0));
+	gdt_descr.address = get_cpu_gdt_paddr(0);
 	gdt_descr.size = GDT_SIZE - 1;
 	load_gdt(&gdt_descr);
 
@@ -79,7 +86,7 @@ void __init efi_call_phys_epilog(pgd_t *save_pgd)
 {
 	struct desc_ptr gdt_descr;
 
-	gdt_descr.address = (unsigned long)get_cpu_gdt_table(0);
+	gdt_descr.address = (unsigned long)get_cpu_gdt_rw(0);
 	gdt_descr.size = GDT_SIZE - 1;
 	load_gdt(&gdt_descr);
 

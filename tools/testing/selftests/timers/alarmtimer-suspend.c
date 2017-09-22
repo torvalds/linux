@@ -28,18 +28,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <pthread.h>
-#ifdef KTEST
 #include "../kselftest.h"
-#else
-static inline int ksft_exit_pass(void)
-{
-	exit(0);
-}
-static inline int ksft_exit_fail(void)
-{
-	exit(1);
-}
-#endif
 
 #define CLOCK_REALTIME			0
 #define CLOCK_MONOTONIC			1

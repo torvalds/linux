@@ -48,7 +48,7 @@ static int iwch_finish_mem_reg(struct iwch_mr *mhp, u32 stag)
 	mhp->attr.stag = stag;
 	mmid = stag >> 8;
 	mhp->ibmr.rkey = mhp->ibmr.lkey = stag;
-	PDBG("%s mmid 0x%x mhp %p\n", __func__, mmid, mhp);
+	pr_debug("%s mmid 0x%x mhp %p\n", __func__, mmid, mhp);
 	return insert_handle(mhp->rhp, &mhp->rhp->mmidr, mhp, mmid);
 }
 

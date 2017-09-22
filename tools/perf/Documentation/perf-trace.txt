@@ -37,7 +37,7 @@ OPTIONS
 --expr::
 --event::
 	List of syscalls and other perf events (tracepoints, HW cache events,
-	etc) to show.
+	etc) to show. Globbing is supported, e.g.: "epoll_*", "*msg*", etc.
 	See 'perf list' for a complete list of events.
 	Prefixing with ! shows all syscalls but the ones specified.  You may
 	need to escape it.
@@ -123,7 +123,8 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	major or all pagefaults. Default value is maj.
 
 --syscalls::
-	Trace system calls. This options is enabled by default.
+	Trace system calls. This options is enabled by default, disable with
+	--no-syscalls.
 
 --call-graph [mode,type,min[,limit],order[,key][,branch]]::
         Setup and enable call-graph (stack chain/backtrace) recording.

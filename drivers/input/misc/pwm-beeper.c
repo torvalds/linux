@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/pwm.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
@@ -29,6 +30,7 @@ struct pwm_beeper {
 	struct regulator *amplifier;
 	struct work_struct work;
 	unsigned long period;
+	unsigned int bell_frequency;
 	bool suspended;
 	bool amplifier_on;
 };
@@ -94,7 +96,7 @@ static int pwm_beeper_event(struct input_dev *input,
 
 	switch (code) {
 	case SND_BELL:
-		value = value ? 1000 : 0;
+		value = value ? beeper->bell_frequency : 0;
 		break;
 	case SND_TONE:
 		break;
@@ -131,6 +133,7 @@ static int pwm_beeper_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct pwm_beeper *beeper;
 	struct pwm_state state;
+	u32 bell_frequency;
 	int error;
 
 	beeper = devm_kzalloc(dev, sizeof(*beeper), GFP_KERNEL);
@@ -166,6 +169,16 @@ static int pwm_beeper_probe(struct platform_device *pdev)
 	}
 
 	INIT_WORK(&beeper->work, pwm_beeper_work);
+
+	error = device_property_read_u32(dev, "beeper-hz", &bell_frequency);
+	if (error) {
+		bell_frequency = 1000;
+		dev_dbg(dev,
+			"failed to parse 'beeper-hz' property, using default: %uHz\n",
+			bell_frequency);
+	}
+
+	beeper->bell_frequency = bell_frequency;
 
 	beeper->input = devm_input_allocate_device(dev);
 	if (!beeper->input) {

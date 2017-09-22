@@ -5,6 +5,7 @@
 #include "thread_map.h"
 #include "tests.h"
 #include "debug.h"
+#include <errno.h>
 
 #ifndef O_DIRECTORY
 #define O_DIRECTORY    00200000
@@ -13,7 +14,7 @@
 #define AT_FDCWD       -100
 #endif
 
-int test__syscall_openat_tp_fields(int subtest __maybe_unused)
+int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct record_opts opts = {
 		.target = {

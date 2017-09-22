@@ -18,8 +18,12 @@
 #include "mcdi.h"
 
 enum {
-	EFX_REV_SIENA_A0 = 0,
-	EFX_REV_HUNT_A0 = 1,
+	/* Revisions 0-2 were Falcon A0, A1 and B0 respectively.
+	 * They are not supported by this driver but these revision numbers
+	 * form part of the ethtool API for register dumping.
+	 */
+	EFX_REV_SIENA_A0 = 3,
+	EFX_REV_HUNT_A0 = 4,
 };
 
 static inline int efx_nic_rev(struct efx_nic *efx)

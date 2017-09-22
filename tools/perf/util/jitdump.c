@@ -1,5 +1,6 @@
 #include <sys/sysmacros.h>
 #include <sys/types.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,13 +10,13 @@
 #include <byteswap.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <linux/stringify.h>
 
 #include "util.h"
 #include "event.h"
 #include "debug.h"
 #include "evlist.h"
 #include "symbol.h"
-#include "strlist.h"
 #include <elf.h>
 
 #include "tsc.h"
@@ -24,6 +25,8 @@
 #include "jitdump.h"
 #include "genelf.h"
 #include "../builtin.h"
+
+#include "sane_ctype.h"
 
 struct jit_buf_desc {
 	struct perf_data_file *output;
@@ -181,7 +184,7 @@ jit_open(struct jit_buf_desc *jd, const char *name)
 			jd->use_arch_timestamp);
 
 	if (header.version > JITHEADER_VERSION) {
-		pr_err("wrong jitdump version %u, expected " STR(JITHEADER_VERSION),
+		pr_err("wrong jitdump version %u, expected " __stringify(JITHEADER_VERSION),
 			header.version);
 		goto error;
 	}

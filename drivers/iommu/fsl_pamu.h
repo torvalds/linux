@@ -20,6 +20,7 @@
 #define __FSL_PAMU_H
 
 #include <linux/iommu.h>
+#include <linux/pci.h>
 
 #include <asm/fsl_pamu_stash.h>
 

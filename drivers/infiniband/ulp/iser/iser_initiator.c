@@ -137,8 +137,10 @@ iser_prepare_write_cmd(struct iscsi_task *task,
 
 	if (unsol_sz < edtl) {
 		hdr->flags     |= ISER_WSV;
-		hdr->write_stag = cpu_to_be32(mem_reg->rkey);
-		hdr->write_va   = cpu_to_be64(mem_reg->sge.addr + unsol_sz);
+		if (buf_out->data_len > imm_sz) {
+			hdr->write_stag = cpu_to_be32(mem_reg->rkey);
+			hdr->write_va = cpu_to_be64(mem_reg->sge.addr + unsol_sz);
+		}
 
 		iser_dbg("Cmd itt:%d, WRITE tags, RKEY:%#.4X "
 			 "VA:%#llX + unsol:%d\n",
@@ -612,7 +614,7 @@ iser_check_remote_inv(struct iser_conn *iser_conn,
 			 iser_conn, rkey);
 
 		if (unlikely(!iser_conn->snd_w_inv)) {
-			iser_err("conn %p: unexepected remote invalidation, "
+			iser_err("conn %p: unexpected remote invalidation, "
 				 "terminating connection\n", iser_conn);
 			return -EPROTO;
 		}

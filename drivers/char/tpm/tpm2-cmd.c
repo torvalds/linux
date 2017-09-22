@@ -35,24 +35,6 @@ struct tpm2_self_test_in {
 	u8	full_test;
 } __packed;
 
-struct tpm2_pcr_read_in {
-	__be32	pcr_selects_cnt;
-	__be16	hash_alg;
-	u8	pcr_select_size;
-	u8	pcr_select[TPM2_PCR_SELECT_MIN];
-} __packed;
-
-struct tpm2_pcr_read_out {
-	__be32	update_cnt;
-	__be32	pcr_selects_cnt;
-	__be16	hash_alg;
-	u8	pcr_select_size;
-	u8	pcr_select[TPM2_PCR_SELECT_MIN];
-	__be32	digests_cnt;
-	__be16	digest_size;
-	u8	digest[TPM_DIGEST_SIZE];
-} __packed;
-
 struct tpm2_get_tpm_pt_in {
 	__be32	cap_id;
 	__be32	property_id;
@@ -79,8 +61,6 @@ struct tpm2_get_random_out {
 union tpm2_cmd_params {
 	struct	tpm2_startup_in		startup_in;
 	struct	tpm2_self_test_in	selftest_in;
-	struct	tpm2_pcr_read_in	pcrread_in;
-	struct	tpm2_pcr_read_out	pcrread_out;
 	struct	tpm2_get_tpm_pt_in	get_tpm_pt_in;
 	struct	tpm2_get_tpm_pt_out	get_tpm_pt_out;
 	struct	tpm2_get_random_in	getrandom_in;
@@ -227,18 +207,16 @@ static const u8 tpm2_ordinal_duration[TPM2_CC_LAST - TPM2_CC_FIRST + 1] = {
 	TPM_UNDEFINED		/* 18f */
 };
 
-#define TPM2_PCR_READ_IN_SIZE \
-	(sizeof(struct tpm_input_header) + \
-	 sizeof(struct tpm2_pcr_read_in))
-
-#define TPM2_PCR_READ_RESP_BODY_SIZE \
-	 sizeof(struct tpm2_pcr_read_out)
-
-static const struct tpm_input_header tpm2_pcrread_header = {
-	.tag = cpu_to_be16(TPM2_ST_NO_SESSIONS),
-	.length = cpu_to_be32(TPM2_PCR_READ_IN_SIZE),
-	.ordinal = cpu_to_be32(TPM2_CC_PCR_READ)
-};
+struct tpm2_pcr_read_out {
+	__be32	update_cnt;
+	__be32	pcr_selects_cnt;
+	__be16	hash_alg;
+	u8	pcr_select_size;
+	u8	pcr_select[TPM2_PCR_SELECT_MIN];
+	__be32	digests_cnt;
+	__be16	digest_size;
+	u8	digest[];
+} __packed;
 
 /**
  * tpm2_pcr_read() - read a PCR value
@@ -251,29 +229,33 @@ static const struct tpm_input_header tpm2_pcrread_header = {
 int tpm2_pcr_read(struct tpm_chip *chip, int pcr_idx, u8 *res_buf)
 {
 	int rc;
-	struct tpm2_cmd cmd;
-	u8 *buf;
+	struct tpm_buf buf;
+	struct tpm2_pcr_read_out *out;
+	u8 pcr_select[TPM2_PCR_SELECT_MIN] = {0};
 
 	if (pcr_idx >= TPM2_PLATFORM_PCR)
 		return -EINVAL;
 
-	cmd.header.in = tpm2_pcrread_header;
-	cmd.params.pcrread_in.pcr_selects_cnt = cpu_to_be32(1);
-	cmd.params.pcrread_in.hash_alg = cpu_to_be16(TPM2_ALG_SHA1);
-	cmd.params.pcrread_in.pcr_select_size = TPM2_PCR_SELECT_MIN;
+	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_PCR_READ);
+	if (rc)
+		return rc;
 
-	memset(cmd.params.pcrread_in.pcr_select, 0,
-	       sizeof(cmd.params.pcrread_in.pcr_select));
-	cmd.params.pcrread_in.pcr_select[pcr_idx >> 3] = 1 << (pcr_idx & 0x7);
+	pcr_select[pcr_idx >> 3] = 1 << (pcr_idx & 0x7);
 
-	rc = tpm_transmit_cmd(chip, &cmd, sizeof(cmd),
-			      TPM2_PCR_READ_RESP_BODY_SIZE,
-			      0, "attempting to read a pcr value");
-	if (rc == 0) {
-		buf = cmd.params.pcrread_out.digest;
-		memcpy(res_buf, buf, TPM_DIGEST_SIZE);
+	tpm_buf_append_u32(&buf, 1);
+	tpm_buf_append_u16(&buf, TPM2_ALG_SHA1);
+	tpm_buf_append_u8(&buf, TPM2_PCR_SELECT_MIN);
+	tpm_buf_append(&buf, (const unsigned char *)pcr_select,
+		       sizeof(pcr_select));
+
+	rc = tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE, 0, 0,
+			res_buf ? "attempting to read a pcr value" : NULL);
+	if (rc == 0 && res_buf) {
+		out = (struct tpm2_pcr_read_out *)&buf.data[TPM_HEADER_SIZE];
+		memcpy(res_buf, out->digest, SHA1_DIGEST_SIZE);
 	}
 
+	tpm_buf_destroy(&buf);
 	return rc;
 }
 
@@ -333,7 +315,7 @@ int tpm2_pcr_extend(struct tpm_chip *chip, int pcr_idx, u32 count,
 		}
 	}
 
-	rc = tpm_transmit_cmd(chip, buf.data, PAGE_SIZE, 0, 0,
+	rc = tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE, 0, 0,
 			      "attempting extend a PCR value");
 
 	tpm_buf_destroy(&buf);
@@ -382,7 +364,7 @@ int tpm2_get_random(struct tpm_chip *chip, u8 *out, size_t max)
 		cmd.header.in = tpm2_getrandom_header;
 		cmd.params.getrandom_in.size = cpu_to_be16(num_bytes);
 
-		err = tpm_transmit_cmd(chip, &cmd, sizeof(cmd),
+		err = tpm_transmit_cmd(chip, NULL, &cmd, sizeof(cmd),
 				       offsetof(struct tpm2_get_random_out,
 						buffer),
 				       0, "attempting get random");
@@ -417,6 +399,35 @@ static const struct tpm_input_header tpm2_get_tpm_pt_header = {
 	.length = cpu_to_be32(TPM2_GET_TPM_PT_IN_SIZE),
 	.ordinal = cpu_to_be32(TPM2_CC_GET_CAPABILITY)
 };
+
+/**
+ * tpm2_flush_context_cmd() - execute a TPM2_FlushContext command
+ * @chip: TPM chip to use
+ * @payload: the key data in clear and encrypted form
+ * @options: authentication values and other options
+ *
+ * Return: same as with tpm_transmit_cmd
+ */
+void tpm2_flush_context_cmd(struct tpm_chip *chip, u32 handle,
+			    unsigned int flags)
+{
+	struct tpm_buf buf;
+	int rc;
+
+	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_FLUSH_CONTEXT);
+	if (rc) {
+		dev_warn(&chip->dev, "0x%08x was not flushed, out of memory\n",
+			 handle);
+		return;
+	}
+
+	tpm_buf_append_u32(&buf, handle);
+
+	(void) tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE, 0, flags,
+				"flushing context");
+
+	tpm_buf_destroy(&buf);
+}
 
 /**
  * tpm_buf_append_auth() - append TPMS_AUTH_COMMAND to the buffer.
@@ -528,7 +539,7 @@ int tpm2_seal_trusted(struct tpm_chip *chip,
 		goto out;
 	}
 
-	rc = tpm_transmit_cmd(chip, buf.data, PAGE_SIZE, 4, 0,
+	rc = tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE, 4, 0,
 			      "sealing data");
 	if (rc)
 		goto out;
@@ -612,7 +623,7 @@ static int tpm2_load_cmd(struct tpm_chip *chip,
 		goto out;
 	}
 
-	rc = tpm_transmit_cmd(chip, buf.data, PAGE_SIZE, 4, flags,
+	rc = tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE, 4, flags,
 			      "loading blob");
 	if (!rc)
 		*blob_handle = be32_to_cpup(
@@ -625,39 +636,6 @@ out:
 		rc = -EPERM;
 
 	return rc;
-}
-
-/**
- * tpm2_flush_context_cmd() - execute a TPM2_FlushContext command
- *
- * @chip: TPM chip to use
- * @handle: the key data in clear and encrypted form
- * @flags: tpm transmit flags
- *
- * Return: Same as with tpm_transmit_cmd.
- */
-static void tpm2_flush_context_cmd(struct tpm_chip *chip, u32 handle,
-				   unsigned int flags)
-{
-	struct tpm_buf buf;
-	int rc;
-
-	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_FLUSH_CONTEXT);
-	if (rc) {
-		dev_warn(&chip->dev, "0x%08x was not flushed, out of memory\n",
-			 handle);
-		return;
-	}
-
-	tpm_buf_append_u32(&buf, handle);
-
-	rc = tpm_transmit_cmd(chip, buf.data, PAGE_SIZE, 0, flags,
-			      "flushing context");
-	if (rc)
-		dev_warn(&chip->dev, "0x%08x was not flushed, rc=%d\n", handle,
-			 rc);
-
-	tpm_buf_destroy(&buf);
 }
 
 /**
@@ -697,7 +675,7 @@ static int tpm2_unseal_cmd(struct tpm_chip *chip,
 			     options->blobauth /* hmac */,
 			     TPM_DIGEST_SIZE);
 
-	rc = tpm_transmit_cmd(chip, buf.data, PAGE_SIZE, 6, flags,
+	rc = tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE, 6, flags,
 			      "unsealing");
 	if (rc > 0)
 		rc = -EPERM;
@@ -774,7 +752,7 @@ ssize_t tpm2_get_tpm_pt(struct tpm_chip *chip, u32 property_id,  u32 *value,
 	cmd.params.get_tpm_pt_in.property_id = cpu_to_be32(property_id);
 	cmd.params.get_tpm_pt_in.property_cnt = cpu_to_be32(1);
 
-	rc = tpm_transmit_cmd(chip, &cmd, sizeof(cmd),
+	rc = tpm_transmit_cmd(chip, NULL, &cmd, sizeof(cmd),
 			      TPM2_GET_TPM_PT_OUT_BODY_SIZE, 0, desc);
 	if (!rc)
 		*value = be32_to_cpu(cmd.params.get_tpm_pt_out.value);
@@ -782,36 +760,6 @@ ssize_t tpm2_get_tpm_pt(struct tpm_chip *chip, u32 property_id,  u32 *value,
 	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm2_get_tpm_pt);
-
-#define TPM2_STARTUP_IN_SIZE \
-	(sizeof(struct tpm_input_header) + \
-	 sizeof(struct tpm2_startup_in))
-
-static const struct tpm_input_header tpm2_startup_header = {
-	.tag = cpu_to_be16(TPM2_ST_NO_SESSIONS),
-	.length = cpu_to_be32(TPM2_STARTUP_IN_SIZE),
-	.ordinal = cpu_to_be32(TPM2_CC_STARTUP)
-};
-
-/**
- * tpm2_startup() - send startup command to the TPM chip
- *
- * @chip:		TPM chip to use.
- * @startup_type:	startup type. The value is either
- *			TPM_SU_CLEAR or TPM_SU_STATE.
- *
- * Return: Same as with tpm_transmit_cmd.
- */
-static int tpm2_startup(struct tpm_chip *chip, u16 startup_type)
-{
-	struct tpm2_cmd cmd;
-
-	cmd.header.in = tpm2_startup_header;
-
-	cmd.params.startup_in.startup_type = cpu_to_be16(startup_type);
-	return tpm_transmit_cmd(chip, &cmd, sizeof(cmd), 0, 0,
-				"attempting to start the TPM");
-}
 
 #define TPM2_SHUTDOWN_IN_SIZE \
 	(sizeof(struct tpm_input_header) + \
@@ -838,13 +786,13 @@ void tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type)
 	cmd.header.in = tpm2_shutdown_header;
 	cmd.params.startup_in.startup_type = cpu_to_be16(shutdown_type);
 
-	rc = tpm_transmit_cmd(chip, &cmd, sizeof(cmd), 0, 0,
+	rc = tpm_transmit_cmd(chip, NULL, &cmd, sizeof(cmd), 0, 0,
 			      "stopping the TPM");
 
 	/* In places where shutdown command is sent there's no much we can do
 	 * except print the error code on a system failure.
 	 */
-	if (rc < 0)
+	if (rc < 0 && rc != -EPIPE)
 		dev_warn(&chip->dev, "transmit returned %d while stopping the TPM",
 			 rc);
 }
@@ -902,7 +850,7 @@ static int tpm2_start_selftest(struct tpm_chip *chip, bool full)
 	cmd.header.in = tpm2_selftest_header;
 	cmd.params.selftest_in.full_test = full;
 
-	rc = tpm_transmit_cmd(chip, &cmd, TPM2_SELF_TEST_IN_SIZE, 0, 0,
+	rc = tpm_transmit_cmd(chip, NULL, &cmd, TPM2_SELF_TEST_IN_SIZE, 0, 0,
 			      "continue selftest");
 
 	/* At least some prototype chips seem to give RC_TESTING error
@@ -932,7 +880,6 @@ static int tpm2_do_selftest(struct tpm_chip *chip)
 	unsigned int loops;
 	unsigned int delay_msec = 100;
 	unsigned long duration;
-	struct tpm2_cmd cmd;
 	int i;
 
 	duration = tpm2_calc_ordinal_duration(chip, TPM2_CC_SELF_TEST);
@@ -945,19 +892,10 @@ static int tpm2_do_selftest(struct tpm_chip *chip)
 
 	for (i = 0; i < loops; i++) {
 		/* Attempt to read a PCR value */
-		cmd.header.in = tpm2_pcrread_header;
-		cmd.params.pcrread_in.pcr_selects_cnt = cpu_to_be32(1);
-		cmd.params.pcrread_in.hash_alg = cpu_to_be16(TPM2_ALG_SHA1);
-		cmd.params.pcrread_in.pcr_select_size = TPM2_PCR_SELECT_MIN;
-		cmd.params.pcrread_in.pcr_select[0] = 0x01;
-		cmd.params.pcrread_in.pcr_select[1] = 0x00;
-		cmd.params.pcrread_in.pcr_select[2] = 0x00;
-
-		rc = tpm_transmit_cmd(chip, &cmd, sizeof(cmd), 0, 0, NULL);
+		rc = tpm2_pcr_read(chip, 0, NULL);
 		if (rc < 0)
 			break;
 
-		rc = be32_to_cpu(cmd.header.out.return_code);
 		if (rc != TPM2_RC_TESTING)
 			break;
 
@@ -986,7 +924,7 @@ int tpm2_probe(struct tpm_chip *chip)
 	cmd.params.get_tpm_pt_in.property_id = cpu_to_be32(0x100);
 	cmd.params.get_tpm_pt_in.property_cnt = cpu_to_be32(1);
 
-	rc = tpm_transmit_cmd(chip, &cmd, sizeof(cmd), 0, 0, NULL);
+	rc = tpm_transmit_cmd(chip, NULL, &cmd, sizeof(cmd), 0, 0, NULL);
 	if (rc <  0)
 		return rc;
 
@@ -1024,7 +962,7 @@ static ssize_t tpm2_get_pcr_allocation(struct tpm_chip *chip)
 	tpm_buf_append_u32(&buf, 0);
 	tpm_buf_append_u32(&buf, 1);
 
-	rc = tpm_transmit_cmd(chip, buf.data, PAGE_SIZE, 9, 0,
+	rc = tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE, 9, 0,
 			      "get tpm pcr allocation");
 	if (rc)
 		goto out;
@@ -1067,15 +1005,76 @@ out:
 	return rc;
 }
 
+static int tpm2_get_cc_attrs_tbl(struct tpm_chip *chip)
+{
+	struct tpm_buf buf;
+	u32 nr_commands;
+	u32 *attrs;
+	u32 cc;
+	int i;
+	int rc;
+
+	rc = tpm2_get_tpm_pt(chip, TPM_PT_TOTAL_COMMANDS, &nr_commands, NULL);
+	if (rc)
+		goto out;
+
+	if (nr_commands > 0xFFFFF) {
+		rc = -EFAULT;
+		goto out;
+	}
+
+	chip->cc_attrs_tbl = devm_kzalloc(&chip->dev, 4 * nr_commands,
+					  GFP_KERNEL);
+
+	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_GET_CAPABILITY);
+	if (rc)
+		goto out;
+
+	tpm_buf_append_u32(&buf, TPM2_CAP_COMMANDS);
+	tpm_buf_append_u32(&buf, TPM2_CC_FIRST);
+	tpm_buf_append_u32(&buf, nr_commands);
+
+	rc = tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE,
+			      9 + 4 * nr_commands, 0, NULL);
+	if (rc) {
+		tpm_buf_destroy(&buf);
+		goto out;
+	}
+
+	if (nr_commands !=
+	    be32_to_cpup((__be32 *)&buf.data[TPM_HEADER_SIZE + 5])) {
+		tpm_buf_destroy(&buf);
+		goto out;
+	}
+
+	chip->nr_commands = nr_commands;
+
+	attrs = (u32 *)&buf.data[TPM_HEADER_SIZE + 9];
+	for (i = 0; i < nr_commands; i++, attrs++) {
+		chip->cc_attrs_tbl[i] = be32_to_cpup(attrs);
+		cc = chip->cc_attrs_tbl[i] & 0xFFFF;
+
+		if (cc == TPM2_CC_CONTEXT_SAVE || cc == TPM2_CC_FLUSH_CONTEXT) {
+			chip->cc_attrs_tbl[i] &=
+				~(GENMASK(2, 0) << TPM2_CC_ATTR_CHANDLES);
+			chip->cc_attrs_tbl[i] |= 1 << TPM2_CC_ATTR_CHANDLES;
+		}
+	}
+
+	tpm_buf_destroy(&buf);
+
+out:
+	if (rc > 0)
+		rc = -ENODEV;
+	return rc;
+}
+
 /**
  * tpm2_auto_startup - Perform the standard automatic TPM initialization
  *                     sequence
  * @chip: TPM chip to use
  *
- * Initializes timeout values for operation and command durations, conducts
- * a self-test and reads the list of active PCR banks.
- *
- * Return: 0 on success. Otherwise, a system error code is returned.
+ * Returns 0 on success, < 0 in case of fatal error.
  */
 int tpm2_auto_startup(struct tpm_chip *chip)
 {
@@ -1092,7 +1091,7 @@ int tpm2_auto_startup(struct tpm_chip *chip)
 	}
 
 	if (rc == TPM2_RC_INITIALIZE) {
-		rc = tpm2_startup(chip, TPM2_SU_CLEAR);
+		rc = tpm_startup(chip);
 		if (rc)
 			goto out;
 
@@ -1104,9 +1103,24 @@ int tpm2_auto_startup(struct tpm_chip *chip)
 	}
 
 	rc = tpm2_get_pcr_allocation(chip);
+	if (rc)
+		goto out;
+
+	rc = tpm2_get_cc_attrs_tbl(chip);
 
 out:
 	if (rc > 0)
 		rc = -ENODEV;
 	return rc;
+}
+
+int tpm2_find_cc(struct tpm_chip *chip, u32 cc)
+{
+	int i;
+
+	for (i = 0; i < chip->nr_commands; i++)
+		if (cc == (chip->cc_attrs_tbl[i] & GENMASK(15, 0)))
+			return i;
+
+	return -1;
 }

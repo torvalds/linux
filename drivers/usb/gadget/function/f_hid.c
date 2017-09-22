@@ -44,6 +44,7 @@ struct f_hidg {
 	/* configuration */
 	unsigned char			bInterfaceSubClass;
 	unsigned char			bInterfaceProtocol;
+	unsigned char			protocol;
 	unsigned short			report_desc_length;
 	char				*report_desc;
 	unsigned short			report_length;
@@ -367,7 +368,7 @@ try_again:
 	count  = min_t(unsigned, count, hidg->report_length);
 
 	spin_unlock_irqrestore(&hidg->write_spinlock, flags);
-	status = copy_from_user(hidg->req->buf, buffer, count);
+	status = copy_from_user(req->buf, buffer, count);
 
 	if (status != 0) {
 		ERROR(hidg->func.config->cdev,
@@ -378,9 +379,9 @@ try_again:
 
 	spin_lock_irqsave(&hidg->write_spinlock, flags);
 
-	/* we our function has been disabled by host */
+	/* when our function has been disabled by host */
 	if (!hidg->req) {
-		free_ep_req(hidg->in_ep, hidg->req);
+		free_ep_req(hidg->in_ep, req);
 		/*
 		 * TODO
 		 * Should we fail with error here?
@@ -394,7 +395,7 @@ try_again:
 	req->complete = f_hidg_req_complete;
 	req->context  = hidg;
 
-	status = usb_ep_queue(hidg->in_ep, hidg->req, GFP_ATOMIC);
+	status = usb_ep_queue(hidg->in_ep, req, GFP_ATOMIC);
 	if (status < 0) {
 		ERROR(hidg->func.config->cdev,
 			"usb_ep_queue error on int endpoint %zd\n", status);
@@ -527,7 +528,9 @@ static int hidg_setup(struct usb_function *f,
 	case ((USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8
 		  | HID_REQ_GET_PROTOCOL):
 		VDBG(cdev, "get_protocol\n");
-		goto stall;
+		length = min_t(unsigned int, length, 1);
+		((u8 *) req->buf)[0] = hidg->protocol;
+		goto respond;
 		break;
 
 	case ((USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8
@@ -539,6 +542,17 @@ static int hidg_setup(struct usb_function *f,
 	case ((USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8
 		  | HID_REQ_SET_PROTOCOL):
 		VDBG(cdev, "set_protocol\n");
+		if (value > HID_REPORT_PROTOCOL)
+			goto stall;
+		length = 0;
+		/*
+		 * We assume that programs implementing the Boot protocol
+		 * are also compatible with the Report Protocol
+		 */
+		if (hidg->bInterfaceSubClass == USB_INTERFACE_SUBCLASS_BOOT) {
+			hidg->protocol = value;
+			goto respond;
+		}
 		goto stall;
 		break;
 
@@ -768,6 +782,7 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 	/* set descriptor dynamic values */
 	hidg_interface_desc.bInterfaceSubClass = hidg->bInterfaceSubClass;
 	hidg_interface_desc.bInterfaceProtocol = hidg->bInterfaceProtocol;
+	hidg->protocol = HID_REPORT_PROTOCOL;
 	hidg_ss_in_ep_desc.wMaxPacketSize = cpu_to_le16(hidg->report_length);
 	hidg_ss_in_comp_desc.wBytesPerInterval =
 				cpu_to_le16(hidg->report_length);

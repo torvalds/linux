@@ -146,7 +146,6 @@ struct ibmveth_adapter {
     struct vio_dev *vdev;
     struct net_device *netdev;
     struct napi_struct napi;
-    struct net_device_stats stats;
     unsigned int mcastFilterSize;
     void * buffer_list_addr;
     void * filter_list_addr;
@@ -157,6 +156,7 @@ struct ibmveth_adapter {
     int pool_config;
     int rx_csum;
     int large_send;
+    bool is_active_trunk;
     void *bounce_buffer;
     dma_addr_t bounce_buffer_dma;
 

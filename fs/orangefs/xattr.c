@@ -76,11 +76,8 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;
 
-	if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN) {
-		gossip_err("Invalid key length (%d)\n",
-			   (int)strlen(name));
+	if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN)
 		return -EINVAL;
-	}
 
 	fsuid = from_kuid(&init_user_ns, current_fsuid());
 	fsgid = from_kgid(&init_user_ns, current_fsgid());
@@ -172,6 +169,9 @@ static int orangefs_inode_removexattr(struct inode *inode, const char *name,
 	struct orangefs_kernel_op_s *new_op = NULL;
 	int ret = -ENOMEM;
 
+	if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN)
+		return -EINVAL;
+
 	down_write(&orangefs_inode->xattr_sem);
 	new_op = op_alloc(ORANGEFS_VFS_OP_REMOVEXATTR);
 	if (!new_op)
@@ -231,25 +231,15 @@ int orangefs_inode_setxattr(struct inode *inode, const char *name,
 		     "%s: name %s, buffer_size %zd\n",
 		     __func__, name, size);
 
-	if (size >= ORANGEFS_MAX_XATTR_VALUELEN ||
-	    flags < 0) {
-		gossip_err("orangefs_inode_setxattr: bogus values of size(%d), flags(%d)\n",
-			   (int)size,
-			   flags);
+	if (size > ORANGEFS_MAX_XATTR_VALUELEN)
 		return -EINVAL;
-	}
+	if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN)
+		return -EINVAL;
 
 	internal_flag = convert_to_internal_xattr_flags(flags);
 
-	if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN) {
-		gossip_err
-		    ("orangefs_inode_setxattr: bogus key size (%d)\n",
-		     (int)(strlen(name)));
-		return -EINVAL;
-	}
-
 	/* This is equivalent to a removexattr */
-	if (size == 0 && value == NULL) {
+	if (size == 0 && !value) {
 		gossip_debug(GOSSIP_XATTR_DEBUG,
 			     "removing xattr (%s)\n",
 			     name);
@@ -321,7 +311,7 @@ ssize_t orangefs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	int i = 0;
 	int returned_count = 0;
 
-	if (size > 0 && buffer == NULL) {
+	if (size > 0 && !buffer) {
 		gossip_err("%s: bogus NULL pointers\n", __func__);
 		return -EINVAL;
 	}
@@ -358,7 +348,7 @@ try_again:
 
 	returned_count = new_op->downcall.resp.listxattr.returned_count;
 	if (returned_count < 0 ||
-	    returned_count >= ORANGEFS_MAX_XATTR_LISTLEN) {
+	    returned_count > ORANGEFS_MAX_XATTR_LISTLEN) {
 		gossip_err("%s: impossible value for returned_count:%d:\n",
 		__func__,
 		returned_count);
@@ -452,7 +442,7 @@ static int orangefs_xattr_get_default(const struct xattr_handler *handler,
 
 }
 
-static struct xattr_handler orangefs_xattr_default_handler = {
+static const struct xattr_handler orangefs_xattr_default_handler = {
 	.prefix = "",  /* match any name => handlers called with full name */
 	.get = orangefs_xattr_get_default,
 	.set = orangefs_xattr_set_default,

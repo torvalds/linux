@@ -2657,7 +2657,7 @@ static int skge_down(struct net_device *dev)
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
 
-	if (skge->mem == NULL)
+	if (!skge->mem)
 		return 0;
 
 	netif_info(skge, ifdown, skge->netdev, "disabling interface\n");
@@ -3516,7 +3516,7 @@ static const char *skge_board_name(const struct skge_hw *hw)
 		if (skge_chips[i].id == hw->chip_id)
 			return skge_chips[i].name;
 
-	snprintf(buf, sizeof buf, "chipid 0x%x", hw->chip_id);
+	snprintf(buf, sizeof(buf), "chipid 0x%x", hw->chip_id);
 	return buf;
 }
 
@@ -3718,7 +3718,7 @@ static int skge_debug_show(struct seq_file *seq, void *v)
 			   t->csum_offs, t->csum_write, t->csum_start);
 	}
 
-	seq_printf(seq, "\nRx Ring:\n");
+	seq_puts(seq, "\nRx Ring:\n");
 	for (e = skge->rx_ring.to_clean; ; e = e->next) {
 		const struct skge_rx_desc *r = e->desc;
 
@@ -4193,7 +4193,7 @@ static struct pci_driver skge_driver = {
 	.driver.pm =	SKGE_PM_OPS,
 };
 
-static struct dmi_system_id skge_32bit_dma_boards[] = {
+static const struct dmi_system_id skge_32bit_dma_boards[] = {
 	{
 		.ident = "Gigabyte nForce boards",
 		.matches = {

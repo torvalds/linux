@@ -120,9 +120,6 @@ static int pkcs1pad_set_pub_key(struct crypto_akcipher *tfm, const void *key,
 
 	/* Find out new modulus size from rsa implementation */
 	err = crypto_akcipher_maxsize(ctx->child);
-	if (err < 0)
-		return err;
-
 	if (err > PAGE_SIZE)
 		return -ENOTSUPP;
 
@@ -144,9 +141,6 @@ static int pkcs1pad_set_priv_key(struct crypto_akcipher *tfm, const void *key,
 
 	/* Find out new modulus size from rsa implementation */
 	err = crypto_akcipher_maxsize(ctx->child);
-	if (err < 0)
-		return err;
-
 	if (err > PAGE_SIZE)
 		return -ENOTSUPP;
 
@@ -154,7 +148,7 @@ static int pkcs1pad_set_priv_key(struct crypto_akcipher *tfm, const void *key,
 	return 0;
 }
 
-static int pkcs1pad_get_max_size(struct crypto_akcipher *tfm)
+static unsigned int pkcs1pad_get_max_size(struct crypto_akcipher *tfm)
 {
 	struct pkcs1pad_ctx *ctx = akcipher_tfm_ctx(tfm);
 
@@ -164,7 +158,7 @@ static int pkcs1pad_get_max_size(struct crypto_akcipher *tfm)
 	 * decrypt/verify.
 	 */
 
-	return ctx->key_size ?: -EINVAL;
+	return ctx->key_size;
 }
 
 static void pkcs1pad_sg_set_buf(struct scatterlist *sg, void *buf, size_t len,
@@ -496,7 +490,7 @@ static int pkcs1pad_verify_complete(struct akcipher_request *req, int err)
 		goto done;
 	pos++;
 
-	if (memcmp(out_buf + pos, digest_info->data, digest_info->size))
+	if (crypto_memneq(out_buf + pos, digest_info->data, digest_info->size))
 		goto done;
 
 	pos += digest_info->size;

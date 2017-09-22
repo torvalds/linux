@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to The Linux Kernel's documentation
-===========================================
+The Linux Kernel documentation
+==============================
 
 This is the top level of the kernel's documentation tree.  Kernel
 documentation, like the kernel itself, is very much a work in progress;
@@ -24,6 +24,18 @@ trying to get it to work optimally on a given system.
 
    admin-guide/index
 
+Application-developer documentation
+-----------------------------------
+
+The user-space API manual gathers together documents describing aspects of
+the kernel interface as seen by application developers.
+
+.. toctree::
+   :maxdepth: 2
+
+   userspace-api/index	      
+
+
 Introduction to kernel development
 ----------------------------------
 
@@ -39,6 +51,7 @@ merged much easier.
    process/index
    dev-tools/index
    doc-guide/index
+   kernel-hacking/index
 
 Kernel API documentation
 ------------------------
@@ -55,10 +68,24 @@ needed).
    driver-api/index
    core-api/index
    media/index
+   networking/index
+   input/index
    gpu/index
    security/index
    sound/index
    crypto/index
+   filesystems/index
+
+Architecture-specific documentation
+-----------------------------------
+
+These books provide programming details about architecture-specific
+implementation.
+
+.. toctree::
+   :maxdepth: 2
+
+   sh/index
 
 Korean translations
 -------------------
@@ -75,6 +102,14 @@ Chinese translations
    :maxdepth: 1
 
    translations/zh_CN/index
+
+Japanese translations
+---------------------
+
+.. toctree::
+   :maxdepth: 1
+
+   translations/ja_JP/index
 
 Indices and tables
 ==================

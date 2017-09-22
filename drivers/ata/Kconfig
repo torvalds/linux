@@ -14,7 +14,6 @@ menuconfig ATA
 	tristate "Serial ATA and Parallel ATA drivers (libata)"
 	depends on HAS_IOMEM
 	depends on BLOCK
-	depends on !(M32R || S390) || BROKEN
 	select SCSI
 	select GLOB
 	---help---
@@ -118,6 +117,15 @@ config AHCI_DA850
 
 	  If unsure, say N.
 
+config AHCI_DM816
+	tristate "DaVinci DM816 AHCI SATA support"
+	depends on ARCH_OMAP2PLUS
+	help
+	  This option enables support for the DaVinci DM816 SoC's
+	  onboard AHCI SATA controller.
+
+	  If unsure, say N.
+
 config AHCI_ST
 	tristate "ST AHCI SATA support"
 	depends on ARCH_STI
@@ -142,6 +150,16 @@ config AHCI_CEVA
 	help
 	  This option enables support for the CEVA AHCI SATA.
 	  It can be found on the Xilinx Zynq UltraScale+ MPSoC.
+
+	  If unsure, say N.
+
+config AHCI_MTK
+	tristate "MediaTek AHCI SATA support"
+	depends on ARCH_MEDIATEK
+	select MFD_SYSCON
+	help
+	  This option enables support for the MediaTek SoC's
+	  onboard AHCI SATA controller.
 
 	  If unsure, say N.
 
@@ -202,6 +220,16 @@ config SATA_FSL
 	help
 	  This option enables support for Freescale 3.0Gbps SATA controller.
 	  It can be found on MPC837x and MPC8315.
+
+	  If unsure, say N.
+
+config SATA_GEMINI
+	tristate "Gemini SATA bridge support"
+	depends on ARCH_GEMINI || COMPILE_TEST
+	default ARCH_GEMINI
+	help
+	  This enabled support for the FTIDE010 to SATA bridge
+	  found in Cortina Systems Gemini platform.
 
 	  If unsure, say N.
 
@@ -510,6 +538,15 @@ config PATA_BF54X
 
 	  If unsure, say N.
 
+config PATA_BK3710
+	tristate "Palmchip BK3710 PATA support"
+	depends on ARCH_DAVINCI
+	help
+	  This option enables support for the integrated IDE controller on
+	  the TI DaVinci SoC.
+
+	  If unsure, say N.
+
 config PATA_CMD64X
 	tristate "CMD64x PATA support"
 	depends on PCI
@@ -579,6 +616,17 @@ config PATA_EP93XX
 	help
 	  This option enables support for the PATA controller in
 	  the Cirrus Logic EP9312 and EP9315 ARM CPU.
+
+	  If unsure, say N.
+
+config PATA_FTIDE010
+	tristate "Faraday Technology FTIDE010 PATA support"
+	depends on OF
+	depends on ARM
+	depends on SATA_GEMINI
+	help
+	  This option enables support for the Faraday FTIDE010
+	  PATA controller found in the Cortina Gemini SoCs.
 
 	  If unsure, say N.
 
@@ -882,14 +930,6 @@ config PATA_AT32
 	help
 	  This option enables support for the IDE devices on the
 	  Atmel AT32AP platform.
-
-	  If unsure, say N.
-
-config PATA_AT91
-	tristate "PATA support for AT91SAM9260"
-	depends on ARM && SOC_AT91SAM9
-	help
-	  This option enables support for IDE devices on the Atmel AT91SAM9260 SoC.
 
 	  If unsure, say N.
 

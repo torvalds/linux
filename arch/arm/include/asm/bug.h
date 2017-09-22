@@ -37,7 +37,7 @@ do {								\
 		".pushsection .rodata.str, \"aMS\", %progbits, 1\n" \
 		"2:\t.asciz " #__file "\n" 			\
 		".popsection\n" 				\
-		".pushsection __bug_table,\"a\"\n"		\
+		".pushsection __bug_table,\"aw\"\n"		\
 		".align 2\n"					\
 		"3:\t.word 1b, 2b\n"				\
 		"\t.hword " #__line ", 0\n"			\

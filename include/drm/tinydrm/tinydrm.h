@@ -56,10 +56,7 @@ pipe_to_tinydrm(struct drm_simple_display_pipe *pipe)
 	.gem_prime_vmap		= drm_gem_cma_prime_vmap, \
 	.gem_prime_vunmap	= drm_gem_cma_prime_vunmap, \
 	.gem_prime_mmap		= drm_gem_cma_prime_mmap, \
-	.dumb_create		= drm_gem_cma_dumb_create, \
-	.dumb_map_offset	= drm_gem_cma_dumb_map_offset, \
-	.dumb_destroy		= drm_gem_dumb_destroy, \
-	.fops			= &tinydrm_fops
+	.dumb_create		= drm_gem_cma_dumb_create
 
 /**
  * TINYDRM_MODE - tinydrm display mode
@@ -84,7 +81,6 @@ pipe_to_tinydrm(struct drm_simple_display_pipe *pipe)
 	.type = DRM_MODE_TYPE_DRIVER, \
 	.clock = 1 /* pass validation */
 
-extern const struct file_operations tinydrm_fops;
 void tinydrm_lastclose(struct drm_device *drm);
 void tinydrm_gem_cma_free_object(struct drm_gem_object *gem_obj);
 struct drm_gem_object *

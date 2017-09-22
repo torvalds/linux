@@ -66,7 +66,9 @@ static struct gdp_format_to_str {
 #define GAM_GDP_ALPHARANGE_255  BIT(5)
 #define GAM_GDP_AGC_FULL_RANGE  0x00808080
 #define GAM_GDP_PPT_IGNORE      (BIT(1) | BIT(0))
-#define GAM_GDP_SIZE_MAX        0x7FF
+
+#define GAM_GDP_SIZE_MAX_WIDTH  3840
+#define GAM_GDP_SIZE_MAX_HEIGHT 2160
 
 #define GDP_NODE_NB_BANK        2
 #define GDP_NODE_PER_FIELD      2
@@ -147,7 +149,7 @@ static void gdp_dbg_ctl(struct seq_file *s, int val)
 	seq_puts(s, "\tColor:");
 	for (i = 0; i < ARRAY_SIZE(gdp_format_to_str); i++) {
 		if (gdp_format_to_str[i].format == (val & 0x1F)) {
-			seq_printf(s, gdp_format_to_str[i].name);
+			seq_puts(s, gdp_format_to_str[i].name);
 			break;
 		}
 	}
@@ -264,8 +266,7 @@ static void gdp_node_dump_node(struct seq_file *s, struct sti_gdp_node *node)
 	seq_printf(s, "\n\tKEY2 0x%08X", node->gam_gdp_key2);
 	seq_printf(s, "\n\tPPT  0x%08X", node->gam_gdp_ppt);
 	gdp_dbg_ppt(s, node->gam_gdp_ppt);
-	seq_printf(s, "\n\tCML  0x%08X", node->gam_gdp_cml);
-	seq_puts(s, "\n");
+	seq_printf(s, "\n\tCML  0x%08X\n", node->gam_gdp_cml);
 }
 
 static int gdp_node_dbg_show(struct seq_file *s, void *arg)
@@ -632,8 +633,8 @@ static int sti_gdp_atomic_check(struct drm_plane *drm_plane,
 	/* src_x are in 16.16 format */
 	src_x = state->src_x >> 16;
 	src_y = state->src_y >> 16;
-	src_w = clamp_val(state->src_w >> 16, 0, GAM_GDP_SIZE_MAX);
-	src_h = clamp_val(state->src_h >> 16, 0, GAM_GDP_SIZE_MAX);
+	src_w = clamp_val(state->src_w >> 16, 0, GAM_GDP_SIZE_MAX_WIDTH);
+	src_h = clamp_val(state->src_h >> 16, 0, GAM_GDP_SIZE_MAX_HEIGHT);
 
 	format = sti_gdp_fourcc2format(fb->format->format);
 	if (format == -1) {
@@ -741,8 +742,8 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 	/* src_x are in 16.16 format */
 	src_x = state->src_x >> 16;
 	src_y = state->src_y >> 16;
-	src_w = clamp_val(state->src_w >> 16, 0, GAM_GDP_SIZE_MAX);
-	src_h = clamp_val(state->src_h >> 16, 0, GAM_GDP_SIZE_MAX);
+	src_w = clamp_val(state->src_w >> 16, 0, GAM_GDP_SIZE_MAX_WIDTH);
+	src_h = clamp_val(state->src_h >> 16, 0, GAM_GDP_SIZE_MAX_HEIGHT);
 
 	list = sti_gdp_get_free_nodes(gdp);
 	top_field = list->top_field;
@@ -894,7 +895,6 @@ static const struct drm_plane_funcs sti_gdp_plane_helpers_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = sti_gdp_destroy,
-	.set_property = drm_atomic_helper_plane_set_property,
 	.reset = sti_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
@@ -930,7 +930,7 @@ struct drm_plane *sti_gdp_create(struct drm_device *drm_dev,
 				       &sti_gdp_plane_helpers_funcs,
 				       gdp_supported_formats,
 				       ARRAY_SIZE(gdp_supported_formats),
-				       type, NULL);
+				       NULL, type, NULL);
 	if (res) {
 		DRM_ERROR("Failed to initialize universal plane\n");
 		goto err;

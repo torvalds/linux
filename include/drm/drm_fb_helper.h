@@ -85,38 +85,6 @@ struct drm_fb_helper_surface_size {
  */
 struct drm_fb_helper_funcs {
 	/**
-	 * @gamma_set:
-	 *
-	 * Set the given gamma LUT register on the given CRTC.
-	 *
-	 * This callback is optional.
-	 *
-	 * FIXME:
-	 *
-	 * This callback is functionally redundant with the core gamma table
-	 * support and simply exists because the fbdev hasn't yet been
-	 * refactored to use the core gamma table interfaces.
-	 */
-	void (*gamma_set)(struct drm_crtc *crtc, u16 red, u16 green,
-			  u16 blue, int regno);
-	/**
-	 * @gamma_get:
-	 *
-	 * Read the given gamma LUT register on the given CRTC, used to save the
-	 * current LUT when force-restoring the fbdev for e.g. kdbg.
-	 *
-	 * This callback is optional.
-	 *
-	 * FIXME:
-	 *
-	 * This callback is functionally redundant with the core gamma table
-	 * support and simply exists because the fbdev hasn't yet been
-	 * refactored to use the core gamma table interfaces.
-	 */
-	void (*gamma_get)(struct drm_crtc *crtc, u16 *red, u16 *green,
-			  u16 *blue, int regno);
-
-	/**
 	 * @fb_probe:
 	 *
 	 * Driver callback to allocate and initialize the fbdev info structure.
@@ -169,7 +137,6 @@ struct drm_fb_helper_connector {
  * @crtc_info: per-CRTC helper state (mode, x/y offset, etc)
  * @connector_count: number of connected connectors
  * @connector_info_alloc_count: size of connector_info
- * @connector_info: array of per-connector information
  * @funcs: driver callbacks for fb helper
  * @fbdev: emulated fbdev device info struct
  * @pseudo_palette: fake palette of 16 colors
@@ -191,6 +158,12 @@ struct drm_fb_helper {
 	struct drm_fb_helper_crtc *crtc_info;
 	int connector_count;
 	int connector_info_alloc_count;
+	/**
+	 * @connector_info:
+	 *
+	 * Array of per-connector information. Do not iterate directly, but use
+	 * drm_fb_helper_for_each_connector.
+	 */
 	struct drm_fb_helper_connector **connector_info;
 	const struct drm_fb_helper_funcs *funcs;
 	struct fb_info *fbdev;
@@ -199,6 +172,18 @@ struct drm_fb_helper {
 	spinlock_t dirty_lock;
 	struct work_struct dirty_work;
 	struct work_struct resume_work;
+
+	/**
+	 * @lock:
+	 *
+	 * Top-level FBDEV helper lock. This protects all internal data
+	 * structures and lists, such as @connector_info and @crtc_info.
+	 *
+	 * FIXME: fbdev emulation locking is a mess and long term we want to
+	 * protect all helper internal state with this lock as well as reduce
+	 * core KMS locking as much as possible.
+	 */
+	struct mutex lock;
 
 	/**
 	 * @kernel_fb_list:
@@ -215,6 +200,29 @@ struct drm_fb_helper {
 	 * needs to be reprobe when fbdev is in control again.
 	 */
 	bool delayed_hotplug;
+
+	/**
+	 * @deferred_setup:
+	 *
+	 * If no outputs are connected (disconnected or unknown) the FB helper
+	 * code will defer setup until at least one of the outputs shows up.
+	 * This field keeps track of the status so that setup can be retried
+	 * at every hotplug event until it succeeds eventually.
+	 *
+	 * Protected by @lock.
+	 */
+	bool deferred_setup;
+
+	/**
+	 * @preferred_bpp:
+	 *
+	 * Temporary storage for the driver's preferred BPP setting passed to
+	 * FB helper initialization. This needs to be tracked so that deferred
+	 * FB helper setup can pass this on.
+	 *
+	 * See also: @deferred_setup
+	 */
+	int preferred_bpp;
 };
 
 /**
@@ -230,7 +238,8 @@ struct drm_fb_helper {
 	.fb_blank	= drm_fb_helper_blank, \
 	.fb_pan_display	= drm_fb_helper_pan_display, \
 	.fb_debug_enter = drm_fb_helper_debug_enter, \
-	.fb_debug_leave = drm_fb_helper_debug_leave
+	.fb_debug_leave = drm_fb_helper_debug_leave, \
+	.fb_ioctl	= drm_fb_helper_ioctl
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
@@ -249,7 +258,6 @@ int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper);
 
 struct fb_info *drm_fb_helper_alloc_fbi(struct drm_fb_helper *fb_helper);
 void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper);
-void drm_fb_helper_release_fbi(struct drm_fb_helper *fb_helper);
 void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helper,
 			    uint32_t fb_width, uint32_t fb_height);
 void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
@@ -284,6 +292,9 @@ void drm_fb_helper_set_suspend_unlocked(struct drm_fb_helper *fb_helper,
 					bool suspend);
 
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info);
+
+int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
+			unsigned long arg);
 
 int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper);
 int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel);
@@ -354,9 +365,6 @@ drm_fb_helper_alloc_fbi(struct drm_fb_helper *fb_helper)
 static inline void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper)
 {
 }
-static inline void drm_fb_helper_release_fbi(struct drm_fb_helper *fb_helper)
-{
-}
 
 static inline void drm_fb_helper_fill_var(struct fb_info *info,
 					  struct drm_fb_helper *fb_helper,
@@ -371,6 +379,12 @@ static inline void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 
 static inline int drm_fb_helper_setcmap(struct fb_cmap *cmap,
 					struct fb_info *info)
+{
+	return 0;
+}
+
+static inline int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
+				      unsigned long arg)
 {
 	return 0;
 }

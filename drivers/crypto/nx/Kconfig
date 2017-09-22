@@ -38,6 +38,7 @@ config CRYPTO_DEV_NX_COMPRESS_PSERIES
 config CRYPTO_DEV_NX_COMPRESS_POWERNV
 	tristate "Compression acceleration support on PowerNV platform"
 	depends on PPC_POWERNV
+	depends on PPC_VAS
 	default y
 	help
 	  Support for PowerPC Nest (NX) compression acceleration. This

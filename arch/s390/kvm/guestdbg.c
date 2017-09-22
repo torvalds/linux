@@ -308,7 +308,7 @@ static inline int in_addr_range(u64 addr, u64 a, u64 b)
 		return (addr >= a) && (addr <= b);
 	else
 		/* "overflowing" interval */
-		return (addr <= a) && (addr >= b);
+		return (addr >= a) || (addr <= b);
 }
 
 #define end_of_range(bp_info) (bp_info->addr + bp_info->len - 1)
@@ -613,15 +613,15 @@ int kvm_s390_handle_per_event(struct kvm_vcpu *vcpu)
 		 * instruction. Check primary and home space-switch-event
 		 * controls. (theoretically home -> home produced no event)
 		 */
-		if (((new_as == PSW_AS_HOME) ^ old_as_is_home(vcpu)) &&
-		     (pssec(vcpu) || hssec(vcpu)))
+		if (((new_as == PSW_BITS_AS_HOME) ^ old_as_is_home(vcpu)) &&
+		    (pssec(vcpu) || hssec(vcpu)))
 			vcpu->arch.sie_block->iprcc = PGM_SPACE_SWITCH;
 
 		/*
 		 * PT, PTI, PR, PC instruction operate on primary AS only. Check
 		 * if the primary-space-switch-event control was or got set.
 		 */
-		if (new_as == PSW_AS_PRIMARY && !old_as_is_home(vcpu) &&
+		if (new_as == PSW_BITS_AS_PRIMARY && !old_as_is_home(vcpu) &&
 		    (pssec(vcpu) || old_ssec(vcpu)))
 			vcpu->arch.sie_block->iprcc = PGM_SPACE_SWITCH;
 	}

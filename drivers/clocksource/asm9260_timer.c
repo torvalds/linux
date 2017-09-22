@@ -193,7 +193,7 @@ static int __init asm9260_timer_init(struct device_node *np)
 
 	priv.base = of_io_request_and_map(np, 0, np->name);
 	if (IS_ERR(priv.base)) {
-		pr_err("%s: unable to map resource", np->name);
+		pr_err("%s: unable to map resource\n", np->name);
 		return PTR_ERR(priv.base);
 	}
 
@@ -238,5 +238,5 @@ static int __init asm9260_timer_init(struct device_node *np)
 
 	return 0;
 }
-CLOCKSOURCE_OF_DECLARE(asm9260_timer, "alphascale,asm9260-timer",
+TIMER_OF_DECLARE(asm9260_timer, "alphascale,asm9260-timer",
 		asm9260_timer_init);

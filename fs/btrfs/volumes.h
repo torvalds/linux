@@ -74,6 +74,8 @@ struct btrfs_device {
 	int missing;
 	int can_discard;
 	int is_tgtdev_for_dev_replace;
+	blk_status_t last_flush_error;
+	int flush_bio_sent;
 
 #ifdef __BTRFS_NEED_DEVICE_DATA_ORDERED
 	seqcount_t data_seqcount;
@@ -123,7 +125,6 @@ struct btrfs_device {
 	struct list_head resized_list;
 
 	/* for sending down flush barriers */
-	int nobarriers;
 	struct bio *flush_bio;
 	struct completion flush_wait;
 
@@ -280,6 +281,11 @@ struct btrfs_io_bio {
 	u8 csum_inline[BTRFS_BIO_INLINE_CSUM_SIZE];
 	u8 *csum_allocated;
 	btrfs_io_bio_end_io_t *end_io;
+	struct bvec_iter iter;
+	/*
+	 * This member must come last, bio_alloc_bioset will allocate enough
+	 * bytes for entire btrfs_io_bio but relies on bio being last.
+	 */
 	struct bio bio;
 };
 
@@ -298,7 +304,7 @@ struct btrfs_bio;
 typedef void (btrfs_bio_end_io_t) (struct btrfs_bio *bio, int err);
 
 struct btrfs_bio {
-	atomic_t refs;
+	refcount_t refs;
 	atomic_t stripes_pending;
 	struct btrfs_fs_info *fs_info;
 	u64 map_type; /* get from map_lookup->type */
@@ -347,7 +353,6 @@ struct map_lookup {
 	int io_align;
 	int io_width;
 	u64 stripe_len;
-	int sector_size;
 	int num_stripes;
 	int sub_stripes;
 	struct btrfs_bio_stripe stripes[];
@@ -400,8 +405,7 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		    struct btrfs_bio **bbio_ret, int mirror_num);
 int btrfs_map_sblock(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		     u64 logical, u64 *length,
-		     struct btrfs_bio **bbio_ret, int mirror_num,
-		     int need_raid_map);
+		     struct btrfs_bio **bbio_ret);
 int btrfs_rmap_block(struct btrfs_fs_info *fs_info,
 		     u64 chunk_start, u64 physical, u64 devid,
 		     u64 **logical, int *naddrs, int *stripe_len);
@@ -411,8 +415,8 @@ int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		      struct btrfs_fs_info *fs_info, u64 type);
 void btrfs_mapping_init(struct btrfs_mapping_tree *tree);
 void btrfs_mapping_tree_free(struct btrfs_mapping_tree *tree);
-int btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
-		  int mirror_num, int async_submit);
+blk_status_t btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
+			   int mirror_num, int async_submit);
 int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		       fmode_t flags, void *holder);
 int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
@@ -475,10 +479,9 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 void btrfs_init_dev_replace_tgtdev_for_resume(struct btrfs_fs_info *fs_info,
 					      struct btrfs_device *tgtdev);
 void btrfs_scratch_superblocks(struct block_device *bdev, const char *device_path);
-int btrfs_is_parity_mirror(struct btrfs_mapping_tree *map_tree,
-			   u64 logical, u64 len, int mirror_num);
+int btrfs_is_parity_mirror(struct btrfs_fs_info *fs_info,
+			   u64 logical, u64 len);
 unsigned long btrfs_full_stripe_len(struct btrfs_fs_info *fs_info,
-				    struct btrfs_mapping_tree *map_tree,
 				    u64 logical);
 int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
 				struct btrfs_fs_info *fs_info,
@@ -537,5 +540,9 @@ void btrfs_update_commit_device_bytes_used(struct btrfs_fs_info *fs_info,
 struct list_head *btrfs_get_fs_uuids(void);
 void btrfs_set_fs_info_ptr(struct btrfs_fs_info *fs_info);
 void btrfs_reset_fs_info_ptr(struct btrfs_fs_info *fs_info);
+
+bool btrfs_check_rw_degradable(struct btrfs_fs_info *fs_info);
+void btrfs_report_missing_device(struct btrfs_fs_info *fs_info, u64 devid,
+				 u8 *uuid);
 
 #endif

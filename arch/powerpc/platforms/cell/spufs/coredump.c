@@ -175,6 +175,8 @@ static int spufs_arch_write_note(struct spu_context *ctx, int i,
 	skip = roundup(cprm->pos - total + sz, 4) - cprm->pos;
 	if (!dump_skip(cprm, skip))
 		goto Eio;
+
+	rc = 0;
 out:
 	free_page((unsigned long)buf);
 	return rc;

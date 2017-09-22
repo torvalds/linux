@@ -312,7 +312,7 @@ int do_shash(unsigned char *name, unsigned char *result,
 	}
 	rc = crypto_shash_final(&sdesc->shash, result);
 	if (rc)
-		pr_err("%s: Could not genereate %s hash", __func__, name);
+		pr_err("%s: Could not generate %s hash", __func__, name);
 
 do_shash_err:
 	crypto_free_shash(hash);

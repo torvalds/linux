@@ -5,8 +5,8 @@
 #include <linux/memblock.h>
 #include <linux/bootmem.h>	/* for max_low_pfn */
 
-#include <asm/cacheflush.h>
-#include <asm/e820.h>
+#include <asm/set_memory.h>
+#include <asm/e820/api.h>
 #include <asm/init.h>
 #include <asm/page.h>
 #include <asm/page_types.h>
@@ -18,6 +18,8 @@
 #include <asm/dma.h>		/* for MAX_DMA_PFN */
 #include <asm/microcode.h>
 #include <asm/kaslr.h>
+#include <asm/hypervisor.h>
+#include <asm/cpufeature.h>
 
 /*
  * We need to define the tracepoints somewhere, and tlb.c
@@ -161,16 +163,16 @@ static int page_size_mask;
 
 static void __init probe_page_size_mask(void)
 {
-#if !defined(CONFIG_KMEMCHECK)
 	/*
 	 * For CONFIG_KMEMCHECK or pagealloc debugging, identity mapping will
 	 * use small pages.
 	 * This will simplify cpa(), which otherwise needs to support splitting
 	 * large pages into small in interrupt context, etc.
 	 */
-	if (boot_cpu_has(X86_FEATURE_PSE) && !debug_pagealloc_enabled())
+	if (boot_cpu_has(X86_FEATURE_PSE) && !debug_pagealloc_enabled() && !IS_ENABLED(CONFIG_KMEMCHECK))
 		page_size_mask |= 1 << PG_LEVEL_2M;
-#endif
+	else
+		direct_gbpages = 0;
 
 	/* Enable PSE if available */
 	if (boot_cpu_has(X86_FEATURE_PSE))
@@ -190,6 +192,38 @@ static void __init probe_page_size_mask(void)
 	} else {
 		direct_gbpages = 0;
 	}
+}
+
+static void setup_pcid(void)
+{
+#ifdef CONFIG_X86_64
+	if (boot_cpu_has(X86_FEATURE_PCID)) {
+		if (boot_cpu_has(X86_FEATURE_PGE)) {
+			/*
+			 * This can't be cr4_set_bits_and_update_boot() --
+			 * the trampoline code can't handle CR4.PCIDE and
+			 * it wouldn't do any good anyway.  Despite the name,
+			 * cr4_set_bits_and_update_boot() doesn't actually
+			 * cause the bits in question to remain set all the
+			 * way through the secondary boot asm.
+			 *
+			 * Instead, we brute-force it and set CR4.PCIDE
+			 * manually in start_secondary().
+			 */
+			cr4_set_bits(X86_CR4_PCIDE);
+		} else {
+			/*
+			 * flush_tlb_all(), as currently implemented, won't
+			 * work if PCID is on but PGE is not.  Since that
+			 * combination doesn't exist on real hardware, there's
+			 * no reason to try to fully support it, but it's
+			 * polite to avoid corrupting data if we're on
+			 * an improperly configured VM.
+			 */
+			setup_clear_cpu_cap(X86_FEATURE_PCID);
+		}
+	}
+#endif
 }
 
 #ifdef CONFIG_X86_32
@@ -373,14 +407,14 @@ static int __meminit split_mem_range(struct map_range *mr, int nr_range,
 	return nr_range;
 }
 
-struct range pfn_mapped[E820_X_MAX];
+struct range pfn_mapped[E820_MAX_ENTRIES];
 int nr_pfn_mapped;
 
 static void add_pfn_range_mapped(unsigned long start_pfn, unsigned long end_pfn)
 {
-	nr_pfn_mapped = add_range_with_merge(pfn_mapped, E820_X_MAX,
+	nr_pfn_mapped = add_range_with_merge(pfn_mapped, E820_MAX_ENTRIES,
 					     nr_pfn_mapped, start_pfn, end_pfn);
-	nr_pfn_mapped = clean_sort_range(pfn_mapped, E820_X_MAX);
+	nr_pfn_mapped = clean_sort_range(pfn_mapped, E820_MAX_ENTRIES);
 
 	max_pfn_mapped = max(max_pfn_mapped, end_pfn);
 
@@ -430,7 +464,7 @@ unsigned long __ref init_memory_mapping(unsigned long start,
 
 /*
  * We need to iterate through the E820 memory map and create direct mappings
- * for only E820_RAM and E820_KERN_RESERVED regions. We cannot simply
+ * for only E820_TYPE_RAM and E820_KERN_RESERVED regions. We cannot simply
  * create direct mappings for all pfns from [0 to max_low_pfn) and
  * [4GB to max_pfn) because of possible memory holes in high addresses
  * that cannot be marked as UC by fixed/variable range MTRRs.
@@ -591,6 +625,7 @@ void __init init_mem_mapping(void)
 	unsigned long end;
 
 	probe_page_size_mask();
+	setup_pcid();
 
 #ifdef CONFIG_X86_64
 	end = max_pfn << PAGE_SHIFT;
@@ -636,6 +671,8 @@ void __init init_mem_mapping(void)
 	load_cr3(swapper_pg_dir);
 	__flush_tlb_all();
 
+	hypervisor_init_mem_mapping();
+
 	early_memtest(0, max_pfn_mapped << PAGE_SHIFT);
 }
 
@@ -643,21 +680,40 @@ void __init init_mem_mapping(void)
  * devmem_is_allowed() checks to see if /dev/mem access to a certain address
  * is valid. The argument is a physical page number.
  *
- *
- * On x86, access has to be given to the first megabyte of ram because that area
- * contains BIOS code and data regions used by X and dosemu and similar apps.
- * Access has to be given to non-kernel-ram areas as well, these contain the PCI
- * mmio resources as well as potential bios/acpi data regions.
+ * On x86, access has to be given to the first megabyte of RAM because that
+ * area traditionally contains BIOS code and data regions used by X, dosemu,
+ * and similar apps. Since they map the entire memory range, the whole range
+ * must be allowed (for mapping), but any areas that would otherwise be
+ * disallowed are flagged as being "zero filled" instead of rejected.
+ * Access has to be given to non-kernel-ram areas as well, these contain the
+ * PCI mmio resources as well as potential bios/acpi data regions.
  */
 int devmem_is_allowed(unsigned long pagenr)
 {
-	if (pagenr < 256)
-		return 1;
-	if (iomem_is_exclusive(pagenr << PAGE_SHIFT))
+	if (page_is_ram(pagenr)) {
+		/*
+		 * For disallowed memory regions in the low 1MB range,
+		 * request that the page be shown as all zeros.
+		 */
+		if (pagenr < 256)
+			return 2;
+
 		return 0;
-	if (!page_is_ram(pagenr))
-		return 1;
-	return 0;
+	}
+
+	/*
+	 * This must follow RAM test, since System RAM is considered a
+	 * restricted resource under CONFIG_STRICT_IOMEM.
+	 */
+	if (iomem_is_exclusive(pagenr << PAGE_SHIFT)) {
+		/* Low 1MB bypasses iomem restrictions. */
+		if (pagenr < 256)
+			return 1;
+
+		return 0;
+	}
+
+	return 1;
 }
 
 void free_init_pages(char *what, unsigned long begin, unsigned long end)
@@ -701,7 +757,7 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 
 void __ref free_initmem(void)
 {
-	e820_reallocate_tables();
+	e820__reallocate_tables();
 
 	free_init_pages("unused kernel",
 			(unsigned long)(&__init_begin),
@@ -724,6 +780,53 @@ void __init free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
+/*
+ * Calculate the precise size of the DMA zone (first 16 MB of RAM),
+ * and pass it to the MM layer - to help it set zone watermarks more
+ * accurately.
+ *
+ * Done on 64-bit systems only for the time being, although 32-bit systems
+ * might benefit from this as well.
+ */
+void __init memblock_find_dma_reserve(void)
+{
+#ifdef CONFIG_X86_64
+	u64 nr_pages = 0, nr_free_pages = 0;
+	unsigned long start_pfn, end_pfn;
+	phys_addr_t start_addr, end_addr;
+	int i;
+	u64 u;
+
+	/*
+	 * Iterate over all memory ranges (free and reserved ones alike),
+	 * to calculate the total number of pages in the first 16 MB of RAM:
+	 */
+	nr_pages = 0;
+	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, NULL) {
+		start_pfn = min(start_pfn, MAX_DMA_PFN);
+		end_pfn   = min(end_pfn,   MAX_DMA_PFN);
+
+		nr_pages += end_pfn - start_pfn;
+	}
+
+	/*
+	 * Iterate over free memory ranges to calculate the number of free
+	 * pages in the DMA zone, while not counting potential partial
+	 * pages at the beginning or the end of the range:
+	 */
+	nr_free_pages = 0;
+	for_each_free_mem_range(u, NUMA_NO_NODE, MEMBLOCK_NONE, &start_addr, &end_addr, NULL) {
+		start_pfn = min_t(unsigned long, PFN_UP(start_addr), MAX_DMA_PFN);
+		end_pfn   = min_t(unsigned long, PFN_DOWN(end_addr), MAX_DMA_PFN);
+
+		if (start_pfn < end_pfn)
+			nr_free_pages += end_pfn - start_pfn;
+	}
+
+	set_dma_reserve(nr_pages - nr_free_pages);
+#endif
+}
+
 void __init zone_sizes_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
@@ -745,10 +848,8 @@ void __init zone_sizes_init(void)
 }
 
 DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate) = {
-#ifdef CONFIG_SMP
-	.active_mm = &init_mm,
-	.state = 0,
-#endif
+	.loaded_mm = &init_mm,
+	.next_asid = 1,
 	.cr4 = ~0UL,	/* fail hard if we screw up cr4 shadow initialization */
 };
 EXPORT_SYMBOL_GPL(cpu_tlbstate);

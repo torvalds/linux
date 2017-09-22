@@ -18,9 +18,8 @@ static int midi_playback_open(struct snd_rawmidi_substream *substream)
 {
 	struct snd_tscm *tscm = substream->rmidi->private_data;
 
-	/* Initialize internal status. */
-	tscm->running_status[substream->number] = 0;
-	tscm->on_sysex[substream->number] = 0;
+	snd_fw_async_midi_port_init(&tscm->out_ports[substream->number]);
+
 	return 0;
 }
 
@@ -32,11 +31,14 @@ static int midi_capture_close(struct snd_rawmidi_substream *substream)
 
 static int midi_playback_close(struct snd_rawmidi_substream *substream)
 {
+	return 0;
+}
+
+static void midi_playback_drain(struct snd_rawmidi_substream *substream)
+{
 	struct snd_tscm *tscm = substream->rmidi->private_data;
 
 	snd_fw_async_midi_port_finish(&tscm->out_ports[substream->number]);
-
-	return 0;
 }
 
 static void midi_capture_trigger(struct snd_rawmidi_substream *substrm, int up)
@@ -78,6 +80,7 @@ int snd_tscm_create_midi_devices(struct snd_tscm *tscm)
 	static const struct snd_rawmidi_ops playback_ops = {
 		.open		= midi_playback_open,
 		.close		= midi_playback_close,
+		.drain		= midi_playback_drain,
 		.trigger	= midi_playback_trigger,
 	};
 	struct snd_rawmidi *rmidi;

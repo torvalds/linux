@@ -29,6 +29,8 @@ void comedi_buf_reset(struct comedi_subdevice *s);
 bool comedi_buf_is_mmapped(struct comedi_subdevice *s);
 void comedi_buf_map_get(struct comedi_buf_map *bm);
 int comedi_buf_map_put(struct comedi_buf_map *bm);
+int comedi_buf_map_access(struct comedi_buf_map *bm, unsigned long offset,
+			  void *buf, int len, int write);
 struct comedi_buf_map *comedi_buf_map_from_subdev_get(
 		struct comedi_subdevice *s);
 unsigned int comedi_buf_write_n_available(struct comedi_subdevice *s);

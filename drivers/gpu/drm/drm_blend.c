@@ -119,17 +119,17 @@
  * drm_property_create_bitmask()) called "rotation" and has the following
  * bitmask enumaration values:
  *
- * DRM_ROTATE_0:
+ * DRM_MODE_ROTATE_0:
  * 	"rotate-0"
- * DRM_ROTATE_90:
+ * DRM_MODE_ROTATE_90:
  * 	"rotate-90"
- * DRM_ROTATE_180:
+ * DRM_MODE_ROTATE_180:
  * 	"rotate-180"
- * DRM_ROTATE_270:
+ * DRM_MODE_ROTATE_270:
  * 	"rotate-270"
- * DRM_REFLECT_X:
+ * DRM_MODE_REFLECT_X:
  * 	"reflect-x"
- * DRM_REFELCT_Y:
+ * DRM_MODE_REFLECT_Y:
  * 	"reflect-y"
  *
  * Rotation is the specified amount in degrees in counter clockwise direction,
@@ -142,17 +142,17 @@ int drm_plane_create_rotation_property(struct drm_plane *plane,
 				       unsigned int supported_rotations)
 {
 	static const struct drm_prop_enum_list props[] = {
-		{ __builtin_ffs(DRM_ROTATE_0) - 1,   "rotate-0" },
-		{ __builtin_ffs(DRM_ROTATE_90) - 1,  "rotate-90" },
-		{ __builtin_ffs(DRM_ROTATE_180) - 1, "rotate-180" },
-		{ __builtin_ffs(DRM_ROTATE_270) - 1, "rotate-270" },
-		{ __builtin_ffs(DRM_REFLECT_X) - 1,  "reflect-x" },
-		{ __builtin_ffs(DRM_REFLECT_Y) - 1,  "reflect-y" },
+		{ __builtin_ffs(DRM_MODE_ROTATE_0) - 1,   "rotate-0" },
+		{ __builtin_ffs(DRM_MODE_ROTATE_90) - 1,  "rotate-90" },
+		{ __builtin_ffs(DRM_MODE_ROTATE_180) - 1, "rotate-180" },
+		{ __builtin_ffs(DRM_MODE_ROTATE_270) - 1, "rotate-270" },
+		{ __builtin_ffs(DRM_MODE_REFLECT_X) - 1,  "reflect-x" },
+		{ __builtin_ffs(DRM_MODE_REFLECT_Y) - 1,  "reflect-y" },
 	};
 	struct drm_property *prop;
 
-	WARN_ON((supported_rotations & DRM_ROTATE_MASK) == 0);
-	WARN_ON(!is_power_of_2(rotation & DRM_ROTATE_MASK));
+	WARN_ON((supported_rotations & DRM_MODE_ROTATE_MASK) == 0);
+	WARN_ON(!is_power_of_2(rotation & DRM_MODE_ROTATE_MASK));
 	WARN_ON(rotation & ~supported_rotations);
 
 	prop = drm_property_create_bitmask(plane->dev, 0, "rotation",
@@ -178,14 +178,14 @@ EXPORT_SYMBOL(drm_plane_create_rotation_property);
  * @supported_rotations: Supported rotations
  *
  * Attempt to simplify the rotation to a form that is supported.
- * Eg. if the hardware supports everything except DRM_REFLECT_X
+ * Eg. if the hardware supports everything except DRM_MODE_REFLECT_X
  * one could call this function like this:
  *
- * drm_rotation_simplify(rotation, DRM_ROTATE_0 |
- *                       DRM_ROTATE_90 | DRM_ROTATE_180 |
- *                       DRM_ROTATE_270 | DRM_REFLECT_Y);
+ * drm_rotation_simplify(rotation, DRM_MODE_ROTATE_0 |
+ *                       DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_180 |
+ *                       DRM_MODE_ROTATE_270 | DRM_MODE_REFLECT_Y);
  *
- * to eliminate the DRM_ROTATE_X flag. Depending on what kind of
+ * to eliminate the DRM_MODE_ROTATE_X flag. Depending on what kind of
  * transforms the hardware supports, this function may not
  * be able to produce a supported transform, so the caller should
  * check the result afterwards.
@@ -194,9 +194,10 @@ unsigned int drm_rotation_simplify(unsigned int rotation,
 				   unsigned int supported_rotations)
 {
 	if (rotation & ~supported_rotations) {
-		rotation ^= DRM_REFLECT_X | DRM_REFLECT_Y;
-		rotation = (rotation & DRM_REFLECT_MASK) |
-		           BIT((ffs(rotation & DRM_ROTATE_MASK) + 1) % 4);
+		rotation ^= DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y;
+		rotation = (rotation & DRM_MODE_REFLECT_MASK) |
+		           BIT((ffs(rotation & DRM_MODE_ROTATE_MASK) + 1)
+		           % 4);
 	}
 
 	return rotation;
@@ -318,7 +319,7 @@ static int drm_atomic_helper_crtc_normalize_zpos(struct drm_crtc *crtc,
 	DRM_DEBUG_ATOMIC("[CRTC:%d:%s] calculating normalized zpos values\n",
 			 crtc->base.id, crtc->name);
 
-	states = kmalloc_array(total_planes, sizeof(*states), GFP_TEMPORARY);
+	states = kmalloc_array(total_planes, sizeof(*states), GFP_KERNEL);
 	if (!states)
 		return -ENOMEM;
 
@@ -377,27 +378,26 @@ int drm_atomic_normalize_zpos(struct drm_device *dev,
 			      struct drm_atomic_state *state)
 {
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct drm_plane *plane;
-	struct drm_plane_state *plane_state;
+	struct drm_plane_state *old_plane_state, *new_plane_state;
 	int i, ret = 0;
 
-	for_each_plane_in_state(state, plane, plane_state, i) {
-		crtc = plane_state->crtc;
+	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
+		crtc = new_plane_state->crtc;
 		if (!crtc)
 			continue;
-		if (plane->state->zpos != plane_state->zpos) {
-			crtc_state =
-				drm_atomic_get_existing_crtc_state(state, crtc);
-			crtc_state->zpos_changed = true;
+		if (old_plane_state->zpos != new_plane_state->zpos) {
+			new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+			new_crtc_state->zpos_changed = true;
 		}
 	}
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		if (crtc_state->plane_mask != crtc->state->plane_mask ||
-		    crtc_state->zpos_changed) {
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		if (old_crtc_state->plane_mask != new_crtc_state->plane_mask ||
+		    new_crtc_state->zpos_changed) {
 			ret = drm_atomic_helper_crtc_normalize_zpos(crtc,
-								    crtc_state);
+								    new_crtc_state);
 			if (ret)
 				return ret;
 		}

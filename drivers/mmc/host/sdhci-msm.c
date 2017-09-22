@@ -611,7 +611,7 @@ static void msm_hc_select_hs400(struct sdhci_host *host)
  * HS400 - divided clock (free running MCLK/2)
  * All other modes - default (free running MCLK)
  */
-void sdhci_msm_hc_select_mode(struct sdhci_host *host)
+static void sdhci_msm_hc_select_mode(struct sdhci_host *host)
 {
 	struct mmc_ios ios = host->mmc->ios;
 
@@ -991,12 +991,8 @@ static void sdhci_msm_set_uhs_signaling(struct sdhci_host *host,
 		mmc_hostname(host->mmc), host->clock, uhs, ctrl_2);
 	sdhci_writew(host, ctrl_2, SDHCI_HOST_CONTROL2);
 
-	spin_unlock_irq(&host->lock);
-
 	if (mmc->ios.timing == MMC_TIMING_MMC_HS400)
 		sdhci_msm_hs400(host, &mmc->ios);
-
-	spin_lock_irq(&host->lock);
 }
 
 static void sdhci_msm_voltage_switch(struct sdhci_host *host)
@@ -1053,7 +1049,7 @@ static unsigned int sdhci_msm_get_min_clock(struct sdhci_host *host)
  * instead directly control the GCC clock as per
  * HW recommendation.
  **/
-void __sdhci_msm_set_clock(struct sdhci_host *host, unsigned int clock)
+static void __sdhci_msm_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	u16 clk;
 	/*
@@ -1089,13 +1085,9 @@ static void sdhci_msm_set_clock(struct sdhci_host *host, unsigned int clock)
 		goto out;
 	}
 
-	spin_unlock_irq(&host->lock);
-
 	sdhci_msm_hc_select_mode(host);
 
 	msm_set_clock_rate_for_bus_mode(host, clock);
-
-	spin_lock_irq(&host->lock);
 out:
 	__sdhci_msm_set_clock(host, clock);
 }
@@ -1141,6 +1133,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 
+	host->sdma_boundary = 0;
 	pltfm_host = sdhci_priv(host);
 	msm_host = sdhci_pltfm_priv(pltfm_host);
 	msm_host->mmc = host->mmc;

@@ -85,6 +85,12 @@ static const struct i2c_device_id stts751_id[] = {
 	{ }
 };
 
+static const struct of_device_id stts751_of_match[] = {
+	{ .compatible = "stts751" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, stts751_of_match);
+
 struct stts751_priv {
 	struct device *dev;
 	struct i2c_client *client;
@@ -712,6 +718,10 @@ static int stts751_read_chip_config(struct stts751_priv *priv)
 	ret = i2c_smbus_read_byte_data(priv->client, STTS751_REG_RATE);
 	if (ret < 0)
 		return ret;
+	if (ret >= ARRAY_SIZE(stts751_intervals)) {
+		dev_err(priv->dev, "Unrecognized conversion rate 0x%x\n", ret);
+		return -ENODEV;
+	}
 	priv->interval = ret;
 
 	ret = stts751_read_reg16(priv, &priv->event_max,
@@ -819,6 +829,7 @@ static struct i2c_driver stts751_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= DEVNAME,
+		.of_match_table = of_match_ptr(stts751_of_match),
 	},
 	.probe		= stts751_probe,
 	.id_table	= stts751_id,

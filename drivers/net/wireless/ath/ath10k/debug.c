@@ -70,7 +70,7 @@ struct ath10k_dump_file_data {
 
 	/* some info we can get from ath10k struct that might help */
 
-	u8 uuid[16];
+	guid_t guid;
 
 	__le32 chip_id;
 
@@ -237,7 +237,7 @@ static ssize_t ath10k_read_wmi_services(struct file *file,
 {
 	struct ath10k *ar = file->private_data;
 	char *buf;
-	size_t len = 0, buf_len = 4096;
+	size_t len = 0, buf_len = 8192;
 	const char *name;
 	ssize_t ret_cnt;
 	bool enabled;
@@ -248,9 +248,6 @@ static ssize_t ath10k_read_wmi_services(struct file *file,
 		return -ENOMEM;
 
 	mutex_lock(&ar->conf_mutex);
-
-	if (len > buf_len)
-		len = buf_len;
 
 	spin_lock_bh(&ar->data_lock);
 	for (i = 0; i < WMI_SERVICE_MAX; i++) {
@@ -628,17 +625,21 @@ static ssize_t ath10k_write_simulate_fw_crash(struct file *file,
 					      size_t count, loff_t *ppos)
 {
 	struct ath10k *ar = file->private_data;
-	char buf[32];
+	char buf[32] = {0};
+	ssize_t rc;
 	int ret;
 
-	simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	/* filter partial writes and invalid commands */
+	if (*ppos != 0 || count >= sizeof(buf) || count == 0)
+		return -EINVAL;
 
-	/* make sure that buf is null terminated */
-	buf[sizeof(buf) - 1] = 0;
+	rc = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (rc < 0)
+		return rc;
 
 	/* drop the possible '\n' from the end */
-	if (buf[count - 1] == '\n')
-		buf[count - 1] = 0;
+	if (buf[*ppos - 1] == '\n')
+		buf[*ppos - 1] = '\0';
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -718,7 +719,7 @@ ath10k_debug_get_new_fw_crash_data(struct ath10k *ar)
 	lockdep_assert_held(&ar->data_lock);
 
 	crash_data->crashed_since_read = true;
-	uuid_le_gen(&crash_data->uuid);
+	guid_gen(&crash_data->guid);
 	getnstimeofday(&crash_data->timestamp);
 
 	return crash_data;
@@ -765,7 +766,7 @@ static struct ath10k_dump_file_data *ath10k_build_dump_file(struct ath10k *ar,
 
 	dump_data->version = cpu_to_le32(ATH10K_FW_CRASH_DUMP_VERSION);
 
-	memcpy(dump_data->uuid, &crash_data->uuid, sizeof(dump_data->uuid));
+	guid_copy(&dump_data->guid, &crash_data->guid);
 	dump_data->chip_id = cpu_to_le32(ar->chip_id);
 	dump_data->bus_type = cpu_to_le32(0);
 	dump_data->target_version = cpu_to_le32(ar->target_version);
@@ -1819,7 +1820,7 @@ static void ath10k_tpc_stats_fill(struct ath10k *ar,
 			 tpc_stats->num_tx_chain,
 			 tpc_stats->rate_max);
 
-	for (j = 0; j < tpc_stats->num_tx_chain ; j++) {
+	for (j = 0; j < WMI_TPC_FLAG; j++) {
 		switch (j) {
 		case WMI_TPC_TABLE_TYPE_CDD:
 			if (tpc_stats->flag[j] == ATH10K_TPC_TABLE_TYPE_FLAG) {
@@ -1985,7 +1986,8 @@ void ath10k_debug_stop(struct ath10k *ar)
 
 	/* Must not use _sync to avoid deadlock, we do that in
 	 * ath10k_debug_destroy(). The check for htt_stats_mask is to avoid
-	 * warning from del_timer(). */
+	 * warning from del_timer().
+	 */
 	if (ar->debug.htt_stats_mask != 0)
 		cancel_delayed_work(&ar->debug.htt_stats_dwork);
 
@@ -1997,6 +1999,15 @@ static ssize_t ath10k_write_simulate_radar(struct file *file,
 					   size_t count, loff_t *ppos)
 {
 	struct ath10k *ar = file->private_data;
+	struct ath10k_vif *arvif;
+
+	/* Just check for for the first vif alone, as all the vifs will be
+	 * sharing the same channel and if the channel is disabled, all the
+	 * vifs will share the same 'is_started' state.
+	 */
+	arvif = list_first_entry(&ar->arvifs, typeof(*arvif), list);
+	if (!arvif->is_started)
+		return -EINVAL;
 
 	ieee80211_radar_detected(ar->hw);
 
@@ -2437,86 +2448,82 @@ int ath10k_debug_register(struct ath10k *ar)
 	init_completion(&ar->debug.tpc_complete);
 	init_completion(&ar->debug.fw_stats_complete);
 
-	debugfs_create_file("fw_stats", S_IRUSR, ar->debug.debugfs_phy, ar,
+	debugfs_create_file("fw_stats", 0400, ar->debug.debugfs_phy, ar,
 			    &fops_fw_stats);
 
-	debugfs_create_file("fw_reset_stats", S_IRUSR, ar->debug.debugfs_phy,
-			    ar, &fops_fw_reset_stats);
+	debugfs_create_file("fw_reset_stats", 0400, ar->debug.debugfs_phy, ar,
+			    &fops_fw_reset_stats);
 
-	debugfs_create_file("wmi_services", S_IRUSR, ar->debug.debugfs_phy, ar,
+	debugfs_create_file("wmi_services", 0400, ar->debug.debugfs_phy, ar,
 			    &fops_wmi_services);
 
-	debugfs_create_file("simulate_fw_crash", S_IRUSR | S_IWUSR,
-			    ar->debug.debugfs_phy, ar, &fops_simulate_fw_crash);
+	debugfs_create_file("simulate_fw_crash", 0600, ar->debug.debugfs_phy, ar,
+			    &fops_simulate_fw_crash);
 
-	debugfs_create_file("fw_crash_dump", S_IRUSR, ar->debug.debugfs_phy,
-			    ar, &fops_fw_crash_dump);
+	debugfs_create_file("fw_crash_dump", 0400, ar->debug.debugfs_phy, ar,
+			    &fops_fw_crash_dump);
 
-	debugfs_create_file("reg_addr", S_IRUSR | S_IWUSR,
-			    ar->debug.debugfs_phy, ar, &fops_reg_addr);
+	debugfs_create_file("reg_addr", 0600, ar->debug.debugfs_phy, ar,
+			    &fops_reg_addr);
 
-	debugfs_create_file("reg_value", S_IRUSR | S_IWUSR,
-			    ar->debug.debugfs_phy, ar, &fops_reg_value);
+	debugfs_create_file("reg_value", 0600, ar->debug.debugfs_phy, ar,
+			    &fops_reg_value);
 
-	debugfs_create_file("mem_value", S_IRUSR | S_IWUSR,
-			    ar->debug.debugfs_phy, ar, &fops_mem_value);
+	debugfs_create_file("mem_value", 0600, ar->debug.debugfs_phy, ar,
+			    &fops_mem_value);
 
-	debugfs_create_file("chip_id", S_IRUSR, ar->debug.debugfs_phy,
-			    ar, &fops_chip_id);
+	debugfs_create_file("chip_id", 0400, ar->debug.debugfs_phy, ar,
+			    &fops_chip_id);
 
-	debugfs_create_file("htt_stats_mask", S_IRUSR | S_IWUSR,
-			    ar->debug.debugfs_phy, ar, &fops_htt_stats_mask);
+	debugfs_create_file("htt_stats_mask", 0600, ar->debug.debugfs_phy, ar,
+			    &fops_htt_stats_mask);
 
-	debugfs_create_file("htt_max_amsdu_ampdu", S_IRUSR | S_IWUSR,
-			    ar->debug.debugfs_phy, ar,
+	debugfs_create_file("htt_max_amsdu_ampdu", 0600, ar->debug.debugfs_phy, ar,
 			    &fops_htt_max_amsdu_ampdu);
 
-	debugfs_create_file("fw_dbglog", S_IRUSR | S_IWUSR,
-			    ar->debug.debugfs_phy, ar, &fops_fw_dbglog);
+	debugfs_create_file("fw_dbglog", 0600, ar->debug.debugfs_phy, ar,
+			    &fops_fw_dbglog);
 
-	debugfs_create_file("cal_data", S_IRUSR, ar->debug.debugfs_phy,
-			    ar, &fops_cal_data);
+	debugfs_create_file("cal_data", 0400, ar->debug.debugfs_phy, ar,
+			    &fops_cal_data);
 
-	debugfs_create_file("ani_enable", S_IRUSR | S_IWUSR,
-			    ar->debug.debugfs_phy, ar, &fops_ani_enable);
+	debugfs_create_file("ani_enable", 0600, ar->debug.debugfs_phy, ar,
+			    &fops_ani_enable);
 
-	debugfs_create_file("nf_cal_period", S_IRUSR | S_IWUSR,
-			    ar->debug.debugfs_phy, ar, &fops_nf_cal_period);
+	debugfs_create_file("nf_cal_period", 0600, ar->debug.debugfs_phy, ar,
+			    &fops_nf_cal_period);
 
 	if (IS_ENABLED(CONFIG_ATH10K_DFS_CERTIFIED)) {
-		debugfs_create_file("dfs_simulate_radar", S_IWUSR,
-				    ar->debug.debugfs_phy, ar,
-				    &fops_simulate_radar);
+		debugfs_create_file("dfs_simulate_radar", 0200, ar->debug.debugfs_phy,
+				    ar, &fops_simulate_radar);
 
-		debugfs_create_bool("dfs_block_radar_events", S_IWUSR,
+		debugfs_create_bool("dfs_block_radar_events", 0200,
 				    ar->debug.debugfs_phy,
 				    &ar->dfs_block_radar_events);
 
-		debugfs_create_file("dfs_stats", S_IRUSR,
-				    ar->debug.debugfs_phy, ar,
+		debugfs_create_file("dfs_stats", 0400, ar->debug.debugfs_phy, ar,
 				    &fops_dfs_stats);
 	}
 
-	debugfs_create_file("pktlog_filter", S_IRUGO | S_IWUSR,
-			    ar->debug.debugfs_phy, ar, &fops_pktlog_filter);
+	debugfs_create_file("pktlog_filter", 0644, ar->debug.debugfs_phy, ar,
+			    &fops_pktlog_filter);
 
-	debugfs_create_file("quiet_period", S_IRUGO | S_IWUSR,
-			    ar->debug.debugfs_phy, ar, &fops_quiet_period);
+	debugfs_create_file("quiet_period", 0644, ar->debug.debugfs_phy, ar,
+			    &fops_quiet_period);
 
-	debugfs_create_file("tpc_stats", S_IRUSR,
-			    ar->debug.debugfs_phy, ar, &fops_tpc_stats);
+	debugfs_create_file("tpc_stats", 0400, ar->debug.debugfs_phy, ar,
+			    &fops_tpc_stats);
 
 	if (test_bit(WMI_SERVICE_COEX_GPIO, ar->wmi.svc_map))
-		debugfs_create_file("btcoex", S_IRUGO | S_IWUSR,
-				    ar->debug.debugfs_phy, ar, &fops_btcoex);
+		debugfs_create_file("btcoex", 0644, ar->debug.debugfs_phy, ar,
+				    &fops_btcoex);
 
 	if (test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map))
-		debugfs_create_file("peer_stats", S_IRUGO | S_IWUSR,
-				    ar->debug.debugfs_phy, ar,
+		debugfs_create_file("peer_stats", 0644, ar->debug.debugfs_phy, ar,
 				    &fops_peer_stats);
 
-	debugfs_create_file("fw_checksums", S_IRUSR,
-			    ar->debug.debugfs_phy, ar, &fops_fw_checksums);
+	debugfs_create_file("fw_checksums", 0400, ar->debug.debugfs_phy, ar,
+			    &fops_fw_checksums);
 
 	return 0;
 }

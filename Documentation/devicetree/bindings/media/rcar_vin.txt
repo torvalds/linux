@@ -1,5 +1,5 @@
-Renesas RCar Video Input driver (rcar_vin)
-------------------------------------------
+Renesas R-Car Video Input driver (rcar_vin)
+-------------------------------------------
 
 The rcar_vin device provides video input capabilities for the Renesas R-Car
 family of devices. The current blocks are always slaves and suppot one input

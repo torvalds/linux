@@ -30,6 +30,7 @@ config ATMEL_EBI
 	default y
 	depends on ARCH_AT91 && OF
 	select MFD_SYSCON
+	select MFD_ATMEL_SMC
 	help
 	  Driver for Atmel EBI controller.
 	  Used to configure the EBI (external bus interface) when the device-
@@ -115,7 +116,7 @@ config FSL_CORENET_CF
 
 config FSL_IFC
 	bool
-	depends on FSL_SOC || ARCH_LAYERSCAPE
+	depends on FSL_SOC || ARCH_LAYERSCAPE || SOC_LS1021A
 
 config JZ4780_NEMC
 	bool "Ingenic JZ4780 SoC NEMC driver"

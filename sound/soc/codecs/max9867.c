@@ -132,7 +132,7 @@ enum rates {
 	pcm_rate_48, max_pcm_rate,
 };
 
-struct ni_div_rates {
+static const struct ni_div_rates {
 	u32 mclk;
 	u16 ni[max_pcm_rate];
 } ni_div[] = {
@@ -350,7 +350,7 @@ static int max9867_dai_set_fmt(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static struct snd_soc_dai_ops max9867_dai_ops = {
+static const struct snd_soc_dai_ops max9867_dai_ops = {
 	.set_fmt = max9867_dai_set_fmt,
 	.set_sysclk	= max9867_set_dai_sysclk,
 	.prepare	= max9867_prepare,
@@ -413,7 +413,7 @@ static int max9867_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver max9867_codec = {
+static const struct snd_soc_codec_driver max9867_codec = {
 	.probe = max9867_probe,
 	.component_driver = {
 		.controls		= max9867_snd_controls,
@@ -516,13 +516,13 @@ static const struct i2c_device_id max9867_i2c_id[] = {
 	{ "max9867", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, max9867_i2c_id);
 
 static const struct of_device_id max9867_of_match[] = {
 	{ .compatible = "maxim,max9867", },
 	{ }
 };
-
-MODULE_DEVICE_TABLE(i2c, max9867_i2c_id);
+MODULE_DEVICE_TABLE(of, max9867_of_match);
 
 static const struct dev_pm_ops max9867_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(max9867_suspend, max9867_resume)

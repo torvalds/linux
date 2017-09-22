@@ -96,11 +96,6 @@ extern asmlinkage void *restore_user_regs(const struct user_context *target, ...
 #define release_segments(mm)		do { } while (0)
 #define forget_segments()		do { } while (0)
 
-/*
- * Return saved PC of a blocked thread.
- */
-extern unsigned long thread_saved_pc(struct task_struct *tsk);
-
 unsigned long get_wchan(struct task_struct *p);
 
 #define	KSTK_EIP(tsk)	((tsk)->thread.frame0->pc)

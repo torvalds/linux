@@ -611,7 +611,7 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		nskb = skb_copy(skb, GFP_ATOMIC);
 		if (!nskb)
 			goto drop;
-		dev_kfree_skb_any(skb);
+		dev_consume_skb_any(skb);
 		skb = nskb;
 		page = virt_to_page(skb->data);
 		offset = offset_in_page(skb->data);
@@ -1934,8 +1934,7 @@ abort_transaction_no_dev_fatal:
 	xennet_disconnect_backend(info);
 	xennet_destroy_queues(info);
  out:
-	unregister_netdev(info->netdev);
-	xennet_free_netdev(info->netdev);
+	device_unregister(&dev->dev);
 	return err;
 }
 

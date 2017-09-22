@@ -1,8 +1,11 @@
 #ifndef _ASM_EFI_H
 #define _ASM_EFI_H
 
+#include <asm/boot.h>
 #include <asm/cpufeature.h>
+#include <asm/fpsimd.h>
 #include <asm/io.h>
+#include <asm/memory.h>
 #include <asm/mmu_context.h>
 #include <asm/neon.h>
 #include <asm/ptrace.h>
@@ -19,8 +22,8 @@ int efi_set_mapping_permissions(struct mm_struct *mm, efi_memory_desc_t *md);
 
 #define arch_efi_call_virt_setup()					\
 ({									\
-	kernel_neon_begin();						\
 	efi_virtmap_load();						\
+	__efi_fpsimd_begin();						\
 })
 
 #define arch_efi_call_virt(p, f, args...)				\
@@ -32,8 +35,8 @@ int efi_set_mapping_permissions(struct mm_struct *mm, efi_memory_desc_t *md);
 
 #define arch_efi_call_virt_teardown()					\
 ({									\
+	__efi_fpsimd_end();						\
 	efi_virtmap_unload();						\
-	kernel_neon_end();						\
 })
 
 #define ARCH_EFI_IRQ_FLAGS_MASK (PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT)
@@ -46,7 +49,35 @@ int efi_set_mapping_permissions(struct mm_struct *mm, efi_memory_desc_t *md);
  * 2MiB so we know it won't cross a 2MiB boundary.
  */
 #define EFI_FDT_ALIGN	SZ_2M   /* used by allocate_new_fdt_and_exit_boot() */
-#define MAX_FDT_OFFSET	SZ_512M
+
+/*
+ * In some configurations (e.g. VMAP_STACK && 64K pages), stacks built into the
+ * kernel need greater alignment than we require the segments to be padded to.
+ */
+#define EFI_KIMG_ALIGN	\
+	(SEGMENT_ALIGN > THREAD_ALIGN ? SEGMENT_ALIGN : THREAD_ALIGN)
+
+/* on arm64, the FDT may be located anywhere in system RAM */
+static inline unsigned long efi_get_max_fdt_addr(unsigned long dram_base)
+{
+	return ULONG_MAX;
+}
+
+/*
+ * On arm64, we have to ensure that the initrd ends up in the linear region,
+ * which is a 1 GB aligned region of size '1UL << (VA_BITS - 1)' that is
+ * guaranteed to cover the kernel Image.
+ *
+ * Since the EFI stub is part of the kernel Image, we can relax the
+ * usual requirements in Documentation/arm64/booting.txt, which still
+ * apply to other bootloaders, and are required for some kernel
+ * configurations.
+ */
+static inline unsigned long efi_get_max_initrd_addr(unsigned long dram_base,
+						    unsigned long image_addr)
+{
+	return (image_addr & ~(SZ_1G - 1UL)) + (1UL << (VA_BITS - 1));
+}
 
 #define efi_call_early(f, ...)		sys_table_arg->boottime->f(__VA_ARGS__)
 #define __efi_call_early(f, ...)	f(__VA_ARGS__)
@@ -58,6 +89,9 @@ int efi_set_mapping_permissions(struct mm_struct *mm, efi_memory_desc_t *md);
 
 #define alloc_screen_info(x...)		&screen_info
 #define free_screen_info(x...)
+
+/* redeclare as 'hidden' so the compiler will generate relative references */
+extern struct screen_info screen_info __attribute__((__visibility__("hidden")));
 
 static inline void efifb_setup_from_dmi(struct screen_info *si, const char *opt)
 {

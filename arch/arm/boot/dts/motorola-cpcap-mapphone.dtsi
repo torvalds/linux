@@ -1,0 +1,260 @@
+/*
+ * Common CPCAP configuration used on Motorola phones
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+&mcspi1 {
+	cpcap: pmic@0 {
+		compatible = "motorola,cpcap", "st,6556002";
+		reg = <0>;	/* cs0 */
+		interrupt-parent = <&gpio1>;
+		interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		spi-max-frequency = <3000000>;
+		spi-cs-high;
+
+		cpcap_adc: adc {
+			compatible = "motorola,mapphone-cpcap-adc";
+			interrupts-extended = <&cpcap 8 0>;
+			interrupt-names = "adcdone";
+			#io-channel-cells = <1>;
+		};
+
+		cpcap_battery: battery {
+			compatible = "motorola,cpcap-battery";
+			interrupts-extended = <
+				&cpcap 6 0 &cpcap 5 0 &cpcap 3 0
+				&cpcap 20 0 &cpcap 54 0
+			>;
+			interrupt-names =
+				"eol", "lowbph", "lowbpl",
+				"chrgcurr1", "battdetb";
+			io-channels = <&cpcap_adc 0 &cpcap_adc 1
+				       &cpcap_adc 5 &cpcap_adc 6>;
+			io-channel-names = "battdetb", "battp",
+					   "chg_isense", "batti";
+			power-supplies = <&cpcap_charger>;
+		};
+
+		cpcap_charger: charger {
+			compatible = "motorola,mapphone-cpcap-charger";
+			interrupts-extended = <
+				&cpcap 13 0 &cpcap 12 0 &cpcap 29 0 &cpcap 28 0
+				&cpcap 22 0 &cpcap 20 0 &cpcap 19 0 &cpcap 54 0
+			>;
+			interrupt-names =
+				"chrg_det", "rvrs_chrg", "chrg_se1b", "se0conn",
+				"rvrs_mode", "chrgcurr1", "vbusvld", "battdetb";
+			mode-gpios = <&gpio3 29 GPIO_ACTIVE_LOW
+				      &gpio3 23 GPIO_ACTIVE_LOW>;
+			io-channels = <&cpcap_adc 0 &cpcap_adc 1
+				       &cpcap_adc 2 &cpcap_adc 5
+				       &cpcap_adc 6>;
+			io-channel-names = "battdetb", "battp",
+					   "vbus", "chg_isense",
+					   "batti";
+		};
+
+		cpcap_regulator: regulator {
+			compatible = "motorola,mapphone-cpcap-regulator";
+
+			cpcap_regulators: regulators {
+			};
+		};
+
+		cpcap_rtc: rtc {
+			compatible = "motorola,cpcap-rtc";
+
+			interrupt-parent = <&cpcap>;
+			interrupts = <39 IRQ_TYPE_NONE>, <26 IRQ_TYPE_NONE>;
+		};
+
+		power_button: button {
+			compatible = "motorola,cpcap-pwrbutton";
+
+			interrupts = <23 IRQ_TYPE_NONE>;
+		};
+
+		cpcap_usb2_phy: phy {
+			compatible = "motorola,mapphone-cpcap-usb-phy";
+			pinctrl-0 = <&usb_gpio_mux_sel1 &usb_gpio_mux_sel2>;
+			pinctrl-1 = <&usb_ulpi_pins>;
+			pinctrl-2 = <&usb_utmi_pins>;
+			pinctrl-3 = <&uart3_pins>;
+			pinctrl-names = "default", "ulpi", "utmi", "uart";
+			#phy-cells = <0>;
+			interrupts-extended = <
+				&cpcap 15 0 &cpcap 14 0 &cpcap 28 0 &cpcap 19 0
+				&cpcap 18 0 &cpcap 17 0 &cpcap 16 0 &cpcap 49 0
+				&cpcap 48 1
+			>;
+			interrupt-names =
+				"id_ground", "id_float", "se0conn", "vbusvld",
+				"sessvld", "sessend", "se1", "dm", "dp";
+			mode-gpios = <&gpio2 28 GPIO_ACTIVE_HIGH
+				      &gpio1 0 GPIO_ACTIVE_HIGH>;
+			io-channels = <&cpcap_adc 2>, <&cpcap_adc 7>;
+			io-channel-names = "vbus", "id";
+			vusb-supply = <&vusb>;
+		};
+
+		led_red: led-red {
+			compatible = "motorola,cpcap-led-red";
+			vdd-supply = <&sw5>;
+			label = "status-led:red";
+		};
+
+		led_green: led-green {
+			compatible = "motorola,cpcap-led-green";
+			vdd-supply = <&sw5>;
+			label = "status-led:green";
+		};
+
+		led_blue: led-blue {
+			compatible = "motorola,cpcap-led-blue";
+			vdd-supply = <&sw5>;
+			label = "status-led:blue";
+		};
+
+		led_adl: led-adl {
+			compatible = "motorola,cpcap-led-adl";
+			vdd-supply = <&sw5>;
+			label = "button-backlight";
+		};
+
+		led_cp: led-cp {
+			compatible = "motorola,cpcap-led-cp";
+			vdd-supply = <&sw5>;
+			label = "shift-key-light";
+		};
+	};
+};
+
+&cpcap_regulators {
+	sw5: SW5 {
+		regulator-min-microvolt = <5050000>;
+		regulator-max-microvolt = <5050000>;
+		regulator-enable-ramp-delay = <50000>;
+		regulator-boot-on;
+	};
+
+	vcam: VCAM {
+		regulator-min-microvolt = <2900000>;
+		regulator-max-microvolt = <2900000>;
+		regulator-enable-ramp-delay = <1000>;
+	};
+
+	/* Used by DSS */
+	vcsi: VCSI {
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-enable-ramp-delay = <1000>;
+		regulator-boot-on;
+	};
+
+	vdac: VDAC {
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-enable-ramp-delay = <1000>;
+	};
+
+	vdig: VDIG {
+		regulator-min-microvolt = <1875000>;
+		regulator-max-microvolt = <1875000>;
+		regulator-enable-ramp-delay = <1000>;
+	};
+
+	vfuse: VFUSE {
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <3150000>;
+		regulator-enable-ramp-delay = <1000>;
+	};
+
+	vhvio: VHVIO {
+		regulator-min-microvolt = <2775000>;
+		regulator-max-microvolt = <2775000>;
+		regulator-enable-ramp-delay = <1000>;
+		regulator-always-on;
+	};
+
+	/* Used by eMMC at mmc2 */
+	vsdio: VSDIO {
+		regulator-min-microvolt = <2900000>;
+		regulator-max-microvolt = <2900000>;
+		regulator-enable-ramp-delay = <1000>;
+	};
+
+	vpll: VPLL {
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-enable-ramp-delay = <100>;
+	};
+
+	vrf1: VRF1 {
+		regulator-min-microvolt = <2775000>;
+		regulator-max-microvolt = <2775000>;
+		regulator-enable-ramp-delay = <1000>;
+	};
+
+	vrf2: VRF2 {
+		regulator-min-microvolt = <2775000>;
+		regulator-max-microvolt = <2775000>;
+		regulator-enable-ramp-delay = <1000>;
+	};
+
+	vrfref: VRFREF {
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2775000>;
+		regulator-enable-ramp-delay = <100>;
+	};
+
+	vwlan1: VWLAN1 {
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1900000>;
+		regulator-enable-ramp-delay = <1000>;
+	};
+
+	/* Used by micro-SDIO at mmc1 */
+	vwlan2: VWLAN2 {
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+		regulator-enable-ramp-delay = <1000>;
+	};
+
+	vsim: VSIM {
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <2900000>;
+		regulator-enable-ramp-delay = <1000>;
+	};
+
+	vsimcard: VSIMCARD {
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <2900000>;
+		regulator-enable-ramp-delay = <1000>;
+	};
+
+	vvib: VVIB {
+		regulator-min-microvolt = <1300000>;
+		regulator-max-microvolt = <3000000>;
+		regulator-enable-ramp-delay = <500>;
+	};
+
+	vusb: VUSB {
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-enable-ramp-delay = <1000>;
+	};
+
+	vaudio: VAUDIO {
+		regulator-min-microvolt = <2775000>;
+		regulator-max-microvolt = <2775000>;
+		regulator-enable-ramp-delay = <1000>;
+		regulator-initial-mode = <0x00>; /* NORMAL */
+	};
+};

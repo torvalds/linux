@@ -34,10 +34,10 @@
  *
  */
 #define DEBUG_SUBSYSTEM S_LLITE
-#include "../include/obd_class.h"
-#include "../include/obd_support.h"
-#include "../include/obd.h"
-#include "../include/cl_object.h"
+#include <obd_class.h>
+#include <obd_support.h>
+#include <obd.h>
+#include <cl_object.h>
 
 #include "llite_internal.h"
 
@@ -124,7 +124,7 @@ int cl_get_grouplock(struct cl_object *obj, unsigned long gid, int nonblock,
 	struct cl_lock	 *lock;
 	struct cl_lock_descr   *descr;
 	__u32		   enqflags;
-	int		     refcheck;
+	u16 refcheck;
 	int		     rc;
 
 	env = cl_env_get(&refcheck);

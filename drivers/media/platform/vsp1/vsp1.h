@@ -32,6 +32,8 @@ struct vsp1_entity;
 struct vsp1_platform_data;
 struct vsp1_bru;
 struct vsp1_clu;
+struct vsp1_hgo;
+struct vsp1_hgt;
 struct vsp1_hsit;
 struct vsp1_lif;
 struct vsp1_lut;
@@ -39,23 +41,27 @@ struct vsp1_rwpf;
 struct vsp1_sru;
 struct vsp1_uds;
 
+#define VSP1_MAX_LIF		2
 #define VSP1_MAX_RPF		5
 #define VSP1_MAX_UDS		3
 #define VSP1_MAX_WPF		4
 
-#define VSP1_HAS_LIF		(1 << 0)
 #define VSP1_HAS_LUT		(1 << 1)
 #define VSP1_HAS_SRU		(1 << 2)
 #define VSP1_HAS_BRU		(1 << 3)
 #define VSP1_HAS_CLU		(1 << 4)
 #define VSP1_HAS_WPF_VFLIP	(1 << 5)
 #define VSP1_HAS_WPF_HFLIP	(1 << 6)
+#define VSP1_HAS_HGO		(1 << 7)
+#define VSP1_HAS_HGT		(1 << 8)
+#define VSP1_HAS_BRS		(1 << 9)
 
 struct vsp1_device_info {
 	u32 version;
 	const char *model;
 	unsigned int gen;
 	unsigned int features;
+	unsigned int lif_count;
 	unsigned int rpf_count;
 	unsigned int uds_count;
 	unsigned int wpf_count;
@@ -70,12 +76,16 @@ struct vsp1_device {
 
 	void __iomem *mmio;
 	struct rcar_fcp_device *fcp;
+	struct device *bus_master;
 
+	struct vsp1_bru *brs;
 	struct vsp1_bru *bru;
 	struct vsp1_clu *clu;
+	struct vsp1_hgo *hgo;
+	struct vsp1_hgt *hgt;
 	struct vsp1_hsit *hsi;
 	struct vsp1_hsit *hst;
-	struct vsp1_lif *lif;
+	struct vsp1_lif *lif[VSP1_MAX_LIF];
 	struct vsp1_lut *lut;
 	struct vsp1_rwpf *rpf[VSP1_MAX_RPF];
 	struct vsp1_sru *sru;

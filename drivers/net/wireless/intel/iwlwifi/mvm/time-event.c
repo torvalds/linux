@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,14 +68,13 @@
 #include <linux/jiffies.h>
 #include <net/mac80211.h>
 
-#include "iwl-notif-wait.h"
+#include "fw/notif-wait.h"
 #include "iwl-trans.h"
 #include "fw-api.h"
 #include "time-event.h"
 #include "mvm.h"
 #include "iwl-io.h"
 #include "iwl-prph.h"
-#include "fw-dbg.h"
 
 /*
  * For the high priority TE use a time event type that has similar priority to
@@ -130,7 +131,7 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 	 * issue as it will have to complete before the next command is
 	 * executed, and a new time event means a new command.
 	 */
-	iwl_mvm_flush_tx_path(mvm, queues, CMD_ASYNC);
+	iwl_mvm_flush_sta(mvm, &mvm->aux_sta, true, CMD_ASYNC);
 }
 
 static void iwl_mvm_roc_finished(struct iwl_mvm *mvm)
@@ -245,7 +246,9 @@ static void iwl_mvm_te_check_trigger(struct iwl_mvm *mvm,
 	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_TIME_EVENT);
 	te_trig = (void *)trig->data;
 
-	if (!iwl_fw_dbg_trigger_check_stop(mvm, te_data->vif, trig))
+	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
+					   ieee80211_vif_to_wdev(te_data->vif),
+					   trig))
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(te_trig->time_events); i++) {
@@ -260,11 +263,11 @@ static void iwl_mvm_te_check_trigger(struct iwl_mvm *mvm,
 		    !(trig_status_bitmap & BIT(le32_to_cpu(notif->status))))
 			continue;
 
-		iwl_mvm_fw_dbg_collect_trig(mvm, trig,
-					    "Time event %d Action 0x%x received status: %d",
-					    te_data->id,
-					    le32_to_cpu(notif->action),
-					    le32_to_cpu(notif->status));
+		iwl_fw_dbg_collect_trig(&mvm->fwrt, trig,
+					"Time event %d Action 0x%x received status: %d",
+					te_data->id,
+					le32_to_cpu(notif->action),
+					le32_to_cpu(notif->status));
 		break;
 	}
 }
@@ -725,8 +728,21 @@ void iwl_mvm_stop_session_protection(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_time_event_data *te_data = &mvmvif->time_event_data;
+	u32 id;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	spin_lock_bh(&mvm->time_event_lock);
+	id = te_data->id;
+	spin_unlock_bh(&mvm->time_event_lock);
+
+	if (id != TE_BSS_STA_AGGRESSIVE_ASSOC) {
+		IWL_DEBUG_TE(mvm,
+			     "don't remove TE with id=%u (not session protection)\n",
+			     id);
+		return;
+	}
+
 	iwl_mvm_remove_time_event(mvm, mvmvif, te_data);
 }
 
@@ -858,8 +874,23 @@ int iwl_mvm_schedule_csa_period(struct iwl_mvm *mvm,
 	lockdep_assert_held(&mvm->mutex);
 
 	if (te_data->running) {
-		IWL_DEBUG_TE(mvm, "CS period is already scheduled\n");
-		return -EBUSY;
+		u32 id;
+
+		spin_lock_bh(&mvm->time_event_lock);
+		id = te_data->id;
+		spin_unlock_bh(&mvm->time_event_lock);
+
+		if (id == TE_CHANNEL_SWITCH_PERIOD) {
+			IWL_DEBUG_TE(mvm, "CS period is already scheduled\n");
+			return -EBUSY;
+		}
+
+		/*
+		 * Remove the session protection time event to allow the
+		 * channel switch. If we got here, we just heard a beacon so
+		 * the session protection is not needed anymore anyway.
+		 */
+		iwl_mvm_remove_time_event(mvm, mvmvif, te_data);
 	}
 
 	time_cmd.action = cpu_to_le32(FW_CTXT_ACTION_ADD);

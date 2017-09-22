@@ -11,7 +11,7 @@
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
-******************************************************************************/
+ *****************************************************************************/
 #include "rtl_core.h"
 #include "rtl_dm.h"
 #include "r8192E_hw.h"
@@ -886,11 +886,14 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 		if (tmpCCK40Mindex >= CCK_Table_length)
 			tmpCCK40Mindex = CCK_Table_length-1;
 	} else {
-		tmpval = ((u8)tmpRegA - priv->ThermalMeter[0]);
-		if (tmpval >= 6)
-			tmpOFDMindex = tmpCCK20Mindex = 0;
-		else
-			tmpOFDMindex = tmpCCK20Mindex = 6 - tmpval;
+		tmpval = (u8)tmpRegA - priv->ThermalMeter[0];
+		if (tmpval >= 6) {
+			tmpOFDMindex = 0;
+			tmpCCK20Mindex = 0;
+		} else {
+			tmpOFDMindex = 6 - tmpval;
+			tmpCCK20Mindex = 6 - tmpval;
+		}
 		tmpCCK40Mindex = 0;
 	}
 	if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
@@ -1330,7 +1333,7 @@ static void _rtl92e_dm_ctrl_initgain_byrssi(struct net_device *dev)
  *	When		Who		Remark
  *	03/04/2009	hpfan	Create Version 0.
  *
- *---------------------------------------------------------------------------*/
+ ******************************************************************************/
 
 static void _rtl92e_dm_ctrl_initgain_byrssi_driver(struct net_device *dev)
 {
@@ -1690,22 +1693,6 @@ static void _rtl92e_dm_check_edca_turbo(struct net_device *dev)
 	if (priv->rtllib->pHTInfo->IOTAction & HT_IOT_ACT_DISABLE_EDCA_TURBO)
 		goto dm_CheckEdcaTurbo_EXIT;
 
-	{
-		u8 *peername[11] = {
-			"unknown", "realtek_90", "realtek_92se", "broadcom",
-			"ralink", "atheros", "cisco", "marvell", "92u_softap",
-			"self_softap"
-		};
-		static int wb_tmp;
-
-		if (wb_tmp == 0) {
-			netdev_info(dev,
-				    "%s():iot peer is %s, bssid: %pM\n",
-				    __func__, peername[pHTInfo->IOTPeer],
-				    priv->rtllib->current_network.bssid);
-			wb_tmp = 1;
-		}
-	}
 	if (!priv->rtllib->bis_any_nonbepkts) {
 		curTxOkCnt = priv->stats.txbytesunicast - lastTxOkCnt;
 		curRxOkCnt = priv->stats.rxbytesunicast - lastRxOkCnt;

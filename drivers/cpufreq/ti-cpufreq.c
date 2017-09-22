@@ -245,8 +245,6 @@ static int ti_cpufreq_init(void)
 	if (ret)
 		goto fail_put_node;
 
-	of_node_put(opp_data->opp_node);
-
 	ret = PTR_ERR_OR_ZERO(dev_pm_opp_set_supported_hw(opp_data->cpu_dev,
 							  version, VERSION_COUNT));
 	if (ret) {
@@ -254,6 +252,8 @@ static int ti_cpufreq_init(void)
 			"Failed to set supported hardware\n");
 		goto fail_put_node;
 	}
+
+	of_node_put(opp_data->opp_node);
 
 register_cpufreq_dt:
 	platform_device_register_simple("cpufreq-dt", -1, NULL, 0);

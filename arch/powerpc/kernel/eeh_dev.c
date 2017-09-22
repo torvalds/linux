@@ -50,21 +50,16 @@
  */
 struct eeh_dev *eeh_dev_init(struct pci_dn *pdn)
 {
-	struct pci_controller *phb = pdn->phb;
 	struct eeh_dev *edev;
 
 	/* Allocate EEH device */
 	edev = kzalloc(sizeof(*edev), GFP_KERNEL);
-	if (!edev) {
-		pr_warn("%s: out of memory\n",
-			__func__);
+	if (!edev)
 		return NULL;
-	}
 
 	/* Associate EEH device with OF node */
 	pdn->edev = edev;
 	edev->pdn = pdn;
-	edev->phb = phb;
 	INIT_LIST_HEAD(&edev->list);
 	INIT_LIST_HEAD(&edev->rmv_list);
 

@@ -149,7 +149,8 @@ setup_gop32(efi_system_table_t *sys_table_arg, struct screen_info *si,
 
 		status = __gop_query32(sys_table_arg, gop32, &info, &size,
 				       &current_fb_base);
-		if (status == EFI_SUCCESS && (!first_gop || conout_found)) {
+		if (status == EFI_SUCCESS && (!first_gop || conout_found) &&
+		    info->pixel_format != PIXEL_BLT_ONLY) {
 			/*
 			 * Systems that use the UEFI Console Splitter may
 			 * provide multiple GOP devices, not all of which are
@@ -266,7 +267,8 @@ setup_gop64(efi_system_table_t *sys_table_arg, struct screen_info *si,
 
 		status = __gop_query64(sys_table_arg, gop64, &info, &size,
 				       &current_fb_base);
-		if (status == EFI_SUCCESS && (!first_gop || conout_found)) {
+		if (status == EFI_SUCCESS && (!first_gop || conout_found) &&
+		    info->pixel_format != PIXEL_BLT_ONLY) {
 			/*
 			 * Systems that use the UEFI Console Splitter may
 			 * provide multiple GOP devices, not all of which are

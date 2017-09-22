@@ -486,6 +486,9 @@ static int qlcnic_set_link_ksettings(struct net_device *dev,
 	u32 ret = 0;
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 
+	if (qlcnic_83xx_check(adapter))
+		qlcnic_83xx_get_port_type(adapter);
+
 	if (adapter->ahw->port_type != QLCNIC_GBE)
 		return -EOPNOTSUPP;
 

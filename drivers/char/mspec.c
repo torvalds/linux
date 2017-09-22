@@ -43,6 +43,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/numa.h>
+#include <linux/refcount.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <linux/atomic.h>
@@ -89,7 +90,7 @@ static int is_sn2;
  * protect in fork case where multiple tasks share the vma_data.
  */
 struct vma_data {
-	atomic_t refcnt;	/* Number of vmas sharing the data. */
+	refcount_t refcnt;	/* Number of vmas sharing the data. */
 	spinlock_t lock;	/* Serialize access to this structure. */
 	int count;		/* Number of pages allocated. */
 	enum mspec_page_type type; /* Type of pages allocated. */
@@ -144,7 +145,7 @@ mspec_open(struct vm_area_struct *vma)
 	struct vma_data *vdata;
 
 	vdata = vma->vm_private_data;
-	atomic_inc(&vdata->refcnt);
+	refcount_inc(&vdata->refcnt);
 }
 
 /*
@@ -162,7 +163,7 @@ mspec_close(struct vm_area_struct *vma)
 
 	vdata = vma->vm_private_data;
 
-	if (!atomic_dec_and_test(&vdata->refcnt))
+	if (!refcount_dec_and_test(&vdata->refcnt))
 		return;
 
 	last_index = (vdata->vm_end - vdata->vm_start) >> PAGE_SHIFT;
@@ -274,7 +275,7 @@ mspec_mmap(struct file *file, struct vm_area_struct *vma,
 	vdata->vm_end = vma->vm_end;
 	vdata->type = type;
 	spin_lock_init(&vdata->lock);
-	atomic_set(&vdata->refcnt, 1);
+	refcount_set(&vdata->refcnt, 1);
 	vma->vm_private_data = vdata;
 
 	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP;

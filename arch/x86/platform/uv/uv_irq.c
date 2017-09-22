@@ -160,13 +160,21 @@ static struct irq_domain *uv_get_irq_domain(void)
 {
 	static struct irq_domain *uv_domain;
 	static DEFINE_MUTEX(uv_lock);
+	struct fwnode_handle *fn;
 
 	mutex_lock(&uv_lock);
-	if (uv_domain == NULL) {
-		uv_domain = irq_domain_add_tree(NULL, &uv_domain_ops, NULL);
-		if (uv_domain)
-			uv_domain->parent = x86_vector_domain;
-	}
+	if (uv_domain)
+		goto out;
+
+	fn = irq_domain_alloc_named_fwnode("UV-CORE");
+	if (!fn)
+		goto out;
+
+	uv_domain = irq_domain_create_tree(fn, &uv_domain_ops, NULL);
+	irq_domain_free_fwnode(fn);
+	if (uv_domain)
+		uv_domain->parent = x86_vector_domain;
+out:
 	mutex_unlock(&uv_lock);
 
 	return uv_domain;

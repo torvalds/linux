@@ -315,6 +315,7 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_force_aml_disassembly, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_dm_opt_verbose, TRUE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_dm_emit_external_opcodes, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_do_disassembler_optimizations, TRUE);
+ACPI_INIT_GLOBAL(ACPI_PARSE_OBJECT_LIST, *acpi_gbl_temp_list_head, NULL);
 
 ACPI_GLOBAL(u8, acpi_gbl_dm_opt_disasm);
 ACPI_GLOBAL(u8, acpi_gbl_dm_opt_listing);
@@ -368,7 +369,62 @@ ACPI_GLOBAL(const char, *acpi_gbl_pld_vertical_position_list[]);
 ACPI_GLOBAL(const char, *acpi_gbl_pld_horizontal_position_list[]);
 ACPI_GLOBAL(const char, *acpi_gbl_pld_shape_list[]);
 
+ACPI_INIT_GLOBAL(u8, acpi_gbl_disasm_flag, FALSE);
+
 #endif
+
+/*
+ * Meant for the -ca option.
+ */
+ACPI_INIT_GLOBAL(char *, acpi_gbl_current_inline_comment, NULL);
+ACPI_INIT_GLOBAL(char *, acpi_gbl_current_end_node_comment, NULL);
+ACPI_INIT_GLOBAL(char *, acpi_gbl_current_open_brace_comment, NULL);
+ACPI_INIT_GLOBAL(char *, acpi_gbl_current_close_brace_comment, NULL);
+
+ACPI_INIT_GLOBAL(char *, acpi_gbl_root_filename, NULL);
+ACPI_INIT_GLOBAL(char *, acpi_gbl_current_filename, NULL);
+ACPI_INIT_GLOBAL(char *, acpi_gbl_current_parent_filename, NULL);
+ACPI_INIT_GLOBAL(char *, acpi_gbl_current_include_filename, NULL);
+
+ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_last_list_head, NULL);
+
+ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_def_blk_comment_list_head,
+		 NULL);
+ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_def_blk_comment_list_tail,
+		 NULL);
+
+ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_reg_comment_list_head,
+		 NULL);
+ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_reg_comment_list_tail,
+		 NULL);
+
+ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_inc_comment_list_head,
+		 NULL);
+ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_inc_comment_list_tail,
+		 NULL);
+
+ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_end_blk_comment_list_head,
+		 NULL);
+ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_end_blk_comment_list_tail,
+		 NULL);
+
+ACPI_INIT_GLOBAL(struct acpi_comment_addr_node,
+		 *acpi_gbl_comment_addr_list_head, NULL);
+
+ACPI_INIT_GLOBAL(union acpi_parse_object, *acpi_gbl_current_scope, NULL);
+
+ACPI_INIT_GLOBAL(struct acpi_file_node, *acpi_gbl_file_tree_root, NULL);
+
+ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_reg_comment_cache);
+ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_comment_addr_cache);
+ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_file_cache);
+
+ACPI_INIT_GLOBAL(u8, gbl_capture_comments, FALSE);
+
+ACPI_INIT_GLOBAL(u8, acpi_gbl_debug_asl_conversion, FALSE);
+ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_conv_debug_file, NULL);
+
+ACPI_GLOBAL(char, acpi_gbl_table_sig[4]);
 
 /*****************************************************************************
  *

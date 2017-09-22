@@ -47,6 +47,14 @@
 	0x030000, 0xff0000,			\
 	(unsigned long) info }
 
+#define INTEL_I810_IDS(info)					\
+	INTEL_VGA_DEVICE(0x7121, info), /* I810 */		\
+	INTEL_VGA_DEVICE(0x7123, info), /* I810_DC100 */	\
+	INTEL_VGA_DEVICE(0x7125, info)  /* I810_E */
+
+#define INTEL_I815_IDS(info)					\
+	INTEL_VGA_DEVICE(0x1132, info)  /* I815*/
+
 #define INTEL_I830_IDS(info)				\
 	INTEL_VGA_DEVICE(0x3577, info)
 
@@ -265,7 +273,8 @@
 	INTEL_VGA_DEVICE(0x1923, info), /* ULT GT3 */ \
 	INTEL_VGA_DEVICE(0x1926, info), /* ULT GT3 */ \
 	INTEL_VGA_DEVICE(0x1927, info), /* ULT GT3 */ \
-	INTEL_VGA_DEVICE(0x192B, info)  /* Halo GT3 */ \
+	INTEL_VGA_DEVICE(0x192B, info), /* Halo GT3 */ \
+	INTEL_VGA_DEVICE(0x192D, info)  /* SRV GT3 */
 
 #define INTEL_SKL_GT4_IDS(info) \
 	INTEL_VGA_DEVICE(0x1932, info), /* DT GT4 */ \
@@ -324,5 +333,45 @@
 	INTEL_KBL_GT2_IDS(info), \
 	INTEL_KBL_GT3_IDS(info), \
 	INTEL_KBL_GT4_IDS(info)
+
+/* CFL S */
+#define INTEL_CFL_S_IDS(info) \
+	INTEL_VGA_DEVICE(0x3E90, info), /* SRV GT1 */ \
+	INTEL_VGA_DEVICE(0x3E93, info), /* SRV GT1 */ \
+	INTEL_VGA_DEVICE(0x3E91, info), /* SRV GT2 */ \
+	INTEL_VGA_DEVICE(0x3E92, info), /* SRV GT2 */ \
+	INTEL_VGA_DEVICE(0x3E96, info)  /* SRV GT2 */
+
+/* CFL H */
+#define INTEL_CFL_H_IDS(info) \
+	INTEL_VGA_DEVICE(0x3E9B, info), /* Halo GT2 */ \
+	INTEL_VGA_DEVICE(0x3E94, info)  /* Halo GT2 */
+
+/* CFL U */
+#define INTEL_CFL_U_IDS(info) \
+	INTEL_VGA_DEVICE(0x3EA6, info), /* ULT GT3 */ \
+	INTEL_VGA_DEVICE(0x3EA7, info), /* ULT GT3 */ \
+	INTEL_VGA_DEVICE(0x3EA8, info), /* ULT GT3 */ \
+	INTEL_VGA_DEVICE(0x3EA5, info)  /* ULT GT3 */
+
+/* CNL U 2+2 */
+#define INTEL_CNL_U_GT2_IDS(info) \
+	INTEL_VGA_DEVICE(0x5A52, info), \
+	INTEL_VGA_DEVICE(0x5A5A, info), \
+	INTEL_VGA_DEVICE(0x5A42, info), \
+	INTEL_VGA_DEVICE(0x5A4A, info)
+
+/* CNL Y 2+2 */
+#define INTEL_CNL_Y_GT2_IDS(info) \
+	INTEL_VGA_DEVICE(0x5A51, info), \
+	INTEL_VGA_DEVICE(0x5A59, info), \
+	INTEL_VGA_DEVICE(0x5A41, info), \
+	INTEL_VGA_DEVICE(0x5A49, info), \
+	INTEL_VGA_DEVICE(0x5A71, info), \
+	INTEL_VGA_DEVICE(0x5A79, info)
+
+#define INTEL_CNL_IDS(info) \
+	INTEL_CNL_U_GT2_IDS(info), \
+	INTEL_CNL_Y_GT2_IDS(info)
 
 #endif /* _I915_PCIIDS_H */

@@ -218,12 +218,15 @@ static int load_misc_binary(struct linux_binprm *bprm)
 
 	bprm->file = interp_file;
 	if (fmt->flags & MISC_FMT_CREDENTIALS) {
+		loff_t pos = 0;
+
 		/*
 		 * No need to call prepare_binprm(), it's already been
 		 * done.  bprm->buf is stale, update from interp_file.
 		 */
 		memset(bprm->buf, 0, BINPRM_BUF_SIZE);
-		retval = kernel_read(bprm->file, 0, bprm->buf, BINPRM_BUF_SIZE);
+		retval = kernel_read(bprm->file, bprm->buf, BINPRM_BUF_SIZE,
+				&pos);
 	} else
 		retval = prepare_binprm(bprm);
 
@@ -818,7 +821,7 @@ static const struct super_operations s_ops = {
 static int bm_fill_super(struct super_block *sb, void *data, int silent)
 {
 	int err;
-	static struct tree_descr bm_files[] = {
+	static const struct tree_descr bm_files[] = {
 		[2] = {"status", &bm_status_operations, S_IWUSR|S_IRUGO},
 		[3] = {"register", &bm_register_operations, S_IWUSR},
 		/* last one */ {""}

@@ -327,8 +327,7 @@ lcs_set_allowed_threads(struct lcs_card *card, unsigned long threads)
 	spin_unlock_irqrestore(&card->mask_lock, flags);
 	wake_up(&card->wait_q);
 }
-static inline int
-lcs_threads_running(struct lcs_card *card, unsigned long threads)
+static int lcs_threads_running(struct lcs_card *card, unsigned long threads)
 {
         unsigned long flags;
         int rc = 0;
@@ -346,8 +345,7 @@ lcs_wait_for_threads(struct lcs_card *card, unsigned long threads)
                         lcs_threads_running(card, threads) == 0);
 }
 
-static inline int
-lcs_set_thread_start_bit(struct lcs_card *card, unsigned long thread)
+static int lcs_set_thread_start_bit(struct lcs_card *card, unsigned long thread)
 {
         unsigned long flags;
 
@@ -373,8 +371,7 @@ lcs_clear_thread_running_bit(struct lcs_card *card, unsigned long thread)
         wake_up(&card->wait_q);
 }
 
-static inline int
-__lcs_do_run_thread(struct lcs_card *card, unsigned long thread)
+static int __lcs_do_run_thread(struct lcs_card *card, unsigned long thread)
 {
         unsigned long flags;
         int rc = 0;
@@ -444,8 +441,7 @@ lcs_setup_card(struct lcs_card *card)
 	INIT_LIST_HEAD(&card->lancmd_waiters);
 }
 
-static inline void
-lcs_clear_multicast_list(struct lcs_card *card)
+static void lcs_clear_multicast_list(struct lcs_card *card)
 {
 #ifdef	CONFIG_IP_MULTICAST
 	struct lcs_ipm_list *ipm;
@@ -656,8 +652,7 @@ __lcs_resume_channel(struct lcs_channel *channel)
 /**
  * Make a buffer ready for processing.
  */
-static inline void
-__lcs_ready_buffer_bits(struct lcs_channel *channel, int index)
+static void __lcs_ready_buffer_bits(struct lcs_channel *channel, int index)
 {
 	int prev, next;
 
@@ -1169,8 +1164,8 @@ lcs_get_mac_for_ipm(__be32 ipm, char *mac, struct net_device *dev)
 /**
  * function called by net device to handle multicast address relevant things
  */
-static inline void
-lcs_remove_mc_addresses(struct lcs_card *card, struct in_device *in4_dev)
+static void lcs_remove_mc_addresses(struct lcs_card *card,
+				    struct in_device *in4_dev)
 {
 	struct ip_mc_list *im4;
 	struct list_head *l;
@@ -1196,8 +1191,9 @@ lcs_remove_mc_addresses(struct lcs_card *card, struct in_device *in4_dev)
 	spin_unlock_irqrestore(&card->ipm_lock, flags);
 }
 
-static inline struct lcs_ipm_list *
-lcs_check_addr_entry(struct lcs_card *card, struct ip_mc_list *im4, char *buf)
+static struct lcs_ipm_list *lcs_check_addr_entry(struct lcs_card *card,
+						 struct ip_mc_list *im4,
+						 char *buf)
 {
 	struct lcs_ipm_list *tmp, *ipm = NULL;
 	struct list_head *l;
@@ -1218,8 +1214,8 @@ lcs_check_addr_entry(struct lcs_card *card, struct ip_mc_list *im4, char *buf)
 	return ipm;
 }
 
-static inline void
-lcs_set_mc_addresses(struct lcs_card *card, struct in_device *in4_dev)
+static void lcs_set_mc_addresses(struct lcs_card *card,
+				 struct in_device *in4_dev)
 {
 
 	struct ip_mc_list *im4;
@@ -1796,7 +1792,7 @@ lcs_get_skb(struct lcs_card *card, char *skb_data, unsigned int skb_len)
 		card->stats.rx_dropped++;
 		return;
 	}
-	memcpy(skb_put(skb, skb_len), skb_data, skb_len);
+	skb_put_data(skb, skb_data, skb_len);
 	skb->protocol =	card->lan_type_trans(skb, card->dev);
 	card->stats.rx_bytes += skb_len;
 	card->stats.rx_packets++;
@@ -2411,14 +2407,14 @@ static struct ccwgroup_driver lcs_group_driver = {
 	.restore     = lcs_restore,
 };
 
-static ssize_t lcs_driver_group_store(struct device_driver *ddrv,
-				      const char *buf, size_t count)
+static ssize_t group_store(struct device_driver *ddrv, const char *buf,
+			   size_t count)
 {
 	int err;
 	err = ccwgroup_create_dev(lcs_root_dev, &lcs_group_driver, 2, buf);
 	return err ? err : count;
 }
-static DRIVER_ATTR(group, 0200, NULL, lcs_driver_group_store);
+static DRIVER_ATTR_WO(group);
 
 static struct attribute *lcs_drv_attrs[] = {
 	&driver_attr_group.attr,

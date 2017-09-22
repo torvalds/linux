@@ -94,27 +94,27 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
-		opp@400000000 {
+		opp-400000000 {
 			opp-hz = /bits/ 64 <400000000>;
 			opp-microvolt = <1075000>;
 		};
-		opp@267000000 {
+		opp-267000000 {
 			opp-hz = /bits/ 64 <267000000>;
 			opp-microvolt = <1000000>;
 		};
-		opp@200000000 {
+		opp-200000000 {
 			opp-hz = /bits/ 64 <200000000>;
 			opp-microvolt = <975000>;
 		};
-		opp@160000000 {
+		opp-160000000 {
 			opp-hz = /bits/ 64 <160000000>;
 			opp-microvolt = <962500>;
 		};
-		opp@134000000 {
+		opp-134000000 {
 			opp-hz = /bits/ 64 <134000000>;
 			opp-microvolt = <950000>;
 		};
-		opp@100000000 {
+		opp-100000000 {
 			opp-hz = /bits/ 64 <100000000>;
 			opp-microvolt = <937500>;
 		};
@@ -123,19 +123,19 @@
 	bus_g2d_266_opp_table: opp_table3 {
 		compatible = "operating-points-v2";
 
-		opp@267000000 {
+		opp-267000000 {
 			opp-hz = /bits/ 64 <267000000>;
 		};
-		opp@200000000 {
+		opp-200000000 {
 			opp-hz = /bits/ 64 <200000000>;
 		};
-		opp@160000000 {
+		opp-160000000 {
 			opp-hz = /bits/ 64 <160000000>;
 		};
-		opp@134000000 {
+		opp-134000000 {
 			opp-hz = /bits/ 64 <134000000>;
 		};
-		opp@100000000 {
+		opp-100000000 {
 			opp-hz = /bits/ 64 <100000000>;
 		};
 	};
@@ -143,13 +143,13 @@
 	bus_gscl_opp_table: opp_table4 {
 		compatible = "operating-points-v2";
 
-		opp@333000000 {
+		opp-333000000 {
 			opp-hz = /bits/ 64 <333000000>;
 		};
-		opp@222000000 {
+		opp-222000000 {
 			opp-hz = /bits/ 64 <222000000>;
 		};
-		opp@166500000 {
+		opp-166500000 {
 			opp-hz = /bits/ 64 <166500000>;
 		};
 	};
@@ -158,22 +158,22 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
-		opp@400000000 {
+		opp-400000000 {
 			opp-hz = /bits/ 64 <400000000>;
 		};
-		opp@267000000 {
+		opp-267000000 {
 			opp-hz = /bits/ 64 <267000000>;
 		};
-		opp@200000000 {
+		opp-200000000 {
 			opp-hz = /bits/ 64 <200000000>;
 		};
-		opp@160000000 {
+		opp-160000000 {
 			opp-hz = /bits/ 64 <160000000>;
 		};
-		opp@134000000 {
+		opp-134000000 {
 			opp-hz = /bits/ 64 <134000000>;
 		};
-		opp@100000000 {
+		opp-100000000 {
 			opp-hz = /bits/ 64 <100000000>;
 		};
 	};
@@ -181,16 +181,16 @@
 	bus_noc2_opp_table: opp_table6 {
 		compatible = "operating-points-v2";
 
-		opp@400000000 {
+		opp-400000000 {
 			opp-hz = /bits/ 64 <400000000>;
 		};
-		opp@200000000 {
+		opp-200000000 {
 			opp-hz = /bits/ 64 <200000000>;
 		};
-		opp@134000000 {
+		opp-134000000 {
 			opp-hz = /bits/ 64 <134000000>;
 		};
-		opp@100000000 {
+		opp-100000000 {
 			opp-hz = /bits/ 64 <100000000>;
 		};
 	};

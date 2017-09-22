@@ -79,9 +79,9 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 		bss_meta.signal = (rx_status->signal * 100) / local->hw.max_signal;
 
 	bss_meta.scan_width = NL80211_BSS_CHAN_WIDTH_20;
-	if (rx_status->flag & RX_FLAG_5MHZ)
+	if (rx_status->bw == RATE_INFO_BW_5)
 		bss_meta.scan_width = NL80211_BSS_CHAN_WIDTH_5;
-	if (rx_status->flag & RX_FLAG_10MHZ)
+	else if (rx_status->bw == RATE_INFO_BW_10)
 		bss_meta.scan_width = NL80211_BSS_CHAN_WIDTH_10;
 
 	bss_meta.chan = channel;
@@ -174,8 +174,8 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	if (beacon) {
 		struct ieee80211_supported_band *sband =
 			local->hw.wiphy->bands[rx_status->band];
-		if (!(rx_status->flag & RX_FLAG_HT) &&
-		    !(rx_status->flag & RX_FLAG_VHT))
+		if (!(rx_status->encoding == RX_ENC_HT) &&
+		    !(rx_status->encoding == RX_ENC_VHT))
 			bss->beacon_rate =
 				&sband->bitrates[rx_status->rate_idx];
 	}
@@ -1219,7 +1219,7 @@ void ieee80211_sched_scan_results(struct ieee80211_hw *hw)
 
 	trace_api_sched_scan_results(local);
 
-	cfg80211_sched_scan_results(hw->wiphy);
+	cfg80211_sched_scan_results(hw->wiphy, 0);
 }
 EXPORT_SYMBOL(ieee80211_sched_scan_results);
 
@@ -1239,7 +1239,7 @@ void ieee80211_sched_scan_end(struct ieee80211_local *local)
 
 	mutex_unlock(&local->mtx);
 
-	cfg80211_sched_scan_stopped(local->hw.wiphy);
+	cfg80211_sched_scan_stopped(local->hw.wiphy, 0);
 }
 
 void ieee80211_sched_scan_stopped_work(struct work_struct *work)

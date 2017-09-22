@@ -530,10 +530,12 @@ l2dis_3630_offset:
 	.long	l2dis_3630 - .
 
 	.data
+	.align	2
 l2dis_3630:
 	.word	0
 
 	.data
+	.align	2
 l2_inv_api_params:
 	.word	0x1, 0x00
 

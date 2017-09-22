@@ -393,6 +393,7 @@ static int mcam_alloc_dma_bufs(struct mcam_camera *cam, int loadtime)
 		dma_free_coherent(cam->dev, cam->dma_buf_size,
 				cam->dma_bufs[0], cam->dma_handles[0]);
 		cam->nbufs = 0;
+		/* fall-through */
 	case 0:
 		cam_err(cam, "Insufficient DMA buffers, cannot operate\n");
 		return -ENOMEM;
@@ -1638,7 +1639,7 @@ static const struct v4l2_file_operations mcam_v4l_fops = {
  * This template device holds all of those v4l2 methods; we
  * clone it for specific real devices.
  */
-static struct video_device mcam_v4l_template = {
+static const struct video_device mcam_v4l_template = {
 	.name = "mcam",
 	.fops = &mcam_v4l_fops,
 	.ioctl_ops = &mcam_v4l_ioctl_ops,

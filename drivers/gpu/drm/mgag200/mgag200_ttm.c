@@ -26,8 +26,9 @@
  * Authors: Dave Airlie <airlied@redhat.com>
  */
 #include <drm/drmP.h>
+#include <drm/ttm/ttm_page_alloc.h>
+
 #include "mgag200_drv.h"
-#include <ttm/ttm_page_alloc.h>
 
 static inline struct mga_device *
 mgag200_bdev(struct ttm_bo_device *bd)
@@ -236,6 +237,7 @@ struct ttm_bo_driver mgag200_bo_driver = {
 	.verify_access = mgag200_bo_verify_access,
 	.io_mem_reserve = &mgag200_ttm_io_mem_reserve,
 	.io_mem_free = &mgag200_ttm_io_mem_free,
+	.io_mem_pfn = ttm_bo_default_io_mem_pfn,
 };
 
 int mgag200_mm_init(struct mga_device *mdev)

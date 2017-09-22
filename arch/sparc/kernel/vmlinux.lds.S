@@ -149,6 +149,21 @@ SECTIONS
 		*(.sun_m7_2insn_patch)
 		__sun_m7_2insn_patch_end = .;
 	}
+	.get_tick_patch : {
+		__get_tick_patch = .;
+		*(.get_tick_patch)
+		__get_tick_patch_end = .;
+	}
+	.pud_huge_patch : {
+		__pud_huge_patch = .;
+		*(.pud_huge_patch)
+		__pud_huge_patch_end = .;
+	}
+	.fast_win_ctrl_1insn_patch : {
+		__fast_win_ctrl_1insn_patch = .;
+		*(.fast_win_ctrl_1insn_patch)
+		__fast_win_ctrl_1insn_patch_end = .;
+	}
 	PERCPU_SECTION(SMP_CACHE_BYTES)
 
 #ifdef CONFIG_JUMP_LABEL

@@ -19,12 +19,12 @@
 #ifndef __LINUX_IOMMU_H
 #define __LINUX_IOMMU_H
 
+#include <linux/scatterlist.h>
+#include <linux/device.h>
+#include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/of.h>
-#include <linux/types.h>
-#include <linux/scatterlist.h>
-#include <trace/events/iommu.h>
 
 #define IOMMU_READ	(1 << 0)
 #define IOMMU_WRITE	(1 << 1)
@@ -32,10 +32,13 @@
 #define IOMMU_NOEXEC	(1 << 3)
 #define IOMMU_MMIO	(1 << 4) /* e.g. things like MSI doorbells */
 /*
- * This is to make the IOMMU API setup privileged
- * mapppings accessible by the master only at higher
- * privileged execution level and inaccessible at
- * less privileged levels.
+ * Where the bus hardware includes a privilege level as part of its access type
+ * markings, and certain devices are capable of issuing transactions marked as
+ * either 'supervisor' or 'user', the IOMMU_PRIV flag requests that the other
+ * given permission flags only apply to accesses at the higher privilege level,
+ * and that unprivileged transactions should have as little access as possible.
+ * This would usually imply the same permissions as kernel mappings on the CPU,
+ * if the IOMMU page table format is equivalent.
  */
 #define IOMMU_PRIV	(1 << 5)
 
@@ -125,9 +128,16 @@ enum iommu_attr {
 };
 
 /* These are the possible reserved region types */
-#define IOMMU_RESV_DIRECT	(1 << 0)
-#define IOMMU_RESV_RESERVED	(1 << 1)
-#define IOMMU_RESV_MSI		(1 << 2)
+enum iommu_resv_type {
+	/* Memory regions which must be mapped 1:1 at all times */
+	IOMMU_RESV_DIRECT,
+	/* Arbitrary "never map this or give it to a device" address ranges */
+	IOMMU_RESV_RESERVED,
+	/* Hardware MSI region (untranslated) */
+	IOMMU_RESV_MSI,
+	/* Software-managed MSI translation window */
+	IOMMU_RESV_SW_MSI,
+};
 
 /**
  * struct iommu_resv_region - descriptor for a reserved memory region
@@ -142,7 +152,7 @@ struct iommu_resv_region {
 	phys_addr_t		start;
 	size_t			length;
 	int			prot;
-	int			type;
+	enum iommu_resv_type	type;
 };
 
 #ifdef CONFIG_IOMMU_API
@@ -157,6 +167,10 @@ struct iommu_resv_region {
  * @map: map a physically contiguous memory region to an iommu domain
  * @unmap: unmap a physically contiguous memory region from an iommu domain
  * @map_sg: map a scatter-gather list of physically contiguous memory chunks
+ * @flush_tlb_all: Synchronously flush all hardware TLBs for this domain
+ * @tlb_range_add: Add a given iova range to the flush queue for this domain
+ * @tlb_sync: Flush all queued ranges from the hardware TLBs and empty flush
+ *            queue
  * to an iommu domain
  * @iova_to_phys: translate iova to physical address
  * @add_device: add device to iommu grouping
@@ -189,6 +203,10 @@ struct iommu_ops {
 		     size_t size);
 	size_t (*map_sg)(struct iommu_domain *domain, unsigned long iova,
 			 struct scatterlist *sg, unsigned int nents, int prot);
+	void (*flush_iotlb_all)(struct iommu_domain *domain);
+	void (*iotlb_range_add)(struct iommu_domain *domain,
+				unsigned long iova, size_t size);
+	void (*iotlb_sync)(struct iommu_domain *domain);
 	phys_addr_t (*iova_to_phys)(struct iommu_domain *domain, dma_addr_t iova);
 	int (*add_device)(struct device *dev);
 	void (*remove_device)(struct device *dev);
@@ -215,6 +233,7 @@ struct iommu_ops {
 	u32 (*domain_get_windows)(struct iommu_domain *domain);
 
 	int (*of_xlate)(struct device *dev, struct of_phandle_args *args);
+	bool (*is_attach_deferred)(struct iommu_domain *domain, struct device *dev);
 
 	unsigned long pgsize_bitmap;
 };
@@ -230,7 +249,7 @@ struct iommu_device {
 	struct list_head list;
 	const struct iommu_ops *ops;
 	struct fwnode_handle *fwnode;
-	struct device dev;
+	struct device *dev;
 };
 
 int  iommu_device_register(struct iommu_device *iommu);
@@ -255,6 +274,11 @@ static inline void iommu_device_set_fwnode(struct iommu_device *iommu,
 	iommu->fwnode = fwnode;
 }
 
+static inline struct iommu_device *dev_to_iommu_device(struct device *dev)
+{
+	return (struct iommu_device *)dev_get_drvdata(dev);
+}
+
 #define IOMMU_GROUP_NOTIFY_ADD_DEVICE		1 /* Device added */
 #define IOMMU_GROUP_NOTIFY_DEL_DEVICE		2 /* Pre Device removed */
 #define IOMMU_GROUP_NOTIFY_BIND_DRIVER		3 /* Pre Driver bind */
@@ -276,7 +300,9 @@ extern struct iommu_domain *iommu_get_domain_for_dev(struct device *dev);
 extern int iommu_map(struct iommu_domain *domain, unsigned long iova,
 		     phys_addr_t paddr, size_t size, int prot);
 extern size_t iommu_unmap(struct iommu_domain *domain, unsigned long iova,
-		       size_t size);
+			  size_t size);
+extern size_t iommu_unmap_fast(struct iommu_domain *domain,
+			       unsigned long iova, size_t size);
 extern size_t default_iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
 				struct scatterlist *sg,unsigned int nents,
 				int prot);
@@ -288,7 +314,8 @@ extern void iommu_get_resv_regions(struct device *dev, struct list_head *list);
 extern void iommu_put_resv_regions(struct device *dev, struct list_head *list);
 extern int iommu_request_dm_for_dev(struct device *dev);
 extern struct iommu_resv_region *
-iommu_alloc_resv_region(phys_addr_t start, size_t length, int prot, int type);
+iommu_alloc_resv_region(phys_addr_t start, size_t length, int prot,
+			enum iommu_resv_type type);
 extern int iommu_get_group_resv_regions(struct iommu_group *group,
 					struct list_head *head);
 
@@ -328,45 +355,27 @@ extern int iommu_domain_window_enable(struct iommu_domain *domain, u32 wnd_nr,
 				      phys_addr_t offset, u64 size,
 				      int prot);
 extern void iommu_domain_window_disable(struct iommu_domain *domain, u32 wnd_nr);
-/**
- * report_iommu_fault() - report about an IOMMU fault to the IOMMU framework
- * @domain: the iommu domain where the fault has happened
- * @dev: the device where the fault has happened
- * @iova: the faulting address
- * @flags: mmu fault flags (e.g. IOMMU_FAULT_READ/IOMMU_FAULT_WRITE/...)
- *
- * This function should be called by the low-level IOMMU implementations
- * whenever IOMMU faults happen, to allow high-level users, that are
- * interested in such events, to know about them.
- *
- * This event may be useful for several possible use cases:
- * - mere logging of the event
- * - dynamic TLB/PTE loading
- * - if restarting of the faulting device is required
- *
- * Returns 0 on success and an appropriate error code otherwise (if dynamic
- * PTE/TLB loading will one day be supported, implementations will be able
- * to tell whether it succeeded or not according to this return value).
- *
- * Specifically, -ENOSYS is returned if a fault handler isn't installed
- * (though fault handlers can also return -ENOSYS, in case they want to
- * elicit the default behavior of the IOMMU drivers).
- */
-static inline int report_iommu_fault(struct iommu_domain *domain,
-		struct device *dev, unsigned long iova, int flags)
+
+extern int report_iommu_fault(struct iommu_domain *domain, struct device *dev,
+			      unsigned long iova, int flags);
+
+static inline void iommu_flush_tlb_all(struct iommu_domain *domain)
 {
-	int ret = -ENOSYS;
+	if (domain->ops->flush_iotlb_all)
+		domain->ops->flush_iotlb_all(domain);
+}
 
-	/*
-	 * if upper layers showed interest and installed a fault handler,
-	 * invoke it.
-	 */
-	if (domain->handler)
-		ret = domain->handler(domain, dev, iova, flags,
-						domain->handler_token);
+static inline void iommu_tlb_range_add(struct iommu_domain *domain,
+				       unsigned long iova, size_t size)
+{
+	if (domain->ops->iotlb_range_add)
+		domain->ops->iotlb_range_add(domain, iova, size);
+}
 
-	trace_io_page_fault(dev, iova, flags);
-	return ret;
+static inline void iommu_tlb_sync(struct iommu_domain *domain)
+{
+	if (domain->ops->iotlb_sync)
+		domain->ops->iotlb_sync(domain);
 }
 
 static inline size_t iommu_map_sg(struct iommu_domain *domain,
@@ -451,13 +460,19 @@ static inline struct iommu_domain *iommu_get_domain_for_dev(struct device *dev)
 }
 
 static inline int iommu_map(struct iommu_domain *domain, unsigned long iova,
-			    phys_addr_t paddr, int gfp_order, int prot)
+			    phys_addr_t paddr, size_t size, int prot)
 {
 	return -ENODEV;
 }
 
 static inline int iommu_unmap(struct iommu_domain *domain, unsigned long iova,
-			      int gfp_order)
+			      size_t size)
+{
+	return -ENODEV;
+}
+
+static inline int iommu_unmap_fast(struct iommu_domain *domain, unsigned long iova,
+				   int gfp_order)
 {
 	return -ENODEV;
 }
@@ -467,6 +482,19 @@ static inline size_t iommu_map_sg(struct iommu_domain *domain,
 				  unsigned int nents, int prot)
 {
 	return -ENODEV;
+}
+
+static inline void iommu_flush_tlb_all(struct iommu_domain *domain)
+{
+}
+
+static inline void iommu_tlb_range_add(struct iommu_domain *domain,
+				       unsigned long iova, size_t size)
+{
+}
+
+static inline void iommu_tlb_sync(struct iommu_domain *domain)
+{
 }
 
 static inline int iommu_domain_window_enable(struct iommu_domain *domain,
@@ -613,6 +641,11 @@ static inline void iommu_device_set_ops(struct iommu_device *iommu,
 static inline void iommu_device_set_fwnode(struct iommu_device *iommu,
 					   struct fwnode_handle *fwnode)
 {
+}
+
+static inline struct iommu_device *dev_to_iommu_device(struct device *dev)
+{
+	return NULL;
 }
 
 static inline void iommu_device_unregister(struct iommu_device *iommu)

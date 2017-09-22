@@ -166,7 +166,7 @@ static struct scsi_host_template isci_sht = {
 	.use_clustering			= ENABLE_CLUSTERING,
 	.eh_abort_handler		= sas_eh_abort_handler,
 	.eh_device_reset_handler        = sas_eh_device_reset_handler,
-	.eh_bus_reset_handler           = sas_eh_bus_reset_handler,
+	.eh_target_reset_handler        = sas_eh_target_reset_handler,
 	.target_destroy			= sas_target_destroy,
 	.ioctl				= sas_ioctl,
 	.shost_attrs			= isci_host_attrs,
@@ -272,7 +272,6 @@ static void isci_unregister(struct isci_host *isci_host)
 		return;
 
 	shost = to_shost(isci_host);
-	scsi_remove_host(shost);
 	sas_unregister_ha(&isci_host->sas_ha);
 
 	sas_remove_host(shost);

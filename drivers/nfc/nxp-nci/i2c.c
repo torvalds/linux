@@ -29,14 +29,13 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
-#include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/nfc.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/platform_data/nxp-nci.h>
-#include <linux/unaligned/access_ok.h>
+#include <asm/unaligned.h>
 
 #include <net/nfc/nfc.h>
 
@@ -86,7 +85,7 @@ static int nxp_nci_i2c_write(void *phy_id, struct sk_buff *skb)
 	r = i2c_master_send(client, skb->data, skb->len);
 	if (r < 0) {
 		/* Retry, chip was in standby */
-		usleep_range(110000, 120000);
+		msleep(110);
 		r = i2c_master_send(client, skb->data, skb->len);
 	}
 
@@ -127,7 +126,7 @@ static int nxp_nci_i2c_fw_read(struct nxp_nci_i2c_phy *phy,
 		goto fw_read_exit;
 	}
 
-	frame_len = (get_unaligned_be16(&header) & NXP_NCI_FW_FRAME_LEN_MASK) +
+	frame_len = (be16_to_cpu(header) & NXP_NCI_FW_FRAME_LEN_MASK) +
 		    NXP_NCI_FW_CRC_LEN;
 
 	*skb = alloc_skb(NXP_NCI_FW_HDR_LEN + frame_len, GFP_KERNEL);
@@ -136,7 +135,7 @@ static int nxp_nci_i2c_fw_read(struct nxp_nci_i2c_phy *phy,
 		goto fw_read_exit;
 	}
 
-	memcpy(skb_put(*skb, NXP_NCI_FW_HDR_LEN), &header, NXP_NCI_FW_HDR_LEN);
+	skb_put_data(*skb, &header, NXP_NCI_FW_HDR_LEN);
 
 	r = i2c_master_recv(client, skb_put(*skb, frame_len), frame_len);
 	if (r != frame_len) {
@@ -177,8 +176,7 @@ static int nxp_nci_i2c_nci_read(struct nxp_nci_i2c_phy *phy,
 		goto nci_read_exit;
 	}
 
-	memcpy(skb_put(*skb, NCI_CTRL_HDR_SIZE), (void *) &header,
-	       NCI_CTRL_HDR_SIZE);
+	skb_put_data(*skb, (void *)&header, NCI_CTRL_HDR_SIZE);
 
 	r = i2c_master_recv(client, skb_put(*skb, header.plen), header.plen);
 	if (r != header.plen) {

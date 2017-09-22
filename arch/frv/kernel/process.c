@@ -198,15 +198,6 @@ unsigned long get_wchan(struct task_struct *p)
 	return 0;
 }
 
-unsigned long thread_saved_pc(struct task_struct *tsk)
-{
-	/* Check whether the thread is blocked in resume() */
-	if (in_sched_functions(tsk->thread.pc))
-		return ((unsigned long *)tsk->thread.fp)[2];
-	else
-		return tsk->thread.pc;
-}
-
 int elf_check_arch(const struct elf32_hdr *hdr)
 {
 	unsigned long hsr0 = __get_HSR(0);

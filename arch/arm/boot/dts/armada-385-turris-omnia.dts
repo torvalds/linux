@@ -96,7 +96,7 @@
 			};
 		};
 
-		pcie-controller {
+		pcie {
 			status = "okay";
 
 			pcie@1,0 {
@@ -171,7 +171,7 @@
 			/* leds device (in STM32F0) at address 0x2b */
 
 			eeprom@54 {
-				compatible = "at,24c64";
+				compatible = "atmel,24c64";
 				reg = <0x54>;
 
 				/* The EEPROM contains data for bootloader.

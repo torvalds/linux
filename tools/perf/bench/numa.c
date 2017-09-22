@@ -4,6 +4,7 @@
  * numa: Simulate NUMA-sensitive workload and measure their NUMA performance
  */
 
+#include <inttypes.h>
 /* For the CLR_() macros */
 #include <pthread.h>
 
@@ -30,6 +31,7 @@
 #include <sys/wait.h>
 #include <sys/prctl.h>
 #include <sys/types.h>
+#include <linux/kernel.h>
 #include <linux/time64.h>
 
 #include <numa.h>
@@ -187,7 +189,8 @@ static const struct option options[] = {
 	OPT_INCR   ('d', "show_details"	, &p0.show_details,	"Show details"),
 	OPT_INCR   ('a', "all"		, &p0.run_all,		"Run all tests in the suite"),
 	OPT_INTEGER('H', "thp"		, &p0.thp,		"MADV_NOHUGEPAGE < 0 < MADV_HUGEPAGE"),
-	OPT_BOOLEAN('c', "show_convergence", &p0.show_convergence, "show convergence details"),
+	OPT_BOOLEAN('c', "show_convergence", &p0.show_convergence, "show convergence details, "
+		    "convergence is reached when each process (all its threads) is running on a single NUMA node."),
 	OPT_BOOLEAN('m', "measure_convergence",	&p0.measure_convergence, "measure convergence latency"),
 	OPT_BOOLEAN('q', "quiet"	, &p0.show_quiet,	"quiet mode"),
 	OPT_BOOLEAN('S', "serialize-startup", &p0.serialize_startup,"serialize thread startup"),
@@ -697,7 +700,7 @@ static inline uint32_t lfsr_32(uint32_t lfsr)
  * kernel (KSM, zero page, etc.) cannot optimize away RAM
  * accesses:
  */
-static inline u64 access_data(u64 *data __attribute__((unused)), u64 val)
+static inline u64 access_data(u64 *data, u64 val)
 {
 	if (g->p.data_reads)
 		val += *data;
@@ -1766,7 +1769,7 @@ static int bench_all(void)
 	return 0;
 }
 
-int bench_numa(int argc, const char **argv, const char *prefix __maybe_unused)
+int bench_numa(int argc, const char **argv)
 {
 	init_params(&p0, "main,", argc, argv);
 	argc = parse_options(argc, argv, options, bench_numa_usage, 0);

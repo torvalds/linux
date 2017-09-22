@@ -355,8 +355,14 @@ struct bcmgenet_mib_counters {
 #define  EXT_PWR_DN_EN_LD		(1 << 3)
 #define  EXT_ENERGY_DET			(1 << 4)
 #define  EXT_IDDQ_FROM_PHY		(1 << 5)
+#define  EXT_IDDQ_GLBL_PWR		(1 << 7)
 #define  EXT_PHY_RESET			(1 << 8)
 #define  EXT_ENERGY_DET_MASK		(1 << 12)
+#define  EXT_PWR_DOWN_PHY_TX		(1 << 16)
+#define  EXT_PWR_DOWN_PHY_RX		(1 << 17)
+#define  EXT_PWR_DOWN_PHY_SD		(1 << 18)
+#define  EXT_PWR_DOWN_PHY_RD		(1 << 19)
+#define  EXT_PWR_DOWN_PHY_EN		(1 << 20)
 
 #define EXT_RGMII_OOB_CTRL		0x0C
 #define  RGMII_LINK			(1 << 4)
@@ -499,13 +505,15 @@ enum bcmgenet_version {
 	GENET_V1 = 1,
 	GENET_V2,
 	GENET_V3,
-	GENET_V4
+	GENET_V4,
+	GENET_V5
 };
 
 #define GENET_IS_V1(p)	((p)->version == GENET_V1)
 #define GENET_IS_V2(p)	((p)->version == GENET_V2)
 #define GENET_IS_V3(p)	((p)->version == GENET_V3)
 #define GENET_IS_V4(p)	((p)->version == GENET_V4)
+#define GENET_IS_V5(p)	((p)->version == GENET_V5)
 
 /* Hardware flags */
 #define GENET_HAS_40BITS	(1 << 0)
@@ -536,6 +544,8 @@ struct bcmgenet_hw_params {
 };
 
 struct bcmgenet_skb_cb {
+	struct enet_cb *first_cb;	/* First control block of SKB */
+	struct enet_cb *last_cb;	/* Last control block of SKB */
 	unsigned int bytes_sent;	/* bytes on the wire (no TSB) */
 };
 
@@ -544,6 +554,8 @@ struct bcmgenet_skb_cb {
 struct bcmgenet_tx_ring {
 	spinlock_t	lock;		/* ring lock */
 	struct napi_struct napi;	/* NAPI per tx queue */
+	unsigned long	packets;
+	unsigned long	bytes;
 	unsigned int	index;		/* ring index */
 	unsigned int	queue;		/* queue index */
 	struct enet_cb	*cbs;		/* tx ring buffer control block*/
@@ -562,6 +574,10 @@ struct bcmgenet_tx_ring {
 
 struct bcmgenet_rx_ring {
 	struct napi_struct napi;	/* Rx NAPI struct */
+	unsigned long	bytes;
+	unsigned long	packets;
+	unsigned long	errors;
+	unsigned long	dropped;
 	unsigned int	index;		/* Rx ring index */
 	struct enet_cb	*cbs;		/* Rx ring buffer control block */
 	unsigned int	size;		/* Rx ring size */
@@ -641,6 +657,7 @@ struct bcmgenet_priv {
 
 	struct clk *clk;
 	struct platform_device *pdev;
+	struct platform_device *mii_pdev;
 
 	/* WOL */
 	struct clk *clk_wol;
@@ -655,12 +672,21 @@ struct bcmgenet_priv {
 static inline u32 bcmgenet_##name##_readl(struct bcmgenet_priv *priv,	\
 					u32 off)			\
 {									\
-	return __raw_readl(priv->base + offset + off);			\
+	/* MIPS chips strapped for BE will automagically configure the	\
+	 * peripheral registers for CPU-native byte order.		\
+	 */								\
+	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)) \
+		return __raw_readl(priv->base + offset + off);		\
+	else								\
+		return readl_relaxed(priv->base + offset + off);	\
 }									\
 static inline void bcmgenet_##name##_writel(struct bcmgenet_priv *priv,	\
 					u32 val, u32 off)		\
 {									\
-	__raw_writel(val, priv->base + offset + off);			\
+	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)) \
+		__raw_writel(val, priv->base + offset + off);		\
+	else								\
+		writel_relaxed(val, priv->base + offset + off);		\
 }
 
 GENET_IO_MACRO(ext, GENET_EXT_OFF);
@@ -682,7 +708,7 @@ GENET_IO_MACRO(rbuf, GENET_RBUF_OFF);
 
 /* MDIO routines */
 int bcmgenet_mii_init(struct net_device *dev);
-int bcmgenet_mii_config(struct net_device *dev);
+int bcmgenet_mii_config(struct net_device *dev, bool init);
 int bcmgenet_mii_probe(struct net_device *dev);
 void bcmgenet_mii_exit(struct net_device *dev);
 void bcmgenet_mii_reset(struct net_device *dev);

@@ -15,6 +15,7 @@ struct ext4_inode_info;
 struct mpage_da_data;
 struct ext4_map_blocks;
 struct extent_status;
+struct ext4_fsmap;
 
 #define EXT4_I(inode) (container_of(inode, struct ext4_inode_info, vfs_inode))
 
@@ -936,21 +937,19 @@ TRACE_EVENT(ext4_alloc_da_blocks,
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
 		__field(	ino_t,	ino			)
-		__field( unsigned int,	data_blocks	)
-		__field( unsigned int,	meta_blocks	)
+		__field( unsigned int,	data_blocks		)
 	),
 
 	TP_fast_assign(
 		__entry->dev	= inode->i_sb->s_dev;
 		__entry->ino	= inode->i_ino;
 		__entry->data_blocks = EXT4_I(inode)->i_reserved_data_blocks;
-		__entry->meta_blocks = EXT4_I(inode)->i_reserved_meta_blocks;
 	),
 
-	TP_printk("dev %d,%d ino %lu data_blocks %u meta_blocks %u",
+	TP_printk("dev %d,%d ino %lu reserved_data_blocks %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
-		  __entry->data_blocks, __entry->meta_blocks)
+		  __entry->data_blocks)
 );
 
 TRACE_EVENT(ext4_mballoc_alloc,
@@ -1152,8 +1151,6 @@ TRACE_EVENT(ext4_da_update_reserve_space,
 		__field(	__u64,	i_blocks		)
 		__field(	int,	used_blocks		)
 		__field(	int,	reserved_data_blocks	)
-		__field(	int,	reserved_meta_blocks	)
-		__field(	int,	allocated_meta_blocks	)
 		__field(	int,	quota_claim		)
 		__field(	__u16,	mode			)
 	),
@@ -1165,22 +1162,16 @@ TRACE_EVENT(ext4_da_update_reserve_space,
 		__entry->used_blocks = used_blocks;
 		__entry->reserved_data_blocks =
 				EXT4_I(inode)->i_reserved_data_blocks;
-		__entry->reserved_meta_blocks =
-				EXT4_I(inode)->i_reserved_meta_blocks;
-		__entry->allocated_meta_blocks =
-				EXT4_I(inode)->i_allocated_meta_blocks;
 		__entry->quota_claim = quota_claim;
 		__entry->mode	= inode->i_mode;
 	),
 
 	TP_printk("dev %d,%d ino %lu mode 0%o i_blocks %llu used_blocks %d "
-		  "reserved_data_blocks %d reserved_meta_blocks %d "
-		  "allocated_meta_blocks %d quota_claim %d",
+		  "reserved_data_blocks %d quota_claim %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
 		  __entry->mode, __entry->i_blocks,
 		  __entry->used_blocks, __entry->reserved_data_blocks,
-		  __entry->reserved_meta_blocks, __entry->allocated_meta_blocks,
 		  __entry->quota_claim)
 );
 
@@ -1194,7 +1185,6 @@ TRACE_EVENT(ext4_da_reserve_space,
 		__field(	ino_t,	ino			)
 		__field(	__u64,	i_blocks		)
 		__field(	int,	reserved_data_blocks	)
-		__field(	int,	reserved_meta_blocks	)
 		__field(	__u16,  mode			)
 	),
 
@@ -1203,17 +1193,15 @@ TRACE_EVENT(ext4_da_reserve_space,
 		__entry->ino	= inode->i_ino;
 		__entry->i_blocks = inode->i_blocks;
 		__entry->reserved_data_blocks = EXT4_I(inode)->i_reserved_data_blocks;
-		__entry->reserved_meta_blocks = EXT4_I(inode)->i_reserved_meta_blocks;
 		__entry->mode	= inode->i_mode;
 	),
 
 	TP_printk("dev %d,%d ino %lu mode 0%o i_blocks %llu "
-		  "reserved_data_blocks %d reserved_meta_blocks %d",
+		  "reserved_data_blocks %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
 		  __entry->mode, __entry->i_blocks,
-		  __entry->reserved_data_blocks,
-		  __entry->reserved_meta_blocks)
+		  __entry->reserved_data_blocks)
 );
 
 TRACE_EVENT(ext4_da_release_space,
@@ -1227,8 +1215,6 @@ TRACE_EVENT(ext4_da_release_space,
 		__field(	__u64,	i_blocks		)
 		__field(	int,	freed_blocks		)
 		__field(	int,	reserved_data_blocks	)
-		__field(	int,	reserved_meta_blocks	)
-		__field(	int,	allocated_meta_blocks	)
 		__field(	__u16,  mode			)
 	),
 
@@ -1238,19 +1224,15 @@ TRACE_EVENT(ext4_da_release_space,
 		__entry->i_blocks = inode->i_blocks;
 		__entry->freed_blocks = freed_blocks;
 		__entry->reserved_data_blocks = EXT4_I(inode)->i_reserved_data_blocks;
-		__entry->reserved_meta_blocks = EXT4_I(inode)->i_reserved_meta_blocks;
-		__entry->allocated_meta_blocks = EXT4_I(inode)->i_allocated_meta_blocks;
 		__entry->mode	= inode->i_mode;
 	),
 
 	TP_printk("dev %d,%d ino %lu mode 0%o i_blocks %llu freed_blocks %d "
-		  "reserved_data_blocks %d reserved_meta_blocks %d "
-		  "allocated_meta_blocks %d",
+		  "reserved_data_blocks %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
 		  __entry->mode, __entry->i_blocks,
-		  __entry->freed_blocks, __entry->reserved_data_blocks,
-		  __entry->reserved_meta_blocks, __entry->allocated_meta_blocks)
+		  __entry->freed_blocks, __entry->reserved_data_blocks)
 );
 
 DECLARE_EVENT_CLASS(ext4__bitmap_load,
@@ -2528,6 +2510,79 @@ TRACE_EVENT(ext4_es_shrink,
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->nr_shrunk,
 		  __entry->scan_time, __entry->nr_skipped, __entry->retried)
 );
+
+/* fsmap traces */
+DECLARE_EVENT_CLASS(ext4_fsmap_class,
+	TP_PROTO(struct super_block *sb, u32 keydev, u32 agno, u64 bno, u64 len,
+		 u64 owner),
+	TP_ARGS(sb, keydev, agno, bno, len, owner),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(dev_t, keydev)
+		__field(u32, agno)
+		__field(u64, bno)
+		__field(u64, len)
+		__field(u64, owner)
+	),
+	TP_fast_assign(
+		__entry->dev = sb->s_bdev->bd_dev;
+		__entry->keydev = new_decode_dev(keydev);
+		__entry->agno = agno;
+		__entry->bno = bno;
+		__entry->len = len;
+		__entry->owner = owner;
+	),
+	TP_printk("dev %d:%d keydev %d:%d agno %u bno %llu len %llu owner %lld\n",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->keydev), MINOR(__entry->keydev),
+		  __entry->agno,
+		  __entry->bno,
+		  __entry->len,
+		  __entry->owner)
+)
+#define DEFINE_FSMAP_EVENT(name) \
+DEFINE_EVENT(ext4_fsmap_class, name, \
+	TP_PROTO(struct super_block *sb, u32 keydev, u32 agno, u64 bno, u64 len, \
+		 u64 owner), \
+	TP_ARGS(sb, keydev, agno, bno, len, owner))
+DEFINE_FSMAP_EVENT(ext4_fsmap_low_key);
+DEFINE_FSMAP_EVENT(ext4_fsmap_high_key);
+DEFINE_FSMAP_EVENT(ext4_fsmap_mapping);
+
+DECLARE_EVENT_CLASS(ext4_getfsmap_class,
+	TP_PROTO(struct super_block *sb, struct ext4_fsmap *fsmap),
+	TP_ARGS(sb, fsmap),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(dev_t, keydev)
+		__field(u64, block)
+		__field(u64, len)
+		__field(u64, owner)
+		__field(u64, flags)
+	),
+	TP_fast_assign(
+		__entry->dev = sb->s_bdev->bd_dev;
+		__entry->keydev = new_decode_dev(fsmap->fmr_device);
+		__entry->block = fsmap->fmr_physical;
+		__entry->len = fsmap->fmr_length;
+		__entry->owner = fsmap->fmr_owner;
+		__entry->flags = fsmap->fmr_flags;
+	),
+	TP_printk("dev %d:%d keydev %d:%d block %llu len %llu owner %lld flags 0x%llx\n",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->keydev), MINOR(__entry->keydev),
+		  __entry->block,
+		  __entry->len,
+		  __entry->owner,
+		  __entry->flags)
+)
+#define DEFINE_GETFSMAP_EVENT(name) \
+DEFINE_EVENT(ext4_getfsmap_class, name, \
+	TP_PROTO(struct super_block *sb, struct ext4_fsmap *fsmap), \
+	TP_ARGS(sb, fsmap))
+DEFINE_GETFSMAP_EVENT(ext4_getfsmap_low_key);
+DEFINE_GETFSMAP_EVENT(ext4_getfsmap_high_key);
+DEFINE_GETFSMAP_EVENT(ext4_getfsmap_mapping);
 
 #endif /* _TRACE_EXT4_H */
 

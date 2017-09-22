@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/ctype.h>
 #include <linux/mempool.h>
+#include <linux/vmalloc.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
@@ -29,9 +30,7 @@
 #include "smberr.h"
 #include "nterr.h"
 #include "cifs_unicode.h"
-#ifdef CONFIG_CIFS_SMB2
 #include "smb2pdu.h"
-#endif
 
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
@@ -148,15 +147,12 @@ struct smb_hdr *
 cifs_buf_get(void)
 {
 	struct smb_hdr *ret_buf = NULL;
-	size_t buf_size = sizeof(struct smb_hdr);
-
-#ifdef CONFIG_CIFS_SMB2
 	/*
 	 * SMB2 header is bigger than CIFS one - no problems to clean some
 	 * more bytes for CIFS.
 	 */
-	buf_size = sizeof(struct smb2_hdr);
-#endif
+	size_t buf_size = sizeof(struct smb2_hdr);
+
 	/*
 	 * We could use negotiated size instead of max_msgsize -
 	 * but it may be more efficient to always alloc same size
@@ -167,13 +163,11 @@ cifs_buf_get(void)
 
 	/* clear the first few header bytes */
 	/* for most paths, more is cleared in header_assemble */
-	if (ret_buf) {
-		memset(ret_buf, 0, buf_size + 3);
-		atomic_inc(&bufAllocCount);
+	memset(ret_buf, 0, buf_size + 3);
+	atomic_inc(&bufAllocCount);
 #ifdef CONFIG_CIFS_STATS2
-		atomic_inc(&totBufAllocCount);
+	atomic_inc(&totBufAllocCount);
 #endif /* CONFIG_CIFS_STATS2 */
-	}
 
 	return ret_buf;
 }
@@ -201,15 +195,13 @@ cifs_small_buf_get(void)
    albeit slightly larger than necessary and maxbuffersize
    defaults to this and can not be bigger */
 	ret_buf = mempool_alloc(cifs_sm_req_poolp, GFP_NOFS);
-	if (ret_buf) {
 	/* No need to clear memory here, cleared in header assemble */
 	/*	memset(ret_buf, 0, sizeof(struct smb_hdr) + 27);*/
-		atomic_inc(&smBufAllocCount);
+	atomic_inc(&smBufAllocCount);
 #ifdef CONFIG_CIFS_STATS2
-		atomic_inc(&totSmBufAllocCount);
+	atomic_inc(&totSmBufAllocCount);
 #endif /* CONFIG_CIFS_STATS2 */
 
-	}
 	return ret_buf;
 }
 
@@ -492,7 +484,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 					   CIFS_INODE_DOWNGRADE_OPLOCK_TO_L2,
 					   &pCifsInode->flags);
 
-				queue_work(cifsiod_wq,
+				queue_work(cifsoplockd_wq,
 					   &netfile->oplock_break);
 				netfile->oplock_break_cancelled = false;
 
@@ -623,9 +615,7 @@ void
 cifs_add_pending_open_locked(struct cifs_fid *fid, struct tcon_link *tlink,
 			     struct cifs_pending_open *open)
 {
-#ifdef CONFIG_CIFS_SMB2
 	memcpy(open->lease_key, fid->lease_key, SMB2_LEASE_KEY_SIZE);
-#endif
 	open->oplock = CIFS_OPLOCK_NO_CHANGE;
 	open->tlink = tlink;
 	fid->pending_open = open;
@@ -744,4 +734,123 @@ parse_DFS_referrals_exit:
 		*num_of_nodes = 0;
 	}
 	return rc;
+}
+
+struct cifs_aio_ctx *
+cifs_aio_ctx_alloc(void)
+{
+	struct cifs_aio_ctx *ctx;
+
+	ctx = kzalloc(sizeof(struct cifs_aio_ctx), GFP_KERNEL);
+	if (!ctx)
+		return NULL;
+
+	INIT_LIST_HEAD(&ctx->list);
+	mutex_init(&ctx->aio_mutex);
+	init_completion(&ctx->done);
+	kref_init(&ctx->refcount);
+	return ctx;
+}
+
+void
+cifs_aio_ctx_release(struct kref *refcount)
+{
+	struct cifs_aio_ctx *ctx = container_of(refcount,
+					struct cifs_aio_ctx, refcount);
+
+	cifsFileInfo_put(ctx->cfile);
+	kvfree(ctx->bv);
+	kfree(ctx);
+}
+
+#define CIFS_AIO_KMALLOC_LIMIT (1024 * 1024)
+
+int
+setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
+{
+	ssize_t rc;
+	unsigned int cur_npages;
+	unsigned int npages = 0;
+	unsigned int i;
+	size_t len;
+	size_t count = iov_iter_count(iter);
+	unsigned int saved_len;
+	size_t start;
+	unsigned int max_pages = iov_iter_npages(iter, INT_MAX);
+	struct page **pages = NULL;
+	struct bio_vec *bv = NULL;
+
+	if (iter->type & ITER_KVEC) {
+		memcpy(&ctx->iter, iter, sizeof(struct iov_iter));
+		ctx->len = count;
+		iov_iter_advance(iter, count);
+		return 0;
+	}
+
+	if (max_pages * sizeof(struct bio_vec) <= CIFS_AIO_KMALLOC_LIMIT)
+		bv = kmalloc_array(max_pages, sizeof(struct bio_vec),
+				   GFP_KERNEL);
+
+	if (!bv) {
+		bv = vmalloc(max_pages * sizeof(struct bio_vec));
+		if (!bv)
+			return -ENOMEM;
+	}
+
+	if (max_pages * sizeof(struct page *) <= CIFS_AIO_KMALLOC_LIMIT)
+		pages = kmalloc_array(max_pages, sizeof(struct page *),
+				      GFP_KERNEL);
+
+	if (!pages) {
+		pages = vmalloc(max_pages * sizeof(struct page *));
+		if (!pages) {
+			kvfree(bv);
+			return -ENOMEM;
+		}
+	}
+
+	saved_len = count;
+
+	while (count && npages < max_pages) {
+		rc = iov_iter_get_pages(iter, pages, count, max_pages, &start);
+		if (rc < 0) {
+			cifs_dbg(VFS, "couldn't get user pages (rc=%zd)\n", rc);
+			break;
+		}
+
+		if (rc > count) {
+			cifs_dbg(VFS, "get pages rc=%zd more than %zu\n", rc,
+				 count);
+			break;
+		}
+
+		iov_iter_advance(iter, rc);
+		count -= rc;
+		rc += start;
+		cur_npages = DIV_ROUND_UP(rc, PAGE_SIZE);
+
+		if (npages + cur_npages > max_pages) {
+			cifs_dbg(VFS, "out of vec array capacity (%u vs %u)\n",
+				 npages + cur_npages, max_pages);
+			break;
+		}
+
+		for (i = 0; i < cur_npages; i++) {
+			len = rc > PAGE_SIZE ? PAGE_SIZE : rc;
+			bv[npages + i].bv_page = pages[i];
+			bv[npages + i].bv_offset = start;
+			bv[npages + i].bv_len = len - start;
+			rc -= len;
+			start = 0;
+		}
+
+		npages += cur_npages;
+	}
+
+	kvfree(pages);
+	ctx->bv = bv;
+	ctx->len = saved_len - count;
+	ctx->npages = npages;
+	iov_iter_bvec(&ctx->iter, ITER_BVEC | rw, ctx->bv, npages, ctx->len);
+	return 0;
 }

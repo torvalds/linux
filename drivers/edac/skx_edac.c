@@ -31,8 +31,6 @@
 
 #include "edac_module.h"
 
-#define SKX_REVISION    " Ver: 1.0 "
-
 /*
  * Debug macros
  */
@@ -473,7 +471,6 @@ static int skx_register_mci(struct skx_imc *imc)
 	mci->edac_cap = EDAC_FLAG_NONE;
 	mci->mod_name = "skx_edac.c";
 	mci->dev_name = pci_name(imc->chan[0].cdev);
-	mci->mod_ver = SKX_REVISION;
 	mci->ctl_page_to_phys = NULL;
 
 	rc = skx_get_dimm_config(mci);
@@ -971,7 +968,7 @@ static int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 	struct mem_ctl_info *mci;
 	char *type;
 
-	if (get_edac_report_status() == EDAC_REPORTING_DISABLED)
+	if (edac_get_report_status() == EDAC_REPORTING_DISABLED)
 		return NOTIFY_DONE;
 
 	/* ignore unless this is memory related with an address */

@@ -28,6 +28,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <drm/drm_ioctl.h>
 #include <drm/drmP.h>
 #include <drm/drm_auth.h>
 #include "drm_legacy.h"
@@ -106,7 +107,7 @@
  *
  * Copies the bus id from drm_device::unique into user space.
  */
-static int drm_getunique(struct drm_device *dev, void *data,
+int drm_getunique(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
 {
 	struct drm_unique *u = data;
@@ -142,8 +143,8 @@ static int drm_set_busid(struct drm_device *dev, struct drm_file *file_priv)
 	if (master->unique != NULL)
 		drm_unset_busid(dev, master);
 
-	if (dev->driver->set_busid) {
-		ret = dev->driver->set_busid(dev, master);
+	if (dev->dev && dev_is_pci(dev->dev)) {
+		ret = drm_pci_set_busid(dev, master);
 		if (ret) {
 			drm_unset_busid(dev, master);
 			return ret;
@@ -171,7 +172,7 @@ static int drm_set_busid(struct drm_device *dev, struct drm_file *file_priv)
  * Searches for the client with the specified index and copies its information
  * into userspace
  */
-static int drm_getclient(struct drm_device *dev, void *data,
+int drm_getclient(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
 {
 	struct drm_client *client = data;
@@ -240,6 +241,9 @@ static int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_
 		req->value |= dev->driver->prime_fd_to_handle ? DRM_PRIME_CAP_IMPORT : 0;
 		req->value |= dev->driver->prime_handle_to_fd ? DRM_PRIME_CAP_EXPORT : 0;
 		return 0;
+	case DRM_CAP_SYNCOBJ:
+		req->value = drm_core_check_feature(dev, DRIVER_SYNCOBJ);
+		return 0;
 	}
 
 	/* Other caps only work with KMS drivers */
@@ -284,6 +288,9 @@ static int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_
 		break;
 	case DRM_CAP_ADDFB2_MODIFIERS:
 		req->value = dev->mode_config.allow_fb_modifiers;
+		break;
+	case DRM_CAP_CRTC_IN_VBLANK_EVENT:
+		req->value = 1;
 		break;
 	default:
 		return -EINVAL;
@@ -457,7 +464,7 @@ static int drm_copy_field(char __user *buf, size_t *buf_len, const char *value)
  *
  * Fills in the version information in \p arg.
  */
-static int drm_version(struct drm_device *dev, void *data,
+int drm_version(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
 	struct drm_version *version = data;
@@ -596,9 +603,9 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_SG_ALLOC, drm_legacy_sg_alloc, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_IOCTL_SG_FREE, drm_legacy_sg_free, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 
-	DRM_IOCTL_DEF(DRM_IOCTL_WAIT_VBLANK, drm_wait_vblank, DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_IOCTL_WAIT_VBLANK, drm_wait_vblank_ioctl, DRM_UNLOCKED),
 
-	DRM_IOCTL_DEF(DRM_IOCTL_MODESET_CTL, drm_legacy_modeset_ctl, 0),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODESET_CTL, drm_legacy_modeset_ctl_ioctl, 0),
 
 	DRM_IOCTL_DEF(DRM_IOCTL_UPDATE_DRAW, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 
@@ -641,9 +648,99 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_MODE_ATOMIC, drm_mode_atomic_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW|DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_MODE_CREATEPROPBLOB, drm_mode_createblob_ioctl, DRM_CONTROL_ALLOW|DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_MODE_DESTROYPROPBLOB, drm_mode_destroyblob_ioctl, DRM_CONTROL_ALLOW|DRM_UNLOCKED),
+
+	DRM_IOCTL_DEF(DRM_IOCTL_SYNCOBJ_CREATE, drm_syncobj_create_ioctl,
+		      DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_SYNCOBJ_DESTROY, drm_syncobj_destroy_ioctl,
+		      DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_SYNCOBJ_HANDLE_TO_FD, drm_syncobj_handle_to_fd_ioctl,
+		      DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_SYNCOBJ_FD_TO_HANDLE, drm_syncobj_fd_to_handle_ioctl,
+		      DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_SYNCOBJ_WAIT, drm_syncobj_wait_ioctl,
+		      DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_SYNCOBJ_RESET, drm_syncobj_reset_ioctl,
+		      DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_SYNCOBJ_SIGNAL, drm_syncobj_signal_ioctl,
+		      DRM_UNLOCKED|DRM_RENDER_ALLOW),
 };
 
 #define DRM_CORE_IOCTL_COUNT	ARRAY_SIZE( drm_ioctls )
+
+/**
+ * DOC: driver specific ioctls
+ *
+ * First things first, driver private IOCTLs should only be needed for drivers
+ * supporting rendering. Kernel modesetting is all standardized, and extended
+ * through properties. There are a few exceptions in some existing drivers,
+ * which define IOCTL for use by the display DRM master, but they all predate
+ * properties.
+ *
+ * Now if you do have a render driver you always have to support it through
+ * driver private properties. There's a few steps needed to wire all the things
+ * up.
+ *
+ * First you need to define the structure for your IOCTL in your driver private
+ * UAPI header in ``include/uapi/drm/my_driver_drm.h``::
+ *
+ *     struct my_driver_operation {
+ *             u32 some_thing;
+ *             u32 another_thing;
+ *     };
+ *
+ * Please make sure that you follow all the best practices from
+ * ``Documentation/ioctl/botching-up-ioctls.txt``. Note that drm_ioctl()
+ * automatically zero-extends structures, hence make sure you can add more stuff
+ * at the end, i.e. don't put a variable sized array there.
+ *
+ * Then you need to define your IOCTL number, using one of DRM_IO(), DRM_IOR(),
+ * DRM_IOW() or DRM_IOWR(). It must start with the DRM_IOCTL\_ prefix::
+ *
+ *     ##define DRM_IOCTL_MY_DRIVER_OPERATION \
+ *         DRM_IOW(DRM_COMMAND_BASE, struct my_driver_operation)
+ * 
+ * DRM driver private IOCTL must be in the range from DRM_COMMAND_BASE to
+ * DRM_COMMAND_END. Finally you need an array of &struct drm_ioctl_desc to wire
+ * up the handlers and set the access rights::
+ *
+ *     static const struct drm_ioctl_desc my_driver_ioctls[] = {
+ *         DRM_IOCTL_DEF_DRV(MY_DRIVER_OPERATION, my_driver_operation,
+ *                 DRM_AUTH|DRM_RENDER_ALLOW),
+ *     };
+ *
+ * And then assign this to the &drm_driver.ioctls field in your driver
+ * structure.
+ *
+ * See the separate chapter on :ref:`file operations<drm_driver_fops>` for how
+ * the driver-specific IOCTLs are wired up.
+ */
+
+long drm_ioctl_kernel(struct file *file, drm_ioctl_t *func, void *kdata,
+		      u32 flags)
+{
+	struct drm_file *file_priv = file->private_data;
+	struct drm_device *dev = file_priv->minor->dev;
+	int retcode;
+
+	if (drm_dev_is_unplugged(dev))
+		return -ENODEV;
+
+	retcode = drm_ioctl_permit(flags, file_priv);
+	if (unlikely(retcode))
+		return retcode;
+
+	/* Enforce sane locking for modern driver ioctls. */
+	if (!drm_core_check_feature(dev, DRIVER_LEGACY) ||
+	    (flags & DRM_UNLOCKED))
+		retcode = func(dev, kdata, file_priv);
+	else {
+		mutex_lock(&drm_global_mutex);
+		retcode = func(dev, kdata, file_priv);
+		mutex_unlock(&drm_global_mutex);
+	}
+	return retcode;
+}
+EXPORT_SYMBOL(drm_ioctl_kernel);
 
 /**
  * drm_ioctl - ioctl callback implementation for DRM drivers
@@ -651,8 +748,9 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
  * @cmd: ioctl cmd number
  * @arg: user argument
  *
- * Looks up the ioctl function in the ::ioctls table, checking for root
- * previleges if so required, and dispatches to the respective function.
+ * Looks up the ioctl function in the DRM core and the driver dispatch table,
+ * stored in &drm_driver.ioctls. It checks for necessary permission by calling
+ * drm_ioctl_permit(), and dispatches to the respective function.
  *
  * Returns:
  * Zero on success, negative error code on failure.
@@ -673,7 +771,7 @@ long drm_ioctl(struct file *filp,
 
 	dev = file_priv->minor->dev;
 
-	if (drm_device_is_unplugged(dev))
+	if (drm_dev_is_unplugged(dev))
 		return -ENODEV;
 
 	is_driver_ioctl = nr >= DRM_COMMAND_BASE && nr < DRM_COMMAND_END;
@@ -712,10 +810,6 @@ long drm_ioctl(struct file *filp,
 		goto err_i1;
 	}
 
-	retcode = drm_ioctl_permit(ioctl->flags, file_priv);
-	if (unlikely(retcode))
-		goto err_i1;
-
 	if (ksize <= sizeof(stack_kdata)) {
 		kdata = stack_kdata;
 	} else {
@@ -734,16 +828,7 @@ long drm_ioctl(struct file *filp,
 	if (ksize > in_size)
 		memset(kdata + in_size, 0, ksize - in_size);
 
-	/* Enforce sane locking for modern driver ioctls. */
-	if (!drm_core_check_feature(dev, DRIVER_LEGACY) ||
-	    (ioctl->flags & DRM_UNLOCKED))
-		retcode = func(dev, kdata, file_priv);
-	else {
-		mutex_lock(&drm_global_mutex);
-		retcode = func(dev, kdata, file_priv);
-		mutex_unlock(&drm_global_mutex);
-	}
-
+	retcode = drm_ioctl_kernel(filp, func, kdata, ioctl->flags);
 	if (copy_to_user((void __user *)arg, kdata, out_size) != 0)
 		retcode = -EFAULT;
 

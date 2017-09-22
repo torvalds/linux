@@ -171,7 +171,7 @@ dsi_mgr_phy_enable(int id,
 			}
 		}
 	} else {
-		msm_dsi_host_reset_phy(mdsi->host);
+		msm_dsi_host_reset_phy(msm_dsi->host);
 		ret = enable_phy(msm_dsi, src_pll_id, &shared_timings[id]);
 		if (ret)
 			return ret;
@@ -626,7 +626,6 @@ static void dsi_mgr_bridge_mode_set(struct drm_bridge *bridge,
 }
 
 static const struct drm_connector_funcs dsi_mgr_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = dsi_mgr_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = dsi_mgr_connector_destroy,

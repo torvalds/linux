@@ -434,7 +434,7 @@ static int arc_emac_open(struct net_device *ndev)
 	/* Enable EMAC */
 	arc_reg_or(priv, R_CTRL, EN_MASK);
 
-	phy_start_aneg(ndev->phydev);
+	phy_start(ndev->phydev);
 
 	netif_start_queue(ndev);
 
@@ -555,6 +555,8 @@ static int arc_emac_stop(struct net_device *ndev)
 
 	napi_disable(&priv->napi);
 	netif_stop_queue(ndev);
+
+	phy_stop(ndev->phydev);
 
 	/* Disable interrupts */
 	arc_reg_clr(priv, R_ENABLE, RXINT_MASK | TXINT_MASK | ERR_MASK);
@@ -718,6 +720,18 @@ static int arc_emac_set_address(struct net_device *ndev, void *p)
 	return 0;
 }
 
+static int arc_emac_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+{
+	if (!netif_running(dev))
+		return -EINVAL;
+
+	if (!dev->phydev)
+		return -ENODEV;
+
+	return phy_mii_ioctl(dev->phydev, rq, cmd);
+}
+
+
 static const struct net_device_ops arc_emac_netdev_ops = {
 	.ndo_open		= arc_emac_open,
 	.ndo_stop		= arc_emac_stop,
@@ -725,6 +739,7 @@ static const struct net_device_ops arc_emac_netdev_ops = {
 	.ndo_set_mac_address	= arc_emac_set_address,
 	.ndo_get_stats		= arc_emac_stats,
 	.ndo_set_rx_mode	= arc_emac_set_rx_mode,
+	.ndo_do_ioctl		= arc_emac_ioctl,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= arc_emac_poll_controller,
 #endif

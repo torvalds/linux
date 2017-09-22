@@ -437,8 +437,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		}
 
 		ret = hns_roce_mtt_init(hr_dev, ib_umem_page_count(hr_qp->umem),
-				    ilog2((unsigned int)hr_qp->umem->page_size),
-				    &hr_qp->mtt);
+					hr_qp->umem->page_shift, &hr_qp->mtt);
 		if (ret) {
 			dev_err(dev, "hns_roce_mtt_init error for create qp\n");
 			goto err_buf;
@@ -800,7 +799,7 @@ bool hns_roce_wq_overflow(struct hns_roce_wq *hr_wq, int nreq,
 
 	cur = hr_wq->head - hr_wq->tail;
 	if (likely(cur + nreq < hr_wq->max_post))
-		return 0;
+		return false;
 
 	hr_cq = to_hr_cq(ib_cq);
 	spin_lock(&hr_cq->lock);

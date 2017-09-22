@@ -47,6 +47,8 @@ enum amd_asic_type {
 	CHIP_POLARIS10,
 	CHIP_POLARIS11,
 	CHIP_POLARIS12,
+	CHIP_VEGA10,
+	CHIP_RAVEN,
 	CHIP_LAST,
 };
 
@@ -67,12 +69,14 @@ enum amd_ip_block_type {
 	AMD_IP_BLOCK_TYPE_GMC,
 	AMD_IP_BLOCK_TYPE_IH,
 	AMD_IP_BLOCK_TYPE_SMC,
+	AMD_IP_BLOCK_TYPE_PSP,
 	AMD_IP_BLOCK_TYPE_DCE,
 	AMD_IP_BLOCK_TYPE_GFX,
 	AMD_IP_BLOCK_TYPE_SDMA,
 	AMD_IP_BLOCK_TYPE_UVD,
 	AMD_IP_BLOCK_TYPE_VCE,
 	AMD_IP_BLOCK_TYPE_ACP,
+	AMD_IP_BLOCK_TYPE_VCN
 };
 
 enum amd_clockgating_state {
@@ -120,6 +124,26 @@ enum amd_vce_level {
 	AMD_VCE_LEVEL_DC_GP_HIGH = 5, /* DC, general purpose queue, 1080 >= res > 720 */
 };
 
+enum amd_pp_profile_type {
+	AMD_PP_GFX_PROFILE,
+	AMD_PP_COMPUTE_PROFILE,
+};
+
+struct amd_pp_profile {
+	enum amd_pp_profile_type type;
+	uint32_t min_sclk;
+	uint32_t min_mclk;
+	uint16_t activity_threshold;
+	uint8_t up_hyst;
+	uint8_t down_hyst;
+};
+
+enum amd_fan_ctrl_mode {
+	AMD_FAN_CTRL_NONE = 0,
+	AMD_FAN_CTRL_MANUAL = 1,
+	AMD_FAN_CTRL_AUTO = 2,
+};
+
 /* CG flags */
 #define AMD_CG_SUPPORT_GFX_MGCG			(1 << 0)
 #define AMD_CG_SUPPORT_GFX_MGLS			(1 << 1)
@@ -143,6 +167,8 @@ enum amd_vce_level {
 #define AMD_CG_SUPPORT_BIF_MGCG			(1 << 19)
 #define AMD_CG_SUPPORT_GFX_3D_CGCG		(1 << 20)
 #define AMD_CG_SUPPORT_GFX_3D_CGLS		(1 << 21)
+#define AMD_CG_SUPPORT_DRM_MGCG			(1 << 22)
+#define AMD_CG_SUPPORT_DF_MGCG			(1 << 23)
 
 /* PG flags */
 #define AMD_PG_SUPPORT_GFX_PG			(1 << 0)
@@ -158,6 +184,7 @@ enum amd_vce_level {
 #define AMD_PG_SUPPORT_SAMU			(1 << 10)
 #define AMD_PG_SUPPORT_GFX_QUICK_MG		(1 << 11)
 #define AMD_PG_SUPPORT_GFX_PIPELINE		(1 << 12)
+#define AMD_PG_SUPPORT_MMHUB			(1 << 13)
 
 enum amd_pm_state_type {
 	/* not used for dpm */

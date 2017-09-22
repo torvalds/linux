@@ -369,8 +369,10 @@
 		237 = /dev/loop-control Loopback control device
 		238 = /dev/vhost-net	Host kernel accelerator for virtio net
 		239 = /dev/uhid		User-space I/O driver support for HID subsystem
+		240 = /dev/userio	Serio driver testing device
+		241 = /dev/vhost-vsock	Host kernel driver for virtio vsock
 
-		240-254			Reserved for local use
+		242-254			Reserved for local use
 		255			Reserved for MISC_DYNAMIC_MINOR
 
   11 char	Raw keyboard device	(Linux/SPARC only)
@@ -3079,3 +3081,8 @@
 		  1 = /dev/osd1		Second OSD Device
 		  ...
 		  255 = /dev/osd255	256th OSD Device
+
+ 384-511 char	RESERVED FOR DYNAMIC ASSIGNMENT
+		Character devices that request a dynamic allocation of major
+		number will take numbers starting from 511 and downward,
+		once the 234-254 range is full.

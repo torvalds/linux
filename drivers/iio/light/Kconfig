@@ -136,6 +136,16 @@ config CM36651
 	 To compile this driver as a module, choose M here:
 	 the module will be called cm36651.
 
+config IIO_CROS_EC_LIGHT_PROX
+	tristate "ChromeOS EC Light and Proximity Sensors"
+	depends on IIO_CROS_EC_SENSORS_CORE
+	help
+	  Say Y here if you use the light and proximity sensors
+	  presented by the ChromeOS EC Sensor hub.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called cros_ec_light_prox.
+
 config GP2AP020A00F
 	tristate "Sharp GP2AP020A00F Proximity/ALS sensor"
 	depends on I2C
@@ -161,6 +171,16 @@ config SENSORS_ISL29018
 	 This driver will provide the measurements of ambient light intensity
 	 in lux, proximity infrared sensing and normal infrared sensing.
 	 Data from sensor is accessible via sysfs.
+
+config SENSORS_ISL29028
+	tristate "Intersil ISL29028 Concurrent Light and Proximity Sensor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	 Provides driver for the Intersil's ISL29028 device.
+	 This driver supports the sysfs interface to get the ALS, IR intensity,
+	 Proximity value via iio. The ISL29028 provides the concurrent sensing
+	 of ambient light and proximity.
 
 config ISL29125
 	tristate "Intersil ISL29125 digital color light sensor"
@@ -394,5 +414,15 @@ config VEML6070
 
 	 To compile this driver as a module, choose M here: the
 	 module will be called veml6070.
+
+config VL6180
+	tristate "VL6180 ALS, range and proximity sensor"
+	depends on I2C
+	help
+	 Say Y here if you want to build a driver for the STMicroelectronics
+	 VL6180 combined ambient light, range and proximity sensor.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called vl6180.
 
 endmenu

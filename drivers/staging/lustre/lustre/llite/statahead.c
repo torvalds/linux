@@ -38,8 +38,8 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/obd_support.h"
-#include "../include/lustre_dlm.h"
+#include <obd_support.h>
+#include <lustre_dlm.h>
 #include "llite_internal.h"
 
 #define SA_OMITTED_ENTRY_MAX 8ULL
@@ -528,7 +528,7 @@ static void ll_agl_trigger(struct inode *inode, struct ll_statahead_info *sai)
 	}
 
 	CDEBUG(D_READA, "Handling (init) async glimpse: inode = "
-	       DFID", idx = %llu\n", PFID(&lli->lli_fid), index);
+	       DFID ", idx = %llu\n", PFID(&lli->lli_fid), index);
 
 	cl_agl(inode);
 	lli->lli_agl_index = 0;
@@ -536,7 +536,7 @@ static void ll_agl_trigger(struct inode *inode, struct ll_statahead_info *sai)
 	up_write(&lli->lli_glimpse_sem);
 
 	CDEBUG(D_READA, "Handled (init) async glimpse: inode= "
-	       DFID", idx = %llu, rc = %d\n",
+	       DFID ", idx = %llu, rc = %d\n",
 	       PFID(&lli->lli_fid), index, rc);
 
 	iput(inode);
@@ -1008,7 +1008,7 @@ static int ll_statahead_thread(void *arg)
 		sai->sai_in_readpage = 0;
 		if (IS_ERR(page)) {
 			rc = PTR_ERR(page);
-			CDEBUG(D_READA, "error reading dir "DFID" at %llu/%llu: opendir_pid = %u: rc = %d\n",
+			CDEBUG(D_READA, "error reading dir " DFID " at %llu/%llu: opendir_pid = %u: rc = %d\n",
 			       PFID(ll_inode2fid(dir)), pos, sai->sai_index,
 			       lli->lli_opendir_pid, rc);
 			break;
@@ -1105,7 +1105,7 @@ static int ll_statahead_thread(void *arg)
 		if (sa_low_hit(sai)) {
 			rc = -EFAULT;
 			atomic_inc(&sbi->ll_sa_wrong);
-			CDEBUG(D_READA, "Statahead for dir "DFID" hit ratio too low: hit/miss %llu/%llu, sent/replied %llu/%llu, stopping statahead thread: pid %d\n",
+			CDEBUG(D_READA, "Statahead for dir " DFID " hit ratio too low: hit/miss %llu/%llu, sent/replied %llu/%llu, stopping statahead thread: pid %d\n",
 			       PFID(&lli->lli_fid), sai->sai_hit,
 			       sai->sai_miss, sai->sai_sent,
 			       sai->sai_replied, current_pid());
@@ -1211,7 +1211,7 @@ void ll_deauthorize_statahead(struct inode *dir, void *key)
 	LASSERT(lli->lli_opendir_key == key);
 	LASSERT(lli->lli_opendir_pid);
 
-	CDEBUG(D_READA, "deauthorize statahead for "DFID"\n",
+	CDEBUG(D_READA, "deauthorize statahead for " DFID "\n",
 	       PFID(&lli->lli_fid));
 
 	spin_lock(&lli->lli_sa_lock);
@@ -1274,7 +1274,7 @@ static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 			struct ll_inode_info *lli = ll_i2info(dir);
 
 			rc = PTR_ERR(page);
-			CERROR("%s: error reading dir "DFID" at %llu: opendir_pid = %u : rc = %d\n",
+			CERROR("%s: error reading dir " DFID " at %llu: opendir_pid = %u : rc = %d\n",
 			       ll_get_fsname(dir->i_sb, NULL, 0),
 			       PFID(ll_inode2fid(dir)), pos,
 			       lli->lli_opendir_pid, rc);
@@ -1471,7 +1471,7 @@ static int revalidate_statahead_dentry(struct inode *dir,
 			} else if ((*dentryp)->d_inode != inode) {
 				/* revalidate, but inode is recreated */
 				CDEBUG(D_READA,
-				       "%s: stale dentry %pd inode "DFID", statahead inode "DFID"\n",
+				       "%s: stale dentry %pd inode " DFID ", statahead inode " DFID "\n",
 				       ll_get_fsname((*dentryp)->d_inode->i_sb,
 						     NULL, 0),
 				       *dentryp,

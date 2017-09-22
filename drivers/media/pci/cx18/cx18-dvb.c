@@ -151,7 +151,7 @@ static int yuan_mpc718_mt352_reqfw(struct cx18_stream *stream,
 	}
 
 	if (ret) {
-		CX18_ERR("The MPC718 board variant with the MT352 DVB-Tdemodualtor will not work without it\n");
+		CX18_ERR("The MPC718 board variant with the MT352 DVB-T demodulator will not work without it\n");
 		CX18_ERR("Run 'linux/Documentation/dvb/get_dvb_firmware mpc718' if you need the firmware\n");
 	}
 	return ret;

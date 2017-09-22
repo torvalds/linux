@@ -503,26 +503,23 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 				Did, vport->fc_flag, vport->fc_rscn_id_cnt);
 
 			/*
-			 * This NPortID was previously a FCP target,
+			 * This NPortID was previously a FCP/NVMe target,
 			 * Don't even bother to send GFF_ID.
 			 */
 			ndlp = lpfc_findnode_did(vport, Did);
-			if (ndlp && NLP_CHK_NODE_ACT(ndlp))
-				ndlp->nlp_fc4_type = fc4_type;
-
-			if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
-				ndlp->nlp_fc4_type = fc4_type;
-
-				if (ndlp->nlp_type & NLP_FCP_TARGET)
-					lpfc_setup_disc_node(vport, Did);
-
-				else if (lpfc_ns_cmd(vport, SLI_CTNS_GFF_ID,
-							0, Did) == 0)
-					vport->num_disc_nodes++;
-
-				else
-					lpfc_setup_disc_node(vport, Did);
-			}
+			if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
+			    (ndlp->nlp_type &
+			    (NLP_FCP_TARGET | NLP_NVME_TARGET))) {
+				if (fc4_type == FC_TYPE_FCP)
+					ndlp->nlp_fc4_type |= NLP_FC4_FCP;
+				if (fc4_type == FC_TYPE_NVME)
+					ndlp->nlp_fc4_type |= NLP_FC4_NVME;
+				lpfc_setup_disc_node(vport, Did);
+			} else if (lpfc_ns_cmd(vport, SLI_CTNS_GFF_ID,
+				   0, Did) == 0)
+				vport->num_disc_nodes++;
+			else
+				lpfc_setup_disc_node(vport, Did);
 		} else {
 			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 				"Skip2 GID_FTrsp: did:x%x flg:x%x cnt:%d",
@@ -537,19 +534,53 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 	}
 }
 
+static void
+lpfc_ns_rsp_audit_did(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
+{
+	struct lpfc_hba *phba = vport->phba;
+	struct lpfc_nodelist *ndlp = NULL;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+
+	/*
+	 * To conserve rpi's, filter out addresses for other
+	 * vports on the same physical HBAs.
+	 */
+	if (Did != vport->fc_myDID &&
+	    (!lpfc_find_vport_by_did(phba, Did) ||
+	     vport->cfg_peer_port_login)) {
+		if (!phba->nvmet_support) {
+			/* FCPI/NVMEI path. Process Did */
+			lpfc_prep_node_fc4type(vport, Did, fc4_type);
+			return;
+		}
+		/* NVMET path.  NVMET only cares about NVMEI nodes. */
+		list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
+			if (ndlp->nlp_type != NLP_NVME_INITIATOR ||
+			    ndlp->nlp_state != NLP_STE_UNMAPPED_NODE)
+				continue;
+			spin_lock_irq(shost->host_lock);
+			if (ndlp->nlp_DID == Did)
+				ndlp->nlp_flag &= ~NLP_NVMET_RECOV;
+			else
+				ndlp->nlp_flag |= NLP_NVMET_RECOV;
+			spin_unlock_irq(shost->host_lock);
+		}
+	}
+}
+
 static int
 lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint8_t fc4_type,
 	    uint32_t Size)
 {
-	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_sli_ct_request *Response =
 		(struct lpfc_sli_ct_request *) mp->virt;
-	struct lpfc_nodelist *ndlp = NULL;
 	struct lpfc_dmabuf *mlast, *next_mp;
 	uint32_t *ctptr = (uint32_t *) & Response->un.gid.PortType;
 	uint32_t Did, CTentry;
 	int Cnt;
 	struct list_head head;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+	struct lpfc_nodelist *ndlp = NULL;
 
 	lpfc_set_disctmo(vport);
 	vport->num_disc_nodes = 0;
@@ -574,19 +605,7 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint8_t fc4_type,
 			/* Get next DID from NameServer List */
 			CTentry = *ctptr++;
 			Did = ((be32_to_cpu(CTentry)) & Mask_DID);
-
-			ndlp = NULL;
-
-			/*
-			 * Check for rscn processing or not
-			 * To conserve rpi's, filter out addresses for other
-			 * vports on the same physical HBAs.
-			 */
-			if ((Did != vport->fc_myDID) &&
-			    ((lpfc_find_vport_by_did(phba, Did) == NULL) ||
-			     vport->cfg_peer_port_login))
-				lpfc_prep_node_fc4type(vport, Did, fc4_type);
-
+			lpfc_ns_rsp_audit_did(vport, Did, fc4_type);
 			if (CTentry & (cpu_to_be32(SLI_CT_LAST_ENTRY)))
 				goto nsout1;
 
@@ -594,6 +613,22 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint8_t fc4_type,
 		}
 		ctptr = NULL;
 
+	}
+
+	/* All GID_FT entries processed.  If the driver is running in
+	 * in target mode, put impacted nodes into recovery and drop
+	 * the RPI to flush outstanding IO.
+	 */
+	if (vport->phba->nvmet_support) {
+		list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
+			if (!(ndlp->nlp_flag & NLP_NVMET_RECOV))
+				continue;
+			lpfc_disc_state_machine(vport, ndlp, NULL,
+						NLP_EVT_DEVICE_RECOVERY);
+			spin_lock_irq(shost->host_lock);
+			ndlp->nlp_flag &= ~NLP_NVMET_RECOV;
+			spin_unlock_irq(shost->host_lock);
+		}
 	}
 
 nsout1:
@@ -920,7 +955,7 @@ lpfc_cmpl_ct_cmd_gft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		CTrsp = (struct lpfc_sli_ct_request *)outp->virt;
 		fc4_data_0 = be32_to_cpu(CTrsp->un.gft_acc.fc4_types[0]);
 		fc4_data_1 = be32_to_cpu(CTrsp->un.gft_acc.fc4_types[1]);
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 				 "3062 DID x%06x GFT Wd0 x%08x Wd1 x%08x\n",
 				 did, fc4_data_0, fc4_data_1);
 
@@ -934,15 +969,16 @@ lpfc_cmpl_ct_cmd_gft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				ndlp->nlp_fc4_type |= NLP_FC4_FCP;
 			if (fc4_data_1 &  LPFC_FC4_TYPE_BITMASK)
 				ndlp->nlp_fc4_type |= NLP_FC4_NVME;
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 					 "3064 Setting ndlp %p, DID x%06x with "
 					 "FC4 x%08x, Data: x%08x x%08x\n",
 					 ndlp, did, ndlp->nlp_fc4_type,
 					 FC_TYPE_FCP, FC_TYPE_NVME);
 			ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
+
+			lpfc_nlp_set_state(vport, ndlp, NLP_STE_PRLI_ISSUE);
+			lpfc_issue_els_prli(vport, ndlp, 0);
 		}
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_PRLI_ISSUE);
-		lpfc_issue_els_prli(vport, ndlp, 0);
 	} else
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
 				 "3065 GFT_ID failed x%08x\n", irsp->ulpStatus);
@@ -2054,6 +2090,7 @@ lpfc_fdmi_port_attr_fc4type(struct lpfc_vport *vport,
 
 	ae->un.AttrTypes[3] = 0x02; /* Type 1 - ELS */
 	ae->un.AttrTypes[2] = 0x01; /* Type 8 - FCP */
+	ae->un.AttrTypes[6] = 0x01; /* Type 40 - NVME */
 	ae->un.AttrTypes[7] = 0x01; /* Type 32 - CT */
 	size = FOURBYTES + 32;
 	ad->AttrLen = cpu_to_be16(size);

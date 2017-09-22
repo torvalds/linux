@@ -27,9 +27,6 @@
 struct radeon_device;
 struct acpi_bus_event;
 
-int radeon_atif_handler(struct radeon_device *rdev,
-		struct acpi_bus_event *event);
-
 /* AMD hw uses four ACPI control methods:
  * 1. ATIF
  * ARG0: (ACPI_INTEGER) function code
@@ -97,6 +94,7 @@ int radeon_atif_handler(struct radeon_device *rdev,
 #       define ATIF_SET_PANEL_EXPANSION_MODE_IN_CMOS_SUPPORTED    (1 << 7)
 #       define ATIF_TEMPERATURE_CHANGE_NOTIFICATION_SUPPORTED     (1 << 12)
 #       define ATIF_GET_GRAPHICS_DEVICE_TYPES_SUPPORTED           (1 << 14)
+#       define ATIF_GET_EXTERNAL_GPU_INFORMATION_SUPPORTED        (1 << 20)
 #define ATIF_FUNCTION_GET_SYSTEM_PARAMETERS                        0x1
 /* ARG0: ATIF_FUNCTION_GET_SYSTEM_PARAMETERS
  * ARG1: none
@@ -251,6 +249,17 @@ int radeon_atif_handler(struct radeon_device *rdev,
 #       define ATIF_XGP_PORT                                       (1 << 1)
 #       define ATIF_VGA_ENABLED_GRAPHICS_DEVICE                    (1 << 2)
 #       define ATIF_XGP_PORT_IN_DOCK                               (1 << 3)
+#define ATIF_FUNCTION_GET_EXTERNAL_GPU_INFORMATION                 0x15
+/* ARG0: ATIF_FUNCTION_GET_EXTERNAL_GPU_INFORMATION
+ * ARG1: none
+ * OUTPUT:
+ * WORD  - number of reported external gfx devices
+ * WORD  - device structure size in bytes (excludes device size field)
+ * WORD  - flags         \
+ * WORD  - bus number    / repeated structure
+ */
+/* flags */
+#       define ATIF_EXTERNAL_GRAPHICS_PORT                         (1 << 0)
 
 /* ATPX */
 #define ATPX_FUNCTION_VERIFY_INTERFACE                             0x0

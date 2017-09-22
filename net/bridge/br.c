@@ -121,7 +121,7 @@ static struct notifier_block br_device_notifier = {
 	.notifier_call = br_device_event
 };
 
-/* called with RTNL */
+/* called with RTNL or RCU */
 static int br_switchdev_event(struct notifier_block *unused,
 			      unsigned long event, void *ptr)
 {
@@ -131,26 +131,35 @@ static int br_switchdev_event(struct notifier_block *unused,
 	struct switchdev_notifier_fdb_info *fdb_info;
 	int err = NOTIFY_DONE;
 
-	p = br_port_get_rtnl(dev);
+	p = br_port_get_rtnl_rcu(dev);
 	if (!p)
 		goto out;
 
 	br = p->br;
 
 	switch (event) {
-	case SWITCHDEV_FDB_ADD:
+	case SWITCHDEV_FDB_ADD_TO_BRIDGE:
 		fdb_info = ptr;
 		err = br_fdb_external_learn_add(br, p, fdb_info->addr,
 						fdb_info->vid);
-		if (err)
+		if (err) {
 			err = notifier_from_errno(err);
+			break;
+		}
+		br_fdb_offloaded_set(br, p, fdb_info->addr,
+				     fdb_info->vid);
 		break;
-	case SWITCHDEV_FDB_DEL:
+	case SWITCHDEV_FDB_DEL_TO_BRIDGE:
 		fdb_info = ptr;
 		err = br_fdb_external_learn_del(br, p, fdb_info->addr,
 						fdb_info->vid);
 		if (err)
 			err = notifier_from_errno(err);
+		break;
+	case SWITCHDEV_FDB_OFFLOADED:
+		fdb_info = ptr;
+		br_fdb_offloaded_set(br, p, fdb_info->addr,
+				     fdb_info->vid);
 		break;
 	}
 

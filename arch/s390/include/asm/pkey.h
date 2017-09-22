@@ -87,4 +87,25 @@ int pkey_findcard(const struct pkey_seckey *seckey,
 int pkey_skey2pkey(const struct pkey_seckey *seckey,
 		   struct pkey_protkey *protkey);
 
+/*
+ * Verify the given secure key for being able to be useable with
+ * the pkey module. Check for correct key type and check for having at
+ * least one crypto card being able to handle this key (master key
+ * or old master key verification pattern matches).
+ * Return some info about the key: keysize in bits, keytype (currently
+ * only AES), flag if key is wrapped with an old MKVP.
+ * @param seckey pointer to buffer with the input secure key
+ * @param pcardnr pointer to cardnr, receives the card number on success
+ * @param pdomain pointer to domain, receives the domain number on success
+ * @param pkeysize pointer to keysize, receives the bitsize of the key
+ * @param pattributes pointer to attributes, receives additional info
+ *	  PKEY_VERIFY_ATTR_AES if the key is an AES key
+ *	  PKEY_VERIFY_ATTR_OLD_MKVP if key has old mkvp stored in
+ * @return 0 on success, negative errno value on failure. If no card could
+ *	   be found which is able to handle this key, -ENODEV is returned.
+ */
+int pkey_verifykey(const struct pkey_seckey *seckey,
+		   u16 *pcardnr, u16 *pdomain,
+		   u16 *pkeysize, u32 *pattributes);
+
 #endif /* _KAPI_PKEY_H */

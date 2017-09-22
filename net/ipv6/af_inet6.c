@@ -210,7 +210,8 @@ lookup_protocol:
 	np->mcast_hops	= IPV6_DEFAULT_MCASTHOPS;
 	np->mc_loop	= 1;
 	np->pmtudisc	= IPV6_PMTUDISC_WANT;
-	np->autoflowlabel = ip6_default_np_autolabel(sock_net(sk));
+	np->autoflowlabel = ip6_default_np_autolabel(net);
+	np->repflow	= net->ipv6.sysctl.flowlabel_reflect;
 	sk->sk_ipv6only	= net->ipv6.sysctl.bindv6only;
 
 	/* Init the ipv4 part of the socket since we can have sockets
@@ -554,6 +555,8 @@ const struct proto_ops inet6_stream_ops = {
 	.recvmsg	   = inet_recvmsg,		/* ok		*/
 	.mmap		   = sock_no_mmap,
 	.sendpage	   = inet_sendpage,
+	.sendmsg_locked    = tcp_sendmsg_locked,
+	.sendpage_locked   = tcp_sendpage_locked,
 	.splice_read	   = tcp_splice_read,
 	.read_sock	   = tcp_read_sock,
 	.peek_len	   = tcp_peek_len,
@@ -933,8 +936,6 @@ static int __init inet6_init(void)
 	if (err)
 		goto igmp_fail;
 
-	ipv6_stub = &ipv6_stub_impl;
-
 	err = ipv6_netfilter_init();
 	if (err)
 		goto netfilter_fail;
@@ -1005,18 +1006,28 @@ static int __init inet6_init(void)
 	if (err)
 		goto seg6_fail;
 
+	err = igmp6_late_init();
+	if (err)
+		goto igmp6_late_err;
+
 #ifdef CONFIG_SYSCTL
 	err = ipv6_sysctl_register();
 	if (err)
 		goto sysctl_fail;
 #endif
+
+	/* ensure that ipv6 stubs are visible only after ipv6 is ready */
+	wmb();
+	ipv6_stub = &ipv6_stub_impl;
 out:
 	return err;
 
 #ifdef CONFIG_SYSCTL
 sysctl_fail:
-	seg6_exit();
+	igmp6_late_cleanup();
 #endif
+igmp6_late_err:
+	seg6_exit();
 seg6_fail:
 	calipso_exit();
 calipso_fail:

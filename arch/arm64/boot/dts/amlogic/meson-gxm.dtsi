@@ -117,6 +117,10 @@
 	};
 };
 
+&clkc_AO {
+	compatible = "amlogic,meson-gxm-aoclkc", "amlogic,meson-gx-aoclkc";
+};
+
 &saradc {
 	compatible = "amlogic,meson-gxm-saradc", "amlogic,meson-saradc";
 };
@@ -130,3 +134,6 @@
 	compatible = "amlogic,meson-gxm-vpu", "amlogic,meson-gx-vpu";
 };
 
+&hdmi_tx {
+	compatible = "amlogic,meson-gxm-dw-hdmi", "amlogic,meson-gx-dw-hdmi";
+};

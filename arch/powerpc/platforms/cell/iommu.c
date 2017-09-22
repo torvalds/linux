@@ -278,8 +278,8 @@ static int cell_iommu_find_ioc(int nid, unsigned long *base)
 		if (of_node_to_nid(np) != nid)
 			continue;
 		if (of_address_to_resource(np, 0, &r)) {
-			printk(KERN_ERR "iommu: can't get address for %s\n",
-			       np->full_name);
+			printk(KERN_ERR "iommu: can't get address for %pOF\n",
+			       np);
 			continue;
 		}
 		*base = r.start;
@@ -458,8 +458,8 @@ static inline u32 cell_iommu_get_ioid(struct device_node *np)
 
 	ioid = of_get_property(np, "ioid", NULL);
 	if (ioid == NULL) {
-		printk(KERN_WARNING "iommu: missing ioid for %s using 0\n",
-		       np->full_name);
+		printk(KERN_WARNING "iommu: missing ioid for %pOF using 0\n",
+		       np);
 		return 0;
 	}
 
@@ -559,8 +559,8 @@ static struct iommu_table *cell_get_iommu_table(struct device *dev)
 	 */
 	iommu = cell_iommu_for_node(dev_to_node(dev));
 	if (iommu == NULL || list_empty(&iommu->windows)) {
-		dev_err(dev, "iommu: missing iommu for %s (node %d)\n",
-		       of_node_full_name(dev->of_node), dev_to_node(dev));
+		dev_err(dev, "iommu: missing iommu for %pOF (node %d)\n",
+		       dev->of_node, dev_to_node(dev));
 		return NULL;
 	}
 	window = list_entry(iommu->windows.next, struct iommu_window, list);
@@ -644,32 +644,22 @@ static void dma_fixed_unmap_sg(struct device *dev, struct scatterlist *sg,
 				   direction, attrs);
 }
 
-static int dma_fixed_dma_supported(struct device *dev, u64 mask)
-{
-	return mask == DMA_BIT_MASK(64);
-}
-
-static int dma_set_mask_and_switch(struct device *dev, u64 dma_mask);
+static int dma_suported_and_switch(struct device *dev, u64 dma_mask);
 
 static const struct dma_map_ops dma_iommu_fixed_ops = {
 	.alloc          = dma_fixed_alloc_coherent,
 	.free           = dma_fixed_free_coherent,
 	.map_sg         = dma_fixed_map_sg,
 	.unmap_sg       = dma_fixed_unmap_sg,
-	.dma_supported  = dma_fixed_dma_supported,
-	.set_dma_mask   = dma_set_mask_and_switch,
+	.dma_supported  = dma_suported_and_switch,
 	.map_page       = dma_fixed_map_page,
 	.unmap_page     = dma_fixed_unmap_page,
+	.mapping_error	= dma_iommu_mapping_error,
 };
-
-static void cell_dma_dev_setup_fixed(struct device *dev);
 
 static void cell_dma_dev_setup(struct device *dev)
 {
-	/* Order is important here, these are not mutually exclusive */
-	if (get_dma_ops(dev) == &dma_iommu_fixed_ops)
-		cell_dma_dev_setup_fixed(dev);
-	else if (get_pci_dma_ops() == &dma_iommu_ops)
+	if (get_pci_dma_ops() == &dma_iommu_ops)
 		set_iommu_table_base(dev, cell_get_iommu_table(dev));
 	else if (get_pci_dma_ops() == &dma_direct_ops)
 		set_dma_offset(dev, cell_dma_direct_offset);
@@ -730,12 +720,12 @@ static struct cbe_iommu * __init cell_iommu_alloc(struct device_node *np)
 	/* Get node ID */
 	nid = of_node_to_nid(np);
 	if (nid < 0) {
-		printk(KERN_ERR "iommu: failed to get node for %s\n",
-		       np->full_name);
+		printk(KERN_ERR "iommu: failed to get node for %pOF\n",
+		       np);
 		return NULL;
 	}
-	pr_debug("iommu: setting up iommu for node %d (%s)\n",
-		 nid, np->full_name);
+	pr_debug("iommu: setting up iommu for node %d (%pOF)\n",
+		 nid, np);
 
 	/* XXX todo: If we can have multiple windows on the same IOMMU, which
 	 * isn't the case today, we probably want here to check whether the
@@ -746,8 +736,8 @@ static struct cbe_iommu * __init cell_iommu_alloc(struct device_node *np)
 	 */
 
 	if (cbe_nr_iommus >= NR_IOMMUS) {
-		printk(KERN_ERR "iommu: too many IOMMUs detected ! (%s)\n",
-		       np->full_name);
+		printk(KERN_ERR "iommu: too many IOMMUs detected ! (%pOF)\n",
+		       np);
 		return NULL;
 	}
 
@@ -956,36 +946,27 @@ out:
 	return dev_addr;
 }
 
-static int dma_set_mask_and_switch(struct device *dev, u64 dma_mask)
+static int dma_suported_and_switch(struct device *dev, u64 dma_mask)
 {
-	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
-		return -EIO;
-
 	if (dma_mask == DMA_BIT_MASK(64) &&
-		cell_iommu_get_fixed_address(dev) != OF_BAD_ADDR)
-	{
+	    cell_iommu_get_fixed_address(dev) != OF_BAD_ADDR) {
+		u64 addr = cell_iommu_get_fixed_address(dev) +
+			dma_iommu_fixed_base;
 		dev_dbg(dev, "iommu: 64-bit OK, using fixed ops\n");
+		dev_dbg(dev, "iommu: fixed addr = %llx\n", addr);
 		set_dma_ops(dev, &dma_iommu_fixed_ops);
-	} else {
-		dev_dbg(dev, "iommu: not 64-bit, using default ops\n");
-		set_dma_ops(dev, get_pci_dma_ops());
+		set_dma_offset(dev, addr);
+		return 1;
 	}
 
-	cell_dma_dev_setup(dev);
-
-	*dev->dma_mask = dma_mask;
+	if (dma_iommu_dma_supported(dev, dma_mask)) {
+		dev_dbg(dev, "iommu: not 64-bit, using default ops\n");
+		set_dma_ops(dev, get_pci_dma_ops());
+		cell_dma_dev_setup(dev);
+		return 1;
+	}
 
 	return 0;
-}
-
-static void cell_dma_dev_setup_fixed(struct device *dev)
-{
-	u64 addr;
-
-	addr = cell_iommu_get_fixed_address(dev) + dma_iommu_fixed_base;
-	set_dma_offset(dev, addr);
-
-	dev_dbg(dev, "iommu: fixed addr = %llx\n", addr);
 }
 
 static void insert_16M_pte(unsigned long addr, unsigned long *ptab,
@@ -1139,7 +1120,7 @@ static int __init cell_iommu_fixed_mapping_init(void)
 		cell_iommu_setup_window(iommu, np, dbase, dsize, 0);
 	}
 
-	dma_iommu_ops.set_dma_mask = dma_set_mask_and_switch;
+	dma_iommu_ops.dma_supported = dma_suported_and_switch;
 	set_pci_dma_ops(&dma_iommu_ops);
 
 	return 0;

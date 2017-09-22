@@ -61,55 +61,6 @@ DEFINE_EVENT(block_buffer, block_dirty_buffer,
 	TP_ARGS(bh)
 );
 
-DECLARE_EVENT_CLASS(block_rq_with_error,
-
-	TP_PROTO(struct request_queue *q, struct request *rq),
-
-	TP_ARGS(q, rq),
-
-	TP_STRUCT__entry(
-		__field(  dev_t,	dev			)
-		__field(  sector_t,	sector			)
-		__field(  unsigned int,	nr_sector		)
-		__field(  int,		errors			)
-		__array(  char,		rwbs,	RWBS_LEN	)
-		__dynamic_array( char,	cmd,	1		)
-	),
-
-	TP_fast_assign(
-		__entry->dev	   = rq->rq_disk ? disk_devt(rq->rq_disk) : 0;
-		__entry->sector    = blk_rq_trace_sector(rq);
-		__entry->nr_sector = blk_rq_trace_nr_sectors(rq);
-		__entry->errors    = rq->errors;
-
-		blk_fill_rwbs(__entry->rwbs, rq->cmd_flags, blk_rq_bytes(rq));
-		__get_str(cmd)[0] = '\0';
-	),
-
-	TP_printk("%d,%d %s (%s) %llu + %u [%d]",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->rwbs, __get_str(cmd),
-		  (unsigned long long)__entry->sector,
-		  __entry->nr_sector, __entry->errors)
-);
-
-/**
- * block_rq_abort - abort block operation request
- * @q: queue containing the block operation request
- * @rq: block IO operation request
- *
- * Called immediately after pending block IO operation request @rq in
- * queue @q is aborted. The fields in the operation request @rq
- * can be examined to determine which device and sectors the pending
- * operation would access.
- */
-DEFINE_EVENT(block_rq_with_error, block_rq_abort,
-
-	TP_PROTO(struct request_queue *q, struct request *rq),
-
-	TP_ARGS(q, rq)
-);
-
 /**
  * block_rq_requeue - place block IO request back on a queue
  * @q: queue holding operation
@@ -119,17 +70,40 @@ DEFINE_EVENT(block_rq_with_error, block_rq_abort,
  * @q.  For some reason the request was not completed and needs to be
  * put back in the queue.
  */
-DEFINE_EVENT(block_rq_with_error, block_rq_requeue,
+TRACE_EVENT(block_rq_requeue,
 
 	TP_PROTO(struct request_queue *q, struct request *rq),
 
-	TP_ARGS(q, rq)
+	TP_ARGS(q, rq),
+
+	TP_STRUCT__entry(
+		__field(  dev_t,	dev			)
+		__field(  sector_t,	sector			)
+		__field(  unsigned int,	nr_sector		)
+		__array(  char,		rwbs,	RWBS_LEN	)
+		__dynamic_array( char,	cmd,	1		)
+	),
+
+	TP_fast_assign(
+		__entry->dev	   = rq->rq_disk ? disk_devt(rq->rq_disk) : 0;
+		__entry->sector    = blk_rq_trace_sector(rq);
+		__entry->nr_sector = blk_rq_trace_nr_sectors(rq);
+
+		blk_fill_rwbs(__entry->rwbs, rq->cmd_flags, blk_rq_bytes(rq));
+		__get_str(cmd)[0] = '\0';
+	),
+
+	TP_printk("%d,%d %s (%s) %llu + %u [%d]",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->rwbs, __get_str(cmd),
+		  (unsigned long long)__entry->sector,
+		  __entry->nr_sector, 0)
 );
 
 /**
  * block_rq_complete - block IO operation completed by device driver
- * @q: queue containing the block operation request
  * @rq: block operations request
+ * @error: status code
  * @nr_bytes: number of completed bytes
  *
  * The block_rq_complete tracepoint event indicates that some portion
@@ -140,16 +114,15 @@ DEFINE_EVENT(block_rq_with_error, block_rq_requeue,
  */
 TRACE_EVENT(block_rq_complete,
 
-	TP_PROTO(struct request_queue *q, struct request *rq,
-		 unsigned int nr_bytes),
+	TP_PROTO(struct request *rq, int error, unsigned int nr_bytes),
 
-	TP_ARGS(q, rq, nr_bytes),
+	TP_ARGS(rq, error, nr_bytes),
 
 	TP_STRUCT__entry(
 		__field(  dev_t,	dev			)
 		__field(  sector_t,	sector			)
 		__field(  unsigned int,	nr_sector		)
-		__field(  int,		errors			)
+		__field(  int,		error			)
 		__array(  char,		rwbs,	RWBS_LEN	)
 		__dynamic_array( char,	cmd,	1		)
 	),
@@ -158,7 +131,7 @@ TRACE_EVENT(block_rq_complete,
 		__entry->dev	   = rq->rq_disk ? disk_devt(rq->rq_disk) : 0;
 		__entry->sector    = blk_rq_pos(rq);
 		__entry->nr_sector = nr_bytes >> 9;
-		__entry->errors    = rq->errors;
+		__entry->error     = error;
 
 		blk_fill_rwbs(__entry->rwbs, rq->cmd_flags, nr_bytes);
 		__get_str(cmd)[0] = '\0';
@@ -168,7 +141,7 @@ TRACE_EVENT(block_rq_complete,
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->rwbs, __get_str(cmd),
 		  (unsigned long long)__entry->sector,
-		  __entry->nr_sector, __entry->errors)
+		  __entry->nr_sector, __entry->error)
 );
 
 DECLARE_EVENT_CLASS(block_rq,
@@ -263,8 +236,7 @@ TRACE_EVENT(block_bio_bounce,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= bio->bi_bdev ?
-					  bio->bi_bdev->bd_dev : 0;
+		__entry->dev		= bio_dev(bio);
 		__entry->sector		= bio->bi_iter.bi_sector;
 		__entry->nr_sector	= bio_sectors(bio);
 		blk_fill_rwbs(__entry->rwbs, bio->bi_opf, bio->bi_iter.bi_size);
@@ -301,7 +273,7 @@ TRACE_EVENT(block_bio_complete,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= bio->bi_bdev->bd_dev;
+		__entry->dev		= bio_dev(bio);
 		__entry->sector		= bio->bi_iter.bi_sector;
 		__entry->nr_sector	= bio_sectors(bio);
 		__entry->error		= error;
@@ -329,7 +301,7 @@ DECLARE_EVENT_CLASS(block_bio_merge,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= bio->bi_bdev->bd_dev;
+		__entry->dev		= bio_dev(bio);
 		__entry->sector		= bio->bi_iter.bi_sector;
 		__entry->nr_sector	= bio_sectors(bio);
 		blk_fill_rwbs(__entry->rwbs, bio->bi_opf, bio->bi_iter.bi_size);
@@ -396,7 +368,7 @@ TRACE_EVENT(block_bio_queue,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= bio->bi_bdev->bd_dev;
+		__entry->dev		= bio_dev(bio);
 		__entry->sector		= bio->bi_iter.bi_sector;
 		__entry->nr_sector	= bio_sectors(bio);
 		blk_fill_rwbs(__entry->rwbs, bio->bi_opf, bio->bi_iter.bi_size);
@@ -424,7 +396,7 @@ DECLARE_EVENT_CLASS(block_get_rq,
         ),
 
 	TP_fast_assign(
-		__entry->dev		= bio ? bio->bi_bdev->bd_dev : 0;
+		__entry->dev		= bio ? bio_dev(bio) : 0;
 		__entry->sector		= bio ? bio->bi_iter.bi_sector : 0;
 		__entry->nr_sector	= bio ? bio_sectors(bio) : 0;
 		blk_fill_rwbs(__entry->rwbs,
@@ -441,7 +413,7 @@ DECLARE_EVENT_CLASS(block_get_rq,
 /**
  * block_getrq - get a free request entry in queue for block IO operations
  * @q: queue for operations
- * @bio: pending block IO operation
+ * @bio: pending block IO operation (can be %NULL)
  * @rw: low bit indicates a read (%0) or a write (%1)
  *
  * A request struct for queue @q has been allocated to handle the
@@ -457,7 +429,7 @@ DEFINE_EVENT(block_get_rq, block_getrq,
 /**
  * block_sleeprq - waiting to get a free request entry in queue for block IO operation
  * @q: queue for operation
- * @bio: pending block IO operation
+ * @bio: pending block IO operation (can be %NULL)
  * @rw: low bit indicates a read (%0) or a write (%1)
  *
  * In the case where a request struct cannot be provided for queue @q
@@ -559,7 +531,7 @@ TRACE_EVENT(block_split,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= bio->bi_bdev->bd_dev;
+		__entry->dev		= bio_dev(bio);
 		__entry->sector		= bio->bi_iter.bi_sector;
 		__entry->new_sector	= new_sector;
 		blk_fill_rwbs(__entry->rwbs, bio->bi_opf, bio->bi_iter.bi_size);
@@ -600,7 +572,7 @@ TRACE_EVENT(block_bio_remap,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= bio->bi_bdev->bd_dev;
+		__entry->dev		= bio_dev(bio);
 		__entry->sector		= bio->bi_iter.bi_sector;
 		__entry->nr_sector	= bio_sectors(bio);
 		__entry->old_dev	= dev;

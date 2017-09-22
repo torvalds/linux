@@ -72,7 +72,7 @@ static int ide_floppy_callback(ide_drive_t *drive, int dsc)
 		drive->failed_pc = NULL;
 
 	if (pc->c[0] == GPCMD_READ_10 || pc->c[0] == GPCMD_WRITE_10 ||
-	    (req_op(rq) == REQ_OP_SCSI_IN || req_op(rq) == REQ_OP_SCSI_OUT))
+	    blk_rq_is_scsi(rq))
 		uptodate = 1; /* FIXME */
 	else if (pc->c[0] == GPCMD_REQUEST_SENSE) {
 
@@ -98,7 +98,7 @@ static int ide_floppy_callback(ide_drive_t *drive, int dsc)
 	}
 
 	if (ata_misc_request(rq))
-		rq->errors = uptodate ? 0 : IDE_DRV_ERROR_GENERAL;
+		scsi_req(rq)->result = uptodate ? 0 : IDE_DRV_ERROR_GENERAL;
 
 	return uptodate;
 }
@@ -143,7 +143,7 @@ static ide_startstop_t ide_floppy_issue_pc(ide_drive_t *drive,
 
 		drive->failed_pc = NULL;
 		drive->pc_callback(drive, 0);
-		ide_complete_rq(drive, -EIO, done);
+		ide_complete_rq(drive, BLK_STS_IOERR, done);
 		return ide_stopped;
 	}
 
@@ -239,7 +239,7 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 					? rq->rq_disk->disk_name
 					: "dev?"));
 
-	if (rq->errors >= ERROR_MAX) {
+	if (scsi_req(rq)->result >= ERROR_MAX) {
 		if (drive->failed_pc) {
 			ide_floppy_report_error(floppy, drive->failed_pc);
 			drive->failed_pc = NULL;
@@ -247,8 +247,8 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 			printk(KERN_ERR PFX "%s: I/O error\n", drive->name);
 
 		if (ata_misc_request(rq)) {
-			rq->errors = 0;
-			ide_complete_rq(drive, 0, blk_rq_bytes(rq));
+			scsi_req(rq)->result = 0;
+			ide_complete_rq(drive, BLK_STS_OK, blk_rq_bytes(rq));
 			return ide_stopped;
 		} else
 			goto out_end;
@@ -301,9 +301,9 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 	return ide_floppy_issue_pc(drive, &cmd, pc);
 out_end:
 	drive->failed_pc = NULL;
-	if (blk_rq_is_passthrough(rq) && rq->errors == 0)
-		rq->errors = -EIO;
-	ide_complete_rq(drive, -EIO, blk_rq_bytes(rq));
+	if (blk_rq_is_passthrough(rq) && scsi_req(rq)->result == 0)
+		scsi_req(rq)->result = -EIO;
+	ide_complete_rq(drive, BLK_STS_IOERR, blk_rq_bytes(rq));
 	return ide_stopped;
 }
 

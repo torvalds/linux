@@ -224,7 +224,7 @@ static int img_prl_out_probe(struct platform_device *pdev)
 
 	prl->base = base;
 
-	prl->rst = devm_reset_control_get(&pdev->dev, "rst");
+	prl->rst = devm_reset_control_get_exclusive(&pdev->dev, "rst");
 	if (IS_ERR(prl->rst)) {
 		if (PTR_ERR(prl->rst) != -EPROBE_DEFER)
 			dev_err(&pdev->dev, "No top level reset found\n");

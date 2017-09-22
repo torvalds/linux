@@ -154,7 +154,7 @@ static const struct ad7780_chip_info ad7780_chip_info_tbl[] = {
 };
 
 static const struct iio_info ad7780_info = {
-	.read_raw = &ad7780_read_raw,
+	.read_raw = ad7780_read_raw,
 	.driver_module = THIS_MODULE,
 };
 

@@ -17,10 +17,13 @@
  *
  */
 
+#include <errno.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include "util.h"
 #include "debug.h"
 #include "dwarf-aux.h"
+#include "string2.h"
 
 /**
  * cu_find_realpath - Find the realpath of the target file

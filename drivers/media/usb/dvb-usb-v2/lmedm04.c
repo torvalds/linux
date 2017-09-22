@@ -207,15 +207,13 @@ static int lme2510_stream_restart(struct dvb_usb_device *d)
 	struct lme2510_state *st = d->priv;
 	u8 all_pids[] = LME_ALL_PIDS;
 	u8 stream_on[] = LME_ST_ON_W;
-	int ret;
 	u8 rbuff[1];
 	if (st->pid_off)
-		ret = lme2510_usb_talk(d, all_pids, sizeof(all_pids),
-			rbuff, sizeof(rbuff));
+		lme2510_usb_talk(d, all_pids, sizeof(all_pids),
+				 rbuff, sizeof(rbuff));
 	/*Restart Stream Command*/
-	ret = lme2510_usb_talk(d, stream_on, sizeof(stream_on),
-			rbuff, sizeof(rbuff));
-	return ret;
+	return lme2510_usb_talk(d, stream_on, sizeof(stream_on),
+				rbuff, sizeof(rbuff));
 }
 
 static int lme2510_enable_pid(struct dvb_usb_device *d, u8 index, u16 pid_out)
@@ -349,8 +347,8 @@ static void lme2510_int_response(struct urb *lme_urb)
 						ibuf[5]);
 
 			deb_info(1, "INT Key = 0x%08x", key);
-			rc_keydown(adap_to_d(adap)->rc_dev, RC_TYPE_NEC32, key,
-									0);
+			rc_keydown(adap_to_d(adap)->rc_dev, RC_PROTO_NEC32, key,
+				   0);
 			break;
 		case 0xbb:
 			switch (st->tuner_config) {
@@ -1065,6 +1063,7 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 			}
 			break;
 		}
+		/* fall through */
 	case 0x22f0:
 		st->i2c_gate = 5;
 		adap->fe[0] = dvb_attach(m88rs2000_attach,
@@ -1233,7 +1232,7 @@ static int lme2510_get_stream_config(struct dvb_frontend *fe, u8 *ts_type,
 static int lme2510_get_rc_config(struct dvb_usb_device *d,
 	struct dvb_usb_rc *rc)
 {
-	rc->allowed_protos = RC_BIT_NEC32;
+	rc->allowed_protos = RC_PROTO_BIT_NEC32;
 	return 0;
 }
 

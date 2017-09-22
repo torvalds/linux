@@ -6,7 +6,7 @@ iwlmvm-y += power.o coex.o
 iwlmvm-y += tt.o offloading.o tdls.o
 iwlmvm-$(CONFIG_IWLWIFI_DEBUGFS) += debugfs.o debugfs-vif.o
 iwlmvm-$(CONFIG_IWLWIFI_LEDS) += led.o
-iwlmvm-y += tof.o fw-dbg.o
+iwlmvm-y += tof.o
 iwlmvm-$(CONFIG_PM) += d3.o
 
 ccflags-y += -I$(src)/../

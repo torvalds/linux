@@ -3,12 +3,17 @@
 #include "hist.h"
 #include "map.h"
 #include "session.h"
+#include "namespaces.h"
 #include "sort.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "annotate.h"
+#include "srcline.h"
+#include "thread.h"
 #include "ui/progress.h"
+#include <errno.h>
 #include <math.h>
+#include <sys/param.h>
 
 static bool hists__filter_entry_by_dso(struct hists *hists,
 				       struct hist_entry *he);
@@ -162,6 +167,10 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 			symlen = unresolved_col_width + 4 + 2;
 			hists__set_unres_dso_col_len(hists, HISTC_MEM_DADDR_DSO);
 		}
+
+		hists__new_col_len(hists, HISTC_MEM_PHYS_DADDR,
+				   unresolved_col_width + 4 + 2);
+
 	} else {
 		symlen = unresolved_col_width + 4 + 2;
 		hists__new_col_len(hists, HISTC_MEM_DADDR_SYMBOL, symlen);
@@ -169,6 +178,7 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 		hists__set_unres_dso_col_len(hists, HISTC_MEM_DADDR_DSO);
 	}
 
+	hists__new_col_len(hists, HISTC_CGROUP_ID, 20);
 	hists__new_col_len(hists, HISTC_CPU, 3);
 	hists__new_col_len(hists, HISTC_SOCKET, 6);
 	hists__new_col_len(hists, HISTC_MEM_LOCKED, 6);
@@ -574,9 +584,14 @@ __hists__add_entry(struct hists *hists,
 		   bool sample_self,
 		   struct hist_entry_ops *ops)
 {
+	struct namespaces *ns = thread__namespaces(al->thread);
 	struct hist_entry entry = {
 		.thread	= al->thread,
 		.comm = thread__comm(al->thread),
+		.cgroup_id = {
+			.dev = ns ? ns->link_info[CGROUP_NS_INDEX].dev : 0,
+			.ino = ns ? ns->link_info[CGROUP_NS_INDEX].ino : 0,
+		},
 		.ms = {
 			.map	= al->map,
 			.sym	= al->sym,
@@ -738,12 +753,9 @@ iter_prepare_branch_entry(struct hist_entry_iter *iter, struct addr_location *al
 }
 
 static int
-iter_add_single_branch_entry(struct hist_entry_iter *iter,
+iter_add_single_branch_entry(struct hist_entry_iter *iter __maybe_unused,
 			     struct addr_location *al __maybe_unused)
 {
-	/* to avoid calling callback function */
-	iter->he = NULL;
-
 	return 0;
 }
 
@@ -1127,6 +1139,11 @@ void hist_entry__delete(struct hist_entry *he)
 		map__zput(he->mem_info->iaddr.map);
 		map__zput(he->mem_info->daddr.map);
 		zfree(&he->mem_info);
+	}
+
+	if (he->inline_node) {
+		inline_node__delete(he->inline_node);
+		he->inline_node = NULL;
 	}
 
 	zfree(&he->stat_acc);
@@ -1745,6 +1762,8 @@ void perf_evsel__output_resort(struct perf_evsel *evsel, struct ui_progress *pro
 		use_callchain = evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN;
 	else
 		use_callchain = symbol_conf.use_callchain;
+
+	use_callchain |= symbol_conf.show_branchflag_count;
 
 	output_resort(evsel__hists(evsel), prog, use_callchain, NULL);
 }
@@ -2447,7 +2466,7 @@ int parse_filter_percentage(const struct option *opt __maybe_unused,
 	else if (!strcmp(arg, "absolute"))
 		symbol_conf.filter_relative = false;
 	else {
-		pr_debug("Invalud percentage: %s\n", arg);
+		pr_debug("Invalid percentage: %s\n", arg);
 		return -1;
 	}
 

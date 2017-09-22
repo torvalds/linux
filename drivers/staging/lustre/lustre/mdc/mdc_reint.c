@@ -35,9 +35,9 @@
 # include <linux/module.h>
 # include <linux/kernel.h>
 
-#include "../include/obd_class.h"
+#include <obd_class.h>
 #include "mdc_internal.h"
-#include "../include/lustre_fid.h"
+#include <lustre_fid.h>
 
 /* mdc_setattr does its own semaphore handling */
 static int mdc_reint(struct ptlrpc_request *request, int level)
@@ -227,7 +227,7 @@ rebuild:
 		ptlrpc_req_finished(req);
 		resends++;
 
-		CDEBUG(D_HA, "%s: resend:%d create on "DFID"/"DFID"\n",
+		CDEBUG(D_HA, "%s: resend:%d create on " DFID "/" DFID "\n",
 		       exp->exp_obd->obd_name, resends,
 		       PFID(&op_data->op_fid1), PFID(&op_data->op_fid2));
 

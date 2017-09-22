@@ -1,7 +1,7 @@
 /*
  * Intel CPU Microcode Update Driver for Linux
  *
- * Copyright (C) 2000-2006 Tigran Aivazian <tigran@aivazian.fsnet.co.uk>
+ * Copyright (C) 2000-2006 Tigran Aivazian <aivazian.tigran@gmail.com>
  *		 2006 Shaohua Li <shaohua.li@intel.com>
  *
  * Intel CPU microcode early update for Linux
@@ -42,7 +42,7 @@
 static const char ucode_path[] = "kernel/x86/microcode/GenuineIntel.bin";
 
 /* Current microcode patch used in early patching on the APs. */
-struct microcode_intel *intel_ucode_patch;
+static struct microcode_intel *intel_ucode_patch;
 
 static inline bool cpu_signatures_match(unsigned int s1, unsigned int p1,
 					unsigned int s2, unsigned int p2)
@@ -146,18 +146,18 @@ static bool microcode_matches(struct microcode_header_intel *mc_header,
 	return false;
 }
 
-static struct ucode_patch *__alloc_microcode_buf(void *data, unsigned int size)
+static struct ucode_patch *memdup_patch(void *data, unsigned int size)
 {
 	struct ucode_patch *p;
 
 	p = kzalloc(sizeof(struct ucode_patch), GFP_KERNEL);
 	if (!p)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	p->data = kmemdup(data, size, GFP_KERNEL);
 	if (!p->data) {
 		kfree(p);
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 	}
 
 	return p;
@@ -166,7 +166,7 @@ static struct ucode_patch *__alloc_microcode_buf(void *data, unsigned int size)
 static void save_microcode_patch(void *data, unsigned int size)
 {
 	struct microcode_header_intel *mc_hdr, *mc_saved_hdr;
-	struct ucode_patch *iter, *tmp, *p;
+	struct ucode_patch *iter, *tmp, *p = NULL;
 	bool prev_found = false;
 	unsigned int sig, pf;
 
@@ -183,8 +183,8 @@ static void save_microcode_patch(void *data, unsigned int size)
 			if (mc_hdr->rev <= mc_saved_hdr->rev)
 				continue;
 
-			p = __alloc_microcode_buf(data, size);
-			if (IS_ERR(p))
+			p = memdup_patch(data, size);
+			if (!p)
 				pr_err("Error allocating buffer %p\n", data);
 			else
 				list_replace(&iter->plist, &p->plist);
@@ -196,12 +196,25 @@ static void save_microcode_patch(void *data, unsigned int size)
 	 * newly found.
 	 */
 	if (!prev_found) {
-		p = __alloc_microcode_buf(data, size);
-		if (IS_ERR(p))
+		p = memdup_patch(data, size);
+		if (!p)
 			pr_err("Error allocating buffer for %p\n", data);
 		else
 			list_add_tail(&p->plist, &microcode_cache);
 	}
+
+	if (!p)
+		return;
+
+	/*
+	 * Save for early loading. On 32-bit, that needs to be a physical
+	 * address as the APs are running from physical addresses, before
+	 * paging has been enabled.
+	 */
+	if (IS_ENABLED(CONFIG_X86_32))
+		intel_ucode_patch = (struct microcode_intel *)__pa_nodebug(p->data);
+	else
+		intel_ucode_patch = p->data;
 }
 
 static int microcode_sanity_check(void *mc, int print_err)
@@ -606,6 +619,14 @@ int __init save_microcode_in_initrd_intel(void)
 {
 	struct ucode_cpu_info uci;
 	struct cpio_data cp;
+
+	/*
+	 * initrd is going away, clear patch ptr. We will scan the microcode one
+	 * last time before jettisoning and save a patch, if found. Then we will
+	 * update that pointer too, with a stable patch address to use when
+	 * resuming the cores.
+	 */
+	intel_ucode_patch = NULL;
 
 	if (!load_builtin_intel_microcode(&cp))
 		cp = find_microcode_in_initrd(ucode_path, false);

@@ -121,12 +121,11 @@
 
 /* dptx phy addr */
 #define DP_TX_PHY_CONFIG_REG		0x2000
-#define DP_TX_PHY_STATUS_REG		0x2004
-#define DP_TX_PHY_SW_RESET		0x2008
-#define DP_TX_PHY_SCRAMBLER_SEED	0x200c
-#define DP_TX_PHY_TRAINING_01_04	0x2010
-#define DP_TX_PHY_TRAINING_05_08	0x2014
-#define DP_TX_PHY_TRAINING_09_10	0x2018
+#define DP_TX_PHY_SW_RESET		0x2004
+#define DP_TX_PHY_SCRAMBLER_SEED	0x2008
+#define DP_TX_PHY_TRAINING_01_04	0x200c
+#define DP_TX_PHY_TRAINING_05_08	0x2010
+#define DP_TX_PHY_TRAINING_09_10	0x2014
 #define TEST_COR			0x23fc
 
 /* dptx hpd addr */
@@ -462,7 +461,7 @@ enum vic_bt_type {
 
 void cdn_dp_clock_reset(struct cdn_dp_device *dp);
 
-void cdn_dp_set_fw_clk(struct cdn_dp_device *dp, u32 clk);
+void cdn_dp_set_fw_clk(struct cdn_dp_device *dp, unsigned long clk);
 int cdn_dp_load_firmware(struct cdn_dp_device *dp, const u32 *i_mem,
 			 u32 i_size, const u32 *d_mem, u32 d_size);
 int cdn_dp_set_firmware_active(struct cdn_dp_device *dp, bool enable);

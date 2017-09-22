@@ -68,6 +68,7 @@ EXPORT_SYMBOL_GPL(blk_queue_rq_timeout);
 
 void blk_queue_rq_timed_out(struct request_queue *q, rq_timed_out_fn *fn)
 {
+	WARN_ON_ONCE(q->mq_ops);
 	q->rq_timed_out_fn = fn;
 }
 EXPORT_SYMBOL_GPL(blk_queue_rq_timed_out);
@@ -103,7 +104,6 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->discard_granularity = 0;
 	lim->discard_alignment = 0;
 	lim->discard_misaligned = 0;
-	lim->discard_zeroes_data = 0;
 	lim->logical_block_size = lim->physical_block_size = lim->io_min = 512;
 	lim->bounce_pfn = (unsigned long)(BLK_BOUNCE_ANY >> PAGE_SHIFT);
 	lim->alignment_offset = 0;
@@ -127,7 +127,6 @@ void blk_set_stacking_limits(struct queue_limits *lim)
 	blk_set_default_limits(lim);
 
 	/* Inherit limits from component devices */
-	lim->discard_zeroes_data = 1;
 	lim->max_segments = USHRT_MAX;
 	lim->max_discard_segments = 1;
 	lim->max_hw_sectors = UINT_MAX;
@@ -174,11 +173,6 @@ void blk_queue_make_request(struct request_queue *q, make_request_fn *mfn)
 	q->nr_batching = BLK_BATCH_REQ;
 
 	blk_set_default_limits(&q->limits);
-
-	/*
-	 * by default assume old behaviour and bounce for any highmem page
-	 */
-	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
 }
 EXPORT_SYMBOL(blk_queue_make_request);
 
@@ -609,7 +603,6 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 	t->io_opt = lcm_not_zero(t->io_opt, b->io_opt);
 
 	t->cluster &= b->cluster;
-	t->discard_zeroes_data &= b->discard_zeroes_data;
 
 	/* Physical block size a multiple of the logical block size? */
 	if (t->physical_block_size & (t->logical_block_size - 1)) {

@@ -10,9 +10,11 @@
 #include <sys/time.h>
 #include <time.h>
 #include <dirent.h>
+#include <errno.h>
 #include <unistd.h>
 #include "builtin.h"
 #include "perf.h"
+#include "namespaces.h"
 #include "util/cache.h"
 #include "util/debug.h"
 #include "util/header.h"
@@ -21,6 +23,7 @@
 #include "util/build-id.h"
 #include "util/session.h"
 #include "util/symbol.h"
+#include "util/time-utils.h"
 
 static int build_id_cache__kcore_buildid(const char *proc_dir, char *sbuildid)
 {
@@ -47,19 +50,22 @@ static bool same_kallsyms_reloc(const char *from_dir, char *to_dir)
 	char to[PATH_MAX];
 	const char *name;
 	u64 addr1 = 0, addr2 = 0;
-	int i;
+	int i, err = -1;
 
 	scnprintf(from, sizeof(from), "%s/kallsyms", from_dir);
 	scnprintf(to, sizeof(to), "%s/kallsyms", to_dir);
 
 	for (i = 0; (name = ref_reloc_sym_names[i]) != NULL; i++) {
-		addr1 = kallsyms__get_function_start(from, name);
-		if (addr1)
+		err = kallsyms__get_function_start(from, name, &addr1);
+		if (!err)
 			break;
 	}
 
-	if (name)
-		addr2 = kallsyms__get_function_start(to, name);
+	if (err)
+		return false;
+
+	if (kallsyms__get_function_start(to, name, &addr2))
+		return false;
 
 	return addr1 == addr2;
 }
@@ -160,33 +166,41 @@ static int build_id_cache__add_kcore(const char *filename, bool force)
 	return 0;
 }
 
-static int build_id_cache__add_file(const char *filename)
+static int build_id_cache__add_file(const char *filename, struct nsinfo *nsi)
 {
 	char sbuild_id[SBUILD_ID_SIZE];
 	u8 build_id[BUILD_ID_SIZE];
 	int err;
+	struct nscookie nsc;
 
-	if (filename__read_build_id(filename, &build_id, sizeof(build_id)) < 0) {
+	nsinfo__mountns_enter(nsi, &nsc);
+	err = filename__read_build_id(filename, &build_id, sizeof(build_id));
+	nsinfo__mountns_exit(&nsc);
+	if (err < 0) {
 		pr_debug("Couldn't read a build-id in %s\n", filename);
 		return -1;
 	}
 
 	build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
-	err = build_id_cache__add_s(sbuild_id, filename,
+	err = build_id_cache__add_s(sbuild_id, filename, nsi,
 				    false, false);
 	pr_debug("Adding %s %s: %s\n", sbuild_id, filename,
 		 err ? "FAIL" : "Ok");
 	return err;
 }
 
-static int build_id_cache__remove_file(const char *filename)
+static int build_id_cache__remove_file(const char *filename, struct nsinfo *nsi)
 {
 	u8 build_id[BUILD_ID_SIZE];
 	char sbuild_id[SBUILD_ID_SIZE];
+	struct nscookie nsc;
 
 	int err;
 
-	if (filename__read_build_id(filename, &build_id, sizeof(build_id)) < 0) {
+	nsinfo__mountns_enter(nsi, &nsc);
+	err = filename__read_build_id(filename, &build_id, sizeof(build_id));
+	nsinfo__mountns_exit(&nsc);
+	if (err < 0) {
 		pr_debug("Couldn't read a build-id in %s\n", filename);
 		return -1;
 	}
@@ -199,13 +213,13 @@ static int build_id_cache__remove_file(const char *filename)
 	return err;
 }
 
-static int build_id_cache__purge_path(const char *pathname)
+static int build_id_cache__purge_path(const char *pathname, struct nsinfo *nsi)
 {
 	struct strlist *list;
 	struct str_node *pos;
 	int err;
 
-	err = build_id_cache__list_build_ids(pathname, &list);
+	err = build_id_cache__list_build_ids(pathname, nsi, &list);
 	if (err)
 		goto out;
 
@@ -229,7 +243,7 @@ static bool dso__missing_buildid_cache(struct dso *dso, int parm __maybe_unused)
 	char filename[PATH_MAX];
 	u8 build_id[BUILD_ID_SIZE];
 
-	if (dso__build_id_filename(dso, filename, sizeof(filename)) &&
+	if (dso__build_id_filename(dso, filename, sizeof(filename), false) &&
 	    filename__read_build_id(filename, build_id,
 				    sizeof(build_id)) != sizeof(build_id)) {
 		if (errno == ENOENT)
@@ -251,24 +265,30 @@ static int build_id_cache__fprintf_missing(struct perf_session *session, FILE *f
 	return 0;
 }
 
-static int build_id_cache__update_file(const char *filename)
+static int build_id_cache__update_file(const char *filename, struct nsinfo *nsi)
 {
 	u8 build_id[BUILD_ID_SIZE];
 	char sbuild_id[SBUILD_ID_SIZE];
+	struct nscookie nsc;
 
-	int err = 0;
+	int err;
 
-	if (filename__read_build_id(filename, &build_id, sizeof(build_id)) < 0) {
+	nsinfo__mountns_enter(nsi, &nsc);
+	err = filename__read_build_id(filename, &build_id, sizeof(build_id));
+	nsinfo__mountns_exit(&nsc);
+	if (err < 0) {
 		pr_debug("Couldn't read a build-id in %s\n", filename);
 		return -1;
 	}
+	err = 0;
 
 	build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
 	if (build_id_cache__cached(sbuild_id))
 		err = build_id_cache__remove_s(sbuild_id);
 
 	if (!err)
-		err = build_id_cache__add_s(sbuild_id, filename, false, false);
+		err = build_id_cache__add_s(sbuild_id, filename, nsi, false,
+					    false);
 
 	pr_debug("Updating %s %s: %s\n", sbuild_id, filename,
 		 err ? "FAIL" : "Ok");
@@ -276,12 +296,12 @@ static int build_id_cache__update_file(const char *filename)
 	return err;
 }
 
-int cmd_buildid_cache(int argc, const char **argv,
-		      const char *prefix __maybe_unused)
+int cmd_buildid_cache(int argc, const char **argv)
 {
 	struct strlist *list;
 	struct str_node *pos;
 	int ret = 0;
+	int ns_id = -1;
 	bool force = false;
 	char const *add_name_list_str = NULL,
 		   *remove_name_list_str = NULL,
@@ -295,6 +315,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 		.mode  = PERF_DATA_MODE_READ,
 	};
 	struct perf_session *session = NULL;
+	struct nsinfo *nsi = NULL;
 
 	const struct option buildid_cache_options[] = {
 	OPT_STRING('a', "add", &add_name_list_str,
@@ -311,6 +332,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 	OPT_STRING('u', "update", &update_name_list_str, "file list",
 		    "file(s) to update"),
 	OPT_INCR('v', "verbose", &verbose, "be more verbose"),
+	OPT_INTEGER(0, "target-ns", &ns_id, "target pid for namespace context"),
 	OPT_END()
 	};
 	const char * const buildid_cache_usage[] = {
@@ -325,6 +347,9 @@ int cmd_buildid_cache(int argc, const char **argv,
 		     !remove_name_list_str && !purge_name_list_str &&
 		     !missing_filename && !update_name_list_str))
 		usage_with_options(buildid_cache_usage, buildid_cache_options);
+
+	if (ns_id > 0)
+		nsi = nsinfo__new(ns_id);
 
 	if (missing_filename) {
 		file.path = missing_filename;
@@ -344,7 +369,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 		list = strlist__new(add_name_list_str, NULL);
 		if (list) {
 			strlist__for_each_entry(pos, list)
-				if (build_id_cache__add_file(pos->s)) {
+				if (build_id_cache__add_file(pos->s, nsi)) {
 					if (errno == EEXIST) {
 						pr_debug("%s already in the cache\n",
 							 pos->s);
@@ -362,7 +387,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 		list = strlist__new(remove_name_list_str, NULL);
 		if (list) {
 			strlist__for_each_entry(pos, list)
-				if (build_id_cache__remove_file(pos->s)) {
+				if (build_id_cache__remove_file(pos->s, nsi)) {
 					if (errno == ENOENT) {
 						pr_debug("%s wasn't in the cache\n",
 							 pos->s);
@@ -380,7 +405,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 		list = strlist__new(purge_name_list_str, NULL);
 		if (list) {
 			strlist__for_each_entry(pos, list)
-				if (build_id_cache__purge_path(pos->s)) {
+				if (build_id_cache__purge_path(pos->s, nsi)) {
 					if (errno == ENOENT) {
 						pr_debug("%s wasn't in the cache\n",
 							 pos->s);
@@ -401,7 +426,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 		list = strlist__new(update_name_list_str, NULL);
 		if (list) {
 			strlist__for_each_entry(pos, list)
-				if (build_id_cache__update_file(pos->s)) {
+				if (build_id_cache__update_file(pos->s, nsi)) {
 					if (errno == ENOENT) {
 						pr_debug("%s wasn't in the cache\n",
 							 pos->s);
@@ -420,6 +445,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 
 out:
 	perf_session__delete(session);
+	nsinfo__zput(nsi);
 
 	return ret;
 }

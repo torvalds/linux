@@ -6,6 +6,8 @@
  *
  * This file is released under the GPLv2.
  */
+
+#include <linux/acpi_iort.h>
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/list.h>
@@ -14,6 +16,7 @@
 #include <linux/rwsem.h>
 #include <linux/acpi.h>
 #include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
 
 #include "internal.h"
 
@@ -99,13 +102,13 @@ static int find_child_checks(struct acpi_device *adev, bool check_children)
 		return -ENODEV;
 
 	/*
-	 * If the device has a _HID (or _CID) returning a valid ACPI/PNP
-	 * device ID, it is better to make it look less attractive here, so that
-	 * the other device with the same _ADR value (that may not have a valid
-	 * device ID) can be matched going forward.  [This means a second spec
-	 * violation in a row, so whatever we do here is best effort anyway.]
+	 * If the device has a _HID returning a valid ACPI/PNP device ID, it is
+	 * better to make it look less attractive here, so that the other device
+	 * with the same _ADR value (that may not have a valid device ID) can be
+	 * matched going forward.  [This means a second spec violation in a row,
+	 * so whatever we do here is best effort anyway.]
 	 */
-	return sta_present && list_empty(&adev->pnp.ids) ?
+	return sta_present && !adev->pnp.type.platform_id ?
 			FIND_CHILD_MAX_SCORE : FIND_CHILD_MIN_SCORE;
 }
 
@@ -176,7 +179,6 @@ int acpi_bind_one(struct device *dev, struct acpi_device *acpi_dev)
 	struct list_head *physnode_list;
 	unsigned int node_id;
 	int retval = -EINVAL;
-	enum dev_dma_attr attr;
 
 	if (has_acpi_companion(dev)) {
 		if (acpi_dev) {
@@ -232,10 +234,6 @@ int acpi_bind_one(struct device *dev, struct acpi_device *acpi_dev)
 
 	if (!has_acpi_companion(dev))
 		ACPI_COMPANION_SET(dev, acpi_dev);
-
-	attr = acpi_get_dma_attr(acpi_dev);
-	if (attr != DEV_DMA_NOT_SUPPORTED)
-		acpi_dma_configure(dev, attr);
 
 	acpi_physnode_link_name(physical_node_name, node_id);
 	retval = sysfs_create_link(&acpi_dev->dev.kobj, &dev->kobj,
@@ -321,6 +319,9 @@ static int acpi_platform_notify(struct device *dev)
 	adev = ACPI_COMPANION(dev);
 	if (!adev)
 		goto out;
+
+	if (dev->bus == &platform_bus_type)
+		acpi_configure_pmsi_domain(dev);
 
 	if (type && type->setup)
 		type->setup(dev);

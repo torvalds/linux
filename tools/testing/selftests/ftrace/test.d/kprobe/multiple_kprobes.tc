@@ -1,0 +1,21 @@
+#!/bin/sh
+# description: Register/unregister many kprobe events
+
+# ftrace fentry skip size depends on the machine architecture.
+# Currently HAVE_KPROBES_ON_FTRACE defined on x86 and powerpc64le
+case `uname -m` in
+  x86_64|i[3456]86) OFFS=5;;
+  ppc64le) OFFS=8;;
+  *) OFFS=0;;
+esac
+
+echo "Setup up to 256 kprobes"
+grep t /proc/kallsyms | cut -f3 -d" " | grep -v .*\\..* | \
+head -n 256 | while read i; do echo p ${i}+${OFFS} ; done > kprobe_events ||:
+
+echo 1 > events/kprobes/enable
+echo 0 > events/kprobes/enable
+echo > kprobe_events
+echo "Waiting for unoptimizing & freeing"
+sleep 5
+echo "Done"

@@ -296,14 +296,14 @@ static struct spi_board_info moboard_spi_board_info[] __initdata = {
 		/* irq number is run-time assigned */
 		.max_speed_hz = 300000,
 		.bus_num = 1,
-		.chip_select = 0,
+		.chip_select = 1,
 		.platform_data = &moboard_pmic,
 		.mode = SPI_CS_HIGH,
 	},
 };
 
 static int moboard_spi2_cs[] = {
-	MXC_SPI_CS(1),
+	MXC_SPI_CS(0), MXC_SPI_CS(1),
 };
 
 static const struct spi_imx_master moboard_spi2_pdata __initconst = {
@@ -475,7 +475,7 @@ static phys_addr_t mx3_camera_base __initdata;
 
 static int __init mx31moboard_init_cam(void)
 {
-	int dma, ret = -ENOMEM;
+	int ret;
 	struct platform_device *pdev;
 
 	imx31_add_ipu_core();
@@ -484,11 +484,11 @@ static int __init mx31moboard_init_cam(void)
 	if (IS_ERR(pdev))
 		return PTR_ERR(pdev);
 
-	dma = dma_declare_coherent_memory(&pdev->dev,
-					mx3_camera_base, mx3_camera_base,
-					MX3_CAMERA_BUF_SIZE,
-					DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE);
-	if (!(dma & DMA_MEMORY_MAP))
+	ret = dma_declare_coherent_memory(&pdev->dev,
+					  mx3_camera_base, mx3_camera_base,
+					  MX3_CAMERA_BUF_SIZE,
+					  DMA_MEMORY_EXCLUSIVE);
+	if (ret)
 		goto err;
 
 	ret = platform_device_add(pdev);

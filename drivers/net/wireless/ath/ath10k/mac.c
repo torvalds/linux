@@ -457,7 +457,8 @@ static int ath10k_clear_vdev_key(struct ath10k_vif *arvif,
 
 	for (;;) {
 		/* since ath10k_install_key we can't hold data_lock all the
-		 * time, so we try to remove the keys incrementally */
+		 * time, so we try to remove the keys incrementally
+		 */
 		spin_lock_bh(&ar->data_lock);
 		i = 0;
 		list_for_each_entry(peer, &ar->peers, list) {
@@ -609,7 +610,8 @@ static u8 ath10k_parse_mpdudensity(u8 mpdudensity)
 	case 2:
 	case 3:
 	/* Our lower layer calculations limit our precision to
-	   1 microsecond */
+	 * 1 microsecond
+	 */
 		return 1;
 	case 4:
 		return 2;
@@ -978,7 +980,8 @@ static int ath10k_monitor_vdev_start(struct ath10k *ar, int vdev_id)
 	arg.channel.band_center_freq2 = chandef->center_freq2;
 
 	/* TODO setup this dynamically, what in case we
-	   don't have any vifs? */
+	 * don't have any vifs?
+	 */
 	arg.channel.mode = chan_to_phymode(chandef);
 	arg.channel.chan_radar =
 			!!(channel->flags & IEEE80211_CHAN_RADAR);
@@ -1389,7 +1392,7 @@ static int ath10k_vdev_stop(struct ath10k_vif *arvif)
 
 	ret = ath10k_vdev_setup_sync(ar);
 	if (ret) {
-		ath10k_warn(ar, "failed to syncronise setup for vdev %i: %d\n",
+		ath10k_warn(ar, "failed to synchronize setup for vdev %i: %d\n",
 			    arvif->vdev_id, ret);
 		return ret;
 	}
@@ -2373,9 +2376,10 @@ static int ath10k_peer_assoc_qos_ap(struct ath10k *ar,
 		}
 
 		/* TODO setup this based on STA listen interval and
-		   beacon interval. Currently we don't know
-		   sta->listen_interval - mac80211 patch required.
-		   Currently use 10 seconds */
+		 * beacon interval. Currently we don't know
+		 * sta->listen_interval - mac80211 patch required.
+		 * Currently use 10 seconds
+		 */
 		ret = ath10k_wmi_set_ap_ps_param(ar, arvif->vdev_id, sta->addr,
 						 WMI_AP_PS_PEER_PARAM_AGEOUT_TIME,
 						 10);
@@ -2451,6 +2455,8 @@ static void ath10k_peer_assoc_h_vht(struct ath10k *ar,
 	enum nl80211_band band;
 	const u16 *vht_mcs_mask;
 	u8 ampdu_factor;
+	u8 max_nss, vht_mcs;
+	int i;
 
 	if (WARN_ON(ath10k_mac_vif_chan(vif, &def)))
 		return;
@@ -2478,7 +2484,8 @@ static void ath10k_peer_assoc_h_vht(struct ath10k *ar,
 	/* Workaround: Some Netgear/Linksys 11ac APs set Rx A-MPDU factor to
 	 * zero in VHT IE. Using it would result in degraded throughput.
 	 * arg->peer_max_mpdu at this point contains HT max_mpdu so keep
-	 * it if VHT max_mpdu is smaller. */
+	 * it if VHT max_mpdu is smaller.
+	 */
 	arg->peer_max_mpdu = max(arg->peer_max_mpdu,
 				 (1U << (IEEE80211_HT_MAX_AMPDU_FACTOR +
 					ampdu_factor)) - 1);
@@ -2489,6 +2496,18 @@ static void ath10k_peer_assoc_h_vht(struct ath10k *ar,
 	if (sta->bandwidth == IEEE80211_STA_RX_BW_160)
 		arg->peer_flags |= ar->wmi.peer_flags->bw160;
 
+	/* Calculate peer NSS capability from VHT capabilities if STA
+	 * supports VHT.
+	 */
+	for (i = 0, max_nss = 0, vht_mcs = 0; i < NL80211_VHT_NSS_MAX; i++) {
+		vht_mcs = __le16_to_cpu(vht_cap->vht_mcs.rx_mcs_map) >>
+			  (2 * i) & 3;
+
+		if ((vht_mcs != IEEE80211_VHT_MCS_NOT_SUPPORTED) &&
+		    vht_mcs_mask[i])
+			max_nss = i + 1;
+	}
+	arg->peer_num_spatial_streams = min(sta->rx_nss, max_nss);
 	arg->peer_vht_rates.rx_max_rate =
 		__le16_to_cpu(vht_cap->vht_mcs.rx_highest);
 	arg->peer_vht_rates.rx_mcs_set =
@@ -2500,6 +2519,20 @@ static void ath10k_peer_assoc_h_vht(struct ath10k *ar,
 
 	ath10k_dbg(ar, ATH10K_DBG_MAC, "mac vht peer %pM max_mpdu %d flags 0x%x\n",
 		   sta->addr, arg->peer_max_mpdu, arg->peer_flags);
+
+	if (arg->peer_vht_rates.rx_max_rate &&
+	    (sta->vht_cap.cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK)) {
+		switch (arg->peer_vht_rates.rx_max_rate) {
+		case 1560:
+			/* Must be 2x2 at 160Mhz is all it can do. */
+			arg->peer_bw_rxnss_override = 2;
+			break;
+		case 780:
+			/* Can only do 1x1 at 160Mhz (Long Guard Interval) */
+			arg->peer_bw_rxnss_override = 1;
+			break;
+		}
+	}
 }
 
 static void ath10k_peer_assoc_h_qos(struct ath10k *ar,
@@ -2779,7 +2812,8 @@ static void ath10k_bss_assoc(struct ieee80211_hw *hw,
 	}
 
 	/* ap_sta must be accessed only within rcu section which must be left
-	 * before calling ath10k_setup_peer_smps() which might sleep. */
+	 * before calling ath10k_setup_peer_smps() which might sleep.
+	 */
 	ht_cap = ap_sta->ht_cap;
 	vht_cap = ap_sta->vht_cap;
 
@@ -3050,7 +3084,8 @@ static int ath10k_update_channel_list(struct ath10k *ar)
 
 			/* FIXME: why use only legacy modes, why not any
 			 * HT/VHT modes? Would that even make any
-			 * difference? */
+			 * difference?
+			 */
 			if (channel->band == NL80211_BAND_2GHZ)
 				ch->mode = MODE_11G;
 			else
@@ -3114,7 +3149,8 @@ static void ath10k_regd_update(struct ath10k *ar)
 	}
 
 	/* Target allows setting up per-band regdomain but ath_common provides
-	 * a combined one only */
+	 * a combined one only
+	 */
 	ret = ath10k_wmi_pdev_set_regdomain(ar,
 					    regpair->reg_domain,
 					    regpair->reg_domain, /* 2ghz */
@@ -3124,6 +3160,21 @@ static void ath10k_regd_update(struct ath10k *ar)
 					    wmi_dfs_reg);
 	if (ret)
 		ath10k_warn(ar, "failed to set pdev regdomain: %d\n", ret);
+}
+
+static void ath10k_mac_update_channel_list(struct ath10k *ar,
+					   struct ieee80211_supported_band *band)
+{
+	int i;
+
+	if (ar->low_5ghz_chan && ar->high_5ghz_chan) {
+		for (i = 0; i < band->n_channels; i++) {
+			if (band->channels[i].center_freq < ar->low_5ghz_chan ||
+			    band->channels[i].center_freq > ar->high_5ghz_chan)
+				band->channels[i].flags |=
+					IEEE80211_CHAN_DISABLED;
+		}
+	}
 }
 
 static void ath10k_reg_notifier(struct wiphy *wiphy,
@@ -3149,6 +3200,10 @@ static void ath10k_reg_notifier(struct wiphy *wiphy,
 	if (ar->state == ATH10K_STATE_ON)
 		ath10k_regd_update(ar);
 	mutex_unlock(&ar->conf_mutex);
+
+	if (ar->phy_capability & WHAL_WLAN_11A_CAPABILITY)
+		ath10k_mac_update_channel_list(ar,
+					       ar->hw->wiphy->bands[NL80211_BAND_5GHZ]);
 }
 
 /***************/
@@ -3434,9 +3489,8 @@ static void ath10k_tx_h_add_p2p_noa_ie(struct ath10k *ar,
 		if (arvif->u.ap.noa_data)
 			if (!pskb_expand_head(skb, 0, arvif->u.ap.noa_len,
 					      GFP_ATOMIC))
-				memcpy(skb_put(skb, arvif->u.ap.noa_len),
-				       arvif->u.ap.noa_data,
-				       arvif->u.ap.noa_len);
+				skb_put_data(skb, arvif->u.ap.noa_data,
+					     arvif->u.ap.noa_len);
 		spin_unlock_bh(&ar->data_lock);
 	}
 }
@@ -3644,7 +3698,8 @@ void ath10k_offchan_tx_work(struct work_struct *work)
 	 * never transmitted. We delete the peer upon tx completion.
 	 * It is unlikely that a peer for offchannel tx will already be
 	 * present. However it may be in some rare cases so account for that.
-	 * Otherwise we might remove a legitimate peer and break stuff. */
+	 * Otherwise we might remove a legitimate peer and break stuff.
+	 */
 
 	for (;;) {
 		skb = skb_dequeue(&ar->offchan_tx_queue);
@@ -4320,6 +4375,7 @@ static int ath10k_mac_get_vht_cap_bf_sound_dim(struct ath10k *ar)
 static struct ieee80211_sta_vht_cap ath10k_create_vht_cap(struct ath10k *ar)
 {
 	struct ieee80211_sta_vht_cap vht_cap = {0};
+	struct ath10k_hw_params *hw = &ar->hw_params;
 	u16 mcs_map;
 	u32 val;
 	int i;
@@ -4349,7 +4405,7 @@ static struct ieee80211_sta_vht_cap ath10k_create_vht_cap(struct ath10k *ar)
 	 * mode until that's resolved.
 	 */
 	if ((ar->vht_cap_info & IEEE80211_VHT_CAP_SHORT_GI_160) &&
-	    !(ar->vht_cap_info & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ))
+	    (ar->vht_cap_info & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK) == 0)
 		vht_cap.cap |= IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ;
 
 	mcs_map = 0;
@@ -4365,6 +4421,17 @@ static struct ieee80211_sta_vht_cap ath10k_create_vht_cap(struct ath10k *ar)
 
 	vht_cap.vht_mcs.rx_mcs_map = cpu_to_le16(mcs_map);
 	vht_cap.vht_mcs.tx_mcs_map = cpu_to_le16(mcs_map);
+
+	/* If we are supporting 160Mhz or 80+80, then the NIC may be able to do
+	 * a restricted NSS for 160 or 80+80 vs what it can do for 80Mhz.  Give
+	 * user-space a clue if that is the case.
+	 */
+	if ((vht_cap.cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK) &&
+	    (hw->vht160_mcs_rx_highest != 0 ||
+	     hw->vht160_mcs_tx_highest != 0)) {
+		vht_cap.vht_mcs.rx_highest = cpu_to_le16(hw->vht160_mcs_rx_highest);
+		vht_cap.vht_mcs.tx_highest = cpu_to_le16(hw->vht160_mcs_tx_highest);
+	}
 
 	return vht_cap;
 }
@@ -4684,6 +4751,7 @@ static void ath10k_stop(struct ieee80211_hw *hw)
 	}
 	mutex_unlock(&ar->conf_mutex);
 
+	cancel_work_sync(&ar->set_coverage_class_work);
 	cancel_delayed_work_sync(&ar->scan.timeout);
 	cancel_work_sync(&ar->restart_work);
 }
@@ -5683,7 +5751,8 @@ static int ath10k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	}
 
 	/* the peer should not disappear in mid-way (unless FW goes awry) since
-	 * we already hold conf_mutex. we just make sure its there now. */
+	 * we already hold conf_mutex. we just make sure its there now.
+	 */
 	spin_lock_bh(&ar->data_lock);
 	peer = ath10k_peer_find(ar, arvif->vdev_id, peer_addr);
 	spin_unlock_bh(&ar->data_lock);
@@ -5695,8 +5764,7 @@ static int ath10k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			ret = -EOPNOTSUPP;
 			goto exit;
 		} else {
-			/* if the peer doesn't exist there is no key to disable
-			 * anymore */
+			/* if the peer doesn't exist there is no key to disable anymore */
 			goto exit;
 		}
 	}
@@ -6030,15 +6098,26 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 			   ar->num_stations + 1, ar->max_num_stations,
 			   ar->num_peers + 1, ar->max_num_peers);
 
+		num_tdls_stations = ath10k_mac_tdls_vif_stations_count(hw, vif);
+		num_tdls_vifs = ath10k_mac_tdls_vifs_count(hw);
+
+		if (sta->tdls) {
+			if (num_tdls_stations >= ar->max_num_tdls_vdevs) {
+				ath10k_warn(ar, "vdev %i exceeded maximum number of tdls vdevs %i\n",
+					    arvif->vdev_id,
+					    ar->max_num_tdls_vdevs);
+				ret = -ELNRNG;
+				goto exit;
+			}
+			peer_type = WMI_PEER_TYPE_TDLS;
+		}
+
 		ret = ath10k_mac_inc_num_stations(arvif, sta);
 		if (ret) {
 			ath10k_warn(ar, "refusing to associate station: too many connected already (%d)\n",
 				    ar->max_num_stations);
 			goto exit;
 		}
-
-		if (sta->tdls)
-			peer_type = WMI_PEER_TYPE_TDLS;
 
 		ret = ath10k_peer_create(ar, vif, sta, arvif->vdev_id,
 					 sta->addr, peer_type);
@@ -6070,33 +6149,15 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 		if (!sta->tdls)
 			goto exit;
 
-		num_tdls_stations = ath10k_mac_tdls_vif_stations_count(hw, vif);
-		num_tdls_vifs = ath10k_mac_tdls_vifs_count(hw);
-
-		if (num_tdls_vifs >= ar->max_num_tdls_vdevs &&
-		    num_tdls_stations == 0) {
-			ath10k_warn(ar, "vdev %i exceeded maximum number of tdls vdevs %i\n",
-				    arvif->vdev_id, ar->max_num_tdls_vdevs);
-			ath10k_peer_delete(ar, arvif->vdev_id, sta->addr);
+		ret = ath10k_wmi_update_fw_tdls_state(ar, arvif->vdev_id,
+						      WMI_TDLS_ENABLE_ACTIVE);
+		if (ret) {
+			ath10k_warn(ar, "failed to update fw tdls state on vdev %i: %i\n",
+				    arvif->vdev_id, ret);
+			ath10k_peer_delete(ar, arvif->vdev_id,
+					   sta->addr);
 			ath10k_mac_dec_num_stations(arvif, sta);
-			ret = -ENOBUFS;
 			goto exit;
-		}
-
-		if (num_tdls_stations == 0) {
-			/* This is the first tdls peer in current vif */
-			enum wmi_tdls_state state = WMI_TDLS_ENABLE_ACTIVE;
-
-			ret = ath10k_wmi_update_fw_tdls_state(ar, arvif->vdev_id,
-							      state);
-			if (ret) {
-				ath10k_warn(ar, "failed to update fw tdls state on vdev %i: %i\n",
-					    arvif->vdev_id, ret);
-				ath10k_peer_delete(ar, arvif->vdev_id,
-						   sta->addr);
-				ath10k_mac_dec_num_stations(arvif, sta);
-				goto exit;
-			}
 		}
 
 		ret = ath10k_mac_tdls_peer_update(ar, arvif->vdev_id, sta,
@@ -6555,7 +6616,8 @@ static void ath10k_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	long time_left;
 
 	/* mac80211 doesn't care if we really xmit queued frames or not
-	 * we'll collect those frames either way if we stop/delete vdevs */
+	 * we'll collect those frames either way if we stop/delete vdevs
+	 */
 	if (drop)
 		return;
 
@@ -6606,7 +6668,8 @@ static void ath10k_reconfig_complete(struct ieee80211_hw *hw,
 	mutex_lock(&ar->conf_mutex);
 
 	/* If device failed to restart it will be in a different state, e.g.
-	 * ATH10K_STATE_WEDGED */
+	 * ATH10K_STATE_WEDGED
+	 */
 	if (ar->state == ATH10K_STATE_RESTARTED) {
 		ath10k_info(ar, "device successfully recovered\n");
 		ar->state = ATH10K_STATE_ON;
@@ -7129,7 +7192,7 @@ ath10k_mac_update_rx_channel(struct ath10k *ar,
 	lockdep_assert_held(&ar->data_lock);
 
 	WARN_ON(ctx && vifs);
-	WARN_ON(vifs && n_vifs != 1);
+	WARN_ON(vifs && !n_vifs);
 
 	/* FIXME: Sort of an optimization and a workaround. Peers and vifs are
 	 * on a linked list now. Doing a lookup peer -> vif -> chanctx for each
@@ -7581,6 +7644,7 @@ static const struct ieee80211_ops ath10k_ops = {
 #ifdef CONFIG_PM
 	.suspend			= ath10k_wow_op_suspend,
 	.resume				= ath10k_wow_op_resume,
+	.set_wakeup			= ath10k_wow_op_set_wakeup,
 #endif
 #ifdef CONFIG_MAC80211_DEBUGFS
 	.sta_add_debugfs		= ath10k_sta_add_debugfs,
@@ -8134,8 +8198,11 @@ int ath10k_mac_register(struct ath10k *ar)
 			NL80211_PROBE_RESP_OFFLOAD_SUPPORT_P2P;
 	}
 
-	if (test_bit(WMI_SERVICE_TDLS, ar->wmi.svc_map))
+	if (test_bit(WMI_SERVICE_TDLS, ar->wmi.svc_map) ||
+	    test_bit(WMI_SERVICE_TDLS_EXPLICIT_MODE_ONLY, ar->wmi.svc_map)) {
 		ar->hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
+		ieee80211_hw_set(ar->hw, TDLS_WIDER_BW);
+	}
 
 	ar->hw->wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 	ar->hw->wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
@@ -8247,6 +8314,8 @@ int ath10k_mac_register(struct ath10k *ar)
 
 	ar->hw->wiphy->cipher_suites = cipher_suites;
 	ar->hw->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
+
+	wiphy_ext_feature_set(ar->hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
 	ret = ieee80211_register_hw(ar->hw);
 	if (ret) {

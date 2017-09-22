@@ -43,9 +43,9 @@ boot			:= arch/unicore32/boot
 
 # Default defconfig and target when executing plain make
 KBUILD_DEFCONFIG	:= $(ARCH)_defconfig
-KBUILD_IMAGE		:= zImage
+KBUILD_IMAGE		:= $(boot)/zImage
 
-all:	$(KBUILD_IMAGE)
+all:	zImage
 
 zImage Image uImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@

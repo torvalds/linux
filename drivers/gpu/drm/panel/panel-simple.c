@@ -386,6 +386,31 @@ static void panel_simple_shutdown(struct device *dev)
 	panel_simple_disable(&panel->base);
 }
 
+static const struct drm_display_mode ampire_am_480272h3tmqw_t01h_mode = {
+	.clock = 9000,
+	.hdisplay = 480,
+	.hsync_start = 480 + 2,
+	.hsync_end = 480 + 2 + 41,
+	.htotal = 480 + 2 + 41 + 2,
+	.vdisplay = 272,
+	.vsync_start = 272 + 2,
+	.vsync_end = 272 + 2 + 10,
+	.vtotal = 272 + 2 + 10 + 2,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
+};
+
+static const struct panel_desc ampire_am_480272h3tmqw_t01h = {
+	.modes = &ampire_am_480272h3tmqw_t01h_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 105,
+		.height = 67,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+};
+
 static const struct drm_display_mode ampire_am800480r3tmqwa1h_mode = {
 	.clock = 33333,
 	.hdisplay = 800,
@@ -611,6 +636,34 @@ static const struct panel_desc auo_g185han01 = {
 		.unprepare = 1000,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+};
+
+static const struct display_timing auo_p320hvn03_timings = {
+	.pixelclock = { 106000000, 148500000, 164000000 },
+	.hactive = { 1920, 1920, 1920 },
+	.hfront_porch = { 25, 50, 130 },
+	.hback_porch = { 25, 50, 130 },
+	.hsync_len = { 20, 40, 105 },
+	.vactive = { 1080, 1080, 1080 },
+	.vfront_porch = { 8, 17, 150 },
+	.vback_porch = { 8, 17, 150 },
+	.vsync_len = { 4, 11, 100 },
+};
+
+static const struct panel_desc auo_p320hvn03 = {
+	.timings = &auo_p320hvn03_timings,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 698,
+		.height = 393,
+	},
+	.delay = {
+		.prepare = 1,
+		.enable = 450,
+		.unprepare = 500,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA,
 };
 
 static const struct drm_display_mode auo_t215hvn01_mode = {
@@ -1297,6 +1350,33 @@ static const struct panel_desc lg_lp129qe = {
 	},
 };
 
+static const struct display_timing nec_nl12880bc20_05_timing = {
+	.pixelclock = { 67000000, 71000000, 75000000 },
+	.hactive = { 1280, 1280, 1280 },
+	.hfront_porch = { 2, 30, 30 },
+	.hback_porch = { 6, 100, 100 },
+	.hsync_len = { 2, 30, 30 },
+	.vactive = { 800, 800, 800 },
+	.vfront_porch = { 5, 5, 5 },
+	.vback_porch = { 11, 11, 11 },
+	.vsync_len = { 7, 7, 7 },
+};
+
+static const struct panel_desc nec_nl12880bc20_05 = {
+	.timings = &nec_nl12880bc20_05_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 261,
+		.height = 163,
+	},
+	.delay = {
+		.enable = 50,
+		.disable = 50,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+};
+
 static const struct drm_display_mode nec_nl4827hc19_05b_mode = {
 	.clock = 10870,
 	.hdisplay = 480,
@@ -1344,6 +1424,32 @@ static const struct panel_desc netron_dy_e231732 = {
 		.height = 87,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+};
+
+static const struct display_timing nlt_nl192108ac18_02d_timing = {
+	.pixelclock = { 130000000, 148350000, 163000000 },
+	.hactive = { 1920, 1920, 1920 },
+	.hfront_porch = { 80, 100, 100 },
+	.hback_porch = { 100, 120, 120 },
+	.hsync_len = { 50, 60, 60 },
+	.vactive = { 1080, 1080, 1080 },
+	.vfront_porch = { 12, 30, 30 },
+	.vback_porch = { 4, 10, 10 },
+	.vsync_len = { 4, 5, 5 },
+};
+
+static const struct panel_desc nlt_nl192108ac18_02d = {
+	.timings = &nlt_nl192108ac18_02d_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 344,
+		.height = 194,
+	},
+	.delay = {
+		.unprepare = 500,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
 };
 
 static const struct drm_display_mode nvd_9128_mode = {
@@ -1806,8 +1912,36 @@ static const struct panel_desc urt_umsh_8596md_parallel = {
 	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
 };
 
+static const struct drm_display_mode winstar_wf35ltiacd_mode = {
+	.clock = 6410,
+	.hdisplay = 320,
+	.hsync_start = 320 + 20,
+	.hsync_end = 320 + 20 + 30,
+	.htotal = 320 + 20 + 30 + 38,
+	.vdisplay = 240,
+	.vsync_start = 240 + 4,
+	.vsync_end = 240 + 4 + 3,
+	.vtotal = 240 + 4 + 3 + 15,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
+};
+
+static const struct panel_desc winstar_wf35ltiacd = {
+	.modes = &winstar_wf35ltiacd_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 70,
+		.height = 53,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+};
+
 static const struct of_device_id platform_of_match[] = {
 	{
+		.compatible = "ampire,am-480272h3tmqw-t01h",
+		.data = &ampire_am_480272h3tmqw_t01h,
+	}, {
 		.compatible = "ampire,am800480r3tmqwa1h",
 		.data = &ampire_am800480r3tmqwa1h,
 	}, {
@@ -1834,6 +1968,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "auo,g185han01",
 		.data = &auo_g185han01,
+	}, {
+		.compatible = "auo,p320hvn03",
+		.data = &auo_p320hvn03,
 	}, {
 		.compatible = "auo,t215hvn01",
 		.data = &auo_t215hvn01,
@@ -1919,11 +2056,17 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "lg,lp129qe",
 		.data = &lg_lp129qe,
 	}, {
+		.compatible = "nec,nl12880bc20-05",
+		.data = &nec_nl12880bc20_05,
+	}, {
 		.compatible = "nec,nl4827hc19-05b",
 		.data = &nec_nl4827hc19_05b,
 	}, {
 		.compatible = "netron-dy,e231732",
 		.data = &netron_dy_e231732,
+	}, {
+		.compatible = "nlt,nl192108ac18-02d",
+		.data = &nlt_nl192108ac18_02d,
 	}, {
 		.compatible = "nvd,9128",
 		.data = &nvd_9128,
@@ -1993,6 +2136,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "urt,umsh-8596md-20t",
 		.data = &urt_umsh_8596md_parallel,
+	}, {
+		.compatible = "winstar,wf35ltiacd",
+		.data = &winstar_wf35ltiacd,
 	}, {
 		/* sentinel */
 	}

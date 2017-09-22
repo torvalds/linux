@@ -20,8 +20,6 @@
 #include <linux/reset.h>
 #include <linux/interrupt.h>
 
-#define MAX_MCI_SLOTS	2
-
 enum dw_mci_state {
 	STATE_IDLE = 0,
 	STATE_SENDING_CMD,
@@ -128,13 +126,13 @@ struct dw_mci_dma_slave {
  * @irq: The irq value to be passed to request_irq.
  * @sdio_id0: Number of slot0 in the SDIO interrupt registers.
  * @cmd11_timer: Timer for SD3.0 voltage switch over scheme.
+ * @cto_timer: Timer for broken command transfer over scheme.
  * @dto_timer: Timer for broken data transfer over scheme.
  *
  * Locking
  * =======
  *
  * @lock is a softirq-safe spinlock protecting @queue as well as
- * @cur_slot, @mrq and @state. These must always be updated
  * at the same time while holding @lock.
  *
  * @irq_lock is an irq-safe spinlock protecting the INTMASK register
@@ -170,7 +168,6 @@ struct dw_mci {
 	struct scatterlist	*sg;
 	struct sg_mapping_iter	sg_miter;
 
-	struct dw_mci_slot	*cur_slot;
 	struct mmc_request	*mrq;
 	struct mmc_command	*cmd;
 	struct mmc_data		*data;
@@ -206,7 +203,6 @@ struct dw_mci {
 
 	u32			bus_hz;
 	u32			current_speed;
-	u32			num_slots;
 	u32			fifoth_val;
 	u16			verid;
 	struct device		*dev;
@@ -215,7 +211,7 @@ struct dw_mci {
 	void			*priv;
 	struct clk		*biu_clk;
 	struct clk		*ciu_clk;
-	struct dw_mci_slot	*slot[MAX_MCI_SLOTS];
+	struct dw_mci_slot	*slot;
 
 	/* FIFO push and pull */
 	int			fifo_depth;
@@ -237,6 +233,7 @@ struct dw_mci {
 	int			sdio_id0;
 
 	struct timer_list       cmd11_timer;
+	struct timer_list       cto_timer;
 	struct timer_list       dto_timer;
 };
 
@@ -319,6 +316,8 @@ struct dw_mci_board {
 #define SDMMC_DSCADDR		0x094
 #define SDMMC_BUFADDR		0x098
 #define SDMMC_CDTHRCTL		0x100
+#define SDMMC_UHS_REG_EXT	0x108
+#define SDMMC_ENABLE_SHIFT	0x110
 #define SDMMC_DATA(x)		(x)
 /*
 * Registers to support idmac 64-bit address mode

@@ -348,8 +348,8 @@ static int is31fl32xx_parse_child_dt(const struct device *dev,
 	ret = of_property_read_u32(child, "reg", &reg);
 	if (ret || reg < 1 || reg > led_data->priv->cdef->channels) {
 		dev_err(dev,
-			"Child node %s does not have a valid reg property\n",
-			child->full_name);
+			"Child node %pOF does not have a valid reg property\n",
+			child);
 		return -EINVAL;
 	}
 	led_data->channel = reg;

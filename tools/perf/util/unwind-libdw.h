@@ -2,9 +2,11 @@
 #define __PERF_UNWIND_LIBDW_H
 
 #include <elfutils/libdwfl.h>
-#include "event.h"
-#include "thread.h"
 #include "unwind.h"
+
+struct machine;
+struct perf_sample;
+struct thread;
 
 bool libdw__arch_set_initial_registers(Dwfl_Thread *thread, void *arg);
 

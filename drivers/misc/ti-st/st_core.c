@@ -262,7 +262,7 @@ void st_int_recv(void *disc_data,
 	while (count) {
 		if (st_gdata->rx_count) {
 			len = min_t(unsigned int, st_gdata->rx_count, count);
-			memcpy(skb_put(st_gdata->rx_skb, len), ptr, len);
+			skb_put_data(st_gdata->rx_skb, ptr, len);
 			st_gdata->rx_count -= len;
 			count -= len;
 			ptr += len;

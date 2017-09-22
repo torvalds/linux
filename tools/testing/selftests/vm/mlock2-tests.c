@@ -293,7 +293,7 @@ static int test_mlock_lock()
 	unsigned long page_size = getpagesize();
 
 	map = mmap(NULL, 2 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
+		   MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 	if (map == MAP_FAILED) {
 		perror("test_mlock_locked mmap");
 		goto out;
@@ -402,7 +402,7 @@ static int test_mlock_onfault()
 	unsigned long page_size = getpagesize();
 
 	map = mmap(NULL, 2 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
+		   MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 	if (map == MAP_FAILED) {
 		perror("test_mlock_locked mmap");
 		goto out;
@@ -445,7 +445,7 @@ static int test_lock_onfault_of_present()
 	uint64_t page1_flags, page2_flags;
 
 	map = mmap(NULL, 2 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
+		   MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 	if (map == MAP_FAILED) {
 		perror("test_mlock_locked mmap");
 		goto out;
@@ -492,7 +492,7 @@ static int test_munlockall()
 	unsigned long page_size = getpagesize();
 
 	map = mmap(NULL, 2 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
+		   MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 
 	if (map == MAP_FAILED) {
 		perror("test_munlockall mmap");
@@ -518,7 +518,7 @@ static int test_munlockall()
 	munmap(map, 2 * page_size);
 
 	map = mmap(NULL, 2 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
+		   MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 
 	if (map == MAP_FAILED) {
 		perror("test_munlockall second mmap");
@@ -573,7 +573,7 @@ static int test_vma_management(bool call_mlock)
 	struct vm_boundaries page3;
 
 	map = mmap(NULL, 3 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
+		   MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 	if (map == MAP_FAILED) {
 		perror("mmap()");
 		return ret;

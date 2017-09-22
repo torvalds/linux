@@ -22,6 +22,8 @@
 #include <linux/of_net.h>
 #include <linux/module.h>
 
+#define DEFAULT_GPIO_RESET_DELAY	10	/* in microseconds */
+
 MODULE_AUTHOR("Grant Likely <grant.likely@secretlab.ca>");
 MODULE_LICENSE("GPL");
 
@@ -117,28 +119,6 @@ static void of_mdiobus_register_device(struct mii_bus *mdio,
 		child->name, addr);
 }
 
-int of_mdio_parse_addr(struct device *dev, const struct device_node *np)
-{
-	u32 addr;
-	int ret;
-
-	ret = of_property_read_u32(np, "reg", &addr);
-	if (ret < 0) {
-		dev_err(dev, "%s has invalid PHY address\n", np->full_name);
-		return ret;
-	}
-
-	/* A PHY must have a reg property in the range [0-31] */
-	if (addr >= PHY_MAX_ADDR) {
-		dev_err(dev, "%s PHY address %i is too large\n",
-			np->full_name, addr);
-		return -EINVAL;
-	}
-
-	return addr;
-}
-EXPORT_SYMBOL(of_mdio_parse_addr);
-
 /* The following is a list of PHY compatible strings which appear in
  * some DTBs. The compatible string is never matched against a PHY
  * driver, so is pointless. We only expect devices which are not PHYs
@@ -186,8 +166,8 @@ static bool of_mdiobus_child_is_phy(struct device_node *child)
 
 	if (of_match_node(whitelist_phys, child)) {
 		pr_warn(FW_WARN
-			"%s: Whitelisted compatible string. Please remove\n",
-			child->full_name);
+			"%pOF: Whitelisted compatible string. Please remove\n",
+			child);
 		return true;
 	}
 
@@ -220,6 +200,10 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	mdio->phy_mask = ~0;
 
 	mdio->dev.of_node = np;
+
+	/* Get bus level PHY reset GPIO details */
+	mdio->reset_delay_us = DEFAULT_GPIO_RESET_DELAY;
+	of_property_read_u32(np, "reset-delay-us", &mdio->reset_delay_us);
 
 	/* Register the MDIO bus */
 	rc = mdiobus_register(mdio);
@@ -437,19 +421,14 @@ int of_phy_register_fixed_link(struct device_node *np)
 {
 	struct fixed_phy_status status = {};
 	struct device_node *fixed_link_node;
-	const __be32 *fixed_link_prop;
-	int link_gpio;
-	int len, err;
-	struct phy_device *phy;
+	u32 fixed_link_prop[5];
 	const char *managed;
+	int link_gpio = -1;
 
-	err = of_property_read_string(np, "managed", &managed);
-	if (err == 0) {
-		if (strcmp(managed, "in-band-status") == 0) {
-			/* status is zeroed, namely its .link member */
-			phy = fixed_phy_register(PHY_POLL, &status, -1, np);
-			return PTR_ERR_OR_ZERO(phy);
-		}
+	if (of_property_read_string(np, "managed", &managed) == 0 &&
+	    strcmp(managed, "in-band-status") == 0) {
+		/* status is zeroed, namely its .link member */
+		goto register_phy;
 	}
 
 	/* New binding */
@@ -472,23 +451,25 @@ int of_phy_register_fixed_link(struct device_node *np)
 		if (link_gpio == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 
-		phy = fixed_phy_register(PHY_POLL, &status, link_gpio, np);
-		return PTR_ERR_OR_ZERO(phy);
+		goto register_phy;
 	}
 
 	/* Old binding */
-	fixed_link_prop = of_get_property(np, "fixed-link", &len);
-	if (fixed_link_prop && len == (5 * sizeof(__be32))) {
+	if (of_property_read_u32_array(np, "fixed-link", fixed_link_prop,
+				       ARRAY_SIZE(fixed_link_prop)) == 0) {
 		status.link = 1;
-		status.duplex = be32_to_cpu(fixed_link_prop[1]);
-		status.speed = be32_to_cpu(fixed_link_prop[2]);
-		status.pause = be32_to_cpu(fixed_link_prop[3]);
-		status.asym_pause = be32_to_cpu(fixed_link_prop[4]);
-		phy = fixed_phy_register(PHY_POLL, &status, -1, np);
-		return PTR_ERR_OR_ZERO(phy);
+		status.duplex = fixed_link_prop[1];
+		status.speed  = fixed_link_prop[2];
+		status.pause  = fixed_link_prop[3];
+		status.asym_pause = fixed_link_prop[4];
+		goto register_phy;
 	}
 
 	return -ENODEV;
+
+register_phy:
+	return PTR_ERR_OR_ZERO(fixed_phy_register(PHY_POLL, &status, link_gpio,
+						  np));
 }
 EXPORT_SYMBOL(of_phy_register_fixed_link);
 

@@ -75,16 +75,33 @@ static const struct {
 	QEDE_TQSTAT(stopped_cnt),
 };
 
-#define QEDE_STAT_OFFSET(stat_name) (offsetof(struct qede_stats, stat_name))
-#define QEDE_STAT_STRING(stat_name) (#stat_name)
-#define _QEDE_STAT(stat_name, pf_only) \
-	 {QEDE_STAT_OFFSET(stat_name), QEDE_STAT_STRING(stat_name), pf_only}
-#define QEDE_PF_STAT(stat_name)	_QEDE_STAT(stat_name, true)
-#define QEDE_STAT(stat_name)	_QEDE_STAT(stat_name, false)
+#define QEDE_STAT_OFFSET(stat_name, type, base) \
+	(offsetof(type, stat_name) + (base))
+#define QEDE_STAT_STRING(stat_name)	(#stat_name)
+#define _QEDE_STAT(stat_name, type, base, attr) \
+	{QEDE_STAT_OFFSET(stat_name, type, base), \
+	 QEDE_STAT_STRING(stat_name), \
+	 attr}
+#define QEDE_STAT(stat_name) \
+	_QEDE_STAT(stat_name, struct qede_stats_common, 0, 0x0)
+#define QEDE_PF_STAT(stat_name) \
+	_QEDE_STAT(stat_name, struct qede_stats_common, 0, \
+		   BIT(QEDE_STAT_PF_ONLY))
+#define QEDE_PF_BB_STAT(stat_name) \
+	_QEDE_STAT(stat_name, struct qede_stats_bb, \
+		   offsetof(struct qede_stats, bb), \
+		   BIT(QEDE_STAT_PF_ONLY) | BIT(QEDE_STAT_BB_ONLY))
+#define QEDE_PF_AH_STAT(stat_name) \
+	_QEDE_STAT(stat_name, struct qede_stats_ah, \
+		   offsetof(struct qede_stats, ah), \
+		   BIT(QEDE_STAT_PF_ONLY) | BIT(QEDE_STAT_AH_ONLY))
 static const struct {
 	u64 offset;
 	char string[ETH_GSTRING_LEN];
-	bool pf_only;
+	unsigned long attr;
+#define QEDE_STAT_PF_ONLY	0
+#define QEDE_STAT_BB_ONLY	1
+#define QEDE_STAT_AH_ONLY	2
 } qede_stats_arr[] = {
 	QEDE_STAT(rx_ucast_bytes),
 	QEDE_STAT(rx_mcast_bytes),
@@ -106,22 +123,23 @@ static const struct {
 	QEDE_PF_STAT(rx_256_to_511_byte_packets),
 	QEDE_PF_STAT(rx_512_to_1023_byte_packets),
 	QEDE_PF_STAT(rx_1024_to_1518_byte_packets),
-	QEDE_PF_STAT(rx_1519_to_1522_byte_packets),
-	QEDE_PF_STAT(rx_1519_to_2047_byte_packets),
-	QEDE_PF_STAT(rx_2048_to_4095_byte_packets),
-	QEDE_PF_STAT(rx_4096_to_9216_byte_packets),
-	QEDE_PF_STAT(rx_9217_to_16383_byte_packets),
+	QEDE_PF_BB_STAT(rx_1519_to_1522_byte_packets),
+	QEDE_PF_BB_STAT(rx_1519_to_2047_byte_packets),
+	QEDE_PF_BB_STAT(rx_2048_to_4095_byte_packets),
+	QEDE_PF_BB_STAT(rx_4096_to_9216_byte_packets),
+	QEDE_PF_BB_STAT(rx_9217_to_16383_byte_packets),
+	QEDE_PF_AH_STAT(rx_1519_to_max_byte_packets),
 	QEDE_PF_STAT(tx_64_byte_packets),
 	QEDE_PF_STAT(tx_65_to_127_byte_packets),
 	QEDE_PF_STAT(tx_128_to_255_byte_packets),
 	QEDE_PF_STAT(tx_256_to_511_byte_packets),
 	QEDE_PF_STAT(tx_512_to_1023_byte_packets),
 	QEDE_PF_STAT(tx_1024_to_1518_byte_packets),
-	QEDE_PF_STAT(tx_1519_to_2047_byte_packets),
-	QEDE_PF_STAT(tx_2048_to_4095_byte_packets),
-	QEDE_PF_STAT(tx_4096_to_9216_byte_packets),
-	QEDE_PF_STAT(tx_9217_to_16383_byte_packets),
-
+	QEDE_PF_BB_STAT(tx_1519_to_2047_byte_packets),
+	QEDE_PF_BB_STAT(tx_2048_to_4095_byte_packets),
+	QEDE_PF_BB_STAT(tx_4096_to_9216_byte_packets),
+	QEDE_PF_BB_STAT(tx_9217_to_16383_byte_packets),
+	QEDE_PF_AH_STAT(tx_1519_to_max_byte_packets),
 	QEDE_PF_STAT(rx_mac_crtl_frames),
 	QEDE_PF_STAT(tx_mac_ctrl_frames),
 	QEDE_PF_STAT(rx_pause_frames),
@@ -136,8 +154,8 @@ static const struct {
 	QEDE_PF_STAT(rx_jabbers),
 	QEDE_PF_STAT(rx_undersize_packets),
 	QEDE_PF_STAT(rx_fragments),
-	QEDE_PF_STAT(tx_lpi_entry_count),
-	QEDE_PF_STAT(tx_total_collisions),
+	QEDE_PF_BB_STAT(tx_lpi_entry_count),
+	QEDE_PF_BB_STAT(tx_total_collisions),
 	QEDE_PF_STAT(brb_truncates),
 	QEDE_PF_STAT(brb_discards),
 	QEDE_STAT(no_buff_discards),
@@ -155,6 +173,12 @@ static const struct {
 };
 
 #define QEDE_NUM_STATS	ARRAY_SIZE(qede_stats_arr)
+#define QEDE_STAT_IS_PF_ONLY(i) \
+	test_bit(QEDE_STAT_PF_ONLY, &qede_stats_arr[i].attr)
+#define QEDE_STAT_IS_BB_ONLY(i) \
+	test_bit(QEDE_STAT_BB_ONLY, &qede_stats_arr[i].attr)
+#define QEDE_STAT_IS_AH_ONLY(i) \
+	test_bit(QEDE_STAT_AH_ONLY, &qede_stats_arr[i].attr)
 
 enum {
 	QEDE_PRI_FLAG_CMT,
@@ -213,6 +237,13 @@ static void qede_get_strings_stats_rxq(struct qede_dev *edev,
 	}
 }
 
+static bool qede_is_irrelevant_stat(struct qede_dev *edev, int stat_index)
+{
+	return (IS_VF(edev) && QEDE_STAT_IS_PF_ONLY(stat_index)) ||
+	       (QEDE_IS_BB(edev) && QEDE_STAT_IS_AH_ONLY(stat_index)) ||
+	       (QEDE_IS_AH(edev) && QEDE_STAT_IS_BB_ONLY(stat_index));
+}
+
 static void qede_get_strings_stats(struct qede_dev *edev, u8 *buf)
 {
 	struct qede_fastpath *fp;
@@ -234,7 +265,7 @@ static void qede_get_strings_stats(struct qede_dev *edev, u8 *buf)
 
 	/* Account for non-queue statistics */
 	for (i = 0; i < QEDE_NUM_STATS; i++) {
-		if (IS_VF(edev) && qede_stats_arr[i].pf_only)
+		if (qede_is_irrelevant_stat(edev, i))
 			continue;
 		strcpy(buf, qede_stats_arr[i].string);
 		buf += ETH_GSTRING_LEN;
@@ -309,7 +340,7 @@ static void qede_get_ethtool_stats(struct net_device *dev,
 	}
 
 	for (i = 0; i < QEDE_NUM_STATS; i++) {
-		if (IS_VF(edev) && qede_stats_arr[i].pf_only)
+		if (qede_is_irrelevant_stat(edev, i))
 			continue;
 		*buf = *((u64 *)(((void *)&edev->stats) +
 				 qede_stats_arr[i].offset));
@@ -323,17 +354,13 @@ static void qede_get_ethtool_stats(struct net_device *dev,
 static int qede_get_sset_count(struct net_device *dev, int stringset)
 {
 	struct qede_dev *edev = netdev_priv(dev);
-	int num_stats = QEDE_NUM_STATS;
+	int num_stats = QEDE_NUM_STATS, i;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		if (IS_VF(edev)) {
-			int i;
-
-			for (i = 0; i < QEDE_NUM_STATS; i++)
-				if (qede_stats_arr[i].pf_only)
-					num_stats--;
-		}
+		for (i = 0; i < QEDE_NUM_STATS; i++)
+			if (qede_is_irrelevant_stat(edev, i))
+				num_stats--;
 
 		/* Account for the Regular Tx statistics */
 		num_stats += QEDE_TSS_COUNT(edev) * QEDE_NUM_TQSTATS;
@@ -466,6 +493,11 @@ static int qede_set_link_ksettings(struct net_device *dev,
 	params.override_flags |= QED_LINK_OVERRIDE_SPEED_ADV_SPEEDS;
 	params.override_flags |= QED_LINK_OVERRIDE_SPEED_AUTONEG;
 	if (base->autoneg == AUTONEG_ENABLE) {
+		if (!(current_link.supported_caps & QED_LM_Autoneg_BIT)) {
+			DP_INFO(edev, "Auto negotiation is not supported\n");
+			return -EOPNOTSUPP;
+		}
+
 		params.autoneg = true;
 		params.forced_speed = 0;
 		QEDE_ETHTOOL_TO_DRV_CAPS(params.adv_speeds, cmd, advertising)
@@ -474,6 +506,14 @@ static int qede_set_link_ksettings(struct net_device *dev,
 		params.autoneg = false;
 		params.forced_speed = base->speed;
 		switch (base->speed) {
+		case SPEED_1000:
+			if (!(current_link.supported_caps &
+			      QED_LM_1000baseT_Full_BIT)) {
+				DP_INFO(edev, "1G speed not supported\n");
+				return -EINVAL;
+			}
+			params.adv_speeds = QED_LM_1000baseT_Full_BIT;
+			break;
 		case SPEED_10000:
 			if (!(current_link.supported_caps &
 			      QED_LM_10000baseKR_Full_BIT)) {
@@ -662,25 +702,62 @@ static u32 qede_get_link(struct net_device *dev)
 static int qede_get_coalesce(struct net_device *dev,
 			     struct ethtool_coalesce *coal)
 {
+	void *rx_handle = NULL, *tx_handle = NULL;
 	struct qede_dev *edev = netdev_priv(dev);
-	u16 rxc, txc;
+	u16 rx_coal, tx_coal, i, rc = 0;
+	struct qede_fastpath *fp;
+
+	rx_coal = QED_DEFAULT_RX_USECS;
+	tx_coal = QED_DEFAULT_TX_USECS;
 
 	memset(coal, 0, sizeof(struct ethtool_coalesce));
-	edev->ops->common->get_coalesce(edev->cdev, &rxc, &txc);
 
-	coal->rx_coalesce_usecs = rxc;
-	coal->tx_coalesce_usecs = txc;
+	__qede_lock(edev);
+	if (edev->state == QEDE_STATE_OPEN) {
+		for_each_queue(i) {
+			fp = &edev->fp_array[i];
 
-	return 0;
+			if (fp->type & QEDE_FASTPATH_RX) {
+				rx_handle = fp->rxq->handle;
+				break;
+			}
+		}
+
+		rc = edev->ops->get_coalesce(edev->cdev, &rx_coal, rx_handle);
+		if (rc) {
+			DP_INFO(edev, "Read Rx coalesce error\n");
+			goto out;
+		}
+
+		for_each_queue(i) {
+			fp = &edev->fp_array[i];
+			if (fp->type & QEDE_FASTPATH_TX) {
+				tx_handle = fp->txq->handle;
+				break;
+			}
+		}
+
+		rc = edev->ops->get_coalesce(edev->cdev, &tx_coal, tx_handle);
+		if (rc)
+			DP_INFO(edev, "Read Tx coalesce error\n");
+	}
+
+out:
+	__qede_unlock(edev);
+
+	coal->rx_coalesce_usecs = rx_coal;
+	coal->tx_coalesce_usecs = tx_coal;
+
+	return rc;
 }
 
 static int qede_set_coalesce(struct net_device *dev,
 			     struct ethtool_coalesce *coal)
 {
 	struct qede_dev *edev = netdev_priv(dev);
+	struct qede_fastpath *fp;
 	int i, rc = 0;
 	u16 rxc, txc;
-	u8 sb_id;
 
 	if (!netif_running(dev)) {
 		DP_INFO(edev, "Interface is down\n");
@@ -691,21 +768,36 @@ static int qede_set_coalesce(struct net_device *dev,
 	    coal->tx_coalesce_usecs > QED_COALESCE_MAX) {
 		DP_INFO(edev,
 			"Can't support requested %s coalesce value [max supported value %d]\n",
-			coal->rx_coalesce_usecs > QED_COALESCE_MAX ? "rx"
-								   : "tx",
-			QED_COALESCE_MAX);
+			coal->rx_coalesce_usecs > QED_COALESCE_MAX ? "rx" :
+			"tx", QED_COALESCE_MAX);
 		return -EINVAL;
 	}
 
 	rxc = (u16)coal->rx_coalesce_usecs;
 	txc = (u16)coal->tx_coalesce_usecs;
 	for_each_queue(i) {
-		sb_id = edev->fp_array[i].sb_info->igu_sb_id;
-		rc = edev->ops->common->set_coalesce(edev->cdev, rxc, txc,
-						     (u8)i, sb_id);
-		if (rc) {
-			DP_INFO(edev, "Set coalesce error, rc = %d\n", rc);
-			return rc;
+		fp = &edev->fp_array[i];
+
+		if (edev->fp_array[i].type & QEDE_FASTPATH_RX) {
+			rc = edev->ops->common->set_coalesce(edev->cdev,
+							     rxc, 0,
+							     fp->rxq->handle);
+			if (rc) {
+				DP_INFO(edev,
+					"Set RX coalesce error, rc = %d\n", rc);
+				return rc;
+			}
+		}
+
+		if (edev->fp_array[i].type & QEDE_FASTPATH_TX) {
+			rc = edev->ops->common->set_coalesce(edev->cdev,
+							     0, txc,
+							     fp->txq->handle);
+			if (rc) {
+				DP_INFO(edev,
+					"Set TX coalesce error, rc = %d\n", rc);
+				return rc;
+			}
 		}
 	}
 
@@ -1006,20 +1098,34 @@ static int qede_get_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
 }
 
 static int qede_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
-			  u32 *rules __always_unused)
+			  u32 *rule_locs)
 {
 	struct qede_dev *edev = netdev_priv(dev);
+	int rc = 0;
 
 	switch (info->cmd) {
 	case ETHTOOL_GRXRINGS:
 		info->data = QEDE_RSS_COUNT(edev);
-		return 0;
+		break;
 	case ETHTOOL_GRXFH:
-		return qede_get_rss_flags(edev, info);
+		rc = qede_get_rss_flags(edev, info);
+		break;
+	case ETHTOOL_GRXCLSRLCNT:
+		info->rule_cnt = qede_get_arfs_filter_count(edev);
+		info->data = QEDE_RFS_MAX_FLTR;
+		break;
+	case ETHTOOL_GRXCLSRULE:
+		rc = qede_get_cls_rule_entry(edev, info);
+		break;
+	case ETHTOOL_GRXCLSRLALL:
+		rc = qede_get_cls_rule_all(edev, info, rule_locs);
+		break;
 	default:
 		DP_ERR(edev, "Command parameters not supported\n");
-		return -EOPNOTSUPP;
+		rc = -EOPNOTSUPP;
 	}
+
+	return rc;
 }
 
 static int qede_set_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
@@ -1129,14 +1235,24 @@ static int qede_set_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
 static int qede_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info)
 {
 	struct qede_dev *edev = netdev_priv(dev);
+	int rc;
 
 	switch (info->cmd) {
 	case ETHTOOL_SRXFH:
-		return qede_set_rss_flags(edev, info);
+		rc = qede_set_rss_flags(edev, info);
+		break;
+	case ETHTOOL_SRXCLSRLINS:
+		rc = qede_add_cls_rule(edev, info);
+		break;
+	case ETHTOOL_SRXCLSRLDEL:
+		rc = qede_del_cls_rule(edev, info);
+		break;
 	default:
 		DP_INFO(edev, "Command parameters not supported\n");
-		return -EOPNOTSUPP;
+		rc = -EOPNOTSUPP;
 	}
+
+	return rc;
 }
 
 static u32 qede_get_rxfh_indir_size(struct net_device *dev)
@@ -1251,7 +1367,8 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 	struct qede_tx_queue *txq = NULL;
 	struct eth_tx_1st_bd *first_bd;
 	dma_addr_t mapping;
-	int i, idx, val;
+	int i, idx;
+	u16 val;
 
 	for_each_queue(i) {
 		if (edev->fp_array[i].type & QEDE_FASTPATH_TX) {
@@ -1266,14 +1383,15 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 	}
 
 	/* Fill the entry in the SW ring and the BDs in the FW ring */
-	idx = txq->sw_tx_prod & NUM_TX_BDS_MAX;
+	idx = txq->sw_tx_prod;
 	txq->sw_tx_ring.skbs[idx].skb = skb;
 	first_bd = qed_chain_produce(&txq->tx_pbl);
 	memset(first_bd, 0, sizeof(*first_bd));
 	val = 1 << ETH_TX_1ST_BD_FLAGS_START_BD_SHIFT;
 	first_bd->data.bd_flags.bitfields = val;
 	val = skb->len & ETH_TX_DATA_1ST_BD_PKT_LEN_MASK;
-	first_bd->data.bitfields |= (val << ETH_TX_DATA_1ST_BD_PKT_LEN_SHIFT);
+	val = val << ETH_TX_DATA_1ST_BD_PKT_LEN_SHIFT;
+	first_bd->data.bitfields |= cpu_to_le16(val);
 
 	/* Map skb linear data for DMA and set in the first BD */
 	mapping = dma_map_single(&edev->pdev->dev, skb->data,
@@ -1286,10 +1404,10 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 
 	/* update the first BD with the actual num BDs */
 	first_bd->data.nbds = 1;
-	txq->sw_tx_prod++;
+	txq->sw_tx_prod = (txq->sw_tx_prod + 1) % txq->num_tx_buffers;
 	/* 'next page' entries are counted in the producer value */
-	val = cpu_to_le16(qed_chain_get_prod_idx(&txq->tx_pbl));
-	txq->tx_db.data.bd_prod = val;
+	val = qed_chain_get_prod_idx(&txq->tx_pbl);
+	txq->tx_db.data.bd_prod = cpu_to_le16(val);
 
 	/* wmb makes sure that the BDs data is updated before updating the
 	 * producer, otherwise FW may read old data from the BDs.
@@ -1320,7 +1438,7 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 	first_bd = (struct eth_tx_1st_bd *)qed_chain_consume(&txq->tx_pbl);
 	dma_unmap_single(&edev->pdev->dev, BD_UNMAP_ADDR(first_bd),
 			 BD_UNMAP_LEN(first_bd), DMA_TO_DEVICE);
-	txq->sw_tx_cons++;
+	txq->sw_tx_cons = (txq->sw_tx_cons + 1) % txq->num_tx_buffers;
 	txq->sw_tx_ring.skbs[idx].skb = NULL;
 
 	return 0;
@@ -1566,6 +1684,87 @@ static int qede_get_tunable(struct net_device *dev,
 	return 0;
 }
 
+static int qede_get_eee(struct net_device *dev, struct ethtool_eee *edata)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	struct qed_link_output current_link;
+
+	memset(&current_link, 0, sizeof(current_link));
+	edev->ops->common->get_link(edev->cdev, &current_link);
+
+	if (!current_link.eee_supported) {
+		DP_INFO(edev, "EEE is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (current_link.eee.adv_caps & QED_EEE_1G_ADV)
+		edata->advertised = ADVERTISED_1000baseT_Full;
+	if (current_link.eee.adv_caps & QED_EEE_10G_ADV)
+		edata->advertised |= ADVERTISED_10000baseT_Full;
+	if (current_link.sup_caps & QED_EEE_1G_ADV)
+		edata->supported = ADVERTISED_1000baseT_Full;
+	if (current_link.sup_caps & QED_EEE_10G_ADV)
+		edata->supported |= ADVERTISED_10000baseT_Full;
+	if (current_link.eee.lp_adv_caps & QED_EEE_1G_ADV)
+		edata->lp_advertised = ADVERTISED_1000baseT_Full;
+	if (current_link.eee.lp_adv_caps & QED_EEE_10G_ADV)
+		edata->lp_advertised |= ADVERTISED_10000baseT_Full;
+
+	edata->tx_lpi_timer = current_link.eee.tx_lpi_timer;
+	edata->eee_enabled = current_link.eee.enable;
+	edata->tx_lpi_enabled = current_link.eee.tx_lpi_enable;
+	edata->eee_active = current_link.eee_active;
+
+	return 0;
+}
+
+static int qede_set_eee(struct net_device *dev, struct ethtool_eee *edata)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	struct qed_link_output current_link;
+	struct qed_link_params params;
+
+	if (!edev->ops->common->can_link_change(edev->cdev)) {
+		DP_INFO(edev, "Link settings are not allowed to be changed\n");
+		return -EOPNOTSUPP;
+	}
+
+	memset(&current_link, 0, sizeof(current_link));
+	edev->ops->common->get_link(edev->cdev, &current_link);
+
+	if (!current_link.eee_supported) {
+		DP_INFO(edev, "EEE is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	memset(&params, 0, sizeof(params));
+	params.override_flags |= QED_LINK_OVERRIDE_EEE_CONFIG;
+
+	if (!(edata->advertised & (ADVERTISED_1000baseT_Full |
+				   ADVERTISED_10000baseT_Full)) ||
+	    ((edata->advertised & (ADVERTISED_1000baseT_Full |
+				   ADVERTISED_10000baseT_Full)) !=
+	     edata->advertised)) {
+		DP_VERBOSE(edev, QED_MSG_DEBUG,
+			   "Invalid advertised capabilities %d\n",
+			   edata->advertised);
+		return -EINVAL;
+	}
+
+	if (edata->advertised & ADVERTISED_1000baseT_Full)
+		params.eee.adv_caps = QED_EEE_1G_ADV;
+	if (edata->advertised & ADVERTISED_10000baseT_Full)
+		params.eee.adv_caps |= QED_EEE_10G_ADV;
+	params.eee.enable = edata->eee_enabled;
+	params.eee.tx_lpi_enable = edata->tx_lpi_enabled;
+	params.eee.tx_lpi_timer = edata->tx_lpi_timer;
+
+	params.link_up = true;
+	edev->ops->common->set_link(edev->cdev, &params);
+
+	return 0;
+}
+
 static const struct ethtool_ops qede_ethtool_ops = {
 	.get_link_ksettings = qede_get_link_ksettings,
 	.set_link_ksettings = qede_set_link_ksettings,
@@ -1599,6 +1798,9 @@ static const struct ethtool_ops qede_ethtool_ops = {
 	.get_channels = qede_get_channels,
 	.set_channels = qede_set_channels,
 	.self_test = qede_self_test,
+	.get_eee = qede_get_eee,
+	.set_eee = qede_set_eee,
+
 	.get_tunable = qede_get_tunable,
 	.set_tunable = qede_set_tunable,
 };
@@ -1609,6 +1811,8 @@ static const struct ethtool_ops qede_vf_ethtool_ops = {
 	.get_msglevel = qede_get_msglevel,
 	.set_msglevel = qede_set_msglevel,
 	.get_link = qede_get_link,
+	.get_coalesce = qede_get_coalesce,
+	.set_coalesce = qede_set_coalesce,
 	.get_ringparam = qede_get_ringparam,
 	.set_ringparam = qede_set_ringparam,
 	.get_strings = qede_get_strings,

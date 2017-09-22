@@ -1,0 +1,102 @@
+tdc - Linux Traffic Control (tc) unit testing suite
+
+Author: Lucas Bates - lucasb@mojatatu.com
+
+tdc is a Python script to load tc unit tests from a separate JSON file and
+execute them inside a network namespace dedicated to the task.
+
+
+REQUIREMENTS
+------------
+
+*  Minimum Python version of 3.4. Earlier 3.X versions may work but are not
+   guaranteed.
+
+*  The kernel must have network namespace support
+
+*   The kernel must have veth support available, as a veth pair is created
+   prior to running the tests.
+
+*  All tc-related features must be built in or available as modules.
+   To check what is required in current setup run:
+   ./tdc.py -c
+
+   Note:
+   In the current release, tdc run will abort due to a failure in setup or
+   teardown commands - which includes not being able to run a test simply
+   because the kernel did not support a specific feature. (This will be
+   handled in a future version - the current workaround is to run the tests
+   on specific test categories that your kernel supports)
+
+
+BEFORE YOU RUN
+--------------
+
+The path to the tc executable that will be most commonly tested can be defined
+in the tdc_config.py file. Find the 'TC' entry in the NAMES dictionary and
+define the path.
+
+If you need to test a different tc executable on the fly, you can do so by
+using the -p option when running tdc:
+	./tdc.py -p /path/to/tc
+
+
+RUNNING TDC
+-----------
+
+To use tdc, root privileges are required. tdc will not run otherwise.
+
+All tests are executed inside a network namespace to prevent conflicts
+within the host.
+
+Running tdc without any arguments will run all tests. Refer to the section
+on command line arguments for more information, or run:
+	./tdc.py -h
+
+tdc will list the test names as they are being run, and print a summary in
+TAP (Test Anything Protocol) format when they are done. If tests fail,
+output captured from the failing test will be printed immediately following
+the failed test in the TAP output.
+
+
+USER-DEFINED CONSTANTS
+----------------------
+
+The tdc_config.py file contains multiple values that can be altered to suit
+your needs. Any value in the NAMES dictionary can be altered without affecting
+the tests to be run. These values are used in the tc commands that will be
+executed as part of the test. More will be added as test cases require.
+
+Example:
+	$TC qdisc add dev $DEV1 ingress
+
+
+COMMAND LINE ARGUMENTS
+----------------------
+
+Run tdc.py -h to see the full list of available arguments.
+
+-p PATH           Specify the tc executable located at PATH to be used on this
+                  test run
+-c                Show the available test case categories in this test file
+-c CATEGORY       Run only tests that belong to CATEGORY
+-f FILE           Read test cases from the JSON file named FILE
+-l [CATEGORY]     List all test cases in the JSON file. If CATEGORY is
+                  specified, list test cases matching that category.
+-s ID             Show the test case matching ID
+-e ID             Execute the test case identified by ID
+-i                Generate unique ID numbers for test cases with no existing
+                  ID number
+
+
+ACKNOWLEDGEMENTS
+----------------
+
+Thanks to:
+
+Jamal Hadi Salim, for providing valuable test cases
+Keara Leibovitz, who wrote the CLI test driver that I used as a base for the
+   first version of the tc testing suite. This work was presented at
+   Netdev 1.2 Tokyo in October 2016.
+Samir Hussain, for providing help while I dove into Python for the first time
+    and being a second eye for this code.

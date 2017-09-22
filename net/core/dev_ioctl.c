@@ -28,6 +28,7 @@ static int dev_ifname(struct net *net, struct ifreq __user *arg)
 
 	if (copy_from_user(&ifr, arg, sizeof(struct ifreq)))
 		return -EFAULT;
+	ifr.ifr_name[IFNAMSIZ-1] = 0;
 
 	error = netdev_get_name(net, ifr.ifr_name, ifr.ifr_ifindex);
 	if (error)
@@ -225,6 +226,7 @@ static int net_hwtstamp_validate(struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+	case HWTSTAMP_FILTER_NTP_ALL:
 		rx_filter_valid = 1;
 		break;
 	}
@@ -261,6 +263,8 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 		return dev_set_mtu(dev, ifr->ifr_mtu);
 
 	case SIOCSIFHWADDR:
+		if (dev->addr_len > sizeof(struct sockaddr))
+			return -EINVAL;
 		return dev_set_mac_address(dev, &ifr->ifr_hwaddr);
 
 	case SIOCSIFHWBROADCAST:
@@ -409,6 +413,24 @@ int dev_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	}
 	if (cmd == SIOCGIFNAME)
 		return dev_ifname(net, (struct ifreq __user *)arg);
+
+	/*
+	 * Take care of Wireless Extensions. Unfortunately struct iwreq
+	 * isn't a proper subset of struct ifreq (it's 8 byte shorter)
+	 * so we need to treat it specially, otherwise applications may
+	 * fault if the struct they're passing happens to land at the
+	 * end of a mapped page.
+	 */
+	if (cmd >= SIOCIWFIRST && cmd <= SIOCIWLAST) {
+		struct iwreq iwr;
+
+		if (copy_from_user(&iwr, arg, sizeof(iwr)))
+			return -EFAULT;
+
+		iwr.ifr_name[sizeof(iwr.ifr_name) - 1] = 0;
+
+		return wext_handle_ioctl(net, &iwr, cmd, arg);
+	}
 
 	if (copy_from_user(&ifr, arg, sizeof(struct ifreq)))
 		return -EFAULT;
@@ -559,9 +581,6 @@ int dev_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 				ret = -EFAULT;
 			return ret;
 		}
-		/* Take care of Wireless Extensions */
-		if (cmd >= SIOCIWFIRST && cmd <= SIOCIWLAST)
-			return wext_handle_ioctl(net, &ifr, cmd, arg);
 		return -ENOTTY;
 	}
 }

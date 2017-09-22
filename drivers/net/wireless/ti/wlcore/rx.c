@@ -72,7 +72,7 @@ static void wl1271_rx_status(struct wl1271 *wl,
 
 	/* 11n support */
 	if (desc->rate <= wl->hw_min_ht_rate)
-		status->flag |= RX_FLAG_HT;
+		status->encoding = RX_ENC_HT;
 
 	/*
 	* Read the signal level and antenna diversity indication.
@@ -117,7 +117,6 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	struct wl1271_rx_descriptor *desc;
 	struct sk_buff *skb;
 	struct ieee80211_hdr *hdr;
-	u8 *buf;
 	u8 beacon = 0;
 	u8 is_data = 0;
 	u8 reserved = 0, offset_to_data = 0;
@@ -174,15 +173,13 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	/* reserve the unaligned payload(if any) */
 	skb_reserve(skb, reserved);
 
-	buf = skb_put(skb, pkt_data_len);
-
 	/*
 	 * Copy packets from aggregation buffer to the skbs without rx
 	 * descriptor and with packet payload aligned care. In case of unaligned
 	 * packets copy the packets in offset of 2 bytes guarantee IP header
 	 * payload aligned to 4 bytes.
 	 */
-	memcpy(buf, data + sizeof(*desc), pkt_data_len);
+	skb_put_data(skb, data + sizeof(*desc), pkt_data_len);
 	if (rx_align == WLCORE_RX_BUF_PADDED)
 		skb_pull(skb, RX_BUF_ALIGN);
 

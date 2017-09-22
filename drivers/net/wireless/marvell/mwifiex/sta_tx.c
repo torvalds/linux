@@ -49,8 +49,7 @@ void *mwifiex_process_sta_txpd(struct mwifiex_private *priv,
 	struct mwifiex_txinfo *tx_info = MWIFIEX_SKB_TXCB(skb);
 	unsigned int pad;
 	u16 pkt_type, pkt_offset;
-	int hroom = (priv->adapter->iface_type == MWIFIEX_USB) ? 0 :
-		       INTF_HEADER_LEN;
+	int hroom = adapter->intf_hdr_len;
 
 	if (!skb->len) {
 		mwifiex_dbg(adapter, ERROR,
@@ -116,7 +115,7 @@ void *mwifiex_process_sta_txpd(struct mwifiex_private *priv,
 
 	local_tx_pd->tx_pkt_offset = cpu_to_le16(pkt_offset);
 
-	/* make space for INTF_HEADER_LEN */
+	/* make space for adapter->intf_hdr_len */
 	skb_push(skb, hroom);
 
 	if (!local_tx_pd->tx_control)
@@ -165,8 +164,9 @@ int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags)
 	memset(tx_info, 0, sizeof(*tx_info));
 	tx_info->bss_num = priv->bss_num;
 	tx_info->bss_type = priv->bss_type;
-	tx_info->pkt_len = data_len - (sizeof(struct txpd) + INTF_HEADER_LEN);
-	skb_reserve(skb, sizeof(struct txpd) + INTF_HEADER_LEN);
+	tx_info->pkt_len = data_len -
+			(sizeof(struct txpd) + adapter->intf_hdr_len);
+	skb_reserve(skb, sizeof(struct txpd) + adapter->intf_hdr_len);
 	skb_push(skb, sizeof(struct txpd));
 
 	local_tx_pd = (struct txpd *) skb->data;
@@ -177,11 +177,11 @@ int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags)
 	local_tx_pd->bss_num = priv->bss_num;
 	local_tx_pd->bss_type = priv->bss_type;
 
+	skb_push(skb, adapter->intf_hdr_len);
 	if (adapter->iface_type == MWIFIEX_USB) {
 		ret = adapter->if_ops.host_to_card(adapter, priv->usb_port,
 						   skb, NULL);
 	} else {
-		skb_push(skb, INTF_HEADER_LEN);
 		tx_param.next_pkt_len = 0;
 		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
 						   skb, &tx_param);

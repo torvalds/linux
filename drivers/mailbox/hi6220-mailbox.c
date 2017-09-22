@@ -221,7 +221,7 @@ static void hi6220_mbox_shutdown(struct mbox_chan *chan)
 	mbox->irq_map_chan[mchan->ack_irq] = NULL;
 }
 
-static struct mbox_chan_ops hi6220_mbox_ops = {
+static const struct mbox_chan_ops hi6220_mbox_ops = {
 	.send_data    = hi6220_mbox_send_data,
 	.startup      = hi6220_mbox_startup,
 	.shutdown     = hi6220_mbox_shutdown,

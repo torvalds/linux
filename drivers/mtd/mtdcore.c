@@ -40,13 +40,14 @@
 #include <linux/slab.h>
 #include <linux/reboot.h>
 #include <linux/leds.h>
+#include <linux/debugfs.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
 #include "mtdcore.h"
 
-static struct backing_dev_info *mtd_bdi;
+struct backing_dev_info *mtd_bdi;
 
 #ifdef CONFIG_PM_SLEEP
 
@@ -339,7 +340,7 @@ static struct attribute *mtd_attrs[] = {
 };
 ATTRIBUTE_GROUPS(mtd);
 
-static struct device_type mtd_devtype = {
+static const struct device_type mtd_devtype = {
 	.name		= "mtd",
 	.groups		= mtd_groups,
 	.release	= mtd_release,
@@ -477,6 +478,8 @@ int mtd_pairing_groups(struct mtd_info *mtd)
 }
 EXPORT_SYMBOL_GPL(mtd_pairing_groups);
 
+static struct dentry *dfs_dir_mtd;
+
 /**
  *	add_mtd_device - register an MTD device
  *	@mtd: pointer to new MTD device info structure
@@ -496,10 +499,8 @@ int add_mtd_device(struct mtd_info *mtd)
 	 * mtd_device_parse_register() multiple times on the same master MTD,
 	 * especially with CONFIG_MTD_PARTITIONED_MASTER=y.
 	 */
-	if (WARN_ONCE(mtd->backing_dev_info, "MTD already registered\n"))
+	if (WARN_ONCE(mtd->dev.type, "MTD already registered\n"))
 		return -EEXIST;
-
-	mtd->backing_dev_info = mtd_bdi;
 
 	BUG_ON(mtd->writesize == 0);
 	mutex_lock(&mtd_table_mutex);
@@ -554,6 +555,14 @@ int add_mtd_device(struct mtd_info *mtd)
 	if (error)
 		goto fail_added;
 
+	if (!IS_ERR_OR_NULL(dfs_dir_mtd)) {
+		mtd->dbg.dfs_dir = debugfs_create_dir(dev_name(&mtd->dev), dfs_dir_mtd);
+		if (IS_ERR_OR_NULL(mtd->dbg.dfs_dir)) {
+			pr_debug("mtd device %s won't show data in debugfs\n",
+				 dev_name(&mtd->dev));
+		}
+	}
+
 	device_create(&mtd_class, mtd->dev.parent, MTD_DEVT(i) + 1, NULL,
 		      "mtd%dro", i);
 
@@ -595,6 +604,8 @@ int del_mtd_device(struct mtd_info *mtd)
 	struct mtd_notifier *not;
 
 	mutex_lock(&mtd_table_mutex);
+
+	debugfs_remove_recursive(mtd->dbg.dfs_dir);
 
 	if (idr_find(&mtd_idr, mtd->index) != mtd) {
 		ret = -ENODEV;
@@ -993,7 +1004,7 @@ EXPORT_SYMBOL_GPL(mtd_point);
 /* We probably shouldn't allow XIP if the unpoint isn't a NULL */
 int mtd_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
-	if (!mtd->_point)
+	if (!mtd->_unpoint)
 		return -EOPNOTSUPP;
 	if (from < 0 || from >= mtd->size || len > mtd->size - from)
 		return -EINVAL;
@@ -1775,13 +1786,18 @@ static struct backing_dev_info * __init mtd_bdi_init(char *name)
 	struct backing_dev_info *bdi;
 	int ret;
 
-	bdi = kzalloc(sizeof(*bdi), GFP_KERNEL);
+	bdi = bdi_alloc(GFP_KERNEL);
 	if (!bdi)
 		return ERR_PTR(-ENOMEM);
 
-	ret = bdi_setup_and_register(bdi, name);
+	bdi->name = name;
+	/*
+	 * We put '-0' suffix to the name to get the same name format as we
+	 * used to get. Since this is called only once, we get a unique name. 
+	 */
+	ret = bdi_register(bdi, "%.28s-0", name);
 	if (ret)
-		kfree(bdi);
+		bdi_put(bdi);
 
 	return ret ? ERR_PTR(ret) : bdi;
 }
@@ -1808,13 +1824,14 @@ static int __init init_mtd(void)
 	if (ret)
 		goto out_procfs;
 
+	dfs_dir_mtd = debugfs_create_dir("mtd", NULL);
+
 	return 0;
 
 out_procfs:
 	if (proc_mtd)
 		remove_proc_entry("mtd", NULL);
-	bdi_destroy(mtd_bdi);
-	kfree(mtd_bdi);
+	bdi_put(mtd_bdi);
 err_bdi:
 	class_unregister(&mtd_class);
 err_reg:
@@ -1824,12 +1841,12 @@ err_reg:
 
 static void __exit cleanup_mtd(void)
 {
+	debugfs_remove_recursive(dfs_dir_mtd);
 	cleanup_mtdchar();
 	if (proc_mtd)
 		remove_proc_entry("mtd", NULL);
 	class_unregister(&mtd_class);
-	bdi_destroy(mtd_bdi);
-	kfree(mtd_bdi);
+	bdi_put(mtd_bdi);
 	idr_destroy(&mtd_idr);
 }
 

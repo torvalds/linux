@@ -288,6 +288,7 @@ static inline struct ssusb_mtk *dev_to_ssusb(struct device *dev)
  *		MTU3_U3_IP_SLOT_DEFAULT for U3 IP
  * @may_wakeup: means device's remote wakeup is enabled
  * @is_self_powered: is reported in device status and the config descriptor
+ * @delayed_status: true when function drivers ask for delayed status
  * @ep0_req: dummy request used while handling standard USB requests
  *		for GET_STATUS and SET_SEL
  * @setup_buf: ep0 response buffer for GET_STATUS and SET_SEL requests
@@ -327,6 +328,7 @@ struct mtu3 {
 	unsigned u1_enable:1;
 	unsigned u2_enable:1;
 	unsigned is_u3_ip:1;
+	unsigned delayed_status:1;
 
 	u8 address;
 	u8 test_mode_nr;
@@ -356,12 +358,8 @@ static inline struct mtu3_ep *to_mtu3_ep(struct usb_ep *ep)
 
 static inline struct mtu3_request *next_request(struct mtu3_ep *mep)
 {
-	struct list_head *queue = &mep->req_list;
-
-	if (list_empty(queue))
-		return NULL;
-
-	return list_first_entry(queue, struct mtu3_request, list);
+	return list_first_entry_or_null(&mep->req_list, struct mtu3_request,
+					list);
 }
 
 static inline void mtu3_writel(void __iomem *base, u32 offset, u32 data)

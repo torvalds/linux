@@ -26,17 +26,13 @@
 #include <linux/seg6_iptunnel.h>
 #include <net/addrconf.h>
 #include <net/ip6_route.h>
-#ifdef CONFIG_DST_CACHE
 #include <net/dst_cache.h>
-#endif
 #ifdef CONFIG_IPV6_SEG6_HMAC
 #include <net/seg6_hmac.h>
 #endif
 
 struct seg6_lwt {
-#ifdef CONFIG_DST_CACHE
 	struct dst_cache cache;
-#endif
 	struct seg6_iptunnel_encap tuninfo[0];
 };
 
@@ -95,7 +91,7 @@ static void set_tun_src(struct net *net, struct net_device *dev,
 }
 
 /* encapsulate an IPv6 packet within an outer IPv6 header with a given SRH */
-static int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
+int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh, int proto)
 {
 	struct net *net = dev_net(skb_dst(skb)->dev);
 	struct ipv6hdr *hdr, *inner_hdr;
@@ -105,7 +101,7 @@ static int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
 	hdrlen = (osrh->hdrlen + 1) << 3;
 	tot_len = hdrlen + sizeof(*hdr);
 
-	err = pskb_expand_head(skb, tot_len, 0, GFP_ATOMIC);
+	err = skb_cow_head(skb, tot_len);
 	if (unlikely(err))
 		return err;
 
@@ -120,15 +116,22 @@ static int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
 	 * hlim will be decremented in ip6_forward() afterwards and
 	 * decapsulation will overwrite inner hlim with outer hlim
 	 */
-	ip6_flow_hdr(hdr, ip6_tclass(ip6_flowinfo(inner_hdr)),
-		     ip6_flowlabel(inner_hdr));
-	hdr->hop_limit = inner_hdr->hop_limit;
+
+	if (skb->protocol == htons(ETH_P_IPV6)) {
+		ip6_flow_hdr(hdr, ip6_tclass(ip6_flowinfo(inner_hdr)),
+			     ip6_flowlabel(inner_hdr));
+		hdr->hop_limit = inner_hdr->hop_limit;
+	} else {
+		ip6_flow_hdr(hdr, 0, 0);
+		hdr->hop_limit = ip6_dst_hoplimit(skb_dst(skb));
+	}
+
 	hdr->nexthdr = NEXTHDR_ROUTING;
 
 	isrh = (void *)hdr + sizeof(*hdr);
 	memcpy(isrh, osrh, hdrlen);
 
-	isrh->nexthdr = NEXTHDR_IPV6;
+	isrh->nexthdr = proto;
 
 	hdr->daddr = isrh->segments[isrh->first_segment];
 	set_tun_src(net, skb->dev, &hdr->daddr, &hdr->saddr);
@@ -145,10 +148,10 @@ static int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(seg6_do_srh_encap);
 
 /* insert an SRH within an IPv6 packet, just after the IPv6 header */
-#ifdef CONFIG_IPV6_SEG6_INLINE
-static int seg6_do_srh_inline(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
+int seg6_do_srh_inline(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
 {
 	struct ipv6hdr *hdr, *oldhdr;
 	struct ipv6_sr_hdr *isrh;
@@ -156,7 +159,7 @@ static int seg6_do_srh_inline(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
 
 	hdrlen = (osrh->hdrlen + 1) << 3;
 
-	err = pskb_expand_head(skb, hdrlen, 0, GFP_ATOMIC);
+	err = skb_cow_head(skb, hdrlen);
 	if (unlikely(err))
 		return err;
 
@@ -197,13 +200,13 @@ static int seg6_do_srh_inline(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
 
 	return 0;
 }
-#endif
+EXPORT_SYMBOL_GPL(seg6_do_srh_inline);
 
 static int seg6_do_srh(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
 	struct seg6_iptunnel_encap *tinfo;
-	int err = 0;
+	int proto, err = 0;
 
 	tinfo = seg6_encap_lwtunnel(dst->lwtstate);
 
@@ -213,19 +216,47 @@ static int seg6_do_srh(struct sk_buff *skb)
 	}
 
 	switch (tinfo->mode) {
-#ifdef CONFIG_IPV6_SEG6_INLINE
 	case SEG6_IPTUN_MODE_INLINE:
+		if (skb->protocol != htons(ETH_P_IPV6))
+			return -EINVAL;
+
 		err = seg6_do_srh_inline(skb, tinfo->srh);
+		if (err)
+			return err;
+
 		skb_reset_inner_headers(skb);
 		break;
-#endif
 	case SEG6_IPTUN_MODE_ENCAP:
-		err = seg6_do_srh_encap(skb, tinfo->srh);
+		if (skb->protocol == htons(ETH_P_IPV6))
+			proto = IPPROTO_IPV6;
+		else if (skb->protocol == htons(ETH_P_IP))
+			proto = IPPROTO_IPIP;
+		else
+			return -EINVAL;
+
+		err = seg6_do_srh_encap(skb, tinfo->srh, proto);
+		if (err)
+			return err;
+
+		skb->protocol = htons(ETH_P_IPV6);
+		break;
+	case SEG6_IPTUN_MODE_L2ENCAP:
+		if (!skb_mac_header_was_set(skb))
+			return -EINVAL;
+
+		if (pskb_expand_head(skb, skb->mac_len, 0, GFP_ATOMIC) < 0)
+			return -ENOMEM;
+
+		skb_mac_header_rebuild(skb);
+		skb_push(skb, skb->mac_len);
+
+		err = seg6_do_srh_encap(skb, tinfo->srh, NEXTHDR_NONE);
+		if (err)
+			return err;
+
+		skb->protocol = htons(ETH_P_IPV6);
 		break;
 	}
-
-	if (err)
-		return err;
 
 	ipv6_hdr(skb)->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
 	skb_set_transport_header(skb, sizeof(struct ipv6hdr));
@@ -237,6 +268,9 @@ static int seg6_do_srh(struct sk_buff *skb)
 
 static int seg6_input(struct sk_buff *skb)
 {
+	struct dst_entry *orig_dst = skb_dst(skb);
+	struct dst_entry *dst = NULL;
+	struct seg6_lwt *slwt;
 	int err;
 
 	err = seg6_do_srh(skb);
@@ -245,8 +279,30 @@ static int seg6_input(struct sk_buff *skb)
 		return err;
 	}
 
+	slwt = seg6_lwt_lwtunnel(orig_dst->lwtstate);
+
+	preempt_disable();
+	dst = dst_cache_get(&slwt->cache);
+	preempt_enable();
+
 	skb_dst_drop(skb);
-	ip6_route_input(skb);
+
+	if (!dst) {
+		ip6_route_input(skb);
+		dst = skb_dst(skb);
+		if (!dst->error) {
+			preempt_disable();
+			dst_cache_set_ip6(&slwt->cache, dst,
+					  &ipv6_hdr(skb)->saddr);
+			preempt_enable();
+		}
+	} else {
+		skb_dst_set(skb, dst);
+	}
+
+	err = skb_cow_head(skb, LL_RESERVED_SPACE(dst->dev));
+	if (unlikely(err))
+		return err;
 
 	return dst_input(skb);
 }
@@ -264,11 +320,9 @@ static int seg6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 
 	slwt = seg6_lwt_lwtunnel(orig_dst->lwtstate);
 
-#ifdef CONFIG_DST_CACHE
 	preempt_disable();
 	dst = dst_cache_get(&slwt->cache);
 	preempt_enable();
-#endif
 
 	if (unlikely(!dst)) {
 		struct ipv6hdr *hdr = ipv6_hdr(skb);
@@ -287,15 +341,17 @@ static int seg6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 			goto drop;
 		}
 
-#ifdef CONFIG_DST_CACHE
 		preempt_disable();
 		dst_cache_set_ip6(&slwt->cache, dst, &fl6.saddr);
 		preempt_enable();
-#endif
 	}
 
 	skb_dst_drop(skb);
 	skb_dst_set(skb, dst);
+
+	err = skb_cow_head(skb, LL_RESERVED_SPACE(dst->dev));
+	if (unlikely(err))
+		goto drop;
 
 	return dst_output(net, sk, skb);
 drop:
@@ -305,7 +361,8 @@ drop:
 
 static int seg6_build_state(struct nlattr *nla,
 			    unsigned int family, const void *cfg,
-			    struct lwtunnel_state **ts)
+			    struct lwtunnel_state **ts,
+			    struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[SEG6_IPTUNNEL_MAX + 1];
 	struct seg6_iptunnel_encap *tuninfo;
@@ -314,8 +371,11 @@ static int seg6_build_state(struct nlattr *nla,
 	struct seg6_lwt *slwt;
 	int err;
 
+	if (family != AF_INET && family != AF_INET6)
+		return -EINVAL;
+
 	err = nla_parse_nested(tb, SEG6_IPTUNNEL_MAX, nla,
-			       seg6_iptunnel_policy);
+			       seg6_iptunnel_policy, extack);
 
 	if (err < 0)
 		return err;
@@ -335,11 +395,14 @@ static int seg6_build_state(struct nlattr *nla,
 		return -EINVAL;
 
 	switch (tuninfo->mode) {
-#ifdef CONFIG_IPV6_SEG6_INLINE
 	case SEG6_IPTUN_MODE_INLINE:
+		if (family != AF_INET6)
+			return -EINVAL;
+
 		break;
-#endif
 	case SEG6_IPTUN_MODE_ENCAP:
+		break;
+	case SEG6_IPTUN_MODE_L2ENCAP:
 		break;
 	default:
 		return -EINVAL;
@@ -355,19 +418,20 @@ static int seg6_build_state(struct nlattr *nla,
 
 	slwt = seg6_lwt_lwtunnel(newts);
 
-#ifdef CONFIG_DST_CACHE
 	err = dst_cache_init(&slwt->cache, GFP_KERNEL);
 	if (err) {
 		kfree(newts);
 		return err;
 	}
-#endif
 
 	memcpy(&slwt->tuninfo, tuninfo, tuninfo_len);
 
 	newts->type = LWTUNNEL_ENCAP_SEG6;
-	newts->flags |= LWTUNNEL_STATE_OUTPUT_REDIRECT |
-			LWTUNNEL_STATE_INPUT_REDIRECT;
+	newts->flags |= LWTUNNEL_STATE_INPUT_REDIRECT;
+
+	if (tuninfo->mode != SEG6_IPTUN_MODE_L2ENCAP)
+		newts->flags |= LWTUNNEL_STATE_OUTPUT_REDIRECT;
+
 	newts->headroom = seg6_lwt_headroom(tuninfo);
 
 	*ts = newts;
@@ -375,12 +439,10 @@ static int seg6_build_state(struct nlattr *nla,
 	return 0;
 }
 
-#ifdef CONFIG_DST_CACHE
 static void seg6_destroy_state(struct lwtunnel_state *lwt)
 {
 	dst_cache_destroy(&seg6_lwt_lwtunnel(lwt)->cache);
 }
-#endif
 
 static int seg6_fill_encap_info(struct sk_buff *skb,
 				struct lwtunnel_state *lwtstate)
@@ -414,9 +476,7 @@ static int seg6_encap_cmp(struct lwtunnel_state *a, struct lwtunnel_state *b)
 
 static const struct lwtunnel_encap_ops seg6_iptun_ops = {
 	.build_state = seg6_build_state,
-#ifdef CONFIG_DST_CACHE
 	.destroy_state = seg6_destroy_state,
-#endif
 	.output = seg6_output,
 	.input = seg6_input,
 	.fill_encap = seg6_fill_encap_info,

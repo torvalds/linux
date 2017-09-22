@@ -186,12 +186,15 @@ Optional properties:
 	otherwise full reconfiguration is done.
 - external-fpga-config : boolean, set if the FPGA has already been configured
 	prior to OS boot up.
+- encrypted-fpga-config : boolean, set if the bitstream is encrypted
 - region-unfreeze-timeout-us : The maximum time in microseconds to wait for
 	bridges to successfully become enabled after the region has been
 	programmed.
 - region-freeze-timeout-us : The maximum time in microseconds to wait for
 	bridges to successfully become disabled before the region has been
 	programmed.
+- config-complete-timeout-us : The maximum time in microseconds time for the
+	FPGA to go to operating mode after the region has been programmed.
 - child nodes : devices in the FPGA after programming.
 
 In the example below, when an overlay is applied targeting fpga-region0,

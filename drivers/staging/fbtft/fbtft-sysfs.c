@@ -17,7 +17,7 @@ static int get_next_ulong(char **str_p, unsigned long *val, char *sep, int base)
 }
 
 int fbtft_gamma_parse_str(struct fbtft_par *par, u32 *curves,
-						const char *str, int size)
+			  const char *str, int size)
 {
 	char *str_p, *curve_p = NULL;
 	char *tmp;
@@ -107,8 +107,8 @@ sprintf_gamma(struct fbtft_par *par, u32 *curves, char *buf)
 }
 
 static ssize_t store_gamma_curve(struct device *device,
-					struct device_attribute *attr,
-					const char *buf, size_t count)
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
 {
 	struct fb_info *fb_info = dev_get_drvdata(device);
 	struct fbtft_par *par = fb_info->par;
@@ -125,7 +125,7 @@ static ssize_t store_gamma_curve(struct device *device,
 
 	mutex_lock(&par->gamma.lock);
 	memcpy(par->gamma.curves, tmp_curves,
-		par->gamma.num_curves * par->gamma.num_values * sizeof(tmp_curves[0]));
+	       par->gamma.num_curves * par->gamma.num_values * sizeof(tmp_curves[0]));
 	mutex_unlock(&par->gamma.lock);
 
 	return count;
@@ -172,8 +172,8 @@ void fbtft_expand_debug_value(unsigned long *debug)
 }
 
 static ssize_t store_debug(struct device *device,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	struct fb_info *fb_info = dev_get_drvdata(device);
 	struct fbtft_par *par = fb_info->par;
@@ -188,7 +188,7 @@ static ssize_t store_debug(struct device *device,
 }
 
 static ssize_t show_debug(struct device *device,
-				struct device_attribute *attr, char *buf)
+			  struct device_attribute *attr, char *buf)
 {
 	struct fb_info *fb_info = dev_get_drvdata(device);
 	struct fbtft_par *par = fb_info->par;
@@ -196,7 +196,7 @@ static ssize_t show_debug(struct device *device,
 	return snprintf(buf, PAGE_SIZE, "%lu\n", par->debug);
 }
 
-static struct device_attribute debug_device_attr = \
+static struct device_attribute debug_device_attr =
 	__ATTR(debug, 0660, show_debug, store_debug);
 
 void fbtft_sysfs_init(struct fbtft_par *par)

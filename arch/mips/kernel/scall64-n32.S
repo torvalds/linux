@@ -302,7 +302,7 @@ EXPORT(sysn32_call_table)
 	PTR	compat_sys_sched_getaffinity
 	PTR	sys_cacheflush
 	PTR	sys_cachectl
-	PTR	sys_sysmips
+	PTR	__sys_sysmips
 	PTR	compat_sys_io_setup			/* 6200 */
 	PTR	sys_io_destroy
 	PTR	compat_sys_io_getevents
@@ -433,4 +433,5 @@ EXPORT(sysn32_call_table)
 	PTR	sys_pkey_mprotect
 	PTR	sys_pkey_alloc
 	PTR	sys_pkey_free
+	PTR	sys_statx			/* 6330 */
 	.size	sysn32_call_table,.-sysn32_call_table

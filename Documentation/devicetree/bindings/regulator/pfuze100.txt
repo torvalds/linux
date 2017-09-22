@@ -13,7 +13,7 @@ Required child node:
   --PFUZE100
   sw1ab,sw1c,sw2,sw3a,sw3b,sw4,swbst,vsnvs,vrefddr,vgen1~vgen6
   --PFUZE200
-  sw1ab,sw2,sw3a,sw3b,swbst,vsnvs,vrefddr,vgen1~vgen6
+  sw1ab,sw2,sw3a,sw3b,swbst,vsnvs,vrefddr,vgen1~vgen6,coin
   --PFUZE3000
   sw1a,sw1b,sw2,sw3,swbst,vsnvs,vrefddr,vldo1,vldo2,vccsd,v33,vldo3,vldo4
 
@@ -202,6 +202,12 @@ Example 2: PFUZE200
 
 			vgen6_reg: vgen6 {
 				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+
+			coin_reg: coin {
+				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 			};

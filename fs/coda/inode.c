@@ -183,10 +183,6 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 		goto unlock_out;
 	}
 
-	error = bdi_setup_and_register(&vc->bdi, "coda");
-	if (error)
-		goto unlock_out;
-
 	vc->vc_sb = sb;
 	mutex_unlock(&vc->vc_mutex);
 
@@ -197,7 +193,10 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_magic = CODA_SUPER_MAGIC;
 	sb->s_op = &coda_super_operations;
 	sb->s_d_op = &coda_dentry_operations;
-	sb->s_bdi = &vc->bdi;
+
+	error = super_setup_bdi(sb);
+	if (error)
+		goto error;
 
 	/* get root fid from Venus: this needs the root inode */
 	error = venus_rootfid(sb, &fid);
@@ -228,7 +227,6 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 
 error:
 	mutex_lock(&vc->vc_mutex);
-	bdi_destroy(&vc->bdi);
 	vc->vc_sb = NULL;
 	sb->s_fs_info = NULL;
 unlock_out:
@@ -240,7 +238,6 @@ static void coda_put_super(struct super_block *sb)
 {
 	struct venus_comm *vcp = coda_vcp(sb);
 	mutex_lock(&vcp->vc_mutex);
-	bdi_destroy(&vcp->bdi);
 	vcp->vc_sb = NULL;
 	sb->s_fs_info = NULL;
 	mutex_unlock(&vcp->vc_mutex);

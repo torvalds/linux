@@ -381,7 +381,7 @@ MODULE_PARM_DESC(jpeg_enable, "Jpeg enable(1-on 0-off) default 1");
 
 /* USB device table */
 #define USB_SENSORAY_VID	0x1943
-static struct usb_device_id s2255_table[] = {
+static const struct usb_device_id s2255_table[] = {
 	{USB_DEVICE(USB_SENSORAY_VID, 0x2255)},
 	{USB_DEVICE(USB_SENSORAY_VID, 0x2257)}, /*same family as 2255*/
 	{ }			/* Terminating entry */
@@ -1590,7 +1590,7 @@ static void s2255_video_device_release(struct video_device *vdev)
 	return;
 }
 
-static struct video_device template = {
+static const struct video_device template = {
 	.name = "s2255v",
 	.fops = &s2255_fops_v4l,
 	.ioctl_ops = &s2255_ioctl_ops,
@@ -1803,6 +1803,8 @@ static int save_frame(struct s2255_dev *dev, struct s2255_pipeinfo *pipe_info)
 				default:
 					pr_info("s2255 unknown resp\n");
 				}
+				pdata++;
+				break;
 			default:
 				pdata++;
 				break;

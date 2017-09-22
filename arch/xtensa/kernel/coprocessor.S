@@ -26,30 +26,6 @@
 #include <asm/signal.h>
 #include <asm/tlbflush.h>
 
-/*
- * Entry condition:
- *
- *   a0:	trashed, original value saved on stack (PT_AREG0)
- *   a1:	a1
- *   a2:	new stack pointer, original in DEPC
- *   a3:	a3
- *   depc:	a2, original value saved on stack (PT_DEPC)
- *   excsave_1:	dispatch table
- *
- *   PT_DEPC >= VALID_DOUBLE_EXCEPTION_ADDRESS: double exception, DEPC
- *	     <  VALID_DOUBLE_EXCEPTION_ADDRESS: regular exception
- */
-
-/* IO protection is currently unsupported. */
-
-ENTRY(fast_io_protect)
-
-	wsr	a0, excsave1
-	movi	a0, unrecoverable_exception
-	callx0	a0
-
-ENDPROC(fast_io_protect)
-
 #if XTENSA_HAVE_COPROCESSORS
 
 /*

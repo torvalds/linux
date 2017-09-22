@@ -59,7 +59,9 @@ union ctlreg0 {
 		unsigned long lap  : 1; /* Low-address-protection control */
 		unsigned long	   : 4;
 		unsigned long edat : 1; /* Enhanced-DAT-enablement control */
-		unsigned long	   : 4;
+		unsigned long	   : 2;
+		unsigned long iep  : 1; /* Instruction-Execution-Protection */
+		unsigned long	   : 1;
 		unsigned long afp  : 1; /* AFP-register control */
 		unsigned long vx   : 1; /* Vector enablement control */
 		unsigned long	   : 7;

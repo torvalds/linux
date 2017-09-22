@@ -970,7 +970,7 @@ struct MPT3SAS_ADAPTER {
 	u8		id;
 	int		cpu_count;
 	char		name[MPT_NAME_LENGTH];
-	char		driver_name[MPT_NAME_LENGTH];
+	char		driver_name[MPT_NAME_LENGTH - 8];
 	char		tmp_string[MPT_STRING_LENGTH];
 	struct pci_dev	*pdev;
 	Mpi2SystemInterfaceRegs_t __iomem *chip;
@@ -1421,7 +1421,7 @@ void mpt3sas_ctl_add_to_event_log(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2EventNotificationReply_t *mpi_reply);
 
 void mpt3sas_enable_diag_buffer(struct MPT3SAS_ADAPTER *ioc,
-	u8 bits_to_regsiter);
+	u8 bits_to_register);
 int mpt3sas_send_diag_release(struct MPT3SAS_ADAPTER *ioc, u8 buffer_type,
 	u8 *issue_reset);
 

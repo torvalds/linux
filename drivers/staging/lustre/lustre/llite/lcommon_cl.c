@@ -37,24 +37,23 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../../include/linux/libcfs/libcfs.h"
-# include <linux/fs.h>
-# include <linux/sched.h>
-# include <linux/mm.h>
-# include <linux/quotaops.h>
-# include <linux/highmem.h>
-# include <linux/pagemap.h>
-# include <linux/rbtree.h>
+#include <linux/libcfs/libcfs.h>
+#include <linux/fs.h>
+#include <linux/sched.h>
+#include <linux/mm.h>
+#include <linux/quotaops.h>
+#include <linux/highmem.h>
+#include <linux/pagemap.h>
+#include <linux/rbtree.h>
 
-#include "../include/obd.h"
-#include "../include/obd_support.h"
-#include "../include/lustre_fid.h"
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_ver.h"
-#include "../include/lustre_mdc.h"
-#include "../include/cl_object.h"
+#include <obd.h>
+#include <obd_support.h>
+#include <lustre_fid.h>
+#include <lustre_dlm.h>
+#include <lustre_mdc.h>
+#include <cl_object.h>
 
-#include "../llite/llite_internal.h"
+#include "llite_internal.h"
 
 /*
  * ccc_ prefix stands for "Common Client Code".
@@ -72,7 +71,7 @@
  * mutex.
  */
 struct lu_env *cl_inode_fini_env;
-int cl_inode_fini_refcheck;
+u16 cl_inode_fini_refcheck;
 
 /**
  * A mutex serializing calls to slp_inode_fini() under extreme memory
@@ -86,7 +85,7 @@ int cl_setattr_ost(struct cl_object *obj, const struct iattr *attr,
 	struct lu_env *env;
 	struct cl_io  *io;
 	int	    result;
-	int	    refcheck;
+	u16 refcheck;
 
 	env = cl_env_get(&refcheck);
 	if (IS_ERR(env))
@@ -149,7 +148,7 @@ int cl_file_inode_init(struct inode *inode, struct lustre_md *md)
 		}
 	};
 	int result = 0;
-	int refcheck;
+	u16 refcheck;
 
 	LASSERT(md->body->mbo_valid & OBD_MD_FLID);
 	LASSERT(S_ISREG(inode->i_mode));
@@ -207,7 +206,7 @@ int cl_file_inode_init(struct inode *inode, struct lustre_md *md)
 static void cl_object_put_last(struct lu_env *env, struct cl_object *obj)
 {
 	struct lu_object_header *header = obj->co_lu.lo_header;
-	wait_queue_t	   waiter;
+	wait_queue_entry_t	   waiter;
 
 	if (unlikely(atomic_read(&header->loh_ref) != 1)) {
 		struct lu_site *site = obj->co_lu.lo_dev->ld_site;
@@ -237,7 +236,7 @@ void cl_inode_fini(struct inode *inode)
 	struct lu_env	   *env;
 	struct ll_inode_info    *lli  = ll_i2info(inode);
 	struct cl_object	*clob = lli->lli_clob;
-	int refcheck;
+	u16 refcheck;
 	int emergency;
 
 	if (clob) {

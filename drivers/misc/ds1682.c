@@ -173,7 +173,7 @@ static ssize_t ds1682_eeprom_write(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute ds1682_eeprom_attr = {
+static const struct bin_attribute ds1682_eeprom_attr = {
 	.attr = {
 		.name = "eeprom",
 		.mode = S_IRUGO | S_IWUSR,
@@ -227,9 +227,16 @@ static const struct i2c_device_id ds1682_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ds1682_id);
 
+static const struct of_device_id ds1682_of_match[] = {
+	{ .compatible = "dallas,ds1682", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, ds1682_of_match);
+
 static struct i2c_driver ds1682_driver = {
 	.driver = {
 		.name = "ds1682",
+		.of_match_table = ds1682_of_match,
 	},
 	.probe = ds1682_probe,
 	.remove = ds1682_remove,

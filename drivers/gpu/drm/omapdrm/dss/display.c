@@ -29,47 +29,6 @@
 #include <linux/of.h>
 
 #include "omapdss.h"
-#include "dss.h"
-#include "dss_features.h"
-
-void omapdss_default_get_resolution(struct omap_dss_device *dssdev,
-			u16 *xres, u16 *yres)
-{
-	*xres = dssdev->panel.vm.hactive;
-	*yres = dssdev->panel.vm.vactive;
-}
-EXPORT_SYMBOL(omapdss_default_get_resolution);
-
-int omapdss_default_get_recommended_bpp(struct omap_dss_device *dssdev)
-{
-	switch (dssdev->type) {
-	case OMAP_DISPLAY_TYPE_DPI:
-		if (dssdev->phy.dpi.data_lines == 24)
-			return 24;
-		else
-			return 16;
-
-	case OMAP_DISPLAY_TYPE_DBI:
-		if (dssdev->ctrl.pixel_size == 24)
-			return 24;
-		else
-			return 16;
-	case OMAP_DISPLAY_TYPE_DSI:
-		if (dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt) > 16)
-			return 24;
-		else
-			return 16;
-	case OMAP_DISPLAY_TYPE_VENC:
-	case OMAP_DISPLAY_TYPE_SDI:
-	case OMAP_DISPLAY_TYPE_HDMI:
-	case OMAP_DISPLAY_TYPE_DVI:
-		return 24;
-	default:
-		BUG();
-		return 0;
-	}
-}
-EXPORT_SYMBOL(omapdss_default_get_recommended_bpp);
 
 void omapdss_default_get_timings(struct omap_dss_device *dssdev,
 				 struct videomode *vm)
@@ -85,42 +44,37 @@ static int disp_num_counter;
 int omapdss_register_display(struct omap_dss_device *dssdev)
 {
 	struct omap_dss_driver *drv = dssdev->driver;
+	struct list_head *cur;
 	int id;
 
 	/*
-	 * Note: this presumes all the displays are either using DT or non-DT,
-	 * which normally should be the case. This also presumes that all
-	 * displays either have an DT alias, or none has.
+	 * Note: this presumes that all displays either have an DT alias, or
+	 * none has.
 	 */
-
-	if (dssdev->dev->of_node) {
-		id = of_alias_get_id(dssdev->dev->of_node, "display");
-
-		if (id < 0)
-			id = disp_num_counter++;
-	} else {
+	id = of_alias_get_id(dssdev->dev->of_node, "display");
+	if (id < 0)
 		id = disp_num_counter++;
-	}
 
 	snprintf(dssdev->alias, sizeof(dssdev->alias), "display%d", id);
 
 	/* Use 'label' property for name, if it exists */
-	if (dssdev->dev->of_node)
-		of_property_read_string(dssdev->dev->of_node, "label",
-			&dssdev->name);
+	of_property_read_string(dssdev->dev->of_node, "label", &dssdev->name);
 
 	if (dssdev->name == NULL)
 		dssdev->name = dssdev->alias;
 
-	if (drv && drv->get_resolution == NULL)
-		drv->get_resolution = omapdss_default_get_resolution;
-	if (drv && drv->get_recommended_bpp == NULL)
-		drv->get_recommended_bpp = omapdss_default_get_recommended_bpp;
 	if (drv && drv->get_timings == NULL)
 		drv->get_timings = omapdss_default_get_timings;
 
 	mutex_lock(&panel_list_mutex);
-	list_add_tail(&dssdev->panel_list, &panel_list);
+	list_for_each(cur, &panel_list) {
+		struct omap_dss_device *ldev = list_entry(cur,
+							 struct omap_dss_device,
+							 panel_list);
+		if (strcmp(ldev->alias, dssdev->alias) > 0)
+			break;
+	}
+	list_add_tail(&dssdev->panel_list, cur);
 	mutex_unlock(&panel_list_mutex);
 	return 0;
 }
@@ -133,6 +87,24 @@ void omapdss_unregister_display(struct omap_dss_device *dssdev)
 	mutex_unlock(&panel_list_mutex);
 }
 EXPORT_SYMBOL(omapdss_unregister_display);
+
+bool omapdss_component_is_display(struct device_node *node)
+{
+	struct omap_dss_device *dssdev;
+	bool found = false;
+
+	mutex_lock(&panel_list_mutex);
+	list_for_each_entry(dssdev, &panel_list, panel_list) {
+		if (dssdev->dev->of_node == node) {
+			found = true;
+			goto out;
+		}
+	}
+out:
+	mutex_unlock(&panel_list_mutex);
+	return found;
+}
+EXPORT_SYMBOL(omapdss_component_is_display);
 
 struct omap_dss_device *omap_dss_get_device(struct omap_dss_device *dssdev)
 {

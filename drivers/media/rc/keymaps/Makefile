@@ -57,7 +57,6 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-kworld-pc150u.o \
 			rc-kworld-plus-tv-analog.o \
 			rc-leadtek-y04g0051.o \
-			rc-lirc.o \
 			rc-lme2510.o \
 			rc-manli.o \
 			rc-medion-x10.o \
@@ -110,4 +109,5 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-videomate-tv-pvr.o \
 			rc-winfast.o \
 			rc-winfast-usbii-deluxe.o \
-			rc-su3000.o
+			rc-su3000.o \
+			rc-zx-irdec.o

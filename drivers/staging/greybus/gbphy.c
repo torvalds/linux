@@ -11,7 +11,6 @@
 
 #include <linux/types.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/device.h>
@@ -67,7 +66,7 @@ static const struct dev_pm_ops gb_gbphy_pm_ops = {
 			   gb_gbphy_idle)
 };
 
-static struct device_type greybus_gbphy_dev_type = {
+static const struct device_type greybus_gbphy_dev_type = {
 	.name	 =	"gbphy_device",
 	.release =	gbphy_dev_release,
 	.pm	=	&gb_gbphy_pm_ops,

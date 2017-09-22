@@ -140,7 +140,7 @@ typedef struct xfs_ifork {
 struct xfs_ifork *xfs_iext_state_to_fork(struct xfs_inode *ip, int state);
 
 int		xfs_iformat_fork(struct xfs_inode *, struct xfs_dinode *);
-int		xfs_iflush_fork(struct xfs_inode *, struct xfs_dinode *,
+void		xfs_iflush_fork(struct xfs_inode *, struct xfs_dinode *,
 				struct xfs_inode_log_item *, int);
 void		xfs_idestroy_fork(struct xfs_inode *, int);
 void		xfs_idata_realloc(struct xfs_inode *, int, int);
@@ -186,6 +186,8 @@ bool		xfs_iext_lookup_extent(struct xfs_inode *ip,
 			struct xfs_ifork *ifp, xfs_fileoff_t bno,
 			xfs_extnum_t *idxp, struct xfs_bmbt_irec *gotp);
 bool		xfs_iext_get_extent(struct xfs_ifork *ifp, xfs_extnum_t idx,
+			struct xfs_bmbt_irec *gotp);
+void		xfs_iext_update_extent(struct xfs_ifork *ifp, xfs_extnum_t idx,
 			struct xfs_bmbt_irec *gotp);
 
 extern struct kmem_zone	*xfs_ifork_zone;

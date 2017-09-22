@@ -148,6 +148,7 @@
 #define EM28178_BOARD_PLEX_PX_BCUD                98
 #define EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_DVB  99
 #define EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_01595 100
+#define EM2884_BOARD_TERRATEC_H6		  101
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
@@ -510,7 +511,6 @@ struct em28xx_v4l2 {
 
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler ctrl_handler;
-	struct v4l2_clk *clk;
 
 	struct video_device vdev;
 	struct video_device vbi_dev;

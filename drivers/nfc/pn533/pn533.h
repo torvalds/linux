@@ -231,6 +231,7 @@ struct pn533 *pn533_register_device(u32 device_type,
 				struct device *dev,
 				struct device *parent);
 
+int pn533_finalize_setup(struct pn533 *dev);
 void pn533_unregister_device(struct pn533 *priv);
 void pn533_recv_frame(struct pn533 *dev, struct sk_buff *skb, int status);
 

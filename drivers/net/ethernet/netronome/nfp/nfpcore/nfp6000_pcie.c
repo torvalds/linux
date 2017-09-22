@@ -119,6 +119,11 @@
 #define NFP_PCIE_EM                                     0x020000
 #define NFP_PCIE_SRAM                                   0x000000
 
+/* Minimal size of the PCIe cfg memory we depend on being mapped,
+ * queue controller and DMA controller don't have to be covered.
+ */
+#define NFP_PCI_MIN_MAP_SIZE				0x080000
+
 #define NFP_PCIE_P2C_FIXED_SIZE(bar)               (1 << (bar)->bitsize)
 #define NFP_PCIE_P2C_BULK_SIZE(bar)                (1 << (bar)->bitsize)
 #define NFP_PCIE_P2C_GENERAL_TARGET_OFFSET(bar, x) ((x) << ((bar)->bitsize - 2))
@@ -217,7 +222,7 @@ static resource_size_t nfp_bar_resource_start(struct nfp_bar *bar)
 #define TARGET_WIDTH_64    8
 
 static int
-compute_bar(struct nfp6000_pcie *nfp, struct nfp_bar *bar,
+compute_bar(const struct nfp6000_pcie *nfp, const struct nfp_bar *bar,
 	    u32 *bar_config, u64 *bar_base,
 	    int tgt, int act, int tok, u64 offset, size_t size, int width)
 {
@@ -410,35 +415,36 @@ find_matching_bar(struct nfp6000_pcie *nfp,
 
 /* Return EAGAIN if no resource is available */
 static int
-find_unused_bar_noblock(struct nfp6000_pcie *nfp,
+find_unused_bar_noblock(const struct nfp6000_pcie *nfp,
 			int tgt, int act, int tok,
 			u64 offset, size_t size, int width)
 {
-	int n, invalid = 0;
+	int n, busy = 0;
 
 	for (n = 0; n < nfp->bars; n++) {
-		struct nfp_bar *bar = &nfp->bar[n];
+		const struct nfp_bar *bar = &nfp->bar[n];
 		int err;
 
-		if (bar->bitsize == 0) {
-			invalid++;
-			continue;
-		}
-
-		if (atomic_read(&bar->refcnt) != 0)
+		if (!bar->bitsize)
 			continue;
 
 		/* Just check to see if we can make it fit... */
 		err = compute_bar(nfp, bar, NULL, NULL,
 				  tgt, act, tok, offset, size, width);
+		if (err)
+			continue;
 
-		if (err < 0)
-			invalid++;
-		else
+		if (!atomic_read(&bar->refcnt))
 			return n;
+
+		busy++;
 	}
 
-	return (n == invalid) ? -EINVAL : -EAGAIN;
+	if (WARN(!busy, "No suitable BAR found for request tgt:0x%x act:0x%x tok:0x%x off:0x%llx size:%zd width:%d\n",
+		 tgt, act, tok, offset, size, width))
+		return -EINVAL;
+
+	return -EAGAIN;
 }
 
 static int
@@ -582,9 +588,15 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 		NFP_PCIE_BAR_PCIE2CPP_MapType(
 			NFP_PCIE_BAR_PCIE2CPP_MapType_EXPLICIT3),
 	};
+	char status_msg[196] = {};
 	struct nfp_bar *bar;
 	int i, bars_free;
 	int expl_groups;
+	char *msg, *end;
+
+	msg = status_msg +
+		snprintf(status_msg, sizeof(status_msg) - 1, "RESERVED BARs: ");
+	end = status_msg + sizeof(status_msg) - 1;
 
 	bar = &nfp->bar[0];
 	for (i = 0; i < ARRAY_SIZE(nfp->bar); i++, bar++) {
@@ -627,34 +639,38 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 
 	/* Configure, and lock, BAR0.0 for General Target use (MSI-X SRAM) */
 	bar = &nfp->bar[0];
-	bar->iomem = ioremap_nocache(nfp_bar_resource_start(bar),
-				     nfp_bar_resource_len(bar));
+	if (nfp_bar_resource_len(bar) >= NFP_PCI_MIN_MAP_SIZE)
+		bar->iomem = ioremap_nocache(nfp_bar_resource_start(bar),
+					     nfp_bar_resource_len(bar));
 	if (bar->iomem) {
-		dev_info(nfp->dev,
-			 "BAR0.0 RESERVED: General Mapping/MSI-X SRAM\n");
+		msg += snprintf(msg, end - msg,	"0.0: General/MSI-X SRAM, ");
 		atomic_inc(&bar->refcnt);
 		bars_free--;
 
 		nfp6000_bar_write(nfp, bar, barcfg_msix_general);
 
 		nfp->expl.data = bar->iomem + NFP_PCIE_SRAM + 0x1000;
+
+		if (nfp->pdev->device == PCI_DEVICE_ID_NETRONOME_NFP4000 ||
+		    nfp->pdev->device == PCI_DEVICE_ID_NETRONOME_NFP6000) {
+			nfp->iomem.csr = bar->iomem + NFP_PCIE_BAR(0);
+		} else {
+			int pf = nfp->pdev->devfn & 7;
+
+			nfp->iomem.csr = bar->iomem + NFP_PCIE_BAR(pf);
+		}
+		nfp->iomem.em = bar->iomem + NFP_PCIE_EM;
 	}
 
 	if (nfp->pdev->device == PCI_DEVICE_ID_NETRONOME_NFP4000 ||
-	    nfp->pdev->device == PCI_DEVICE_ID_NETRONOME_NFP6000) {
-		nfp->iomem.csr = bar->iomem + NFP_PCIE_BAR(0);
+	    nfp->pdev->device == PCI_DEVICE_ID_NETRONOME_NFP6000)
 		expl_groups = 4;
-	} else {
-		int pf = nfp->pdev->devfn & 7;
-
-		nfp->iomem.csr = bar->iomem + NFP_PCIE_BAR(pf);
+	else
 		expl_groups = 1;
-	}
-	nfp->iomem.em = bar->iomem + NFP_PCIE_EM;
 
 	/* Configure, and lock, BAR0.1 for PCIe XPB (MSI-X PBA) */
 	bar = &nfp->bar[1];
-	dev_info(nfp->dev, "BAR0.1 RESERVED: PCIe XPB/MSI-X PBA\n");
+	msg += snprintf(msg, end - msg, "0.1: PCIe XPB/MSI-X PBA, ");
 	atomic_inc(&bar->refcnt);
 	bars_free--;
 
@@ -673,9 +689,8 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 		bar->iomem = ioremap_nocache(nfp_bar_resource_start(bar),
 					     nfp_bar_resource_len(bar));
 		if (bar->iomem) {
-			dev_info(nfp->dev,
-				 "BAR0.%d RESERVED: Explicit%d Mapping\n",
-				 4 + i, i);
+			msg += snprintf(msg, end - msg,
+					"0.%d: Explicit%d, ", 4 + i, i);
 			atomic_inc(&bar->refcnt);
 			bars_free--;
 
@@ -693,8 +708,7 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 	sort(&nfp->bar[0], nfp->bars, sizeof(nfp->bar[0]),
 	     bar_cmp, NULL);
 
-	dev_info(nfp->dev, "%d NFP PCI2CPP BARs, %d free\n",
-		 nfp->bars, bars_free);
+	dev_info(nfp->dev, "%sfree: %d/%d\n", status_msg, bars_free, nfp->bars);
 
 	return 0;
 }

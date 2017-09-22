@@ -100,5 +100,6 @@ void __init initmem_init(void)
 	printk(KERN_DEBUG "High memory starts at vaddr %08lx\n",
 			(ulong) pfn_to_kaddr(highstart_pfn));
 
+	__vmalloc_start_set = true;
 	setup_bootmem_allocator();
 }

@@ -53,6 +53,7 @@
 #include <linux/uaccess.h>
 #include <linux/rcupdate.h>
 #include <linux/random.h>
+#include <linux/nmi.h>
 
 #include <asm/io.h>
 #include <asm/asm-offsets.h>
@@ -143,6 +144,9 @@ void machine_power_off(void)
 	printk(KERN_EMERG "System shut down completed.\n"
 	       "Please power this system off now.");
 
+	/* prevent soft lockup/stalled CPU messages for endless loop. */
+	rcu_sysrq_start();
+	lockup_detector_suspend();
 	for (;;);
 }
 
@@ -235,11 +239,6 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 	}
 
 	return 0;
-}
-
-unsigned long thread_saved_pc(struct task_struct *t)
-{
-	return t->thread.regs.kpc;
 }
 
 unsigned long

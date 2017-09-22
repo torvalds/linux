@@ -81,7 +81,6 @@ static int armada_fb_create(struct drm_fb_helper *fbh,
 
 	strlcpy(info->fix.id, "armada-drmfb", sizeof(info->fix.id));
 	info->par = fbh;
-	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &armada_fb_ops;
 	info->fix.smem_start = obj->phys_addr;
 	info->fix.smem_len = obj->obj.size;
@@ -118,8 +117,6 @@ static int armada_fb_probe(struct drm_fb_helper *fbh,
 }
 
 static const struct drm_fb_helper_funcs armada_fb_helper_funcs = {
-	.gamma_set	= armada_drm_crtc_gamma_set,
-	.gamma_get	= armada_drm_crtc_gamma_get,
 	.fb_probe	= armada_fb_probe,
 };
 
@@ -157,7 +154,6 @@ int armada_fbdev_init(struct drm_device *dev)
 
 	return 0;
  err_fb_setup:
-	drm_fb_helper_release_fbi(fbh);
 	drm_fb_helper_fini(fbh);
  err_fb_helper:
 	priv->fbdev = NULL;
@@ -179,7 +175,6 @@ void armada_fbdev_fini(struct drm_device *dev)
 
 	if (fbh) {
 		drm_fb_helper_unregister_fbi(fbh);
-		drm_fb_helper_release_fbi(fbh);
 
 		drm_fb_helper_fini(fbh);
 

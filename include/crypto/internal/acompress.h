@@ -78,4 +78,7 @@ int crypto_register_acomp(struct acomp_alg *alg);
  */
 int crypto_unregister_acomp(struct acomp_alg *alg);
 
+int crypto_register_acomps(struct acomp_alg *algs, int count);
+void crypto_unregister_acomps(struct acomp_alg *algs, int count);
+
 #endif

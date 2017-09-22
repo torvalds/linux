@@ -37,21 +37,16 @@ int get_compat_msghdr(struct msghdr *kmsg,
 		      struct sockaddr __user **save_addr,
 		      struct iovec **iov)
 {
-	compat_uptr_t uaddr, uiov, tmp3;
-	compat_size_t nr_segs;
+	struct compat_msghdr msg;
 	ssize_t err;
 
-	if (!access_ok(VERIFY_READ, umsg, sizeof(*umsg)) ||
-	    __get_user(uaddr, &umsg->msg_name) ||
-	    __get_user(kmsg->msg_namelen, &umsg->msg_namelen) ||
-	    __get_user(uiov, &umsg->msg_iov) ||
-	    __get_user(nr_segs, &umsg->msg_iovlen) ||
-	    __get_user(tmp3, &umsg->msg_control) ||
-	    __get_user(kmsg->msg_controllen, &umsg->msg_controllen) ||
-	    __get_user(kmsg->msg_flags, &umsg->msg_flags))
+	if (copy_from_user(&msg, umsg, sizeof(*umsg)))
 		return -EFAULT;
 
-	if (!uaddr)
+	kmsg->msg_flags = msg.msg_flags;
+	kmsg->msg_namelen = msg.msg_namelen;
+
+	if (!msg.msg_name)
 		kmsg->msg_namelen = 0;
 
 	if (kmsg->msg_namelen < 0)
@@ -59,14 +54,16 @@ int get_compat_msghdr(struct msghdr *kmsg,
 
 	if (kmsg->msg_namelen > sizeof(struct sockaddr_storage))
 		kmsg->msg_namelen = sizeof(struct sockaddr_storage);
-	kmsg->msg_control = compat_ptr(tmp3);
+
+	kmsg->msg_control = compat_ptr(msg.msg_control);
+	kmsg->msg_controllen = msg.msg_controllen;
 
 	if (save_addr)
-		*save_addr = compat_ptr(uaddr);
+		*save_addr = compat_ptr(msg.msg_name);
 
-	if (uaddr && kmsg->msg_namelen) {
+	if (msg.msg_name && kmsg->msg_namelen) {
 		if (!save_addr) {
-			err = move_addr_to_kernel(compat_ptr(uaddr),
+			err = move_addr_to_kernel(compat_ptr(msg.msg_name),
 						  kmsg->msg_namelen,
 						  kmsg->msg_name);
 			if (err < 0)
@@ -77,13 +74,13 @@ int get_compat_msghdr(struct msghdr *kmsg,
 		kmsg->msg_namelen = 0;
 	}
 
-	if (nr_segs > UIO_MAXIOV)
+	if (msg.msg_iovlen > UIO_MAXIOV)
 		return -EMSGSIZE;
 
 	kmsg->msg_iocb = NULL;
 
 	return compat_import_iovec(save_addr ? READ : WRITE,
-				   compat_ptr(uiov), nr_segs,
+				   compat_ptr(msg.msg_iov), msg.msg_iovlen,
 				   UIO_FASTIOV, iov, &kmsg->msg_iter);
 }
 
@@ -316,15 +313,15 @@ struct sock_fprog __user *get_compat_bpf_fprog(char __user *optval)
 {
 	struct compat_sock_fprog __user *fprog32 = (struct compat_sock_fprog __user *)optval;
 	struct sock_fprog __user *kfprog = compat_alloc_user_space(sizeof(struct sock_fprog));
-	compat_uptr_t ptr;
-	u16 len;
+	struct compat_sock_fprog f32;
+	struct sock_fprog f;
 
-	if (!access_ok(VERIFY_READ, fprog32, sizeof(*fprog32)) ||
-	    !access_ok(VERIFY_WRITE, kfprog, sizeof(struct sock_fprog)) ||
-	    __get_user(len, &fprog32->len) ||
-	    __get_user(ptr, &fprog32->filter) ||
-	    __put_user(len, &kfprog->len) ||
-	    __put_user(compat_ptr(ptr), &kfprog->filter))
+	if (copy_from_user(&f32, fprog32, sizeof(*fprog32)))
+		return NULL;
+	memset(&f, 0, sizeof(f));
+	f.len = f32.len;
+	f.filter = compat_ptr(f32.filter);
+	if (copy_to_user(kfprog, &f, sizeof(struct sock_fprog)))
 		return NULL;
 
 	return kfprog;

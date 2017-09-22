@@ -397,7 +397,7 @@ static struct tda10086_config tda10086_config = {
 	.xtal_freq = TDA10086_XTAL_16M,
 };
 
-static struct stv0299_config alps_bsru6_config_activy = {
+static const struct stv0299_config alps_bsru6_config_activy = {
 	.demod_address = 0x68,
 	.inittab = alps_bsru6_inittab,
 	.mclk = 88000000UL,
@@ -407,7 +407,7 @@ static struct stv0299_config alps_bsru6_config_activy = {
 	.set_symbol_rate = alps_bsru6_set_symbol_rate,
 };
 
-static struct stv0299_config alps_bsbe1_config_activy = {
+static const struct stv0299_config alps_bsbe1_config_activy = {
 	.demod_address = 0x68,
 	.inittab = alps_bsbe1_inittab,
 	.mclk = 88000000UL,
@@ -845,7 +845,7 @@ MAKE_BUDGET_INFO(fsact1, "Fujitsu Siemens Activy Budget-T PCI (rev AL/ALPS TDHD1
 MAKE_BUDGET_INFO(omicom, "Omicom S2 PCI", BUDGET_TT);
 MAKE_BUDGET_INFO(sylt,   "Philips Semi Sylt PCI", BUDGET_TT_HW_DISEQC);
 
-static struct pci_device_id pci_tbl[] = {
+static const struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(ttbs,  0x13c2, 0x1003),
 	MAKE_EXTENSION_PCI(ttbc,  0x13c2, 0x1004),
 	MAKE_EXTENSION_PCI(ttbt,  0x13c2, 0x1005),

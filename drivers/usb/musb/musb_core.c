@@ -1156,8 +1156,8 @@ static struct musb_fifo_cfg mode_2_cfg[] = {
 { .hw_ep_num = 1, .style = FIFO_RX,   .maxpacket = 512, },
 { .hw_ep_num = 2, .style = FIFO_TX,   .maxpacket = 512, },
 { .hw_ep_num = 2, .style = FIFO_RX,   .maxpacket = 512, },
-{ .hw_ep_num = 3, .style = FIFO_RXTX, .maxpacket = 256, },
-{ .hw_ep_num = 4, .style = FIFO_RXTX, .maxpacket = 256, },
+{ .hw_ep_num = 3, .style = FIFO_RXTX, .maxpacket = 960, },
+{ .hw_ep_num = 4, .style = FIFO_RXTX, .maxpacket = 1024, },
 };
 
 /* mode 3 - fits in 4KB */
@@ -2224,6 +2224,9 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 		musb->io.ep_select = musb_flat_ep_select;
 	}
 
+	if (musb->io.quirks & MUSB_G_NO_SKB_RESERVE)
+		musb->g.quirk_avoids_skb_reserve = 1;
+
 	/* At least tusb6010 has its own offsets */
 	if (musb->ops->ep_offset)
 		musb->io.ep_offset = musb->ops->ep_offset;
@@ -2332,7 +2335,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	setup_timer(&musb->otg_timer, musb_otg_timer_func, (unsigned long) musb);
 
 	/* attach to the IRQ */
-	if (request_irq(nIrq, musb->isr, 0, dev_name(dev), musb)) {
+	if (request_irq(nIrq, musb->isr, IRQF_SHARED, dev_name(dev), musb)) {
 		dev_err(dev, "request_irq %d failed!\n", nIrq);
 		status = -ENODEV;
 		goto fail3;
@@ -2490,8 +2493,8 @@ static int musb_remove(struct platform_device *pdev)
 	musb_host_cleanup(musb);
 	musb_gadget_cleanup(musb);
 
-	spin_lock_irqsave(&musb->lock, flags);
 	musb_platform_disable(musb);
+	spin_lock_irqsave(&musb->lock, flags);
 	musb_disable_interrupts(musb);
 	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 	spin_unlock_irqrestore(&musb->lock, flags);
@@ -2668,6 +2671,13 @@ static int musb_suspend(struct device *dev)
 {
 	struct musb	*musb = dev_to_musb(dev);
 	unsigned long	flags;
+	int ret;
+
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(dev);
+		return ret;
+	}
 
 	musb_platform_disable(musb);
 	musb_disable_interrupts(musb);
@@ -2718,14 +2728,6 @@ static int musb_resume(struct device *dev)
 	if ((devctl & mask) != (musb->context.devctl & mask))
 		musb->port1_status = 0;
 
-	/*
-	 * The USB HUB code expects the device to be in RPM_ACTIVE once it came
-	 * out of suspend
-	 */
-	pm_runtime_disable(dev);
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-
 	musb_start(musb);
 
 	spin_lock_irqsave(&musb->lock, flags);
@@ -2734,6 +2736,9 @@ static int musb_resume(struct device *dev)
 		dev_err(musb->controller, "resume work failed with %i\n",
 			error);
 	spin_unlock_irqrestore(&musb->lock, flags);
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	return 0;
 }

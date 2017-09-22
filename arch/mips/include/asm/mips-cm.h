@@ -8,16 +8,18 @@
  * option) any later version.
  */
 
+#ifndef __MIPS_ASM_MIPS_CPS_H__
+# error Please include asm/mips-cps.h rather than asm/mips-cm.h
+#endif
+
 #ifndef __MIPS_ASM_MIPS_CM_H__
 #define __MIPS_ASM_MIPS_CM_H__
 
 #include <linux/bitops.h>
 #include <linux/errno.h>
-#include <linux/io.h>
-#include <linux/types.h>
 
 /* The base address of the CM GCR block */
-extern void __iomem *mips_cm_base;
+extern void __iomem *mips_gcr_base;
 
 /* The base address of the CM L2-only sync region */
 extern void __iomem *mips_cm_l2sync_base;
@@ -80,7 +82,7 @@ static inline int mips_cm_probe(void)
 static inline bool mips_cm_present(void)
 {
 #ifdef CONFIG_MIPS_CM
-	return mips_cm_base != NULL;
+	return mips_gcr_base != NULL;
 #else
 	return false;
 #endif
@@ -112,321 +114,219 @@ static inline bool mips_cm_has_l2sync(void)
 /* Size of the L2-only sync region */
 #define MIPS_CM_L2SYNC_SIZE	0x1000
 
-/* Macros to ease the creation of register access functions */
-#define BUILD_CM_R_(name, off)					\
-static inline unsigned long __iomem *addr_gcr_##name(void)	\
-{								\
-	return (unsigned long __iomem *)(mips_cm_base + (off));	\
-}								\
-								\
-static inline u32 read32_gcr_##name(void)			\
-{								\
-	return __raw_readl(addr_gcr_##name());			\
-}								\
-								\
-static inline u64 read64_gcr_##name(void)			\
-{								\
-	void __iomem *addr = addr_gcr_##name();			\
-	u64 ret;						\
-								\
-	if (mips_cm_is64) {					\
-		ret = __raw_readq(addr);			\
-	} else {						\
-		ret = __raw_readl(addr);			\
-		ret |= (u64)__raw_readl(addr + 0x4) << 32;	\
-	}							\
-								\
-	return ret;						\
-}								\
-								\
-static inline unsigned long read_gcr_##name(void)		\
-{								\
-	if (mips_cm_is64)					\
-		return read64_gcr_##name();			\
-	else							\
-		return read32_gcr_##name();			\
-}
+#define GCR_ACCESSOR_RO(sz, off, name)					\
+	CPS_ACCESSOR_RO(gcr, sz, MIPS_CM_GCB_OFS + off, name)		\
+	CPS_ACCESSOR_RO(gcr, sz, MIPS_CM_COCB_OFS + off, redir_##name)
 
-#define BUILD_CM__W(name, off)					\
-static inline void write32_gcr_##name(u32 value)		\
-{								\
-	__raw_writel(value, addr_gcr_##name());			\
-}								\
-								\
-static inline void write64_gcr_##name(u64 value)		\
-{								\
-	__raw_writeq(value, addr_gcr_##name());			\
-}								\
-								\
-static inline void write_gcr_##name(unsigned long value)	\
-{								\
-	if (mips_cm_is64)					\
-		write64_gcr_##name(value);			\
-	else							\
-		write32_gcr_##name(value);			\
-}
+#define GCR_ACCESSOR_RW(sz, off, name)					\
+	CPS_ACCESSOR_RW(gcr, sz, MIPS_CM_GCB_OFS + off, name)		\
+	CPS_ACCESSOR_RW(gcr, sz, MIPS_CM_COCB_OFS + off, redir_##name)
 
-#define BUILD_CM_RW(name, off)					\
-	BUILD_CM_R_(name, off)					\
-	BUILD_CM__W(name, off)
+#define GCR_CX_ACCESSOR_RO(sz, off, name)				\
+	CPS_ACCESSOR_RO(gcr, sz, MIPS_CM_CLCB_OFS + off, cl_##name)	\
+	CPS_ACCESSOR_RO(gcr, sz, MIPS_CM_COCB_OFS + off, co_##name)
 
-#define BUILD_CM_Cx_R_(name, off)				\
-	BUILD_CM_R_(cl_##name, MIPS_CM_CLCB_OFS + (off))	\
-	BUILD_CM_R_(co_##name, MIPS_CM_COCB_OFS + (off))
+#define GCR_CX_ACCESSOR_RW(sz, off, name)				\
+	CPS_ACCESSOR_RW(gcr, sz, MIPS_CM_CLCB_OFS + off, cl_##name)	\
+	CPS_ACCESSOR_RW(gcr, sz, MIPS_CM_COCB_OFS + off, co_##name)
 
-#define BUILD_CM_Cx__W(name, off)				\
-	BUILD_CM__W(cl_##name, MIPS_CM_CLCB_OFS + (off))	\
-	BUILD_CM__W(co_##name, MIPS_CM_COCB_OFS + (off))
+/* GCR_CONFIG - Information about the system */
+GCR_ACCESSOR_RO(64, 0x000, config)
+#define CM_GCR_CONFIG_CLUSTER_COH_CAPABLE	BIT_ULL(43)
+#define CM_GCR_CONFIG_CLUSTER_ID		GENMASK_ULL(39, 32)
+#define CM_GCR_CONFIG_NUM_CLUSTERS		GENMASK(29, 23)
+#define CM_GCR_CONFIG_NUMIOCU			GENMASK(15, 8)
+#define CM_GCR_CONFIG_PCORES			GENMASK(7, 0)
 
-#define BUILD_CM_Cx_RW(name, off)				\
-	BUILD_CM_Cx_R_(name, off)				\
-	BUILD_CM_Cx__W(name, off)
-
-/* GCB register accessor functions */
-BUILD_CM_R_(config,		MIPS_CM_GCB_OFS + 0x00)
-BUILD_CM_RW(base,		MIPS_CM_GCB_OFS + 0x08)
-BUILD_CM_RW(access,		MIPS_CM_GCB_OFS + 0x20)
-BUILD_CM_R_(rev,		MIPS_CM_GCB_OFS + 0x30)
-BUILD_CM_RW(err_control,	MIPS_CM_GCB_OFS + 0x38)
-BUILD_CM_RW(error_mask,		MIPS_CM_GCB_OFS + 0x40)
-BUILD_CM_RW(error_cause,	MIPS_CM_GCB_OFS + 0x48)
-BUILD_CM_RW(error_addr,		MIPS_CM_GCB_OFS + 0x50)
-BUILD_CM_RW(error_mult,		MIPS_CM_GCB_OFS + 0x58)
-BUILD_CM_RW(l2_only_sync_base,	MIPS_CM_GCB_OFS + 0x70)
-BUILD_CM_RW(gic_base,		MIPS_CM_GCB_OFS + 0x80)
-BUILD_CM_RW(cpc_base,		MIPS_CM_GCB_OFS + 0x88)
-BUILD_CM_RW(reg0_base,		MIPS_CM_GCB_OFS + 0x90)
-BUILD_CM_RW(reg0_mask,		MIPS_CM_GCB_OFS + 0x98)
-BUILD_CM_RW(reg1_base,		MIPS_CM_GCB_OFS + 0xa0)
-BUILD_CM_RW(reg1_mask,		MIPS_CM_GCB_OFS + 0xa8)
-BUILD_CM_RW(reg2_base,		MIPS_CM_GCB_OFS + 0xb0)
-BUILD_CM_RW(reg2_mask,		MIPS_CM_GCB_OFS + 0xb8)
-BUILD_CM_RW(reg3_base,		MIPS_CM_GCB_OFS + 0xc0)
-BUILD_CM_RW(reg3_mask,		MIPS_CM_GCB_OFS + 0xc8)
-BUILD_CM_R_(gic_status,		MIPS_CM_GCB_OFS + 0xd0)
-BUILD_CM_R_(cpc_status,		MIPS_CM_GCB_OFS + 0xf0)
-BUILD_CM_RW(l2_config,		MIPS_CM_GCB_OFS + 0x130)
-BUILD_CM_RW(sys_config2,	MIPS_CM_GCB_OFS + 0x150)
-BUILD_CM_RW(l2_pft_control,	MIPS_CM_GCB_OFS + 0x300)
-BUILD_CM_RW(l2_pft_control_b,	MIPS_CM_GCB_OFS + 0x308)
-BUILD_CM_RW(bev_base,		MIPS_CM_GCB_OFS + 0x680)
-
-/* Core Local & Core Other register accessor functions */
-BUILD_CM_Cx_RW(reset_release,	0x00)
-BUILD_CM_Cx_RW(coherence,	0x08)
-BUILD_CM_Cx_R_(config,		0x10)
-BUILD_CM_Cx_RW(other,		0x18)
-BUILD_CM_Cx_RW(reset_base,	0x20)
-BUILD_CM_Cx_R_(id,		0x28)
-BUILD_CM_Cx_RW(reset_ext_base,	0x30)
-BUILD_CM_Cx_R_(tcid_0_priority,	0x40)
-BUILD_CM_Cx_R_(tcid_1_priority,	0x48)
-BUILD_CM_Cx_R_(tcid_2_priority,	0x50)
-BUILD_CM_Cx_R_(tcid_3_priority,	0x58)
-BUILD_CM_Cx_R_(tcid_4_priority,	0x60)
-BUILD_CM_Cx_R_(tcid_5_priority,	0x68)
-BUILD_CM_Cx_R_(tcid_6_priority,	0x70)
-BUILD_CM_Cx_R_(tcid_7_priority,	0x78)
-BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
-
-/* GCR_CONFIG register fields */
-#define CM_GCR_CONFIG_NUMIOCU_SHF		8
-#define CM_GCR_CONFIG_NUMIOCU_MSK		(_ULCAST_(0xf) << 8)
-#define CM_GCR_CONFIG_PCORES_SHF		0
-#define CM_GCR_CONFIG_PCORES_MSK		(_ULCAST_(0xff) << 0)
-
-/* GCR_BASE register fields */
-#define CM_GCR_BASE_GCRBASE_SHF			15
-#define CM_GCR_BASE_GCRBASE_MSK			(_ULCAST_(0x1ffff) << 15)
-#define CM_GCR_BASE_CMDEFTGT_SHF		0
-#define CM_GCR_BASE_CMDEFTGT_MSK		(_ULCAST_(0x3) << 0)
+/* GCR_BASE - Base address of the Global Configuration Registers (GCRs) */
+GCR_ACCESSOR_RW(64, 0x008, base)
+#define CM_GCR_BASE_GCRBASE			GENMASK_ULL(47, 15)
+#define CM_GCR_BASE_CMDEFTGT			GENMASK(1, 0)
 #define  CM_GCR_BASE_CMDEFTGT_DISABLED		0
 #define  CM_GCR_BASE_CMDEFTGT_MEM		1
 #define  CM_GCR_BASE_CMDEFTGT_IOCU0		2
 #define  CM_GCR_BASE_CMDEFTGT_IOCU1		3
 
-/* GCR_RESET_EXT_BASE register fields */
-#define CM_GCR_RESET_EXT_BASE_EVARESET		BIT(31)
-#define CM_GCR_RESET_EXT_BASE_UEB		BIT(30)
+/* GCR_ACCESS - Controls core/IOCU access to GCRs */
+GCR_ACCESSOR_RW(32, 0x020, access)
+#define CM_GCR_ACCESS_ACCESSEN			GENMASK(7, 0)
 
-/* GCR_ACCESS register fields */
-#define CM_GCR_ACCESS_ACCESSEN_SHF		0
-#define CM_GCR_ACCESS_ACCESSEN_MSK		(_ULCAST_(0xff) << 0)
-
-/* GCR_REV register fields */
-#define CM_GCR_REV_MAJOR_SHF			8
-#define CM_GCR_REV_MAJOR_MSK			(_ULCAST_(0xff) << 8)
-#define CM_GCR_REV_MINOR_SHF			0
-#define CM_GCR_REV_MINOR_MSK			(_ULCAST_(0xff) << 0)
+/* GCR_REV - Indicates the Coherence Manager revision */
+GCR_ACCESSOR_RO(32, 0x030, rev)
+#define CM_GCR_REV_MAJOR			GENMASK(15, 8)
+#define CM_GCR_REV_MINOR			GENMASK(7, 0)
 
 #define CM_ENCODE_REV(major, minor) \
-		(((major) << CM_GCR_REV_MAJOR_SHF) | \
-		 ((minor) << CM_GCR_REV_MINOR_SHF))
+		(((major) << __ffs(CM_GCR_REV_MAJOR)) | \
+		 ((minor) << __ffs(CM_GCR_REV_MINOR)))
 
 #define CM_REV_CM2				CM_ENCODE_REV(6, 0)
 #define CM_REV_CM2_5				CM_ENCODE_REV(7, 0)
 #define CM_REV_CM3				CM_ENCODE_REV(8, 0)
+#define CM_REV_CM3_5				CM_ENCODE_REV(9, 0)
 
-/* GCR_ERR_CONTROL register fields */
-#define CM_GCR_ERR_CONTROL_L2_ECC_EN_SHF	1
-#define CM_GCR_ERR_CONTROL_L2_ECC_EN_MSK	(_ULCAST_(0x1) << 1)
-#define CM_GCR_ERR_CONTROL_L2_ECC_SUPPORT_SHF	0
-#define CM_GCR_ERR_CONTROL_L2_ECC_SUPPORT_MSK	(_ULCAST_(0x1) << 0)
+/* GCR_ERR_CONTROL - Control error checking logic */
+GCR_ACCESSOR_RW(32, 0x038, err_control)
+#define CM_GCR_ERR_CONTROL_L2_ECC_EN		BIT(1)
+#define CM_GCR_ERR_CONTROL_L2_ECC_SUPPORT	BIT(0)
 
-/* GCR_ERROR_CAUSE register fields */
-#define CM_GCR_ERROR_CAUSE_ERRTYPE_SHF		27
-#define CM_GCR_ERROR_CAUSE_ERRTYPE_MSK		(_ULCAST_(0x1f) << 27)
-#define CM3_GCR_ERROR_CAUSE_ERRTYPE_SHF		58
-#define CM3_GCR_ERROR_CAUSE_ERRTYPE_MSK		GENMASK_ULL(63, 58)
-#define CM_GCR_ERROR_CAUSE_ERRINFO_SHF		0
-#define CM_GCR_ERROR_CAUSE_ERRINGO_MSK		(_ULCAST_(0x7ffffff) << 0)
+/* GCR_ERR_MASK - Control which errors are reported as interrupts */
+GCR_ACCESSOR_RW(64, 0x040, error_mask)
 
-/* GCR_ERROR_MULT register fields */
-#define CM_GCR_ERROR_MULT_ERR2ND_SHF		0
-#define CM_GCR_ERROR_MULT_ERR2ND_MSK		(_ULCAST_(0x1f) << 0)
+/* GCR_ERR_CAUSE - Indicates the type of error that occurred */
+GCR_ACCESSOR_RW(64, 0x048, error_cause)
+#define CM_GCR_ERROR_CAUSE_ERRTYPE		GENMASK(31, 27)
+#define CM3_GCR_ERROR_CAUSE_ERRTYPE		GENMASK_ULL(63, 58)
+#define CM_GCR_ERROR_CAUSE_ERRINFO		GENMASK(26, 0)
 
-/* GCR_L2_ONLY_SYNC_BASE register fields */
-#define CM_GCR_L2_ONLY_SYNC_BASE_SYNCBASE_SHF	12
-#define CM_GCR_L2_ONLY_SYNC_BASE_SYNCBASE_MSK	(_ULCAST_(0xfffff) << 12)
-#define CM_GCR_L2_ONLY_SYNC_BASE_SYNCEN_SHF	0
-#define CM_GCR_L2_ONLY_SYNC_BASE_SYNCEN_MSK	(_ULCAST_(0x1) << 0)
+/* GCR_ERR_ADDR - Indicates the address associated with an error */
+GCR_ACCESSOR_RW(64, 0x050, error_addr)
 
-/* GCR_GIC_BASE register fields */
-#define CM_GCR_GIC_BASE_GICBASE_SHF		17
-#define CM_GCR_GIC_BASE_GICBASE_MSK		(_ULCAST_(0x7fff) << 17)
-#define CM_GCR_GIC_BASE_GICEN_SHF		0
-#define CM_GCR_GIC_BASE_GICEN_MSK		(_ULCAST_(0x1) << 0)
+/* GCR_ERR_MULT - Indicates when multiple errors have occurred */
+GCR_ACCESSOR_RW(64, 0x058, error_mult)
+#define CM_GCR_ERROR_MULT_ERR2ND		GENMASK(4, 0)
 
-/* GCR_CPC_BASE register fields */
-#define CM_GCR_CPC_BASE_CPCBASE_SHF		15
-#define CM_GCR_CPC_BASE_CPCBASE_MSK		(_ULCAST_(0x1ffff) << 15)
-#define CM_GCR_CPC_BASE_CPCEN_SHF		0
-#define CM_GCR_CPC_BASE_CPCEN_MSK		(_ULCAST_(0x1) << 0)
+/* GCR_L2_ONLY_SYNC_BASE - Base address of the L2 cache-only sync region */
+GCR_ACCESSOR_RW(64, 0x070, l2_only_sync_base)
+#define CM_GCR_L2_ONLY_SYNC_BASE_SYNCBASE	GENMASK(31, 12)
+#define CM_GCR_L2_ONLY_SYNC_BASE_SYNCEN		BIT(0)
 
-/* GCR_GIC_STATUS register fields */
-#define CM_GCR_GIC_STATUS_GICEX_SHF		0
-#define CM_GCR_GIC_STATUS_GICEX_MSK		(_ULCAST_(0x1) << 0)
+/* GCR_GIC_BASE - Base address of the Global Interrupt Controller (GIC) */
+GCR_ACCESSOR_RW(64, 0x080, gic_base)
+#define CM_GCR_GIC_BASE_GICBASE			GENMASK(31, 17)
+#define CM_GCR_GIC_BASE_GICEN			BIT(0)
 
-/* GCR_REGn_BASE register fields */
-#define CM_GCR_REGn_BASE_BASEADDR_SHF		16
-#define CM_GCR_REGn_BASE_BASEADDR_MSK		(_ULCAST_(0xffff) << 16)
+/* GCR_CPC_BASE - Base address of the Cluster Power Controller (CPC) */
+GCR_ACCESSOR_RW(64, 0x088, cpc_base)
+#define CM_GCR_CPC_BASE_CPCBASE			GENMASK(31, 15)
+#define CM_GCR_CPC_BASE_CPCEN			BIT(0)
 
-/* GCR_REGn_MASK register fields */
-#define CM_GCR_REGn_MASK_ADDRMASK_SHF		16
-#define CM_GCR_REGn_MASK_ADDRMASK_MSK		(_ULCAST_(0xffff) << 16)
-#define CM_GCR_REGn_MASK_CCAOVR_SHF		5
-#define CM_GCR_REGn_MASK_CCAOVR_MSK		(_ULCAST_(0x3) << 5)
-#define CM_GCR_REGn_MASK_CCAOVREN_SHF		4
-#define CM_GCR_REGn_MASK_CCAOVREN_MSK		(_ULCAST_(0x1) << 4)
-#define CM_GCR_REGn_MASK_DROPL2_SHF		2
-#define CM_GCR_REGn_MASK_DROPL2_MSK		(_ULCAST_(0x1) << 2)
-#define CM_GCR_REGn_MASK_CMTGT_SHF		0
-#define CM_GCR_REGn_MASK_CMTGT_MSK		(_ULCAST_(0x3) << 0)
-#define  CM_GCR_REGn_MASK_CMTGT_DISABLED	(_ULCAST_(0x0) << 0)
-#define  CM_GCR_REGn_MASK_CMTGT_MEM		(_ULCAST_(0x1) << 0)
-#define  CM_GCR_REGn_MASK_CMTGT_IOCU0		(_ULCAST_(0x2) << 0)
-#define  CM_GCR_REGn_MASK_CMTGT_IOCU1		(_ULCAST_(0x3) << 0)
+/* GCR_REGn_BASE - Base addresses of CM address regions */
+GCR_ACCESSOR_RW(64, 0x090, reg0_base)
+GCR_ACCESSOR_RW(64, 0x0a0, reg1_base)
+GCR_ACCESSOR_RW(64, 0x0b0, reg2_base)
+GCR_ACCESSOR_RW(64, 0x0c0, reg3_base)
+#define CM_GCR_REGn_BASE_BASEADDR		GENMASK(31, 16)
 
-/* GCR_GIC_STATUS register fields */
-#define CM_GCR_GIC_STATUS_EX_SHF		0
-#define CM_GCR_GIC_STATUS_EX_MSK		(_ULCAST_(0x1) << 0)
+/* GCR_REGn_MASK - Size & destination of CM address regions */
+GCR_ACCESSOR_RW(64, 0x098, reg0_mask)
+GCR_ACCESSOR_RW(64, 0x0a8, reg1_mask)
+GCR_ACCESSOR_RW(64, 0x0b8, reg2_mask)
+GCR_ACCESSOR_RW(64, 0x0c8, reg3_mask)
+#define CM_GCR_REGn_MASK_ADDRMASK		GENMASK(31, 16)
+#define CM_GCR_REGn_MASK_CCAOVR			GENMASK(7, 5)
+#define CM_GCR_REGn_MASK_CCAOVREN		BIT(4)
+#define CM_GCR_REGn_MASK_DROPL2			BIT(2)
+#define CM_GCR_REGn_MASK_CMTGT			GENMASK(1, 0)
+#define  CM_GCR_REGn_MASK_CMTGT_DISABLED	0x0
+#define  CM_GCR_REGn_MASK_CMTGT_MEM		0x1
+#define  CM_GCR_REGn_MASK_CMTGT_IOCU0		0x2
+#define  CM_GCR_REGn_MASK_CMTGT_IOCU1		0x3
 
-/* GCR_CPC_STATUS register fields */
-#define CM_GCR_CPC_STATUS_EX_SHF		0
-#define CM_GCR_CPC_STATUS_EX_MSK		(_ULCAST_(0x1) << 0)
+/* GCR_GIC_STATUS - Indicates presence of a Global Interrupt Controller (GIC) */
+GCR_ACCESSOR_RO(32, 0x0d0, gic_status)
+#define CM_GCR_GIC_STATUS_EX			BIT(0)
 
-/* GCR_L2_CONFIG register fields */
-#define CM_GCR_L2_CONFIG_BYPASS_SHF		20
-#define CM_GCR_L2_CONFIG_BYPASS_MSK		(_ULCAST_(0x1) << 20)
-#define CM_GCR_L2_CONFIG_SET_SIZE_SHF		12
-#define CM_GCR_L2_CONFIG_SET_SIZE_MSK		(_ULCAST_(0xf) << 12)
-#define CM_GCR_L2_CONFIG_LINE_SIZE_SHF		8
-#define CM_GCR_L2_CONFIG_LINE_SIZE_MSK		(_ULCAST_(0xf) << 8)
-#define CM_GCR_L2_CONFIG_ASSOC_SHF		0
-#define CM_GCR_L2_CONFIG_ASSOC_MSK		(_ULCAST_(0xff) << 0)
+/* GCR_CPC_STATUS - Indicates presence of a Cluster Power Controller (CPC) */
+GCR_ACCESSOR_RO(32, 0x0f0, cpc_status)
+#define CM_GCR_CPC_STATUS_EX			BIT(0)
 
-/* GCR_SYS_CONFIG2 register fields */
-#define CM_GCR_SYS_CONFIG2_MAXVPW_SHF		0
-#define CM_GCR_SYS_CONFIG2_MAXVPW_MSK		(_ULCAST_(0xf) << 0)
+/* GCR_L2_CONFIG - Indicates L2 cache configuration when Config5.L2C=1 */
+GCR_ACCESSOR_RW(32, 0x130, l2_config)
+#define CM_GCR_L2_CONFIG_BYPASS			BIT(20)
+#define CM_GCR_L2_CONFIG_SET_SIZE		GENMASK(15, 12)
+#define CM_GCR_L2_CONFIG_LINE_SIZE		GENMASK(11, 8)
+#define CM_GCR_L2_CONFIG_ASSOC			GENMASK(7, 0)
 
-/* GCR_L2_PFT_CONTROL register fields */
-#define CM_GCR_L2_PFT_CONTROL_PAGEMASK_SHF	12
-#define CM_GCR_L2_PFT_CONTROL_PAGEMASK_MSK	(_ULCAST_(0xfffff) << 12)
-#define CM_GCR_L2_PFT_CONTROL_PFTEN_SHF		8
-#define CM_GCR_L2_PFT_CONTROL_PFTEN_MSK		(_ULCAST_(0x1) << 8)
-#define CM_GCR_L2_PFT_CONTROL_NPFT_SHF		0
-#define CM_GCR_L2_PFT_CONTROL_NPFT_MSK		(_ULCAST_(0xff) << 0)
+/* GCR_SYS_CONFIG2 - Further information about the system */
+GCR_ACCESSOR_RO(32, 0x150, sys_config2)
+#define CM_GCR_SYS_CONFIG2_MAXVPW		GENMASK(3, 0)
 
-/* GCR_L2_PFT_CONTROL_B register fields */
-#define CM_GCR_L2_PFT_CONTROL_B_CEN_SHF		8
-#define CM_GCR_L2_PFT_CONTROL_B_CEN_MSK		(_ULCAST_(0x1) << 8)
-#define CM_GCR_L2_PFT_CONTROL_B_PORTID_SHF	0
-#define CM_GCR_L2_PFT_CONTROL_B_PORTID_MSK	(_ULCAST_(0xff) << 0)
+/* GCR_L2_PFT_CONTROL - Controls hardware L2 prefetching */
+GCR_ACCESSOR_RW(32, 0x300, l2_pft_control)
+#define CM_GCR_L2_PFT_CONTROL_PAGEMASK		GENMASK(31, 12)
+#define CM_GCR_L2_PFT_CONTROL_PFTEN		BIT(8)
+#define CM_GCR_L2_PFT_CONTROL_NPFT		GENMASK(7, 0)
 
-/* GCR_Cx_COHERENCE register fields */
-#define CM_GCR_Cx_COHERENCE_COHDOMAINEN_SHF	0
-#define CM_GCR_Cx_COHERENCE_COHDOMAINEN_MSK	(_ULCAST_(0xff) << 0)
-#define CM3_GCR_Cx_COHERENCE_COHEN_MSK		(_ULCAST_(0x1) << 0)
+/* GCR_L2_PFT_CONTROL_B - Controls hardware L2 prefetching */
+GCR_ACCESSOR_RW(32, 0x308, l2_pft_control_b)
+#define CM_GCR_L2_PFT_CONTROL_B_CEN		BIT(8)
+#define CM_GCR_L2_PFT_CONTROL_B_PORTID		GENMASK(7, 0)
 
-/* GCR_Cx_CONFIG register fields */
-#define CM_GCR_Cx_CONFIG_IOCUTYPE_SHF		10
-#define CM_GCR_Cx_CONFIG_IOCUTYPE_MSK		(_ULCAST_(0x3) << 10)
-#define CM_GCR_Cx_CONFIG_PVPE_SHF		0
-#define CM_GCR_Cx_CONFIG_PVPE_MSK		(_ULCAST_(0x3ff) << 0)
+/* GCR_L2SM_COP - L2 cache op state machine control */
+GCR_ACCESSOR_RW(32, 0x620, l2sm_cop)
+#define CM_GCR_L2SM_COP_PRESENT			BIT(31)
+#define CM_GCR_L2SM_COP_RESULT			GENMASK(8, 6)
+#define  CM_GCR_L2SM_COP_RESULT_DONTCARE	0
+#define  CM_GCR_L2SM_COP_RESULT_DONE_OK		1
+#define  CM_GCR_L2SM_COP_RESULT_DONE_ERROR	2
+#define  CM_GCR_L2SM_COP_RESULT_ABORT_OK	3
+#define  CM_GCR_L2SM_COP_RESULT_ABORT_ERROR	4
+#define CM_GCR_L2SM_COP_RUNNING			BIT(5)
+#define CM_GCR_L2SM_COP_TYPE			GENMASK(4, 2)
+#define  CM_GCR_L2SM_COP_TYPE_IDX_WBINV		0
+#define  CM_GCR_L2SM_COP_TYPE_IDX_STORETAG	1
+#define  CM_GCR_L2SM_COP_TYPE_IDX_STORETAGDATA	2
+#define  CM_GCR_L2SM_COP_TYPE_HIT_INV		4
+#define  CM_GCR_L2SM_COP_TYPE_HIT_WBINV		5
+#define  CM_GCR_L2SM_COP_TYPE_HIT_WB		6
+#define  CM_GCR_L2SM_COP_TYPE_FETCHLOCK		7
+#define CM_GCR_L2SM_COP_CMD			GENMASK(1, 0)
+#define  CM_GCR_L2SM_COP_CMD_START		1	/* only when idle */
+#define  CM_GCR_L2SM_COP_CMD_ABORT		3	/* only when running */
 
-/* GCR_Cx_OTHER register fields */
-#define CM_GCR_Cx_OTHER_CORENUM_SHF		16
-#define CM_GCR_Cx_OTHER_CORENUM_MSK		(_ULCAST_(0xffff) << 16)
-#define CM3_GCR_Cx_OTHER_CORE_SHF		8
-#define CM3_GCR_Cx_OTHER_CORE_MSK		(_ULCAST_(0x3f) << 8)
-#define CM3_GCR_Cx_OTHER_VP_SHF			0
-#define CM3_GCR_Cx_OTHER_VP_MSK			(_ULCAST_(0x7) << 0)
+/* GCR_L2SM_TAG_ADDR_COP - L2 cache op state machine address control */
+GCR_ACCESSOR_RW(64, 0x628, l2sm_tag_addr_cop)
+#define CM_GCR_L2SM_TAG_ADDR_COP_NUM_LINES	GENMASK_ULL(63, 48)
+#define CM_GCR_L2SM_TAG_ADDR_COP_START_TAG	GENMASK_ULL(47, 6)
 
-/* GCR_Cx_RESET_BASE register fields */
-#define CM_GCR_Cx_RESET_BASE_BEVEXCBASE_SHF	12
-#define CM_GCR_Cx_RESET_BASE_BEVEXCBASE_MSK	(_ULCAST_(0xfffff) << 12)
+/* GCR_BEV_BASE - Controls the location of the BEV for powered up cores */
+GCR_ACCESSOR_RW(64, 0x680, bev_base)
 
-/* GCR_Cx_RESET_EXT_BASE register fields */
-#define CM_GCR_Cx_RESET_EXT_BASE_EVARESET_SHF	31
-#define CM_GCR_Cx_RESET_EXT_BASE_EVARESET_MSK	(_ULCAST_(0x1) << 31)
-#define CM_GCR_Cx_RESET_EXT_BASE_UEB_SHF	30
-#define CM_GCR_Cx_RESET_EXT_BASE_UEB_MSK	(_ULCAST_(0x1) << 30)
-#define CM_GCR_Cx_RESET_EXT_BASE_BEVEXCMASK_SHF	20
-#define CM_GCR_Cx_RESET_EXT_BASE_BEVEXCMASK_MSK	(_ULCAST_(0xff) << 20)
-#define CM_GCR_Cx_RESET_EXT_BASE_BEVEXCPA_SHF	1
-#define CM_GCR_Cx_RESET_EXT_BASE_BEVEXCPA_MSK	(_ULCAST_(0x7f) << 1)
-#define CM_GCR_Cx_RESET_EXT_BASE_PRESENT_SHF	0
-#define CM_GCR_Cx_RESET_EXT_BASE_PRESENT_MSK	(_ULCAST_(0x1) << 0)
+/* GCR_Cx_RESET_RELEASE - Controls core reset for CM 1.x */
+GCR_CX_ACCESSOR_RW(32, 0x000, reset_release)
 
-/**
- * mips_cm_numcores - return the number of cores present in the system
- *
- * Returns the value of the PCORES field of the GCR_CONFIG register plus 1, or
- * zero if no Coherence Manager is present.
- */
-static inline unsigned mips_cm_numcores(void)
-{
-	if (!mips_cm_present())
-		return 0;
+/* GCR_Cx_COHERENCE - Controls core coherence */
+GCR_CX_ACCESSOR_RW(32, 0x008, coherence)
+#define CM_GCR_Cx_COHERENCE_COHDOMAINEN		GENMASK(7, 0)
+#define CM3_GCR_Cx_COHERENCE_COHEN		BIT(0)
 
-	return ((read_gcr_config() & CM_GCR_CONFIG_PCORES_MSK)
-		>> CM_GCR_CONFIG_PCORES_SHF) + 1;
-}
+/* GCR_Cx_CONFIG - Information about a core's configuration */
+GCR_CX_ACCESSOR_RO(32, 0x010, config)
+#define CM_GCR_Cx_CONFIG_IOCUTYPE		GENMASK(11, 10)
+#define CM_GCR_Cx_CONFIG_PVPE			GENMASK(9, 0)
 
-/**
- * mips_cm_numiocu - return the number of IOCUs present in the system
- *
- * Returns the value of the NUMIOCU field of the GCR_CONFIG register, or zero
- * if no Coherence Manager is present.
- */
-static inline unsigned mips_cm_numiocu(void)
-{
-	if (!mips_cm_present())
-		return 0;
+/* GCR_Cx_OTHER - Configure the core-other/redirect GCR block */
+GCR_CX_ACCESSOR_RW(32, 0x018, other)
+#define CM_GCR_Cx_OTHER_CORENUM			GENMASK(31, 16)	/* CM < 3 */
+#define CM_GCR_Cx_OTHER_CLUSTER_EN		BIT(31)		/* CM >= 3.5 */
+#define CM_GCR_Cx_OTHER_GIC_EN			BIT(30)		/* CM >= 3.5 */
+#define CM_GCR_Cx_OTHER_BLOCK			GENMASK(25, 24)	/* CM >= 3.5 */
+#define  CM_GCR_Cx_OTHER_BLOCK_LOCAL		0
+#define  CM_GCR_Cx_OTHER_BLOCK_GLOBAL		1
+#define  CM_GCR_Cx_OTHER_BLOCK_USER		2
+#define  CM_GCR_Cx_OTHER_BLOCK_GLOBAL_HIGH	3
+#define CM_GCR_Cx_OTHER_CLUSTER			GENMASK(21, 16)	/* CM >= 3.5 */
+#define CM3_GCR_Cx_OTHER_CORE			GENMASK(13, 8)	/* CM >= 3 */
+#define  CM_GCR_Cx_OTHER_CORE_CM		32
+#define CM3_GCR_Cx_OTHER_VP			GENMASK(2, 0)	/* CM >= 3 */
 
-	return (read_gcr_config() & CM_GCR_CONFIG_NUMIOCU_MSK)
-		>> CM_GCR_CONFIG_NUMIOCU_SHF;
-}
+/* GCR_Cx_RESET_BASE - Configure where powered up cores will fetch from */
+GCR_CX_ACCESSOR_RW(32, 0x020, reset_base)
+#define CM_GCR_Cx_RESET_BASE_BEVEXCBASE		GENMASK(31, 12)
+
+/* GCR_Cx_ID - Identify the current core */
+GCR_CX_ACCESSOR_RO(32, 0x028, id)
+#define CM_GCR_Cx_ID_CLUSTER			GENMASK(15, 8)
+#define CM_GCR_Cx_ID_CORE			GENMASK(7, 0)
+
+/* GCR_Cx_RESET_EXT_BASE - Configure behaviour when cores reset or power up */
+GCR_CX_ACCESSOR_RW(32, 0x030, reset_ext_base)
+#define CM_GCR_Cx_RESET_EXT_BASE_EVARESET	BIT(31)
+#define CM_GCR_Cx_RESET_EXT_BASE_UEB		BIT(30)
+#define CM_GCR_Cx_RESET_EXT_BASE_BEVEXCMASK	GENMASK(27, 20)
+#define CM_GCR_Cx_RESET_EXT_BASE_BEVEXCPA	GENMASK(7, 1)
+#define CM_GCR_Cx_RESET_EXT_BASE_PRESENT	BIT(0)
 
 /**
  * mips_cm_l2sync - perform an L2-only sync operation
@@ -469,7 +369,7 @@ static inline unsigned int mips_cm_max_vp_width(void)
 	uint32_t cfg;
 
 	if (mips_cm_revision() >= CM_REV_CM3)
-		return read_gcr_sys_config2() & CM_GCR_SYS_CONFIG2_MAXVPW_MSK;
+		return read_gcr_sys_config2() & CM_GCR_SYS_CONFIG2_MAXVPW;
 
 	if (mips_cm_present()) {
 		/*
@@ -477,8 +377,8 @@ static inline unsigned int mips_cm_max_vp_width(void)
 		 * number of VP(E)s, and if that ever changes then this will
 		 * need revisiting.
 		 */
-		cfg = read_gcr_cl_config() & CM_GCR_Cx_CONFIG_PVPE_MSK;
-		return (cfg >> CM_GCR_Cx_CONFIG_PVPE_SHF) + 1;
+		cfg = read_gcr_cl_config() & CM_GCR_Cx_CONFIG_PVPE;
+		return (cfg >> __ffs(CM_GCR_Cx_CONFIG_PVPE)) + 1;
 	}
 
 	if (IS_ENABLED(CONFIG_SMP))
@@ -499,7 +399,7 @@ static inline unsigned int mips_cm_max_vp_width(void)
  */
 static inline unsigned int mips_cm_vp_id(unsigned int cpu)
 {
-	unsigned int core = cpu_data[cpu].core;
+	unsigned int core = cpu_core(&cpu_data[cpu]);
 	unsigned int vp = cpu_vpe_id(&cpu_data[cpu]);
 
 	return (core * mips_cm_max_vp_width()) + vp;
@@ -508,29 +408,56 @@ static inline unsigned int mips_cm_vp_id(unsigned int cpu)
 #ifdef CONFIG_MIPS_CM
 
 /**
- * mips_cm_lock_other - lock access to another core
+ * mips_cm_lock_other - lock access to redirect/other region
+ * @cluster: the other cluster to be accessed
  * @core: the other core to be accessed
  * @vp: the VP within the other core to be accessed
+ * @block: the register block to be accessed
  *
- * Call before operating upon a core via the 'other' register region in
- * order to prevent the region being moved during access. Must be followed
- * by a call to mips_cm_unlock_other.
+ * Configure the redirect/other region for the local core/VP (depending upon
+ * the CM revision) to target the specified @cluster, @core, @vp & register
+ * @block. Must be called before using the redirect/other region, and followed
+ * by a call to mips_cm_unlock_other() when access to the redirect/other region
+ * is complete.
+ *
+ * This function acquires a spinlock such that code between it &
+ * mips_cm_unlock_other() calls cannot be pre-empted by anything which may
+ * reconfigure the redirect/other region, and cannot be interfered with by
+ * another VP in the core. As such calls to this function should not be nested.
  */
-extern void mips_cm_lock_other(unsigned int core, unsigned int vp);
+extern void mips_cm_lock_other(unsigned int cluster, unsigned int core,
+			       unsigned int vp, unsigned int block);
 
 /**
- * mips_cm_unlock_other - unlock access to another core
+ * mips_cm_unlock_other - unlock access to redirect/other region
  *
- * Call after operating upon another core via the 'other' register region.
- * Must be called after mips_cm_lock_other.
+ * Must be called after mips_cm_lock_other() once all required access to the
+ * redirect/other region has been completed.
  */
 extern void mips_cm_unlock_other(void);
 
 #else /* !CONFIG_MIPS_CM */
 
-static inline void mips_cm_lock_other(unsigned int core, unsigned int vp) { }
+static inline void mips_cm_lock_other(unsigned int cluster, unsigned int core,
+				      unsigned int vp, unsigned int block) { }
 static inline void mips_cm_unlock_other(void) { }
 
 #endif /* !CONFIG_MIPS_CM */
+
+/**
+ * mips_cm_lock_other_cpu - lock access to redirect/other region
+ * @cpu: the other CPU whose register we want to access
+ *
+ * Configure the redirect/other region for the local core/VP (depending upon
+ * the CM revision) to target the specified @cpu & register @block. This is
+ * equivalent to calling mips_cm_lock_other() but accepts a Linux CPU number
+ * for convenience.
+ */
+static inline void mips_cm_lock_other_cpu(unsigned int cpu, unsigned int block)
+{
+	struct cpuinfo_mips *d = &cpu_data[cpu];
+
+	mips_cm_lock_other(cpu_cluster(d), cpu_core(d), cpu_vpe_id(d), block);
+}
 
 #endif /* __MIPS_ASM_MIPS_CM_H__ */

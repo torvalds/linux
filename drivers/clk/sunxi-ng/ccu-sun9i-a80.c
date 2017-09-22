@@ -29,49 +29,48 @@
 
 #define CCU_SUN9I_LOCK_REG	0x09c
 
-static struct clk_div_table pll_cpux_p_div_table[] = {
-	{ .val = 0, .div = 1 },
-	{ .val = 1, .div = 4 },
-	{ /* Sentinel */ },
-};
-
 /*
- * The CPU PLLs are actually NP clocks, but P is /1 or /4, so here we
- * use the NM clocks with a divider table for M.
+ * The CPU PLLs are actually NP clocks, with P being /1 or /4. However
+ * P should only be used for output frequencies lower than 228 MHz.
+ * Neither mainline Linux, U-boot, nor the vendor BSPs use these.
+ *
+ * For now we can just model it as a multiplier clock, and force P to /1.
  */
-static struct ccu_nm pll_c0cpux_clk = {
+#define SUN9I_A80_PLL_C0CPUX_REG	0x000
+#define SUN9I_A80_PLL_C1CPUX_REG	0x004
+
+static struct ccu_mult pll_c0cpux_clk = {
 	.enable		= BIT(31),
 	.lock		= BIT(0),
-	.n		= _SUNXI_CCU_MULT_OFFSET_MIN_MAX(8, 8, 0, 12, 0),
-	.m		= _SUNXI_CCU_DIV_TABLE(16, 1, pll_cpux_p_div_table),
+	.mult		= _SUNXI_CCU_MULT_OFFSET_MIN_MAX(8, 8, 0, 12, 0),
 	.common		= {
-		.reg		= 0x000,
+		.reg		= SUN9I_A80_PLL_C0CPUX_REG,
 		.lock_reg	= CCU_SUN9I_LOCK_REG,
 		.features	= CCU_FEATURE_LOCK_REG,
 		.hw.init	= CLK_HW_INIT("pll-c0cpux", "osc24M",
-					      &ccu_nm_ops, CLK_SET_RATE_UNGATE),
+					      &ccu_mult_ops,
+					      CLK_SET_RATE_UNGATE),
 	},
 };
 
-static struct ccu_nm pll_c1cpux_clk = {
+static struct ccu_mult pll_c1cpux_clk = {
 	.enable		= BIT(31),
 	.lock		= BIT(1),
-	.n		= _SUNXI_CCU_MULT_OFFSET_MIN_MAX(8, 8, 0, 12, 0),
-	.m		= _SUNXI_CCU_DIV_TABLE(16, 1, pll_cpux_p_div_table),
+	.mult		= _SUNXI_CCU_MULT_OFFSET_MIN_MAX(8, 8, 0, 12, 0),
 	.common		= {
-		.reg		= 0x004,
+		.reg		= SUN9I_A80_PLL_C1CPUX_REG,
 		.lock_reg	= CCU_SUN9I_LOCK_REG,
 		.features	= CCU_FEATURE_LOCK_REG,
 		.hw.init	= CLK_HW_INIT("pll-c1cpux", "osc24M",
-					      &ccu_nm_ops, CLK_SET_RATE_UNGATE),
+					      &ccu_mult_ops,
+					      CLK_SET_RATE_UNGATE),
 	},
 };
 
 /*
  * The Audio PLL has d1, d2 dividers in addition to the usual N, M
  * factors. Since we only need 2 frequencies from this PLL: 22.5792 MHz
- * and 24.576 MHz, ignore them for now. Enforce the default for them,
- * which is d1 = 0, d2 = 1.
+ * and 24.576 MHz, ignore them for now. Enforce d1 = 0 and d2 = 0.
  */
 #define SUN9I_A80_PLL_AUDIO_REG	0x008
 
@@ -1189,6 +1188,36 @@ static const struct sunxi_ccu_desc sun9i_a80_ccu_desc = {
 	.num_resets	= ARRAY_SIZE(sun9i_a80_ccu_resets),
 };
 
+#define SUN9I_A80_PLL_P_SHIFT	16
+#define SUN9I_A80_PLL_N_SHIFT	8
+#define SUN9I_A80_PLL_N_WIDTH	8
+
+static void sun9i_a80_cpu_pll_fixup(void __iomem *reg)
+{
+	u32 val = readl(reg);
+
+	/* bail out if P divider is not used */
+	if (!(val & BIT(SUN9I_A80_PLL_P_SHIFT)))
+		return;
+
+	/*
+	 * If P is used, output should be less than 288 MHz. When we
+	 * set P to 1, we should also decrease the multiplier so the
+	 * output doesn't go out of range, but not too much such that
+	 * the multiplier stays above 12, the minimal operation value.
+	 *
+	 * To keep it simple, set the multiplier to 17, the reset value.
+	 */
+	val &= ~GENMASK(SUN9I_A80_PLL_N_SHIFT + SUN9I_A80_PLL_N_WIDTH - 1,
+			SUN9I_A80_PLL_N_SHIFT);
+	val |= 17 << SUN9I_A80_PLL_N_SHIFT;
+
+	/* And clear P */
+	val &= ~BIT(SUN9I_A80_PLL_P_SHIFT);
+
+	writel(val, reg);
+}
+
 static int sun9i_a80_ccu_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -1204,6 +1233,10 @@ static int sun9i_a80_ccu_probe(struct platform_device *pdev)
 	val = readl(reg + SUN9I_A80_PLL_AUDIO_REG);
 	val &= (BIT(16) & BIT(18));
 	writel(val, reg + SUN9I_A80_PLL_AUDIO_REG);
+
+	/* Enforce P = 1 for both CPU cluster PLLs */
+	sun9i_a80_cpu_pll_fixup(reg + SUN9I_A80_PLL_C0CPUX_REG);
+	sun9i_a80_cpu_pll_fixup(reg + SUN9I_A80_PLL_C1CPUX_REG);
 
 	return sunxi_ccu_probe(pdev->dev.of_node, reg, &sun9i_a80_ccu_desc);
 }

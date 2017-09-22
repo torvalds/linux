@@ -37,7 +37,7 @@ static bool in_hardirq_stack(unsigned long *stack, struct stack_info *info)
 	 * This is a software stack, so 'end' can be a valid stack pointer.
 	 * It just means the stack is empty.
 	 */
-	if (stack < begin || stack > end)
+	if (stack <= begin || stack > end)
 		return false;
 
 	info->type	= STACK_TYPE_IRQ;
@@ -62,7 +62,7 @@ static bool in_softirq_stack(unsigned long *stack, struct stack_info *info)
 	 * This is a software stack, so 'end' can be a valid stack pointer.
 	 * It just means the stack is empty.
 	 */
-	if (stack < begin || stack > end)
+	if (stack <= begin || stack > end)
 		return false;
 
 	info->type	= STACK_TYPE_SOFTIRQ;
@@ -161,16 +161,4 @@ void show_regs(struct pt_regs *regs)
 		}
 	}
 	pr_cont("\n");
-}
-
-int is_valid_bugaddr(unsigned long ip)
-{
-	unsigned short ud2;
-
-	if (ip < PAGE_OFFSET)
-		return 0;
-	if (probe_kernel_address((unsigned short *)ip, ud2))
-		return 0;
-
-	return ud2 == 0x0b0f;
 }

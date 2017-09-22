@@ -2,7 +2,7 @@
 #define DEF_RDMAVT_INCQP_H
 
 /*
- * Copyright(c) 2016 Intel Corporation.
+ * Copyright(c) 2016, 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -269,15 +269,14 @@ struct rvt_qp {
 	struct ib_qp ibqp;
 	void *priv; /* Driver private data */
 	/* read mostly fields above and below */
-	struct ib_ah_attr remote_ah_attr;
-	struct ib_ah_attr alt_ah_attr;
+	struct rdma_ah_attr remote_ah_attr;
+	struct rdma_ah_attr alt_ah_attr;
 	struct rvt_qp __rcu *next;           /* link list for QPN hash table */
 	struct rvt_swqe *s_wq;  /* send work queue */
 	struct rvt_mmap_info *ip;
 
 	unsigned long timeout_jiffies;  /* computed from timeout */
 
-	enum ib_mtu path_mtu;
 	int srate_mbps;		/* s_srate (below) converted to Mbit/s */
 	pid_t pid;		/* pid for user mode QPs */
 	u32 remote_qpn;
@@ -324,6 +323,7 @@ struct rvt_qp {
 	u8 r_state;             /* opcode of last packet received */
 	u8 r_flags;
 	u8 r_head_ack_queue;    /* index into s_ack_queue[] */
+	u8 r_adefered;          /* defered ack count */
 
 	struct list_head rspwait;       /* link for waiting to respond */
 
@@ -395,7 +395,7 @@ struct rvt_srq {
 #define RVT_QPNMAP_ENTRIES          (RVT_QPN_MAX / PAGE_SIZE / BITS_PER_BYTE)
 #define RVT_BITS_PER_PAGE           (PAGE_SIZE * BITS_PER_BYTE)
 #define RVT_BITS_PER_PAGE_MASK      (RVT_BITS_PER_PAGE - 1)
-#define RVT_QPN_MASK		    0xFFFFFF
+#define RVT_QPN_MASK		    IB_QPN_MASK
 
 /*
  * QPN-map pages start out as NULL, they get allocated upon
@@ -435,9 +435,14 @@ struct rvt_mcast_qp {
 	struct rvt_qp *qp;
 };
 
+struct rvt_mcast_addr {
+	union ib_gid mgid;
+	u16 lid;
+};
+
 struct rvt_mcast {
 	struct rb_node rb_node;
-	union ib_gid mgid;
+	struct rvt_mcast_addr mcast_addr;
 	struct list_head qp_list;
 	wait_queue_head_t wait;
 	atomic_t refcount;
@@ -526,7 +531,6 @@ static inline void rvt_qp_wqe_reserve(
 	struct rvt_qp *qp,
 	struct rvt_swqe *wqe)
 {
-	wqe->wr.send_flags |= RVT_SEND_RESERVE_USED;
 	atomic_inc(&qp->s_reserved_used);
 }
 
@@ -550,7 +554,6 @@ static inline void rvt_qp_wqe_unreserve(
 	struct rvt_swqe *wqe)
 {
 	if (unlikely(wqe->wr.send_flags & RVT_SEND_RESERVE_USED)) {
-		wqe->wr.send_flags &= ~RVT_SEND_RESERVE_USED;
 		atomic_dec(&qp->s_reserved_used);
 		/* insure no compiler re-order up to s_last change */
 		smp_mb__after_atomic();
@@ -574,6 +577,7 @@ extern const enum ib_wc_opcode ib_rvt_wc_opcode[];
 static inline void rvt_qp_swqe_complete(
 	struct rvt_qp *qp,
 	struct rvt_swqe *wqe,
+	enum ib_wc_opcode opcode,
 	enum ib_wc_status status)
 {
 	if (unlikely(wqe->wr.send_flags & RVT_SEND_RESERVE_USED))
@@ -586,7 +590,7 @@ static inline void rvt_qp_swqe_complete(
 		memset(&wc, 0, sizeof(wc));
 		wc.wr_id = wqe->wr.wr_id;
 		wc.status = status;
-		wc.opcode = ib_rvt_wc_opcode[wqe->wr.opcode];
+		wc.opcode = opcode;
 		wc.qp = &qp->ibqp;
 		wc.byte_len = wqe->length;
 		rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.send_cq), &wc,
@@ -642,6 +646,20 @@ static inline u32 rvt_div_mtu(struct rvt_qp *qp, u32 len)
 	return len >> qp->log_pmtu;
 }
 
+/**
+ * rvt_timeout_to_jiffies - Convert a ULP timeout input into jiffies
+ * @timeout - timeout input(0 - 31).
+ *
+ * Return a timeout value in jiffies.
+ */
+static inline unsigned long rvt_timeout_to_jiffies(u8 timeout)
+{
+	if (timeout > 31)
+		timeout = 31;
+
+	return usecs_to_jiffies(1U << timeout) * 4096UL / 1000UL;
+}
+
 extern const int  ib_rvt_state_ops[];
 
 struct rvt_dev_info;
@@ -655,4 +673,34 @@ void rvt_del_timers_sync(struct rvt_qp *qp);
 void rvt_stop_rc_timers(struct rvt_qp *qp);
 void rvt_add_retry_timer(struct rvt_qp *qp);
 
+/**
+ * struct rvt_qp_iter - the iterator for QPs
+ * @qp - the current QP
+ *
+ * This structure defines the current iterator
+ * state for sequenced access to all QPs relative
+ * to an rvt_dev_info.
+ */
+struct rvt_qp_iter {
+	struct rvt_qp *qp;
+	/* private: backpointer */
+	struct rvt_dev_info *rdi;
+	/* private: callback routine */
+	void (*cb)(struct rvt_qp *qp, u64 v);
+	/* private: for arg to callback routine */
+	u64 v;
+	/* private: number of SMI,GSI QPs for device */
+	int specials;
+	/* private: current iterator index */
+	int n;
+};
+
+struct rvt_qp_iter *rvt_qp_iter_init(struct rvt_dev_info *rdi,
+				     u64 v,
+				     void (*cb)(struct rvt_qp *qp, u64 v));
+int rvt_qp_iter_next(struct rvt_qp_iter *iter);
+void rvt_qp_iter(struct rvt_dev_info *rdi,
+		 u64 v,
+		 void (*cb)(struct rvt_qp *qp, u64 v));
+void rvt_qp_mr_clean(struct rvt_qp *qp, u32 lkey);
 #endif          /* DEF_RDMAVT_INCQP_H */

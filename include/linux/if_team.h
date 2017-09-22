@@ -298,4 +298,6 @@ extern void team_mode_unregister(const struct team_mode *mode);
 #define TEAM_DEFAULT_NUM_TX_QUEUES 16
 #define TEAM_DEFAULT_NUM_RX_QUEUES 16
 
+#define MODULE_ALIAS_TEAM_MODE(kind) MODULE_ALIAS("team-mode-" kind)
+
 #endif /* _LINUX_IF_TEAM_H_ */

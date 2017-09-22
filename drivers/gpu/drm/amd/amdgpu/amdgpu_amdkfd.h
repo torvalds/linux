@@ -26,6 +26,7 @@
 #define AMDGPU_AMDKFD_H_INCLUDED
 
 #include <linux/types.h>
+#include <linux/mmu_context.h>
 #include <kgd_kfd_interface.h>
 
 struct amdgpu_device;
@@ -39,15 +40,13 @@ struct kgd_mem {
 int amdgpu_amdkfd_init(void);
 void amdgpu_amdkfd_fini(void);
 
-bool amdgpu_amdkfd_load_interface(struct amdgpu_device *rdev);
-
-void amdgpu_amdkfd_suspend(struct amdgpu_device *rdev);
-int amdgpu_amdkfd_resume(struct amdgpu_device *rdev);
-void amdgpu_amdkfd_interrupt(struct amdgpu_device *rdev,
+void amdgpu_amdkfd_suspend(struct amdgpu_device *adev);
+int amdgpu_amdkfd_resume(struct amdgpu_device *adev);
+void amdgpu_amdkfd_interrupt(struct amdgpu_device *adev,
 			const void *ih_ring_entry);
-void amdgpu_amdkfd_device_probe(struct amdgpu_device *rdev);
-void amdgpu_amdkfd_device_init(struct amdgpu_device *rdev);
-void amdgpu_amdkfd_device_fini(struct amdgpu_device *rdev);
+void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev);
+void amdgpu_amdkfd_device_init(struct amdgpu_device *adev);
+void amdgpu_amdkfd_device_fini(struct amdgpu_device *adev);
 
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_7_get_functions(void);
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_8_0_get_functions(void);
@@ -61,5 +60,20 @@ uint64_t get_vmem_size(struct kgd_dev *kgd);
 uint64_t get_gpu_clock_counter(struct kgd_dev *kgd);
 
 uint32_t get_max_engine_clock_in_mhz(struct kgd_dev *kgd);
+
+#define read_user_wptr(mmptr, wptr, dst)				\
+	({								\
+		bool valid = false;					\
+		if ((mmptr) && (wptr)) {				\
+			if ((mmptr) == current->mm) {			\
+				valid = !get_user((dst), (wptr));	\
+			} else if (current->mm == NULL) {		\
+				use_mm(mmptr);				\
+				valid = !get_user((dst), (wptr));	\
+				unuse_mm(mmptr);			\
+			}						\
+		}							\
+		valid;							\
+	})
 
 #endif /* AMDGPU_AMDKFD_H_INCLUDED */

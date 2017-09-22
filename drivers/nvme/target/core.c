@@ -273,8 +273,8 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 	ns->bdev = blkdev_get_by_path(ns->device_path, FMODE_READ | FMODE_WRITE,
 			NULL);
 	if (IS_ERR(ns->bdev)) {
-		pr_err("nvmet: failed to open block device %s: (%ld)\n",
-			ns->device_path, PTR_ERR(ns->bdev));
+		pr_err("failed to open block device %s: (%ld)\n",
+		       ns->device_path, PTR_ERR(ns->bdev));
 		ret = PTR_ERR(ns->bdev);
 		ns->bdev = NULL;
 		goto out_unlock;
@@ -380,6 +380,7 @@ struct nvmet_ns *nvmet_ns_alloc(struct nvmet_subsys *subsys, u32 nsid)
 
 	ns->nsid = nsid;
 	ns->subsys = subsys;
+	uuid_gen(&ns->uuid);
 
 	return ns;
 }
@@ -425,6 +426,13 @@ void nvmet_sq_setup(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq,
 	ctrl->sqs[qid] = sq;
 }
 
+static void nvmet_confirm_sq(struct percpu_ref *ref)
+{
+	struct nvmet_sq *sq = container_of(ref, struct nvmet_sq, ref);
+
+	complete(&sq->confirm_done);
+}
+
 void nvmet_sq_destroy(struct nvmet_sq *sq)
 {
 	/*
@@ -433,7 +441,8 @@ void nvmet_sq_destroy(struct nvmet_sq *sq)
 	 */
 	if (sq->ctrl && sq->ctrl->sqs && sq->ctrl->sqs[0] == sq)
 		nvmet_async_events_free(sq->ctrl);
-	percpu_ref_kill(&sq->ref);
+	percpu_ref_kill_and_confirm(&sq->ref, nvmet_confirm_sq);
+	wait_for_completion(&sq->confirm_done);
 	wait_for_completion(&sq->free_done);
 	percpu_ref_exit(&sq->ref);
 
@@ -461,6 +470,7 @@ int nvmet_sq_init(struct nvmet_sq *sq)
 		return ret;
 	}
 	init_completion(&sq->free_done);
+	init_completion(&sq->confirm_done);
 
 	return 0;
 }
@@ -520,39 +530,45 @@ fail:
 }
 EXPORT_SYMBOL_GPL(nvmet_req_init);
 
+void nvmet_req_uninit(struct nvmet_req *req)
+{
+	percpu_ref_put(&req->sq->ref);
+}
+EXPORT_SYMBOL_GPL(nvmet_req_uninit);
+
 static inline bool nvmet_cc_en(u32 cc)
 {
-	return cc & 0x1;
+	return (cc >> NVME_CC_EN_SHIFT) & 0x1;
 }
 
 static inline u8 nvmet_cc_css(u32 cc)
 {
-	return (cc >> 4) & 0x7;
+	return (cc >> NVME_CC_CSS_SHIFT) & 0x7;
 }
 
 static inline u8 nvmet_cc_mps(u32 cc)
 {
-	return (cc >> 7) & 0xf;
+	return (cc >> NVME_CC_MPS_SHIFT) & 0xf;
 }
 
 static inline u8 nvmet_cc_ams(u32 cc)
 {
-	return (cc >> 11) & 0x7;
+	return (cc >> NVME_CC_AMS_SHIFT) & 0x7;
 }
 
 static inline u8 nvmet_cc_shn(u32 cc)
 {
-	return (cc >> 14) & 0x3;
+	return (cc >> NVME_CC_SHN_SHIFT) & 0x3;
 }
 
 static inline u8 nvmet_cc_iosqes(u32 cc)
 {
-	return (cc >> 16) & 0xf;
+	return (cc >> NVME_CC_IOSQES_SHIFT) & 0xf;
 }
 
 static inline u8 nvmet_cc_iocqes(u32 cc)
 {
-	return (cc >> 20) & 0xf;
+	return (cc >> NVME_CC_IOCQES_SHIFT) & 0xf;
 }
 
 static void nvmet_start_ctrl(struct nvmet_ctrl *ctrl)
@@ -652,6 +668,23 @@ out:
 	return status;
 }
 
+u16 nvmet_check_ctrl_status(struct nvmet_req *req, struct nvme_command *cmd)
+{
+	if (unlikely(!(req->sq->ctrl->cc & NVME_CC_ENABLE))) {
+		pr_err("got io cmd %d while CC.EN == 0 on qid = %d\n",
+		       cmd->common.opcode, req->sq->qid);
+		return NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
+	}
+
+	if (unlikely(!(req->sq->ctrl->csts & NVME_CSTS_RDY))) {
+		pr_err("got io cmd %d while CSTS.RDY == 0 on qid = %d\n",
+		       cmd->common.opcode, req->sq->qid);
+		req->ns = NULL;
+		return NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
+	}
+	return 0;
+}
+
 static bool __nvmet_host_allowed(struct nvmet_subsys *subsys,
 		const char *hostnqn)
 {
@@ -716,6 +749,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 			hostnqn, subsysnqn);
 		req->rsp->result.u32 = IPO_IATTR_CONNECT_DATA(hostnqn);
 		up_read(&nvmet_config_sem);
+		status = NVME_SC_CONNECT_INVALID_HOST | NVME_SC_DNR;
 		goto out_put_subsystem;
 	}
 	up_read(&nvmet_config_sem);
@@ -733,9 +767,6 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 
 	memcpy(ctrl->subsysnqn, subsysnqn, NVMF_NQN_SIZE);
 	memcpy(ctrl->hostnqn, hostnqn, NVMF_NQN_SIZE);
-
-	/* generate a random serial number as our controllers are ephemeral: */
-	get_random_bytes(&ctrl->serial, sizeof(ctrl->serial));
 
 	kref_init(&ctrl->ref);
 	ctrl->subsys = subsys;
@@ -894,7 +925,9 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 	if (!subsys)
 		return NULL;
 
-	subsys->ver = NVME_VS(1, 2, 1); /* NVMe 1.2.1 */
+	subsys->ver = NVME_VS(1, 3, 0); /* NVMe 1.3.0 */
+	/* generate a random serial number as our controllers are ephemeral: */
+	get_random_bytes(&subsys->serial, sizeof(subsys->serial));
 
 	switch (type) {
 	case NVME_NQN_NVME:

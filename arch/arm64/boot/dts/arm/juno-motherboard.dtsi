@@ -137,7 +137,7 @@
 				#size-cells = <1>;
 				ranges = <0 3 0 0x200000>;
 
-				v2m_sysctl: sysctl@020000 {
+				v2m_sysctl: sysctl@20000 {
 					compatible = "arm,sp810", "arm,primecell";
 					reg = <0x020000 0x1000>;
 					clocks = <&v2m_refclk32khz>, <&v2m_refclk1mhz>, <&mb_clk24mhz>;
@@ -148,7 +148,7 @@
 					assigned-clock-parents = <&v2m_refclk1mhz>, <&v2m_refclk1mhz>, <&v2m_refclk1mhz>, <&v2m_refclk1mhz>;
 				};
 
-				apbregs@010000 {
+				apbregs@10000 {
 					compatible = "syscon", "simple-mfd";
 					reg = <0x010000 0x1000>;
 
@@ -216,7 +216,7 @@
 					};
 				};
 
-				mmci@050000 {
+				mmci@50000 {
 					compatible = "arm,pl180", "arm,primecell";
 					reg = <0x050000 0x1000>;
 					interrupts = <5>;
@@ -228,7 +228,7 @@
 					clock-names = "mclk", "apb_pclk";
 				};
 
-				kmi@060000 {
+				kmi@60000 {
 					compatible = "arm,pl050", "arm,primecell";
 					reg = <0x060000 0x1000>;
 					interrupts = <8>;
@@ -236,7 +236,7 @@
 					clock-names = "KMIREFCLK", "apb_pclk";
 				};
 
-				kmi@070000 {
+				kmi@70000 {
 					compatible = "arm,pl050", "arm,primecell";
 					reg = <0x070000 0x1000>;
 					interrupts = <8>;
@@ -244,7 +244,7 @@
 					clock-names = "KMIREFCLK", "apb_pclk";
 				};
 
-				wdt@0f0000 {
+				wdt@f0000 {
 					compatible = "arm,sp805", "arm,primecell";
 					reg = <0x0f0000 0x10000>;
 					interrupts = <7>;

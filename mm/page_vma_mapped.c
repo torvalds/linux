@@ -48,6 +48,7 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw)
 		if (!is_swap_pte(*pvmw->pte))
 			return false;
 		entry = pte_to_swp_entry(*pvmw->pte);
+
 		if (!is_migration_entry(entry))
 			return false;
 		if (migration_entry_to_page(entry) - pvmw->page >=
@@ -60,6 +61,15 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw)
 		WARN_ON_ONCE(1);
 #endif
 	} else {
+		if (is_swap_pte(*pvmw->pte)) {
+			swp_entry_t entry;
+
+			entry = pte_to_swp_entry(*pvmw->pte);
+			if (is_device_private_entry(entry) &&
+			    device_private_entry_to_page(entry) == pvmw->page)
+				return true;
+		}
+
 		if (!pte_present(*pvmw->pte))
 			return false;
 
@@ -111,16 +121,13 @@ bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw)
 	if (pvmw->pmd && !pvmw->pte)
 		return not_found(pvmw);
 
-	/* Only for THP, seek to next pte entry makes sense */
-	if (pvmw->pte) {
-		if (!PageTransHuge(pvmw->page) || PageHuge(pvmw->page))
-			return not_found(pvmw);
+	if (pvmw->pte)
 		goto next_pte;
-	}
 
 	if (unlikely(PageHuge(pvmw->page))) {
 		/* when pud is not present, pte will be NULL */
-		pvmw->pte = huge_pte_offset(mm, pvmw->address);
+		pvmw->pte = huge_pte_offset(mm, pvmw->address,
+					    PAGE_SIZE << compound_order(page));
 		if (!pvmw->pte)
 			return false;
 
@@ -141,16 +148,28 @@ restart:
 	if (!pud_present(*pud))
 		return false;
 	pvmw->pmd = pmd_offset(pud, pvmw->address);
-	if (pmd_trans_huge(*pvmw->pmd)) {
+	if (pmd_trans_huge(*pvmw->pmd) || is_pmd_migration_entry(*pvmw->pmd)) {
 		pvmw->ptl = pmd_lock(mm, pvmw->pmd);
-		if (!pmd_present(*pvmw->pmd))
-			return not_found(pvmw);
 		if (likely(pmd_trans_huge(*pvmw->pmd))) {
 			if (pvmw->flags & PVMW_MIGRATION)
 				return not_found(pvmw);
 			if (pmd_page(*pvmw->pmd) != page)
 				return not_found(pvmw);
 			return true;
+		} else if (!pmd_present(*pvmw->pmd)) {
+			if (thp_migration_supported()) {
+				if (!(pvmw->flags & PVMW_MIGRATION))
+					return not_found(pvmw);
+				if (is_migration_entry(pmd_to_swp_entry(*pvmw->pmd))) {
+					swp_entry_t entry = pmd_to_swp_entry(*pvmw->pmd);
+
+					if (migration_entry_to_page(entry) != page)
+						return not_found(pvmw);
+					return true;
+				}
+			} else
+				WARN_ONCE(1, "Non present huge pmd without pmd migration enabled!");
+			return not_found(pvmw);
 		} else {
 			/* THP pmd was split under us: handle on pte level */
 			spin_unlock(pvmw->ptl);
@@ -165,9 +184,14 @@ restart:
 	while (1) {
 		if (check_pte(pvmw))
 			return true;
-next_pte:	do {
+next_pte:
+		/* Seek to next pte only makes sense for THP */
+		if (!PageTransHuge(pvmw->page) || PageHuge(pvmw->page))
+			return not_found(pvmw);
+		do {
 			pvmw->address += PAGE_SIZE;
-			if (pvmw->address >=
+			if (pvmw->address >= pvmw->vma->vm_end ||
+			    pvmw->address >=
 					__vma_address(pvmw->page, pvmw->vma) +
 					hpage_nr_pages(pvmw->page) * PAGE_SIZE)
 				return not_found(pvmw);

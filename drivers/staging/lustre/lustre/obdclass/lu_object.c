@@ -40,19 +40,19 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
-# include <linux/module.h>
+#include <linux/module.h>
 
 /* hash_long() */
-#include "../../include/linux/libcfs/libcfs_hash.h"
-#include "../include/obd_class.h"
-#include "../include/obd_support.h"
-#include "../include/lustre_disk.h"
-#include "../include/lustre_fid.h"
-#include "../include/lu_object.h"
-#include "../include/cl_object.h"
-#include "../include/lu_ref.h"
+#include <linux/libcfs/libcfs_hash.h>
+#include <obd_class.h>
+#include <obd_support.h>
+#include <lustre_disk.h>
+#include <lustre_fid.h>
+#include <lu_object.h>
+#include <cl_object.h>
+#include <lu_ref.h>
 #include <linux/list.h>
 
 enum {
@@ -512,7 +512,7 @@ void lu_object_header_print(const struct lu_env *env, void *cookie,
 			    lu_printer_t printer,
 			    const struct lu_object_header *hdr)
 {
-	(*printer)(env, cookie, "header@%p[%#lx, %d, "DFID"%s%s%s]",
+	(*printer)(env, cookie, "header@%p[%#lx, %d, " DFID "%s%s%s]",
 		   hdr, hdr->loh_flags, atomic_read(&hdr->loh_ref),
 		   PFID(&hdr->loh_fid),
 		   hlist_unhashed(&hdr->loh_hash) ? "" : " hash",
@@ -556,7 +556,7 @@ EXPORT_SYMBOL(lu_object_print);
 static struct lu_object *htable_lookup(struct lu_site *s,
 				       struct cfs_hash_bd *bd,
 				       const struct lu_fid *f,
-				       wait_queue_t *waiter,
+				       wait_queue_entry_t *waiter,
 				       __u64 *version)
 {
 	struct lu_site_bkt_data *bkt;
@@ -670,7 +670,7 @@ static struct lu_object *lu_object_find_try(const struct lu_env *env,
 					    struct lu_device *dev,
 					    const struct lu_fid *f,
 					    const struct lu_object_conf *conf,
-					    wait_queue_t *waiter)
+					    wait_queue_entry_t *waiter)
 {
 	struct lu_object      *o;
 	struct lu_object      *shadow;
@@ -750,7 +750,7 @@ struct lu_object *lu_object_find_at(const struct lu_env *env,
 {
 	struct lu_site_bkt_data *bkt;
 	struct lu_object	*obj;
-	wait_queue_t	   wait;
+	wait_queue_entry_t	   wait;
 
 	while (1) {
 		obj = lu_object_find_try(env, dev, f, conf, &wait);
@@ -918,9 +918,8 @@ static unsigned long lu_htable_order(struct lu_device *top)
 	cache_size = cache_size / 100 * lu_cache_percent *
 		(PAGE_SIZE / 1024);
 
-	for (bits = 1; (1 << bits) < cache_size; ++bits) {
+	for (bits = 1; (1 << bits) < cache_size; ++bits)
 		;
-	}
 	return clamp_t(typeof(bits), bits, LU_SITE_BITS_MIN, bits_max);
 }
 
@@ -1410,9 +1409,9 @@ void lu_context_key_degister(struct lu_context_key *key)
 	 */
 	while (atomic_read(&key->lct_used) > 1) {
 		spin_unlock(&lu_keys_guard);
-		CDEBUG(D_INFO, "lu_context_key_degister: \"%s\" %p, %d\n",
-		       key->lct_owner ? key->lct_owner->name : "", key,
-		       atomic_read(&key->lct_used));
+		CDEBUG(D_INFO, "%s: \"%s\" %p, %d\n",
+		       __func__, key->lct_owner ? key->lct_owner->name : "",
+		       key, atomic_read(&key->lct_used));
 		schedule();
 		spin_lock(&lu_keys_guard);
 	}
@@ -1549,7 +1548,8 @@ void lu_context_key_quiesce(struct lu_context_key *key)
 		 */
 		while (atomic_read(&lu_key_initing_cnt) > 0) {
 			spin_unlock(&lu_keys_guard);
-			CDEBUG(D_INFO, "lu_context_key_quiesce: \"%s\" %p, %d (%d)\n",
+			CDEBUG(D_INFO, "%s: \"%s\" %p, %d (%d)\n",
+			       __func__,
 			       key->lct_owner ? key->lct_owner->name : "",
 			       key, atomic_read(&key->lct_used),
 			atomic_read(&lu_key_initing_cnt));

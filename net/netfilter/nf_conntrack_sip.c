@@ -829,10 +829,8 @@ static void flush_expectations(struct nf_conn *ct, bool media)
 	hlist_for_each_entry_safe(exp, next, &help->expectations, lnode) {
 		if ((exp->class != SIP_EXPECT_SIGNALLING) ^ media)
 			continue;
-		if (!del_timer(&exp->timeout))
+		if (!nf_ct_remove_expect(exp))
 			continue;
-		nf_ct_unlink_expect(exp);
-		nf_ct_expect_put(exp);
 		if (!media)
 			break;
 	}
@@ -886,7 +884,6 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb, unsigned int protoff,
 	tuple.dst.u3		= *daddr;
 	tuple.dst.u.udp.port	= port;
 
-	rcu_read_lock();
 	do {
 		exp = __nf_ct_expect_find(net, nf_ct_zone(ct), &tuple);
 
@@ -920,10 +917,8 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb, unsigned int protoff,
 			goto err1;
 	}
 
-	if (skip_expect) {
-		rcu_read_unlock();
+	if (skip_expect)
 		return NF_ACCEPT;
-	}
 
 	rtp_exp = nf_ct_expect_alloc(ct);
 	if (rtp_exp == NULL)
@@ -954,7 +949,6 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb, unsigned int protoff,
 err2:
 	nf_ct_expect_put(rtp_exp);
 err1:
-	rcu_read_unlock();
 	return ret;
 }
 
@@ -1624,29 +1618,27 @@ static int __init nf_conntrack_sip_init(void)
 {
 	int i, ret;
 
+	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_sip_master));
+
 	if (ports_c == 0)
 		ports[ports_c++] = SIP_PORT;
 
 	for (i = 0; i < ports_c; i++) {
 		nf_ct_helper_init(&sip[4 * i], AF_INET, IPPROTO_UDP, "sip",
 				  SIP_PORT, ports[i], i, sip_exp_policy,
-				  SIP_EXPECT_MAX,
-				  sizeof(struct nf_ct_sip_master), sip_help_udp,
+				  SIP_EXPECT_MAX, sip_help_udp,
 				  NULL, THIS_MODULE);
 		nf_ct_helper_init(&sip[4 * i + 1], AF_INET, IPPROTO_TCP, "sip",
 				  SIP_PORT, ports[i], i, sip_exp_policy,
-				  SIP_EXPECT_MAX,
-				  sizeof(struct nf_ct_sip_master), sip_help_tcp,
+				  SIP_EXPECT_MAX, sip_help_tcp,
 				  NULL, THIS_MODULE);
 		nf_ct_helper_init(&sip[4 * i + 2], AF_INET6, IPPROTO_UDP, "sip",
 				  SIP_PORT, ports[i], i, sip_exp_policy,
-				  SIP_EXPECT_MAX,
-				  sizeof(struct nf_ct_sip_master), sip_help_udp,
+				  SIP_EXPECT_MAX, sip_help_udp,
 				  NULL, THIS_MODULE);
 		nf_ct_helper_init(&sip[4 * i + 3], AF_INET6, IPPROTO_TCP, "sip",
 				  SIP_PORT, ports[i], i, sip_exp_policy,
-				  SIP_EXPECT_MAX,
-				  sizeof(struct nf_ct_sip_master), sip_help_tcp,
+				  SIP_EXPECT_MAX, sip_help_tcp,
 				  NULL, THIS_MODULE);
 	}
 

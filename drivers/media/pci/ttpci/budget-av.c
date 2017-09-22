@@ -577,7 +577,7 @@ static u8 typhoon_cinergy1200s_inittab[] = {
 	0xff, 0xff
 };
 
-static struct stv0299_config typhoon_config = {
+static const struct stv0299_config typhoon_config = {
 	.demod_address = 0x68,
 	.inittab = typhoon_cinergy1200s_inittab,
 	.mclk = 88000000UL,
@@ -590,7 +590,7 @@ static struct stv0299_config typhoon_config = {
 };
 
 
-static struct stv0299_config cinergy_1200s_config = {
+static const struct stv0299_config cinergy_1200s_config = {
 	.demod_address = 0x68,
 	.inittab = typhoon_cinergy1200s_inittab,
 	.mclk = 88000000UL,
@@ -602,7 +602,7 @@ static struct stv0299_config cinergy_1200s_config = {
 	.set_symbol_rate = philips_su1278_ty_ci_set_symbol_rate,
 };
 
-static struct stv0299_config cinergy_1200s_1894_0010_config = {
+static const struct stv0299_config cinergy_1200s_1894_0010_config = {
 	.demod_address = 0x68,
 	.inittab = typhoon_cinergy1200s_inittab,
 	.mclk = 88000000UL,
@@ -876,7 +876,7 @@ static int philips_sd1878_ci_set_symbol_rate(struct dvb_frontend *fe,
 	return 0;
 }
 
-static struct stv0299_config philips_sd1878_config = {
+static const struct stv0299_config philips_sd1878_config = {
 	.demod_address = 0x68,
      .inittab = philips_sd1878_inittab,
 	.mclk = 88000000UL,
@@ -1567,7 +1567,7 @@ MAKE_BUDGET_INFO(cin1200c, "Terratec Cinergy 1200 DVB-C", BUDGET_CIN1200C);
 MAKE_BUDGET_INFO(cin1200cmk3, "Terratec Cinergy 1200 DVB-C MK3", BUDGET_CIN1200C_MK3);
 MAKE_BUDGET_INFO(cin1200t, "Terratec Cinergy 1200 DVB-T", BUDGET_CIN1200T);
 
-static struct pci_device_id pci_tbl[] = {
+static const struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(knc1s, 0x1131, 0x4f56),
 	MAKE_EXTENSION_PCI(knc1s, 0x1131, 0x0010),
 	MAKE_EXTENSION_PCI(knc1s, 0x1894, 0x0010),

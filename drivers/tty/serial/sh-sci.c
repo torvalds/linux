@@ -683,24 +683,37 @@ static void sci_init_pins(struct uart_port *port, unsigned int cflag)
 	}
 
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
+		u16 data = serial_port_in(port, SCPDR);
 		u16 ctrl = serial_port_in(port, SCPCR);
 
 		/* Enable RXD and TXD pin functions */
 		ctrl &= ~(SCPCR_RXDC | SCPCR_TXDC);
 		if (to_sci_port(port)->has_rtscts) {
-			/* RTS# is output, driven 1 */
-			ctrl |= SCPCR_RTSC;
-			serial_port_out(port, SCPDR,
-				serial_port_in(port, SCPDR) | SCPDR_RTSD);
+			/* RTS# is output, active low, unless autorts */
+			if (!(port->mctrl & TIOCM_RTS)) {
+				ctrl |= SCPCR_RTSC;
+				data |= SCPDR_RTSD;
+			} else if (!s->autorts) {
+				ctrl |= SCPCR_RTSC;
+				data &= ~SCPDR_RTSD;
+			} else {
+				/* Enable RTS# pin function */
+				ctrl &= ~SCPCR_RTSC;
+			}
 			/* Enable CTS# pin function */
 			ctrl &= ~SCPCR_CTSC;
 		}
+		serial_port_out(port, SCPDR, data);
 		serial_port_out(port, SCPCR, ctrl);
 	} else if (sci_getreg(port, SCSPTR)->size) {
 		u16 status = serial_port_in(port, SCSPTR);
 
-		/* RTS# is output, driven 1 */
-		status |= SCSPTR_RTSIO | SCSPTR_RTSDT;
+		/* RTS# is always output; and active low, unless autorts */
+		status |= SCSPTR_RTSIO;
+		if (!(port->mctrl & TIOCM_RTS))
+			status |= SCSPTR_RTSDT;
+		else if (!s->autorts)
+			status &= ~SCSPTR_RTSDT;
 		/* CTS# and SCK are inputs */
 		status &= ~(SCSPTR_CTSIO | SCSPTR_SCKIO);
 		serial_port_out(port, SCSPTR, status);
@@ -1072,10 +1085,12 @@ static ssize_t rx_trigger_store(struct device *dev,
 {
 	struct uart_port *port = dev_get_drvdata(dev);
 	struct sci_port *sci = to_sci_port(port);
+	int ret;
 	long r;
 
-	if (kstrtol(buf, 0, &r) == -EINVAL)
-		return -EINVAL;
+	ret = kstrtol(buf, 0, &r);
+	if (ret)
+		return ret;
 
 	sci->rx_trigger = scif_set_rtrg(port, r);
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB)
@@ -1103,10 +1118,12 @@ static ssize_t rx_fifo_timeout_store(struct device *dev,
 {
 	struct uart_port *port = dev_get_drvdata(dev);
 	struct sci_port *sci = to_sci_port(port);
+	int ret;
 	long r;
 
-	if (kstrtol(buf, 0, &r) == -EINVAL)
-		return -EINVAL;
+	ret = kstrtol(buf, 0, &r);
+	if (ret)
+		return ret;
 	sci->rx_fifo_timeout = r;
 	scif_set_rtrg(port, 1);
 	if (r > 0)
@@ -1437,8 +1454,7 @@ static struct dma_chan *sci_request_dma_chan(struct uart_port *port,
 	chan = dma_request_slave_channel(port->dev,
 					 dir == DMA_MEM_TO_DEV ? "tx" : "rx");
 	if (!chan) {
-		dev_warn(port->dev,
-			 "dma_request_slave_channel_compat failed\n");
+		dev_warn(port->dev, "dma_request_slave_channel failed\n");
 		return NULL;
 	}
 
@@ -1545,7 +1561,16 @@ static void sci_free_dma(struct uart_port *port)
 	if (s->chan_rx)
 		sci_rx_dma_release(s, false);
 }
-#else
+
+static void sci_flush_buffer(struct uart_port *port)
+{
+	/*
+	 * In uart_flush_buffer(), the xmit circular buffer has just been
+	 * cleared, so we have to reset tx_dma_len accordingly.
+	 */
+	to_sci_port(port)->tx_dma_len = 0;
+}
+#else /* !CONFIG_SERIAL_SH_SCI_DMA */
 static inline void sci_request_dma(struct uart_port *port)
 {
 }
@@ -1553,7 +1578,9 @@ static inline void sci_request_dma(struct uart_port *port)
 static inline void sci_free_dma(struct uart_port *port)
 {
 }
-#endif
+
+#define sci_flush_buffer	NULL
+#endif /* !CONFIG_SERIAL_SH_SCI_DMA */
 
 static irqreturn_t sci_rx_interrupt(int irq, void *ptr)
 {
@@ -1985,11 +2012,13 @@ static int sci_startup(struct uart_port *port)
 
 	dev_dbg(port->dev, "%s(%d)\n", __func__, port->line);
 
-	ret = sci_request_irq(s);
-	if (unlikely(ret < 0))
-		return ret;
-
 	sci_request_dma(port);
+
+	ret = sci_request_irq(s);
+	if (unlikely(ret < 0)) {
+		sci_free_dma(port);
+		return ret;
+	}
 
 	return 0;
 }
@@ -2021,8 +2050,8 @@ static void sci_shutdown(struct uart_port *port)
 	}
 #endif
 
-	sci_free_dma(port);
 	sci_free_irq(s);
+	sci_free_dma(port);
 }
 
 static int sci_sck_calc(struct sci_port *s, unsigned int bps,
@@ -2156,10 +2185,6 @@ static void sci_reset(struct uart_port *port)
 	const struct plat_sci_reg *reg;
 	unsigned int status;
 	struct sci_port *s = to_sci_port(port);
-
-	do {
-		status = serial_port_in(port, SCxSR);
-	} while (!(status & SCxSR_TEND(port)));
 
 	serial_port_out(port, SCSCR, 0x00);	/* TE=0, RE=0, CKE1=0 */
 
@@ -2374,6 +2399,10 @@ done:
 
 		serial_port_out(port, SCFCR, ctrl);
 	}
+	if (port->flags & UPF_HARD_FLOW) {
+		/* Refresh (Auto) RTS */
+		sci_set_mctrl(port, port->mctrl);
+	}
 
 	scr_val |= SCSCR_RE | SCSCR_TE |
 		   (s->cfg->scscr & ~(SCSCR_CKE1 | SCSCR_CKE0));
@@ -2566,6 +2595,7 @@ static const struct uart_ops sci_uart_ops = {
 	.break_ctl	= sci_break_ctl,
 	.startup	= sci_startup,
 	.shutdown	= sci_shutdown,
+	.flush_buffer	= sci_flush_buffer,
 	.set_termios	= sci_set_termios,
 	.pm		= sci_pm,
 	.type		= sci_type,
@@ -2935,6 +2965,7 @@ static inline int sci_probe_earlyprintk(struct platform_device *pdev)
 
 static const char banner[] __initconst = "SuperH (H)SCI(F) driver initialized";
 
+static DEFINE_MUTEX(sci_uart_registration_lock);
 static struct uart_driver sci_uart_driver = {
 	.owner		= THIS_MODULE,
 	.driver_name	= "sci",
@@ -3042,8 +3073,7 @@ static struct plat_sci_port *sci_parse_dt(struct platform_device *pdev,
 	p->type = SCI_OF_TYPE(match->data);
 	p->regtype = SCI_OF_REGTYPE(match->data);
 
-	if (of_find_property(np, "uart-has-rtscts", NULL))
-		sp->has_rtscts = true;
+	sp->has_rtscts = of_property_read_bool(np, "uart-has-rtscts");
 
 	return p;
 }
@@ -3062,6 +3092,16 @@ static int sci_probe_single(struct platform_device *dev,
 		dev_notice(&dev->dev, "Consider bumping CONFIG_SERIAL_SH_SCI_NR_UARTS!\n");
 		return -EINVAL;
 	}
+
+	mutex_lock(&sci_uart_registration_lock);
+	if (!sci_uart_driver.state) {
+		ret = uart_register_driver(&sci_uart_driver);
+		if (ret) {
+			mutex_unlock(&sci_uart_registration_lock);
+			return ret;
+		}
+	}
+	mutex_unlock(&sci_uart_registration_lock);
 
 	ret = sci_init_single(dev, sciport, index, p, false);
 	if (ret)
@@ -3186,24 +3226,17 @@ static struct platform_driver sci_driver = {
 
 static int __init sci_init(void)
 {
-	int ret;
-
 	pr_info("%s\n", banner);
 
-	ret = uart_register_driver(&sci_uart_driver);
-	if (likely(ret == 0)) {
-		ret = platform_driver_register(&sci_driver);
-		if (unlikely(ret))
-			uart_unregister_driver(&sci_uart_driver);
-	}
-
-	return ret;
+	return platform_driver_register(&sci_driver);
 }
 
 static void __exit sci_exit(void)
 {
 	platform_driver_unregister(&sci_driver);
-	uart_unregister_driver(&sci_uart_driver);
+
+	if (sci_uart_driver.state)
+		uart_unregister_driver(&sci_uart_driver);
 }
 
 #ifdef CONFIG_SERIAL_SH_SCI_CONSOLE

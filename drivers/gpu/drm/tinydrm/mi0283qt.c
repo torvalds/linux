@@ -132,9 +132,12 @@ static const struct drm_display_mode mi0283qt_mode = {
 	TINYDRM_MODE(320, 240, 58, 43),
 };
 
+DEFINE_DRM_GEM_CMA_FOPS(mi0283qt_fops);
+
 static struct drm_driver mi0283qt_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
 				  DRIVER_ATOMIC,
+	.fops			= &mi0283qt_fops,
 	TINYDRM_GEM_DRIVER_OPS,
 	.lastclose		= tinydrm_lastclose,
 	.debugfs_init		= mipi_dbi_debugfs_init,
@@ -192,8 +195,12 @@ static int mi0283qt_probe(struct spi_device *spi)
 
 	device_property_read_u32(dev, "rotation", &rotation);
 
-	ret = mipi_dbi_spi_init(spi, mipi, dc, &mi0283qt_pipe_funcs,
-				&mi0283qt_driver, &mi0283qt_mode, rotation);
+	ret = mipi_dbi_spi_init(spi, mipi, dc);
+	if (ret)
+		return ret;
+
+	ret = mipi_dbi_init(&spi->dev, mipi, &mi0283qt_pipe_funcs,
+			    &mi0283qt_driver, &mi0283qt_mode, rotation);
 	if (ret)
 		return ret;
 

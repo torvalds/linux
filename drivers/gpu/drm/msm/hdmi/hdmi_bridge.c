@@ -35,6 +35,8 @@ static void msm_hdmi_power_on(struct drm_bridge *bridge)
 	const struct hdmi_platform_config *config = hdmi->config;
 	int i, ret;
 
+	pm_runtime_get_sync(&hdmi->pdev->dev);
+
 	for (i = 0; i < config->pwr_reg_cnt; i++) {
 		ret = regulator_enable(hdmi->pwr_regs[i]);
 		if (ret) {
@@ -84,6 +86,67 @@ static void power_off(struct drm_bridge *bridge)
 					config->pwr_reg_names[i], ret);
 		}
 	}
+
+	pm_runtime_put_autosuspend(&hdmi->pdev->dev);
+}
+
+#define AVI_IFRAME_LINE_NUMBER 1
+
+static void msm_hdmi_config_avi_infoframe(struct hdmi *hdmi)
+{
+	struct drm_crtc *crtc = hdmi->encoder->crtc;
+	const struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	union hdmi_infoframe frame;
+	u8 buffer[HDMI_INFOFRAME_SIZE(AVI)];
+	u32 val;
+	int len;
+
+	drm_hdmi_avi_infoframe_from_display_mode(&frame.avi, mode, false);
+
+	len = hdmi_infoframe_pack(&frame, buffer, sizeof(buffer));
+	if (len < 0) {
+		dev_err(&hdmi->pdev->dev,
+			"failed to configure avi infoframe\n");
+		return;
+	}
+
+	/*
+	 * the AVI_INFOx registers don't map exactly to how the AVI infoframes
+	 * are packed according to the spec. The checksum from the header is
+	 * written to the LSB byte of AVI_INFO0 and the version is written to
+	 * the third byte from the LSB of AVI_INFO3
+	 */
+	hdmi_write(hdmi, REG_HDMI_AVI_INFO(0),
+		   buffer[3] |
+		   buffer[4] << 8 |
+		   buffer[5] << 16 |
+		   buffer[6] << 24);
+
+	hdmi_write(hdmi, REG_HDMI_AVI_INFO(1),
+		   buffer[7] |
+		   buffer[8] << 8 |
+		   buffer[9] << 16 |
+		   buffer[10] << 24);
+
+	hdmi_write(hdmi, REG_HDMI_AVI_INFO(2),
+		   buffer[11] |
+		   buffer[12] << 8 |
+		   buffer[13] << 16 |
+		   buffer[14] << 24);
+
+	hdmi_write(hdmi, REG_HDMI_AVI_INFO(3),
+		   buffer[15] |
+		   buffer[16] << 8 |
+		   buffer[1] << 24);
+
+	hdmi_write(hdmi, REG_HDMI_INFOFRAME_CTRL0,
+		   HDMI_INFOFRAME_CTRL0_AVI_SEND |
+		   HDMI_INFOFRAME_CTRL0_AVI_CONT);
+
+	val = hdmi_read(hdmi, REG_HDMI_INFOFRAME_CTRL1);
+	val &= ~HDMI_INFOFRAME_CTRL1_AVI_INFO_LINE__MASK;
+	val |= HDMI_INFOFRAME_CTRL1_AVI_INFO_LINE(AVI_IFRAME_LINE_NUMBER);
+	hdmi_write(hdmi, REG_HDMI_INFOFRAME_CTRL1, val);
 }
 
 static void msm_hdmi_bridge_pre_enable(struct drm_bridge *bridge)
@@ -98,7 +161,10 @@ static void msm_hdmi_bridge_pre_enable(struct drm_bridge *bridge)
 		msm_hdmi_phy_resource_enable(phy);
 		msm_hdmi_power_on(bridge);
 		hdmi->power_on = true;
-		msm_hdmi_audio_update(hdmi);
+		if (hdmi->hdmi_mode) {
+			msm_hdmi_config_avi_infoframe(hdmi);
+			msm_hdmi_audio_update(hdmi);
+		}
 	}
 
 	msm_hdmi_phy_powerup(phy, hdmi->pixclock);
@@ -134,7 +200,8 @@ static void msm_hdmi_bridge_post_disable(struct drm_bridge *bridge)
 	if (hdmi->power_on) {
 		power_off(bridge);
 		hdmi->power_on = false;
-		msm_hdmi_audio_update(hdmi);
+		if (hdmi->hdmi_mode)
+			msm_hdmi_audio_update(hdmi);
 		msm_hdmi_phy_resource_disable(phy);
 	}
 }
@@ -196,7 +263,8 @@ static void msm_hdmi_bridge_mode_set(struct drm_bridge *bridge,
 	DBG("frame_ctrl=%08x", frame_ctrl);
 	hdmi_write(hdmi, REG_HDMI_FRAME_CTRL, frame_ctrl);
 
-	msm_hdmi_audio_update(hdmi);
+	if (hdmi->hdmi_mode)
+		msm_hdmi_audio_update(hdmi);
 }
 
 static const struct drm_bridge_funcs msm_hdmi_bridge_funcs = {

@@ -58,8 +58,6 @@ static int ufshcd_parse_clock_info(struct ufs_hba *hba)
 	if (!np)
 		goto out;
 
-	INIT_LIST_HEAD(&hba->clk_list_head);
-
 	cnt = of_property_count_strings(np, "clock-names");
 	if (!cnt || (cnt == -EINVAL)) {
 		dev_info(dev, "%s: Unable to find clocks, assuming enabled\n",
@@ -309,8 +307,8 @@ int ufshcd_pltfrm_init(struct platform_device *pdev,
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mmio_base = devm_ioremap_resource(dev, mem_res);
-	if (IS_ERR(*(void **)&mmio_base)) {
-		err = PTR_ERR(*(void **)&mmio_base);
+	if (IS_ERR(mmio_base)) {
+		err = PTR_ERR(mmio_base);
 		goto out;
 	}
 

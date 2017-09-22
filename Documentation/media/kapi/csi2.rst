@@ -45,10 +45,21 @@ where
    * - bits_per_sample
      - Number of bits per sample.
 
-The transmitter drivers must configure the CSI-2 transmitter to *LP-11
-mode* whenever the transmitter is powered on but not active. Some
-transmitters do this automatically but some have to be explicitly
-programmed to do so.
+The transmitter drivers must, if possible, configure the CSI-2
+transmitter to *LP-11 mode* whenever the transmitter is powered on but
+not active. Some transmitters do this automatically but some have to
+be explicitly programmed to do so, and some are unable to do so
+altogether due to hardware constraints.
+
+Stopping the transmitter
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+A transmitter stops sending the stream of images as a result of
+calling the ``.s_stream()`` callback. Some transmitters may stop the
+stream at a frame boundary whereas others stop immediately,
+effectively leaving the current frame unfinished. The receiver driver
+should not make assumptions either way, but function properly in both
+cases.
 
 Receiver drivers
 ----------------

@@ -85,7 +85,8 @@ static int sierra_vsc_set_nmea(struct usb_device *udev, __u16 enable)
 			USB_CTRL_SET_TIMEOUT);		/* int timeout       */
 }
 
-static int sierra_calc_num_ports(struct usb_serial *serial)
+static int sierra_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds)
 {
 	int num_ports = 0;
 	u8 ifnum, numendpoints;

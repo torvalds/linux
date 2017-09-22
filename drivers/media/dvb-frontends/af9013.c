@@ -20,13 +20,18 @@
 
 #include "af9013_priv.h"
 
-/* Max transfer size done by I2C transfer functions */
-#define MAX_XFER_SIZE  64
-
 struct af9013_state {
-	struct i2c_adapter *i2c;
+	struct i2c_client *client;
+	struct regmap *regmap;
 	struct dvb_frontend fe;
-	struct af9013_config config;
+	u32 clk;
+	u8 tuner;
+	u32 if_frequency;
+	u8 ts_mode;
+	u8 ts_output_pin;
+	bool spec_inv;
+	u8 api_version[4];
+	u8 gpio[4];
 
 	/* tuner/demod RF and IF AGC limits used for signal strength calc */
 	u8 signal_strength_en, rf_50, rf_80, if_50, if_80;
@@ -44,188 +49,14 @@ struct af9013_state {
 	struct delayed_work statistics_work;
 };
 
-/* write multiple registers */
-static int af9013_wr_regs_i2c(struct af9013_state *priv, u8 mbox, u16 reg,
-	const u8 *val, int len)
-{
-	int ret;
-	u8 buf[MAX_XFER_SIZE];
-	struct i2c_msg msg[1] = {
-		{
-			.addr = priv->config.i2c_addr,
-			.flags = 0,
-			.len = 3 + len,
-			.buf = buf,
-		}
-	};
-
-	if (3 + len > sizeof(buf)) {
-		dev_warn(&priv->i2c->dev,
-			 "%s: i2c wr reg=%04x: len=%d is too big!\n",
-			 KBUILD_MODNAME, reg, len);
-		return -EINVAL;
-	}
-
-	buf[0] = (reg >> 8) & 0xff;
-	buf[1] = (reg >> 0) & 0xff;
-	buf[2] = mbox;
-	memcpy(&buf[3], val, len);
-
-	ret = i2c_transfer(priv->i2c, msg, 1);
-	if (ret == 1) {
-		ret = 0;
-	} else {
-		dev_warn(&priv->i2c->dev, "%s: i2c wr failed=%d reg=%04x " \
-				"len=%d\n", KBUILD_MODNAME, ret, reg, len);
-		ret = -EREMOTEIO;
-	}
-	return ret;
-}
-
-/* read multiple registers */
-static int af9013_rd_regs_i2c(struct af9013_state *priv, u8 mbox, u16 reg,
-	u8 *val, int len)
-{
-	int ret;
-	u8 buf[3];
-	struct i2c_msg msg[2] = {
-		{
-			.addr = priv->config.i2c_addr,
-			.flags = 0,
-			.len = 3,
-			.buf = buf,
-		}, {
-			.addr = priv->config.i2c_addr,
-			.flags = I2C_M_RD,
-			.len = len,
-			.buf = val,
-		}
-	};
-
-	buf[0] = (reg >> 8) & 0xff;
-	buf[1] = (reg >> 0) & 0xff;
-	buf[2] = mbox;
-
-	ret = i2c_transfer(priv->i2c, msg, 2);
-	if (ret == 2) {
-		ret = 0;
-	} else {
-		dev_warn(&priv->i2c->dev, "%s: i2c rd failed=%d reg=%04x " \
-				"len=%d\n", KBUILD_MODNAME, ret, reg, len);
-		ret = -EREMOTEIO;
-	}
-	return ret;
-}
-
-/* write multiple registers */
-static int af9013_wr_regs(struct af9013_state *priv, u16 reg, const u8 *val,
-	int len)
-{
-	int ret, i;
-	u8 mbox = (0 << 7)|(0 << 6)|(1 << 1)|(1 << 0);
-
-	if ((priv->config.ts_mode == AF9013_TS_USB) &&
-		((reg & 0xff00) != 0xff00) && ((reg & 0xff00) != 0xae00)) {
-		mbox |= ((len - 1) << 2);
-		ret = af9013_wr_regs_i2c(priv, mbox, reg, val, len);
-	} else {
-		for (i = 0; i < len; i++) {
-			ret = af9013_wr_regs_i2c(priv, mbox, reg+i, val+i, 1);
-			if (ret)
-				goto err;
-		}
-	}
-
-err:
-	return 0;
-}
-
-/* read multiple registers */
-static int af9013_rd_regs(struct af9013_state *priv, u16 reg, u8 *val, int len)
-{
-	int ret, i;
-	u8 mbox = (0 << 7)|(0 << 6)|(1 << 1)|(0 << 0);
-
-	if ((priv->config.ts_mode == AF9013_TS_USB) &&
-		((reg & 0xff00) != 0xff00) && ((reg & 0xff00) != 0xae00)) {
-		mbox |= ((len - 1) << 2);
-		ret = af9013_rd_regs_i2c(priv, mbox, reg, val, len);
-	} else {
-		for (i = 0; i < len; i++) {
-			ret = af9013_rd_regs_i2c(priv, mbox, reg+i, val+i, 1);
-			if (ret)
-				goto err;
-		}
-	}
-
-err:
-	return 0;
-}
-
-/* write single register */
-static int af9013_wr_reg(struct af9013_state *priv, u16 reg, u8 val)
-{
-	return af9013_wr_regs(priv, reg, &val, 1);
-}
-
-/* read single register */
-static int af9013_rd_reg(struct af9013_state *priv, u16 reg, u8 *val)
-{
-	return af9013_rd_regs(priv, reg, val, 1);
-}
-
-static int af9013_write_ofsm_regs(struct af9013_state *state, u16 reg, u8 *val,
-	u8 len)
-{
-	u8 mbox = (1 << 7)|(1 << 6)|((len - 1) << 2)|(1 << 1)|(1 << 0);
-	return af9013_wr_regs_i2c(state, mbox, reg, val, len);
-}
-
-static int af9013_wr_reg_bits(struct af9013_state *state, u16 reg, int pos,
-	int len, u8 val)
-{
-	int ret;
-	u8 tmp, mask;
-
-	/* no need for read if whole reg is written */
-	if (len != 8) {
-		ret = af9013_rd_reg(state, reg, &tmp);
-		if (ret)
-			return ret;
-
-		mask = (0xff >> (8 - len)) << pos;
-		val <<= pos;
-		tmp &= ~mask;
-		val |= tmp;
-	}
-
-	return af9013_wr_reg(state, reg, val);
-}
-
-static int af9013_rd_reg_bits(struct af9013_state *state, u16 reg, int pos,
-	int len, u8 *val)
-{
-	int ret;
-	u8 tmp;
-
-	ret = af9013_rd_reg(state, reg, &tmp);
-	if (ret)
-		return ret;
-
-	*val = (tmp >> pos);
-	*val &= (0xff >> (8 - len));
-
-	return 0;
-}
-
 static int af9013_set_gpio(struct af9013_state *state, u8 gpio, u8 gpioval)
 {
+	struct i2c_client *client = state->client;
 	int ret;
 	u8 pos;
 	u16 addr;
 
-	dev_dbg(&state->i2c->dev, "%s: gpio=%d gpioval=%02x\n",
-			__func__, gpio, gpioval);
+	dev_dbg(&client->dev, "gpio %u, gpioval %02x\n", gpio, gpioval);
 
 	/*
 	 * GPIO0 & GPIO1 0xd735
@@ -243,8 +74,6 @@ static int af9013_set_gpio(struct af9013_state *state, u8 gpio, u8 gpioval)
 		break;
 
 	default:
-		dev_err(&state->i2c->dev, "%s: invalid gpio=%d\n",
-				KBUILD_MODNAME, gpio);
 		ret = -EINVAL;
 		goto err;
 	}
@@ -261,197 +90,124 @@ static int af9013_set_gpio(struct af9013_state *state, u8 gpio, u8 gpioval)
 		break;
 	}
 
-	ret = af9013_wr_reg_bits(state, addr, pos, 4, gpioval);
+	ret = regmap_update_bits(state->regmap, addr, 0x0f << pos,
+				 gpioval << pos);
 	if (ret)
 		goto err;
 
-	return ret;
+	return 0;
 err:
-	dev_dbg(&state->i2c->dev, "%s: failed=%d\n", __func__, ret);
-	return ret;
-}
-
-static u32 af9013_div(struct af9013_state *state, u32 a, u32 b, u32 x)
-{
-	u32 r = 0, c = 0, i;
-
-	dev_dbg(&state->i2c->dev, "%s: a=%d b=%d x=%d\n", __func__, a, b, x);
-
-	if (a > b) {
-		c = a / b;
-		a = a - c * b;
-	}
-
-	for (i = 0; i < x; i++) {
-		if (a >= b) {
-			r += 1;
-			a -= b;
-		}
-		a <<= 1;
-		r <<= 1;
-	}
-	r = (c << (u32)x) + r;
-
-	dev_dbg(&state->i2c->dev, "%s: a=%d b=%d x=%d r=%d r=%x\n",
-			__func__, a, b, x, r, r);
-
-	return r;
-}
-
-static int af9013_power_ctrl(struct af9013_state *state, u8 onoff)
-{
-	int ret, i;
-	u8 tmp;
-
-	dev_dbg(&state->i2c->dev, "%s: onoff=%d\n", __func__, onoff);
-
-	/* enable reset */
-	ret = af9013_wr_reg_bits(state, 0xd417, 4, 1, 1);
-	if (ret)
-		goto err;
-
-	/* start reset mechanism */
-	ret = af9013_wr_reg(state, 0xaeff, 1);
-	if (ret)
-		goto err;
-
-	/* wait reset performs */
-	for (i = 0; i < 150; i++) {
-		ret = af9013_rd_reg_bits(state, 0xd417, 1, 1, &tmp);
-		if (ret)
-			goto err;
-
-		if (tmp)
-			break; /* reset done */
-
-		usleep_range(5000, 25000);
-	}
-
-	if (!tmp)
-		return -ETIMEDOUT;
-
-	if (onoff) {
-		/* clear reset */
-		ret = af9013_wr_reg_bits(state, 0xd417, 1, 1, 0);
-		if (ret)
-			goto err;
-
-		/* disable reset */
-		ret = af9013_wr_reg_bits(state, 0xd417, 4, 1, 0);
-
-		/* power on */
-		ret = af9013_wr_reg_bits(state, 0xd73a, 3, 1, 0);
-	} else {
-		/* power off */
-		ret = af9013_wr_reg_bits(state, 0xd73a, 3, 1, 1);
-	}
-
-	return ret;
-err:
-	dev_dbg(&state->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed %d\n", ret);
 	return ret;
 }
 
 static int af9013_statistics_ber_unc_start(struct dvb_frontend *fe)
 {
 	struct af9013_state *state = fe->demodulator_priv;
+	struct i2c_client *client = state->client;
 	int ret;
 
-	dev_dbg(&state->i2c->dev, "%s:\n", __func__);
+	dev_dbg(&client->dev, "\n");
 
 	/* reset and start BER counter */
-	ret = af9013_wr_reg_bits(state, 0xd391, 4, 1, 1);
+	ret = regmap_update_bits(state->regmap, 0xd391, 0x10, 0x10);
 	if (ret)
 		goto err;
 
-	return ret;
+	return 0;
 err:
-	dev_dbg(&state->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed %d\n", ret);
 	return ret;
 }
 
 static int af9013_statistics_ber_unc_result(struct dvb_frontend *fe)
 {
 	struct af9013_state *state = fe->demodulator_priv;
+	struct i2c_client *client = state->client;
 	int ret;
+	unsigned int utmp;
 	u8 buf[5];
 
-	dev_dbg(&state->i2c->dev, "%s:\n", __func__);
+	dev_dbg(&client->dev, "\n");
 
 	/* check if error bit count is ready */
-	ret = af9013_rd_reg_bits(state, 0xd391, 4, 1, &buf[0]);
+	ret = regmap_read(state->regmap, 0xd391, &utmp);
 	if (ret)
 		goto err;
 
-	if (!buf[0]) {
-		dev_dbg(&state->i2c->dev, "%s: not ready\n", __func__);
+	if (!((utmp >> 4) & 0x01)) {
+		dev_dbg(&client->dev, "not ready\n");
 		return 0;
 	}
 
-	ret = af9013_rd_regs(state, 0xd387, buf, 5);
+	ret = regmap_bulk_read(state->regmap, 0xd387, buf, 5);
 	if (ret)
 		goto err;
 
 	state->ber = (buf[2] << 16) | (buf[1] << 8) | buf[0];
 	state->ucblocks += (buf[4] << 8) | buf[3];
 
-	return ret;
+	return 0;
 err:
-	dev_dbg(&state->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed %d\n", ret);
 	return ret;
 }
 
 static int af9013_statistics_snr_start(struct dvb_frontend *fe)
 {
 	struct af9013_state *state = fe->demodulator_priv;
+	struct i2c_client *client = state->client;
 	int ret;
 
-	dev_dbg(&state->i2c->dev, "%s:\n", __func__);
+	dev_dbg(&client->dev, "\n");
 
 	/* start SNR meas */
-	ret = af9013_wr_reg_bits(state, 0xd2e1, 3, 1, 1);
+	ret = regmap_update_bits(state->regmap, 0xd2e1, 0x08, 0x08);
 	if (ret)
 		goto err;
 
-	return ret;
+	return 0;
 err:
-	dev_dbg(&state->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed %d\n", ret);
 	return ret;
 }
 
 static int af9013_statistics_snr_result(struct dvb_frontend *fe)
 {
 	struct af9013_state *state = fe->demodulator_priv;
+	struct i2c_client *client = state->client;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret, i, len;
-	u8 buf[3], tmp;
+	unsigned int utmp;
+	u8 buf[3];
 	u32 snr_val;
 	const struct af9013_snr *uninitialized_var(snr_lut);
 
-	dev_dbg(&state->i2c->dev, "%s:\n", __func__);
+	dev_dbg(&client->dev, "\n");
 
 	/* check if SNR ready */
-	ret = af9013_rd_reg_bits(state, 0xd2e1, 3, 1, &tmp);
+	ret = regmap_read(state->regmap, 0xd2e1, &utmp);
 	if (ret)
 		goto err;
 
-	if (!tmp) {
-		dev_dbg(&state->i2c->dev, "%s: not ready\n", __func__);
+	if (!((utmp >> 3) & 0x01)) {
+		dev_dbg(&client->dev, "not ready\n");
 		return 0;
 	}
 
 	/* read value */
-	ret = af9013_rd_regs(state, 0xd2e3, buf, 3);
+	ret = regmap_bulk_read(state->regmap, 0xd2e3, buf, 3);
 	if (ret)
 		goto err;
 
 	snr_val = (buf[2] << 16) | (buf[1] << 8) | buf[0];
 
 	/* read current modulation */
-	ret = af9013_rd_reg(state, 0xd3c1, &tmp);
+	ret = regmap_read(state->regmap, 0xd3c1, &utmp);
 	if (ret)
 		goto err;
 
-	switch ((tmp >> 6) & 3) {
+	switch ((utmp >> 6) & 3) {
 	case 0:
 		len = ARRAY_SIZE(qpsk_snr_lut);
 		snr_lut = qpsk_snr_lut;
@@ -469,32 +225,36 @@ static int af9013_statistics_snr_result(struct dvb_frontend *fe)
 	}
 
 	for (i = 0; i < len; i++) {
-		tmp = snr_lut[i].snr;
+		utmp = snr_lut[i].snr;
 
 		if (snr_val < snr_lut[i].val)
 			break;
 	}
-	state->snr = tmp * 10; /* dB/10 */
+	state->snr = utmp * 10; /* dB/10 */
 
-	return ret;
+	c->cnr.stat[0].svalue = 1000 * utmp;
+	c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+
+	return 0;
 err:
-	dev_dbg(&state->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed %d\n", ret);
 	return ret;
 }
 
 static int af9013_statistics_signal_strength(struct dvb_frontend *fe)
 {
 	struct af9013_state *state = fe->demodulator_priv;
+	struct i2c_client *client = state->client;
 	int ret = 0;
 	u8 buf[2], rf_gain, if_gain;
 	int signal_strength;
 
-	dev_dbg(&state->i2c->dev, "%s:\n", __func__);
+	dev_dbg(&client->dev, "\n");
 
 	if (!state->signal_strength_en)
 		return 0;
 
-	ret = af9013_rd_regs(state, 0xd07c, buf, 2);
+	ret = regmap_bulk_read(state->regmap, 0xd07c, buf, 2);
 	if (ret)
 		goto err;
 
@@ -513,9 +273,9 @@ static int af9013_statistics_signal_strength(struct dvb_frontend *fe)
 
 	state->signal_strength = signal_strength;
 
-	return ret;
+	return 0;
 err:
-	dev_dbg(&state->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed %d\n", ret);
 	return ret;
 }
 
@@ -535,6 +295,7 @@ static void af9013_statistics_work(struct work_struct *work)
 	switch (state->statistics_step) {
 	default:
 		state->statistics_step = 0;
+		/* fall-through */
 	case 0:
 		af9013_statistics_signal_strength(&state->fe);
 		state->statistics_step++;
@@ -579,61 +340,72 @@ static int af9013_get_tune_settings(struct dvb_frontend *fe,
 static int af9013_set_frontend(struct dvb_frontend *fe)
 {
 	struct af9013_state *state = fe->demodulator_priv;
+	struct i2c_client *client = state->client;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret, i, sampling_freq;
 	bool auto_mode, spec_inv;
 	u8 buf[6];
 	u32 if_frequency, freq_cw;
 
-	dev_dbg(&state->i2c->dev, "%s: frequency=%d bandwidth_hz=%d\n",
-			__func__, c->frequency, c->bandwidth_hz);
+	dev_dbg(&client->dev, "frequency %u, bandwidth_hz %u\n",
+		c->frequency, c->bandwidth_hz);
 
 	/* program tuner */
-	if (fe->ops.tuner_ops.set_params)
-		fe->ops.tuner_ops.set_params(fe);
+	if (fe->ops.tuner_ops.set_params) {
+		ret = fe->ops.tuner_ops.set_params(fe);
+		if (ret)
+			goto err;
+	}
 
 	/* program CFOE coefficients */
 	if (c->bandwidth_hz != state->bandwidth_hz) {
 		for (i = 0; i < ARRAY_SIZE(coeff_lut); i++) {
-			if (coeff_lut[i].clock == state->config.clock &&
+			if (coeff_lut[i].clock == state->clk &&
 				coeff_lut[i].bandwidth_hz == c->bandwidth_hz) {
 				break;
 			}
 		}
 
 		/* Return an error if can't find bandwidth or the right clock */
-		if (i == ARRAY_SIZE(coeff_lut))
-			return -EINVAL;
+		if (i == ARRAY_SIZE(coeff_lut)) {
+			ret = -EINVAL;
+			goto err;
+		}
 
-		ret = af9013_wr_regs(state, 0xae00, coeff_lut[i].val,
-			sizeof(coeff_lut[i].val));
+		ret = regmap_bulk_write(state->regmap, 0xae00, coeff_lut[i].val,
+					sizeof(coeff_lut[i].val));
+		if (ret)
+			goto err;
 	}
 
 	/* program frequency control */
 	if (c->bandwidth_hz != state->bandwidth_hz || state->first_tune) {
 		/* get used IF frequency */
-		if (fe->ops.tuner_ops.get_if_frequency)
-			fe->ops.tuner_ops.get_if_frequency(fe, &if_frequency);
-		else
-			if_frequency = state->config.if_frequency;
+		if (fe->ops.tuner_ops.get_if_frequency) {
+			ret = fe->ops.tuner_ops.get_if_frequency(fe,
+								 &if_frequency);
+			if (ret)
+				goto err;
+		} else {
+			if_frequency = state->if_frequency;
+		}
 
-		dev_dbg(&state->i2c->dev, "%s: if_frequency=%d\n",
-				__func__, if_frequency);
+		dev_dbg(&client->dev, "if_frequency %u\n", if_frequency);
 
 		sampling_freq = if_frequency;
 
-		while (sampling_freq > (state->config.clock / 2))
-			sampling_freq -= state->config.clock;
+		while (sampling_freq > (state->clk / 2))
+			sampling_freq -= state->clk;
 
 		if (sampling_freq < 0) {
 			sampling_freq *= -1;
-			spec_inv = state->config.spec_inv;
+			spec_inv = state->spec_inv;
 		} else {
-			spec_inv = !state->config.spec_inv;
+			spec_inv = !state->spec_inv;
 		}
 
-		freq_cw = af9013_div(state, sampling_freq, state->config.clock,
-				23);
+		freq_cw = DIV_ROUND_CLOSEST_ULL((u64)sampling_freq * 0x800000,
+						state->clk);
 
 		if (spec_inv)
 			freq_cw = 0x800000 - freq_cw;
@@ -648,32 +420,32 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 		buf[4] = (freq_cw >>  8) & 0xff;
 		buf[5] = (freq_cw >> 16) & 0x7f;
 
-		ret = af9013_wr_regs(state, 0xd140, buf, 3);
+		ret = regmap_bulk_write(state->regmap, 0xd140, buf, 3);
 		if (ret)
 			goto err;
 
-		ret = af9013_wr_regs(state, 0x9be7, buf, 6);
+		ret = regmap_bulk_write(state->regmap, 0x9be7, buf, 6);
 		if (ret)
 			goto err;
 	}
 
 	/* clear TPS lock flag */
-	ret = af9013_wr_reg_bits(state, 0xd330, 3, 1, 1);
+	ret = regmap_update_bits(state->regmap, 0xd330, 0x08, 0x08);
 	if (ret)
 		goto err;
 
 	/* clear MPEG2 lock flag */
-	ret = af9013_wr_reg_bits(state, 0xd507, 6, 1, 0);
+	ret = regmap_update_bits(state->regmap, 0xd507, 0x40, 0x00);
 	if (ret)
 		goto err;
 
 	/* empty channel function */
-	ret = af9013_wr_reg_bits(state, 0x9bfe, 0, 1, 0);
+	ret = regmap_update_bits(state->regmap, 0x9bfe, 0x01, 0x00);
 	if (ret)
 		goto err;
 
 	/* empty DVB-T channel function */
-	ret = af9013_wr_reg_bits(state, 0x9bc2, 0, 1, 0);
+	ret = regmap_update_bits(state->regmap, 0x9bc2, 0x01, 0x00);
 	if (ret)
 		goto err;
 
@@ -691,8 +463,7 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 		buf[0] |= (1 << 0);
 		break;
 	default:
-		dev_dbg(&state->i2c->dev, "%s: invalid transmission_mode\n",
-				__func__);
+		dev_dbg(&client->dev, "invalid transmission_mode\n");
 		auto_mode = true;
 	}
 
@@ -712,8 +483,7 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 		buf[0] |= (3 << 2);
 		break;
 	default:
-		dev_dbg(&state->i2c->dev, "%s: invalid guard_interval\n",
-				__func__);
+		dev_dbg(&client->dev, "invalid guard_interval\n");
 		auto_mode = true;
 	}
 
@@ -733,7 +503,7 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 		buf[0] |= (3 << 4);
 		break;
 	default:
-		dev_dbg(&state->i2c->dev, "%s: invalid hierarchy\n", __func__);
+		dev_dbg(&client->dev, "invalid hierarchy\n");
 		auto_mode = true;
 	}
 
@@ -750,7 +520,7 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 		buf[1] |= (2 << 6);
 		break;
 	default:
-		dev_dbg(&state->i2c->dev, "%s: invalid modulation\n", __func__);
+		dev_dbg(&client->dev, "invalid modulation\n");
 		auto_mode = true;
 	}
 
@@ -776,8 +546,7 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 		buf[2] |= (4 << 0);
 		break;
 	default:
-		dev_dbg(&state->i2c->dev, "%s: invalid code_rate_HP\n",
-				__func__);
+		dev_dbg(&client->dev, "invalid code_rate_HP\n");
 		auto_mode = true;
 	}
 
@@ -802,8 +571,7 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 	case FEC_NONE:
 		break;
 	default:
-		dev_dbg(&state->i2c->dev, "%s: invalid code_rate_LP\n",
-				__func__);
+		dev_dbg(&client->dev, "invalid code_rate_LP\n");
 		auto_mode = true;
 	}
 
@@ -817,38 +585,37 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 		buf[1] |= (2 << 2);
 		break;
 	default:
-		dev_dbg(&state->i2c->dev, "%s: invalid bandwidth_hz\n",
-				__func__);
+		dev_dbg(&client->dev, "invalid bandwidth_hz\n");
 		ret = -EINVAL;
 		goto err;
 	}
 
-	ret = af9013_wr_regs(state, 0xd3c0, buf, 3);
+	ret = regmap_bulk_write(state->regmap, 0xd3c0, buf, 3);
 	if (ret)
 		goto err;
 
 	if (auto_mode) {
 		/* clear easy mode flag */
-		ret = af9013_wr_reg(state, 0xaefd, 0);
+		ret = regmap_write(state->regmap, 0xaefd, 0x00);
 		if (ret)
 			goto err;
 
-		dev_dbg(&state->i2c->dev, "%s: auto params\n", __func__);
+		dev_dbg(&client->dev, "auto params\n");
 	} else {
 		/* set easy mode flag */
-		ret = af9013_wr_reg(state, 0xaefd, 1);
+		ret = regmap_write(state->regmap, 0xaefd, 0x01);
 		if (ret)
 			goto err;
 
-		ret = af9013_wr_reg(state, 0xaefe, 0);
+		ret = regmap_write(state->regmap, 0xaefe, 0x00);
 		if (ret)
 			goto err;
 
-		dev_dbg(&state->i2c->dev, "%s: manual params\n", __func__);
+		dev_dbg(&client->dev, "manual params\n");
 	}
 
-	/* tune */
-	ret = af9013_wr_reg(state, 0xffff, 0);
+	/* Reset FSM */
+	ret = regmap_write(state->regmap, 0xffff, 0x00);
 	if (ret)
 		goto err;
 
@@ -856,9 +623,9 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 	state->set_frontend_jiffies = jiffies;
 	state->first_tune = false;
 
-	return ret;
+	return 0;
 err:
-	dev_dbg(&state->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed %d\n", ret);
 	return ret;
 }
 
@@ -866,12 +633,13 @@ static int af9013_get_frontend(struct dvb_frontend *fe,
 			       struct dtv_frontend_properties *c)
 {
 	struct af9013_state *state = fe->demodulator_priv;
+	struct i2c_client *client = state->client;
 	int ret;
 	u8 buf[3];
 
-	dev_dbg(&state->i2c->dev, "%s:\n", __func__);
+	dev_dbg(&client->dev, "\n");
 
-	ret = af9013_rd_regs(state, 0xd3c0, buf, 3);
+	ret = regmap_bulk_read(state->regmap, 0xd3c0, buf, 3);
 	if (ret)
 		goto err;
 
@@ -973,17 +741,18 @@ static int af9013_get_frontend(struct dvb_frontend *fe,
 		break;
 	}
 
-	return ret;
+	return 0;
 err:
-	dev_dbg(&state->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed %d\n", ret);
 	return ret;
 }
 
 static int af9013_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct af9013_state *state = fe->demodulator_priv;
+	struct i2c_client *client = state->client;
 	int ret;
-	u8 tmp;
+	unsigned int utmp;
 
 	/*
 	 * Return status from the cache if it is younger than 2000ms with the
@@ -1001,21 +770,21 @@ static int af9013_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	}
 
 	/* MPEG2 lock */
-	ret = af9013_rd_reg_bits(state, 0xd507, 6, 1, &tmp);
+	ret = regmap_read(state->regmap, 0xd507, &utmp);
 	if (ret)
 		goto err;
 
-	if (tmp)
+	if ((utmp >> 6) & 0x01)
 		*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_VITERBI |
 			FE_HAS_SYNC | FE_HAS_LOCK;
 
 	if (!*status) {
 		/* TPS lock */
-		ret = af9013_rd_reg_bits(state, 0xd330, 3, 1, &tmp);
+		ret = regmap_read(state->regmap, 0xd330, &utmp);
 		if (ret)
 			goto err;
 
-		if (tmp)
+		if ((utmp >> 3) & 0x01)
 			*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER |
 				FE_HAS_VITERBI;
 	}
@@ -1023,9 +792,9 @@ static int af9013_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	state->fe_status = *status;
 	state->read_status_jiffies = jiffies;
 
-	return ret;
+	return 0;
 err:
-	dev_dbg(&state->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed %d\n", ret);
 	return ret;
 }
 
@@ -1060,118 +829,82 @@ static int af9013_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 static int af9013_init(struct dvb_frontend *fe)
 {
 	struct af9013_state *state = fe->demodulator_priv;
+	struct i2c_client *client = state->client;
 	int ret, i, len;
-	u8 buf[3], tmp;
-	u32 adc_cw;
+	unsigned int utmp;
+	u8 buf[3];
 	const struct af9013_reg_bit *init;
 
-	dev_dbg(&state->i2c->dev, "%s:\n", __func__);
+	dev_dbg(&client->dev, "\n");
 
-	/* power on */
-	ret = af9013_power_ctrl(state, 1);
+	/* ADC on */
+	ret = regmap_update_bits(state->regmap, 0xd73a, 0x08, 0x00);
 	if (ret)
 		goto err;
 
-	/* enable ADC */
-	ret = af9013_wr_reg(state, 0xd73a, 0xa4);
+	/* Clear reset */
+	ret = regmap_update_bits(state->regmap, 0xd417, 0x02, 0x00);
+	if (ret)
+		goto err;
+
+	/* Disable reset */
+	ret = regmap_update_bits(state->regmap, 0xd417, 0x10, 0x00);
 	if (ret)
 		goto err;
 
 	/* write API version to firmware */
-	ret = af9013_wr_regs(state, 0x9bf2, state->config.api_version, 4);
+	ret = regmap_bulk_write(state->regmap, 0x9bf2, state->api_version, 4);
 	if (ret)
 		goto err;
 
 	/* program ADC control */
-	switch (state->config.clock) {
+	switch (state->clk) {
 	case 28800000: /* 28.800 MHz */
-		tmp = 0;
+		utmp = 0;
 		break;
 	case 20480000: /* 20.480 MHz */
-		tmp = 1;
+		utmp = 1;
 		break;
 	case 28000000: /* 28.000 MHz */
-		tmp = 2;
+		utmp = 2;
 		break;
 	case 25000000: /* 25.000 MHz */
-		tmp = 3;
+		utmp = 3;
 		break;
 	default:
-		dev_err(&state->i2c->dev, "%s: invalid clock\n",
-				KBUILD_MODNAME);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
-	adc_cw = af9013_div(state, state->config.clock, 1000000ul, 19);
-	buf[0] = (adc_cw >>  0) & 0xff;
-	buf[1] = (adc_cw >>  8) & 0xff;
-	buf[2] = (adc_cw >> 16) & 0xff;
-
-	ret = af9013_wr_regs(state, 0xd180, buf, 3);
+	ret = regmap_update_bits(state->regmap, 0x9bd2, 0x0f, utmp);
 	if (ret)
 		goto err;
 
-	ret = af9013_wr_reg_bits(state, 0x9bd2, 0, 4, tmp);
-	if (ret)
-		goto err;
-
-	/* set I2C master clock */
-	ret = af9013_wr_reg(state, 0xd416, 0x14);
-	if (ret)
-		goto err;
-
-	/* set 16 embx */
-	ret = af9013_wr_reg_bits(state, 0xd700, 1, 1, 1);
-	if (ret)
-		goto err;
-
-	/* set no trigger */
-	ret = af9013_wr_reg_bits(state, 0xd700, 2, 1, 0);
-	if (ret)
-		goto err;
-
-	/* set read-update bit for constellation */
-	ret = af9013_wr_reg_bits(state, 0xd371, 1, 1, 1);
-	if (ret)
-		goto err;
-
-	/* settings for mp2if */
-	if (state->config.ts_mode == AF9013_TS_USB) {
-		/* AF9015 split PSB to 1.5k + 0.5k */
-		ret = af9013_wr_reg_bits(state, 0xd50b, 2, 1, 1);
-		if (ret)
-			goto err;
-	} else {
-		/* AF9013 change the output bit to data7 */
-		ret = af9013_wr_reg_bits(state, 0xd500, 3, 1, 1);
-		if (ret)
-			goto err;
-
-		/* AF9013 set mpeg to full speed */
-		ret = af9013_wr_reg_bits(state, 0xd502, 4, 1, 1);
-		if (ret)
-			goto err;
-	}
-
-	ret = af9013_wr_reg_bits(state, 0xd520, 4, 1, 1);
+	utmp = div_u64((u64)state->clk * 0x80000, 1000000);
+	buf[0] = (utmp >>  0) & 0xff;
+	buf[1] = (utmp >>  8) & 0xff;
+	buf[2] = (utmp >> 16) & 0xff;
+	ret = regmap_bulk_write(state->regmap, 0xd180, buf, 3);
 	if (ret)
 		goto err;
 
 	/* load OFSM settings */
-	dev_dbg(&state->i2c->dev, "%s: load ofsm settings\n", __func__);
+	dev_dbg(&client->dev, "load ofsm settings\n");
 	len = ARRAY_SIZE(ofsm_init);
 	init = ofsm_init;
 	for (i = 0; i < len; i++) {
-		ret = af9013_wr_reg_bits(state, init[i].addr, init[i].pos,
-			init[i].len, init[i].val);
+		u16 reg = init[i].addr;
+		u8 mask = GENMASK(init[i].pos + init[i].len - 1, init[i].pos);
+		u8 val = init[i].val << init[i].pos;
+
+		ret = regmap_update_bits(state->regmap, reg, mask, val);
 		if (ret)
 			goto err;
 	}
 
 	/* load tuner specific settings */
-	dev_dbg(&state->i2c->dev, "%s: load tuner specific settings\n",
-			__func__);
-	switch (state->config.tuner) {
+	dev_dbg(&client->dev, "load tuner specific settings\n");
+	switch (state->tuner) {
 	case AF9013_TUNER_MXL5003D:
 		len = ARRAY_SIZE(tuner_init_mxl5003d);
 		init = tuner_init_mxl5003d;
@@ -1216,98 +949,126 @@ static int af9013_init(struct dvb_frontend *fe)
 	}
 
 	for (i = 0; i < len; i++) {
-		ret = af9013_wr_reg_bits(state, init[i].addr, init[i].pos,
-			init[i].len, init[i].val);
+		u16 reg = init[i].addr;
+		u8 mask = GENMASK(init[i].pos + init[i].len - 1, init[i].pos);
+		u8 val = init[i].val << init[i].pos;
+
+		ret = regmap_update_bits(state->regmap, reg, mask, val);
 		if (ret)
 			goto err;
 	}
 
-	/* TS mode */
-	ret = af9013_wr_reg_bits(state, 0xd500, 1, 2, state->config.ts_mode);
+	/* TS interface */
+	if (state->ts_output_pin == 7)
+		utmp = 1 << 3 | state->ts_mode << 1;
+	else
+		utmp = 0 << 3 | state->ts_mode << 1;
+	ret = regmap_update_bits(state->regmap, 0xd500, 0x0e, utmp);
 	if (ret)
 		goto err;
 
 	/* enable lock led */
-	ret = af9013_wr_reg_bits(state, 0xd730, 0, 1, 1);
+	ret = regmap_update_bits(state->regmap, 0xd730, 0x01, 0x01);
 	if (ret)
 		goto err;
 
 	/* check if we support signal strength */
 	if (!state->signal_strength_en) {
-		ret = af9013_rd_reg_bits(state, 0x9bee, 0, 1,
-			&state->signal_strength_en);
+		ret = regmap_read(state->regmap, 0x9bee, &utmp);
 		if (ret)
 			goto err;
+
+		state->signal_strength_en = (utmp >> 0) & 0x01;
 	}
 
 	/* read values needed for signal strength calculation */
 	if (state->signal_strength_en && !state->rf_50) {
-		ret = af9013_rd_reg(state, 0x9bbd, &state->rf_50);
+		ret = regmap_bulk_read(state->regmap, 0x9bbd, &state->rf_50, 1);
 		if (ret)
 			goto err;
-
-		ret = af9013_rd_reg(state, 0x9bd0, &state->rf_80);
+		ret = regmap_bulk_read(state->regmap, 0x9bd0, &state->rf_80, 1);
 		if (ret)
 			goto err;
-
-		ret = af9013_rd_reg(state, 0x9be2, &state->if_50);
+		ret = regmap_bulk_read(state->regmap, 0x9be2, &state->if_50, 1);
 		if (ret)
 			goto err;
-
-		ret = af9013_rd_reg(state, 0x9be4, &state->if_80);
+		ret = regmap_bulk_read(state->regmap, 0x9be4, &state->if_80, 1);
 		if (ret)
 			goto err;
 	}
 
 	/* SNR */
-	ret = af9013_wr_reg(state, 0xd2e2, 1);
+	ret = regmap_write(state->regmap, 0xd2e2, 0x01);
 	if (ret)
 		goto err;
 
 	/* BER / UCB */
 	buf[0] = (10000 >> 0) & 0xff;
 	buf[1] = (10000 >> 8) & 0xff;
-	ret = af9013_wr_regs(state, 0xd385, buf, 2);
+	ret = regmap_bulk_write(state->regmap, 0xd385, buf, 2);
 	if (ret)
 		goto err;
 
 	/* enable FEC monitor */
-	ret = af9013_wr_reg_bits(state, 0xd392, 1, 1, 1);
+	ret = regmap_update_bits(state->regmap, 0xd392, 0x02, 0x02);
 	if (ret)
 		goto err;
 
 	state->first_tune = true;
 	schedule_delayed_work(&state->statistics_work, msecs_to_jiffies(400));
 
-	return ret;
+	return 0;
 err:
-	dev_dbg(&state->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed %d\n", ret);
 	return ret;
 }
 
 static int af9013_sleep(struct dvb_frontend *fe)
 {
 	struct af9013_state *state = fe->demodulator_priv;
+	struct i2c_client *client = state->client;
 	int ret;
+	unsigned int utmp;
 
-	dev_dbg(&state->i2c->dev, "%s:\n", __func__);
+	dev_dbg(&client->dev, "\n");
 
 	/* stop statistics polling */
 	cancel_delayed_work_sync(&state->statistics_work);
 
 	/* disable lock led */
-	ret = af9013_wr_reg_bits(state, 0xd730, 0, 1, 0);
+	ret = regmap_update_bits(state->regmap, 0xd730, 0x01, 0x00);
 	if (ret)
 		goto err;
 
-	/* power off */
-	ret = af9013_power_ctrl(state, 0);
+	/* Enable reset */
+	ret = regmap_update_bits(state->regmap, 0xd417, 0x10, 0x10);
 	if (ret)
 		goto err;
 
-	return ret;
+	/* Start reset execution */
+	ret = regmap_write(state->regmap, 0xaeff, 0x01);
+	if (ret)
+		goto err;
+
+	/* Wait reset performs */
+	ret = regmap_read_poll_timeout(state->regmap, 0xd417, utmp,
+				       (utmp >> 1) & 0x01, 5000, 1000000);
+	if (ret)
+		goto err;
+
+	if (!((utmp >> 1) & 0x01)) {
+		ret = -ETIMEDOUT;
+		goto err;
+	}
+
+	/* ADC off */
+	ret = regmap_update_bits(state->regmap, 0xd73a, 0x08, 0x08);
+	if (ret)
+		goto err;
+
+	return 0;
 err:
-	dev_dbg(&state->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed %d\n", ret);
 	return ret;
 }
 
@@ -1315,200 +1076,174 @@ static int af9013_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	int ret;
 	struct af9013_state *state = fe->demodulator_priv;
+	struct i2c_client *client = state->client;
 
-	dev_dbg(&state->i2c->dev, "%s: enable=%d\n", __func__, enable);
+	dev_dbg(&client->dev, "enable %d\n", enable);
 
 	/* gate already open or close */
 	if (state->i2c_gate_state == enable)
 		return 0;
 
-	if (state->config.ts_mode == AF9013_TS_USB)
-		ret = af9013_wr_reg_bits(state, 0xd417, 3, 1, enable);
+	if (state->ts_mode == AF9013_TS_MODE_USB)
+		ret = regmap_update_bits(state->regmap, 0xd417, 0x08,
+					 enable << 3);
 	else
-		ret = af9013_wr_reg_bits(state, 0xd607, 2, 1, enable);
+		ret = regmap_update_bits(state->regmap, 0xd607, 0x04,
+					 enable << 2);
 	if (ret)
 		goto err;
 
 	state->i2c_gate_state = enable;
 
-	return ret;
+	return 0;
 err:
-	dev_dbg(&state->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed %d\n", ret);
 	return ret;
 }
 
 static void af9013_release(struct dvb_frontend *fe)
 {
 	struct af9013_state *state = fe->demodulator_priv;
+	struct i2c_client *client = state->client;
 
-	/* stop statistics polling */
-	cancel_delayed_work_sync(&state->statistics_work);
+	dev_dbg(&client->dev, "\n");
 
-	kfree(state);
+	i2c_unregister_device(client);
 }
 
 static const struct dvb_frontend_ops af9013_ops;
 
 static int af9013_download_firmware(struct af9013_state *state)
 {
-	int i, len, remaining, ret;
-	const struct firmware *fw;
+	struct i2c_client *client = state->client;
+	int ret, i, len, rem;
+	unsigned int utmp;
+	u8 buf[4];
 	u16 checksum = 0;
-	u8 val;
-	u8 fw_params[4];
-	u8 *fw_file = AF9013_FIRMWARE;
+	const struct firmware *firmware;
+	const char *name = AF9013_FIRMWARE;
 
-	msleep(100);
-	/* check whether firmware is already running */
-	ret = af9013_rd_reg(state, 0x98be, &val);
+	dev_dbg(&client->dev, "\n");
+
+	/* Check whether firmware is already running */
+	ret = regmap_read(state->regmap, 0x98be, &utmp);
 	if (ret)
 		goto err;
-	else
-		dev_dbg(&state->i2c->dev, "%s: firmware status=%02x\n",
-				__func__, val);
 
-	if (val == 0x0c) /* fw is running, no need for download */
-		goto exit;
+	dev_dbg(&client->dev, "firmware status %02x\n", utmp);
 
-	dev_info(&state->i2c->dev, "%s: found a '%s' in cold state, will try " \
-			"to load a firmware\n",
-			KBUILD_MODNAME, af9013_ops.info.name);
+	if (utmp == 0x0c)
+		return 0;
 
-	/* request the firmware, this will block and timeout */
-	ret = request_firmware(&fw, fw_file, state->i2c->dev.parent);
+	dev_info(&client->dev, "found a '%s' in cold state, will try to load a firmware\n",
+		 af9013_ops.info.name);
+
+	/* Request the firmware, will block and timeout */
+	ret = request_firmware(&firmware, name, &client->dev);
 	if (ret) {
-		dev_info(&state->i2c->dev, "%s: did not find the firmware " \
-			"file. (%s) Please see linux/Documentation/dvb/ for " \
-			"more details on firmware-problems. (%d)\n",
-			KBUILD_MODNAME, fw_file, ret);
+		dev_info(&client->dev, "firmware file '%s' not found %d\n",
+			 name, ret);
 		goto err;
 	}
 
-	dev_info(&state->i2c->dev, "%s: downloading firmware from file '%s'\n",
-			KBUILD_MODNAME, fw_file);
+	dev_info(&client->dev, "downloading firmware from file '%s'\n",
+		 name);
 
-	/* calc checksum */
-	for (i = 0; i < fw->size; i++)
-		checksum += fw->data[i];
+	/* Write firmware checksum & size */
+	for (i = 0; i < firmware->size; i++)
+		checksum += firmware->data[i];
 
-	fw_params[0] = checksum >> 8;
-	fw_params[1] = checksum & 0xff;
-	fw_params[2] = fw->size >> 8;
-	fw_params[3] = fw->size & 0xff;
-
-	/* write fw checksum & size */
-	ret = af9013_write_ofsm_regs(state, 0x50fc,
-		fw_params, sizeof(fw_params));
+	buf[0] = (checksum >> 8) & 0xff;
+	buf[1] = (checksum >> 0) & 0xff;
+	buf[2] = (firmware->size >> 8) & 0xff;
+	buf[3] = (firmware->size >> 0) & 0xff;
+	ret = regmap_bulk_write(state->regmap, 0x50fc, buf, 4);
 	if (ret)
-		goto err_release;
+		goto err_release_firmware;
 
-	#define FW_ADDR 0x5100 /* firmware start address */
-	#define LEN_MAX 16 /* max packet size */
-	for (remaining = fw->size; remaining > 0; remaining -= LEN_MAX) {
-		len = remaining;
-		if (len > LEN_MAX)
-			len = LEN_MAX;
-
-		ret = af9013_write_ofsm_regs(state,
-			FW_ADDR + fw->size - remaining,
-			(u8 *) &fw->data[fw->size - remaining], len);
+	/* Download firmware */
+	#define LEN_MAX 16
+	for (rem = firmware->size; rem > 0; rem -= LEN_MAX) {
+		len = min(LEN_MAX, rem);
+		ret = regmap_bulk_write(state->regmap,
+					0x5100 + firmware->size - rem,
+					&firmware->data[firmware->size - rem],
+					len);
 		if (ret) {
-			dev_err(&state->i2c->dev,
-					"%s: firmware download failed=%d\n",
-					KBUILD_MODNAME, ret);
-			goto err_release;
+			dev_err(&client->dev, "firmware download failed %d\n",
+				ret);
+			goto err_release_firmware;
 		}
 	}
 
-	/* request boot firmware */
-	ret = af9013_wr_reg(state, 0xe205, 1);
+	release_firmware(firmware);
+
+	/* Boot firmware */
+	ret = regmap_write(state->regmap, 0xe205, 0x01);
 	if (ret)
-		goto err_release;
+		goto err;
 
-	for (i = 0; i < 15; i++) {
-		msleep(100);
+	/* Check firmware status. 0c=OK, 04=fail */
+	ret = regmap_read_poll_timeout(state->regmap, 0x98be, utmp,
+				       (utmp == 0x0c || utmp == 0x04),
+				       5000, 1000000);
+	if (ret)
+		goto err;
 
-		/* check firmware status */
-		ret = af9013_rd_reg(state, 0x98be, &val);
-		if (ret)
-			goto err_release;
+	dev_dbg(&client->dev, "firmware status %02x\n", utmp);
 
-		dev_dbg(&state->i2c->dev, "%s: firmware status=%02x\n",
-				__func__, val);
-
-		if (val == 0x0c || val == 0x04) /* success or fail */
-			break;
+	if (utmp == 0x04) {
+		ret = -ENODEV;
+		dev_err(&client->dev, "firmware did not run\n");
+		goto err;
+	} else if (utmp != 0x0c) {
+		ret = -ENODEV;
+		dev_err(&client->dev, "firmware boot timeout\n");
+		goto err;
 	}
 
-	if (val == 0x04) {
-		dev_err(&state->i2c->dev, "%s: firmware did not run\n",
-				KBUILD_MODNAME);
-		ret = -ENODEV;
-	} else if (val != 0x0c) {
-		dev_err(&state->i2c->dev, "%s: firmware boot timeout\n",
-				KBUILD_MODNAME);
-		ret = -ENODEV;
-	}
+	dev_info(&client->dev, "found a '%s' in warm state\n",
+		 af9013_ops.info.name);
 
-err_release:
-	release_firmware(fw);
+	return 0;
+err_release_firmware:
+	release_firmware(firmware);
 err:
-exit:
-	if (!ret)
-		dev_info(&state->i2c->dev, "%s: found a '%s' in warm state\n",
-				KBUILD_MODNAME, af9013_ops.info.name);
+	dev_dbg(&client->dev, "failed %d\n", ret);
 	return ret;
 }
 
+/*
+ * XXX: That is wrapper to af9013_probe() via driver core in order to provide
+ * proper I2C client for legacy media attach binding.
+ * New users must use I2C client binding directly!
+ */
 struct dvb_frontend *af9013_attach(const struct af9013_config *config,
-	struct i2c_adapter *i2c)
+				   struct i2c_adapter *i2c)
 {
-	int ret;
-	struct af9013_state *state = NULL;
-	u8 buf[4], i;
+	struct i2c_client *client;
+	struct i2c_board_info board_info;
+	struct af9013_platform_data pdata;
 
-	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct af9013_state), GFP_KERNEL);
-	if (state == NULL)
-		goto err;
+	pdata.clk = config->clock;
+	pdata.tuner = config->tuner;
+	pdata.if_frequency = config->if_frequency;
+	pdata.ts_mode = config->ts_mode;
+	pdata.ts_output_pin = 7;
+	pdata.spec_inv = config->spec_inv;
+	memcpy(&pdata.api_version, config->api_version, sizeof(pdata.api_version));
+	memcpy(&pdata.gpio, config->gpio, sizeof(pdata.gpio));
+	pdata.attach_in_use = true;
 
-	/* setup the state */
-	state->i2c = i2c;
-	memcpy(&state->config, config, sizeof(struct af9013_config));
+	memset(&board_info, 0, sizeof(board_info));
+	strlcpy(board_info.type, "af9013", sizeof(board_info.type));
+	board_info.addr = config->i2c_addr;
+	board_info.platform_data = &pdata;
+	client = i2c_new_device(i2c, &board_info);
+	if (!client || !client->dev.driver)
+		return NULL;
 
-	/* download firmware */
-	if (state->config.ts_mode != AF9013_TS_USB) {
-		ret = af9013_download_firmware(state);
-		if (ret)
-			goto err;
-	}
-
-	/* firmware version */
-	ret = af9013_rd_regs(state, 0x5103, buf, 4);
-	if (ret)
-		goto err;
-
-	dev_info(&state->i2c->dev, "%s: firmware version %d.%d.%d.%d\n",
-			KBUILD_MODNAME, buf[0], buf[1], buf[2], buf[3]);
-
-	/* set GPIOs */
-	for (i = 0; i < sizeof(state->config.gpio); i++) {
-		ret = af9013_set_gpio(state, i, state->config.gpio[i]);
-		if (ret)
-			goto err;
-	}
-
-	/* create dvb_frontend */
-	memcpy(&state->fe.ops, &af9013_ops,
-		sizeof(struct dvb_frontend_ops));
-	state->fe.demodulator_priv = state;
-
-	INIT_DELAYED_WORK(&state->statistics_work, af9013_statistics_work);
-
-	return &state->fe;
-err:
-	kfree(state);
-	return NULL;
+	return pdata.get_dvb_frontend(client);
 }
 EXPORT_SYMBOL(af9013_attach);
 
@@ -1554,6 +1289,279 @@ static const struct dvb_frontend_ops af9013_ops = {
 
 	.i2c_gate_ctrl = af9013_i2c_gate_ctrl,
 };
+
+static struct dvb_frontend *af9013_get_dvb_frontend(struct i2c_client *client)
+{
+	struct af9013_state *state = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	return &state->fe;
+}
+
+/* Own I2C access routines needed for regmap as chip uses extra command byte */
+static int af9013_wregs(struct i2c_client *client, u8 cmd, u16 reg,
+			const u8 *val, int len)
+{
+	int ret;
+	u8 buf[21];
+	struct i2c_msg msg[1] = {
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = 3 + len,
+			.buf = buf,
+		}
+	};
+
+	if (3 + len > sizeof(buf)) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	buf[0] = (reg >> 8) & 0xff;
+	buf[1] = (reg >> 0) & 0xff;
+	buf[2] = cmd;
+	memcpy(&buf[3], val, len);
+	ret = i2c_transfer(client->adapter, msg, 1);
+	if (ret < 0) {
+		goto err;
+	} else if (ret != 1) {
+		ret = -EREMOTEIO;
+		goto err;
+	}
+
+	return 0;
+err:
+	dev_dbg(&client->dev, "failed %d\n", ret);
+	return ret;
+}
+
+static int af9013_rregs(struct i2c_client *client, u8 cmd, u16 reg,
+			u8 *val, int len)
+{
+	int ret;
+	u8 buf[3];
+	struct i2c_msg msg[2] = {
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = 3,
+			.buf = buf,
+		}, {
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = len,
+			.buf = val,
+		}
+	};
+
+	buf[0] = (reg >> 8) & 0xff;
+	buf[1] = (reg >> 0) & 0xff;
+	buf[2] = cmd;
+	ret = i2c_transfer(client->adapter, msg, 2);
+	if (ret < 0) {
+		goto err;
+	} else if (ret != 2) {
+		ret = -EREMOTEIO;
+		goto err;
+	}
+
+	return 0;
+err:
+	dev_dbg(&client->dev, "failed %d\n", ret);
+	return ret;
+}
+
+static int af9013_regmap_write(void *context, const void *data, size_t count)
+{
+	struct i2c_client *client = context;
+	struct af9013_state *state = i2c_get_clientdata(client);
+	int ret, i;
+	u8 cmd;
+	u16 reg = ((u8 *)data)[0] << 8|((u8 *)data)[1] << 0;
+	u8 *val = &((u8 *)data)[2];
+	const unsigned int len = count - 2;
+
+	if (state->ts_mode == AF9013_TS_MODE_USB && (reg & 0xff00) != 0xae00) {
+		cmd = 0 << 7|0 << 6|(len - 1) << 2|1 << 1|1 << 0;
+		ret = af9013_wregs(client, cmd, reg, val, len);
+		if (ret)
+			goto err;
+	} else if (reg >= 0x5100 && reg < 0x8fff) {
+		/* Firmware download */
+		cmd = 1 << 7|1 << 6|(len - 1) << 2|1 << 1|1 << 0;
+		ret = af9013_wregs(client, cmd, reg, val, len);
+		if (ret)
+			goto err;
+	} else {
+		cmd = 0 << 7|0 << 6|(1 - 1) << 2|1 << 1|1 << 0;
+		for (i = 0; i < len; i++) {
+			ret = af9013_wregs(client, cmd, reg + i, val + i, 1);
+			if (ret)
+				goto err;
+		}
+	}
+
+	return 0;
+err:
+	dev_dbg(&client->dev, "failed %d\n", ret);
+	return ret;
+}
+
+static int af9013_regmap_read(void *context, const void *reg_buf,
+			      size_t reg_size, void *val_buf, size_t val_size)
+{
+	struct i2c_client *client = context;
+	struct af9013_state *state = i2c_get_clientdata(client);
+	int ret, i;
+	u8 cmd;
+	u16 reg = ((u8 *)reg_buf)[0] << 8|((u8 *)reg_buf)[1] << 0;
+	u8 *val = &((u8 *)val_buf)[0];
+	const unsigned int len = val_size;
+
+	if (state->ts_mode == AF9013_TS_MODE_USB && (reg & 0xff00) != 0xae00) {
+		cmd = 0 << 7|0 << 6|(len - 1) << 2|1 << 1|0 << 0;
+		ret = af9013_rregs(client, cmd, reg, val_buf, len);
+		if (ret)
+			goto err;
+	} else {
+		cmd = 0 << 7|0 << 6|(1 - 1) << 2|1 << 1|0 << 0;
+		for (i = 0; i < len; i++) {
+			ret = af9013_rregs(client, cmd, reg + i, val + i, 1);
+			if (ret)
+				goto err;
+		}
+	}
+
+	return 0;
+err:
+	dev_dbg(&client->dev, "failed %d\n", ret);
+	return ret;
+}
+
+static int af9013_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
+{
+	struct af9013_state *state;
+	struct af9013_platform_data *pdata = client->dev.platform_data;
+	struct dtv_frontend_properties *c;
+	int ret, i;
+	u8 firmware_version[4];
+	static const struct regmap_bus regmap_bus = {
+		.read = af9013_regmap_read,
+		.write = af9013_regmap_write,
+	};
+	static const struct regmap_config regmap_config = {
+		.reg_bits    =  16,
+		.val_bits    =  8,
+	};
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	/* Setup the state */
+	state->client = client;
+	i2c_set_clientdata(client, state);
+	state->clk = pdata->clk;
+	state->tuner = pdata->tuner;
+	state->if_frequency = pdata->if_frequency;
+	state->ts_mode = pdata->ts_mode;
+	state->ts_output_pin = pdata->ts_output_pin;
+	state->spec_inv = pdata->spec_inv;
+	memcpy(&state->api_version, pdata->api_version, sizeof(state->api_version));
+	memcpy(&state->gpio, pdata->gpio, sizeof(state->gpio));
+	INIT_DELAYED_WORK(&state->statistics_work, af9013_statistics_work);
+	state->regmap = regmap_init(&client->dev, &regmap_bus, client,
+				  &regmap_config);
+	if (IS_ERR(state->regmap)) {
+		ret = PTR_ERR(state->regmap);
+		goto err_kfree;
+	}
+
+	/* Download firmware */
+	if (state->ts_mode != AF9013_TS_MODE_USB) {
+		ret = af9013_download_firmware(state);
+		if (ret)
+			goto err_regmap_exit;
+	}
+
+	/* Firmware version */
+	ret = regmap_bulk_read(state->regmap, 0x5103, firmware_version,
+			       sizeof(firmware_version));
+	if (ret)
+		goto err_regmap_exit;
+
+	/* Set GPIOs */
+	for (i = 0; i < sizeof(state->gpio); i++) {
+		ret = af9013_set_gpio(state, i, state->gpio[i]);
+		if (ret)
+			goto err_regmap_exit;
+	}
+
+	/* Create dvb frontend */
+	memcpy(&state->fe.ops, &af9013_ops, sizeof(state->fe.ops));
+	if (!pdata->attach_in_use)
+		state->fe.ops.release = NULL;
+	state->fe.demodulator_priv = state;
+
+	/* Setup callbacks */
+	pdata->get_dvb_frontend = af9013_get_dvb_frontend;
+
+	/* Init stats to indicate which stats are supported */
+	c = &state->fe.dtv_property_cache;
+	c->cnr.len = 1;
+
+	dev_info(&client->dev, "Afatech AF9013 successfully attached\n");
+	dev_info(&client->dev, "firmware version: %d.%d.%d.%d\n",
+		 firmware_version[0], firmware_version[1],
+		 firmware_version[2], firmware_version[3]);
+	return 0;
+err_regmap_exit:
+	regmap_exit(state->regmap);
+err_kfree:
+	kfree(state);
+err:
+	dev_dbg(&client->dev, "failed %d\n", ret);
+	return ret;
+}
+
+static int af9013_remove(struct i2c_client *client)
+{
+	struct af9013_state *state = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	/* Stop statistics polling */
+	cancel_delayed_work_sync(&state->statistics_work);
+
+	regmap_exit(state->regmap);
+
+	kfree(state);
+
+	return 0;
+}
+
+static const struct i2c_device_id af9013_id_table[] = {
+	{"af9013", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, af9013_id_table);
+
+static struct i2c_driver af9013_driver = {
+	.driver = {
+		.name	= "af9013",
+		.suppress_bind_attrs = true,
+	},
+	.probe		= af9013_probe,
+	.remove		= af9013_remove,
+	.id_table	= af9013_id_table,
+};
+
+module_i2c_driver(af9013_driver);
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("Afatech AF9013 DVB-T demodulator driver");

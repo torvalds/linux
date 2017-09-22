@@ -161,10 +161,14 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 		.drdy_irq = {
 			.addr = 0x22,
 			.mask_int1 = 0x10,
-			.mask_int2 = 0x08,
+			.mask_int2 = 0x00,
 			.addr_ihl = 0x25,
 			.mask_ihl = 0x02,
 			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
+		},
+		.sim = {
+			.addr = 0x23,
+			.value = BIT(0),
 		},
 		.multi_read_bit = true,
 		.bootime = 2,
@@ -233,6 +237,10 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.addr_od = 0x22,
 			.mask_od = 0x40,
 			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
+		},
+		.sim = {
+			.addr = 0x23,
+			.value = BIT(0),
 		},
 		.multi_read_bit = true,
 		.bootime = 2,
@@ -316,6 +324,10 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 				.en_mask = 0x08,
 			},
 		},
+		.sim = {
+			.addr = 0x24,
+			.value = BIT(0),
+		},
 		.multi_read_bit = false,
 		.bootime = 2,
 	},
@@ -379,6 +391,10 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.mask_int1 = 0x04,
 			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
+		.sim = {
+			.addr = 0x21,
+			.value = BIT(1),
+		},
 		.multi_read_bit = true,
 		.bootime = 2, /* guess */
 	},
@@ -437,6 +453,10 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.mask_od = 0x40,
 			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
+		.sim = {
+			.addr = 0x21,
+			.value = BIT(7),
+		},
 		.multi_read_bit = false,
 		.bootime = 2, /* guess */
 	},
@@ -444,7 +464,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 		.wai = 0x32,
 		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
-			[0] = H3LIS331DL_DRIVER_NAME,
+			[0] = H3LIS331DL_ACCEL_DEV_NAME,
 		},
 		.ch = (struct iio_chan_spec *)st_accel_12bit_channels,
 		.odr = {
@@ -499,6 +519,10 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.addr_ihl = 0x22,
 			.mask_ihl = 0x80,
 		},
+		.sim = {
+			.addr = 0x23,
+			.value = BIT(0),
+		},
 		.multi_read_bit = true,
 		.bootime = 2,
 	},
@@ -546,6 +570,10 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.addr = 0x21,
 			.mask_int1 = 0x04,
 			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
+		},
+		.sim = {
+			.addr = 0x21,
+			.value = BIT(1),
 		},
 		.multi_read_bit = false,
 		.bootime = 2,
@@ -609,10 +637,14 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 		.drdy_irq = {
 			.addr = 0x22,
 			.mask_int1 = 0x10,
-			.mask_int2 = 0x08,
+			.mask_int2 = 0x00,
 			.addr_ihl = 0x25,
 			.mask_ihl = 0x02,
 			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
+		},
+		.sim = {
+			.addr = 0x23,
+			.value = BIT(0),
 		},
 		.multi_read_bit = true,
 		.bootime = 2,
@@ -710,6 +742,8 @@ static const struct iio_trigger_ops st_accel_trigger_ops = {
 int st_accel_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *adata = iio_priv(indio_dev);
+	struct st_sensors_platform_data *pdata =
+		(struct st_sensors_platform_data *)adata->dev->platform_data;
 	int irq = adata->get_irq_data_ready(indio_dev);
 	int err;
 
@@ -736,9 +770,8 @@ int st_accel_common_probe(struct iio_dev *indio_dev)
 					&adata->sensor_settings->fs.fs_avl[0];
 	adata->odr = adata->sensor_settings->odr.odr_avl[0].hz;
 
-	if (!adata->dev->platform_data)
-		adata->dev->platform_data =
-			(struct st_sensors_platform_data *)&default_accel_pdata;
+	if (!pdata)
+		pdata = (struct st_sensors_platform_data *)&default_accel_pdata;
 
 	err = st_sensors_init_sensor(indio_dev, adata->dev->platform_data);
 	if (err < 0)

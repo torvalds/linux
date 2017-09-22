@@ -50,7 +50,7 @@ int unwind__prepare_access(struct thread *thread, struct map *map,
 
 	if (!ops) {
 		pr_err("unwind: target platform=%s is not supported\n", arch);
-		return -1;
+		return 0;
 	}
 out_register:
 	unwind__register_ops(thread, ops);

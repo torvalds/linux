@@ -396,7 +396,7 @@ void utilfdt_print_data(const char *data, int len)
 		} while (s < data + len);
 
 	} else if ((len % 4) == 0) {
-		const uint32_t *cell = (const uint32_t *)data;
+		const fdt32_t *cell = (const fdt32_t *)data;
 
 		printf(" = <");
 		for (i = 0, len /= 4; i < len; i++)
@@ -412,15 +412,16 @@ void utilfdt_print_data(const char *data, int len)
 	}
 }
 
-void util_version(void)
+void NORETURN util_version(void)
 {
 	printf("Version: %s\n", DTC_VERSION);
 	exit(0);
 }
 
-void util_usage(const char *errmsg, const char *synopsis,
-		const char *short_opts, struct option const long_opts[],
-		const char * const opts_help[])
+void NORETURN util_usage(const char *errmsg, const char *synopsis,
+			 const char *short_opts,
+			 struct option const long_opts[],
+			 const char * const opts_help[])
 {
 	FILE *fp = errmsg ? stderr : stdout;
 	const char a_arg[] = "<arg>";

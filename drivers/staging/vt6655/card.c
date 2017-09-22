@@ -524,22 +524,22 @@ CARDvSafeResetTx(
 	struct vnt_tx_desc *pCurrTD;
 
 	/* initialize TD index */
-	priv->apTailTD[0] = &(priv->apTD0Rings[0]);
-	priv->apCurrTD[0] = &(priv->apTD0Rings[0]);
+	priv->apTailTD[0] = &priv->apTD0Rings[0];
+	priv->apCurrTD[0] = &priv->apTD0Rings[0];
 
-	priv->apTailTD[1] = &(priv->apTD1Rings[0]);
-	priv->apCurrTD[1] = &(priv->apTD1Rings[0]);
+	priv->apTailTD[1] = &priv->apTD1Rings[0];
+	priv->apCurrTD[1] = &priv->apTD1Rings[0];
 
 	for (uu = 0; uu < TYPE_MAXTD; uu++)
 		priv->iTDUsed[uu] = 0;
 
 	for (uu = 0; uu < priv->opts.tx_descs[0]; uu++) {
-		pCurrTD = &(priv->apTD0Rings[uu]);
+		pCurrTD = &priv->apTD0Rings[uu];
 		pCurrTD->td0.owner = OWNED_BY_HOST;
 		/* init all Tx Packet pointer to NULL */
 	}
 	for (uu = 0; uu < priv->opts.tx_descs[1]; uu++) {
-		pCurrTD = &(priv->apTD1Rings[uu]);
+		pCurrTD = &priv->apTD1Rings[uu];
 		pCurrTD->td0.owner = OWNED_BY_HOST;
 		/* init all Tx Packet pointer to NULL */
 	}
@@ -575,12 +575,12 @@ CARDvSafeResetRx(
 	struct vnt_rx_desc *pDesc;
 
 	/* initialize RD index */
-	priv->pCurrRD[0] = &(priv->aRD0Ring[0]);
-	priv->pCurrRD[1] = &(priv->aRD1Ring[0]);
+	priv->pCurrRD[0] = &priv->aRD0Ring[0];
+	priv->pCurrRD[1] = &priv->aRD1Ring[0];
 
 	/* init state, all RD is chip's */
 	for (uu = 0; uu < priv->opts.rx_descs0; uu++) {
-		pDesc = &(priv->aRD0Ring[uu]);
+		pDesc = &priv->aRD0Ring[uu];
 		pDesc->rd0.res_count = cpu_to_le16(priv->rx_buf_sz);
 		pDesc->rd0.owner = OWNED_BY_NIC;
 		pDesc->rd1.req_count = cpu_to_le16(priv->rx_buf_sz);
@@ -588,7 +588,7 @@ CARDvSafeResetRx(
 
 	/* init state, all RD is chip's */
 	for (uu = 0; uu < priv->opts.rx_descs1; uu++) {
-		pDesc = &(priv->aRD1Ring[uu]);
+		pDesc = &priv->aRD1Ring[uu];
 		pDesc->rd0.res_count = cpu_to_le16(priv->rx_buf_sz);
 		pDesc->rd0.owner = OWNED_BY_NIC;
 		pDesc->rd1.req_count = cpu_to_le16(priv->rx_buf_sz);
@@ -649,19 +649,19 @@ static unsigned short CARDwGetOFDMControlRate(struct vnt_private *priv,
 	pr_debug("BASIC RATE: %X\n", priv->basic_rates);
 
 	if (!CARDbIsOFDMinBasicRate((void *)priv)) {
-		pr_debug("CARDwGetOFDMControlRate:(NO OFDM) %d\n", wRateIdx);
+		pr_debug("%s:(NO OFDM) %d\n", __func__, wRateIdx);
 		if (wRateIdx > RATE_24M)
 			wRateIdx = RATE_24M;
 		return wRateIdx;
 	}
 	while (ui > RATE_11M) {
 		if (priv->basic_rates & ((u32)0x1 << ui)) {
-			pr_debug("CARDwGetOFDMControlRate : %d\n", ui);
+			pr_debug("%s : %d\n", __func__, ui);
 			return (unsigned short)ui;
 		}
 		ui--;
 	}
-	pr_debug("CARDwGetOFDMControlRate: 6M\n");
+	pr_debug("%s: 6M\n", __func__);
 	return (unsigned short)RATE_24M;
 }
 
@@ -911,16 +911,13 @@ bool CARDbSoftwareReset(struct vnt_private *priv)
  */
 u64 CARDqGetTSFOffset(unsigned char byRxRate, u64 qwTSF1, u64 qwTSF2)
 {
-	u64 qwTSFOffset = 0;
 	unsigned short wRxBcnTSFOffst;
 
-	wRxBcnTSFOffst = cwRXBCNTSFOff[byRxRate%MAX_RATE];
+	wRxBcnTSFOffst = cwRXBCNTSFOff[byRxRate % MAX_RATE];
 
 	qwTSF2 += (u64)wRxBcnTSFOffst;
 
-	qwTSFOffset = qwTSF1 - qwTSF2;
-
-	return qwTSFOffset;
+	return qwTSF1 - qwTSF2;
 }
 
 /*

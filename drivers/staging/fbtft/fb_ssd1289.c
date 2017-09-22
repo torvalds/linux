@@ -47,7 +47,7 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0x0E, 0x2B00);
 	write_reg(par, 0x1E, 0x00B7);
 	write_reg(par, 0x01,
-		(1 << 13) | (par->bgr << 11) | (1 << 9) | (HEIGHT - 1));
+		BIT(13) | (par->bgr << 11) | BIT(9) | (HEIGHT - 1));
 	write_reg(par, 0x02, 0x0600);
 	write_reg(par, 0x10, 0x0000);
 	write_reg(par, 0x05, 0x0000);

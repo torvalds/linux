@@ -647,6 +647,8 @@ struct drm_gem_open {
 #define DRM_CAP_CURSOR_HEIGHT		0x9
 #define DRM_CAP_ADDFB2_MODIFIERS	0x10
 #define DRM_CAP_PAGE_FLIP_TARGET	0x11
+#define DRM_CAP_CRTC_IN_VBLANK_EVENT	0x12
+#define DRM_CAP_SYNCOBJ		0x13
 
 /** DRM_IOCTL_GET_CAP ioctl argument type */
 struct drm_get_cap {
@@ -694,6 +696,45 @@ struct drm_prime_handle {
 
 	/** Returned dmabuf file descriptor */
 	__s32 fd;
+};
+
+struct drm_syncobj_create {
+	__u32 handle;
+#define DRM_SYNCOBJ_CREATE_SIGNALED (1 << 0)
+	__u32 flags;
+};
+
+struct drm_syncobj_destroy {
+	__u32 handle;
+	__u32 pad;
+};
+
+#define DRM_SYNCOBJ_FD_TO_HANDLE_FLAGS_IMPORT_SYNC_FILE (1 << 0)
+#define DRM_SYNCOBJ_HANDLE_TO_FD_FLAGS_EXPORT_SYNC_FILE (1 << 0)
+struct drm_syncobj_handle {
+	__u32 handle;
+	__u32 flags;
+
+	__s32 fd;
+	__u32 pad;
+};
+
+#define DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL (1 << 0)
+#define DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT (1 << 1)
+struct drm_syncobj_wait {
+	__u64 handles;
+	/* absolute timeout */
+	__s64 timeout_nsec;
+	__u32 count_handles;
+	__u32 flags;
+	__u32 first_signaled; /* only valid when not waiting all */
+	__u32 pad;
+};
+
+struct drm_syncobj_array {
+	__u64 handles;
+	__u32 count_handles;
+	__u32 pad;
 };
 
 #if defined(__cplusplus)
@@ -814,6 +855,14 @@ extern "C" {
 #define DRM_IOCTL_MODE_CREATEPROPBLOB	DRM_IOWR(0xBD, struct drm_mode_create_blob)
 #define DRM_IOCTL_MODE_DESTROYPROPBLOB	DRM_IOWR(0xBE, struct drm_mode_destroy_blob)
 
+#define DRM_IOCTL_SYNCOBJ_CREATE	DRM_IOWR(0xBF, struct drm_syncobj_create)
+#define DRM_IOCTL_SYNCOBJ_DESTROY	DRM_IOWR(0xC0, struct drm_syncobj_destroy)
+#define DRM_IOCTL_SYNCOBJ_HANDLE_TO_FD	DRM_IOWR(0xC1, struct drm_syncobj_handle)
+#define DRM_IOCTL_SYNCOBJ_FD_TO_HANDLE	DRM_IOWR(0xC2, struct drm_syncobj_handle)
+#define DRM_IOCTL_SYNCOBJ_WAIT		DRM_IOWR(0xC3, struct drm_syncobj_wait)
+#define DRM_IOCTL_SYNCOBJ_RESET		DRM_IOWR(0xC4, struct drm_syncobj_array)
+#define DRM_IOCTL_SYNCOBJ_SIGNAL	DRM_IOWR(0xC5, struct drm_syncobj_array)
+
 /**
  * Device specific ioctls should only be in their respective headers
  * The device specific ioctl range is from 0x40 to 0x9f.
@@ -851,7 +900,7 @@ struct drm_event_vblank {
 	__u32 tv_sec;
 	__u32 tv_usec;
 	__u32 sequence;
-	__u32 reserved;
+	__u32 crtc_id; /* 0 on older kernels that do not support this */
 };
 
 /* typedef area */

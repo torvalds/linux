@@ -81,9 +81,7 @@ static struct vchiq_debugfs_log_entry vchiq_debugfs_log_entries[] = {
 	{ "susp", &vchiq_susp_log_level },
 	{ "arm",  &vchiq_arm_log_level },
 };
-static int n_log_entries =
-	sizeof(vchiq_debugfs_log_entries)/sizeof(vchiq_debugfs_log_entries[0]);
-
+static int n_log_entries = ARRAY_SIZE(vchiq_debugfs_log_entries);
 
 static struct dentry *vchiq_clients_top(void);
 static struct dentry *vchiq_debugfs_top(void);
@@ -167,6 +165,7 @@ static int vchiq_debugfs_create_log_entries(struct dentry *top)
 	struct dentry *dir;
 	size_t i;
 	int ret = 0;
+
 	dir = debugfs_create_dir("log", vchiq_debugfs_top());
 	if (!dir)
 		return -ENOMEM;
@@ -174,6 +173,7 @@ static int vchiq_debugfs_create_log_entries(struct dentry *top)
 
 	for (i = 0; i < n_log_entries; i++) {
 		void *levp = (void *)vchiq_debugfs_log_entries[i].plevel;
+
 		dir = debugfs_create_file(vchiq_debugfs_log_entries[i].name,
 					  0644,
 					  debugfs_info.log_categories,
@@ -312,6 +312,7 @@ fail_top:
 void vchiq_debugfs_remove_instance(VCHIQ_INSTANCE_T instance)
 {
 	VCHIQ_DEBUGFS_NODE_T *node = vchiq_instance_get_debugfs_node(instance);
+
 	debugfs_remove_recursive(node->dentry);
 }
 

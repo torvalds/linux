@@ -1224,6 +1224,12 @@ static int cz_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 		phm_destroy_table(hwmgr, &(hwmgr->disable_dynamic_state_management));
 		phm_destroy_table(hwmgr, &(hwmgr->power_down_asic));
 		phm_destroy_table(hwmgr, &(hwmgr->setup_asic));
+
+		if (NULL != hwmgr->dyn_state.vddc_dep_on_dal_pwrl) {
+			kfree(hwmgr->dyn_state.vddc_dep_on_dal_pwrl);
+			hwmgr->dyn_state.vddc_dep_on_dal_pwrl = NULL;
+		}
+
 		kfree(hwmgr->backend);
 		hwmgr->backend = NULL;
 	}
@@ -1234,13 +1240,18 @@ static int cz_phm_force_dpm_highest(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 
-	if (cz_hwmgr->sclk_dpm.soft_min_clk !=
-				cz_hwmgr->sclk_dpm.soft_max_clk)
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
-						PPSMC_MSG_SetSclkSoftMin,
-						cz_get_sclk_level(hwmgr,
-						cz_hwmgr->sclk_dpm.soft_max_clk,
-						PPSMC_MSG_SetSclkSoftMin));
+	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+					PPSMC_MSG_SetSclkSoftMin,
+					cz_get_sclk_level(hwmgr,
+					cz_hwmgr->sclk_dpm.soft_max_clk,
+					PPSMC_MSG_SetSclkSoftMin));
+
+	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+				PPSMC_MSG_SetSclkSoftMax,
+				cz_get_sclk_level(hwmgr,
+				cz_hwmgr->sclk_dpm.soft_max_clk,
+				PPSMC_MSG_SetSclkSoftMax));
+
 	return 0;
 }
 
@@ -1286,17 +1297,55 @@ static int cz_phm_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 
-	if (cz_hwmgr->sclk_dpm.soft_min_clk !=
-				cz_hwmgr->sclk_dpm.soft_max_clk) {
-		cz_hwmgr->sclk_dpm.soft_max_clk =
-			cz_hwmgr->sclk_dpm.soft_min_clk;
+	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			PPSMC_MSG_SetSclkSoftMax,
+			cz_get_sclk_level(hwmgr,
+			cz_hwmgr->sclk_dpm.soft_min_clk,
+			PPSMC_MSG_SetSclkSoftMax));
 
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+				PPSMC_MSG_SetSclkSoftMin,
+				cz_get_sclk_level(hwmgr,
+				cz_hwmgr->sclk_dpm.soft_min_clk,
+				PPSMC_MSG_SetSclkSoftMin));
+
+	return 0;
+}
+
+static int cz_phm_force_dpm_sclk(struct pp_hwmgr *hwmgr, uint32_t sclk)
+{
+	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+				PPSMC_MSG_SetSclkSoftMin,
+				cz_get_sclk_level(hwmgr,
+				sclk,
+				PPSMC_MSG_SetSclkSoftMin));
+
+	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 				PPSMC_MSG_SetSclkSoftMax,
 				cz_get_sclk_level(hwmgr,
-				cz_hwmgr->sclk_dpm.soft_max_clk,
+				sclk,
 				PPSMC_MSG_SetSclkSoftMax));
+	return 0;
+}
+
+static int cz_get_profiling_clk(struct pp_hwmgr *hwmgr, uint32_t *sclk)
+{
+	struct phm_clock_voltage_dependency_table *table =
+		hwmgr->dyn_state.vddc_dependency_on_sclk;
+	int32_t tmp_sclk;
+	int32_t count;
+
+	tmp_sclk = table->entries[table->count-1].clk * 70 / 100;
+
+	for (count = table->count-1; count >= 0; count--) {
+		if (tmp_sclk >= table->entries[count].clk) {
+			tmp_sclk = table->entries[count].clk;
+			*sclk = tmp_sclk;
+			break;
+		}
 	}
+	if (count < 0)
+		*sclk = table->entries[0].clk;
 
 	return 0;
 }
@@ -1304,29 +1353,69 @@ static int cz_phm_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 static int cz_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 				enum amd_dpm_forced_level level)
 {
+	uint32_t sclk = 0;
 	int ret = 0;
+	uint32_t profile_mode_mask = AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD |
+					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK |
+					AMD_DPM_FORCED_LEVEL_PROFILE_PEAK;
+
+	if (level == hwmgr->dpm_level)
+		return ret;
+
+	if (!(hwmgr->dpm_level & profile_mode_mask)) {
+		/* enter profile mode, save current level, disable gfx cg*/
+		if (level & profile_mode_mask) {
+			hwmgr->saved_dpm_level = hwmgr->dpm_level;
+			cgs_set_clockgating_state(hwmgr->device,
+						AMD_IP_BLOCK_TYPE_GFX,
+						AMD_CG_STATE_UNGATE);
+		}
+	} else {
+		/* exit profile mode, restore level, enable gfx cg*/
+		if (!(level & profile_mode_mask)) {
+			if (level == AMD_DPM_FORCED_LEVEL_PROFILE_EXIT)
+				level = hwmgr->saved_dpm_level;
+			cgs_set_clockgating_state(hwmgr->device,
+					AMD_IP_BLOCK_TYPE_GFX,
+					AMD_CG_STATE_GATE);
+		}
+	}
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
 		ret = cz_phm_force_dpm_highest(hwmgr);
 		if (ret)
 			return ret;
+		hwmgr->dpm_level = level;
 		break;
 	case AMD_DPM_FORCED_LEVEL_LOW:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
 		ret = cz_phm_force_dpm_lowest(hwmgr);
 		if (ret)
 			return ret;
+		hwmgr->dpm_level = level;
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
 		ret = cz_phm_unforce_dpm_levels(hwmgr);
 		if (ret)
 			return ret;
+		hwmgr->dpm_level = level;
 		break;
+	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
+		ret = cz_get_profiling_clk(hwmgr, &sclk);
+		if (ret)
+			return ret;
+		hwmgr->dpm_level = level;
+		cz_phm_force_dpm_sclk(hwmgr, sclk);
+		break;
+	case AMD_DPM_FORCED_LEVEL_MANUAL:
+		hwmgr->dpm_level = level;
+		break;
+	case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
 	default:
 		break;
 	}
-
-	hwmgr->dpm_level = level;
 
 	return ret;
 }
@@ -1813,7 +1902,8 @@ static int cz_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 	return actual_temp;
 }
 
-static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
+static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx,
+			  void *value, int *size)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 
@@ -1837,11 +1927,16 @@ static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
 	uint16_t vddnb, vddgfx;
 	int result;
 
+	/* size must be at least 4 bytes for all sensors */
+	if (*size < 4)
+		return -EINVAL;
+	*size = 4;
+
 	switch (idx) {
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
 		if (sclk_index < NUM_SCLK_LEVELS) {
 			sclk = table->entries[sclk_index].clk;
-			*value = sclk;
+			*((uint32_t *)value) = sclk;
 			return 0;
 		}
 		return -EINVAL;
@@ -1849,13 +1944,13 @@ static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
 		tmp = (cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixSMUSVI_NB_CURRENTVID) &
 			CURRENT_NB_VID_MASK) >> CURRENT_NB_VID__SHIFT;
 		vddnb = cz_convert_8Bit_index_to_voltage(hwmgr, tmp);
-		*value = vddnb;
+		*((uint32_t *)value) = vddnb;
 		return 0;
 	case AMDGPU_PP_SENSOR_VDDGFX:
 		tmp = (cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixSMUSVI_GFX_CURRENTVID) &
 			CURRENT_GFX_VID_MASK) >> CURRENT_GFX_VID__SHIFT;
 		vddgfx = cz_convert_8Bit_index_to_voltage(hwmgr, (u16)tmp);
-		*value = vddgfx;
+		*((uint32_t *)value) = vddgfx;
 		return 0;
 	case AMDGPU_PP_SENSOR_UVD_VCLK:
 		if (!cz_hwmgr->uvd_power_gated) {
@@ -1863,11 +1958,11 @@ static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
 				return -EINVAL;
 			} else {
 				vclk = uvd_table->entries[uvd_index].vclk;
-				*value = vclk;
+				*((uint32_t *)value) = vclk;
 				return 0;
 			}
 		}
-		*value = 0;
+		*((uint32_t *)value) = 0;
 		return 0;
 	case AMDGPU_PP_SENSOR_UVD_DCLK:
 		if (!cz_hwmgr->uvd_power_gated) {
@@ -1875,11 +1970,11 @@ static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
 				return -EINVAL;
 			} else {
 				dclk = uvd_table->entries[uvd_index].dclk;
-				*value = dclk;
+				*((uint32_t *)value) = dclk;
 				return 0;
 			}
 		}
-		*value = 0;
+		*((uint32_t *)value) = 0;
 		return 0;
 	case AMDGPU_PP_SENSOR_VCE_ECCLK:
 		if (!cz_hwmgr->vce_power_gated) {
@@ -1887,11 +1982,11 @@ static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
 				return -EINVAL;
 			} else {
 				ecclk = vce_table->entries[vce_index].ecclk;
-				*value = ecclk;
+				*((uint32_t *)value) = ecclk;
 				return 0;
 			}
 		}
-		*value = 0;
+		*((uint32_t *)value) = 0;
 		return 0;
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
 		result = smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_GetAverageGraphicsActivity);
@@ -1901,16 +1996,16 @@ static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
 		} else {
 			activity_percent = 50;
 		}
-		*value = activity_percent;
+		*((uint32_t *)value) = activity_percent;
 		return 0;
 	case AMDGPU_PP_SENSOR_UVD_POWER:
-		*value = cz_hwmgr->uvd_power_gated ? 0 : 1;
+		*((uint32_t *)value) = cz_hwmgr->uvd_power_gated ? 0 : 1;
 		return 0;
 	case AMDGPU_PP_SENSOR_VCE_POWER:
-		*value = cz_hwmgr->vce_power_gated ? 0 : 1;
+		*((uint32_t *)value) = cz_hwmgr->vce_power_gated ? 0 : 1;
 		return 0;
 	case AMDGPU_PP_SENSOR_GPU_TEMP:
-		*value = cz_thermal_get_temperature(hwmgr);
+		*((uint32_t *)value) = cz_thermal_get_temperature(hwmgr);
 		return 0;
 	default:
 		return -EINVAL;

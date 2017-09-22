@@ -36,10 +36,19 @@ DTC_SOURCE="checks.c data.c dtc.c dtc.h flattree.c fstree.c livetree.c srcpos.c 
 DTC_GENERATED="dtc-lexer.lex.c dtc-parser.tab.c dtc-parser.tab.h"
 LIBFDT_SOURCE="Makefile.libfdt fdt.c fdt.h fdt_empty_tree.c fdt_ro.c fdt_rw.c fdt_strerror.c fdt_sw.c fdt_wip.c libfdt.h libfdt_env.h libfdt_internal.h"
 
+get_last_dtc_version() {
+	git log --oneline scripts/dtc/ | grep 'upstream' | head -1 | sed -e 's/^.* \(.*\)/\1/'
+}
+
+last_dtc_ver=$(get_last_dtc_version)
+
 # Build DTC
 cd $DTC_UPSTREAM_PATH
 make clean
 make check
+dtc_version=$(git describe HEAD)
+dtc_log=$(git log --oneline ${last_dtc_ver}..)
+
 
 # Copy the files into the Linux tree
 cd $DTC_LINUX_PATH
@@ -60,4 +69,13 @@ sed -i -- 's/#include <libfdt_env.h>/#include "libfdt_env.h"/g' ./libfdt/libfdt.
 sed -i -- 's/#include <fdt.h>/#include "fdt.h"/g' ./libfdt/libfdt.h
 git add ./libfdt/libfdt.h
 
-git commit -e -v -m "scripts/dtc: Update to upstream version [CHANGEME]"
+commit_msg=$(cat << EOF
+scripts/dtc: Update to upstream version ${dtc_version}
+
+This adds the following commits from upstream:
+
+${dtc_log}
+EOF
+)
+
+git commit -e -v -s -m "${commit_msg}"

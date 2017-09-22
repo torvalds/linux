@@ -46,7 +46,6 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Lamobo R1";
@@ -84,10 +83,6 @@
 		enable-active-high;
 		gpio = <&pio 7 23 GPIO_ACTIVE_HIGH>; /* PH23 */
 	};
-};
-
-&ahci_pwr_pin_a {
-	pins = "PB3";
 };
 
 &ahci {
@@ -167,7 +162,7 @@
 					reg = <8>;
 					label = "cpu";
 					ethernet = <&gmac>;
-					phy-mode = "rgmii";
+					phy-mode = "rgmii-txid";
 					fixed-link {
 						speed = <1000>;
 						full-duplex;
@@ -318,10 +313,6 @@
 
 &usb_power_supply {
 	status = "okay";
-};
-
-&usb2_vbus_pin_a {
-	pins = "PH12";
 };
 
 &usbphy {

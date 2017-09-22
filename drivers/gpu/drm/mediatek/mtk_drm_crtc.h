@@ -23,8 +23,6 @@
 #define MTK_MAX_BPC	10
 #define MTK_MIN_BPC	3
 
-int mtk_drm_crtc_enable_vblank(struct drm_device *drm, unsigned int pipe);
-void mtk_drm_crtc_disable_vblank(struct drm_device *drm, unsigned int pipe);
 void mtk_drm_crtc_commit(struct drm_crtc *crtc);
 void mtk_crtc_ddp_irq(struct drm_crtc *crtc, struct mtk_ddp_comp *ovl);
 int mtk_drm_crtc_create(struct drm_device *drm_dev,

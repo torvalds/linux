@@ -35,6 +35,12 @@
 
 #define DRV_NAME "LiquidIO"
 
+struct octeon_device_priv {
+	/** Tasklet structures for this device. */
+	struct tasklet_struct droq_tasklet;
+	unsigned long napi_mask;
+};
+
 /** This structure is used by NIC driver to store information required
  * to free the sk_buff when the packet has been fetched by Octeon.
  * Bytes offset below assume worst-case of a 64-bit system.
@@ -144,7 +150,7 @@ static inline int
 sleep_cond(wait_queue_head_t *wait_queue, int *condition)
 {
 	int errno = 0;
-	wait_queue_t we;
+	wait_queue_entry_t we;
 
 	init_waitqueue_entry(&we, current);
 	add_wait_queue(wait_queue, &we);
@@ -171,7 +177,7 @@ sleep_timeout_cond(wait_queue_head_t *wait_queue,
 		   int *condition,
 		   int timeout)
 {
-	wait_queue_t we;
+	wait_queue_entry_t we;
 
 	init_waitqueue_entry(&we, current);
 	add_wait_queue(wait_queue, &we);

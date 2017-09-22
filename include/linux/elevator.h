@@ -8,6 +8,9 @@
 
 struct io_cq;
 struct elevator_type;
+#ifdef CONFIG_BLK_DEBUG_FS
+struct blk_mq_debugfs_attr;
+#endif
 
 /*
  * Return values from elevator merger
@@ -93,24 +96,25 @@ struct blk_mq_hw_ctx;
 struct elevator_mq_ops {
 	int (*init_sched)(struct request_queue *, struct elevator_type *);
 	void (*exit_sched)(struct elevator_queue *);
+	int (*init_hctx)(struct blk_mq_hw_ctx *, unsigned int);
+	void (*exit_hctx)(struct blk_mq_hw_ctx *, unsigned int);
 
 	bool (*allow_merge)(struct request_queue *, struct request *, struct bio *);
 	bool (*bio_merge)(struct blk_mq_hw_ctx *, struct bio *);
 	int (*request_merge)(struct request_queue *q, struct request **, struct bio *);
 	void (*request_merged)(struct request_queue *, struct request *, enum elv_merge);
 	void (*requests_merged)(struct request_queue *, struct request *, struct request *);
-	struct request *(*get_request)(struct request_queue *, unsigned int, struct blk_mq_alloc_data *);
-	void (*put_request)(struct request *);
+	void (*limit_depth)(unsigned int, struct blk_mq_alloc_data *);
+	void (*prepare_request)(struct request *, struct bio *bio);
+	void (*finish_request)(struct request *);
 	void (*insert_requests)(struct blk_mq_hw_ctx *, struct list_head *, bool);
 	struct request *(*dispatch_request)(struct blk_mq_hw_ctx *);
 	bool (*has_work)(struct blk_mq_hw_ctx *);
-	void (*completed_request)(struct blk_mq_hw_ctx *, struct request *);
+	void (*completed_request)(struct request *);
 	void (*started_request)(struct request *);
 	void (*requeue_request)(struct request *);
 	struct request *(*former_request)(struct request_queue *, struct request *);
 	struct request *(*next_request)(struct request_queue *, struct request *);
-	int (*get_rq_priv)(struct request_queue *, struct request *, struct bio *);
-	void (*put_rq_priv)(struct request_queue *, struct request *);
 	void (*init_icq)(struct io_cq *);
 	void (*exit_icq)(struct io_cq *);
 };
@@ -142,9 +146,13 @@ struct elevator_type
 	char elevator_name[ELV_NAME_MAX];
 	struct module *elevator_owner;
 	bool uses_mq;
+#ifdef CONFIG_BLK_DEBUG_FS
+	const struct blk_mq_debugfs_attr *queue_debugfs_attrs;
+	const struct blk_mq_debugfs_attr *hctx_debugfs_attrs;
+#endif
 
 	/* managed by elevator core */
-	char icq_cache_name[ELV_NAME_MAX + 5];	/* elvname + "_io_cq" */
+	char icq_cache_name[ELV_NAME_MAX + 6];	/* elvname + "_io_cq" */
 	struct list_head list;
 };
 
@@ -211,8 +219,7 @@ extern ssize_t elv_iosched_show(struct request_queue *, char *);
 extern ssize_t elv_iosched_store(struct request_queue *, const char *, size_t);
 
 extern int elevator_init(struct request_queue *, char *);
-extern void elevator_exit(struct elevator_queue *);
-extern int elevator_change(struct request_queue *, const char *);
+extern void elevator_exit(struct request_queue *, struct elevator_queue *);
 extern bool elv_bio_merge_ok(struct request *, struct bio *);
 extern struct elevator_queue *elevator_alloc(struct request_queue *,
 					struct elevator_type *);

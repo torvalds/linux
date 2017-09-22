@@ -4248,11 +4248,9 @@ static int nv_get_link_ksettings(struct net_device *dev,
 		/* We do not track link speed / duplex setting if the
 		 * interface is disabled. Force a link check */
 		if (nv_update_linkspeed(dev)) {
-			if (!netif_carrier_ok(dev))
-				netif_carrier_on(dev);
+			netif_carrier_on(dev);
 		} else {
-			if (netif_carrier_ok(dev))
-				netif_carrier_off(dev);
+			netif_carrier_off(dev);
 		}
 	}
 
@@ -5631,9 +5629,8 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 
 	setup_timer(&np->oom_kick, nv_do_rx_refill, (unsigned long)dev);
 	setup_timer(&np->nic_poll, nv_do_nic_poll, (unsigned long)dev);
-	init_timer_deferrable(&np->stats_poll);
-	np->stats_poll.data = (unsigned long) dev;
-	np->stats_poll.function = nv_do_stats_poll;	/* timer handler */
+	setup_deferrable_timer(&np->stats_poll, nv_do_stats_poll,
+			       (unsigned long)dev);
 
 	err = pci_enable_device(pci_dev);
 	if (err)

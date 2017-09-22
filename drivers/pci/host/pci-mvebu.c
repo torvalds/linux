@@ -752,10 +752,11 @@ static int mvebu_sw_pci_bridge_write(struct mvebu_pcie_port *port,
 		 * If the mask is 0xffff0000, then we only want to write
 		 * the link control register, rather than clearing the
 		 * RW1C bits in the link status register.  Mask out the
-		 * status register bits.
+		 * RW1C status register bits.
 		 */
 		if (mask == 0xffff0000)
-			value &= 0xffff;
+			value &= ~((PCI_EXP_LNKSTA_LABS |
+				    PCI_EXP_LNKSTA_LBMS) << 16);
 
 		mvebu_writel(port, value, PCIE_CAP_PCIEXP + PCI_EXP_LNKCTL);
 		break;
@@ -1005,22 +1006,6 @@ static int mvebu_get_tgt_attr(struct device_node *np, int devfn,
 	return -ENOENT;
 }
 
-static void mvebu_pcie_msi_enable(struct mvebu_pcie *pcie)
-{
-	struct device_node *msi_node;
-
-	msi_node = of_parse_phandle(pcie->pdev->dev.of_node,
-				    "msi-parent", 0);
-	if (!msi_node)
-		return;
-
-	pcie->msi = of_pci_find_msi_chip_by_node(msi_node);
-	of_node_put(msi_node);
-
-	if (pcie->msi)
-		pcie->msi->dev = &pcie->pdev->dev;
-}
-
 #ifdef CONFIG_PM_SLEEP
 static int mvebu_pcie_suspend(struct device *dev)
 {
@@ -1069,8 +1054,8 @@ static int mvebu_pcie_parse_port(struct mvebu_pcie *pcie,
 	port->pcie = pcie;
 
 	if (of_property_read_u32(child, "marvell,pcie-port", &port->port)) {
-		dev_warn(dev, "ignoring %s, missing pcie-port property\n",
-			 of_node_full_name(child));
+		dev_warn(dev, "ignoring %pOF, missing pcie-port property\n",
+			 child);
 		goto skip;
 	}
 
@@ -1121,8 +1106,8 @@ static int mvebu_pcie_parse_port(struct mvebu_pcie *pcie,
 		}
 
 		if (flags & OF_GPIO_ACTIVE_LOW) {
-			dev_info(dev, "%s: reset gpio is active low\n",
-				 of_node_full_name(child));
+			dev_info(dev, "%pOF: reset gpio is active low\n",
+				 child);
 			gpio_flags = GPIOF_ACTIVE_LOW |
 				     GPIOF_OUT_INIT_LOW;
 		} else {
@@ -1201,8 +1186,7 @@ static int mvebu_pcie_powerup(struct mvebu_pcie_port *port)
  */
 static void mvebu_pcie_powerdown(struct mvebu_pcie_port *port)
 {
-	if (port->reset_gpio)
-		gpiod_set_value_cansleep(port->reset_gpio, 1);
+	gpiod_set_value_cansleep(port->reset_gpio, 1);
 
 	clk_disable_unprepare(port->clk);
 }
@@ -1298,7 +1282,6 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 	for (i = 0; i < (IO_SPACE_LIMIT - SZ_64K); i += SZ_64K)
 		pci_ioremap_io(i, pcie->io.start + i);
 
-	mvebu_pcie_msi_enable(pcie);
 	mvebu_pcie_enable(pcie);
 
 	platform_set_drvdata(pdev, pcie);

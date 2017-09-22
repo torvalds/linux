@@ -991,7 +991,7 @@ static int carl9170_tx_prepare(struct ar9170 *ar,
 	else
 		cvif = NULL;
 
-	txc = (void *)skb_push(skb, sizeof(*txc));
+	txc = skb_push(skb, sizeof(*txc));
 	memset(txc, 0, sizeof(*txc));
 
 	SET_VAL(CARL9170_TX_SUPER_MISC_QUEUE, txc->s.misc, hw_queue);

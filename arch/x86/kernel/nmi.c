@@ -39,26 +39,26 @@
 #include <trace/events/nmi.h>
 
 struct nmi_desc {
-	spinlock_t lock;
+	raw_spinlock_t lock;
 	struct list_head head;
 };
 
 static struct nmi_desc nmi_desc[NMI_MAX] = 
 {
 	{
-		.lock = __SPIN_LOCK_UNLOCKED(&nmi_desc[0].lock),
+		.lock = __RAW_SPIN_LOCK_UNLOCKED(&nmi_desc[0].lock),
 		.head = LIST_HEAD_INIT(nmi_desc[0].head),
 	},
 	{
-		.lock = __SPIN_LOCK_UNLOCKED(&nmi_desc[1].lock),
+		.lock = __RAW_SPIN_LOCK_UNLOCKED(&nmi_desc[1].lock),
 		.head = LIST_HEAD_INIT(nmi_desc[1].head),
 	},
 	{
-		.lock = __SPIN_LOCK_UNLOCKED(&nmi_desc[2].lock),
+		.lock = __RAW_SPIN_LOCK_UNLOCKED(&nmi_desc[2].lock),
 		.head = LIST_HEAD_INIT(nmi_desc[2].head),
 	},
 	{
-		.lock = __SPIN_LOCK_UNLOCKED(&nmi_desc[3].lock),
+		.lock = __RAW_SPIN_LOCK_UNLOCKED(&nmi_desc[3].lock),
 		.head = LIST_HEAD_INIT(nmi_desc[3].head),
 	},
 
@@ -163,7 +163,7 @@ int __register_nmi_handler(unsigned int type, struct nmiaction *action)
 
 	init_irq_work(&action->irq_work, nmi_max_handler);
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 
 	/*
 	 * Indicate if there are multiple registrations on the
@@ -181,7 +181,7 @@ int __register_nmi_handler(unsigned int type, struct nmiaction *action)
 	else
 		list_add_tail_rcu(&action->list, &desc->head);
 	
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	return 0;
 }
 EXPORT_SYMBOL(__register_nmi_handler);
@@ -192,7 +192,7 @@ void unregister_nmi_handler(unsigned int type, const char *name)
 	struct nmiaction *n;
 	unsigned long flags;
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 
 	list_for_each_entry_rcu(n, &desc->head, list) {
 		/*
@@ -207,7 +207,7 @@ void unregister_nmi_handler(unsigned int type, const char *name)
 		}
 	}
 
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	synchronize_rcu();
 }
 EXPORT_SYMBOL_GPL(unregister_nmi_handler);
@@ -221,17 +221,6 @@ pci_serr_error(unsigned char reason, struct pt_regs *regs)
 
 	pr_emerg("NMI: PCI system error (SERR) for reason %02x on CPU %d.\n",
 		 reason, smp_processor_id());
-
-	/*
-	 * On some machines, PCI SERR line is used to report memory
-	 * errors. EDAC makes use of it.
-	 */
-#if defined(CONFIG_EDAC)
-	if (edac_handler_set()) {
-		edac_atomic_assert_error();
-		return;
-	}
-#endif
 
 	if (panic_on_unrecovered_nmi)
 		nmi_panic(regs, "NMI: Not continuing");

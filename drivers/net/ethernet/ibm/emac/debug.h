@@ -25,36 +25,13 @@
 #include "core.h"
 
 #if defined(CONFIG_IBM_EMAC_DEBUG)
-
-struct emac_instance;
-struct mal_instance;
-
-void emac_dbg_register(struct emac_instance *dev);
-void emac_dbg_unregister(struct emac_instance *dev);
-void mal_dbg_register(struct mal_instance *mal);
-void mal_dbg_unregister(struct mal_instance *mal);
-int emac_init_debug(void) __init;
-void emac_fini_debug(void) __exit;
-void emac_dbg_dump_all(void);
-
 # define DBG_LEVEL		1
-
 #else
-
-# define emac_dbg_register(x)	do { } while(0)
-# define emac_dbg_unregister(x)	do { } while(0)
-# define mal_dbg_register(x)	do { } while(0)
-# define mal_dbg_unregister(x)	do { } while(0)
-# define emac_init_debug()	do { } while(0)
-# define emac_fini_debug()	do { } while(0)
-# define emac_dbg_dump_all()	do { } while(0)
-
 # define DBG_LEVEL		0
-
 #endif
 
 #define EMAC_DBG(d, name, fmt, arg...) \
-	printk(KERN_DEBUG #name "%s: " fmt, d->ofdev->dev.of_node->full_name, ## arg)
+	printk(KERN_DEBUG #name "%pOF: " fmt, d->ofdev->dev.of_node, ## arg)
 
 #if DBG_LEVEL > 0
 #  define DBG(d,f,x...)		EMAC_DBG(d, emac, f, ##x)

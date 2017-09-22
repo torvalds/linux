@@ -101,7 +101,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 				 udata->inlen - sizeof(ucmd)))
 		return -EINVAL;
 
-	if (in->type == IB_SRQT_XRC) {
+	if (in->type != IB_SRQT_BASIC) {
 		err = get_srq_user_index(to_mucontext(pd->uobject->context),
 					 &ucmd, udata->inlen, &uidx);
 		if (err)
@@ -127,7 +127,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 		goto err_umem;
 	}
 
-	in->pas = mlx5_vzalloc(sizeof(*in->pas) * ncont);
+	in->pas = kvzalloc(sizeof(*in->pas) * ncont, GFP_KERNEL);
 	if (!in->pas) {
 		err = -ENOMEM;
 		goto err_umem;
@@ -145,7 +145,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 	in->log_page_size = page_shift - MLX5_ADAPTER_PAGE_SHIFT;
 	in->page_offset = offset;
 	if (MLX5_CAP_GEN(dev->mdev, cqe_version) == MLX5_CQE_VERSION_V1 &&
-	    in->type == IB_SRQT_XRC)
+	    in->type != IB_SRQT_BASIC)
 		in->user_index = uidx;
 
 	return 0;
@@ -189,14 +189,14 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 	}
 
 	mlx5_ib_dbg(dev, "srq->buf.page_shift = %d\n", srq->buf.page_shift);
-	in->pas = mlx5_vzalloc(sizeof(*in->pas) * srq->buf.npages);
+	in->pas = kvzalloc(sizeof(*in->pas) * srq->buf.npages, GFP_KERNEL);
 	if (!in->pas) {
 		err = -ENOMEM;
 		goto err_buf;
 	}
 	mlx5_fill_page_array(&srq->buf, in->pas);
 
-	srq->wrid = kmalloc(srq->msrq.max * sizeof(u64), GFP_KERNEL);
+	srq->wrid = kvmalloc_array(srq->msrq.max, sizeof(u64), GFP_KERNEL);
 	if (!srq->wrid) {
 		err = -ENOMEM;
 		goto err_in;
@@ -205,7 +205,7 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 
 	in->log_page_size = srq->buf.page_shift - MLX5_ADAPTER_PAGE_SHIFT;
 	if (MLX5_CAP_GEN(dev->mdev, cqe_version) == MLX5_CQE_VERSION_V1 &&
-	    in->type == IB_SRQT_XRC)
+	    in->type != IB_SRQT_BASIC)
 		in->user_index = MLX5_IB_DEFAULT_UIDX;
 
 	return 0;
@@ -230,7 +230,7 @@ static void destroy_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq)
 
 static void destroy_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq)
 {
-	kfree(srq->wrid);
+	kvfree(srq->wrid);
 	mlx5_buf_free(dev->mdev, &srq->buf);
 	mlx5_db_free(dev->mdev, &srq->db);
 }
@@ -292,13 +292,28 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 	in.wqe_shift = srq->msrq.wqe_shift - 4;
 	if (srq->wq_sig)
 		in.flags |= MLX5_SRQ_FLAG_WQ_SIG;
-	if (init_attr->srq_type == IB_SRQT_XRC) {
+
+	if (init_attr->srq_type == IB_SRQT_XRC)
 		in.xrcd = to_mxrcd(init_attr->ext.xrc.xrcd)->xrcdn;
-		in.cqn = to_mcq(init_attr->ext.xrc.cq)->mcq.cqn;
-	} else if (init_attr->srq_type == IB_SRQT_BASIC) {
+	else
 		in.xrcd = to_mxrcd(dev->devr.x0)->xrcdn;
-		in.cqn = to_mcq(dev->devr.c0)->mcq.cqn;
+
+	if (init_attr->srq_type == IB_SRQT_TM) {
+		in.tm_log_list_size =
+			ilog2(init_attr->ext.tag_matching.max_num_tags) + 1;
+		if (in.tm_log_list_size >
+		    MLX5_CAP_GEN(dev->mdev, log_tag_matching_list_sz)) {
+			mlx5_ib_dbg(dev, "TM SRQ max_num_tags exceeding limit\n");
+			err = -EINVAL;
+			goto err_usr_kern_srq;
+		}
+		in.flags |= MLX5_SRQ_FLAG_RNDV;
 	}
+
+	if (ib_srq_has_cq(init_attr->srq_type))
+		in.cqn = to_mcq(init_attr->ext.cq)->mcq.cqn;
+	else
+		in.cqn = to_mcq(dev->devr.c0)->mcq.cqn;
 
 	in.pd = to_mpd(pd)->pdn;
 	in.db_record = srq->db.dma;

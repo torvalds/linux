@@ -134,7 +134,7 @@ out:
 	return ret;
 }
 
-static ssize_t show_match_busid(struct device_driver *drv, char *buf)
+static ssize_t match_busid_show(struct device_driver *drv, char *buf)
 {
 	int i;
 	char *out = buf;
@@ -149,7 +149,7 @@ static ssize_t show_match_busid(struct device_driver *drv, char *buf)
 	return out - buf;
 }
 
-static ssize_t store_match_busid(struct device_driver *dev, const char *buf,
+static ssize_t match_busid_store(struct device_driver *dev, const char *buf,
 				 size_t count)
 {
 	int len;
@@ -181,8 +181,7 @@ static ssize_t store_match_busid(struct device_driver *dev, const char *buf,
 
 	return -EINVAL;
 }
-static DRIVER_ATTR(match_busid, S_IRUSR | S_IWUSR, show_match_busid,
-		   store_match_busid);
+static DRIVER_ATTR_RW(match_busid);
 
 static ssize_t rebind_store(struct device_driver *dev, const char *buf,
 				 size_t count)
@@ -262,7 +261,11 @@ void stub_device_cleanup_urbs(struct stub_device *sdev)
 		kmem_cache_free(stub_priv_cache, priv);
 
 		kfree(urb->transfer_buffer);
+		urb->transfer_buffer = NULL;
+
 		kfree(urb->setup_packet);
+		urb->setup_packet = NULL;
+
 		usb_free_urb(urb);
 	}
 }
@@ -299,7 +302,6 @@ static int __init usbip_host_init(void)
 		goto err_create_file;
 	}
 
-	pr_info(DRIVER_DESC " v" USBIP_VERSION "\n");
 	return ret;
 
 err_create_file:
@@ -332,4 +334,3 @@ module_exit(usbip_host_exit);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-MODULE_VERSION(USBIP_VERSION);

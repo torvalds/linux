@@ -554,7 +554,7 @@ _alloc_mISDN_skb(u_int prim, u_int id, u_int len, void *dp, gfp_t gfp_mask)
 	if (!skb)
 		return NULL;
 	if (len)
-		memcpy(skb_put(skb, len), dp, len);
+		skb_put_data(skb, dp, len);
 	hh = mISDN_HEAD_P(skb);
 	hh->prim = prim;
 	hh->id = id;

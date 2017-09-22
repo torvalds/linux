@@ -20,6 +20,7 @@
 #define CIF_FPU			4	/* restore FPU registers */
 #define CIF_IGNORE_IRQ		5	/* ignore interrupt (for udelay) */
 #define CIF_ENABLED_WAIT	6	/* in enabled wait state */
+#define CIF_MCCK_GUEST		7	/* machine check happening in guest */
 
 #define _CIF_MCCK_PENDING	_BITUL(CIF_MCCK_PENDING)
 #define _CIF_ASCE_PRIMARY	_BITUL(CIF_ASCE_PRIMARY)
@@ -28,6 +29,7 @@
 #define _CIF_FPU		_BITUL(CIF_FPU)
 #define _CIF_IGNORE_IRQ		_BITUL(CIF_IGNORE_IRQ)
 #define _CIF_ENABLED_WAIT	_BITUL(CIF_ENABLED_WAIT)
+#define _CIF_MCCK_GUEST		_BITUL(CIF_MCCK_GUEST)
 
 #ifndef __ASSEMBLY__
 
@@ -91,14 +93,15 @@ extern void execve_tail(void);
  * User space process size: 2GB for 31 bit, 4TB or 8PT for 64 bit.
  */
 
-#define TASK_SIZE_OF(tsk)	((tsk)->mm ? \
-				 (tsk)->mm->context.asce_limit : TASK_MAX_SIZE)
+#define TASK_SIZE_OF(tsk)	(test_tsk_thread_flag(tsk, TIF_31BIT) ? \
+					(1UL << 31) : -PAGE_SIZE)
 #define TASK_UNMAPPED_BASE	(test_thread_flag(TIF_31BIT) ? \
 					(1UL << 30) : (1UL << 41))
 #define TASK_SIZE		TASK_SIZE_OF(current)
-#define TASK_MAX_SIZE		(1UL << 53)
+#define TASK_SIZE_MAX		(-PAGE_SIZE)
 
-#define STACK_TOP		(1UL << (test_thread_flag(TIF_31BIT) ? 31:42))
+#define STACK_TOP		(test_thread_flag(TIF_31BIT) ? \
+					(1UL << 31) : (1UL << 42))
 #define STACK_TOP_MAX		(1UL << 42)
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
@@ -135,6 +138,8 @@ struct thread_struct {
 	struct list_head list;
 	/* cpu runtime instrumentation */
 	struct runtime_instr_cb *ri_cb;
+	struct gs_cb *gs_cb;		/* Current guarded storage cb */
+	struct gs_cb *gs_bc_cb;		/* Broadcast guarded storage cb */
 	unsigned char trap_tdb[256];	/* Transaction abort diagnose block */
 	/*
 	 * Warning: 'fpu' is dynamically-sized. It *MUST* be at
@@ -215,10 +220,8 @@ void show_cacheinfo(struct seq_file *m);
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
 
-/*
- * Return saved PC of a blocked thread.
- */
-extern unsigned long thread_saved_pc(struct task_struct *t);
+/* Free guarded storage control block for current */
+void exit_thread_gs(void);
 
 unsigned long get_wchan(struct task_struct *p);
 #define task_pt_regs(tsk) ((struct pt_regs *) \

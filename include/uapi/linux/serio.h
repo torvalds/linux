@@ -80,5 +80,6 @@
 #define SERIO_WACOM_IV	0x3e
 #define SERIO_EGALAX	0x3f
 #define SERIO_PULSE8_CEC	0x40
+#define SERIO_RAINSHADOW_CEC	0x41
 
 #endif /* _UAPI_SERIO_H */
