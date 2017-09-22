@@ -2457,7 +2457,7 @@ static noinline bool record_extent_backrefs(struct btrfs_path *path,
 		ret = iterate_inodes_from_logical(old->bytenr +
 						  old->extent_offset, fs_info,
 						  path, record_one_backref,
-						  old);
+						  old, false);
 		if (ret < 0 && ret != -ENOENT)
 			return false;
 

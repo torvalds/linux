@@ -883,7 +883,7 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 		swarn.dev = dev;
 		iterate_extent_inodes(fs_info, found_key.objectid,
 					extent_item_pos, 1,
-					scrub_print_warning_inode, &swarn);
+					scrub_print_warning_inode, &swarn, false);
 	}
 
 out:
@@ -1047,7 +1047,7 @@ static void scrub_fixup_nodatasum(struct btrfs_work *work)
 	 * can be found.
 	 */
 	ret = iterate_inodes_from_logical(fixup->logical, fs_info, path,
-					  scrub_fixup_readpage, fixup);
+					  scrub_fixup_readpage, fixup, false);
 	if (ret < 0) {
 		uncorrectable = 1;
 		goto out;
@@ -4390,7 +4390,7 @@ static void copy_nocow_pages_worker(struct btrfs_work *work)
 	}
 
 	ret = iterate_inodes_from_logical(logical, fs_info, path,
-					  record_inode_for_nocow, nocow_ctx);
+			record_inode_for_nocow, nocow_ctx, false);
 	if (ret != 0 && ret != -ENOENT) {
 		btrfs_warn(fs_info,
 			   "iterate_inodes_from_logical() failed: log %llu, phys %llu, len %llu, mir %u, ret %d",

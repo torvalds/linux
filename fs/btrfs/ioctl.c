@@ -4560,7 +4560,7 @@ static long btrfs_ioctl_logical_to_ino(struct btrfs_fs_info *fs_info,
 	}
 
 	ret = iterate_inodes_from_logical(loi->logical, fs_info, path,
-					  build_ino_list, inodes);
+					  build_ino_list, inodes, false);
 	if (ret == -EINVAL)
 		ret = -ENOENT;
 	if (ret < 0)
