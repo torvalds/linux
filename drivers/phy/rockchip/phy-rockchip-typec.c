@@ -543,10 +543,11 @@ static void tcphy_dp_aux_calibration(struct rockchip_typec_phy *tcphy)
 	writel(0, tcphy->base + TX_ANA_CTRL_REG_5);
 
 	/*
-	 * Controls low_power_swing_en, set the voltage swing of the driver
-	 * to 400mv. The values	below are peak to peak (differential) values.
+	 * Controls low_power_swing_en, don't set the voltage swing of the
+	 * driver to 400mv. The values below are peak to peak (differential)
+	 * values.
 	 */
-	writel(4, tcphy->base + TXDA_COEFF_CALC_CTRL);
+	writel(0, tcphy->base + TXDA_COEFF_CALC_CTRL);
 	writel(0, tcphy->base + TXDA_CYA_AUXDA_CYA);
 
 	/* Controls tx_high_z_tm_en */
