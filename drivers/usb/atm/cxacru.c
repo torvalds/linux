@@ -570,10 +570,8 @@ static int cxacru_start_wait_urb(struct urb *urb, struct completion *done,
 {
 	struct timer_list timer;
 
-	init_timer(&timer);
+	setup_timer(&timer, cxacru_timeout_kill, (unsigned long)urb);
 	timer.expires = jiffies + msecs_to_jiffies(CMD_TIMEOUT);
-	timer.data = (unsigned long) urb;
-	timer.function = cxacru_timeout_kill;
 	add_timer(&timer);
 	wait_for_completion(done);
 	del_timer_sync(&timer);
