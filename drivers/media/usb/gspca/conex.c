@@ -81,8 +81,8 @@ static void reg_r(struct gspca_dev *gspca_dev,
 			0,
 			index, gspca_dev->usb_buf, len,
 			500);
-	PDEBUG(D_USBI, "reg read [%02x] -> %02x ..",
-			index, gspca_dev->usb_buf[0]);
+	gspca_dbg(gspca_dev, D_USBI, "reg read [%02x] -> %02x ..\n",
+		  index, gspca_dev->usb_buf[0]);
 }
 
 /* the bytes to write are in gspca_dev->usb_buf */
@@ -112,7 +112,8 @@ static void reg_w(struct gspca_dev *gspca_dev,
 		gspca_err(gspca_dev, "reg_w: buffer overflow\n");
 		return;
 	}
-	PDEBUG(D_USBO, "reg write [%02x] = %02x..", index, *buffer);
+	gspca_dbg(gspca_dev, D_USBO, "reg write [%02x] = %02x..\n",
+		  index, *buffer);
 
 	memcpy(gspca_dev->usb_buf, buffer, len);
 	usb_control_msg(dev,

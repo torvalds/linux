@@ -701,11 +701,11 @@ static void reset_camera_params(struct gspca_dev *gspca_dev)
 
 static void printstatus(struct gspca_dev *gspca_dev, struct cam_params *params)
 {
-	PDEBUG(D_PROBE, "status: %02x %02x %02x %02x %02x %02x %02x %02x",
-	       params->status.systemState, params->status.grabState,
-	       params->status.streamState, params->status.fatalError,
-	       params->status.cmdError, params->status.debugFlags,
-	       params->status.vpStatus, params->status.errorCode);
+	gspca_dbg(gspca_dev, D_PROBE, "status: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+		  params->status.systemState, params->status.grabState,
+		  params->status.streamState, params->status.fatalError,
+		  params->status.cmdError, params->status.debugFlags,
+		  params->status.vpStatus, params->status.errorCode);
 }
 
 static int goto_low_power(struct gspca_dev *gspca_dev)
@@ -730,7 +730,7 @@ static int goto_low_power(struct gspca_dev *gspca_dev)
 		return -EIO;
 	}
 
-	PDEBUG(D_CONF, "camera now in LOW power state");
+	gspca_dbg(gspca_dev, D_CONF, "camera now in LOW power state\n");
 	return 0;
 }
 
@@ -759,7 +759,7 @@ static int goto_high_power(struct gspca_dev *gspca_dev)
 		return -EIO;
 	}
 
-	PDEBUG(D_CONF, "camera now in HIGH power state");
+	gspca_dbg(gspca_dev, D_CONF, "camera now in HIGH power state\n");
 	return 0;
 }
 
@@ -1302,7 +1302,7 @@ static void monitor_exposure(struct gspca_dev *gspca_dev)
 			sd->params.exposure.coarseExpHi = new_exposure >> 8;
 			setexp = 1;
 			sd->exposure_status = EXPOSURE_NORMAL;
-			PDEBUG(D_CONF, "Automatically decreasing sensor_fps");
+			gspca_dbg(gspca_dev, D_CONF, "Automatically decreasing sensor_fps\n");
 
 		} else if ((sd->exposure_status == EXPOSURE_VERY_LIGHT ||
 			    sd->exposure_status == EXPOSURE_LIGHT) &&
@@ -1331,7 +1331,7 @@ static void monitor_exposure(struct gspca_dev *gspca_dev)
 			sd->params.exposure.coarseExpHi = new_exposure >> 8;
 			setexp = 1;
 			sd->exposure_status = EXPOSURE_NORMAL;
-			PDEBUG(D_CONF, "Automatically increasing sensor_fps");
+			gspca_dbg(gspca_dev, D_CONF, "Automatically increasing sensor_fps\n");
 		}
 	} else {
 		/* Flicker control off */
@@ -1349,7 +1349,7 @@ static void monitor_exposure(struct gspca_dev *gspca_dev)
 				setexp = 1;
 			}
 			sd->exposure_status = EXPOSURE_NORMAL;
-			PDEBUG(D_CONF, "Automatically decreasing sensor_fps");
+			gspca_dbg(gspca_dev, D_CONF, "Automatically decreasing sensor_fps\n");
 
 		} else if ((sd->exposure_status == EXPOSURE_VERY_LIGHT ||
 			    sd->exposure_status == EXPOSURE_LIGHT) &&
@@ -1366,7 +1366,7 @@ static void monitor_exposure(struct gspca_dev *gspca_dev)
 				setexp = 1;
 			}
 			sd->exposure_status = EXPOSURE_NORMAL;
-			PDEBUG(D_CONF, "Automatically increasing sensor_fps");
+			gspca_dbg(gspca_dev, D_CONF, "Automatically increasing sensor_fps\n");
 		}
 	}
 
@@ -1434,8 +1434,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->mainsFreq = FREQ_DEF == V4L2_CID_POWER_LINE_FREQUENCY_60HZ;
 	reset_camera_params(gspca_dev);
 
-	PDEBUG(D_PROBE, "cpia CPiA camera detected (vid/pid 0x%04X:0x%04X)",
-	       id->idVendor, id->idProduct);
+	gspca_dbg(gspca_dev, D_PROBE, "cpia CPiA camera detected (vid/pid 0x%04X:0x%04X)\n",
+		  id->idVendor, id->idProduct);
 
 	cam = &gspca_dev->cam;
 	cam->cam_mode = mode;
@@ -1669,18 +1669,18 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 	sd_stopN(gspca_dev);
 
-	PDEBUG(D_PROBE, "CPIA Version:             %d.%02d (%d.%d)",
-			sd->params.version.firmwareVersion,
-			sd->params.version.firmwareRevision,
-			sd->params.version.vcVersion,
-			sd->params.version.vcRevision);
-	PDEBUG(D_PROBE, "CPIA PnP-ID:              %04x:%04x:%04x",
-			sd->params.pnpID.vendor, sd->params.pnpID.product,
-			sd->params.pnpID.deviceRevision);
-	PDEBUG(D_PROBE, "VP-Version:               %d.%d %04x",
-			sd->params.vpVersion.vpVersion,
-			sd->params.vpVersion.vpRevision,
-			sd->params.vpVersion.cameraHeadID);
+	gspca_dbg(gspca_dev, D_PROBE, "CPIA Version:             %d.%02d (%d.%d)\n",
+		  sd->params.version.firmwareVersion,
+		  sd->params.version.firmwareRevision,
+		  sd->params.version.vcVersion,
+		  sd->params.version.vcRevision);
+	gspca_dbg(gspca_dev, D_PROBE, "CPIA PnP-ID:              %04x:%04x:%04x",
+		  sd->params.pnpID.vendor, sd->params.pnpID.product,
+		  sd->params.pnpID.deviceRevision);
+	gspca_dbg(gspca_dev, D_PROBE, "VP-Version:               %d.%d %04x",
+		  sd->params.vpVersion.vpVersion,
+		  sd->params.vpVersion.vpRevision,
+		  sd->params.vpVersion.cameraHeadID);
 
 	return 0;
 }

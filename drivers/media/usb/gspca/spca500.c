@@ -328,7 +328,8 @@ static int reg_w(struct gspca_dev *gspca_dev,
 {
 	int ret;
 
-	PDEBUG(D_USBO, "reg write: [0x%02x] = 0x%02x", index, value);
+	gspca_dbg(gspca_dev, D_USBO, "reg write: [0x%02x] = 0x%02x\n",
+		  index, value);
 	ret = usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
 			req,
@@ -423,15 +424,15 @@ static int spca50x_setup_qtable(struct gspca_dev *gspca_dev,
 static void spca500_ping310(struct gspca_dev *gspca_dev)
 {
 	reg_r(gspca_dev, 0x0d04, 2);
-	PDEBUG(D_STREAM, "ClickSmart310 ping 0x0d04 0x%02x 0x%02x",
-		gspca_dev->usb_buf[0], gspca_dev->usb_buf[1]);
+	gspca_dbg(gspca_dev, D_STREAM, "ClickSmart310 ping 0x0d04 0x%02x 0x%02x\n",
+		  gspca_dev->usb_buf[0], gspca_dev->usb_buf[1]);
 }
 
 static void spca500_clksmart310_init(struct gspca_dev *gspca_dev)
 {
 	reg_r(gspca_dev, 0x0d05, 2);
-	PDEBUG(D_STREAM, "ClickSmart310 init 0x0d05 0x%02x 0x%02x",
-		gspca_dev->usb_buf[0], gspca_dev->usb_buf[1]);
+	gspca_dbg(gspca_dev, D_STREAM, "ClickSmart310 init 0x0d05 0x%02x 0x%02x\n",
+		  gspca_dev->usb_buf[0], gspca_dev->usb_buf[1]);
 	reg_w(gspca_dev, 0x00, 0x8167, 0x5a);
 	spca500_ping310(gspca_dev);
 
@@ -509,7 +510,8 @@ static int spca500_synch310(struct gspca_dev *gspca_dev)
 	reg_r(gspca_dev, 0x0d00, 1);
 
 	/* need alt setting here */
-	PDEBUG(D_PACK, "ClickSmart310 sync alt: %d", gspca_dev->alt);
+	gspca_dbg(gspca_dev, D_PACK, "ClickSmart310 sync alt: %d\n",
+		  gspca_dev->alt);
 
 	/* Windoze use pipe with altsetting 6 why 7 here */
 	if (usb_set_interface(gspca_dev->dev,
@@ -587,12 +589,12 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	/* initialisation of spca500 based cameras is deferred */
-	PDEBUG(D_STREAM, "SPCA500 init");
+	gspca_dbg(gspca_dev, D_STREAM, "SPCA500 init\n");
 	if (sd->subtype == LogitechClickSmart310)
 		spca500_clksmart310_init(gspca_dev);
 /*	else
 		spca500_initialise(gspca_dev); */
-	PDEBUG(D_STREAM, "SPCA500 init done");
+	gspca_dbg(gspca_dev, D_STREAM, "SPCA500 init done\n");
 	return 0;
 }
 
@@ -619,10 +621,10 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	/* is there a sensor here ? */
 	reg_r(gspca_dev, 0x8a04, 1);
-	PDEBUG(D_STREAM, "Spca500 Sensor Address 0x%02x",
-		gspca_dev->usb_buf[0]);
-	PDEBUG(D_STREAM, "Spca500 curr_mode: %d Xmult: 0x%02x, Ymult: 0x%02x",
-		gspca_dev->curr_mode, xmult, ymult);
+	gspca_dbg(gspca_dev, D_STREAM, "Spca500 Sensor Address 0x%02x\n",
+		  gspca_dev->usb_buf[0]);
+	gspca_dbg(gspca_dev, D_STREAM, "Spca500 curr_mode: %d Xmult: 0x%02x, Ymult: 0x%02x",
+		  gspca_dev->curr_mode, xmult, ymult);
 
 	/* setup qtable */
 	switch (sd->subtype) {
@@ -820,8 +822,8 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	/* switch to video camera mode */
 	reg_w(gspca_dev, 0x00, 0x8000, 0x0004);
 	reg_r(gspca_dev, 0x8000, 1);
-	PDEBUG(D_STREAM, "stop SPCA500 done reg8000: 0x%2x",
-		gspca_dev->usb_buf[0]);
+	gspca_dbg(gspca_dev, D_STREAM, "stop SPCA500 done reg8000: 0x%2x\n",
+		  gspca_dev->usb_buf[0]);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,

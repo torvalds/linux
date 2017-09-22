@@ -167,13 +167,13 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		return -ENODEV;
 	}
 	if (gspca_dev->usb_buf[7] & 0x01)
-		PDEBUG(D_PROBE, "Camera supports CIF mode");
+		gspca_dbg(gspca_dev, D_PROBE, "Camera supports CIF mode\n");
 	if (gspca_dev->usb_buf[7] & 0x02)
-		PDEBUG(D_PROBE, "Camera supports VGA mode");
+		gspca_dbg(gspca_dev, D_PROBE, "Camera supports VGA mode\n");
 	if (gspca_dev->usb_buf[7] & 0x04)
-		PDEBUG(D_PROBE, "Camera supports QCIF mode");
+		gspca_dbg(gspca_dev, D_PROBE, "Camera supports QCIF mode\n");
 	if (gspca_dev->usb_buf[7] & 0x08)
-		PDEBUG(D_PROBE, "Camera supports QVGA mode");
+		gspca_dbg(gspca_dev, D_PROBE, "Camera supports QVGA mode\n");
 
 	if (gspca_dev->usb_buf[7] & 0x01)
 		sd->video_mode = 0x00; /* CIF */
@@ -181,12 +181,12 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		sd->video_mode = 0x03; /* QVGA */
 
 	/* FW rev, ASIC rev, sensor ID  */
-	PDEBUG(D_PROBE, "Firmware rev is %i.%i",
-	       gspca_dev->usb_buf[0], gspca_dev->usb_buf[1]);
-	PDEBUG(D_PROBE, "ASIC rev is %i.%i",
-	       gspca_dev->usb_buf[2], gspca_dev->usb_buf[3]);
-	PDEBUG(D_PROBE, "Sensor ID is %i",
-	       (gspca_dev->usb_buf[4]*16) + (gspca_dev->usb_buf[5]>>4));
+	gspca_dbg(gspca_dev, D_PROBE, "Firmware rev is %i.%i\n",
+		  gspca_dev->usb_buf[0], gspca_dev->usb_buf[1]);
+	gspca_dbg(gspca_dev, D_PROBE, "ASIC rev is %i.%i",
+		  gspca_dev->usb_buf[2], gspca_dev->usb_buf[3]);
+	gspca_dbg(gspca_dev, D_PROBE, "Sensor ID is %i",
+		  (gspca_dev->usb_buf[4]*16) + (gspca_dev->usb_buf[5]>>4));
 
 
 	ret = stv0680_get_video_mode(gspca_dev);

@@ -75,14 +75,14 @@ static int reg_reqs(struct gspca_dev *gspca_dev,
 				  i, n_reqs);
 		} else if (preq->bRequestType & USB_DIR_IN) {
 
-			PDEBUG(D_STREAM,
-			"USB IN (%d) returned[%d] %02X %02X %02X %s",
-				i,
-				preq->wLength,
-				gspca_dev->usb_buf[0],
-				gspca_dev->usb_buf[1],
-				gspca_dev->usb_buf[2],
-				preq->wLength > 3 ? "...\n" : "\n");
+			gspca_dbg(gspca_dev, D_STREAM,
+				  "USB IN (%d) returned[%d] %02X %02X %02X %s\n",
+				  i,
+				  preq->wLength,
+				  gspca_dev->usb_buf[0],
+				  gspca_dev->usb_buf[1],
+				  gspca_dev->usb_buf[2],
+				  preq->wLength > 3 ? "...\n" : "\n");
 		}
 
 		i++;

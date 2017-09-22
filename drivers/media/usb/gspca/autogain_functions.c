@@ -41,8 +41,8 @@ int gspca_expo_autogain(
 	   desired lumination fast (with the risc of a slight overshoot) */
 	steps = abs(desired_avg_lum - avg_lum) / deadzone;
 
-	PDEBUG(D_FRAM, "autogain: lum: %d, desired: %d, steps: %d",
-		avg_lum, desired_avg_lum, steps);
+	gspca_dbg(gspca_dev, D_FRAM, "autogain: lum: %d, desired: %d, steps: %d\n",
+		  avg_lum, desired_avg_lum, steps);
 
 	for (i = 0; i < steps; i++) {
 		if (avg_lum > desired_avg_lum) {
@@ -84,8 +84,8 @@ int gspca_expo_autogain(
 	}
 
 	if (retval)
-		PDEBUG(D_FRAM, "autogain: changed gain: %d, expo: %d",
-			gain, exposure);
+		gspca_dbg(gspca_dev, D_FRAM, "autogain: changed gain: %d, expo: %d\n",
+			  gain, exposure);
 	return retval;
 }
 EXPORT_SYMBOL(gspca_expo_autogain);
@@ -126,8 +126,8 @@ int gspca_coarse_grained_expo_autogain(
 	   desired lumination fast (with the risc of a slight overshoot) */
 	steps = (desired_avg_lum - avg_lum) / deadzone;
 
-	PDEBUG(D_FRAM, "autogain: lum: %d, desired: %d, steps: %d",
-		avg_lum, desired_avg_lum, steps);
+	gspca_dbg(gspca_dev, D_FRAM, "autogain: lum: %d, desired: %d, steps: %d\n",
+		  avg_lum, desired_avg_lum, steps);
 
 	if ((gain + steps) > gain_high &&
 	    exposure < gspca_dev->exposure->maximum) {
@@ -167,8 +167,8 @@ int gspca_coarse_grained_expo_autogain(
 	}
 
 	if (retval)
-		PDEBUG(D_FRAM, "autogain: changed gain: %d, expo: %d",
-			gain, exposure);
+		gspca_dbg(gspca_dev, D_FRAM, "autogain: changed gain: %d, expo: %d\n",
+			  gain, exposure);
 	return retval;
 }
 EXPORT_SYMBOL(gspca_coarse_grained_expo_autogain);

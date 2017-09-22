@@ -1763,8 +1763,8 @@ static int reg_write(struct gspca_dev *gspca_dev,
 			req,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			value, index, NULL, 0, 500);
-	PDEBUG(D_USBO, "reg write: 0x%02x 0x%02x 0x%02x",
-		req, index, value);
+	gspca_dbg(gspca_dev, D_USBO, "reg write: 0x%02x 0x%02x 0x%02x\n",
+		  req, index, value);
 	if (ret < 0)
 		pr_err("reg write: error %d\n", ret);
 	return ret;
@@ -1852,7 +1852,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			goto error;
 		break;
 	}
-	PDEBUG(D_STREAM, "Initializing SPCA501 finished");
+	gspca_dbg(gspca_dev, D_STREAM, "Initializing SPCA501 finished\n");
 	return 0;
 error:
 	return -EINVAL;

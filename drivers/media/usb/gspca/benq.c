@@ -152,7 +152,7 @@ static void sd_isoc_irq(struct urb *urb)
 	u8 *data;
 	int i, st;
 
-	PDEBUG(D_PACK, "sd isoc irq");
+	gspca_dbg(gspca_dev, D_PACK, "sd isoc irq\n");
 	if (!gspca_dev->streaming)
 		return;
 	if (urb->status != 0) {
