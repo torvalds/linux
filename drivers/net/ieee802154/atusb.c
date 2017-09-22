@@ -1060,7 +1060,7 @@ static int atusb_probe(struct usb_interface *interface,
 	atusb_get_and_show_build(atusb);
 	atusb_set_extended_addr(atusb);
 
-	if (atusb->fw_ver_maj >= 0 && atusb->fw_ver_min >= 3)
+	if ((atusb->fw_ver_maj == 0 && atusb->fw_ver_min >= 3) || atusb->fw_ver_maj > 0)
 		hw->flags |= IEEE802154_HW_FRAME_RETRIES;
 
 	ret = atusb_get_and_clear_error(atusb);
