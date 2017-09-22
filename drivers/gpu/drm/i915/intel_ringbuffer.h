@@ -234,7 +234,14 @@ struct intel_engine_execlists {
 		 * @context_id: context ID for port
 		 */
 		GEM_DEBUG_DECL(u32 context_id);
-	} port[2];
+
+#define EXECLIST_MAX_PORTS 2
+	} port[EXECLIST_MAX_PORTS];
+
+	/**
+	 * @port_mask: number of execlist ports - 1
+	 */
+	unsigned int port_mask;
 
 	/**
 	 * @queue: queue of requests, in priority lists
@@ -511,16 +518,22 @@ struct intel_engine_cs {
 	u32 (*get_cmd_length_mask)(u32 cmd_header);
 };
 
+static inline unsigned int
+execlists_num_ports(const struct intel_engine_execlists * const execlists)
+{
+	return execlists->port_mask + 1;
+}
+
 static inline void
 execlists_port_complete(struct intel_engine_execlists * const execlists,
 			struct execlist_port * const port)
 {
-	struct execlist_port * const port1 = &execlists->port[1];
+	const unsigned int m = execlists->port_mask;
 
 	GEM_BUG_ON(port_index(port, execlists) != 0);
 
-	*port = *port1;
-	memset(port1, 0, sizeof(struct execlist_port));
+	memmove(port, port + 1, m * sizeof(struct execlist_port));
+	memset(port + m, 0, sizeof(struct execlist_port));
 }
 
 static inline unsigned int

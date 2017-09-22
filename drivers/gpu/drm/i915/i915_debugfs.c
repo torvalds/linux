@@ -3312,6 +3312,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 
 		if (i915_modparams.enable_execlists) {
 			const u32 *hws = &engine->status_page.page_addr[I915_HWS_CSB_BUF0_INDEX];
+			struct intel_engine_execlists * const execlists = &engine->execlists;
 			u32 ptr, read, write;
 			unsigned int idx;
 
@@ -3323,7 +3324,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 			read = GEN8_CSB_READ_PTR(ptr);
 			write = GEN8_CSB_WRITE_PTR(ptr);
 			seq_printf(m, "\tExeclist CSB read %d [%d cached], write %d [%d from hws], interrupt posted? %s\n",
-				   read, engine->execlists.csb_head,
+				   read, execlists->csb_head,
 				   write,
 				   intel_read_status_page(engine, intel_hws_csb_write_index(engine->i915)),
 				   yesno(test_bit(ENGINE_IRQ_EXECLIST,
@@ -3345,11 +3346,10 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 			}
 
 			rcu_read_lock();
-			for (idx = 0; idx < ARRAY_SIZE(engine->execlists.port); idx++) {
+			for (idx = 0; idx < execlists_num_ports(execlists); idx++) {
 				unsigned int count;
 
-				rq = port_unpack(&engine->execlists.port[idx],
-						 &count);
+				rq = port_unpack(&execlists->port[idx], &count);
 				if (rq) {
 					seq_printf(m, "\t\tELSP[%d] count=%d, ",
 						   idx, count);
@@ -3362,7 +3362,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 			rcu_read_unlock();
 
 			spin_lock_irq(&engine->timeline->lock);
-			for (rb = engine->execlists.first; rb; rb = rb_next(rb)) {
+			for (rb = execlists->first; rb; rb = rb_next(rb)) {
 				struct i915_priolist *p =
 					rb_entry(rb, typeof(*p), node);
 

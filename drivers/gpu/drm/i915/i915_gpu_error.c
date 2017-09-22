@@ -396,6 +396,8 @@ static void error_print_context(struct drm_i915_error_state_buf *m,
 static void error_print_engine(struct drm_i915_error_state_buf *m,
 			       const struct drm_i915_error_engine *ee)
 {
+	int n;
+
 	err_printf(m, "%s command stream:\n", engine_str(ee->engine_id));
 	err_printf(m, "  START: 0x%08x\n", ee->start);
 	err_printf(m, "  HEAD:  0x%08x [0x%08x]\n", ee->head, ee->rq_head);
@@ -465,8 +467,11 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 		   jiffies_to_msecs(jiffies - ee->hangcheck_timestamp));
 	err_printf(m, "  engine reset count: %u\n", ee->reset_count);
 
-	error_print_request(m, "  ELSP[0]: ", &ee->execlist[0]);
-	error_print_request(m, "  ELSP[1]: ", &ee->execlist[1]);
+	for (n = 0; n < ee->num_ports; n++) {
+		err_printf(m, "  ELSP[%d]:", n);
+		error_print_request(m, " ", &ee->execlist[n]);
+	}
+
 	error_print_context(m, "  Active context: ", &ee->context);
 }
 
@@ -1327,17 +1332,19 @@ static void engine_record_requests(struct intel_engine_cs *engine,
 static void error_record_engine_execlists(struct intel_engine_cs *engine,
 					  struct drm_i915_error_engine *ee)
 {
-	const struct execlist_port *port = engine->execlists.port;
+	const struct intel_engine_execlists * const execlists = &engine->execlists;
 	unsigned int n;
 
-	for (n = 0; n < ARRAY_SIZE(engine->execlists.port); n++) {
-		struct drm_i915_gem_request *rq = port_request(&port[n]);
+	for (n = 0; n < execlists_num_ports(execlists); n++) {
+		struct drm_i915_gem_request *rq = port_request(&execlists->port[n]);
 
 		if (!rq)
 			break;
 
 		record_request(rq, &ee->execlist[n]);
 	}
+
+	ee->num_ports = n;
 }
 
 static void record_context(struct drm_i915_error_context *e,

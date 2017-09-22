@@ -562,6 +562,8 @@ static void i915_guc_dequeue(struct intel_engine_cs *engine)
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct execlist_port *port = execlists->port;
 	struct drm_i915_gem_request *last = NULL;
+	const struct execlist_port * const last_port =
+		&execlists->port[execlists->port_mask];
 	bool submit = false;
 	struct rb_node *rb;
 
@@ -577,7 +579,7 @@ static void i915_guc_dequeue(struct intel_engine_cs *engine)
 
 		list_for_each_entry_safe(rq, rn, &p->requests, priotree.link) {
 			if (last && rq->ctx != last->ctx) {
-				if (port != execlists->port) {
+				if (port == last_port) {
 					__list_del_many(&p->requests,
 							&rq->priotree.link);
 					goto done;
@@ -617,6 +619,8 @@ static void i915_guc_irq_handler(unsigned long data)
 	struct intel_engine_cs * const engine = (struct intel_engine_cs *)data;
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct execlist_port *port = execlists->port;
+	const struct execlist_port * const last_port =
+		&execlists->port[execlists->port_mask];
 	struct drm_i915_gem_request *rq;
 
 	rq = port_request(&port[0]);
@@ -629,7 +633,7 @@ static void i915_guc_irq_handler(unsigned long data)
 		rq = port_request(&port[0]);
 	}
 
-	if (!port_isset(&port[1]))
+	if (!port_isset(last_port))
 		i915_guc_dequeue(engine);
 }
 
