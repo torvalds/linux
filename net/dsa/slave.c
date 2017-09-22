@@ -73,9 +73,7 @@ static int dsa_slave_open(struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_port *dp = p->dp;
-	struct dsa_switch *ds = dp->ds;
 	struct net_device *master = dsa_master_netdev(p);
-	u8 stp_state = dp->bridge_dev ? BR_STATE_BLOCKING : BR_STATE_FORWARDING;
 	int err;
 
 	if (!(master->flags & IFF_UP))
@@ -98,13 +96,9 @@ static int dsa_slave_open(struct net_device *dev)
 			goto clear_allmulti;
 	}
 
-	if (ds->ops->port_enable) {
-		err = ds->ops->port_enable(ds, p->dp->index, p->phy);
-		if (err)
-			goto clear_promisc;
-	}
-
-	dsa_port_set_state_now(p->dp, stp_state);
+	err = dsa_port_enable(dp, p->phy);
+	if (err)
+		goto clear_promisc;
 
 	if (p->phy)
 		phy_start(p->phy);
@@ -128,15 +122,12 @@ static int dsa_slave_close(struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct net_device *master = dsa_master_netdev(p);
-	struct dsa_switch *ds = p->dp->ds;
+	struct dsa_port *dp = p->dp;
 
 	if (p->phy)
 		phy_stop(p->phy);
 
-	dsa_port_set_state_now(p->dp, BR_STATE_DISABLED);
-
-	if (ds->ops->port_disable)
-		ds->ops->port_disable(ds, p->dp->index, p->phy);
+	dsa_port_disable(dp, p->phy);
 
 	dev_mc_unsync(master, dev);
 	dev_uc_unsync(master, dev);
