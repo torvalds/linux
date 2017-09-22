@@ -1241,22 +1241,30 @@ static inline pid_t task_pgrp_nr(struct task_struct *tsk)
 	return task_pgrp_nr_ns(tsk, &init_pid_ns);
 }
 
+#define TASK_REPORT_IDLE	(TASK_REPORT + 1)
+#define TASK_REPORT_MAX		(TASK_REPORT_IDLE << 1)
+
 static inline unsigned int __get_task_state(struct task_struct *tsk)
 {
 	unsigned int tsk_state = READ_ONCE(tsk->state);
 	unsigned int state = (tsk_state | tsk->exit_state) & TASK_REPORT;
 
+	BUILD_BUG_ON_NOT_POWER_OF_2(TASK_REPORT_MAX);
+
 	if (tsk_state == TASK_PARKED)
 		state = TASK_INTERRUPTIBLE;
+
+	if (tsk_state == TASK_IDLE)
+		state = TASK_REPORT_IDLE;
 
 	return fls(state);
 }
 
 static inline char __task_state_to_char(unsigned int state)
 {
-	static const char state_char[] = "RSDTtXZ";
+	static const char state_char[] = "RSDTtXZI";
 
-	BUILD_BUG_ON(1 + ilog2(TASK_REPORT) != sizeof(state_char) - 2);
+	BUILD_BUG_ON(1 + ilog2(TASK_REPORT_MAX) != sizeof(state_char) - 1);
 
 	return state_char[state];
 }

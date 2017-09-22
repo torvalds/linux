@@ -156,10 +156,11 @@ TRACE_EVENT(sched_switch,
 	TP_printk("prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%s%s ==> next_comm=%s next_pid=%d next_prio=%d",
 		__entry->prev_comm, __entry->prev_pid, __entry->prev_prio,
 
-		(__entry->prev_state & TASK_REPORT) ?
-		  __print_flags(__entry->prev_state & TASK_REPORT, "|",
+		(__entry->prev_state & (TASK_REPORT_MAX - 1)) ?
+		  __print_flags(__entry->prev_state & (TASK_REPORT_MAX - 1), "|",
 				{ 0x01, "S" }, { 0x02, "D" }, { 0x04, "T" },
-				{ 0x08, "t" }, { 0x10, "X" }, { 0x20, "Z" }) :
+				{ 0x08, "t" }, { 0x10, "X" }, { 0x20, "Z" },
+				{ 0x40, "I" }) :
 		  "R",
 
 		__entry->prev_state & TASK_STATE_MAX ? "+" : "",
