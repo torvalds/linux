@@ -32,8 +32,12 @@
  */
 int __is_active_jprobe(unsigned long addr)
 {
-	struct kprobe *p = kprobe_running();
-	return (p && (unsigned long)p->addr == addr) ? 1 : 0;
+	if (!preemptible()) {
+		struct kprobe *p = raw_cpu_read(current_kprobe);
+		return (p && (unsigned long)p->addr == addr) ? 1 : 0;
+	}
+
+	return 0;
 }
 
 static nokprobe_inline
