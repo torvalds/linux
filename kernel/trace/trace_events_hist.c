@@ -28,12 +28,16 @@ struct hist_field;
 
 typedef u64 (*hist_field_fn_t) (struct hist_field *field, void *event);
 
+#define HIST_FIELD_OPERANDS_MAX	2
+
 struct hist_field {
 	struct ftrace_event_field	*field;
 	unsigned long			flags;
 	hist_field_fn_t			fn;
 	unsigned int			size;
 	unsigned int			offset;
+	unsigned int                    is_signed;
+	struct hist_field		*operands[HIST_FIELD_OPERANDS_MAX];
 };
 
 static u64 hist_field_none(struct hist_field *field, void *event)
@@ -71,7 +75,9 @@ static u64 hist_field_pstring(struct hist_field *hist_field, void *event)
 
 static u64 hist_field_log2(struct hist_field *hist_field, void *event)
 {
-	u64 val = *(u64 *)(event + hist_field->field->offset);
+	struct hist_field *operand = hist_field->operands[0];
+
+	u64 val = operand->fn(operand, event);
 
 	return (u64) ilog2(roundup_pow_of_two(val));
 }
@@ -156,6 +162,8 @@ static const char *hist_field_name(struct hist_field *field,
 
 	if (field->field)
 		field_name = field->field->name;
+	else if (field->flags & HIST_FIELD_FL_LOG2)
+		field_name = hist_field_name(field->operands[0], ++level);
 
 	if (field_name == NULL)
 		field_name = "";
@@ -357,8 +365,20 @@ static const struct tracing_map_ops hist_trigger_elt_comm_ops = {
 	.elt_init	= hist_trigger_elt_comm_init,
 };
 
-static void destroy_hist_field(struct hist_field *hist_field)
+static void destroy_hist_field(struct hist_field *hist_field,
+			       unsigned int level)
 {
+	unsigned int i;
+
+	if (level > 2)
+		return;
+
+	if (!hist_field)
+		return;
+
+	for (i = 0; i < HIST_FIELD_OPERANDS_MAX; i++)
+		destroy_hist_field(hist_field->operands[i], level + 1);
+
 	kfree(hist_field);
 }
 
@@ -385,7 +405,10 @@ static struct hist_field *create_hist_field(struct ftrace_event_field *field,
 	}
 
 	if (flags & HIST_FIELD_FL_LOG2) {
+		unsigned long fl = flags & ~HIST_FIELD_FL_LOG2;
 		hist_field->fn = hist_field_log2;
+		hist_field->operands[0] = create_hist_field(field, fl);
+		hist_field->size = hist_field->operands[0]->size;
 		goto out;
 	}
 
@@ -405,7 +428,7 @@ static struct hist_field *create_hist_field(struct ftrace_event_field *field,
 		hist_field->fn = select_value_fn(field->size,
 						 field->is_signed);
 		if (!hist_field->fn) {
-			destroy_hist_field(hist_field);
+			destroy_hist_field(hist_field, 0);
 			return NULL;
 		}
 	}
@@ -422,7 +445,7 @@ static void destroy_hist_fields(struct hist_trigger_data *hist_data)
 
 	for (i = 0; i < TRACING_MAP_FIELDS_MAX; i++) {
 		if (hist_data->fields[i]) {
-			destroy_hist_field(hist_data->fields[i]);
+			destroy_hist_field(hist_data->fields[i], 0);
 			hist_data->fields[i] = NULL;
 		}
 	}
