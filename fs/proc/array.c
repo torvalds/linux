@@ -130,19 +130,8 @@ static const char * const task_state_array[] = {
 
 static inline const char *get_task_state(struct task_struct *tsk)
 {
-	unsigned int state = (tsk->state | tsk->exit_state) & TASK_REPORT;
-
-	/*
-	 * Parked tasks do not run; they sit in __kthread_parkme().
-	 * Without this check, we would report them as running, which is
-	 * clearly wrong, so we report them as sleeping instead.
-	 */
-	if (tsk->state == TASK_PARKED)
-		state = TASK_INTERRUPTIBLE;
-
-	BUILD_BUG_ON(1 + ilog2(TASK_REPORT) != ARRAY_SIZE(task_state_array)-1);
-
-	return task_state_array[fls(state)];
+	BUILD_BUG_ON(1 + ilog2(TASK_REPORT) != ARRAY_SIZE(task_state_array) - 1);
+	return task_state_array[__get_task_state(tsk)];
 }
 
 static inline int get_task_umask(struct task_struct *tsk)

@@ -1243,17 +1243,29 @@ static inline pid_t task_pgrp_nr(struct task_struct *tsk)
 	return task_pgrp_nr_ns(tsk, &init_pid_ns);
 }
 
-static inline char task_state_to_char(struct task_struct *task)
+static inline unsigned int __get_task_state(struct task_struct *tsk)
 {
-	const char stat_nam[] = TASK_STATE_TO_CHAR_STR;
-	unsigned long state = task->state;
+	unsigned int tsk_state = READ_ONCE(tsk->state);
+	unsigned int state = (tsk_state | tsk->exit_state) & TASK_REPORT;
 
-	state = state ? __ffs(state) + 1 : 0;
+	if (tsk_state == TASK_PARKED)
+		state = TASK_INTERRUPTIBLE;
 
-	/* Make sure the string lines up properly with the number of task states: */
-	BUILD_BUG_ON(sizeof(TASK_STATE_TO_CHAR_STR)-1 != ilog2(TASK_STATE_MAX)+1);
+	return fls(state);
+}
 
-	return state < sizeof(stat_nam) - 1 ? stat_nam[state] : '?';
+static inline char __task_state_to_char(unsigned int state)
+{
+	static const char state_char[] = "RSDTtXZ";
+
+	BUILD_BUG_ON(1 + ilog2(TASK_REPORT) != sizeof(state_char) - 2);
+
+	return state_char[state];
+}
+
+static inline char task_state_to_char(struct task_struct *tsk)
+{
+	return __task_state_to_char(__get_task_state(tsk));
 }
 
 /**
