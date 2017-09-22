@@ -10,11 +10,6 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  */
 
 #ifndef __DENALI_H__
@@ -310,22 +305,19 @@ struct denali_nand_info {
 	struct device *dev;
 	void __iomem *reg;		/* Register Interface */
 	void __iomem *host;		/* Host Data/Command Interface */
-
-	/* elements used by ISR */
 	struct completion complete;
-	spinlock_t irq_lock;
-	uint32_t irq_mask;
-	uint32_t irq_status;
+	spinlock_t irq_lock;		/* protect irq_mask and irq_status */
+	u32 irq_mask;			/* interrupts we are waiting for */
+	u32 irq_status;			/* interrupts that have happened */
 	int irq;
-
-	void *buf;
+	void *buf;			/* for syndrome layout conversion */
 	dma_addr_t dma_addr;
-	int dma_avail;
+	int dma_avail;			/* can support DMA? */
 	int devs_per_cs;		/* devices connected in parallel */
-	int oob_skip_bytes;
+	int oob_skip_bytes;		/* number of bytes reserved for BBM */
 	int max_banks;
-	unsigned int revision;
-	unsigned int caps;
+	unsigned int revision;		/* IP revision */
+	unsigned int caps;		/* IP capability (or quirk) */
 	const struct nand_ecc_caps *ecc_caps;
 };
 

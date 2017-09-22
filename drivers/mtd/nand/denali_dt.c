@@ -156,7 +156,6 @@ static struct platform_driver denali_dt_driver = {
 		.of_match_table	= denali_nand_dt_ids,
 	},
 };
-
 module_platform_driver(denali_dt_driver);
 
 MODULE_LICENSE("GPL");

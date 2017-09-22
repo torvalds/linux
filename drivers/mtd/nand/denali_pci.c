@@ -109,7 +109,6 @@ failed_remap_reg:
 	return ret;
 }
 
-/* driver exit point */
 static void denali_pci_remove(struct pci_dev *dev)
 {
 	struct denali_nand_info *denali = pci_get_drvdata(dev);
@@ -125,5 +124,4 @@ static struct pci_driver denali_pci_driver = {
 	.probe = denali_pci_probe,
 	.remove = denali_pci_remove,
 };
-
 module_pci_driver(denali_pci_driver);
