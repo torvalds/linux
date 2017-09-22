@@ -54,8 +54,8 @@
 
 static void __irda_task_delete(struct irda_task *task);
 
-static hashbin_t *dongles = NULL;
-static hashbin_t *tasks = NULL;
+static hashbin_t *dongles;
+static hashbin_t *tasks;
 
 static void irda_task_timer_expired(void *data);
 
