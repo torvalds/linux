@@ -469,10 +469,10 @@ static void denali_setup_dma64(struct denali_nand_info *denali,
 			  0x01002000 | (64 << 16) | (write << 8) | page_count);
 
 	/* 2. set memory low address */
-	denali_host_write(denali, mode, dma_addr);
+	denali_host_write(denali, mode, lower_32_bits(dma_addr));
 
 	/* 3. set memory high address */
-	denali_host_write(denali, mode, (uint64_t)dma_addr >> 32);
+	denali_host_write(denali, mode, upper_32_bits(dma_addr));
 }
 
 static void denali_setup_dma32(struct denali_nand_info *denali,
