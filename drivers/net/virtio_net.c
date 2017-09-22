@@ -721,7 +721,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			goto xdp_xmit;
 		case XDP_REDIRECT:
 			err = xdp_do_redirect(dev, &xdp, xdp_prog);
-			if (err)
+			if (!err)
 				*xdp_xmit = true;
 			rcu_read_unlock();
 			goto xdp_xmit;
