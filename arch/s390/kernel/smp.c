@@ -800,6 +800,8 @@ void __init smp_detect_cpus(void)
  */
 static void smp_start_secondary(void *cpuvoid)
 {
+	int cpu = smp_processor_id();
+
 	S390_lowcore.last_update_clock = get_tod_clock();
 	S390_lowcore.restart_stack = (unsigned long) restart_stack;
 	S390_lowcore.restart_fn = (unsigned long) do_restart;
@@ -813,8 +815,12 @@ static void smp_start_secondary(void *cpuvoid)
 	init_cpu_timer();
 	vtime_init();
 	pfault_init();
-	notify_cpu_starting(smp_processor_id());
-	set_cpu_online(smp_processor_id(), true);
+	notify_cpu_starting(cpu);
+	if (topology_cpu_dedicated(cpu))
+		set_cpu_flag(CIF_DEDICATED_CPU);
+	else
+		clear_cpu_flag(CIF_DEDICATED_CPU);
+	set_cpu_online(cpu, true);
 	inc_irq_stat(CPU_RST);
 	local_irq_enable();
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);

@@ -156,7 +156,8 @@ static inline unsigned char topology_mnest_limit(void)
 struct topology_core {
 	unsigned char nl;
 	unsigned char reserved0[3];
-	unsigned char :6;
+	unsigned char :5;
+	unsigned char d:1;
 	unsigned char pp:2;
 	unsigned char reserved1;
 	unsigned short origin;

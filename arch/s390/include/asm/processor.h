@@ -21,6 +21,7 @@
 #define CIF_IGNORE_IRQ		5	/* ignore interrupt (for udelay) */
 #define CIF_ENABLED_WAIT	6	/* in enabled wait state */
 #define CIF_MCCK_GUEST		7	/* machine check happening in guest */
+#define CIF_DEDICATED_CPU	8	/* this CPU is dedicated */
 
 #define _CIF_MCCK_PENDING	_BITUL(CIF_MCCK_PENDING)
 #define _CIF_ASCE_PRIMARY	_BITUL(CIF_ASCE_PRIMARY)
@@ -30,6 +31,7 @@
 #define _CIF_IGNORE_IRQ		_BITUL(CIF_IGNORE_IRQ)
 #define _CIF_ENABLED_WAIT	_BITUL(CIF_ENABLED_WAIT)
 #define _CIF_MCCK_GUEST		_BITUL(CIF_MCCK_GUEST)
+#define _CIF_DEDICATED_CPU	_BITUL(CIF_DEDICATED_CPU)
 
 #ifndef __ASSEMBLY__
 
