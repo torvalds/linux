@@ -248,7 +248,7 @@ static inline unsigned int metapath_branch_start(const struct metapath *mp)
 }
 
 /**
- * metaptr1 - Return the first possible metadata pointer in a metaath buffer
+ * metaptr1 - Return the first possible metadata pointer in a metapath buffer
  * @height: The metadata height (0 = dinode)
  * @mp: The metapath
  */
@@ -659,7 +659,7 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	unsigned int bsize = sdp->sd_sb.sb_bsize;
+	unsigned int factor = sdp->sd_sb.sb_bsize;
 	const size_t maxlen = bh_map->b_size >> inode->i_blkbits;
 	const u64 *arr = sdp->sd_heightsize;
 	__be64 *ptr;
@@ -679,8 +679,14 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 	clear_buffer_new(bh_map);
 	clear_buffer_boundary(bh_map);
 	trace_gfs2_bmap(ip, bh_map, lblock, create, 1);
+
+	/*
+	 * Directory data blocks have a struct gfs2_meta_header header, so the
+	 * remaining size is smaller than the filesystem block size.  Logical
+	 * block numbers for directories are in units of this remaining size!
+	 */
 	if (gfs2_is_dir(ip)) {
-		bsize = sdp->sd_jbsize;
+		factor = sdp->sd_jbsize;
 		arr = sdp->sd_jheightsize;
 	}
 
@@ -689,7 +695,7 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 		goto out;
 
 	height = ip->i_height;
-	size = (lblock + 1) * bsize;
+	size = (lblock + 1) * factor;
 	while (size > arr[height])
 		height++;
 	find_metapath(sdp, lblock, &mp, height);
