@@ -284,6 +284,7 @@ void serial8250_release_dma(struct uart_8250_port *p)
 			  dma->rx_addr);
 	dma_release_channel(dma->rxchan);
 	dma->rxchan = NULL;
+	dma->rx_running = 0;
 
 	/* Release TX resources */
 	dmaengine_terminate_all(dma->txchan);
