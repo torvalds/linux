@@ -687,9 +687,7 @@ static void __init sn_sal_switch_to_asynch(struct sn_cons_port *port)
 	 * timer to poll for input and push data from the console
 	 * buffer.
 	 */
-	init_timer(&port->sc_timer);
-	port->sc_timer.function = sn_sal_timer_poll;
-	port->sc_timer.data = (unsigned long)port;
+	setup_timer(&port->sc_timer, sn_sal_timer_poll, (unsigned long)port);
 
 	if (IS_RUNNING_ON_SIMULATOR())
 		port->sc_interrupt_timeout = 6;
