@@ -410,18 +410,6 @@ static const struct pinconf_ops meson_pinconf_ops = {
 	.is_generic		= true,
 };
 
-static int meson_gpio_request(struct gpio_chip *chip, unsigned gpio)
-{
-	return pinctrl_gpio_request(chip->base + gpio);
-}
-
-static void meson_gpio_free(struct gpio_chip *chip, unsigned gpio)
-{
-	struct meson_pinctrl *pc = gpiochip_get_data(chip);
-
-	pinctrl_gpio_free(pc->data->pin_base + gpio);
-}
-
 static int meson_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
 {
 	struct meson_pinctrl *pc = gpiochip_get_data(chip);
@@ -539,8 +527,8 @@ static int meson_gpiolib_register(struct meson_pinctrl *pc)
 
 	pc->chip.label = pc->data->name;
 	pc->chip.parent = pc->dev;
-	pc->chip.request = meson_gpio_request;
-	pc->chip.free = meson_gpio_free;
+	pc->chip.request = gpiochip_generic_request;
+	pc->chip.free = gpiochip_generic_free;
 	pc->chip.direction_input = meson_gpio_direction_input;
 	pc->chip.direction_output = meson_gpio_direction_output;
 	pc->chip.get = meson_gpio_get;
