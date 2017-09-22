@@ -1270,6 +1270,9 @@ static void reset_hw_ctx_wrap(
 		if (!pipe_ctx_old->stream)
 			continue;
 
+		if (pipe_ctx_old->top_pipe)
+			continue;
+
 		if (!pipe_ctx->stream ||
 				pipe_need_reprogram(pipe_ctx_old, pipe_ctx)) {
 			struct clock_source *old_clk = pipe_ctx_old->clock_source;
