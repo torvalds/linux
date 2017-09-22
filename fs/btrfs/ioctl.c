@@ -4530,13 +4530,14 @@ static int build_ino_list(u64 inum, u64 offset, u64 root, void *ctx)
 }
 
 static long btrfs_ioctl_logical_to_ino(struct btrfs_fs_info *fs_info,
-					void __user *arg)
+					void __user *arg, int version)
 {
 	int ret = 0;
 	int size;
 	struct btrfs_ioctl_logical_ino_args *loi;
 	struct btrfs_data_container *inodes = NULL;
 	struct btrfs_path *path = NULL;
+	bool ignore_offset;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -4544,6 +4545,22 @@ static long btrfs_ioctl_logical_to_ino(struct btrfs_fs_info *fs_info,
 	loi = memdup_user(arg, sizeof(*loi));
 	if (IS_ERR(loi))
 		return PTR_ERR(loi);
+
+	if (version == 1) {
+		ignore_offset = false;
+	} else {
+		/* All reserved bits must be 0 for now */
+		if (memchr_inv(loi->reserved, 0, sizeof(loi->reserved))) {
+			ret = -EINVAL;
+			goto out_loi;
+		}
+		/* Only accept flags we have defined so far */
+		if (loi->flags & ~(BTRFS_LOGICAL_INO_ARGS_IGNORE_OFFSET)) {
+			ret = -EINVAL;
+			goto out_loi;
+		}
+		ignore_offset = loi->flags & BTRFS_LOGICAL_INO_ARGS_IGNORE_OFFSET;
+	}
 
 	path = btrfs_alloc_path();
 	if (!path) {
@@ -4560,7 +4577,7 @@ static long btrfs_ioctl_logical_to_ino(struct btrfs_fs_info *fs_info,
 	}
 
 	ret = iterate_inodes_from_logical(loi->logical, fs_info, path,
-					  build_ino_list, inodes, false);
+					  build_ino_list, inodes, ignore_offset);
 	if (ret == -EINVAL)
 		ret = -ENOENT;
 	if (ret < 0)
@@ -4574,6 +4591,7 @@ static long btrfs_ioctl_logical_to_ino(struct btrfs_fs_info *fs_info,
 out:
 	btrfs_free_path(path);
 	kvfree(inodes);
+out_loi:
 	kfree(loi);
 
 	return ret;
@@ -5575,7 +5593,9 @@ long btrfs_ioctl(struct file *file, unsigned int
 	case BTRFS_IOC_INO_PATHS:
 		return btrfs_ioctl_ino_to_path(root, argp);
 	case BTRFS_IOC_LOGICAL_INO:
-		return btrfs_ioctl_logical_to_ino(fs_info, argp);
+		return btrfs_ioctl_logical_to_ino(fs_info, argp, 1);
+	case BTRFS_IOC_LOGICAL_INO_V2:
+		return btrfs_ioctl_logical_to_ino(fs_info, argp, 2);
 	case BTRFS_IOC_SPACE_INFO:
 		return btrfs_ioctl_space_info(fs_info, argp);
 	case BTRFS_IOC_SYNC: {
