@@ -107,6 +107,8 @@ static inline void mmc_unregister_pm_notifier(struct mmc_host *host) { }
 void mmc_wait_for_req_done(struct mmc_host *host, struct mmc_request *mrq);
 bool mmc_is_req_done(struct mmc_host *host, struct mmc_request *mrq);
 
+int mmc_start_request(struct mmc_host *host, struct mmc_request *mrq);
+
 struct mmc_async_req;
 
 struct mmc_async_req *mmc_start_areq(struct mmc_host *host,
