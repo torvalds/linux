@@ -249,14 +249,10 @@ void v4l_bound_align_image(unsigned int *w, unsigned int wmin,
 			   unsigned int hmax, unsigned int halign,
 			   unsigned int salign);
 
-struct v4l2_discrete_probe {
-	const struct v4l2_frmsize_discrete	*sizes;
-	int					num_sizes;
-};
-
-const struct v4l2_frmsize_discrete *v4l2_find_nearest_format(
-		const struct v4l2_discrete_probe *probe,
-		s32 width, s32 height);
+const struct v4l2_frmsize_discrete *
+v4l2_find_nearest_format(const struct v4l2_frmsize_discrete *sizes,
+			  const size_t num_sizes,
+			  s32 width, s32 height);
 
 void v4l2_get_timestamp(struct timeval *tv);
 
