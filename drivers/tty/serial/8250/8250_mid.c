@@ -23,10 +23,11 @@
 #define PCI_DEVICE_ID_INTEL_PNW_UART2	0x081c
 #define PCI_DEVICE_ID_INTEL_PNW_UART3	0x081d
 #define PCI_DEVICE_ID_INTEL_TNG_UART	0x1191
+#define PCI_DEVICE_ID_INTEL_CDF_UART	0x18d8
 #define PCI_DEVICE_ID_INTEL_DNV_UART	0x19d8
 
 /* Intel MID Specific registers */
-#define INTEL_MID_UART_DNV_FISR		0x08
+#define INTEL_MID_UART_FISR		0x08
 #define INTEL_MID_UART_PS		0x30
 #define INTEL_MID_UART_MUL		0x34
 #define INTEL_MID_UART_DIV		0x38
@@ -130,7 +131,7 @@ static int dnv_handle_irq(struct uart_port *p)
 {
 	struct mid8250 *mid = p->private_data;
 	struct uart_8250_port *up = up_to_u8250p(p);
-	unsigned int fisr = serial_port_in(p, INTEL_MID_UART_DNV_FISR);
+	unsigned int fisr = serial_port_in(p, INTEL_MID_UART_FISR);
 	u32 status;
 	int ret = 0;
 	int err;
@@ -377,6 +378,7 @@ static const struct pci_device_id pci_ids[] = {
 	MID_DEVICE(PCI_DEVICE_ID_INTEL_PNW_UART2, pnw_board),
 	MID_DEVICE(PCI_DEVICE_ID_INTEL_PNW_UART3, pnw_board),
 	MID_DEVICE(PCI_DEVICE_ID_INTEL_TNG_UART, tng_board),
+	MID_DEVICE(PCI_DEVICE_ID_INTEL_CDF_UART, dnv_board),
 	MID_DEVICE(PCI_DEVICE_ID_INTEL_DNV_UART, dnv_board),
 	{ },
 };
