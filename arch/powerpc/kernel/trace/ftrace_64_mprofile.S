@@ -110,9 +110,9 @@ ftrace_call:
 	/* NIP has not been altered, skip over further checks */
 	beq	1f
 
-	/* Check if there is an active kprobe on us */
+	/* Check if there is an active jprobe on us */
 	subi	r3, r14, 4
-	bl	is_current_kprobe_addr
+	bl	__is_active_jprobe
 	nop
 
 	/*

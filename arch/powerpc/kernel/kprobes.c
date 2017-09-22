@@ -43,12 +43,6 @@ DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
 struct kretprobe_blackpoint kretprobe_blacklist[] = {{NULL, NULL}};
 
-int is_current_kprobe_addr(unsigned long addr)
-{
-	struct kprobe *p = kprobe_running();
-	return (p && (unsigned long)p->addr == addr) ? 1 : 0;
-}
-
 bool arch_within_kprobe_blacklist(unsigned long addr)
 {
 	return  (addr >= (unsigned long)__kprobes_text_start &&
