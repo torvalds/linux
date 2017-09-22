@@ -88,7 +88,7 @@ static void denali_detect_max_banks(struct denali_nand_info *denali)
 {
 	uint32_t features = ioread32(denali->reg + FEATURES);
 
-	denali->max_banks = 1 << (features & FEATURES__N_BANKS);
+	denali->max_banks = 1 << FIELD_GET(FEATURES__N_BANKS, features);
 
 	/* the encoding changed from rev 5.0 to 5.1 */
 	if (denali->revision < 0x0501)
@@ -374,7 +374,7 @@ static int denali_hw_ecc_fixup(struct mtd_info *mtd,
 		return 0;
 	}
 
-	max_bitflips = ecc_cor & ECC_COR_INFO__MAX_ERRORS;
+	max_bitflips = FIELD_GET(ECC_COR_INFO__MAX_ERRORS, ecc_cor);
 
 	/*
 	 * The register holds the maximum of per-sector corrected bitflips.
@@ -985,7 +985,7 @@ static int denali_setup_data_interface(struct mtd_info *mtd, int chipnr,
 
 	tmp = ioread32(denali->reg + ACC_CLKS);
 	tmp &= ~ACC_CLKS__VALUE;
-	tmp |= acc_clks;
+	tmp |= FIELD_PREP(ACC_CLKS__VALUE, acc_clks);
 	iowrite32(tmp, denali->reg + ACC_CLKS);
 
 	/* tRWH -> RE_2_WE */
@@ -994,7 +994,7 @@ static int denali_setup_data_interface(struct mtd_info *mtd, int chipnr,
 
 	tmp = ioread32(denali->reg + RE_2_WE);
 	tmp &= ~RE_2_WE__VALUE;
-	tmp |= re_2_we;
+	tmp |= FIELD_PREP(RE_2_WE__VALUE, re_2_we);
 	iowrite32(tmp, denali->reg + RE_2_WE);
 
 	/* tRHZ -> RE_2_RE */
@@ -1003,7 +1003,7 @@ static int denali_setup_data_interface(struct mtd_info *mtd, int chipnr,
 
 	tmp = ioread32(denali->reg + RE_2_RE);
 	tmp &= ~RE_2_RE__VALUE;
-	tmp |= re_2_re;
+	tmp |= FIELD_PREP(RE_2_RE__VALUE, re_2_re);
 	iowrite32(tmp, denali->reg + RE_2_RE);
 
 	/* tWHR -> WE_2_RE */
@@ -1012,7 +1012,7 @@ static int denali_setup_data_interface(struct mtd_info *mtd, int chipnr,
 
 	tmp = ioread32(denali->reg + TWHR2_AND_WE_2_RE);
 	tmp &= ~TWHR2_AND_WE_2_RE__WE_2_RE;
-	tmp |= we_2_re;
+	tmp |= FIELD_PREP(TWHR2_AND_WE_2_RE__WE_2_RE, we_2_re);
 	iowrite32(tmp, denali->reg + TWHR2_AND_WE_2_RE);
 
 	/* tADL -> ADDR_2_DATA */
@@ -1026,8 +1026,8 @@ static int denali_setup_data_interface(struct mtd_info *mtd, int chipnr,
 	addr_2_data = min_t(int, addr_2_data, addr_2_data_mask);
 
 	tmp = ioread32(denali->reg + TCWAW_AND_ADDR_2_DATA);
-	tmp &= ~addr_2_data_mask;
-	tmp |= addr_2_data;
+	tmp &= ~TCWAW_AND_ADDR_2_DATA__ADDR_2_DATA;
+	tmp |= FIELD_PREP(TCWAW_AND_ADDR_2_DATA__ADDR_2_DATA, addr_2_data);
 	iowrite32(tmp, denali->reg + TCWAW_AND_ADDR_2_DATA);
 
 	/* tREH, tWH -> RDWR_EN_HI_CNT */
@@ -1037,7 +1037,7 @@ static int denali_setup_data_interface(struct mtd_info *mtd, int chipnr,
 
 	tmp = ioread32(denali->reg + RDWR_EN_HI_CNT);
 	tmp &= ~RDWR_EN_HI_CNT__VALUE;
-	tmp |= rdwr_en_hi;
+	tmp |= FIELD_PREP(RDWR_EN_HI_CNT__VALUE, rdwr_en_hi);
 	iowrite32(tmp, denali->reg + RDWR_EN_HI_CNT);
 
 	/* tRP, tWP -> RDWR_EN_LO_CNT */
@@ -1051,7 +1051,7 @@ static int denali_setup_data_interface(struct mtd_info *mtd, int chipnr,
 
 	tmp = ioread32(denali->reg + RDWR_EN_LO_CNT);
 	tmp &= ~RDWR_EN_LO_CNT__VALUE;
-	tmp |= rdwr_en_lo;
+	tmp |= FIELD_PREP(RDWR_EN_LO_CNT__VALUE, rdwr_en_lo);
 	iowrite32(tmp, denali->reg + RDWR_EN_LO_CNT);
 
 	/* tCS, tCEA -> CS_SETUP_CNT */
@@ -1062,7 +1062,7 @@ static int denali_setup_data_interface(struct mtd_info *mtd, int chipnr,
 
 	tmp = ioread32(denali->reg + CS_SETUP_CNT);
 	tmp &= ~CS_SETUP_CNT__VALUE;
-	tmp |= cs_setup;
+	tmp |= FIELD_PREP(CS_SETUP_CNT__VALUE, cs_setup);
 	iowrite32(tmp, denali->reg + CS_SETUP_CNT);
 
 	return 0;
