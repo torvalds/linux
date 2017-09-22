@@ -2259,7 +2259,6 @@ static void update_dchubp_dpp(
 	struct transform *xfm = pipe_ctx->plane_res.xfm;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	union plane_size size = plane_state->plane_size;
-	struct default_adjustment ocsc = {0};
 	struct mpcc_cfg mpcc_cfg = {0};
 	struct pipe_ctx *top_pipe;
 	bool per_pixel_alpha = plane_state->per_pixel_alpha && pipe_ctx->bottom_pipe;
@@ -2338,9 +2337,9 @@ static void update_dchubp_dpp(
 	/*gamut remap*/
 	program_gamut_remap(pipe_ctx);
 
-	/*TODO add adjustments parameters*/
-	ocsc.out_color_space = pipe_ctx->stream->output_color_space;
-	pipe_ctx->plane_res.xfm->funcs->opp_set_csc_default(pipe_ctx->plane_res.xfm, &ocsc);
+	program_csc_matrix(pipe_ctx,
+			pipe_ctx->stream->output_color_space,
+			pipe_ctx->stream->csc_color_matrix.matrix);
 
 	mi->funcs->mem_input_program_surface_config(
 		mi,
