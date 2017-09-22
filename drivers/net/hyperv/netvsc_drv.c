@@ -1935,6 +1935,12 @@ static int netvsc_probe(struct hv_device *dev,
 	/* We always need headroom for rndis header */
 	net->needed_headroom = RNDIS_AND_PPI_SIZE;
 
+	/* Initialize the number of queues to be 1, we may change it if more
+	 * channels are offered later.
+	 */
+	netif_set_real_num_tx_queues(net, 1);
+	netif_set_real_num_rx_queues(net, 1);
+
 	/* Notify the netvsc driver of the new device */
 	memset(&device_info, 0, sizeof(device_info));
 	device_info.ring_size = ring_size;
