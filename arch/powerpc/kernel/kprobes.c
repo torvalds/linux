@@ -239,7 +239,7 @@ void arch_prepare_kretprobe(struct kretprobe_instance *ri, struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(arch_prepare_kretprobe);
 
-int try_to_emulate(struct kprobe *p, struct pt_regs *regs)
+static int try_to_emulate(struct kprobe *p, struct pt_regs *regs)
 {
 	int ret;
 	unsigned int insn = *p->ainsn.insn;
@@ -261,7 +261,7 @@ int try_to_emulate(struct kprobe *p, struct pt_regs *regs)
 		 */
 		printk("Can't step on instruction %x\n", insn);
 		BUG();
-	} else if (ret == 0)
+	} else
 		/* This instruction can't be boosted */
 		p->ainsn.boostable = -1;
 
