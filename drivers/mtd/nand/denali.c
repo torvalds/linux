@@ -29,9 +29,9 @@ MODULE_LICENSE("GPL");
 
 #define DENALI_NAND_NAME    "denali-nand"
 
-/* Host Data/Command Interface */
-#define DENALI_HOST_ADDR	0x00
-#define DENALI_HOST_DATA	0x10
+/* for Indexed Addressing */
+#define DENALI_INDEXED_CTRL	0x00
+#define DENALI_INDEXED_DATA	0x10
 
 #define DENALI_MAP00		(0 << 26)	/* direct access to buffer */
 #define DENALI_MAP01		(1 << 26)	/* read/write pages in PIO */
@@ -64,11 +64,39 @@ static inline struct denali_nand_info *mtd_to_denali(struct mtd_info *mtd)
 	return container_of(mtd_to_nand(mtd), struct denali_nand_info, nand);
 }
 
-static void denali_host_write(struct denali_nand_info *denali,
-			      uint32_t addr, uint32_t data)
+/*
+ * Direct Addressing - the slave address forms the control information (command
+ * type, bank, block, and page address).  The slave data is the actual data to
+ * be transferred.  This mode requires 28 bits of address region allocated.
+ */
+static u32 denali_direct_read(struct denali_nand_info *denali, u32 addr)
 {
-	iowrite32(addr, denali->host + DENALI_HOST_ADDR);
-	iowrite32(data, denali->host + DENALI_HOST_DATA);
+	return ioread32(denali->host + addr);
+}
+
+static void denali_direct_write(struct denali_nand_info *denali, u32 addr,
+				u32 data)
+{
+	iowrite32(data, denali->host + addr);
+}
+
+/*
+ * Indexed Addressing - address translation module intervenes in passing the
+ * control information.  This mode reduces the required address range.  The
+ * control information and transferred data are latched by the registers in
+ * the translation module.
+ */
+static u32 denali_indexed_read(struct denali_nand_info *denali, u32 addr)
+{
+	iowrite32(addr, denali->host + DENALI_INDEXED_CTRL);
+	return ioread32(denali->host + DENALI_INDEXED_DATA);
+}
+
+static void denali_indexed_write(struct denali_nand_info *denali, u32 addr,
+				 u32 data)
+{
+	iowrite32(addr, denali->host + DENALI_INDEXED_CTRL);
+	iowrite32(data, denali->host + DENALI_INDEXED_DATA);
 }
 
 /*
@@ -205,52 +233,44 @@ static uint32_t denali_check_irq(struct denali_nand_info *denali)
 static void denali_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
 	struct denali_nand_info *denali = mtd_to_denali(mtd);
+	u32 addr = DENALI_MAP11_DATA | DENALI_BANK(denali);
 	int i;
 
-	iowrite32(DENALI_MAP11_DATA | DENALI_BANK(denali),
-		  denali->host + DENALI_HOST_ADDR);
-
 	for (i = 0; i < len; i++)
-		buf[i] = ioread32(denali->host + DENALI_HOST_DATA);
+		buf[i] = denali->host_read(denali, addr);
 }
 
 static void denali_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 {
 	struct denali_nand_info *denali = mtd_to_denali(mtd);
+	u32 addr = DENALI_MAP11_DATA | DENALI_BANK(denali);
 	int i;
 
-	iowrite32(DENALI_MAP11_DATA | DENALI_BANK(denali),
-		  denali->host + DENALI_HOST_ADDR);
-
 	for (i = 0; i < len; i++)
-		iowrite32(buf[i], denali->host + DENALI_HOST_DATA);
+		denali->host_write(denali, addr, buf[i]);
 }
 
 static void denali_read_buf16(struct mtd_info *mtd, uint8_t *buf, int len)
 {
 	struct denali_nand_info *denali = mtd_to_denali(mtd);
+	u32 addr = DENALI_MAP11_DATA | DENALI_BANK(denali);
 	uint16_t *buf16 = (uint16_t *)buf;
 	int i;
 
-	iowrite32(DENALI_MAP11_DATA | DENALI_BANK(denali),
-		  denali->host + DENALI_HOST_ADDR);
-
 	for (i = 0; i < len / 2; i++)
-		buf16[i] = ioread32(denali->host + DENALI_HOST_DATA);
+		buf16[i] = denali->host_read(denali, addr);
 }
 
 static void denali_write_buf16(struct mtd_info *mtd, const uint8_t *buf,
 			       int len)
 {
 	struct denali_nand_info *denali = mtd_to_denali(mtd);
+	u32 addr = DENALI_MAP11_DATA | DENALI_BANK(denali);
 	const uint16_t *buf16 = (const uint16_t *)buf;
 	int i;
 
-	iowrite32(DENALI_MAP11_DATA | DENALI_BANK(denali),
-		  denali->host + DENALI_HOST_ADDR);
-
 	for (i = 0; i < len / 2; i++)
-		iowrite32(buf16[i], denali->host + DENALI_HOST_DATA);
+		denali->host_write(denali, addr, buf16[i]);
 }
 
 static uint8_t denali_read_byte(struct mtd_info *mtd)
@@ -295,7 +315,7 @@ static void denali_cmd_ctrl(struct mtd_info *mtd, int dat, unsigned int ctrl)
 	if (ctrl & NAND_CTRL_CHANGE)
 		denali_reset_irq(denali);
 
-	denali_host_write(denali, DENALI_BANK(denali) | type, dat);
+	denali->host_write(denali, DENALI_BANK(denali) | type, dat);
 }
 
 static int denali_dev_ready(struct mtd_info *mtd)
@@ -465,14 +485,14 @@ static void denali_setup_dma64(struct denali_nand_info *denali,
 	 * 1. setup transfer type, interrupt when complete,
 	 *    burst len = 64 bytes, the number of pages
 	 */
-	denali_host_write(denali, mode,
-			  0x01002000 | (64 << 16) | (write << 8) | page_count);
+	denali->host_write(denali, mode,
+			   0x01002000 | (64 << 16) | (write << 8) | page_count);
 
 	/* 2. set memory low address */
-	denali_host_write(denali, mode, lower_32_bits(dma_addr));
+	denali->host_write(denali, mode, lower_32_bits(dma_addr));
 
 	/* 3. set memory high address */
-	denali_host_write(denali, mode, upper_32_bits(dma_addr));
+	denali->host_write(denali, mode, upper_32_bits(dma_addr));
 }
 
 static void denali_setup_dma32(struct denali_nand_info *denali,
@@ -486,17 +506,17 @@ static void denali_setup_dma32(struct denali_nand_info *denali,
 	/* DMA is a four step process */
 
 	/* 1. setup transfer type and # of pages */
-	denali_host_write(denali, mode | page,
-			  0x2000 | (write << 8) | page_count);
+	denali->host_write(denali, mode | page,
+			   0x2000 | (write << 8) | page_count);
 
 	/* 2. set memory high address bits 23:8 */
-	denali_host_write(denali, mode | ((dma_addr >> 16) << 8), 0x2200);
+	denali->host_write(denali, mode | ((dma_addr >> 16) << 8), 0x2200);
 
 	/* 3. set memory low address bits 23:8 */
-	denali_host_write(denali, mode | ((dma_addr & 0xffff) << 8), 0x2300);
+	denali->host_write(denali, mode | ((dma_addr & 0xffff) << 8), 0x2300);
 
 	/* 4. interrupt when complete, burst len = 64 bytes */
-	denali_host_write(denali, mode | 0x14000, 0x2400);
+	denali->host_write(denali, mode | 0x14000, 0x2400);
 }
 
 static void denali_setup_dma(struct denali_nand_info *denali,
@@ -511,7 +531,7 @@ static void denali_setup_dma(struct denali_nand_info *denali,
 static int denali_pio_read(struct denali_nand_info *denali, void *buf,
 			   size_t size, int page, int raw)
 {
-	uint32_t addr = DENALI_BANK(denali) | page;
+	u32 addr = DENALI_MAP01 | DENALI_BANK(denali) | page;
 	uint32_t *buf32 = (uint32_t *)buf;
 	uint32_t irq_status, ecc_err_mask;
 	int i;
@@ -523,9 +543,8 @@ static int denali_pio_read(struct denali_nand_info *denali, void *buf,
 
 	denali_reset_irq(denali);
 
-	iowrite32(DENALI_MAP01 | addr, denali->host + DENALI_HOST_ADDR);
 	for (i = 0; i < size / 4; i++)
-		*buf32++ = ioread32(denali->host + DENALI_HOST_DATA);
+		*buf32++ = denali->host_read(denali, addr);
 
 	irq_status = denali_wait_for_irq(denali, INTR__PAGE_XFER_INC);
 	if (!(irq_status & INTR__PAGE_XFER_INC))
@@ -540,16 +559,15 @@ static int denali_pio_read(struct denali_nand_info *denali, void *buf,
 static int denali_pio_write(struct denali_nand_info *denali,
 			    const void *buf, size_t size, int page, int raw)
 {
-	uint32_t addr = DENALI_BANK(denali) | page;
+	u32 addr = DENALI_MAP01 | DENALI_BANK(denali) | page;
 	const uint32_t *buf32 = (uint32_t *)buf;
 	uint32_t irq_status;
 	int i;
 
 	denali_reset_irq(denali);
 
-	iowrite32(DENALI_MAP01 | addr, denali->host + DENALI_HOST_ADDR);
 	for (i = 0; i < size / 4; i++)
-		iowrite32(*buf32++, denali->host + DENALI_HOST_DATA);
+		denali->host_write(denali, addr, *buf32++);
 
 	irq_status = denali_wait_for_irq(denali,
 				INTR__PROGRAM_COMP | INTR__PROGRAM_FAIL);
@@ -935,8 +953,8 @@ static int denali_erase(struct mtd_info *mtd, int page)
 
 	denali_reset_irq(denali);
 
-	denali_host_write(denali, DENALI_MAP10 | DENALI_BANK(denali) | page,
-			  DENALI_ERASE);
+	denali->host_write(denali, DENALI_MAP10 | DENALI_BANK(denali) | page,
+			   DENALI_ERASE);
 
 	/* wait for erase to complete or failure to occur */
 	irq_status = denali_wait_for_irq(denali,
@@ -1227,6 +1245,7 @@ int denali_init(struct denali_nand_info *denali)
 {
 	struct nand_chip *chip = &denali->nand;
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	u32 features = ioread32(denali->reg + FEATURES);
 	int ret;
 
 	mtd->dev.parent = denali->dev;
@@ -1261,6 +1280,14 @@ int denali_init(struct denali_nand_info *denali)
 	chip->cmd_ctrl = denali_cmd_ctrl;
 	chip->dev_ready = denali_dev_ready;
 	chip->waitfunc = denali_waitfunc;
+
+	if (features & FEATURES__INDEX_ADDR) {
+		denali->host_read = denali_indexed_read;
+		denali->host_write = denali_indexed_write;
+	} else {
+		denali->host_read = denali_direct_read;
+		denali->host_write = denali_direct_write;
+	}
 
 	/* clk rate info is needed for setup_data_interface */
 	if (denali->clk_x_rate)
