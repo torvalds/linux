@@ -197,8 +197,7 @@ static int __init pvc_proc_init(void)
 	if (proc_entry == NULL)
 		goto error;
 
-	init_timer(&timer);
-	timer.function = pvc_proc_timerfunc;
+	setup_timer(&timer, pvc_proc_timerfunc, 0UL);
 
 	return 0;
 error:
