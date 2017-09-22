@@ -11327,6 +11327,18 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 	PIPE_CONF_CHECK_X(dpll_hw_state.ctrl1);
 	PIPE_CONF_CHECK_X(dpll_hw_state.cfgcr1);
 	PIPE_CONF_CHECK_X(dpll_hw_state.cfgcr2);
+	PIPE_CONF_CHECK_X(dpll_hw_state.cfgcr0);
+	PIPE_CONF_CHECK_X(dpll_hw_state.ebb0);
+	PIPE_CONF_CHECK_X(dpll_hw_state.ebb4);
+	PIPE_CONF_CHECK_X(dpll_hw_state.pll0);
+	PIPE_CONF_CHECK_X(dpll_hw_state.pll1);
+	PIPE_CONF_CHECK_X(dpll_hw_state.pll2);
+	PIPE_CONF_CHECK_X(dpll_hw_state.pll3);
+	PIPE_CONF_CHECK_X(dpll_hw_state.pll6);
+	PIPE_CONF_CHECK_X(dpll_hw_state.pll8);
+	PIPE_CONF_CHECK_X(dpll_hw_state.pll9);
+	PIPE_CONF_CHECK_X(dpll_hw_state.pll10);
+	PIPE_CONF_CHECK_X(dpll_hw_state.pcsdw12);
 
 	PIPE_CONF_CHECK_X(dsi_pll.ctrl);
 	PIPE_CONF_CHECK_X(dsi_pll.div);
