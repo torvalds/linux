@@ -121,7 +121,7 @@ do {								\
 #define TUN_VNET_BE     0x40000000
 
 #define TUN_FEATURES (IFF_NO_PI | IFF_ONE_QUEUE | IFF_VNET_HDR | \
-		      IFF_MULTI_QUEUE)
+		      IFF_MULTI_QUEUE | IFF_NAPI)
 #define GOODCOPY_LEN 128
 
 #define FLT_EXACT_COUNT 8
@@ -172,6 +172,7 @@ struct tun_file {
 		u16 queue_index;
 		unsigned int ifindex;
 	};
+	struct napi_struct napi;
 	struct list_head next;
 	struct tun_struct *detached;
 	struct skb_array tx_array;
@@ -228,6 +229,68 @@ struct tun_struct {
 	struct tun_pcpu_stats __percpu *pcpu_stats;
 	struct bpf_prog __rcu *xdp_prog;
 };
+
+static int tun_napi_receive(struct napi_struct *napi, int budget)
+{
+	struct tun_file *tfile = container_of(napi, struct tun_file, napi);
+	struct sk_buff_head *queue = &tfile->sk.sk_write_queue;
+	struct sk_buff_head process_queue;
+	struct sk_buff *skb;
+	int received = 0;
+
+	__skb_queue_head_init(&process_queue);
+
+	spin_lock(&queue->lock);
+	skb_queue_splice_tail_init(queue, &process_queue);
+	spin_unlock(&queue->lock);
+
+	while (received < budget && (skb = __skb_dequeue(&process_queue))) {
+		napi_gro_receive(napi, skb);
+		++received;
+	}
+
+	if (!skb_queue_empty(&process_queue)) {
+		spin_lock(&queue->lock);
+		skb_queue_splice(&process_queue, queue);
+		spin_unlock(&queue->lock);
+	}
+
+	return received;
+}
+
+static int tun_napi_poll(struct napi_struct *napi, int budget)
+{
+	unsigned int received;
+
+	received = tun_napi_receive(napi, budget);
+
+	if (received < budget)
+		napi_complete_done(napi, received);
+
+	return received;
+}
+
+static void tun_napi_init(struct tun_struct *tun, struct tun_file *tfile,
+			  bool napi_en)
+{
+	if (napi_en) {
+		netif_napi_add(tun->dev, &tfile->napi, tun_napi_poll,
+			       NAPI_POLL_WEIGHT);
+		napi_enable(&tfile->napi);
+	}
+}
+
+static void tun_napi_disable(struct tun_struct *tun, struct tun_file *tfile)
+{
+	if (tun->flags & IFF_NAPI)
+		napi_disable(&tfile->napi);
+}
+
+static void tun_napi_del(struct tun_struct *tun, struct tun_file *tfile)
+{
+	if (tun->flags & IFF_NAPI)
+		netif_napi_del(&tfile->napi);
+}
 
 #ifdef CONFIG_TUN_VNET_CROSS_LE
 static inline bool tun_legacy_is_little_endian(struct tun_struct *tun)
@@ -541,6 +604,11 @@ static void __tun_detach(struct tun_file *tfile, bool clean)
 
 	tun = rtnl_dereference(tfile->tun);
 
+	if (tun && clean) {
+		tun_napi_disable(tun, tfile);
+		tun_napi_del(tun, tfile);
+	}
+
 	if (tun && !tfile->detached) {
 		u16 index = tfile->queue_index;
 		BUG_ON(index >= tun->numqueues);
@@ -598,6 +666,7 @@ static void tun_detach_all(struct net_device *dev)
 	for (i = 0; i < n; i++) {
 		tfile = rtnl_dereference(tun->tfiles[i]);
 		BUG_ON(!tfile);
+		tun_napi_disable(tun, tfile);
 		tfile->socket.sk->sk_shutdown = RCV_SHUTDOWN;
 		tfile->socket.sk->sk_data_ready(tfile->socket.sk);
 		RCU_INIT_POINTER(tfile->tun, NULL);
@@ -613,6 +682,7 @@ static void tun_detach_all(struct net_device *dev)
 	synchronize_net();
 	for (i = 0; i < n; i++) {
 		tfile = rtnl_dereference(tun->tfiles[i]);
+		tun_napi_del(tun, tfile);
 		/* Drop read queue */
 		tun_queue_purge(tfile);
 		sock_put(&tfile->sk);
@@ -631,7 +701,8 @@ static void tun_detach_all(struct net_device *dev)
 		module_put(THIS_MODULE);
 }
 
-static int tun_attach(struct tun_struct *tun, struct file *file, bool skip_filter)
+static int tun_attach(struct tun_struct *tun, struct file *file,
+		      bool skip_filter, bool napi)
 {
 	struct tun_file *tfile = file->private_data;
 	struct net_device *dev = tun->dev;
@@ -677,10 +748,12 @@ static int tun_attach(struct tun_struct *tun, struct file *file, bool skip_filte
 	rcu_assign_pointer(tun->tfiles[tun->numqueues], tfile);
 	tun->numqueues++;
 
-	if (tfile->detached)
+	if (tfile->detached) {
 		tun_enable_queue(tfile);
-	else
+	} else {
 		sock_hold(&tfile->sk);
+		tun_napi_init(tun, tfile, napi);
+	}
 
 	tun_set_real_num_queues(tun);
 
@@ -956,13 +1029,28 @@ static void tun_poll_controller(struct net_device *dev)
 	 * Tun only receives frames when:
 	 * 1) the char device endpoint gets data from user space
 	 * 2) the tun socket gets a sendmsg call from user space
-	 * Since both of those are synchronous operations, we are guaranteed
-	 * never to have pending data when we poll for it
-	 * so there is nothing to do here but return.
+	 * If NAPI is not enabled, since both of those are synchronous
+	 * operations, we are guaranteed never to have pending data when we poll
+	 * for it so there is nothing to do here but return.
 	 * We need this though so netpoll recognizes us as an interface that
 	 * supports polling, which enables bridge devices in virt setups to
 	 * still use netconsole
+	 * If NAPI is enabled, however, we need to schedule polling for all
+	 * queues.
 	 */
+	struct tun_struct *tun = netdev_priv(dev);
+
+	if (tun->flags & IFF_NAPI) {
+		struct tun_file *tfile;
+		int i;
+
+		rcu_read_lock();
+		for (i = 0; i < tun->numqueues; i++) {
+			tfile = rcu_dereference(tun->tfiles[i]);
+			napi_schedule(&tfile->napi);
+		}
+		rcu_read_unlock();
+	}
 	return;
 }
 #endif
@@ -1549,11 +1637,25 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	}
 
 	rxhash = __skb_get_hash_symmetric(skb);
-#ifndef CONFIG_4KSTACKS
-	tun_rx_batched(tun, tfile, skb, more);
-#else
-	netif_rx_ni(skb);
-#endif
+
+	if (tun->flags & IFF_NAPI) {
+		struct sk_buff_head *queue = &tfile->sk.sk_write_queue;
+		int queue_len;
+
+		spin_lock_bh(&queue->lock);
+		__skb_queue_tail(queue, skb);
+		queue_len = skb_queue_len(queue);
+		spin_unlock(&queue->lock);
+
+		if (!more || queue_len > NAPI_POLL_WEIGHT)
+			napi_schedule(&tfile->napi);
+
+		local_bh_enable();
+	} else if (!IS_ENABLED(CONFIG_4KSTACKS)) {
+		tun_rx_batched(tun, tfile, skb, more);
+	} else {
+		netif_rx_ni(skb);
+	}
 
 	stats = get_cpu_ptr(tun->pcpu_stats);
 	u64_stats_update_begin(&stats->syncp);
@@ -1980,7 +2082,8 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		if (err < 0)
 			return err;
 
-		err = tun_attach(tun, file, ifr->ifr_flags & IFF_NOFILTER);
+		err = tun_attach(tun, file, ifr->ifr_flags & IFF_NOFILTER,
+				 ifr->ifr_flags & IFF_NAPI);
 		if (err < 0)
 			return err;
 
@@ -2066,7 +2169,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 				       NETIF_F_HW_VLAN_STAG_TX);
 
 		INIT_LIST_HEAD(&tun->disabled);
-		err = tun_attach(tun, file, false);
+		err = tun_attach(tun, file, false, ifr->ifr_flags & IFF_NAPI);
 		if (err < 0)
 			goto err_free_flow;
 
@@ -2216,7 +2319,7 @@ static int tun_set_queue(struct file *file, struct ifreq *ifr)
 		ret = security_tun_dev_attach_queue(tun->security);
 		if (ret < 0)
 			goto unlock;
-		ret = tun_attach(tun, file, false);
+		ret = tun_attach(tun, file, false, tun->flags & IFF_NAPI);
 	} else if (ifr->ifr_flags & IFF_DETACH_QUEUE) {
 		tun = rtnl_dereference(tfile->tun);
 		if (!tun || !(tun->flags & IFF_MULTI_QUEUE) || tfile->detached)
