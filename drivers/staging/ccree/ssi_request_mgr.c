@@ -386,10 +386,9 @@ int send_request(
 		 */
 		wait_for_completion(&ssi_req->seq_compl);
 		return 0;
-	} else {
-		/* Operation still in process */
-		return -EINPROGRESS;
 	}
+	/* Operation still in process */
+	return -EINPROGRESS;
 }
 
 /*!
