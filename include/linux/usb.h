@@ -838,10 +838,10 @@ extern int usb_sec_event_ring_setup(struct usb_device *dev,
 extern int usb_sec_event_ring_cleanup(struct usb_device *dev,
 	unsigned int intr_num);
 
-extern dma_addr_t usb_get_sec_event_ring_dma_addr(struct usb_device *dev,
-	unsigned int intr_num);
-extern dma_addr_t usb_get_xfer_ring_dma_addr(struct usb_device *dev,
-	struct usb_host_endpoint *ep);
+extern phys_addr_t usb_get_sec_event_ring_phys_addr(
+	struct usb_device *dev, unsigned int intr_num, dma_addr_t *dma);
+extern phys_addr_t usb_get_xfer_ring_phys_addr(struct usb_device *dev,
+	struct usb_host_endpoint *ep, dma_addr_t *dma);
 extern int usb_get_controller_id(struct usb_device *dev);
 
 extern int usb_stop_endpoint(struct usb_device *dev,

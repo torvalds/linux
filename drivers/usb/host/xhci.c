@@ -5183,10 +5183,13 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 }
 EXPORT_SYMBOL_GPL(xhci_gen_setup);
 
-dma_addr_t xhci_get_sec_event_ring_dma_addr(struct usb_hcd *hcd,
-	unsigned int intr_num)
+static phys_addr_t xhci_get_sec_event_ring_phys_addr(struct usb_hcd *hcd,
+	unsigned int intr_num, dma_addr_t *dma)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	struct device *dev = hcd->self.sysdev;
+	struct sg_table sgt;
+	phys_addr_t pa;
 
 	if (intr_num > xhci->max_interrupters) {
 		xhci_err(xhci, "intr num %d > max intrs %d\n", intr_num,
@@ -5196,20 +5199,34 @@ dma_addr_t xhci_get_sec_event_ring_dma_addr(struct usb_hcd *hcd,
 
 	if (!(xhci->xhc_state & XHCI_STATE_HALTED) &&
 		xhci->sec_event_ring && xhci->sec_event_ring[intr_num]
-		&& xhci->sec_event_ring[intr_num]->first_seg)
-		return xhci->sec_event_ring[intr_num]->first_seg->dma;
+		&& xhci->sec_event_ring[intr_num]->first_seg) {
+
+		dma_get_sgtable(dev, &sgt,
+			xhci->sec_event_ring[intr_num]->first_seg->trbs,
+			xhci->sec_event_ring[intr_num]->first_seg->dma,
+			TRB_SEGMENT_SIZE);
+
+		*dma = xhci->sec_event_ring[intr_num]->first_seg->dma;
+
+		pa = page_to_phys(sg_page(sgt.sgl));
+		sg_free_table(&sgt);
+
+		return pa;
+	}
 
 	return 0;
 }
 
-dma_addr_t xhci_get_xfer_ring_dma_addr(struct usb_hcd *hcd,
-	struct usb_device *udev, struct usb_host_endpoint *ep)
+static phys_addr_t xhci_get_xfer_ring_phys_addr(struct usb_hcd *hcd,
+	struct usb_device *udev, struct usb_host_endpoint *ep, dma_addr_t *dma)
 {
 	int ret;
 	unsigned int ep_index;
 	struct xhci_virt_device *virt_dev;
-
+	struct device *dev = hcd->self.sysdev;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	struct sg_table sgt;
+	phys_addr_t pa;
 
 	ret = xhci_check_args(hcd, udev, ep, 1, true, __func__);
 	if (ret <= 0) {
@@ -5221,8 +5238,20 @@ dma_addr_t xhci_get_xfer_ring_dma_addr(struct usb_hcd *hcd,
 	ep_index = xhci_get_endpoint_index(&ep->desc);
 
 	if (virt_dev->eps[ep_index].ring &&
-		virt_dev->eps[ep_index].ring->first_seg)
-		return virt_dev->eps[ep_index].ring->first_seg->dma;
+		virt_dev->eps[ep_index].ring->first_seg) {
+
+		dma_get_sgtable(dev, &sgt,
+			virt_dev->eps[ep_index].ring->first_seg->trbs,
+			virt_dev->eps[ep_index].ring->first_seg->dma,
+			TRB_SEGMENT_SIZE);
+
+		*dma = virt_dev->eps[ep_index].ring->first_seg->dma;
+
+		pa = page_to_phys(sg_page(sgt.sgl));
+		sg_free_table(&sgt);
+
+		return pa;
+	}
 
 	return 0;
 }
@@ -5346,8 +5375,8 @@ static const struct hc_driver xhci_hc_driver = {
 	.find_raw_port_number =	xhci_find_raw_port_number,
 	.sec_event_ring_setup =		xhci_sec_event_ring_setup,
 	.sec_event_ring_cleanup =	xhci_sec_event_ring_cleanup,
-	.get_sec_event_ring_dma_addr =	xhci_get_sec_event_ring_dma_addr,
-	.get_xfer_ring_dma_addr =	xhci_get_xfer_ring_dma_addr,
+	.get_sec_event_ring_phys_addr =	xhci_get_sec_event_ring_phys_addr,
+	.get_xfer_ring_phys_addr =	xhci_get_xfer_ring_phys_addr,
 	.stop_endpoint =		xhci_stop_endpoint,
 };
 
