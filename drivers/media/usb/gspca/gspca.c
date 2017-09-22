@@ -122,7 +122,7 @@ static void int_irq(struct urb *urb)
 	case 0:
 		if (gspca_dev->sd_desc->int_pkt_scan(gspca_dev,
 		    urb->transfer_buffer, urb->actual_length) < 0) {
-			PERR("Unknown packet received");
+			gspca_err(gspca_dev, "Unknown packet received\n");
 		}
 		break;
 
@@ -136,7 +136,8 @@ static void int_irq(struct urb *urb)
 		break;
 
 	default:
-		PERR("URB error %i, resubmitting", urb->status);
+		gspca_err(gspca_dev, "URB error %i, resubmitting\n",
+			  urb->status);
 		urb->status = 0;
 		ret = 0;
 	}
@@ -221,7 +222,8 @@ static int alloc_and_submit_int_urb(struct gspca_dev *gspca_dev,
 	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	ret = usb_submit_urb(urb, GFP_KERNEL);
 	if (ret < 0) {
-		PERR("submit int URB failed with error %i", ret);
+		gspca_err(gspca_dev, "submit int URB failed with error %i\n",
+			  ret);
 		goto error_submit;
 	}
 	gspca_dev->int_urb = urb;
@@ -307,7 +309,7 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 		if (gspca_dev->frozen)
 			return;
 #endif
-		PERR("urb status: %d", urb->status);
+		gspca_err(gspca_dev, "urb status: %d\n", urb->status);
 		urb->status = 0;
 		goto resubmit;
 	}
@@ -380,7 +382,7 @@ static void bulk_irq(struct urb *urb)
 		if (gspca_dev->frozen)
 			return;
 #endif
-		PERR("urb status: %d", urb->status);
+		gspca_err(gspca_dev, "urb status: %d\n", urb->status);
 		urb->status = 0;
 		goto resubmit;
 	}
@@ -452,9 +454,9 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 	/* append the packet to the frame buffer */
 	if (len > 0) {
 		if (gspca_dev->image_len + len > gspca_dev->frsz) {
-			PERR("frame overflow %d > %d",
-				gspca_dev->image_len + len,
-				gspca_dev->frsz);
+			gspca_err(gspca_dev, "frame overflow %d > %d\n",
+				  gspca_dev->image_len + len,
+				  gspca_dev->frsz);
 			packet_type = DISCARD_PACKET;
 		} else {
 /* !! image is NULL only when last pkt is LAST or DISCARD
@@ -952,7 +954,8 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		/* the bandwidth is not wide enough
 		 * negotiate or try a lower alternate setting */
 retry:
-		PERR("alt %d - bandwidth not wide enough, trying again", alt);
+		gspca_err(gspca_dev, "alt %d - bandwidth not wide enough, trying again\n",
+			  alt);
 		msleep(20);	/* wait for kill complete */
 		if (gspca_dev->sd_desc->isoc_nego) {
 			ret = gspca_dev->sd_desc->isoc_nego(gspca_dev);
@@ -1738,7 +1741,7 @@ static int vidioc_dqbuf(struct file *file, void *priv,
 		if (copy_to_user((__u8 __user *) frame->v4l2_buf.m.userptr,
 				 frame->data,
 				 frame->v4l2_buf.bytesused)) {
-			PERR("dqbuf cp to user failed");
+			gspca_err(gspca_dev, "dqbuf cp to user failed\n");
 			ret = -EFAULT;
 		}
 	}
@@ -1950,7 +1953,8 @@ static ssize_t dev_read(struct file *file, char __user *data,
 		count = frame->v4l2_buf.bytesused;
 	ret = copy_to_user(data, frame->data, count);
 	if (ret != 0) {
-		PERR("read cp to user lack %d / %zd", ret, count);
+		gspca_err(gspca_dev, "read cp to user lack %d / %zd\n",
+			  ret, count);
 		ret = -EFAULT;
 		goto out;
 	}

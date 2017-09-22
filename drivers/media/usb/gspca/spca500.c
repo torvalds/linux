@@ -485,7 +485,7 @@ static int spca500_full_reset(struct gspca_dev *gspca_dev)
 		return err;
 	err = reg_r_wait(gspca_dev, 0x06, 0, 0);
 	if (err < 0) {
-		PERR("reg_r_wait() failed");
+		gspca_err(gspca_dev, "reg_r_wait() failed\n");
 		return err;
 	}
 	/* all ok */
@@ -501,7 +501,7 @@ static int spca500_full_reset(struct gspca_dev *gspca_dev)
 static int spca500_synch310(struct gspca_dev *gspca_dev)
 {
 	if (usb_set_interface(gspca_dev->dev, gspca_dev->iface, 0) < 0) {
-		PERR("Set packet size: set interface error");
+		gspca_err(gspca_dev, "Set packet size: set interface error\n");
 		goto error;
 	}
 	spca500_ping310(gspca_dev);
@@ -515,7 +515,7 @@ static int spca500_synch310(struct gspca_dev *gspca_dev)
 	if (usb_set_interface(gspca_dev->dev,
 				gspca_dev->iface,
 				gspca_dev->alt) < 0) {
-		PERR("Set packet size: set interface error");
+		gspca_err(gspca_dev, "Set packet size: set interface error\n");
 		goto error;
 	}
 	return 0;
@@ -540,7 +540,7 @@ static void spca500_reinit(struct gspca_dev *gspca_dev)
 	err = spca50x_setup_qtable(gspca_dev, 0x00, 0x8800, 0x8840,
 				 qtable_pocketdv);
 	if (err < 0)
-		PERR("spca50x_setup_qtable failed on init");
+		gspca_err(gspca_dev, "spca50x_setup_qtable failed on init\n");
 
 	/* set qtable index */
 	reg_w(gspca_dev, 0x00, 0x8880, 2);
@@ -636,7 +636,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 					   0x00, 0x8800, 0x8840,
 					   qtable_creative_pccam);
 		if (err < 0)
-			PERR("spca50x_setup_qtable failed");
+			gspca_err(gspca_dev, "spca50x_setup_qtable failed\n");
 		/* Init SDRAM - needed for SDRAM access */
 		reg_w(gspca_dev, 0x00, 0x870a, 0x04);
 
@@ -644,7 +644,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x00, 0x8000, 0x0004);
 		msleep(500);
 		if (reg_r_wait(gspca_dev, 0, 0x8000, 0x44) != 0)
-			PERR("reg_r_wait() failed");
+			gspca_err(gspca_dev, "reg_r_wait() failed\n");
 
 		reg_r(gspca_dev, 0x816b, 1);
 		Data = gspca_dev->usb_buf[0];
@@ -657,13 +657,13 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		/* enable drop packet */
 		err = reg_w(gspca_dev, 0x00, 0x850a, 0x0001);
 		if (err < 0)
-			PERR("failed to enable drop packet");
+			gspca_err(gspca_dev, "failed to enable drop packet\n");
 		reg_w(gspca_dev, 0x00, 0x8880, 3);
 		err = spca50x_setup_qtable(gspca_dev,
 					   0x00, 0x8800, 0x8840,
 					   qtable_creative_pccam);
 		if (err < 0)
-			PERR("spca50x_setup_qtable failed");
+			gspca_err(gspca_dev, "spca50x_setup_qtable failed\n");
 
 		/* Init SDRAM - needed for SDRAM access */
 		reg_w(gspca_dev, 0x00, 0x870a, 0x04);
@@ -672,7 +672,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x00, 0x8000, 0x0004);
 
 		if (reg_r_wait(gspca_dev, 0, 0x8000, 0x44) != 0)
-			PERR("reg_r_wait() failed");
+			gspca_err(gspca_dev, "reg_r_wait() failed\n");
 
 		reg_r(gspca_dev, 0x816b, 1);
 		Data = gspca_dev->usb_buf[0];
@@ -686,18 +686,18 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		/* do a full reset */
 		err = spca500_full_reset(gspca_dev);
 		if (err < 0)
-			PERR("spca500_full_reset failed");
+			gspca_err(gspca_dev, "spca500_full_reset failed\n");
 
 		/* enable drop packet */
 		err = reg_w(gspca_dev, 0x00, 0x850a, 0x0001);
 		if (err < 0)
-			PERR("failed to enable drop packet");
+			gspca_err(gspca_dev, "failed to enable drop packet\n");
 		reg_w(gspca_dev, 0x00, 0x8880, 3);
 		err = spca50x_setup_qtable(gspca_dev,
 					   0x00, 0x8800, 0x8840,
 					   qtable_creative_pccam);
 		if (err < 0)
-			PERR("spca50x_setup_qtable failed");
+			gspca_err(gspca_dev, "spca50x_setup_qtable failed\n");
 
 		spca500_setmode(gspca_dev, xmult, ymult);
 		reg_w(gspca_dev, 0x20, 0x0001, 0x0004);
@@ -706,7 +706,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x00, 0x8000, 0x0004);
 
 		if (reg_r_wait(gspca_dev, 0, 0x8000, 0x44) != 0)
-			PERR("reg_r_wait() failed");
+			gspca_err(gspca_dev, "reg_r_wait() failed\n");
 
 		reg_r(gspca_dev, 0x816b, 1);
 		Data = gspca_dev->usb_buf[0];
@@ -719,7 +719,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		/* do a full reset */
 		err = spca500_full_reset(gspca_dev);
 		if (err < 0)
-			PERR("spca500_full_reset failed");
+			gspca_err(gspca_dev, "spca500_full_reset failed\n");
 		/* enable drop packet */
 		reg_w(gspca_dev, 0x00, 0x850a, 0x0001);
 		reg_w(gspca_dev, 0x00, 0x8880, 0);
@@ -727,7 +727,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 					   0x00, 0x8800, 0x8840,
 					   qtable_kodak_ez200);
 		if (err < 0)
-			PERR("spca50x_setup_qtable failed");
+			gspca_err(gspca_dev, "spca50x_setup_qtable failed\n");
 		spca500_setmode(gspca_dev, xmult, ymult);
 
 		reg_w(gspca_dev, 0x20, 0x0001, 0x0004);
@@ -736,7 +736,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x00, 0x8000, 0x0004);
 
 		if (reg_r_wait(gspca_dev, 0, 0x8000, 0x44) != 0)
-			PERR("reg_r_wait() failed");
+			gspca_err(gspca_dev, "reg_r_wait() failed\n");
 
 		reg_r(gspca_dev, 0x816b, 1);
 		Data = gspca_dev->usb_buf[0];
@@ -762,7 +762,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		err = spca50x_setup_qtable(gspca_dev,
 				   0x00, 0x8800, 0x8840, qtable_pocketdv);
 		if (err < 0)
-			PERR("spca50x_setup_qtable failed");
+			gspca_err(gspca_dev, "spca50x_setup_qtable failed\n");
 		reg_w(gspca_dev, 0x00, 0x8880, 2);
 
 		/* familycam Quicksmart pocketDV stuff */
@@ -792,7 +792,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 					0x00, 0x8800,
 					0x8840, qtable_creative_pccam);
 		if (err < 0)
-			PERR("spca50x_setup_qtable failed");
+			gspca_err(gspca_dev, "spca50x_setup_qtable failed\n");
 		reg_w(gspca_dev, 0x00, 0x8880, 3);
 		reg_w(gspca_dev, 0x00, 0x800a, 0x00);
 		/* Init SDRAM - needed for SDRAM access */

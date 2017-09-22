@@ -285,7 +285,7 @@ static int stv06xx_start(struct gspca_dev *gspca_dev)
 	intf = usb_ifnum_to_if(sd->gspca_dev.dev, sd->gspca_dev.iface);
 	alt = usb_altnum_to_altsetting(intf, sd->gspca_dev.alt);
 	if (!alt) {
-		PERR("Couldn't get altsetting");
+		gspca_err(gspca_dev, "Couldn't get altsetting\n");
 		return -EIO;
 	}
 
@@ -343,7 +343,7 @@ static int stv06xx_isoc_nego(struct gspca_dev *gspca_dev)
 
 	ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, 1);
 	if (ret < 0)
-		PERR("set alt 1 err %d", ret);
+		gspca_err(gspca_dev, "set alt 1 err %d\n", ret);
 
 	return ret;
 }
@@ -408,7 +408,7 @@ static void stv06xx_pkt_scan(struct gspca_dev *gspca_dev,
 		len -= 4;
 
 		if (len < chunk_len) {
-			PERR("URB packet length is smaller than the specified chunk length");
+			gspca_err(gspca_dev, "URB packet length is smaller than the specified chunk length\n");
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			return;
 		}
@@ -450,7 +450,7 @@ frame_data:
 				sd->to_skip = gspca_dev->pixfmt.width * 4;
 
 			if (chunk_len)
-				PERR("Chunk length is non-zero on a SOF");
+				gspca_err(gspca_dev, "Chunk length is non-zero on a SOF\n");
 			break;
 
 		case 0x8002:
@@ -463,7 +463,7 @@ frame_data:
 					NULL, 0);
 
 			if (chunk_len)
-				PERR("Chunk length is non-zero on a EOF");
+				gspca_err(gspca_dev, "Chunk length is non-zero on a EOF\n");
 			break;
 
 		case 0x0005:

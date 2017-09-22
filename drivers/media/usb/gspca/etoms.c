@@ -160,7 +160,7 @@ static void reg_r(struct gspca_dev *gspca_dev,
 	struct usb_device *dev = gspca_dev->dev;
 
 	if (len > USB_BUF_SZ) {
-		PERR("reg_r: buffer overflow\n");
+		gspca_err(gspca_dev, "reg_r: buffer overflow\n");
 		return;
 	}
 
@@ -268,7 +268,7 @@ static int et_video(struct gspca_dev *gspca_dev,
 		     : 0);		/* stopvideo */
 	ret = Et_WaitStatus(gspca_dev);
 	if (ret != 0)
-		PERR("timeout video on/off");
+		gspca_err(gspca_dev, "timeout video on/off\n");
 	return ret;
 }
 

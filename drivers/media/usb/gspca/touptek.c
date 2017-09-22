@@ -195,15 +195,15 @@ static const struct v4l2_pix_format vga_mode[] = {
 static int val_reply(struct gspca_dev *gspca_dev, const char *reply, int rc)
 {
 	if (rc < 0) {
-		PERR("reply has error %d", rc);
+		gspca_err(gspca_dev, "reply has error %d\n", rc);
 		return -EIO;
 	}
 	if (rc != 1) {
-		PERR("Bad reply size %d", rc);
+		gspca_err(gspca_dev, "Bad reply size %d\n", rc);
 		return -EIO;
 	}
 	if (reply[0] != 0x08) {
-		PERR("Bad reply 0x%02x", (int)reply[0]);
+		gspca_err(gspca_dev, "Bad reply 0x%02x\n", (int)reply[0]);
 		return -EIO;
 	}
 	return 0;
@@ -221,14 +221,14 @@ static void reg_w(struct gspca_dev *gspca_dev, u16 value, u16 index)
 		0x0B, 0xC0, value, index, buff, 1, 500);
 	PDEBUG(D_USBO, "rc=%d, ret={0x%02x}", rc, (int)buff[0]);
 	if (rc < 0) {
-		PERR("Failed reg_w(0x0B, 0xC0, 0x%04X, 0x%04X) w/ rc %d\n",
-			value, index, rc);
+		gspca_err(gspca_dev, "Failed reg_w(0x0B, 0xC0, 0x%04X, 0x%04X) w/ rc %d\n",
+			  value, index, rc);
 		gspca_dev->usb_err = rc;
 		return;
 	}
 	if (val_reply(gspca_dev, buff, rc)) {
-		PERR("Bad reply to reg_w(0x0B, 0xC0, 0x%04X, 0x%04X\n",
-			value, index);
+		gspca_err(gspca_dev, "Bad reply to reg_w(0x0B, 0xC0, 0x%04X, 0x%04X\n",
+			  value, index);
 		gspca_dev->usb_err = -EIO;
 	}
 }
@@ -254,7 +254,7 @@ static void setexposure(struct gspca_dev *gspca_dev, s32 val)
 	else if (w == 3264)
 		value = val * 3 / 2;
 	else {
-		PERR("Invalid width %u\n", w);
+		gspca_err(gspca_dev, "Invalid width %u\n", w);
 		gspca_dev->usb_err = -EINVAL;
 		return;
 	}
@@ -372,7 +372,7 @@ static void configure_wh(struct gspca_dev *gspca_dev)
 		reg_w_buf(gspca_dev,
 			       reg_init_res, ARRAY_SIZE(reg_init_res));
 	} else {
-		PERR("bad width %u\n", w);
+		gspca_err(gspca_dev, "bad width %u\n", w);
 		gspca_dev->usb_err = -EINVAL;
 		return;
 	}
@@ -392,7 +392,7 @@ static void configure_wh(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x0B4B, REG_FRAME_LENGTH_LINES_);
 		reg_w(gspca_dev, 0x1F40, REG_LINE_LENGTH_PCK_);
 	} else {
-		PERR("bad width %u\n", w);
+		gspca_err(gspca_dev, "bad width %u\n", w);
 		gspca_dev->usb_err = -EINVAL;
 		return;
 	}
@@ -458,7 +458,7 @@ static int configure(struct gspca_dev *gspca_dev)
 	rc = usb_control_msg(gspca_dev->dev, usb_rcvctrlpipe(gspca_dev->dev, 0),
 			     0x16, 0xC0, 0x0000, 0x0000, buff, 2, 500);
 	if (val_reply(gspca_dev, buff, rc)) {
-		PERR("failed key req");
+		gspca_err(gspca_dev, "failed key req\n");
 		return -EIO;
 	}
 
@@ -475,21 +475,24 @@ static int configure(struct gspca_dev *gspca_dev)
 	rc = usb_control_msg(gspca_dev->dev, usb_sndctrlpipe(gspca_dev->dev, 0),
 			     0x01, 0x40, 0x0001, 0x000F, NULL, 0, 500);
 	if (rc < 0) {
-		PERR("failed to replay packet 176 w/ rc %d\n", rc);
+		gspca_err(gspca_dev, "failed to replay packet 176 w/ rc %d\n",
+			  rc);
 		return rc;
 	}
 
 	rc = usb_control_msg(gspca_dev->dev, usb_sndctrlpipe(gspca_dev->dev, 0),
 			     0x01, 0x40, 0x0000, 0x000F, NULL, 0, 500);
 	if (rc < 0) {
-		PERR("failed to replay packet 178 w/ rc %d\n", rc);
+		gspca_err(gspca_dev, "failed to replay packet 178 w/ rc %d\n",
+			  rc);
 		return rc;
 	}
 
 	rc = usb_control_msg(gspca_dev->dev, usb_sndctrlpipe(gspca_dev->dev, 0),
 			     0x01, 0x40, 0x0001, 0x000F, NULL, 0, 500);
 	if (rc < 0) {
-		PERR("failed to replay packet 180 w/ rc %d\n", rc);
+		gspca_err(gspca_dev, "failed to replay packet 180 w/ rc %d\n",
+			  rc);
 		return rc;
 	}
 
@@ -511,7 +514,8 @@ static int configure(struct gspca_dev *gspca_dev)
 	rc = usb_control_msg(gspca_dev->dev, usb_sndctrlpipe(gspca_dev->dev, 0),
 			     0x01, 0x40, 0x0003, 0x000F, NULL, 0, 500);
 	if (rc < 0) {
-		PERR("failed to replay final packet w/ rc %d\n", rc);
+		gspca_err(gspca_dev, "failed to replay final packet w/ rc %d\n",
+			  rc);
 		return rc;
 	}
 
@@ -545,7 +549,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	rc = configure(gspca_dev);
 	if (rc < 0) {
-		PERR("Failed configure");
+		gspca_err(gspca_dev, "Failed configure\n");
 		return rc;
 	}
 	/* First two frames have messed up gains
@@ -641,7 +645,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_RED_BALANCE, 0, 1023, 1, 295);
 
 	if (hdl->error) {
-		PERR("Could not initialize controls\n");
+		gspca_err(gspca_dev, "Could not initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

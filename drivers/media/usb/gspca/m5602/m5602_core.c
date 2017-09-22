@@ -397,7 +397,7 @@ static int m5602_configure(struct gspca_dev *gspca_dev,
 	return 0;
 
 fail:
-	PERR("ALi m5602 webcam failed");
+	gspca_err(gspca_dev, "ALi m5602 webcam failed\n");
 	cam->cam_mode = NULL;
 	cam->nmodes = 0;
 

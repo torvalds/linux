@@ -382,7 +382,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	}
 
 	if (ret < 0) {
-		PERR("Start streaming command failed");
+		gspca_err(gspca_dev, "Start streaming command failed\n");
 		return ret;
 	}
 	/* Start the workqueue function to do the streaming */

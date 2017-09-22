@@ -142,7 +142,7 @@ static void wait_status_0(struct gspca_dev *gspca_dev)
 		w += 15;
 		msleep(w);
 	} while (--i > 0);
-	PERR("wait_status_0 timeout");
+	gspca_err(gspca_dev, "wait_status_0 timeout\n");
 	gspca_dev->usb_err = -ETIME;
 }
 
@@ -160,7 +160,7 @@ static void wait_status_1(struct gspca_dev *gspca_dev)
 			return;
 		}
 	} while (--i > 0);
-	PERR("wait_status_1 timeout");
+	gspca_err(gspca_dev, "wait_status_1 timeout\n");
 	gspca_dev->usb_err = -ETIME;
 }
 

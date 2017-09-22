@@ -650,7 +650,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	ret = reg_read(gspca_dev, 0x06, 0x16);
 
 	if (ret < 0) {
-		PERR("register read failed err: %d", ret);
+		gspca_err(gspca_dev, "register read failed err: %d\n", ret);
 		return ret;
 	}
 	if (ret != 0x0101) {

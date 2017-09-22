@@ -1155,7 +1155,7 @@ static void reg_r(struct gspca_dev *gspca_dev,
 	if (gspca_dev->usb_err < 0)
 		return;
 	if (len > USB_BUF_SZ) {
-		PERR("reg_r: buffer overflow\n");
+		gspca_err(gspca_dev, "reg_r: buffer overflow\n");
 		return;
 	}
 
@@ -1209,7 +1209,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 		value, buffer[0], buffer[1]);
 
 	if (len > USB_BUF_SZ) {
-		PERR("reg_w: buffer overflow\n");
+		gspca_err(gspca_dev, "reg_w: buffer overflow\n");
 		return;
 	}
 

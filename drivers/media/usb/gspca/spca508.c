@@ -1309,7 +1309,8 @@ static int ssi_w(struct gspca_dev *gspca_dev,
 		if (gspca_dev->usb_buf[0] == 0)
 			break;
 		if (--retry <= 0) {
-			PERR("ssi_w busy %02x", gspca_dev->usb_buf[0]);
+			gspca_err(gspca_dev, "ssi_w busy %02x\n",
+				  gspca_dev->usb_buf[0]);
 			ret = -1;
 			break;
 		}

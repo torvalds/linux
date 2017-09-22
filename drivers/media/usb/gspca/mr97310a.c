@@ -284,7 +284,7 @@ static int zero_the_pointer(struct gspca_dev *gspca_dev)
 			return err_code;
 	}
 	if (status != 0x0a)
-		PERR("status is %02x", status);
+		gspca_err(gspca_dev, "status is %02x\n", status);
 
 	tries = 0;
 	while (tries < 4) {
@@ -325,7 +325,7 @@ static void stream_stop(struct gspca_dev *gspca_dev)
 	gspca_dev->usb_buf[0] = 0x01;
 	gspca_dev->usb_buf[1] = 0x00;
 	if (mr_write(gspca_dev, 2) < 0)
-		PERR("Stream Stop failed");
+		gspca_err(gspca_dev, "Stream Stop failed\n");
 }
 
 static void lcd_stop(struct gspca_dev *gspca_dev)
@@ -333,7 +333,7 @@ static void lcd_stop(struct gspca_dev *gspca_dev)
 	gspca_dev->usb_buf[0] = 0x19;
 	gspca_dev->usb_buf[1] = 0x54;
 	if (mr_write(gspca_dev, 2) < 0)
-		PERR("LCD Stop failed");
+		gspca_err(gspca_dev, "LCD Stop failed\n");
 }
 
 static int isoc_enable(struct gspca_dev *gspca_dev)

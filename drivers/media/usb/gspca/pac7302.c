@@ -339,7 +339,7 @@ static void reg_w_var(struct gspca_dev *gspca_dev,
 			break;
 		default:
 			if (len > USB_BUF_SZ) {
-				PERR("Incorrect variable sequence");
+				gspca_err(gspca_dev, "Incorrect variable sequence\n");
 				return;
 			}
 			while (len > 0) {

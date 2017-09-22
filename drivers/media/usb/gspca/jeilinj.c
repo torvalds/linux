@@ -262,7 +262,7 @@ static int jlj_start(struct gspca_dev *gspca_dev)
 	msleep(2);
 	setfreq(gspca_dev, v4l2_ctrl_g_ctrl(sd->freq));
 	if (gspca_dev->usb_err < 0)
-		PERR("Start streaming command failed");
+		gspca_err(gspca_dev, "Start streaming command failed\n");
 	return gspca_dev->usb_err;
 }
 

@@ -333,7 +333,7 @@ static int w9968cf_i2c_r(struct sd *sd, u8 reg)
 		ret = value;
 		PDEBUG(D_USBI, "i2c [0x%02X] -> 0x%02X", reg, value);
 	} else
-		PERR("i2c read [0x%02x] failed", reg);
+		gspca_err(gspca_dev, "i2c read [0x%02x] failed\n", reg);
 
 	return ret;
 }

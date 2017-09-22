@@ -728,7 +728,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 		/* This should never happen */
 		if (len < 2) {
-			PERR("Short SOF packet, ignoring");
+			gspca_err(gspca_dev, "Short SOF packet, ignoring\n");
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			return;
 		}
