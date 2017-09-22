@@ -267,15 +267,19 @@
 	clock-frequency = <400000>;
 
 	as3645a@30 {
+		#address-cells = <1>;
+		#size-cells = <0>;
 		reg = <0x30>;
 		compatible = "ams,as3645a";
-		flash {
+		flash@0 {
+			reg = <0x0>;
 			flash-timeout-us = <150000>;
 			flash-max-microamp = <320000>;
 			led-max-microamp = <60000>;
 			ams,input-max-microamp = <1750000>;
 		};
-		indicator {
+		indicator@1 {
+			reg = <0x1>;
 			led-max-microamp = <10000>;
 		};
 	};
