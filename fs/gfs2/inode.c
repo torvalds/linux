@@ -189,7 +189,8 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 
 		gfs2_set_iop(inode);
 
-		inode->i_atime.tv_sec = 0;
+		/* Lowest possible timestamp; will be overwritten in gfs2_dinode_in. */
+		inode->i_atime.tv_sec = 1LL << (8 * sizeof(inode->i_atime.tv_sec) - 1);
 		inode->i_atime.tv_nsec = 0;
 
 		unlock_new_inode(inode);
