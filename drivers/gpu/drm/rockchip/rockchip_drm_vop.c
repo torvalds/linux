@@ -2092,22 +2092,25 @@ static int vop_afbdc_atomic_check(struct drm_crtc *crtc,
 	struct drm_plane *plane;
 	struct drm_plane_state *pstate;
 	struct vop_plane_state *plane_state;
+	struct drm_framebuffer *fb;
+	struct drm_rect *src;
 	struct vop_win *win;
 	int afbdc_format;
-	int i;
 
 	s->afbdc_en = 0;
 
-	for_each_plane_in_state(state, plane, pstate, i) {
-		struct drm_framebuffer *fb = pstate->fb;
-		struct drm_rect *src;
+	drm_atomic_crtc_state_for_each_plane(plane, crtc_state) {
+		pstate = drm_atomic_get_existing_plane_state(state, plane);
+		/*
+		 * plane might not have changed, in which case take
+		 * current state:
+		 */
+		if (!pstate)
+			pstate = plane->state;
 
-		win = to_vop_win(plane);
-		plane_state = to_vop_plane_state(pstate);
-
+		fb = pstate->fb;
 		if (pstate->crtc != crtc || !fb)
 			continue;
-
 		if (fb->modifier[0] != DRM_FORMAT_MOD_ARM_AFBC)
 			continue;
 
@@ -2115,6 +2118,8 @@ static int vop_afbdc_atomic_check(struct drm_crtc *crtc,
 			DRM_ERROR("not support afbdc\n");
 			return -EINVAL;
 		}
+
+		plane_state = to_vop_plane_state(pstate);
 
 		switch (plane_state->format) {
 		case VOP_FMT_ARGB8888:
@@ -2135,6 +2140,7 @@ static int vop_afbdc_atomic_check(struct drm_crtc *crtc,
 			return -EINVAL;
 		}
 
+		win = to_vop_win(plane);
 		src = &plane_state->src;
 		if (src->x1 || src->y1 || fb->offsets[0]) {
 			DRM_ERROR("win[%d] afbdc not support offset display\n",
@@ -2144,7 +2150,7 @@ static int vop_afbdc_atomic_check(struct drm_crtc *crtc,
 			return -EINVAL;
 		}
 		s->afbdc_win_format = afbdc_format;
-		s->afbdc_win_width = pstate->fb->width - 1;
+		s->afbdc_win_width = fb->width - 1;
 		s->afbdc_win_height = (drm_rect_height(src) >> 16) - 1;
 		s->afbdc_win_id = win->win_id;
 		s->afbdc_win_ptr = plane_state->yrgb_mst;
