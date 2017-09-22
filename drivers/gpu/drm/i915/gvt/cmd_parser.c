@@ -1594,15 +1594,16 @@ static int batch_buffer_needs_scan(struct parser_exec_state *s)
 	return 1;
 }
 
-static int find_bb_size(struct parser_exec_state *s)
+static int find_bb_size(struct parser_exec_state *s, unsigned long *bb_size)
 {
 	unsigned long gma = 0;
 	struct cmd_info *info;
-	int bb_size = 0;
 	uint32_t cmd_len = 0;
-	bool met_bb_end = false;
+	bool bb_end = false;
 	struct intel_vgpu *vgpu = s->vgpu;
 	u32 cmd;
+
+	*bb_size = 0;
 
 	/* get the start gm address of the batch buffer */
 	gma = get_gma_bb_from_cmd(s, 1);
@@ -1610,7 +1611,6 @@ static int find_bb_size(struct parser_exec_state *s)
 		return -EFAULT;
 
 	cmd = cmd_val(s, 0);
-
 	info = get_cmd_info(s->vgpu->gvt, cmd, s->ring_id);
 	if (info == NULL) {
 		gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x\n",
@@ -1629,20 +1629,18 @@ static int find_bb_size(struct parser_exec_state *s)
 		}
 
 		if (info->opcode == OP_MI_BATCH_BUFFER_END) {
-			met_bb_end = true;
+			bb_end = true;
 		} else if (info->opcode == OP_MI_BATCH_BUFFER_START) {
-			if (BATCH_BUFFER_2ND_LEVEL_BIT(cmd) == 0) {
+			if (BATCH_BUFFER_2ND_LEVEL_BIT(cmd) == 0)
 				/* chained batch buffer */
-				met_bb_end = true;
-			}
+				bb_end = true;
 		}
 		cmd_len = get_cmd_length(info, cmd) << 2;
-		bb_size += cmd_len;
+		*bb_size += cmd_len;
 		gma += cmd_len;
+	} while (!bb_end);
 
-	} while (!met_bb_end);
-
-	return bb_size;
+	return 0;
 }
 
 static int perform_bb_shadow(struct parser_exec_state *s)
@@ -1650,7 +1648,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	struct intel_shadow_bb_entry *entry_obj;
 	struct intel_vgpu *vgpu = s->vgpu;
 	unsigned long gma = 0;
-	int bb_size;
+	unsigned long bb_size;
 	void *dst = NULL;
 	int ret = 0;
 
@@ -1660,9 +1658,9 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 		return -EFAULT;
 
 	/* get the size of the batch buffer */
-	bb_size = find_bb_size(s);
-	if (bb_size < 0)
-		return bb_size;
+	ret = find_bb_size(s, &bb_size);
+	if (ret)
+		return ret;
 
 	/* allocate shadow batch buffer */
 	entry_obj = kmalloc(sizeof(*entry_obj), GFP_KERNEL);
