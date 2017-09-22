@@ -517,7 +517,7 @@ cc2520_tx(struct ieee802154_hw *hw, struct sk_buff *skb)
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
-	BUG_ON(priv->is_tx);
+	WARN_ON(priv->is_tx);
 	priv->is_tx = 1;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -643,9 +643,9 @@ cc2520_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 
 	dev_dbg(&priv->spi->dev, "trying to set channel\n");
 
-	BUG_ON(page != 0);
-	BUG_ON(channel < CC2520_MINCHANNEL);
-	BUG_ON(channel > CC2520_MAXCHANNEL);
+	WARN_ON(page != 0);
+	WARN_ON(channel < CC2520_MINCHANNEL);
+	WARN_ON(channel > CC2520_MAXCHANNEL);
 
 	ret = cc2520_write_register(priv, CC2520_FREQCTRL,
 				    11 + 5 * (channel - 11));
