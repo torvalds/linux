@@ -100,35 +100,9 @@ int vcodec_iommu_free_fd(struct vcodec_iommu_info *iommu_info,
 	return iommu_info->ops->free_fd(session_info, fd);
 }
 
-void *vcodec_iommu_map_kernel(struct vcodec_iommu_info *iommu_info,
-				 struct vpu_session *session, int idx)
-{
-	struct vcodec_iommu_session_info *session_info = NULL;
-
-	session_info = vcodec_iommu_get_session_info(iommu_info, session);
-
-	if (!iommu_info || !iommu_info->ops->map_kernel || !session_info)
-		return NULL;
-
-	return iommu_info->ops->map_kernel(session_info, idx);
-}
-
-int vcodec_iommu_unmap_kernel(struct vcodec_iommu_info *iommu_info,
-			      struct vpu_session *session, int idx)
-{
-	struct vcodec_iommu_session_info *session_info = NULL;
-
-	session_info = vcodec_iommu_get_session_info(iommu_info, session);
-
-	if (!iommu_info || !iommu_info->ops->unmap_kernel || !session_info)
-		return -EINVAL;
-
-	return iommu_info->ops->unmap_kernel(session_info, idx);
-}
-
 int vcodec_iommu_map_iommu(struct vcodec_iommu_info *iommu_info,
 			   struct vpu_session *session,
-			   int idx, unsigned long *iova,
+			   int idx, dma_addr_t *iova,
 			   unsigned long *size)
 {
 	struct vcodec_iommu_session_info *session_info = NULL;
@@ -154,7 +128,7 @@ int vcodec_iommu_unmap_iommu(struct vcodec_iommu_info *iommu_info,
 	return iommu_info->ops->unmap_iommu(session_info, idx);
 }
 
-int vcodec_iommu_destroy(struct vcodec_iommu_info *iommu_info)
+static int vcodec_iommu_destroy(struct vcodec_iommu_info *iommu_info)
 {
 	if (!iommu_info || !iommu_info->ops->destroy)
 		return -EINVAL;

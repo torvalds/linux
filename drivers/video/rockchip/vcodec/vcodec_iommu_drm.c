@@ -13,29 +13,15 @@
  * GNU General Public License for more details.
  *
  */
-#include <linux/dma-iommu.h>
 
+#include <linux/dma-iommu.h>
 #include <linux/dma-buf.h>
-#include <drm/drmP.h>
-#include <drm/drm_atomic.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_sync_helper.h>
-#include <drm/rockchip_drm.h>
 #include <linux/dma-mapping.h>
-#include <linux/rockchip-iovmm.h>
-#include <linux/pm_runtime.h>
-#include <linux/memblock.h>
-#include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/of_graph.h>
-#include <linux/component.h>
 #include <linux/fence.h>
-#include <linux/console.h>
-#include <linux/kref.h>
-#include <linux/fdtable.h>
-#include <linux/ktime.h>
 #include <linux/iova.h>
+#include <linux/kref.h>
+#include <linux/ktime.h>
+#include <linux/memblock.h>
 
 #include "vcodec_iommu_ops.h"
 
@@ -43,10 +29,9 @@ struct vcodec_drm_buffer {
 	struct list_head list;
 	struct dma_buf *dma_buf;
 	union {
-		unsigned long iova;
+		dma_addr_t iova;
 		unsigned long phys;
 	};
-	void *cpu_addr;
 	unsigned long size;
 	int index;
 	struct dma_buf_attachment *attach;
@@ -166,42 +151,6 @@ static int vcodec_drm_attach(struct vcodec_iommu_info *iommu_info)
 	mutex_unlock(&iommu_info->iommu_mutex);
 
 	return ret;
-}
-
-static void *vcodec_drm_sgt_map_kernel(struct vcodec_drm_buffer *drm_buffer)
-{
-	struct vcodec_iommu_session_info *session_info =
-		drm_buffer->session_info;
-	struct device *dev = session_info->dev;
-	struct scatterlist *sgl, *sg;
-	int nr_pages = PAGE_ALIGN(drm_buffer->size) >> PAGE_SHIFT;
-	int i = 0, j = 0, k = 0;
-	struct page *page;
-
-	drm_buffer->pages = kmalloc_array(nr_pages, sizeof(*drm_buffer->pages),
-					  GFP_KERNEL);
-	if (!(drm_buffer->pages)) {
-		dev_err(dev, "drm map can not alloc pages\n");
-
-		return NULL;
-	}
-
-	sgl = drm_buffer->sgt->sgl;
-
-	for_each_sg(sgl, sg, drm_buffer->sgt->nents, i) {
-		page = sg_page(sg);
-		for (j = 0; j < sg->length / PAGE_SIZE; j++)
-			drm_buffer->pages[k++] = page++;
-	}
-
-	return vmap(drm_buffer->pages, nr_pages, VM_MAP,
-		    pgprot_noncached(PAGE_KERNEL));
-}
-
-static void vcodec_drm_sgt_unmap_kernel(struct vcodec_drm_buffer *drm_buffer)
-{
-	vunmap(drm_buffer->cpu_addr);
-	kfree(drm_buffer->pages);
 }
 
 static int vcodec_finalise_sg(struct scatterlist *sg,
@@ -374,11 +323,6 @@ static void vcodec_drm_clear_map(struct kref *ref)
 	mutex_lock(&iommu_info->iommu_mutex);
 	drm_info = session_info->iommu_info->private;
 
-	if (drm_buffer->cpu_addr) {
-		vcodec_drm_sgt_unmap_kernel(drm_buffer);
-		drm_buffer->cpu_addr = NULL;
-	}
-
 	if (drm_buffer->attach) {
 		vcodec_dma_unmap_sg(drm_info->domain, drm_buffer->iova);
 		sg_free_table(drm_buffer->copy_sgt);
@@ -402,9 +346,9 @@ static void vcdoec_drm_dump_info(struct vcodec_iommu_session_info *session_info)
 	list_for_each_entry_safe(drm_buffer, n, &session_info->buffer_list,
 				 list) {
 		vpu_iommu_debug(session_info->debug_level, DEBUG_IOMMU_OPS_DUMP,
-				"index %d drm_buffer dma_buf %p cpu_addr %p\n",
+				"index %d drm_buffer dma_buf %p\n",
 				drm_buffer->index,
-				drm_buffer->dma_buf, drm_buffer->cpu_addr);
+				drm_buffer->dma_buf);
 	}
 }
 
@@ -445,10 +389,6 @@ vcodec_drm_unmap_iommu(struct vcodec_iommu_session_info *session_info,
 	struct device *dev = session_info->dev;
 	struct vcodec_drm_buffer *drm_buffer;
 
-	/* Force to flush iommu table */
-	if (of_machine_is_compatible("rockchip,rk3288"))
-		rockchip_iovmm_invalidate_tlb(session_info->mmu_dev);
-
 	mutex_lock(&session_info->list_mutex);
 	drm_buffer = vcodec_drm_get_buffer_no_lock(session_info, idx);
 	mutex_unlock(&session_info->list_mutex);
@@ -465,15 +405,11 @@ vcodec_drm_unmap_iommu(struct vcodec_iommu_session_info *session_info,
 
 static int vcodec_drm_map_iommu(struct vcodec_iommu_session_info *session_info,
 				int idx,
-				unsigned long *iova,
+				dma_addr_t *iova,
 				unsigned long *size)
 {
 	struct device *dev = session_info->dev;
 	struct vcodec_drm_buffer *drm_buffer;
-
-	/* Force to flush iommu table */
-	if (of_machine_is_compatible("rockchip,rk3288"))
-		rockchip_iovmm_invalidate_tlb(session_info->mmu_dev);
 
 	mutex_lock(&session_info->list_mutex);
 	drm_buffer = vcodec_drm_get_buffer_no_lock(session_info, idx);
@@ -489,31 +425,6 @@ static int vcodec_drm_map_iommu(struct vcodec_iommu_session_info *session_info,
 		*iova = drm_buffer->iova;
 	if (size)
 		*size = drm_buffer->size;
-	return 0;
-}
-
-static int
-vcodec_drm_unmap_kernel(struct vcodec_iommu_session_info *session_info, int idx)
-{
-	struct device *dev = session_info->dev;
-	struct vcodec_drm_buffer *drm_buffer;
-
-	mutex_lock(&session_info->list_mutex);
-	drm_buffer = vcodec_drm_get_buffer_no_lock(session_info, idx);
-	mutex_unlock(&session_info->list_mutex);
-
-	if (!drm_buffer) {
-		dev_err(dev, "can not find %d buffer in list\n", idx);
-
-		return -EINVAL;
-	}
-
-	if (drm_buffer->cpu_addr) {
-		vcodec_drm_sgt_unmap_kernel(drm_buffer);
-		drm_buffer->cpu_addr = NULL;
-	}
-
-	kref_put(&drm_buffer->ref, vcodec_drm_clear_map);
 	return 0;
 }
 
@@ -561,30 +472,6 @@ vcodec_drm_clear_session(struct vcodec_iommu_session_info *session_info)
 		kref_put(&drm_buffer->ref, vcodec_drm_clear_map);
 		vcodec_drm_free(session_info, drm_buffer->index);
 	}
-}
-
-static void *
-vcodec_drm_map_kernel(struct vcodec_iommu_session_info *session_info, int idx)
-{
-	struct device *dev = session_info->dev;
-	struct vcodec_drm_buffer *drm_buffer;
-
-	mutex_lock(&session_info->list_mutex);
-	drm_buffer = vcodec_drm_get_buffer_no_lock(session_info, idx);
-	mutex_unlock(&session_info->list_mutex);
-
-	if (!drm_buffer) {
-		dev_err(dev, "can not find %d buffer in list\n", idx);
-		return NULL;
-	}
-
-	if (!drm_buffer->cpu_addr)
-		drm_buffer->cpu_addr =
-			vcodec_drm_sgt_map_kernel(drm_buffer);
-
-	kref_get(&drm_buffer->ref);
-
-	return drm_buffer->cpu_addr;
 }
 
 static int vcodec_drm_import(struct vcodec_iommu_session_info *session_info,
@@ -798,8 +685,6 @@ static struct vcodec_iommu_ops drm_ops = {
 	.import = vcodec_drm_import,
 	.free = vcodec_drm_free,
 	.free_fd = vcodec_drm_free_fd,
-	.map_kernel = vcodec_drm_map_kernel,
-	.unmap_kernel = vcodec_drm_unmap_kernel,
 	.map_iommu = vcodec_drm_map_iommu,
 	.unmap_iommu = vcodec_drm_unmap_iommu,
 	.destroy = vcodec_drm_destroy,
