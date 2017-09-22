@@ -645,13 +645,8 @@ static int vcc_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	if (rv)
 		goto free_domain;
 
-	init_timer(&port->rx_timer);
-	port->rx_timer.function = vcc_rx_timer;
-	port->rx_timer.data = port->index;
-
-	init_timer(&port->tx_timer);
-	port->tx_timer.function = vcc_tx_timer;
-	port->tx_timer.data = port->index;
+	setup_timer(&port->rx_timer, vcc_rx_timer, port->index);
+	setup_timer(&port->tx_timer, vcc_tx_timer, port->index);
 
 	dev_set_drvdata(&vdev->dev, port);
 
