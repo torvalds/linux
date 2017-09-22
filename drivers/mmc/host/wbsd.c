@@ -1224,9 +1224,8 @@ static int wbsd_alloc_mmc(struct device *dev)
 	/*
 	 * Set up timers
 	 */
-	init_timer(&host->ignore_timer);
-	host->ignore_timer.data = (unsigned long)host;
-	host->ignore_timer.function = wbsd_reset_ignore;
+	setup_timer(&host->ignore_timer, wbsd_reset_ignore,
+		    (unsigned long)host);
 
 	/*
 	 * Maximum number of segments. Worst case is one sector per segment
