@@ -273,7 +273,7 @@
 			flash-timeout-us = <150000>;
 			flash-max-microamp = <320000>;
 			led-max-microamp = <60000>;
-			peak-current-limit = <1750000>;
+			ams,input-max-microamp = <1750000>;
 		};
 		indicator {
 			led-max-microamp = <10000>;
