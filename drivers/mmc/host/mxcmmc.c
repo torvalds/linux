@@ -1165,9 +1165,7 @@ static int mxcmci_probe(struct platform_device *pdev)
 			goto out_free_dma;
 	}
 
-	init_timer(&host->watchdog);
-	host->watchdog.function = &mxcmci_watchdog;
-	host->watchdog.data = (unsigned long)mmc;
+	setup_timer(&host->watchdog, &mxcmci_watchdog, (unsigned long)mmc);
 
 	mmc_add_host(mmc);
 
