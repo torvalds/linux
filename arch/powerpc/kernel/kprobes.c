@@ -261,9 +261,20 @@ static int try_to_emulate(struct kprobe *p, struct pt_regs *regs)
 		 */
 		printk("Can't step on instruction %x\n", insn);
 		BUG();
-	} else
-		/* This instruction can't be boosted */
-		p->ainsn.boostable = -1;
+	} else {
+		/*
+		 * If we haven't previously emulated this instruction, then it
+		 * can't be boosted. Note it down so we don't try to do so again.
+		 *
+		 * If, however, we had emulated this instruction in the past,
+		 * then this is just an error with the current run (for
+		 * instance, exceptions due to a load/store). We return 0 so
+		 * that this is now single-stepped, but continue to try
+		 * emulating it in subsequent probe hits.
+		 */
+		if (unlikely(p->ainsn.boostable != 1))
+			p->ainsn.boostable = -1;
+	}
 
 	return ret;
 }
