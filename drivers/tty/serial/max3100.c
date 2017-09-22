@@ -787,9 +787,8 @@ static int max3100_probe(struct spi_device *spi)
 		max3100s[i]->poll_time = 1;
 	max3100s[i]->max3100_hw_suspend = pdata->max3100_hw_suspend;
 	max3100s[i]->minor = i;
-	init_timer(&max3100s[i]->timer);
-	max3100s[i]->timer.function = max3100_timeout;
-	max3100s[i]->timer.data = (unsigned long) max3100s[i];
+	setup_timer(&max3100s[i]->timer, max3100_timeout,
+		    (unsigned long)max3100s[i]);
 
 	dev_dbg(&spi->dev, "%s: adding port %d\n", __func__, i);
 	max3100s[i]->port.irq = max3100s[i]->irq;
