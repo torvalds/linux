@@ -320,20 +320,6 @@ static unsigned int clamp_align(unsigned int x, unsigned int min,
 	return x;
 }
 
-/* Bound an image to have a width between wmin and wmax, and height between
- * hmin and hmax, inclusive.  Additionally, the width will be a multiple of
- * 2^walign, the height will be a multiple of 2^halign, and the overall size
- * (width*height) will be a multiple of 2^salign.  The image may be shrunk
- * or enlarged to fit the alignment constraints.
- *
- * The width or height maximum must not be smaller than the corresponding
- * minimum.  The alignments must not be so high there are no possible image
- * sizes within the allowed bounds.  wmin and hmin must be at least 1
- * (don't use 0).  If you don't care about a certain alignment, specify 0,
- * as 2^0 is 1 and one byte alignment is equivalent to no alignment.  If
- * you only want to adjust downward, specify a maximum that's the same as
- * the initial value.
- */
 void v4l_bound_align_image(u32 *w, unsigned int wmin, unsigned int wmax,
 			   unsigned int walign,
 			   u32 *h, unsigned int hmin, unsigned int hmax,
