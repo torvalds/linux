@@ -1029,9 +1029,8 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	spin_lock_init(&ifx_dev->write_lock);
 	spin_lock_init(&ifx_dev->power_lock);
 	ifx_dev->power_status = 0;
-	init_timer(&ifx_dev->spi_timer);
-	ifx_dev->spi_timer.function = ifx_spi_timeout;
-	ifx_dev->spi_timer.data = (unsigned long)ifx_dev;
+	setup_timer(&ifx_dev->spi_timer, ifx_spi_timeout,
+		    (unsigned long)ifx_dev);
 	ifx_dev->modem = pl_data->modem_type;
 	ifx_dev->use_dma = pl_data->use_dma;
 	ifx_dev->max_hz = pl_data->max_hz;
