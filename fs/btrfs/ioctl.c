@@ -4548,6 +4548,7 @@ static long btrfs_ioctl_logical_to_ino(struct btrfs_fs_info *fs_info,
 
 	if (version == 1) {
 		ignore_offset = false;
+		size = min_t(u32, loi->size, SZ_64K);
 	} else {
 		/* All reserved bits must be 0 for now */
 		if (memchr_inv(loi->reserved, 0, sizeof(loi->reserved))) {
@@ -4560,6 +4561,7 @@ static long btrfs_ioctl_logical_to_ino(struct btrfs_fs_info *fs_info,
 			goto out_loi;
 		}
 		ignore_offset = loi->flags & BTRFS_LOGICAL_INO_ARGS_IGNORE_OFFSET;
+		size = min_t(u32, loi->size, SZ_16M);
 	}
 
 	path = btrfs_alloc_path();
@@ -4568,7 +4570,6 @@ static long btrfs_ioctl_logical_to_ino(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 
-	size = min_t(u32, loi->size, SZ_64K);
 	inodes = init_data_container(size);
 	if (IS_ERR(inodes)) {
 		ret = PTR_ERR(inodes);
