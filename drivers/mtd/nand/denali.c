@@ -208,24 +208,6 @@ static uint32_t denali_check_irq(struct denali_nand_info *denali)
 	return irq_status;
 }
 
-/*
- * This helper function setups the registers for ECC and whether or not
- * the spare area will be transferred.
- */
-static void setup_ecc_for_xfer(struct denali_nand_info *denali, bool ecc_en,
-				bool transfer_spare)
-{
-	int ecc_en_flag, transfer_spare_flag;
-
-	/* set ECC, transfer spare bits if needed */
-	ecc_en_flag = ecc_en ? ECC_ENABLE__FLAG : 0;
-	transfer_spare_flag = transfer_spare ? TRANSFER_SPARE_REG__FLAG : 0;
-
-	/* Enable spare area/ECC per user's request. */
-	iowrite32(ecc_en_flag, denali->reg + ECC_ENABLE);
-	iowrite32(transfer_spare_flag, denali->reg + TRANSFER_SPARE_REG);
-}
-
 static void denali_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
 	struct denali_nand_info *denali = mtd_to_denali(mtd);
@@ -659,7 +641,9 @@ static int denali_dma_xfer(struct denali_nand_info *denali, void *buf,
 static int denali_data_xfer(struct denali_nand_info *denali, void *buf,
 			    size_t size, int page, int raw, int write)
 {
-	setup_ecc_for_xfer(denali, !raw, raw);
+	iowrite32(raw ? 0 : ECC_ENABLE__FLAG, denali->reg + ECC_ENABLE);
+	iowrite32(raw ? TRANSFER_SPARE_REG__FLAG : 0,
+		  denali->reg + TRANSFER_SPARE_REG);
 
 	if (denali->dma_avail)
 		return denali_dma_xfer(denali, buf, size, page, raw, write);
