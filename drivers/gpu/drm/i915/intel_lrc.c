@@ -568,21 +568,27 @@ done:
 		execlists_submit_ports(engine);
 }
 
+static void execlist_cancel_port_requests(struct intel_engine_execlists *execlists)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(execlists->port); i++)
+		i915_gem_request_put(port_request(&execlists->port[i]));
+
+	memset(execlists->port, 0, sizeof(execlists->port));
+}
+
 static void execlists_cancel_requests(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
-	struct execlist_port *port = execlists->port;
 	struct drm_i915_gem_request *rq, *rn;
 	struct rb_node *rb;
 	unsigned long flags;
-	unsigned long n;
 
 	spin_lock_irqsave(&engine->timeline->lock, flags);
 
 	/* Cancel the requests on the HW and clear the ELSP tracker. */
-	for (n = 0; n < ARRAY_SIZE(execlists->port); n++)
-		i915_gem_request_put(port_request(&port[n]));
-	memset(execlists->port, 0, sizeof(execlists->port));
+	execlist_cancel_port_requests(execlists);
 
 	/* Mark all executing requests as skipped. */
 	list_for_each_entry(rq, &engine->timeline->requests, link) {
@@ -613,9 +619,10 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 
 	/* Remaining _unready_ requests will be nop'ed when submitted */
 
+
 	execlists->queue = RB_ROOT;
 	execlists->first = NULL;
-	GEM_BUG_ON(port_isset(&port[0]));
+	GEM_BUG_ON(port_isset(&execlists->port[0]));
 
 	/*
 	 * The port is checked prior to scheduling a tasklet, but
@@ -1372,11 +1379,9 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 			      struct drm_i915_gem_request *request)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
-	struct execlist_port *port = execlists->port;
 	struct drm_i915_gem_request *rq, *rn;
 	struct intel_context *ce;
 	unsigned long flags;
-	unsigned int n;
 
 	spin_lock_irqsave(&engine->timeline->lock, flags);
 
@@ -1389,9 +1394,7 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	 * guessing the missed context-switch events by looking at what
 	 * requests were completed.
 	 */
-	for (n = 0; n < ARRAY_SIZE(execlists->port); n++)
-		i915_gem_request_put(port_request(&port[n]));
-	memset(execlists->port, 0, sizeof(execlists->port));
+	execlist_cancel_port_requests(execlists);
 
 	/* Push back any incomplete requests for replay after the reset. */
 	list_for_each_entry_safe_reverse(rq, rn,
