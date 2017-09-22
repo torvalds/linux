@@ -62,14 +62,14 @@ static void irda_task_timer_expired(void *data);
 int __init irda_device_init( void)
 {
 	dongles = hashbin_new(HB_NOLOCK);
-	if (dongles == NULL) {
+	if (!dongles) {
 		net_warn_ratelimited("IrDA: Can't allocate dongles hashbin!\n");
 		return -ENOMEM;
 	}
 	spin_lock_init(&dongles->hb_spinlock);
 
 	tasks = hashbin_new(HB_LOCK);
-	if (tasks == NULL) {
+	if (!tasks) {
 		net_warn_ratelimited("IrDA: Can't allocate tasks hashbin!\n");
 		hashbin_delete(dongles, NULL);
 		return -ENOMEM;
