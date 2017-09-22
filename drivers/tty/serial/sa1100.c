@@ -640,9 +640,8 @@ static void __init sa1100_init_ports(void)
 		sa1100_ports[i].port.fifosize  = 8;
 		sa1100_ports[i].port.line      = i;
 		sa1100_ports[i].port.iotype    = UPIO_MEM;
-		init_timer(&sa1100_ports[i].timer);
-		sa1100_ports[i].timer.function = sa1100_timeout;
-		sa1100_ports[i].timer.data     = (unsigned long)&sa1100_ports[i];
+		setup_timer(&sa1100_ports[i].timer, sa1100_timeout,
+			    (unsigned long)&sa1100_ports[i]);
 	}
 
 	/*
