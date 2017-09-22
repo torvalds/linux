@@ -12,7 +12,7 @@
 static char pci_irq[5] = {
 };
 
-static char irq_tab[][5] __initdata = {
+static char irq_tab[][5] = {
 	/*	INTA	INTB	INTC	INTD */
 	{0,	0,	0,	0,	0 },	/*  0: GT64120 PCI bridge */
 	{0,	0,	0,	0,	0 },	/*  1: Unused */

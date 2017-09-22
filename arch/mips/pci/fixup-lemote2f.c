@@ -30,7 +30,7 @@
 #define PCID		7
 
 /* all the pci device has the PCIA pin, check the datasheet. */
-static char irq_tab[][5] __initdata = {
+static char irq_tab[][5] = {
 	/*	INTA	INTB	INTC	INTD */
 	{0, 0, 0, 0, 0},	/*  11: Unused */
 	{0, 0, 0, 0, 0},	/*  12: Unused */

@@ -32,7 +32,7 @@
 #define INTC	PC104PLUS_INTC_IRQ
 #define INTD	PC104PLUS_INTD_IRQ
 
-static char irq_tab_capcella[][5] __initdata = {
+static char irq_tab_capcella[][5] = {
  [11] = { -1, INT1, INT1, INT1, INT1 },
  [12] = { -1, INT2, INT2, INT2, INT2 },
  [14] = { -1, INTA, INTB, INTC, INTD }
