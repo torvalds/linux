@@ -1645,6 +1645,7 @@ static void acpi_nfit_init_dsms(struct acpi_nfit_desc *acpi_desc)
 	int i;
 
 	nd_desc->cmd_mask = acpi_desc->bus_cmd_force_en;
+	nd_desc->bus_dsm_mask = acpi_desc->bus_nfit_cmd_force_en;
 	adev = to_acpi_dev(acpi_desc);
 	if (!adev)
 		return;
