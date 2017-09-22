@@ -1241,7 +1241,6 @@ static void stk_v4l_dev_release(struct video_device *vd)
 	if (dev->sio_bufs != NULL || dev->isobufs != NULL)
 		pr_err("We are leaking memory\n");
 	usb_put_intf(dev->interface);
-	kfree(dev);
 }
 
 static const struct video_device stk_v4l_data = {
@@ -1391,6 +1390,7 @@ static void stk_camera_disconnect(struct usb_interface *interface)
 	video_unregister_device(&dev->vdev);
 	v4l2_ctrl_handler_free(&dev->hdl);
 	v4l2_device_unregister(&dev->v4l2_dev);
+	kfree(dev);
 }
 
 #ifdef CONFIG_PM
