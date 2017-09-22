@@ -413,15 +413,6 @@
 #define MSI_IOVA_BASE			0x8000000
 #define MSI_IOVA_LENGTH			0x100000
 
-/* Until ACPICA headers cover IORT rev. C */
-#ifndef ACPI_IORT_SMMU_HISILICON_HI161X
-#define ACPI_IORT_SMMU_HISILICON_HI161X		0x1
-#endif
-
-#ifndef ACPI_IORT_SMMU_V3_CAVIUM_CN99XX
-#define ACPI_IORT_SMMU_V3_CAVIUM_CN99XX		0x2
-#endif
-
 static bool disable_bypass;
 module_param_named(disable_bypass, disable_bypass, bool, S_IRUGO);
 MODULE_PARM_DESC(disable_bypass,
@@ -2665,7 +2656,7 @@ static void acpi_smmu_get_options(u32 model, struct arm_smmu_device *smmu)
 	case ACPI_IORT_SMMU_V3_CAVIUM_CN99XX:
 		smmu->options |= ARM_SMMU_OPT_PAGE0_REGS_ONLY;
 		break;
-	case ACPI_IORT_SMMU_HISILICON_HI161X:
+	case ACPI_IORT_SMMU_V3_HISILICON_HI161X:
 		smmu->options |= ARM_SMMU_OPT_SKIP_PREFETCH;
 		break;
 	}
