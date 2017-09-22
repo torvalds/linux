@@ -321,6 +321,8 @@ struct denali_nand_info {
 	const struct nand_ecc_caps *ecc_caps;
 	u32 (*host_read)(struct denali_nand_info *denali, u32 addr);
 	void (*host_write)(struct denali_nand_info *denali, u32 addr, u32 data);
+	void (*setup_dma)(struct denali_nand_info *denali, dma_addr_t dma_addr,
+			  int page, int write);
 };
 
 #define DENALI_CAP_HW_ECC_FIXUP			BIT(0)
