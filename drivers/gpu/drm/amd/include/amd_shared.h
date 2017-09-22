@@ -262,38 +262,44 @@ enum amd_pp_task;
 struct pp_states_info;
 
 struct amd_pm_funcs {
-	int (*get_temperature)(void *handle);
+/* export for dpm on ci and si */
 	int (*pre_set_power_state)(void *handle);
 	int (*set_power_state)(void *handle);
 	void (*post_set_power_state)(void *handle);
 	void (*display_configuration_changed)(void *handle);
-	u32 (*get_sclk)(void *handle, bool low);
-	u32 (*get_mclk)(void *handle, bool low);
 	void (*print_power_state)(void *handle, void *ps);
-	void (*debugfs_print_current_performance_level)(void *handle, struct seq_file *m);
-	int (*force_performance_level)(void *handle, enum amd_dpm_forced_level level);
 	bool (*vblank_too_short)(void *handle);
-	void (*powergate_uvd)(void *handle, bool gate);
-	void (*powergate_vce)(void *handle, bool gate);
 	void (*enable_bapm)(void *handle, bool enable);
+	int (*check_state_equal)(void *handle,
+				void  *cps,
+				void  *rps,
+				bool  *equal);
+/* export for sysfs */
+	int (*get_temperature)(void *handle);
 	void (*set_fan_control_mode)(void *handle, u32 mode);
 	u32 (*get_fan_control_mode)(void *handle);
 	int (*set_fan_speed_percent)(void *handle, u32 speed);
 	int (*get_fan_speed_percent)(void *handle, u32 *speed);
 	int (*force_clock_level)(void *handle, enum pp_clock_type type, uint32_t mask);
 	int (*print_clock_levels)(void *handle, enum pp_clock_type type, char *buf);
+	int (*force_performance_level)(void *handle, enum amd_dpm_forced_level level);
+
 	int (*get_sclk_od)(void *handle);
 	int (*set_sclk_od)(void *handle, uint32_t value);
 	int (*get_mclk_od)(void *handle);
 	int (*set_mclk_od)(void *handle, uint32_t value);
-	int (*check_state_equal)(void *handle,
-				void  *cps,
-				void  *rps,
-				bool  *equal);
-	int (*read_sensor)(void *handle, int idx, void *value,
-			   int *size);
 
-	struct amd_vce_state* (*get_vce_clock_state)(void *handle, u32 idx);
+	int (*read_sensor)(void *handle, int idx, void *value, int *size);
+
+	enum amd_dpm_forced_level (*get_performance_level)(void *handle);
+	enum amd_pm_state_type (*get_current_power_state)(void *handle);
+
+	int (*get_fan_speed_rpm)(void *handle, uint32_t *rpm);
+	int (*get_pp_num_states)(void *handle, struct pp_states_info *data);
+	int (*get_pp_table)(void *handle, char **table);
+	int (*set_pp_table)(void *handle, const char *buf, size_t size);
+	void (*debugfs_print_current_performance_level)(void *handle, struct seq_file *m);
+
 	int (*reset_power_profile_state)(void *handle,
 			struct amd_pp_profile *request);
 	int (*get_power_profile_state)(void *handle,
@@ -302,16 +308,17 @@ struct amd_pm_funcs {
 			struct amd_pp_profile *request);
 	int (*switch_power_profile)(void *handle,
 			enum amd_pp_profile_type type);
-	int (*load_firmware)(void *handle);
-	int (*wait_for_fw_loading_complete)(void *handle);
-	enum amd_dpm_forced_level (*get_performance_level)(void *handle);
-	enum amd_pm_state_type (*get_current_power_state)(void *handle);
+/* export to amdgpu */
+	void (*powergate_uvd)(void *handle, bool gate);
+	void (*powergate_vce)(void *handle, bool gate);
+	struct amd_vce_state* (*get_vce_clock_state)(void *handle, u32 idx);
 	int (*dispatch_tasks)(void *handle, enum amd_pp_task task_id,
 				   void *input, void *output);
-	int (*get_fan_speed_rpm)(void *handle, uint32_t *rpm);
-	int (*get_pp_num_states)(void *handle, struct pp_states_info *data);
-	int (*get_pp_table)(void *handle, char **table);
-	int (*set_pp_table)(void *handle, const char *buf, size_t size);
+	int (*load_firmware)(void *handle);
+	int (*wait_for_fw_loading_complete)(void *handle);
+/* export to DC */
+	u32 (*get_sclk)(void *handle, bool low);
+	u32 (*get_mclk)(void *handle, bool low);
 };
 
 
