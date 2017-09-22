@@ -513,9 +513,7 @@ static struct pmac_i2c_host_kw *__init kw_i2c_host_init(struct device_node *np)
 	mutex_init(&host->mutex);
 	init_completion(&host->complete);
 	spin_lock_init(&host->lock);
-	init_timer(&host->timeout_timer);
-	host->timeout_timer.function = kw_i2c_timeout;
-	host->timeout_timer.data = (unsigned long)host;
+	setup_timer(&host->timeout_timer, kw_i2c_timeout, (unsigned long)host);
 
 	psteps = of_get_property(np, "AAPL,address-step", NULL);
 	steps = psteps ? (*psteps) : 0x10;
