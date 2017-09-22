@@ -1506,9 +1506,7 @@ isp1301_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	}
 
 	INIT_WORK(&isp->work, isp1301_work);
-	init_timer(&isp->timer);
-	isp->timer.function = isp1301_timer;
-	isp->timer.data = (unsigned long) isp;
+	setup_timer(&isp->timer, isp1301_timer, (unsigned long)isp);
 
 	i2c_set_clientdata(i2c, isp);
 	isp->client = i2c;
