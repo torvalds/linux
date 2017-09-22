@@ -1872,7 +1872,7 @@ sub get_grub2_index {
 	    $grub_number++;
 	    $found = 1;
 	    last;
-	} elsif (/^menuentry\s/) {
+	} elsif (/^menuentry\s|^submenu\s/) {
 	    $grub_number++;
 	}
     }
