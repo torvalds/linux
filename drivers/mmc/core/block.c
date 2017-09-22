@@ -1989,7 +1989,7 @@ void mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 
 	if (req && !mq->qcnt)
 		/* claim host only for the first request */
-		mmc_get_card(card);
+		mmc_get_card(card, NULL);
 
 	ret = mmc_blk_part_switch(card, md->part_type);
 	if (ret) {
@@ -2052,7 +2052,7 @@ void mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 
 out:
 	if (!mq->qcnt)
-		mmc_put_card(card);
+		mmc_put_card(card, NULL);
 }
 
 static inline int mmc_blk_readonly(struct mmc_card *card)
