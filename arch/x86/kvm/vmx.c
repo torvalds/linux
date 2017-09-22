@@ -200,6 +200,8 @@ struct loaded_vmcs {
 	int cpu;
 	bool launched;
 	bool nmi_known_unmasked;
+	unsigned long vmcs_host_cr3;	/* May not match real cr3 */
+	unsigned long vmcs_host_cr4;	/* May not match real cr4 */
 	struct list_head loaded_vmcss_on_cpu_link;
 };
 
@@ -600,8 +602,6 @@ struct vcpu_vmx {
 		int           gs_ldt_reload_needed;
 		int           fs_reload_needed;
 		u64           msr_host_bndcfgs;
-		unsigned long vmcs_host_cr3;	/* May not match real cr3 */
-		unsigned long vmcs_host_cr4;	/* May not match real cr4 */
 	} host_state;
 	struct {
 		int vm86_active;
@@ -5178,12 +5178,12 @@ static void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 	 */
 	cr3 = __read_cr3();
 	vmcs_writel(HOST_CR3, cr3);		/* 22.2.3  FIXME: shadow tables */
-	vmx->host_state.vmcs_host_cr3 = cr3;
+	vmx->loaded_vmcs->vmcs_host_cr3 = cr3;
 
 	/* Save the most likely value for this task's CR4 in the VMCS. */
 	cr4 = cr4_read_shadow();
 	vmcs_writel(HOST_CR4, cr4);			/* 22.2.3, 22.2.5 */
-	vmx->host_state.vmcs_host_cr4 = cr4;
+	vmx->loaded_vmcs->vmcs_host_cr4 = cr4;
 
 	vmcs_write16(HOST_CS_SELECTOR, __KERNEL_CS);  /* 22.2.4 */
 #ifdef CONFIG_X86_64
@@ -9274,15 +9274,15 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		vmcs_writel(GUEST_RIP, vcpu->arch.regs[VCPU_REGS_RIP]);
 
 	cr3 = __get_current_cr3_fast();
-	if (unlikely(cr3 != vmx->host_state.vmcs_host_cr3)) {
+	if (unlikely(cr3 != vmx->loaded_vmcs->vmcs_host_cr3)) {
 		vmcs_writel(HOST_CR3, cr3);
-		vmx->host_state.vmcs_host_cr3 = cr3;
+		vmx->loaded_vmcs->vmcs_host_cr3 = cr3;
 	}
 
 	cr4 = cr4_read_shadow();
-	if (unlikely(cr4 != vmx->host_state.vmcs_host_cr4)) {
+	if (unlikely(cr4 != vmx->loaded_vmcs->vmcs_host_cr4)) {
 		vmcs_writel(HOST_CR4, cr4);
-		vmx->host_state.vmcs_host_cr4 = cr4;
+		vmx->loaded_vmcs->vmcs_host_cr4 = cr4;
 	}
 
 	/* When single-stepping over STI and MOV SS, we must clear the
