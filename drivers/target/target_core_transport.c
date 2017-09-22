@@ -1970,6 +1970,8 @@ static void target_restart_delayed_cmds(struct se_device *dev)
 		list_del(&cmd->se_delayed_node);
 		spin_unlock(&dev->delayed_cmd_lock);
 
+		cmd->transport_state |= CMD_T_SENT;
+
 		__target_execute_cmd(cmd, true);
 
 		if (cmd->sam_task_attr == TCM_ORDERED_TAG)
@@ -2007,6 +2009,8 @@ static void transport_complete_task_attr(struct se_cmd *cmd)
 		pr_debug("Incremented dev_cur_ordered_id: %u for ORDERED\n",
 			 dev->dev_cur_ordered_id);
 	}
+	cmd->se_cmd_flags &= ~SCF_TASK_ATTR_SET;
+
 restart:
 	target_restart_delayed_cmds(dev);
 }
