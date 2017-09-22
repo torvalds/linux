@@ -2323,13 +2323,11 @@ static int vub300_probe(struct usb_interface *interface,
 	INIT_WORK(&vub300->cmndwork, vub300_cmndwork_thread);
 	INIT_WORK(&vub300->deadwork, vub300_deadwork_thread);
 	kref_init(&vub300->kref);
-	init_timer(&vub300->sg_transfer_timer);
-	vub300->sg_transfer_timer.data = (unsigned long)vub300;
-	vub300->sg_transfer_timer.function = vub300_sg_timed_out;
+	setup_timer(&vub300->sg_transfer_timer, vub300_sg_timed_out,
+		    (unsigned long)vub300);
 	kref_get(&vub300->kref);
-	init_timer(&vub300->inactivity_timer);
-	vub300->inactivity_timer.data = (unsigned long)vub300;
-	vub300->inactivity_timer.function = vub300_inactivity_timer_expired;
+	setup_timer(&vub300->inactivity_timer,
+		    vub300_inactivity_timer_expired, (unsigned long)vub300);
 	vub300->inactivity_timer.expires = jiffies + HZ;
 	add_timer(&vub300->inactivity_timer);
 	if (vub300->card_present)
