@@ -141,14 +141,14 @@ static void tegra_gpio_disable(struct tegra_gpio_info *tgi, unsigned int gpio)
 
 static int tegra_gpio_request(struct gpio_chip *chip, unsigned int offset)
 {
-	return pinctrl_request_gpio(offset);
+	return pinctrl_gpio_request(offset);
 }
 
 static void tegra_gpio_free(struct gpio_chip *chip, unsigned int offset)
 {
 	struct tegra_gpio_info *tgi = gpiochip_get_data(chip);
 
-	pinctrl_free_gpio(offset);
+	pinctrl_gpio_free(offset);
 	tegra_gpio_disable(tgi, offset);
 }
 

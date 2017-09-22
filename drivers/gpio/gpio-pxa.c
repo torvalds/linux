@@ -332,12 +332,12 @@ static int pxa_gpio_of_xlate(struct gpio_chip *gc,
 
 static int pxa_gpio_request(struct gpio_chip *chip, unsigned int offset)
 {
-	return pinctrl_request_gpio(chip->base + offset);
+	return pinctrl_gpio_request(chip->base + offset);
 }
 
 static void pxa_gpio_free(struct gpio_chip *chip, unsigned int offset)
 {
-	pinctrl_free_gpio(chip->base + offset);
+	pinctrl_gpio_free(chip->base + offset);
 }
 
 static int pxa_init_gpio_chip(struct pxa_gpio_chip *pchip, int ngpio,

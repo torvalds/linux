@@ -412,14 +412,14 @@ static const struct pinconf_ops meson_pinconf_ops = {
 
 static int meson_gpio_request(struct gpio_chip *chip, unsigned gpio)
 {
-	return pinctrl_request_gpio(chip->base + gpio);
+	return pinctrl_gpio_request(chip->base + gpio);
 }
 
 static void meson_gpio_free(struct gpio_chip *chip, unsigned gpio)
 {
 	struct meson_pinctrl *pc = gpiochip_get_data(chip);
 
-	pinctrl_free_gpio(pc->data->pin_base + gpio);
+	pinctrl_gpio_free(pc->data->pin_base + gpio);
 }
 
 static int meson_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
