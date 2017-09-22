@@ -678,7 +678,7 @@ void perf_evsel__config_callchain(struct perf_evsel *evsel,
 		if (!function) {
 			perf_evsel__set_sample_bit(evsel, REGS_USER);
 			perf_evsel__set_sample_bit(evsel, STACK_USER);
-			attr->sample_regs_user = PERF_REGS_MASK;
+			attr->sample_regs_user |= PERF_REGS_MASK;
 			attr->sample_stack_user = param->dump_size;
 			attr->exclude_callchain_user = 1;
 		} else {
@@ -929,6 +929,11 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 	if (opts->sample_intr_regs) {
 		attr->sample_regs_intr = opts->sample_intr_regs;
 		perf_evsel__set_sample_bit(evsel, REGS_INTR);
+	}
+
+	if (opts->sample_user_regs) {
+		attr->sample_regs_user |= opts->sample_user_regs;
+		perf_evsel__set_sample_bit(evsel, REGS_USER);
 	}
 
 	if (target__has_cpu(&opts->target) || opts->sample_cpu)

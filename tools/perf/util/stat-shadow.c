@@ -6,6 +6,7 @@
 #include "rblist.h"
 #include "evlist.h"
 #include "expr.h"
+#include "metricgroup.h"
 
 enum {
 	CTX_BIT_USER	= 1 << 0,
@@ -55,7 +56,6 @@ struct saved_value {
 	struct rb_node rb_node;
 	struct perf_evsel *evsel;
 	int cpu;
-	int ctx;
 	struct stats stats;
 };
 
@@ -66,8 +66,6 @@ static int saved_value_cmp(struct rb_node *rb_node, const void *entry)
 					     rb_node);
 	const struct saved_value *b = entry;
 
-	if (a->ctx != b->ctx)
-		return a->ctx - b->ctx;
 	if (a->cpu != b->cpu)
 		return a->cpu - b->cpu;
 	if (a->evsel == b->evsel)
@@ -89,13 +87,12 @@ static struct rb_node *saved_value_new(struct rblist *rblist __maybe_unused,
 }
 
 static struct saved_value *saved_value_lookup(struct perf_evsel *evsel,
-					      int cpu, int ctx,
+					      int cpu,
 					      bool create)
 {
 	struct rb_node *nd;
 	struct saved_value dm = {
 		.cpu = cpu,
-		.ctx = ctx,
 		.evsel = evsel,
 	};
 	nd = rblist__find(&runtime_saved_values, &dm);
@@ -231,8 +228,7 @@ void perf_stat__update_shadow_stats(struct perf_evsel *counter, u64 *count,
 		update_stats(&runtime_aperf_stats[ctx][cpu], count[0]);
 
 	if (counter->collect_stat) {
-		struct saved_value *v = saved_value_lookup(counter, cpu, ctx,
-							   true);
+		struct saved_value *v = saved_value_lookup(counter, cpu, true);
 		update_stats(&v->stats, count[0]);
 	}
 }
@@ -627,15 +623,68 @@ static void print_smi_cost(int cpu, struct perf_evsel *evsel,
 	out->print_metric(out->ctx, NULL, "%4.0f", "SMI#", smi_num);
 }
 
+static void generic_metric(const char *metric_expr,
+			   struct perf_evsel **metric_events,
+			   char *name,
+			   const char *metric_name,
+			   double avg,
+			   int cpu,
+			   struct perf_stat_output_ctx *out)
+{
+	print_metric_t print_metric = out->print_metric;
+	struct parse_ctx pctx;
+	double ratio;
+	int i;
+	void *ctxp = out->ctx;
+
+	expr__ctx_init(&pctx);
+	expr__add_id(&pctx, name, avg);
+	for (i = 0; metric_events[i]; i++) {
+		struct saved_value *v;
+		struct stats *stats;
+		double scale;
+
+		if (!strcmp(metric_events[i]->name, "duration_time")) {
+			stats = &walltime_nsecs_stats;
+			scale = 1e-9;
+		} else {
+			v = saved_value_lookup(metric_events[i], cpu, false);
+			if (!v)
+				break;
+			stats = &v->stats;
+			scale = 1.0;
+		}
+		expr__add_id(&pctx, metric_events[i]->name, avg_stats(stats)*scale);
+	}
+	if (!metric_events[i]) {
+		const char *p = metric_expr;
+
+		if (expr__parse(&ratio, &pctx, &p) == 0)
+			print_metric(ctxp, NULL, "%8.1f",
+				metric_name ?
+				metric_name :
+				out->force_header ?  name : "",
+				ratio);
+		else
+			print_metric(ctxp, NULL, NULL,
+				     out->force_header ?
+				     (metric_name ? metric_name : name) : "", 0);
+	} else
+		print_metric(ctxp, NULL, NULL, "", 0);
+}
+
 void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
 				   double avg, int cpu,
-				   struct perf_stat_output_ctx *out)
+				   struct perf_stat_output_ctx *out,
+				   struct rblist *metric_events)
 {
 	void *ctxp = out->ctx;
 	print_metric_t print_metric = out->print_metric;
 	double total, ratio = 0.0, total2;
 	const char *color = NULL;
 	int ctx = evsel_context(evsel);
+	struct metric_event *me;
+	int num = 1;
 
 	if (perf_evsel__match(evsel, HARDWARE, HW_INSTRUCTIONS)) {
 		total = avg_stats(&runtime_cycles_stats[ctx][cpu]);
@@ -819,33 +868,8 @@ void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
 		else
 			print_metric(ctxp, NULL, NULL, name, 0);
 	} else if (evsel->metric_expr) {
-		struct parse_ctx pctx;
-		int i;
-
-		expr__ctx_init(&pctx);
-		expr__add_id(&pctx, evsel->name, avg);
-		for (i = 0; evsel->metric_events[i]; i++) {
-			struct saved_value *v;
-
-			v = saved_value_lookup(evsel->metric_events[i], cpu, ctx, false);
-			if (!v)
-				break;
-			expr__add_id(&pctx, evsel->metric_events[i]->name,
-					     avg_stats(&v->stats));
-		}
-		if (!evsel->metric_events[i]) {
-			const char *p = evsel->metric_expr;
-
-			if (expr__parse(&ratio, &pctx, &p) == 0)
-				print_metric(ctxp, NULL, "%8.1f",
-					evsel->metric_name ?
-					evsel->metric_name :
-					out->force_header ?  evsel->name : "",
-					ratio);
-			else
-				print_metric(ctxp, NULL, NULL, "", 0);
-		} else
-			print_metric(ctxp, NULL, NULL, "", 0);
+		generic_metric(evsel->metric_expr, evsel->metric_events, evsel->name,
+				evsel->metric_name, avg, cpu, out);
 	} else if (runtime_nsecs_stats[cpu].n != 0) {
 		char unit = 'M';
 		char unit_buf[10];
@@ -863,6 +887,20 @@ void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
 	} else if (perf_stat_evsel__is(evsel, SMI_NUM)) {
 		print_smi_cost(cpu, evsel, out);
 	} else {
-		print_metric(ctxp, NULL, NULL, NULL, 0);
+		num = 0;
 	}
+
+	if ((me = metricgroup__lookup(metric_events, evsel, false)) != NULL) {
+		struct metric_expr *mexp;
+
+		list_for_each_entry (mexp, &me->head, nd) {
+			if (num++ > 0)
+				out->new_line(ctxp);
+			generic_metric(mexp->metric_expr, mexp->metric_events,
+					evsel->name, mexp->metric_name,
+					avg, cpu, out);
+		}
+	}
+	if (num == 0)
+		print_metric(ctxp, NULL, NULL, NULL, 0);
 }

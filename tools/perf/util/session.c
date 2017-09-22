@@ -1847,7 +1847,7 @@ static int __perf_session__process_events(struct perf_session *session,
 	if (data_offset + data_size < file_size)
 		file_size = data_offset + data_size;
 
-	ui_progress__init(&prog, file_size, "Processing events...");
+	ui_progress__init_size(&prog, file_size, "Processing events...");
 
 	mmap_size = MMAP_SIZE;
 	if (mmap_size > file_size) {

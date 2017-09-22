@@ -65,6 +65,7 @@
 #include "util/tool.h"
 #include "util/group.h"
 #include "util/string2.h"
+#include "util/metricgroup.h"
 #include "asm/bug.h"
 
 #include <linux/time64.h>
@@ -133,6 +134,8 @@ static const char *smi_cost_attrs = {
 
 static struct perf_evlist	*evsel_list;
 
+static struct rblist		 metric_events;
+
 static struct target target = {
 	.uid	= UINT_MAX,
 };
@@ -191,6 +194,11 @@ static struct perf_stat_config stat_config = {
 	.aggr_mode	= AGGR_GLOBAL,
 	.scale		= true,
 };
+
+static bool is_duration_time(struct perf_evsel *evsel)
+{
+	return !strcmp(evsel->name, "duration_time");
+}
 
 static inline void diff_timespec(struct timespec *r, struct timespec *a,
 				 struct timespec *b)
@@ -407,6 +415,8 @@ static void process_interval(void)
 			pr_err("failed to write stat round event\n");
 	}
 
+	init_stats(&walltime_nsecs_stats);
+	update_stats(&walltime_nsecs_stats, stat_config.interval * 1000000);
 	print_counters(&rs, 0, NULL);
 }
 
@@ -582,6 +592,32 @@ static bool perf_evsel__should_store_id(struct perf_evsel *counter)
 	return STAT_RECORD || counter->attr.read_format & PERF_FORMAT_ID;
 }
 
+static struct perf_evsel *perf_evsel__reset_weak_group(struct perf_evsel *evsel)
+{
+	struct perf_evsel *c2, *leader;
+	bool is_open = true;
+
+	leader = evsel->leader;
+	pr_debug("Weak group for %s/%d failed\n",
+			leader->name, leader->nr_members);
+
+	/*
+	 * for_each_group_member doesn't work here because it doesn't
+	 * include the first entry.
+	 */
+	evlist__for_each_entry(evsel_list, c2) {
+		if (c2 == evsel)
+			is_open = false;
+		if (c2->leader == leader) {
+			if (is_open)
+				perf_evsel__close(c2);
+			c2->leader = c2;
+			c2->nr_members = 0;
+		}
+	}
+	return leader;
+}
+
 static int __run_perf_stat(int argc, const char **argv)
 {
 	int interval = stat_config.interval;
@@ -618,6 +654,15 @@ static int __run_perf_stat(int argc, const char **argv)
 	evlist__for_each_entry(evsel_list, counter) {
 try_again:
 		if (create_perf_stat_counter(counter) < 0) {
+
+			/* Weak group failed. Reset the group. */
+			if ((errno == EINVAL || errno == EBADF) &&
+			    counter->leader != counter &&
+			    counter->weak_group) {
+				counter = perf_evsel__reset_weak_group(counter);
+				goto try_again;
+			}
+
 			/*
 			 * PPC returns ENXIO for HW counters until 2.6.37
 			 * (behavior changed with commit b0a873e).
@@ -1199,7 +1244,7 @@ static void printout(int id, int nr, struct perf_evsel *counter, double uval,
 
 	perf_stat__print_shadow_stats(counter, uval,
 				first_shadow_cpu(counter, id),
-				&out);
+				&out, &metric_events);
 	if (!csv_output && !metric_only) {
 		print_noise(counter, noise);
 		print_running(run, ena);
@@ -1325,6 +1370,9 @@ static void print_aggr(char *prefix)
 		ad.id = id = aggr_map->map[s];
 		first = true;
 		evlist__for_each_entry(evsel_list, counter) {
+			if (is_duration_time(counter))
+				continue;
+
 			ad.val = ad.ena = ad.run = 0;
 			ad.nr = 0;
 			if (!collect_data(counter, aggr_cb, &ad))
@@ -1468,6 +1516,8 @@ static void print_no_aggr_metric(char *prefix)
 		if (prefix)
 			fputs(prefix, stat_config.output);
 		evlist__for_each_entry(evsel_list, counter) {
+			if (is_duration_time(counter))
+				continue;
 			if (first) {
 				aggr_printout(counter, cpu, 0);
 				first = false;
@@ -1522,6 +1572,8 @@ static void print_metric_headers(const char *prefix, bool no_indent)
 
 	/* Print metrics headers only */
 	evlist__for_each_entry(evsel_list, counter) {
+		if (is_duration_time(counter))
+			continue;
 		os.evsel = counter;
 		out.ctx = &os;
 		out.print_metric = print_metric_header;
@@ -1530,7 +1582,8 @@ static void print_metric_headers(const char *prefix, bool no_indent)
 		os.evsel = counter;
 		perf_stat__print_shadow_stats(counter, 0,
 					      0,
-					      &out);
+					      &out,
+					      &metric_events);
 	}
 	fputc('\n', stat_config.output);
 }
@@ -1668,12 +1721,18 @@ static void print_counters(struct timespec *ts, int argc, const char **argv)
 		print_aggr(prefix);
 		break;
 	case AGGR_THREAD:
-		evlist__for_each_entry(evsel_list, counter)
+		evlist__for_each_entry(evsel_list, counter) {
+			if (is_duration_time(counter))
+				continue;
 			print_aggr_thread(counter, prefix);
+		}
 		break;
 	case AGGR_GLOBAL:
-		evlist__for_each_entry(evsel_list, counter)
+		evlist__for_each_entry(evsel_list, counter) {
+			if (is_duration_time(counter))
+				continue;
 			print_counter_aggr(counter, prefix);
+		}
 		if (metric_only)
 			fputc('\n', stat_config.output);
 		break;
@@ -1681,8 +1740,11 @@ static void print_counters(struct timespec *ts, int argc, const char **argv)
 		if (metric_only)
 			print_no_aggr_metric(prefix);
 		else {
-			evlist__for_each_entry(evsel_list, counter)
+			evlist__for_each_entry(evsel_list, counter) {
+				if (is_duration_time(counter))
+					continue;
 				print_counter(counter, prefix);
+			}
 		}
 		break;
 	case AGGR_UNSET:
@@ -1754,6 +1816,13 @@ static int enable_metric_only(const struct option *opt __maybe_unused,
 	return 0;
 }
 
+static int parse_metric_groups(const struct option *opt,
+			       const char *str,
+			       int unset __maybe_unused)
+{
+	return metricgroup__parse_groups(opt, str, &metric_events);
+}
+
 static const struct option stat_options[] = {
 	OPT_BOOLEAN('T', "transaction", &transaction_run,
 		    "hardware transaction statistics"),
@@ -1819,6 +1888,9 @@ static const struct option stat_options[] = {
 			"measure topdown level 1 statistics"),
 	OPT_BOOLEAN(0, "smi-cost", &smi_cost,
 			"measure SMI cost"),
+	OPT_CALLBACK('M', "metrics", &evsel_list, "metric/metric group list",
+		     "monitor specified metrics or metric groups (separated by ,)",
+		     parse_metric_groups),
 	OPT_END()
 };
 
