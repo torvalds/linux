@@ -648,7 +648,7 @@ cc2520_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 	BUG_ON(channel > CC2520_MAXCHANNEL);
 
 	ret = cc2520_write_register(priv, CC2520_FREQCTRL,
-				    11 + 5*(channel - 11));
+				    11 + 5 * (channel - 11));
 
 	return ret;
 }
@@ -929,6 +929,7 @@ static int cc2520_get_platform_data(struct spi_device *spi,
 
 	if (!np) {
 		struct cc2520_platform_data *spi_pdata = spi->dev.platform_data;
+
 		if (!spi_pdata)
 			return -ENOENT;
 		*pdata = *spi_pdata;
