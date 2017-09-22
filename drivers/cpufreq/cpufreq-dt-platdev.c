@@ -106,6 +106,18 @@ static const struct of_device_id whitelist[] __initconst = {
  * platforms using "operating-points-v2" property.
  */
 static const struct of_device_id blacklist[] __initconst = {
+	{ .compatible = "calxeda,highbank", },
+	{ .compatible = "calxeda,ecx-2000", },
+
+	{ .compatible = "marvell,armadaxp", },
+
+	{ .compatible = "nvidia,tegra124", },
+
+	{ .compatible = "st,stih407", },
+	{ .compatible = "st,stih410", },
+
+	{ .compatible = "sigma,tango4", },
+
 	{ }
 };
 
