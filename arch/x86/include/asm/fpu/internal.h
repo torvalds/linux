@@ -120,20 +120,11 @@ extern void fpstate_sanitize_xstate(struct fpu *fpu);
 	err;								\
 })
 
-#define check_insn(insn, output, input...)				\
-({									\
-	int err;							\
+#define kernel_insn(insn, output, input...)				\
 	asm volatile("1:" #insn "\n\t"					\
 		     "2:\n"						\
-		     ".section .fixup,\"ax\"\n"				\
-		     "3:  movl $-1,%[err]\n"				\
-		     "    jmp  2b\n"					\
-		     ".previous\n"					\
-		     _ASM_EXTABLE(1b, 3b)				\
-		     : [err] "=r" (err), output				\
-		     : "0"(0), input);					\
-	err;								\
-})
+		     _ASM_EXTABLE_HANDLE(1b, 2b, ex_handler_fprestore)	\
+		     : output : input)
 
 static inline int copy_fregs_to_user(struct fregs_state __user *fx)
 {
@@ -153,20 +144,16 @@ static inline int copy_fxregs_to_user(struct fxregs_state __user *fx)
 
 static inline void copy_kernel_to_fxregs(struct fxregs_state *fx)
 {
-	int err;
-
 	if (IS_ENABLED(CONFIG_X86_32)) {
-		err = check_insn(fxrstor %[fx], "=m" (*fx), [fx] "m" (*fx));
+		kernel_insn(fxrstor %[fx], "=m" (*fx), [fx] "m" (*fx));
 	} else {
 		if (IS_ENABLED(CONFIG_AS_FXSAVEQ)) {
-			err = check_insn(fxrstorq %[fx], "=m" (*fx), [fx] "m" (*fx));
+			kernel_insn(fxrstorq %[fx], "=m" (*fx), [fx] "m" (*fx));
 		} else {
 			/* See comment in copy_fxregs_to_kernel() below. */
-			err = check_insn(rex64/fxrstor (%[fx]), "=m" (*fx), [fx] "R" (fx), "m" (*fx));
+			kernel_insn(rex64/fxrstor (%[fx]), "=m" (*fx), [fx] "R" (fx), "m" (*fx));
 		}
 	}
-	/* Copying from a kernel buffer to FPU registers should never fail: */
-	WARN_ON_FPU(err);
 }
 
 static inline int copy_user_to_fxregs(struct fxregs_state __user *fx)
@@ -183,9 +170,7 @@ static inline int copy_user_to_fxregs(struct fxregs_state __user *fx)
 
 static inline void copy_kernel_to_fregs(struct fregs_state *fx)
 {
-	int err = check_insn(frstor %[fx], "=m" (*fx), [fx] "m" (*fx));
-
-	WARN_ON_FPU(err);
+	kernel_insn(frstor %[fx], "=m" (*fx), [fx] "m" (*fx));
 }
 
 static inline int copy_user_to_fregs(struct fregs_state __user *fx)
@@ -281,18 +266,13 @@ static inline void copy_fxregs_to_kernel(struct fpu *fpu)
  * Use XRSTORS to restore context if it is enabled. XRSTORS supports compact
  * XSAVE area format.
  */
-#define XSTATE_XRESTORE(st, lmask, hmask, err)				\
+#define XSTATE_XRESTORE(st, lmask, hmask)				\
 	asm volatile(ALTERNATIVE(XRSTOR,				\
 				 XRSTORS, X86_FEATURE_XSAVES)		\
 		     "\n"						\
-		     "xor %[err], %[err]\n"				\
 		     "3:\n"						\
-		     ".pushsection .fixup,\"ax\"\n"			\
-		     "4: movl $-2, %[err]\n"				\
-		     "jmp 3b\n"						\
-		     ".popsection\n"					\
-		     _ASM_EXTABLE(661b, 4b)				\
-		     : [err] "=r" (err)					\
+		     _ASM_EXTABLE_HANDLE(661b, 3b, ex_handler_fprestore)\
+		     :							\
 		     : "D" (st), "m" (*st), "a" (lmask), "d" (hmask)	\
 		     : "memory")
 
@@ -336,7 +316,10 @@ static inline void copy_kernel_to_xregs_booting(struct xregs_state *xstate)
 	else
 		XSTATE_OP(XRSTOR, xstate, lmask, hmask, err);
 
-	/* We should never fault when copying from a kernel buffer: */
+	/*
+	 * We should never fault when copying from a kernel buffer, and the FPU
+	 * state we set at boot time should be valid.
+	 */
 	WARN_ON_FPU(err);
 }
 
@@ -365,12 +348,8 @@ static inline void copy_kernel_to_xregs(struct xregs_state *xstate, u64 mask)
 {
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
-	int err;
 
-	XSTATE_XRESTORE(xstate, lmask, hmask, err);
-
-	/* We should never fault when copying from a kernel buffer: */
-	WARN_ON_FPU(err);
+	XSTATE_XRESTORE(xstate, lmask, hmask);
 }
 
 /*
