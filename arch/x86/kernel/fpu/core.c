@@ -205,9 +205,6 @@ int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 	/*
 	 * Save current FPU registers directly into the child
 	 * FPU context, without any memory-to-memory copying.
-	 * In lazy mode, if the FPU context isn't loaded into
-	 * fpregs, CR0.TS will be set and do_device_not_available
-	 * will load the FPU context.
 	 *
 	 * We have to do all this with preemption disabled,
 	 * mostly because of the FNSAVE case, because in that
@@ -285,13 +282,13 @@ void fpu__activate_fpstate_read(struct fpu *fpu)
 /*
  * This function must be called before we write a task's fpstate.
  *
- * If the task has used the FPU before then unlazy it.
+ * If the task has used the FPU before then invalidate any cached FPU registers.
  * If the task has not used the FPU before then initialize its fpstate.
  *
  * After this function call, after registers in the fpstate are
  * modified and the child task has woken up, the child task will
  * restore the modified FPU state from the modified context. If we
- * didn't clear its lazy status here then the lazy in-registers
+ * didn't clear its cached status here then the cached in-registers
  * state pending on its former CPU could be restored, corrupting
  * the modifications.
  */
@@ -304,7 +301,7 @@ void fpu__activate_fpstate_write(struct fpu *fpu)
 	WARN_ON_FPU(fpu == &current->thread.fpu);
 
 	if (fpu->initialized) {
-		/* Invalidate any lazy state: */
+		/* Invalidate any cached state: */
 		__fpu_invalidate_fpregs_state(fpu);
 	} else {
 		fpstate_init(&fpu->state);
