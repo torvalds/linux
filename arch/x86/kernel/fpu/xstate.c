@@ -925,15 +925,11 @@ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
  * the source data pointer or increment pos, count, kbuf, and ubuf.
  */
 static inline int
-__copy_xstate_to_kernel(void *kbuf,
-			const void *data,
-			unsigned int offset, unsigned int size, int size_total)
+__copy_xstate_to_kernel(void *kbuf, const void *data,
+			unsigned int offset, unsigned int size, unsigned int size_total)
 {
-	if (!size)
-		return 0;
-
-	if (size_total < 0 || offset < size_total) {
-		unsigned int copy = size_total < 0 ? size : min(size, size_total - offset);
+	if (offset < size_total) {
+		unsigned int copy = min(size, size_total - offset);
 
 		memcpy(kbuf + offset, data, copy);
 	}
@@ -986,12 +982,13 @@ int copy_xstate_to_kernel(void *kbuf, struct xregs_state *xsave, unsigned int of
 			offset = xstate_offsets[i];
 			size = xstate_sizes[i];
 
+			/* The next component has to fit fully into the output buffer: */
+			if (offset + size > size_total)
+				break;
+
 			ret = __copy_xstate_to_kernel(kbuf, src, offset, size, size_total);
 			if (ret)
 				return ret;
-
-			if (offset + size >= size_total)
-				break;
 		}
 
 	}
@@ -1010,13 +1007,13 @@ int copy_xstate_to_kernel(void *kbuf, struct xregs_state *xsave, unsigned int of
 }
 
 static inline int
-__copy_xstate_to_user(void __user *ubuf, const void *data, unsigned int offset, unsigned int size, int size_total)
+__copy_xstate_to_user(void __user *ubuf, const void *data, unsigned int offset, unsigned int size, unsigned int size_total)
 {
 	if (!size)
 		return 0;
 
-	if (size_total < 0 || offset < size_total) {
-		unsigned int copy = size_total < 0 ? size : min(size, size_total - offset);
+	if (offset < size_total) {
+		unsigned int copy = min(size, size_total - offset);
 
 		if (__copy_to_user(ubuf + offset, data, copy))
 			return -EFAULT;
@@ -1069,12 +1066,13 @@ int copy_xstate_to_user(void __user *ubuf, struct xregs_state *xsave, unsigned i
 			offset = xstate_offsets[i];
 			size = xstate_sizes[i];
 
+			/* The next component has to fit fully into the output buffer: */
+			if (offset + size > size_total)
+				break;
+
 			ret = __copy_xstate_to_user(ubuf, src, offset, size, size_total);
 			if (ret)
 				return ret;
-
-			if (offset + size >= size_total)
-				break;
 		}
 
 	}
