@@ -927,13 +927,13 @@ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 static inline int
 __copy_xstate_to_kernel(void *kbuf,
 			const void *data,
-			unsigned int pos, unsigned int count, const int start_pos, const int end_pos)
+			unsigned int pos, unsigned int count, int start_pos, int end_pos)
 {
 	if ((count == 0) || (pos < start_pos))
 		return 0;
 
 	if (end_pos < 0 || pos < end_pos) {
-		unsigned int copy = (end_pos < 0 ? count : min(count, end_pos - pos));
+		unsigned int copy = end_pos < 0 ? count : min(count, end_pos - pos);
 
 		memcpy(kbuf + pos, data, copy);
 	}
@@ -1010,13 +1010,13 @@ int copy_xstate_to_kernel(void *kbuf, struct xregs_state *xsave, unsigned int po
 }
 
 static inline int
-__copy_xstate_to_user(void __user *ubuf, const void *data, unsigned int pos, unsigned int count, const int start_pos, const int end_pos)
+__copy_xstate_to_user(void __user *ubuf, const void *data, unsigned int pos, unsigned int count, int start_pos, int end_pos)
 {
 	if ((count == 0) || (pos < start_pos))
 		return 0;
 
 	if (end_pos < 0 || pos < end_pos) {
-		unsigned int copy = (end_pos < 0 ? count : min(count, end_pos - pos));
+		unsigned int copy = end_pos < 0 ? count : min(count, end_pos - pos);
 
 		if (__copy_to_user(ubuf + pos, data, copy))
 			return -EFAULT;
@@ -1026,7 +1026,7 @@ __copy_xstate_to_user(void __user *ubuf, const void *data, unsigned int pos, uns
 
 /*
  * Convert from kernel XSAVES compacted format to standard format and copy
- * to a ptrace buffer. It supports partial copy but pos always starts from
+ * to a user-space buffer. It supports partial copy but pos always starts from
  * zero. This is called from xstateregs_get() and there we check the CPU
  * has XSAVES.
  */
