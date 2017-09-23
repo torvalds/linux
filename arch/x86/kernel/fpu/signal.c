@@ -171,7 +171,9 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 			sizeof(struct user_i387_ia32_struct), NULL,
 			(struct _fpstate_32 __user *) buf) ? -1 : 1;
 
-	if (fpu->fpregs_active || using_compacted_format()) {
+	WARN_ON_FPU(fpu->fpstate_active != fpu->fpregs_active);
+
+	if (fpu->fpstate_active || using_compacted_format()) {
 		/* Save the live register state to the user directly. */
 		if (copy_fpregs_to_sigframe(buf_fx))
 			return -1;

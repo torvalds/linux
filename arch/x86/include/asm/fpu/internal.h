@@ -556,7 +556,9 @@ static inline void fpregs_activate(struct fpu *fpu)
 static inline void
 switch_fpu_prepare(struct fpu *old_fpu, int cpu)
 {
-	if (old_fpu->fpregs_active) {
+	WARN_ON_FPU(old_fpu->fpregs_active != old_fpu->fpstate_active);
+
+	if (old_fpu->fpstate_active) {
 		if (!copy_fpregs_to_fpstate(old_fpu))
 			old_fpu->last_cpu = -1;
 		else
