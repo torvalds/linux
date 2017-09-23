@@ -1617,7 +1617,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 
 	*cookie = (unsigned long)buf;
 	priv->u64tx_cookie = *cookie;
-	mgmt = (const struct ieee80211_mgmt *) buf;
+	mgmt = (const struct ieee80211_mgmt *)buf;
 
 	if (ieee80211_is_mgmt(mgmt->frame_control)) {
 		mgmt_tx = kmalloc(sizeof(struct p2p_mgmt_data), GFP_KERNEL);
