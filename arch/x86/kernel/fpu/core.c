@@ -224,7 +224,7 @@ int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
  * Activate the current task's in-memory FPU context,
  * if it has not been used before:
  */
-void fpu__activate_curr(struct fpu *fpu)
+void fpu__initialize(struct fpu *fpu)
 {
 	WARN_ON_FPU(fpu != &current->thread.fpu);
 
@@ -237,7 +237,7 @@ void fpu__activate_curr(struct fpu *fpu)
 		fpu->initialized = 1;
 	}
 }
-EXPORT_SYMBOL_GPL(fpu__activate_curr);
+EXPORT_SYMBOL_GPL(fpu__initialize);
 
 /*
  * This function must be called before we read a task's fpstate.
@@ -316,7 +316,7 @@ void fpu__activate_fpstate_write(struct fpu *fpu)
  */
 void fpu__restore(struct fpu *fpu)
 {
-	fpu__activate_curr(fpu);
+	fpu__initialize(fpu);
 
 	/* Avoid __kernel_fpu_begin() right after fpregs_activate() */
 	kernel_fpu_disable();
@@ -392,7 +392,7 @@ void fpu__clear(struct fpu *fpu)
 	 */
 	if (static_cpu_has(X86_FEATURE_FPU)) {
 		preempt_disable();
-		fpu__activate_curr(fpu);
+		fpu__initialize(fpu);
 		user_fpu_begin();
 		copy_init_fpstate_to_fpregs();
 		preempt_enable();

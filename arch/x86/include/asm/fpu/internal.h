@@ -23,7 +23,7 @@
 /*
  * High level FPU state handling functions:
  */
-extern void fpu__activate_curr(struct fpu *fpu);
+extern void fpu__initialize(struct fpu *fpu);
 extern void fpu__activate_fpstate_read(struct fpu *fpu);
 extern void fpu__activate_fpstate_write(struct fpu *fpu);
 extern void fpu__save(struct fpu *fpu);

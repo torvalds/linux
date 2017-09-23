@@ -280,7 +280,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 	if (!access_ok(VERIFY_READ, buf, size))
 		return -EACCES;
 
-	fpu__activate_curr(fpu);
+	fpu__initialize(fpu);
 
 	if (!static_cpu_has(X86_FEATURE_FPU))
 		return fpregs_soft_set(current, NULL,
