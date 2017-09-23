@@ -774,7 +774,7 @@ out:
 	return err;
 }
 
-static struct tun_struct *__tun_get(struct tun_file *tfile)
+static struct tun_struct *tun_get(struct tun_file *tfile)
 {
 	struct tun_struct *tun;
 
@@ -785,11 +785,6 @@ static struct tun_struct *__tun_get(struct tun_file *tfile)
 	rcu_read_unlock();
 
 	return tun;
-}
-
-static struct tun_struct *tun_get(struct file *file)
-{
-	return __tun_get(file->private_data);
 }
 
 static void tun_put(struct tun_struct *tun)
@@ -1250,7 +1245,7 @@ static void tun_net_init(struct net_device *dev)
 static unsigned int tun_chr_poll(struct file *file, poll_table *wait)
 {
 	struct tun_file *tfile = file->private_data;
-	struct tun_struct *tun = __tun_get(tfile);
+	struct tun_struct *tun = tun_get(tfile);
 	struct sock *sk;
 	unsigned int mask = 0;
 
@@ -1784,8 +1779,8 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 static ssize_t tun_chr_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
-	struct tun_struct *tun = tun_get(file);
 	struct tun_file *tfile = file->private_data;
+	struct tun_struct *tun = tun_get(tfile);
 	ssize_t result;
 
 	if (!tun)
@@ -1969,7 +1964,7 @@ static ssize_t tun_chr_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct file *file = iocb->ki_filp;
 	struct tun_file *tfile = file->private_data;
-	struct tun_struct *tun = __tun_get(tfile);
+	struct tun_struct *tun = tun_get(tfile);
 	ssize_t len = iov_iter_count(to), ret;
 
 	if (!tun)
@@ -2046,7 +2041,7 @@ static int tun_sendmsg(struct socket *sock, struct msghdr *m, size_t total_len)
 {
 	int ret;
 	struct tun_file *tfile = container_of(sock, struct tun_file, socket);
-	struct tun_struct *tun = __tun_get(tfile);
+	struct tun_struct *tun = tun_get(tfile);
 
 	if (!tun)
 		return -EBADFD;
@@ -2062,7 +2057,7 @@ static int tun_recvmsg(struct socket *sock, struct msghdr *m, size_t total_len,
 		       int flags)
 {
 	struct tun_file *tfile = container_of(sock, struct tun_file, socket);
-	struct tun_struct *tun = __tun_get(tfile);
+	struct tun_struct *tun = tun_get(tfile);
 	int ret;
 
 	if (!tun)
@@ -2094,7 +2089,7 @@ static int tun_peek_len(struct socket *sock)
 	struct tun_struct *tun;
 	int ret = 0;
 
-	tun = __tun_get(tfile);
+	tun = tun_get(tfile);
 	if (!tun)
 		return 0;
 
@@ -2490,7 +2485,7 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 	ret = 0;
 	rtnl_lock();
 
-	tun = __tun_get(tfile);
+	tun = tun_get(tfile);
 	if (cmd == TUNSETIFF) {
 		ret = -EEXIST;
 		if (tun)
@@ -2837,15 +2832,16 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 }
 
 #ifdef CONFIG_PROC_FS
-static void tun_chr_show_fdinfo(struct seq_file *m, struct file *f)
+static void tun_chr_show_fdinfo(struct seq_file *m, struct file *file)
 {
+	struct tun_file *tfile = file->private_data;
 	struct tun_struct *tun;
 	struct ifreq ifr;
 
 	memset(&ifr, 0, sizeof(ifr));
 
 	rtnl_lock();
-	tun = tun_get(f);
+	tun = tun_get(tfile);
 	if (tun)
 		tun_get_iff(current->nsproxy->net_ns, tun, &ifr);
 	rtnl_unlock();
