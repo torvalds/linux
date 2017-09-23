@@ -1084,7 +1084,71 @@ int copy_xstate_to_user(void __user *ubuf, struct xregs_state *xsave, unsigned i
 }
 
 /*
- * Convert from a ptrace standard-format buffer to kernel XSAVES format
+ * Convert from a ptrace standard-format kernel buffer to kernel XSAVES format
+ * and copy to the target thread. This is called from xstateregs_set() and
+ * there we check the CPU has XSAVES and a whole standard-sized buffer
+ * exists.
+ */
+int copy_kernel_to_xstate(const void *kbuf, const void __user *ubuf,
+		     struct xregs_state *xsave)
+{
+	unsigned int offset, size;
+	int i;
+	u64 xfeatures;
+	u64 allowed_features;
+
+	offset = offsetof(struct xregs_state, header);
+	size = sizeof(xfeatures);
+
+	if (kbuf) {
+		memcpy(&xfeatures, kbuf + offset, size);
+	} else {
+		if (__copy_from_user(&xfeatures, ubuf + offset, size))
+			return -EFAULT;
+	}
+
+	/*
+	 * Reject if the user sets any disabled or supervisor features:
+	 */
+	allowed_features = xfeatures_mask & ~XFEATURE_MASK_SUPERVISOR;
+
+	if (xfeatures & ~allowed_features)
+		return -EINVAL;
+
+	for (i = 0; i < XFEATURE_MAX; i++) {
+		u64 mask = ((u64)1 << i);
+
+		if (xfeatures & mask) {
+			void *dst = __raw_xsave_addr(xsave, 1 << i);
+
+			offset = xstate_offsets[i];
+			size = xstate_sizes[i];
+
+			if (kbuf) {
+				memcpy(dst, kbuf + offset, size);
+			} else {
+				if (__copy_from_user(dst, ubuf + offset, size))
+					return -EFAULT;
+			}
+		}
+	}
+
+	/*
+	 * The state that came in from userspace was user-state only.
+	 * Mask all the user states out of 'xfeatures':
+	 */
+	xsave->header.xfeatures &= XFEATURE_MASK_SUPERVISOR;
+
+	/*
+	 * Add back in the features that came in from userspace:
+	 */
+	xsave->header.xfeatures |= xfeatures;
+
+	return 0;
+}
+
+/*
+ * Convert from a ptrace standard-format user-space buffer to kernel XSAVES format
  * and copy to the target thread. This is called from xstateregs_set() and
  * there we check the CPU has XSAVES and a whole standard-sized buffer
  * exists.
