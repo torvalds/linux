@@ -1324,32 +1324,15 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 			     gfp_t gfp_mask)
 {
 	int j;
-	int nr_pages = 0;
 	struct bio *bio;
 	int ret;
 	struct iov_iter i;
-	struct iovec iov;
 	struct bio_vec *bvec;
 
-	iov_for_each(iov, i, *iter) {
-		unsigned long uaddr = (unsigned long) iov.iov_base;
-		unsigned long len = iov.iov_len;
-		unsigned long end = (uaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-		unsigned long start = uaddr >> PAGE_SHIFT;
-
-		/*
-		 * Overflow, abort
-		 */
-		if (end < start)
-			return ERR_PTR(-EINVAL);
-
-		nr_pages += end - start;
-	}
-
-	if (!nr_pages)
+	if (!iov_iter_count(iter))
 		return ERR_PTR(-EINVAL);
 
-	bio = bio_kmalloc(gfp_mask, nr_pages);
+	bio = bio_kmalloc(gfp_mask, iov_iter_npages(iter, BIO_MAX_PAGES));
 	if (!bio)
 		return ERR_PTR(-ENOMEM);
 
