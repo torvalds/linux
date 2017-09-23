@@ -54,8 +54,6 @@
 #define ST_LSM6DSX_REG_BDU_MASK			BIT(6)
 #define ST_LSM6DSX_REG_INT2_ON_INT1_ADDR	0x13
 #define ST_LSM6DSX_REG_INT2_ON_INT1_MASK	BIT(5)
-#define ST_LSM6DSX_REG_ROUNDING_ADDR		0x16
-#define ST_LSM6DSX_REG_ROUNDING_MASK		BIT(2)
 
 #define ST_LSM6DSX_REG_ACC_ODR_ADDR		0x10
 #define ST_LSM6DSX_REG_ACC_ODR_MASK		GENMASK(7, 4)
@@ -608,11 +606,6 @@ static int st_lsm6dsx_init_device(struct st_lsm6dsx_hw *hw)
 	/* enable Block Data Update */
 	err = st_lsm6dsx_write_with_mask(hw, ST_LSM6DSX_REG_BDU_ADDR,
 					 ST_LSM6DSX_REG_BDU_MASK, 1);
-	if (err < 0)
-		return err;
-
-	err = st_lsm6dsx_write_with_mask(hw, ST_LSM6DSX_REG_ROUNDING_ADDR,
-					 ST_LSM6DSX_REG_ROUNDING_MASK, 1);
 	if (err < 0)
 		return err;
 
