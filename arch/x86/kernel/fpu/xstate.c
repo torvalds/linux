@@ -927,15 +927,15 @@ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 static inline int
 __copy_xstate_to_kernel(void *kbuf,
 			const void *data,
-			unsigned int pos, unsigned int count, int end_pos)
+			unsigned int offset, unsigned int size, int size_total)
 {
-	if (!count)
+	if (!size)
 		return 0;
 
-	if (end_pos < 0 || pos < end_pos) {
-		unsigned int copy = end_pos < 0 ? count : min(count, end_pos - pos);
+	if (size_total < 0 || offset < size_total) {
+		unsigned int copy = size_total < 0 ? size : min(size, size_total - offset);
 
-		memcpy(kbuf + pos, data, copy);
+		memcpy(kbuf + offset, data, copy);
 	}
 	return 0;
 }
@@ -947,7 +947,7 @@ __copy_xstate_to_kernel(void *kbuf,
  * It supports partial copy but pos always starts from zero. This is called
  * from xstateregs_get() and there we check the CPU has XSAVES.
  */
-int copy_xstate_to_kernel(void *kbuf, struct xregs_state *xsave, unsigned int pos, unsigned int count)
+int copy_xstate_to_kernel(void *kbuf, struct xregs_state *xsave, unsigned int offset_start, unsigned int size_total)
 {
 	unsigned int offset, size;
 	int ret, i;
@@ -956,7 +956,7 @@ int copy_xstate_to_kernel(void *kbuf, struct xregs_state *xsave, unsigned int po
 	/*
 	 * Currently copy_regset_to_user() starts from pos 0:
 	 */
-	if (unlikely(pos != 0))
+	if (unlikely(offset_start != 0))
 		return -EFAULT;
 
 	/*
@@ -972,7 +972,7 @@ int copy_xstate_to_kernel(void *kbuf, struct xregs_state *xsave, unsigned int po
 	offset = offsetof(struct xregs_state, header);
 	size = sizeof(header);
 
-	ret = __copy_xstate_to_kernel(kbuf, &header, offset, size, count);
+	ret = __copy_xstate_to_kernel(kbuf, &header, offset, size, size_total);
 	if (ret)
 		return ret;
 
@@ -986,11 +986,11 @@ int copy_xstate_to_kernel(void *kbuf, struct xregs_state *xsave, unsigned int po
 			offset = xstate_offsets[i];
 			size = xstate_sizes[i];
 
-			ret = __copy_xstate_to_kernel(kbuf, src, offset, size, count);
+			ret = __copy_xstate_to_kernel(kbuf, src, offset, size, size_total);
 			if (ret)
 				return ret;
 
-			if (offset + size >= count)
+			if (offset + size >= size_total)
 				break;
 		}
 
@@ -1002,7 +1002,7 @@ int copy_xstate_to_kernel(void *kbuf, struct xregs_state *xsave, unsigned int po
 	offset = offsetof(struct fxregs_state, sw_reserved);
 	size = sizeof(xstate_fx_sw_bytes);
 
-	ret = __copy_xstate_to_kernel(kbuf, xstate_fx_sw_bytes, offset, size, count);
+	ret = __copy_xstate_to_kernel(kbuf, xstate_fx_sw_bytes, offset, size, size_total);
 	if (ret)
 		return ret;
 
@@ -1010,15 +1010,15 @@ int copy_xstate_to_kernel(void *kbuf, struct xregs_state *xsave, unsigned int po
 }
 
 static inline int
-__copy_xstate_to_user(void __user *ubuf, const void *data, unsigned int pos, unsigned int count, int end_pos)
+__copy_xstate_to_user(void __user *ubuf, const void *data, unsigned int offset, unsigned int size, int size_total)
 {
-	if (!count)
+	if (!size)
 		return 0;
 
-	if (end_pos < 0 || pos < end_pos) {
-		unsigned int copy = end_pos < 0 ? count : min(count, end_pos - pos);
+	if (size_total < 0 || offset < size_total) {
+		unsigned int copy = size_total < 0 ? size : min(size, size_total - offset);
 
-		if (__copy_to_user(ubuf + pos, data, copy))
+		if (__copy_to_user(ubuf + offset, data, copy))
 			return -EFAULT;
 	}
 	return 0;
@@ -1030,7 +1030,7 @@ __copy_xstate_to_user(void __user *ubuf, const void *data, unsigned int pos, uns
  * zero. This is called from xstateregs_get() and there we check the CPU
  * has XSAVES.
  */
-int copy_xstate_to_user(void __user *ubuf, struct xregs_state *xsave, unsigned int pos, unsigned int count)
+int copy_xstate_to_user(void __user *ubuf, struct xregs_state *xsave, unsigned int offset_start, unsigned int size_total)
 {
 	unsigned int offset, size;
 	int ret, i;
@@ -1039,7 +1039,7 @@ int copy_xstate_to_user(void __user *ubuf, struct xregs_state *xsave, unsigned i
 	/*
 	 * Currently copy_regset_to_user() starts from pos 0:
 	 */
-	if (unlikely(pos != 0))
+	if (unlikely(offset_start != 0))
 		return -EFAULT;
 
 	/*
@@ -1055,7 +1055,7 @@ int copy_xstate_to_user(void __user *ubuf, struct xregs_state *xsave, unsigned i
 	offset = offsetof(struct xregs_state, header);
 	size = sizeof(header);
 
-	ret = __copy_xstate_to_user(ubuf, &header, offset, size, count);
+	ret = __copy_xstate_to_user(ubuf, &header, offset, size, size_total);
 	if (ret)
 		return ret;
 
@@ -1069,11 +1069,11 @@ int copy_xstate_to_user(void __user *ubuf, struct xregs_state *xsave, unsigned i
 			offset = xstate_offsets[i];
 			size = xstate_sizes[i];
 
-			ret = __copy_xstate_to_user(ubuf, src, offset, size, count);
+			ret = __copy_xstate_to_user(ubuf, src, offset, size, size_total);
 			if (ret)
 				return ret;
 
-			if (offset + size >= count)
+			if (offset + size >= size_total)
 				break;
 		}
 
@@ -1085,7 +1085,7 @@ int copy_xstate_to_user(void __user *ubuf, struct xregs_state *xsave, unsigned i
 	offset = offsetof(struct fxregs_state, sw_reserved);
 	size = sizeof(xstate_fx_sw_bytes);
 
-	ret = __copy_xstate_to_user(ubuf, xstate_fx_sw_bytes, offset, size, count);
+	ret = __copy_xstate_to_user(ubuf, xstate_fx_sw_bytes, offset, size, size_total);
 	if (ret)
 		return ret;
 
