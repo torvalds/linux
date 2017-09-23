@@ -115,8 +115,6 @@ static inline unsigned int lirc_buffer_write(struct lirc_buffer *buf,
  *
  * @name:		used for logging
  * @minor:		the minor device (/dev/lircX) number for the device
- * @features:		lirc compatible hardware features, like LIRC_MODE_RAW,
- *			LIRC_CAN\_\*, as defined at include/media/lirc.h.
  * @buffer_size:	Number of FIFO buffers with @chunk_size size.
  *			Only used if @rbuf is NULL.
  * @chunk_size:		Size of each FIFO buffer.
@@ -138,7 +136,6 @@ static inline unsigned int lirc_buffer_write(struct lirc_buffer *buf,
 struct lirc_dev {
 	char name[40];
 	unsigned int minor;
-	__u32 features;
 
 	unsigned int buffer_size; /* in chunks holding one code each */
 	unsigned int chunk_size;
@@ -172,7 +169,6 @@ void lirc_unregister_device(struct lirc_dev *d);
 int lirc_dev_fop_open(struct inode *inode, struct file *file);
 int lirc_dev_fop_close(struct inode *inode, struct file *file);
 unsigned int lirc_dev_fop_poll(struct file *file, poll_table *wait);
-long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 ssize_t lirc_dev_fop_read(struct file *file, char __user *buffer, size_t length,
 			  loff_t *ppos);
 #endif

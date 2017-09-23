@@ -231,8 +231,54 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 	}
 
 	switch (cmd) {
+	case LIRC_GET_FEATURES:
+		if (dev->driver_type == RC_DRIVER_IR_RAW) {
+			val |= LIRC_CAN_REC_MODE2;
+			if (dev->rx_resolution)
+				val |= LIRC_CAN_GET_REC_RESOLUTION;
+		}
+
+		if (dev->tx_ir) {
+			val |= LIRC_CAN_SEND_PULSE | LIRC_CAN_SEND_SCANCODE;
+			if (dev->s_tx_mask)
+				val |= LIRC_CAN_SET_TRANSMITTER_MASK;
+			if (dev->s_tx_carrier)
+				val |= LIRC_CAN_SET_SEND_CARRIER;
+			if (dev->s_tx_duty_cycle)
+				val |= LIRC_CAN_SET_SEND_DUTY_CYCLE;
+		}
+
+		if (dev->s_rx_carrier_range)
+			val |= LIRC_CAN_SET_REC_CARRIER |
+				LIRC_CAN_SET_REC_CARRIER_RANGE;
+
+		if (dev->s_learning_mode)
+			val |= LIRC_CAN_USE_WIDEBAND_RECEIVER;
+
+		if (dev->s_carrier_report)
+			val |= LIRC_CAN_MEASURE_CARRIER;
+
+		if (dev->max_timeout)
+			val |= LIRC_CAN_SET_REC_TIMEOUT;
+
+		break;
 
 	/* mode support */
+	case LIRC_GET_REC_MODE:
+		if (dev->driver_type == RC_DRIVER_IR_RAW_TX)
+			return -ENOTTY;
+
+		val = LIRC_MODE_MODE2;
+		break;
+
+	case LIRC_SET_REC_MODE:
+		if (dev->driver_type == RC_DRIVER_IR_RAW_TX)
+			return -ENOTTY;
+
+		if (val != LIRC_MODE_MODE2)
+			return -EINVAL;
+		return 0;
+
 	case LIRC_GET_SEND_MODE:
 		if (!dev->tx_ir)
 			return -ENOTTY;
@@ -353,7 +399,7 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 		break;
 
 	default:
-		return lirc_dev_fop_ioctl(filep, cmd, arg);
+		return -ENOTTY;
 	}
 
 	if (_IOC_DIR(cmd) & _IOC_READ)
@@ -380,44 +426,13 @@ int ir_lirc_register(struct rc_dev *dev)
 {
 	struct lirc_dev *ldev;
 	int rc = -ENOMEM;
-	unsigned long features = 0;
 
 	ldev = lirc_allocate_device();
 	if (!ldev)
 		return rc;
 
-	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
-		features |= LIRC_CAN_REC_MODE2;
-		if (dev->rx_resolution)
-			features |= LIRC_CAN_GET_REC_RESOLUTION;
-	}
-
-	if (dev->tx_ir) {
-		features |= LIRC_CAN_SEND_PULSE | LIRC_CAN_SEND_SCANCODE;
-		if (dev->s_tx_mask)
-			features |= LIRC_CAN_SET_TRANSMITTER_MASK;
-		if (dev->s_tx_carrier)
-			features |= LIRC_CAN_SET_SEND_CARRIER;
-		if (dev->s_tx_duty_cycle)
-			features |= LIRC_CAN_SET_SEND_DUTY_CYCLE;
-	}
-
-	if (dev->s_rx_carrier_range)
-		features |= LIRC_CAN_SET_REC_CARRIER |
-			LIRC_CAN_SET_REC_CARRIER_RANGE;
-
-	if (dev->s_learning_mode)
-		features |= LIRC_CAN_USE_WIDEBAND_RECEIVER;
-
-	if (dev->s_carrier_report)
-		features |= LIRC_CAN_MEASURE_CARRIER;
-
-	if (dev->max_timeout)
-		features |= LIRC_CAN_SET_REC_TIMEOUT;
-
 	snprintf(ldev->name, sizeof(ldev->name), "ir-lirc-codec (%s)",
 		 dev->driver_name);
-	ldev->features = features;
 	ldev->buf = NULL;
 	ldev->chunk_size = sizeof(int);
 	ldev->buffer_size = LIRCBUF_SIZE;
