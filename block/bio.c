@@ -1328,7 +1328,7 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 	struct page **pages;
 	struct bio *bio;
 	int cur_page = 0;
-	int ret, offset;
+	int ret;
 	struct iov_iter i;
 	struct iovec iov;
 	struct bio_vec *bvec;
@@ -1365,43 +1365,32 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 	if (!pages)
 		goto out;
 
-	iov_for_each(iov, i, *iter) {
-		unsigned long uaddr = (unsigned long) iov.iov_base;
-		unsigned long len = iov.iov_len;
-		unsigned long end = (uaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-		unsigned long start = uaddr >> PAGE_SHIFT;
-		const int local_nr_pages = end - start;
-		const int page_limit = cur_page + local_nr_pages;
+	i = *iter;
+	while (iov_iter_count(&i)) {
+		ssize_t bytes;
+		size_t offs, added = 0;
+		int npages;
 
-		ret = get_user_pages_fast(uaddr, local_nr_pages,
-				(iter->type & WRITE) != WRITE,
-				&pages[cur_page]);
-		if (unlikely(ret < local_nr_pages)) {
-			for (j = cur_page; j < page_limit; j++) {
-				if (!pages[j])
-					break;
-				put_page(pages[j]);
-			}
-			ret = -EFAULT;
+		bytes = iov_iter_get_pages(&i, pages + cur_page, LONG_MAX,
+						nr_pages - cur_page, &offs);
+		if (unlikely(bytes <= 0)) {
+			ret = bytes ? bytes : -EFAULT;
 			goto out_unmap;
 		}
 
-		offset = offset_in_page(uaddr);
-		for (j = cur_page; j < page_limit; j++) {
-			unsigned int bytes = PAGE_SIZE - offset;
+		npages = DIV_ROUND_UP(offs + bytes, PAGE_SIZE);
+
+		for (j = cur_page; j < cur_page + npages; j++) {
+			unsigned int n = PAGE_SIZE - offs;
 			unsigned short prev_bi_vcnt = bio->bi_vcnt;
 
-			if (len <= 0)
-				break;
-			
-			if (bytes > len)
-				bytes = len;
+			if (n > bytes)
+				n = bytes;
 
 			/*
 			 * sorry...
 			 */
-			if (bio_add_pc_page(q, bio, pages[j], bytes, offset) <
-					    bytes)
+			if (bio_add_pc_page(q, bio, pages[j], n, offs) < n)
 				break;
 
 			/*
@@ -1411,16 +1400,18 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 			if (bio->bi_vcnt == prev_bi_vcnt)
 				put_page(pages[j]);
 
-			len -= bytes;
-			offset = 0;
+			added += n;
+			bytes -= n;
+			offs = 0;
 		}
+		iov_iter_advance(&i, added);
 
-		cur_page = j;
 		/*
 		 * release the pages we didn't map into the bio, if any
 		 */
-		while (j < page_limit)
+		while (j < cur_page + npages)
 			put_page(pages[j++]);
+		cur_page = j;
 	}
 
 	kfree(pages);
