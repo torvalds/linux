@@ -136,9 +136,9 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 
 	if (boot_cpu_has(X86_FEATURE_XSAVES)) {
 		if (kbuf)
-			ret = copy_kernel_to_xstate(kbuf, xsave);
+			ret = copy_kernel_to_xstate(xsave, kbuf);
 		else
-			ret = copy_user_to_xstate(ubuf, xsave);
+			ret = copy_user_to_xstate(xsave, ubuf);
 	} else {
 		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, xsave, 0, -1);
 	}

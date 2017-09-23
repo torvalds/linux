@@ -1089,7 +1089,7 @@ int copy_xstate_to_user(void __user *ubuf, struct xregs_state *xsave, unsigned i
  * there we check the CPU has XSAVES and a whole standard-sized buffer
  * exists.
  */
-int copy_kernel_to_xstate(const void *kbuf, struct xregs_state *xsave)
+int copy_kernel_to_xstate(struct xregs_state *xsave, const void *kbuf)
 {
 	unsigned int offset, size;
 	int i;
@@ -1142,7 +1142,7 @@ int copy_kernel_to_xstate(const void *kbuf, struct xregs_state *xsave)
  * there we check the CPU has XSAVES and a whole standard-sized buffer
  * exists.
  */
-int copy_user_to_xstate(const void __user *ubuf, struct xregs_state *xsave)
+int copy_user_to_xstate(struct xregs_state *xsave, const void __user *ubuf)
 {
 	unsigned int offset, size;
 	int i;

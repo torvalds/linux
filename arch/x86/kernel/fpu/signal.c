@@ -324,7 +324,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 		fpu__drop(fpu);
 
 		if (using_compacted_format())
-			err = copy_user_to_xstate(buf_fx, &fpu->state.xsave);
+			err = copy_user_to_xstate(&fpu->state.xsave, buf_fx);
 		else
 			err = __copy_from_user(&fpu->state.xsave, buf_fx, state_size);
 
