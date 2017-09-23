@@ -2220,7 +2220,7 @@ static void __init xen_write_cr3_init(unsigned long cr3)
  * not the first page table in the page table pool.
  * Iterate through the initial page tables to find the real page table base.
  */
-static phys_addr_t xen_find_pt_base(pmd_t *pmd)
+static phys_addr_t __init xen_find_pt_base(pmd_t *pmd)
 {
 	phys_addr_t pt_base, paddr;
 	unsigned pmdidx;

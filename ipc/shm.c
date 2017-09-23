@@ -1237,7 +1237,7 @@ COMPAT_SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, void __user *, uptr)
 		err = shmctl_stat(ns, shmid, cmd, &sem64);
 		if (err < 0)
 			return err;
-		if (copy_compat_shmid_to_user(&sem64, uptr, version))
+		if (copy_compat_shmid_to_user(uptr, &sem64, version))
 			err = -EFAULT;
 		return err;
 
