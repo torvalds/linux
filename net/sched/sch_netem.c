@@ -361,12 +361,13 @@ static psched_time_t packet_len_2_sched_time(unsigned int len, struct netem_sche
 static void tfifo_reset(struct Qdisc *sch)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
-	struct rb_node *p;
+	struct rb_node *p = rb_first(&q->t_root);
 
-	while ((p = rb_first(&q->t_root))) {
+	while (p) {
 		struct sk_buff *skb = netem_rb_to_skb(p);
 
-		rb_erase(p, &q->t_root);
+		p = rb_next(p);
+		rb_erase(&skb->rbnode, &q->t_root);
 		rtnl_kfree_skbs(skb, skb);
 	}
 }
