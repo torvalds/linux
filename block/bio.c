@@ -1344,11 +1344,6 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 			return ERR_PTR(-EINVAL);
 
 		nr_pages += end - start;
-		/*
-		 * buffer must be aligned to at least logical block size for now
-		 */
-		if (uaddr & queue_dma_alignment(q))
-			return ERR_PTR(-EINVAL);
 	}
 
 	if (!nr_pages)
@@ -1373,29 +1368,34 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 
 		npages = DIV_ROUND_UP(offs + bytes, PAGE_SIZE);
 
-		for (j = 0; j < npages; j++) {
-			unsigned int n = PAGE_SIZE - offs;
-			unsigned short prev_bi_vcnt = bio->bi_vcnt;
+		if (unlikely(offs & queue_dma_alignment(q))) {
+			ret = -EINVAL;
+			j = 0;
+		} else {
+			for (j = 0; j < npages; j++) {
+				struct page *page = pages[j];
+				unsigned int n = PAGE_SIZE - offs;
+				unsigned short prev_bi_vcnt = bio->bi_vcnt;
 
-			if (n > bytes)
-				n = bytes;
+				if (n > bytes)
+					n = bytes;
 
-			if (!bio_add_pc_page(q, bio, pages[j], n, offs))
-				break;
+				if (!bio_add_pc_page(q, bio, page, n, offs))
+					break;
 
-			/*
-			 * check if vector was merged with previous
-			 * drop page reference if needed
-			 */
-			if (bio->bi_vcnt == prev_bi_vcnt)
-				put_page(pages[j]);
+				/*
+				 * check if vector was merged with previous
+				 * drop page reference if needed
+				 */
+				if (bio->bi_vcnt == prev_bi_vcnt)
+					put_page(page);
 
-			added += n;
-			bytes -= n;
-			offs = 0;
+				added += n;
+				bytes -= n;
+				offs = 0;
+			}
+			iov_iter_advance(&i, added);
 		}
-		iov_iter_advance(&i, added);
-
 		/*
 		 * release the pages we didn't map into the bio, if any
 		 */
