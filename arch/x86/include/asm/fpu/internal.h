@@ -526,8 +526,6 @@ static inline int fpregs_state_valid(struct fpu *fpu, unsigned int cpu)
  */
 static inline void fpregs_deactivate(struct fpu *fpu)
 {
-	WARN_ON_FPU(!fpu->fpregs_active);
-
 	fpu->fpregs_active = 0;
 	this_cpu_write(fpu_fpregs_owner_ctx, NULL);
 	trace_x86_fpu_regs_deactivated(fpu);
@@ -535,8 +533,6 @@ static inline void fpregs_deactivate(struct fpu *fpu)
 
 static inline void fpregs_activate(struct fpu *fpu)
 {
-	WARN_ON_FPU(fpu->fpregs_active);
-
 	fpu->fpregs_active = 1;
 	this_cpu_write(fpu_fpregs_owner_ctx, fpu);
 	trace_x86_fpu_regs_activated(fpu);
@@ -604,8 +600,7 @@ static inline void user_fpu_begin(void)
 	struct fpu *fpu = &current->thread.fpu;
 
 	preempt_disable();
-	if (!fpu->fpregs_active)
-		fpregs_activate(fpu);
+	fpregs_activate(fpu);
 	preempt_enable();
 }
 

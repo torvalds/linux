@@ -426,8 +426,7 @@ void fpu__drop(struct fpu *fpu)
 			asm volatile("1: fwait\n"
 				     "2:\n"
 				     _ASM_EXTABLE(1b, 2b));
-			if (fpu->fpregs_active)
-				fpregs_deactivate(fpu);
+			fpregs_deactivate(fpu);
 		}
 	} else {
 		WARN_ON_FPU(fpu->fpregs_active);
