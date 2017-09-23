@@ -367,7 +367,7 @@ void fpu__current_fpstate_write_end(void)
 	 * registers may still be out of date.  Update them with
 	 * an XRSTOR if they are active.
 	 */
-	if (fpregs_active())
+	if (fpu->fpregs_active)
 		copy_kernel_to_fpregs(&fpu->state);
 
 	/*

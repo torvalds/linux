@@ -543,21 +543,6 @@ static inline void fpregs_activate(struct fpu *fpu)
 }
 
 /*
- * The question "does this thread have fpu access?"
- * is slightly racy, since preemption could come in
- * and revoke it immediately after the test.
- *
- * However, even in that very unlikely scenario,
- * we can just assume we have FPU access - typically
- * to save the FP state - we'll just take a #NM
- * fault and get the FPU access back.
- */
-static inline int fpregs_active(void)
-{
-	return current->thread.fpu.fpregs_active;
-}
-
-/*
  * FPU state switching for scheduling.
  *
  * This is a two-stage process:
@@ -617,7 +602,7 @@ static inline void user_fpu_begin(void)
 	struct fpu *fpu = &current->thread.fpu;
 
 	preempt_disable();
-	if (!fpregs_active())
+	if (!fpu->fpregs_active)
 		fpregs_activate(fpu);
 	preempt_enable();
 }

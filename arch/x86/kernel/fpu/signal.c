@@ -155,7 +155,8 @@ static inline int copy_fpregs_to_sigframe(struct xregs_state __user *buf)
  */
 int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 {
-	struct xregs_state *xsave = &current->thread.fpu.state.xsave;
+	struct fpu *fpu = &current->thread.fpu;
+	struct xregs_state *xsave = &fpu->state.xsave;
 	struct task_struct *tsk = current;
 	int ia32_fxstate = (buf != buf_fx);
 
@@ -170,13 +171,13 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 			sizeof(struct user_i387_ia32_struct), NULL,
 			(struct _fpstate_32 __user *) buf) ? -1 : 1;
 
-	if (fpregs_active() || using_compacted_format()) {
+	if (fpu->fpregs_active || using_compacted_format()) {
 		/* Save the live register state to the user directly. */
 		if (copy_fpregs_to_sigframe(buf_fx))
 			return -1;
 		/* Update the thread's fxstate to save the fsave header. */
 		if (ia32_fxstate)
-			copy_fxregs_to_kernel(&tsk->thread.fpu);
+			copy_fxregs_to_kernel(fpu);
 	} else {
 		/*
 		 * It is a *bug* if kernel uses compacted-format for xsave
@@ -189,7 +190,7 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 			return -1;
 		}
 
-		fpstate_sanitize_xstate(&tsk->thread.fpu);
+		fpstate_sanitize_xstate(fpu);
 		if (__copy_to_user(buf_fx, xsave, fpu_user_xstate_size))
 			return -1;
 	}
