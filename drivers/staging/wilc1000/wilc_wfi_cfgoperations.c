@@ -1111,7 +1111,6 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 		g_key_gtk_params.key = NULL;
 		kfree(g_key_gtk_params.seq);
 		g_key_gtk_params.seq = NULL;
-
 	}
 
 	if (key_index >= 0 && key_index <= 3) {
