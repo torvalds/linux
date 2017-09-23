@@ -58,7 +58,7 @@ static unsigned int nr_to_order_bottom(unsigned int nr)
 	return fls(nr) - 1;
 }
 
-struct hmm_buffer_object *__bo_alloc(struct kmem_cache *bo_cache)
+static struct hmm_buffer_object *__bo_alloc(struct kmem_cache *bo_cache)
 {
 	struct hmm_buffer_object *bo;
 
@@ -99,7 +99,7 @@ static int __bo_init(struct hmm_bo_device *bdev, struct hmm_buffer_object *bo,
 	return 0;
 }
 
-struct hmm_buffer_object *__bo_search_and_remove_from_free_rbtree(
+static struct hmm_buffer_object *__bo_search_and_remove_from_free_rbtree(
 				struct rb_node *node, unsigned int pgnr)
 {
 	struct hmm_buffer_object *this, *ret_bo, *temp_bo;
@@ -150,7 +150,7 @@ remove_bo_and_return:
 	return temp_bo;
 }
 
-struct hmm_buffer_object *__bo_search_by_addr(struct rb_root *root,
+static struct hmm_buffer_object *__bo_search_by_addr(struct rb_root *root,
 							ia_css_ptr start)
 {
 	struct rb_node *n = root->rb_node;
@@ -175,8 +175,8 @@ struct hmm_buffer_object *__bo_search_by_addr(struct rb_root *root,
 	return NULL;
 }
 
-struct hmm_buffer_object *__bo_search_by_addr_in_range(struct rb_root *root,
-					unsigned int start)
+static struct hmm_buffer_object *__bo_search_by_addr_in_range(
+		struct rb_root *root, unsigned int start)
 {
 	struct rb_node *n = root->rb_node;
 	struct hmm_buffer_object *bo;
@@ -258,7 +258,7 @@ static void __bo_insert_to_alloc_rbtree(struct rb_root *root,
 	rb_insert_color(&bo->node, root);
 }
 
-struct hmm_buffer_object *__bo_break_up(struct hmm_bo_device *bdev,
+static struct hmm_buffer_object *__bo_break_up(struct hmm_bo_device *bdev,
 					struct hmm_buffer_object *bo,
 					unsigned int pgnr)
 {
@@ -331,7 +331,7 @@ static void __bo_take_off_handling(struct hmm_buffer_object *bo)
 	}
 }
 
-struct hmm_buffer_object *__bo_merge(struct hmm_buffer_object *bo,
+static struct hmm_buffer_object *__bo_merge(struct hmm_buffer_object *bo,
 					struct hmm_buffer_object *next_bo)
 {
 	struct hmm_bo_device *bdev;
