@@ -350,7 +350,7 @@ static inline void copy_xregs_to_kernel(struct xregs_state *xstate)
 	u32 hmask = mask >> 32;
 	int err;
 
-	WARN_ON(!alternatives_patched);
+	WARN_ON_FPU(!alternatives_patched);
 
 	XSTATE_XSAVE(xstate, lmask, hmask, err);
 
