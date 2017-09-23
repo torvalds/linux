@@ -80,6 +80,11 @@
 			#size-cells = <1>;
 			ranges = <0x0 0xc1100000 0x200000>;
 
+			assist: assist@7c00 {
+				compatible = "amlogic,meson-mx-assist", "syscon";
+				reg = <0x7c00 0x200>;
+			};
+
 			hwrng: rng@8100 {
 				compatible = "amlogic,meson-rng";
 				reg = <0x8100 0x8>;
@@ -251,6 +256,11 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0xd9000000 0x20000>;
+		};
+
+		bootrom: bootrom@d9040000 {
+			compatible = "amlogic,meson-mx-bootrom", "syscon";
+			reg = <0xd9040000 0x10000>;
 		};
 	};
 }; /* end of / */

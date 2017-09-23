@@ -130,6 +130,11 @@
 		#reset-cells = <1>;
 	};
 
+	analog_top: analog-top@81a8 {
+		compatible = "amlogic,meson8b-analog-top", "syscon";
+		reg = <0x81a8 0x14>;
+	};
+
 	pwm_ef: pwm@86c0 {
 		compatible = "amlogic,meson8b-pwm";
 		reg = <0x86c0 0x10>;
