@@ -68,6 +68,9 @@ struct fxregs_state {
 /* Default value for fxregs_state.mxcsr: */
 #define MXCSR_DEFAULT		0x1f80
 
+/* Copy both mxcsr & mxcsr_flags with a single u64 memcpy: */
+#define MXCSR_AND_FLAGS_SIZE sizeof(u64)
+
 /*
  * Software based FPU emulation state. This is arbitrary really,
  * it matches the x87 format to make it easier to understand:
