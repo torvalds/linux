@@ -3303,7 +3303,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 {
 	struct lio *lio = NULL;
 	struct net_device *netdev;
-	u8 mac[6], i, j;
+	u8 mac[6], i, j, *fw_ver;
 	struct octeon_soft_command *sc;
 	struct liquidio_if_cfg_context *ctx;
 	struct liquidio_if_cfg_resp *resp;
@@ -3412,6 +3412,22 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		if (retval) {
 			dev_err(&octeon_dev->pci_dev->dev, "iq/oq config failed\n");
 			goto setup_nic_dev_fail;
+		}
+
+		/* Verify f/w version (in case of 'auto' loading from flash) */
+		fw_ver = octeon_dev->fw_info.liquidio_firmware_version;
+		if (memcmp(LIQUIDIO_BASE_VERSION,
+			   fw_ver,
+			   strlen(LIQUIDIO_BASE_VERSION))) {
+			dev_err(&octeon_dev->pci_dev->dev,
+				"Unmatched firmware version. Expected %s.x, got %s.\n",
+				LIQUIDIO_BASE_VERSION, fw_ver);
+			goto setup_nic_dev_fail;
+		} else if (atomic_read(octeon_dev->adapter_fw_state) ==
+			   FW_IS_PRELOADED) {
+			dev_info(&octeon_dev->pci_dev->dev,
+				 "Using auto-loaded firmware version %s.\n",
+				 fw_ver);
 		}
 
 		octeon_swap_8B_data((u64 *)(&resp->cfg_info),
