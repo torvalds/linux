@@ -321,7 +321,7 @@ tb_found:
 			goto fail_unlock;
 	}
 success:
-	if (!hlist_empty(&tb->owners)) {
+	if (hlist_empty(&tb->owners)) {
 		tb->fastreuse = reuse;
 		if (sk->sk_reuseport) {
 			tb->fastreuseport = FASTREUSEPORT_ANY;
