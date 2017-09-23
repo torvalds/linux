@@ -418,11 +418,11 @@ static ssize_t mma8452_show_os_ratio_avail(struct device *dev,
 }
 
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(mma8452_show_samp_freq_avail);
-static IIO_DEVICE_ATTR(in_accel_scale_available, S_IRUGO,
+static IIO_DEVICE_ATTR(in_accel_scale_available, 0444,
 		       mma8452_show_scale_avail, NULL, 0);
 static IIO_DEVICE_ATTR(in_accel_filter_high_pass_3db_frequency_available,
-		       S_IRUGO, mma8452_show_hp_cutoff_avail, NULL, 0);
-static IIO_DEVICE_ATTR(in_accel_oversampling_ratio_available, S_IRUGO,
+		       0444, mma8452_show_hp_cutoff_avail, NULL, 0);
+static IIO_DEVICE_ATTR(in_accel_oversampling_ratio_available, 0444,
 		       mma8452_show_os_ratio_avail, NULL, 0);
 
 static int mma8452_get_samp_freq_index(struct mma8452_data *data,
