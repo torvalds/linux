@@ -1088,8 +1088,8 @@ done:
 }
 
 static int mma8452_reg_access_dbg(struct iio_dev *indio_dev,
-				  unsigned reg, unsigned writeval,
-				  unsigned *readval)
+				  unsigned int reg, unsigned int writeval,
+				  unsigned int *readval)
 {
 	int ret;
 	struct mma8452_data *data = iio_priv(indio_dev);
