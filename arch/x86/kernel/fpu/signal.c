@@ -324,10 +324,15 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 		 */
 		fpu__drop(fpu);
 
-		if (using_compacted_format())
+		if (using_compacted_format()) {
 			err = copy_user_to_xstate(&fpu->state.xsave, buf_fx);
-		else
+		} else {
 			err = __copy_from_user(&fpu->state.xsave, buf_fx, state_size);
+
+			/* xcomp_bv must be 0 when using uncompacted format */
+			if (!err && state_size > offsetof(struct xregs_state, header) && fpu->state.xsave.header.xcomp_bv)
+				err = -EINVAL;
+		}
 
 		if (err || __copy_from_user(&env, buf, sizeof(env))) {
 			fpstate_init(&fpu->state);
