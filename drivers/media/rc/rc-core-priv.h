@@ -12,6 +12,20 @@
 #include <linux/slab.h>
 #include <media/rc-core.h>
 
+/**
+ * rc_open - Opens a RC device
+ *
+ * @rdev: pointer to struct rc_dev.
+ */
+int rc_open(struct rc_dev *rdev);
+
+/**
+ * rc_close - Closes a RC device
+ *
+ * @rdev: pointer to struct rc_dev.
+ */
+void rc_close(struct rc_dev *rdev);
+
 struct ir_raw_handler {
 	struct list_head list;
 
@@ -21,7 +35,7 @@ struct ir_raw_handler {
 		      struct ir_raw_event *events, unsigned int max);
 	u32 carrier;
 
-	/* These two should only be used by the lirc decoder */
+	/* These two should only be used by the mce kbd decoder */
 	int (*raw_register)(struct rc_dev *dev);
 	int (*raw_unregister)(struct rc_dev *dev);
 };
@@ -95,17 +109,6 @@ struct ir_raw_event_ctrl {
 		unsigned count;
 		unsigned wanted_bits;
 	} mce_kbd;
-	struct lirc_codec {
-		struct rc_dev *dev;
-		struct lirc_dev *ldev;
-		int carrier_low;
-
-		ktime_t gap_start;
-		u64 gap_duration;
-		bool gap;
-		bool send_timeout_reports;
-		u8 send_mode;
-	} lirc;
 	struct xmp_dec {
 		int state;
 		unsigned count;
@@ -263,6 +266,24 @@ int ir_raw_handler_register(struct ir_raw_handler *ir_raw_handler);
 void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler);
 void ir_raw_load_modules(u64 *protocols);
 void ir_raw_init(void);
+
+/*
+ * lirc interface
+ */
+#ifdef CONFIG_LIRC
+int lirc_dev_init(void);
+void lirc_dev_exit(void);
+void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev);
+int ir_lirc_register(struct rc_dev *dev);
+void ir_lirc_unregister(struct rc_dev *dev);
+#else
+static inline int lirc_dev_init(void) { return 0; }
+static inline void lirc_dev_exit(void) {}
+static inline void ir_lirc_raw_event(struct rc_dev *dev,
+				     struct ir_raw_event ev) { }
+static inline int ir_lirc_register(struct rc_dev *dev) { return 0; }
+static inline void ir_lirc_unregister(struct rc_dev *dev) { }
+#endif
 
 /*
  * Decoder initialization code

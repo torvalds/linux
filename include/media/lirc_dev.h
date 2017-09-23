@@ -121,7 +121,6 @@ static inline unsigned int lirc_buffer_write(struct lirc_buffer *buf,
  *			Only used if @rbuf is NULL.
  * @chunk_size:		Size of each FIFO buffer.
  *			Only used if @rbuf is NULL.
- * @data:		private per-driver data
  * @buf:		if %NULL, lirc_dev will allocate and manage the buffer,
  *			otherwise allocated by the caller which will
  *			have to write to the buffer by other means, like irq's
@@ -146,7 +145,6 @@ struct lirc_dev {
 	struct lirc_buffer *buf;
 	bool buf_internal;
 
-	void *data;
 	struct rc_dev *rdev;
 	const struct file_operations *fops;
 	struct module *owner;
@@ -167,14 +165,6 @@ void lirc_free_device(struct lirc_dev *d);
 int lirc_register_device(struct lirc_dev *d);
 
 void lirc_unregister_device(struct lirc_dev *d);
-
-/* Must be called in the open fop before lirc_get_pdata() can be used */
-void lirc_init_pdata(struct inode *inode, struct file *file);
-
-/* Returns the private data stored in the lirc_dev
- * associated with the given device file pointer.
- */
-void *lirc_get_pdata(struct file *file);
 
 /* default file operations
  * used by drivers if they override only some operations

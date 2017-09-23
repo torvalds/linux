@@ -26,7 +26,7 @@
 #include <linux/cdev.h>
 #include <linux/idr.h>
 
-#include <media/rc-core.h>
+#include "rc-core-priv.h"
 #include <media/lirc.h>
 #include <media/lirc_dev.h>
 
@@ -236,7 +236,7 @@ int lirc_dev_fop_open(struct inode *inode, struct file *file)
 
 	d->open++;
 
-	lirc_init_pdata(inode, file);
+	file->private_data = d->rdev;
 	nonseekable_open(inode, file);
 	mutex_unlock(&d->mutex);
 
@@ -250,11 +250,12 @@ EXPORT_SYMBOL(lirc_dev_fop_open);
 
 int lirc_dev_fop_close(struct inode *inode, struct file *file)
 {
-	struct lirc_dev *d = file->private_data;
+	struct rc_dev *rcdev = file->private_data;
+	struct lirc_dev *d = rcdev->lirc_dev;
 
 	mutex_lock(&d->mutex);
 
-	rc_close(d->rdev);
+	rc_close(rcdev);
 	d->open--;
 
 	mutex_unlock(&d->mutex);
@@ -265,7 +266,8 @@ EXPORT_SYMBOL(lirc_dev_fop_close);
 
 unsigned int lirc_dev_fop_poll(struct file *file, poll_table *wait)
 {
-	struct lirc_dev *d = file->private_data;
+	struct rc_dev *rcdev = file->private_data;
+	struct lirc_dev *d = rcdev->lirc_dev;
 	unsigned int ret;
 
 	if (!d->attached)
@@ -290,7 +292,8 @@ EXPORT_SYMBOL(lirc_dev_fop_poll);
 
 long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct lirc_dev *d = file->private_data;
+	struct rc_dev *rcdev = file->private_data;
+	struct lirc_dev *d = rcdev->lirc_dev;
 	__u32 mode;
 	int result;
 
@@ -349,7 +352,8 @@ ssize_t lirc_dev_fop_read(struct file *file,
 			  size_t length,
 			  loff_t *ppos)
 {
-	struct lirc_dev *d = file->private_data;
+	struct rc_dev *rcdev = file->private_data;
+	struct lirc_dev *d = rcdev->lirc_dev;
 	unsigned char *buf;
 	int ret, written = 0;
 	DECLARE_WAITQUEUE(wait, current);
@@ -448,24 +452,7 @@ out_unlocked:
 }
 EXPORT_SYMBOL(lirc_dev_fop_read);
 
-void lirc_init_pdata(struct inode *inode, struct file *file)
-{
-	struct lirc_dev *d = container_of(inode->i_cdev, struct lirc_dev, cdev);
-
-	file->private_data = d;
-}
-EXPORT_SYMBOL(lirc_init_pdata);
-
-void *lirc_get_pdata(struct file *file)
-{
-	struct lirc_dev *d = file->private_data;
-
-	return d->data;
-}
-EXPORT_SYMBOL(lirc_get_pdata);
-
-
-static int __init lirc_dev_init(void)
+int __init lirc_dev_init(void)
 {
 	int retval;
 
@@ -489,16 +476,8 @@ static int __init lirc_dev_init(void)
 	return 0;
 }
 
-static void __exit lirc_dev_exit(void)
+void __exit lirc_dev_exit(void)
 {
 	class_destroy(lirc_class);
 	unregister_chrdev_region(lirc_base_dev, LIRC_MAX_DEVICES);
-	pr_info("module unloaded\n");
 }
-
-module_init(lirc_dev_init);
-module_exit(lirc_dev_exit);
-
-MODULE_DESCRIPTION("LIRC base driver module");
-MODULE_AUTHOR("Artur Lipowski");
-MODULE_LICENSE("GPL");

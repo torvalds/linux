@@ -20,6 +20,7 @@
 #include <linux/kfifo.h>
 #include <linux/time.h>
 #include <linux/timer.h>
+#include <media/lirc_dev.h>
 #include <media/rc-map.h>
 
 extern int rc_core_debug;
@@ -115,6 +116,15 @@ enum rc_filter_type {
  * @max_timeout: maximum timeout supported by device
  * @rx_resolution : resolution (in ns) of input sampler
  * @tx_resolution: resolution (in ns) of output sampler
+ * @lirc_dev: lirc char device
+ * @carrier_low: when setting the carrier range, first the low end must be
+ *	set with an ioctl and then the high end with another ioctl
+ * @gap_start: time when gap starts
+ * @gap_duration: duration of initial gap
+ * @gap: true if we're in a gap
+ * @send_timeout_reports: report timeouts in lirc raw IR.
+ * @send_mode: lirc mode for sending, either LIRC_MODE_SCANCODE or
+ *	LIRC_MODE_PULSE
  * @change_protocol: allow changing the protocol used on hardware decoders
  * @open: callback to allow drivers to enable polling/irq when IR input device
  *	is opened.
@@ -174,6 +184,15 @@ struct rc_dev {
 	u32				max_timeout;
 	u32				rx_resolution;
 	u32				tx_resolution;
+#ifdef CONFIG_LIRC
+	struct lirc_dev			*lirc_dev;
+	int				carrier_low;
+	ktime_t				gap_start;
+	u64				gap_duration;
+	bool				gap;
+	bool				send_timeout_reports;
+	u8				send_mode;
+#endif
 	int				(*change_protocol)(struct rc_dev *dev, u64 *rc_proto);
 	int				(*open)(struct rc_dev *dev);
 	void				(*close)(struct rc_dev *dev);
@@ -247,20 +266,6 @@ int devm_rc_register_device(struct device *parent, struct rc_dev *dev);
  * @dev: pointer to struct rc_dev.
  */
 void rc_unregister_device(struct rc_dev *dev);
-
-/**
- * rc_open - Opens a RC device
- *
- * @rdev: pointer to struct rc_dev.
- */
-int rc_open(struct rc_dev *rdev);
-
-/**
- * rc_close - Closes a RC device
- *
- * @rdev: pointer to struct rc_dev.
- */
-void rc_close(struct rc_dev *rdev);
 
 void rc_repeat(struct rc_dev *dev);
 void rc_keydown(struct rc_dev *dev, enum rc_proto protocol, u32 scancode,

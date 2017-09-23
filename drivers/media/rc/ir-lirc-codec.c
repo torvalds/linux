@@ -14,7 +14,6 @@
 
 #include <linux/sched.h>
 #include <linux/wait.h>
-#include <linux/module.h>
 #include <media/lirc.h>
 #include <media/lirc_dev.h>
 #include <media/rc-core.h>
@@ -23,20 +22,14 @@
 #define LIRCBUF_SIZE 256
 
 /**
- * ir_lirc_decode() - Send raw IR data to lirc_dev to be relayed to the
- *		      lircd userspace daemon for decoding.
+ * ir_lirc_raw_event() - Send raw IR data to lirc to be relayed to userspace
+ *
  * @dev:	the struct rc_dev descriptor of the device
  * @ev:		the struct ir_raw_event descriptor of the pulse/space
- *
- * This function returns -EINVAL if the lirc interfaces aren't wired up.
  */
-static int ir_lirc_decode(struct rc_dev *dev, struct ir_raw_event ev)
+void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 {
-	struct lirc_codec *lirc = &dev->raw->lirc;
 	int sample;
-
-	if (!dev->raw->lirc.ldev || !dev->raw->lirc.ldev->buf)
-		return -EINVAL;
 
 	/* Packet start */
 	if (ev.reset) {
@@ -56,15 +49,15 @@ static int ir_lirc_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	/* Packet end */
 	} else if (ev.timeout) {
 
-		if (lirc->gap)
-			return 0;
+		if (dev->gap)
+			return;
 
-		lirc->gap_start = ktime_get();
-		lirc->gap = true;
-		lirc->gap_duration = ev.duration;
+		dev->gap_start = ktime_get();
+		dev->gap = true;
+		dev->gap_duration = ev.duration;
 
-		if (!lirc->send_timeout_reports)
-			return 0;
+		if (!dev->send_timeout_reports)
+			return;
 
 		sample = LIRC_TIMEOUT(ev.duration / 1000);
 		IR_dprintk(2, "timeout report (duration: %d)\n", sample);
@@ -72,21 +65,21 @@ static int ir_lirc_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	/* Normal sample */
 	} else {
 
-		if (lirc->gap) {
+		if (dev->gap) {
 			int gap_sample;
 
-			lirc->gap_duration += ktime_to_ns(ktime_sub(ktime_get(),
-				lirc->gap_start));
+			dev->gap_duration += ktime_to_ns(ktime_sub(ktime_get(),
+							 dev->gap_start));
 
 			/* Convert to ms and cap by LIRC_VALUE_MASK */
-			do_div(lirc->gap_duration, 1000);
-			lirc->gap_duration = min(lirc->gap_duration,
-							(u64)LIRC_VALUE_MASK);
+			do_div(dev->gap_duration, 1000);
+			dev->gap_duration = min_t(u64, dev->gap_duration,
+						  LIRC_VALUE_MASK);
 
-			gap_sample = LIRC_SPACE(lirc->gap_duration);
-			lirc_buffer_write(dev->raw->lirc.ldev->buf,
+			gap_sample = LIRC_SPACE(dev->gap_duration);
+			lirc_buffer_write(dev->lirc_dev->buf,
 					  (unsigned char *)&gap_sample);
-			lirc->gap = false;
+			dev->gap = false;
 		}
 
 		sample = ev.pulse ? LIRC_PULSE(ev.duration / 1000) :
@@ -95,18 +88,16 @@ static int ir_lirc_decode(struct rc_dev *dev, struct ir_raw_event ev)
 			   TO_US(ev.duration), TO_STR(ev.pulse));
 	}
 
-	lirc_buffer_write(dev->raw->lirc.ldev->buf,
+	lirc_buffer_write(dev->lirc_dev->buf,
 			  (unsigned char *) &sample);
-	wake_up(&dev->raw->lirc.ldev->buf->wait_poll);
 
-	return 0;
+	wake_up(&dev->lirc_dev->buf->wait_poll);
 }
 
 static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 				   size_t n, loff_t *ppos)
 {
-	struct lirc_codec *lirc;
-	struct rc_dev *dev;
+	struct rc_dev *dev = file->private_data;
 	unsigned int *txbuf = NULL;
 	struct ir_raw_event *raw = NULL;
 	ssize_t ret = -EINVAL;
@@ -118,22 +109,12 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 
 	start = ktime_get();
 
-	lirc = lirc_get_pdata(file);
-	if (!lirc)
-		return -EFAULT;
-
-	dev = lirc->dev;
-	if (!dev) {
-		ret = -EFAULT;
-		goto out;
-	}
-
 	if (!dev->tx_ir) {
 		ret = -EINVAL;
 		goto out;
 	}
 
-	if (lirc->send_mode == LIRC_MODE_SCANCODE) {
+	if (dev->send_mode == LIRC_MODE_SCANCODE) {
 		struct lirc_scancode scan;
 
 		if (n != sizeof(scan))
@@ -198,7 +179,7 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 	if (ret < 0)
 		goto out;
 
-	if (lirc->send_mode == LIRC_MODE_SCANCODE) {
+	if (dev->send_mode == LIRC_MODE_SCANCODE) {
 		ret = n;
 	} else {
 		for (duration = i = 0; i < ret; i++)
@@ -228,19 +209,10 @@ out:
 static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 			unsigned long arg)
 {
-	struct lirc_codec *lirc;
-	struct rc_dev *dev;
+	struct rc_dev *dev = filep->private_data;
 	u32 __user *argp = (u32 __user *)(arg);
 	int ret = 0;
 	__u32 val = 0, tmp;
-
-	lirc = lirc_get_pdata(filep);
-	if (!lirc)
-		return -EFAULT;
-
-	dev = lirc->dev;
-	if (!dev)
-		return -EFAULT;
 
 	if (_IOC_DIR(cmd) & _IOC_WRITE) {
 		ret = get_user(val, argp);
@@ -255,7 +227,7 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 		if (!dev->tx_ir)
 			return -ENOTTY;
 
-		val = lirc->send_mode;
+		val = dev->send_mode;
 		break;
 
 	case LIRC_SET_SEND_MODE:
@@ -265,7 +237,7 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 		if (!(val == LIRC_MODE_PULSE || val == LIRC_MODE_SCANCODE))
 			return -EINVAL;
 
-		lirc->send_mode = val;
+		dev->send_mode = val;
 		return 0;
 
 	/* TX settings */
@@ -299,7 +271,7 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 			return -EINVAL;
 
 		return dev->s_rx_carrier_range(dev,
-					       dev->raw->lirc.carrier_low,
+					       dev->carrier_low,
 					       val);
 
 	case LIRC_SET_REC_CARRIER_RANGE:
@@ -309,7 +281,7 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 		if (val <= 0)
 			return -EINVAL;
 
-		dev->raw->lirc.carrier_low = val;
+		dev->carrier_low = val;
 		return 0;
 
 	case LIRC_GET_REC_RESOLUTION:
@@ -367,7 +339,7 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 		if (!dev->timeout)
 			return -ENOTTY;
 
-		lirc->send_timeout_reports = !!val;
+		dev->send_timeout_reports = !!val;
 		break;
 
 	default:
@@ -394,7 +366,7 @@ static const struct file_operations lirc_fops = {
 	.llseek		= no_llseek,
 };
 
-static int ir_lirc_register(struct rc_dev *dev)
+int ir_lirc_register(struct rc_dev *dev)
 {
 	struct lirc_dev *ldev;
 	int rc = -ENOMEM;
@@ -436,7 +408,6 @@ static int ir_lirc_register(struct rc_dev *dev)
 	snprintf(ldev->name, sizeof(ldev->name), "ir-lirc-codec (%s)",
 		 dev->driver_name);
 	ldev->features = features;
-	ldev->data = &dev->raw->lirc;
 	ldev->buf = NULL;
 	ldev->chunk_size = sizeof(int);
 	ldev->buffer_size = LIRCBUF_SIZE;
@@ -449,10 +420,8 @@ static int ir_lirc_register(struct rc_dev *dev)
 	if (rc < 0)
 		goto out;
 
-	dev->raw->lirc.send_mode = LIRC_MODE_PULSE;
-
-	dev->raw->lirc.ldev = ldev;
-	dev->raw->lirc.dev = dev;
+	dev->send_mode = LIRC_MODE_PULSE;
+	dev->lirc_dev = ldev;
 	return 0;
 
 out:
@@ -460,40 +429,8 @@ out:
 	return rc;
 }
 
-static int ir_lirc_unregister(struct rc_dev *dev)
+void ir_lirc_unregister(struct rc_dev *dev)
 {
-	struct lirc_codec *lirc = &dev->raw->lirc;
-
-	lirc_unregister_device(lirc->ldev);
-	lirc->ldev = NULL;
-
-	return 0;
+	lirc_unregister_device(dev->lirc_dev);
+	dev->lirc_dev = NULL;
 }
-
-static struct ir_raw_handler lirc_handler = {
-	.protocols	= 0,
-	.decode		= ir_lirc_decode,
-	.raw_register	= ir_lirc_register,
-	.raw_unregister	= ir_lirc_unregister,
-};
-
-static int __init ir_lirc_codec_init(void)
-{
-	ir_raw_handler_register(&lirc_handler);
-
-	printk(KERN_INFO "IR LIRC bridge handler initialized\n");
-	return 0;
-}
-
-static void __exit ir_lirc_codec_exit(void)
-{
-	ir_raw_handler_unregister(&lirc_handler);
-}
-
-module_init(ir_lirc_codec_init);
-module_exit(ir_lirc_codec_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Jarod Wilson <jarod@redhat.com>");
-MODULE_AUTHOR("Red Hat Inc. (http://www.redhat.com)");
-MODULE_DESCRIPTION("LIRC IR handler bridge");
