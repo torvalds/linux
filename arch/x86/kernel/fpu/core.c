@@ -414,12 +414,19 @@ void fpu__drop(struct fpu *fpu)
 {
 	preempt_disable();
 
-	if (fpu->fpregs_active) {
-		/* Ignore delayed exceptions from user space */
-		asm volatile("1: fwait\n"
-			     "2:\n"
-			     _ASM_EXTABLE(1b, 2b));
-		fpregs_deactivate(fpu);
+	if (fpu == &current->thread.fpu) {
+		WARN_ON_FPU(fpu->fpstate_active != fpu->fpregs_active);
+
+		if (fpu->fpregs_active) {
+			/* Ignore delayed exceptions from user space */
+			asm volatile("1: fwait\n"
+				     "2:\n"
+				     _ASM_EXTABLE(1b, 2b));
+			if (fpu->fpregs_active)
+				fpregs_deactivate(fpu);
+		}
+	} else {
+		WARN_ON_FPU(fpu->fpregs_active);
 	}
 
 	fpu->fpstate_active = 0;
