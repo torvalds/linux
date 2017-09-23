@@ -254,18 +254,21 @@ EXPORT_SYMBOL_GPL(fpu__activate_curr);
 /*
  * This function must be called before we read a task's fpstate.
  *
- * If the task has not used the FPU before then initialize its
- * fpstate.
+ * There's two cases where this gets called:
+ *
+ * - for the current task (when coredumping), in which case we have
+ *   to save the latest FPU registers into the fpstate,
+ *
+ * - or it's called for stopped tasks (ptrace), in which case the
+ *   registers were already saved by the context-switch code when
+ *   the task scheduled out - we only have to initialize the registers
+ *   if they've never been initialized.
  *
  * If the task has used the FPU before then save it.
  */
 void fpu__activate_fpstate_read(struct fpu *fpu)
 {
-	/*
-	 * If fpregs are active (in the current CPU), then
-	 * copy them to the fpstate:
-	 */
-	if (fpu->fpstate_active) {
+	if (fpu == &current->thread.fpu) {
 		fpu__save(fpu);
 	} else {
 		if (!fpu->fpstate_active) {
