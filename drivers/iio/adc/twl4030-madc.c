@@ -878,11 +878,13 @@ static int twl4030_madc_probe(struct platform_device *pdev)
 	ret = iio_device_register(iio_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "could not register iio device\n");
-		goto err_i2c;
+		goto err_usb3v1;
 	}
 
 	return 0;
 
+err_usb3v1:
+	regulator_disable(madc->usb3v1);
 err_i2c:
 	twl4030_madc_set_current_generator(madc, 0, 0);
 err_current_generator:
