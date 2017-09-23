@@ -66,8 +66,6 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 	} else {
 
 		if (dev->gap) {
-			int gap_sample;
-
 			dev->gap_duration += ktime_to_ns(ktime_sub(ktime_get(),
 							 dev->gap_start));
 
@@ -76,9 +74,7 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 			dev->gap_duration = min_t(u64, dev->gap_duration,
 						  LIRC_VALUE_MASK);
 
-			gap_sample = LIRC_SPACE(dev->gap_duration);
-			lirc_buffer_write(dev->lirc_dev->buf,
-					  (unsigned char *)&gap_sample);
+			kfifo_put(&dev->rawir, LIRC_SPACE(dev->gap_duration));
 			dev->gap = false;
 		}
 
@@ -88,10 +84,8 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 			   TO_US(ev.duration), TO_STR(ev.pulse));
 	}
 
-	lirc_buffer_write(dev->lirc_dev->buf,
-			  (unsigned char *) &sample);
-
-	wake_up(&dev->lirc_dev->buf->wait_poll);
+	kfifo_put(&dev->rawir, sample);
+	wake_up_poll(&dev->wait_poll, POLLIN | POLLRDNORM);
 }
 
 static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
@@ -408,6 +402,68 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 	return ret;
 }
 
+static unsigned int ir_lirc_poll(struct file *file,
+				 struct poll_table_struct *wait)
+{
+	struct rc_dev *rcdev = file->private_data;
+	struct lirc_dev *d = rcdev->lirc_dev;
+	unsigned int events = 0;
+
+	poll_wait(file, &rcdev->wait_poll, wait);
+
+	if (!d->attached)
+		events = POLLHUP | POLLERR;
+	else if (rcdev->driver_type == RC_DRIVER_IR_RAW &&
+		 !kfifo_is_empty(&rcdev->rawir))
+		events = POLLIN | POLLRDNORM;
+
+	return events;
+}
+
+static ssize_t ir_lirc_read(struct file *file, char __user *buffer,
+			    size_t length, loff_t *ppos)
+{
+	struct rc_dev *rcdev = file->private_data;
+	struct lirc_dev *d = rcdev->lirc_dev;
+	unsigned int copied;
+	int ret;
+
+	if (rcdev->driver_type == RC_DRIVER_IR_RAW_TX)
+		return -EINVAL;
+
+	if (length < sizeof(unsigned int) || length % sizeof(unsigned int))
+		return -EINVAL;
+
+	if (!d->attached)
+		return -ENODEV;
+
+	do {
+		if (kfifo_is_empty(&rcdev->rawir)) {
+			if (file->f_flags & O_NONBLOCK)
+				return -EAGAIN;
+
+			ret = wait_event_interruptible(rcdev->wait_poll,
+					!kfifo_is_empty(&rcdev->rawir) ||
+					!d->attached);
+			if (ret)
+				return ret;
+		}
+
+		if (!d->attached)
+			return -ENODEV;
+
+		ret = mutex_lock_interruptible(&rcdev->lock);
+		if (ret)
+			return ret;
+		ret = kfifo_to_user(&rcdev->rawir, buffer, length, &copied);
+		mutex_unlock(&rcdev->lock);
+		if (ret)
+			return ret;
+	} while (copied == 0);
+
+	return copied;
+}
+
 static const struct file_operations lirc_fops = {
 	.owner		= THIS_MODULE,
 	.write		= ir_lirc_transmit_ir,
@@ -415,8 +471,8 @@ static const struct file_operations lirc_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= ir_lirc_ioctl,
 #endif
-	.read		= lirc_dev_fop_read,
-	.poll		= lirc_dev_fop_poll,
+	.read		= ir_lirc_read,
+	.poll		= ir_lirc_poll,
 	.open		= lirc_dev_fop_open,
 	.release	= lirc_dev_fop_close,
 	.llseek		= no_llseek,
@@ -433,9 +489,6 @@ int ir_lirc_register(struct rc_dev *dev)
 
 	snprintf(ldev->name, sizeof(ldev->name), "ir-lirc-codec (%s)",
 		 dev->driver_name);
-	ldev->buf = NULL;
-	ldev->chunk_size = sizeof(int);
-	ldev->buffer_size = LIRCBUF_SIZE;
 	ldev->fops = &lirc_fops;
 	ldev->dev.parent = &dev->dev;
 	ldev->rdev = dev;
