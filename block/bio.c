@@ -1380,10 +1380,7 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 			if (n > bytes)
 				n = bytes;
 
-			/*
-			 * sorry...
-			 */
-			if (bio_add_pc_page(q, bio, pages[j], n, offs) < n)
+			if (!bio_add_pc_page(q, bio, pages[j], n, offs))
 				break;
 
 			/*
@@ -1405,6 +1402,9 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 		while (j < npages)
 			put_page(pages[j++]);
 		kvfree(pages);
+		/* couldn't stuff something into bio? */
+		if (bytes)
+			break;
 	}
 
 	bio_set_flag(bio, BIO_USER_MAPPED);
