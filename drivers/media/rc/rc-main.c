@@ -863,11 +863,15 @@ int rc_open(struct rc_dev *rdev)
 
 	mutex_lock(&rdev->lock);
 
-	if (!rdev->users++ && rdev->open != NULL)
-		rval = rdev->open(rdev);
+	if (!rdev->registered) {
+		rval = -ENODEV;
+	} else {
+		if (!rdev->users++ && rdev->open)
+			rval = rdev->open(rdev);
 
-	if (rval)
-		rdev->users--;
+		if (rval)
+			rdev->users--;
+	}
 
 	mutex_unlock(&rdev->lock);
 
@@ -886,7 +890,7 @@ void rc_close(struct rc_dev *rdev)
 	if (rdev) {
 		mutex_lock(&rdev->lock);
 
-		if (!--rdev->users && rdev->close != NULL)
+		if (!--rdev->users && rdev->close && rdev->registered)
 			rdev->close(rdev);
 
 		mutex_unlock(&rdev->lock);
