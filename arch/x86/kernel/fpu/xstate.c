@@ -1089,8 +1089,7 @@ int copy_xstate_to_user(void __user *ubuf, struct xregs_state *xsave, unsigned i
  * there we check the CPU has XSAVES and a whole standard-sized buffer
  * exists.
  */
-int copy_kernel_to_xstate(const void *kbuf, const void __user *ubuf,
-		     struct xregs_state *xsave)
+int copy_kernel_to_xstate(const void *kbuf, struct xregs_state *xsave)
 {
 	unsigned int offset, size;
 	int i;
@@ -1100,12 +1099,7 @@ int copy_kernel_to_xstate(const void *kbuf, const void __user *ubuf,
 	offset = offsetof(struct xregs_state, header);
 	size = sizeof(xfeatures);
 
-	if (kbuf) {
-		memcpy(&xfeatures, kbuf + offset, size);
-	} else {
-		if (__copy_from_user(&xfeatures, ubuf + offset, size))
-			return -EFAULT;
-	}
+	memcpy(&xfeatures, kbuf + offset, size);
 
 	/*
 	 * Reject if the user sets any disabled or supervisor features:
@@ -1124,12 +1118,7 @@ int copy_kernel_to_xstate(const void *kbuf, const void __user *ubuf,
 			offset = xstate_offsets[i];
 			size = xstate_sizes[i];
 
-			if (kbuf) {
-				memcpy(dst, kbuf + offset, size);
-			} else {
-				if (__copy_from_user(dst, ubuf + offset, size))
-					return -EFAULT;
-			}
+			memcpy(dst, kbuf + offset, size);
 		}
 	}
 
