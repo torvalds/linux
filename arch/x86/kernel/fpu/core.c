@@ -147,8 +147,6 @@ void fpu__save(struct fpu *fpu)
 	WARN_ON_FPU(fpu != &current->thread.fpu);
 
 	preempt_disable();
-	WARN_ON_FPU(fpu->fpstate_active != fpu->fpregs_active);
-
 	trace_x86_fpu_before_save(fpu);
 	if (fpu->fpstate_active) {
 		if (!copy_fpregs_to_fpstate(fpu)) {
@@ -191,7 +189,6 @@ EXPORT_SYMBOL_GPL(fpstate_init);
 
 int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 {
-	dst_fpu->fpregs_active = 0;
 	dst_fpu->last_cpu = -1;
 
 	if (!src_fpu->fpstate_active || !static_cpu_has(X86_FEATURE_FPU))
@@ -264,7 +261,6 @@ EXPORT_SYMBOL_GPL(fpu__activate_curr);
  */
 void fpu__activate_fpstate_read(struct fpu *fpu)
 {
-	WARN_ON_FPU(fpu->fpstate_active != fpu->fpregs_active);
 	/*
 	 * If fpregs are active (in the current CPU), then
 	 * copy them to the fpstate:
@@ -365,7 +361,6 @@ void fpu__current_fpstate_write_end(void)
 {
 	struct fpu *fpu = &current->thread.fpu;
 
-	WARN_ON_FPU(fpu->fpstate_active != fpu->fpregs_active);
 	/*
 	 * 'fpu' now has an updated copy of the state, but the
 	 * registers may still be out of date.  Update them with
@@ -419,8 +414,6 @@ void fpu__drop(struct fpu *fpu)
 	preempt_disable();
 
 	if (fpu == &current->thread.fpu) {
-		WARN_ON_FPU(fpu->fpstate_active != fpu->fpregs_active);
-
 		if (fpu->fpstate_active) {
 			/* Ignore delayed exceptions from user space */
 			asm volatile("1: fwait\n"
@@ -428,8 +421,6 @@ void fpu__drop(struct fpu *fpu)
 				     _ASM_EXTABLE(1b, 2b));
 			fpregs_deactivate(fpu);
 		}
-	} else {
-		WARN_ON_FPU(fpu->fpregs_active);
 	}
 
 	fpu->fpstate_active = 0;

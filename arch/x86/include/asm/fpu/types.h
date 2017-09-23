@@ -299,29 +299,6 @@ struct fpu {
 	unsigned char			fpstate_active;
 
 	/*
-	 * @fpregs_active:
-	 *
-	 * This flag determines whether a given context is actively
-	 * loaded into the FPU's registers and that those registers
-	 * represent the task's current FPU state.
-	 *
-	 * Note the interaction with fpstate_active:
-	 *
-	 *   # task does not use the FPU:
-	 *   fpstate_active == 0
-	 *
-	 *   # task uses the FPU and regs are active:
-	 *   fpstate_active == 1 && fpregs_active == 1
-	 *
-	 *   # the regs are inactive but still match fpstate:
-	 *   fpstate_active == 1 && fpregs_active == 0 && fpregs_owner == fpu
-	 *
-	 * The third state is what we use for the lazy restore optimization
-	 * on lazy-switching CPUs.
-	 */
-	unsigned char			fpregs_active;
-
-	/*
 	 * @state:
 	 *
 	 * In-memory copy of all FPU registers that we save/restore

@@ -526,14 +526,12 @@ static inline int fpregs_state_valid(struct fpu *fpu, unsigned int cpu)
  */
 static inline void fpregs_deactivate(struct fpu *fpu)
 {
-	fpu->fpregs_active = 0;
 	this_cpu_write(fpu_fpregs_owner_ctx, NULL);
 	trace_x86_fpu_regs_deactivated(fpu);
 }
 
 static inline void fpregs_activate(struct fpu *fpu)
 {
-	fpu->fpregs_active = 1;
 	this_cpu_write(fpu_fpregs_owner_ctx, fpu);
 	trace_x86_fpu_regs_activated(fpu);
 }
@@ -552,8 +550,6 @@ static inline void fpregs_activate(struct fpu *fpu)
 static inline void
 switch_fpu_prepare(struct fpu *old_fpu, int cpu)
 {
-	WARN_ON_FPU(old_fpu->fpregs_active != old_fpu->fpstate_active);
-
 	if (old_fpu->fpstate_active) {
 		if (!copy_fpregs_to_fpstate(old_fpu))
 			old_fpu->last_cpu = -1;
@@ -561,7 +557,6 @@ switch_fpu_prepare(struct fpu *old_fpu, int cpu)
 			old_fpu->last_cpu = cpu;
 
 		/* But leave fpu_fpregs_owner_ctx! */
-		old_fpu->fpregs_active = 0;
 		trace_x86_fpu_regs_deactivated(old_fpu);
 	} else
 		old_fpu->last_cpu = -1;
