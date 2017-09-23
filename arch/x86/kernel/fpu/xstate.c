@@ -929,12 +929,12 @@ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 static inline bool xfeatures_mxcsr_quirk(u64 xfeatures)
 {
 	if (!(xfeatures & (XFEATURE_MASK_SSE|XFEATURE_MASK_YMM)))
-		return 0;
+		return false;
 
 	if (xfeatures & XFEATURE_MASK_FP)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 /*
