@@ -281,7 +281,7 @@ void t4_os_link_changed(struct adapter *adapter, int port_id, int link_stat)
 		else {
 #ifdef CONFIG_CHELSIO_T4_DCB
 			if (cxgb4_dcb_enabled(dev)) {
-				cxgb4_dcb_state_init(dev);
+				cxgb4_dcb_reset(dev);
 				dcb_tx_queue_prio_enable(dev, false);
 			}
 #endif /* CONFIG_CHELSIO_T4_DCB */
@@ -2304,10 +2304,16 @@ static int cxgb_close(struct net_device *dev)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
+	int ret;
 
 	netif_tx_stop_all_queues(dev);
 	netif_carrier_off(dev);
-	return t4_enable_vi(adapter, adapter->pf, pi->viid, false, false);
+	ret = t4_enable_vi(adapter, adapter->pf, pi->viid, false, false);
+#ifdef CONFIG_CHELSIO_T4_DCB
+	cxgb4_dcb_reset(dev);
+	dcb_tx_queue_prio_enable(dev, false);
+#endif
+	return ret;
 }
 
 int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
