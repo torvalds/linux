@@ -924,10 +924,106 @@ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
  * This is similar to user_regset_copyout(), but will not add offset to
  * the source data pointer or increment pos, count, kbuf, and ubuf.
  */
-static inline int xstate_copyout(unsigned int pos, unsigned int count,
-				 void *kbuf, void __user *ubuf,
-				 const void *data, const int start_pos,
-				 const int end_pos)
+static inline int
+__copy_xstate_to_kernel(unsigned int pos, unsigned int count,
+			void *kbuf, void __user *ubuf,
+			const void *data, const int start_pos,
+			const int end_pos)
+{
+	if ((count == 0) || (pos < start_pos))
+		return 0;
+
+	if (end_pos < 0 || pos < end_pos) {
+		unsigned int copy = (end_pos < 0 ? count : min(count, end_pos - pos));
+
+		if (kbuf) {
+			memcpy(kbuf + pos, data, copy);
+		} else {
+			if (__copy_to_user(ubuf + pos, data, copy))
+				return -EFAULT;
+		}
+	}
+	return 0;
+}
+
+/*
+ * Convert from kernel XSAVES compacted format to standard format and copy
+ * to a kernel-space ptrace buffer.
+ *
+ * It supports partial copy but pos always starts from zero. This is called
+ * from xstateregs_get() and there we check the CPU has XSAVES.
+ */
+int copy_xstate_to_kernel(unsigned int pos, unsigned int count, void *kbuf,
+			void __user *ubuf, struct xregs_state *xsave)
+{
+	unsigned int offset, size;
+	int ret, i;
+	struct xstate_header header;
+
+	/*
+	 * Currently copy_regset_to_user() starts from pos 0:
+	 */
+	if (unlikely(pos != 0))
+		return -EFAULT;
+
+	/*
+	 * The destination is a ptrace buffer; we put in only user xstates:
+	 */
+	memset(&header, 0, sizeof(header));
+	header.xfeatures = xsave->header.xfeatures;
+	header.xfeatures &= ~XFEATURE_MASK_SUPERVISOR;
+
+	/*
+	 * Copy xregs_state->header:
+	 */
+	offset = offsetof(struct xregs_state, header);
+	size = sizeof(header);
+
+	ret = __copy_xstate_to_kernel(offset, size, kbuf, ubuf, &header, 0, count);
+
+	if (ret)
+		return ret;
+
+	for (i = 0; i < XFEATURE_MAX; i++) {
+		/*
+		 * Copy only in-use xstates:
+		 */
+		if ((header.xfeatures >> i) & 1) {
+			void *src = __raw_xsave_addr(xsave, 1 << i);
+
+			offset = xstate_offsets[i];
+			size = xstate_sizes[i];
+
+			ret = __copy_xstate_to_kernel(offset, size, kbuf, ubuf, src, 0, count);
+
+			if (ret)
+				return ret;
+
+			if (offset + size >= count)
+				break;
+		}
+
+	}
+
+	/*
+	 * Fill xsave->i387.sw_reserved value for ptrace frame:
+	 */
+	offset = offsetof(struct fxregs_state, sw_reserved);
+	size = sizeof(xstate_fx_sw_bytes);
+
+	ret = __copy_xstate_to_kernel(offset, size, kbuf, ubuf, xstate_fx_sw_bytes, 0, count);
+
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static inline int
+__copy_xstate_to_user(unsigned int pos, unsigned int count,
+		      void *kbuf, void __user *ubuf,
+		      const void *data, const int start_pos,
+		      const int end_pos)
 {
 	if ((count == 0) || (pos < start_pos))
 		return 0;
@@ -977,7 +1073,7 @@ int copy_xstate_to_user(unsigned int pos, unsigned int count, void *kbuf,
 	offset = offsetof(struct xregs_state, header);
 	size = sizeof(header);
 
-	ret = xstate_copyout(offset, size, kbuf, ubuf, &header, 0, count);
+	ret = __copy_xstate_to_user(offset, size, kbuf, ubuf, &header, 0, count);
 
 	if (ret)
 		return ret;
@@ -992,7 +1088,7 @@ int copy_xstate_to_user(unsigned int pos, unsigned int count, void *kbuf,
 			offset = xstate_offsets[i];
 			size = xstate_sizes[i];
 
-			ret = xstate_copyout(offset, size, kbuf, ubuf, src, 0, count);
+			ret = __copy_xstate_to_user(offset, size, kbuf, ubuf, src, 0, count);
 
 			if (ret)
 				return ret;
@@ -1009,7 +1105,7 @@ int copy_xstate_to_user(unsigned int pos, unsigned int count, void *kbuf,
 	offset = offsetof(struct fxregs_state, sw_reserved);
 	size = sizeof(xstate_fx_sw_bytes);
 
-	ret = xstate_copyout(offset, size, kbuf, ubuf, xstate_fx_sw_bytes, 0, count);
+	ret = __copy_xstate_to_user(offset, size, kbuf, ubuf, xstate_fx_sw_bytes, 0, count);
 
 	if (ret)
 		return ret;
