@@ -94,10 +94,10 @@ struct hclge_bp_to_qs_map_cmd {
 	u32 rsvd1;
 };
 
-#define hclge_tm_set_feild(dest, string, val) \
+#define hclge_tm_set_field(dest, string, val) \
 			hnae_set_field((dest), (HCLGE_TM_SHAP_##string##_MSK), \
 				       (HCLGE_TM_SHAP_##string##_LSH), val)
-#define hclge_tm_get_feild(src, string) \
+#define hclge_tm_get_field(src, string) \
 			hnae_get_field((src), (HCLGE_TM_SHAP_##string##_MSK), \
 				       (HCLGE_TM_SHAP_##string##_LSH))
 

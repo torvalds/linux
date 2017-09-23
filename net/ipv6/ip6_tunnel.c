@@ -2259,6 +2259,9 @@ static int __init ip6_tunnel_init(void)
 {
 	int  err;
 
+	if (!ipv6_mod_enabled())
+		return -EOPNOTSUPP;
+
 	err = register_pernet_device(&ip6_tnl_net_ops);
 	if (err < 0)
 		goto out_pernet;
