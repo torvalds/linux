@@ -79,6 +79,7 @@
 #include "l2t.h"
 #include "sched.h"
 #include "cxgb4_tc_u32.h"
+#include "cxgb4_tc_flower.h"
 #include "cxgb4_ptp.h"
 
 char cxgb4_driver_name[] = KBUILD_MODNAME;
@@ -2873,6 +2874,25 @@ static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 	return err;
 }
 
+static int cxgb_setup_tc_flower(struct net_device *dev,
+				struct tc_cls_flower_offload *cls_flower)
+{
+	if (!is_classid_clsact_ingress(cls_flower->common.classid) ||
+	    cls_flower->common.chain_index)
+		return -EOPNOTSUPP;
+
+	switch (cls_flower->command) {
+	case TC_CLSFLOWER_REPLACE:
+		return cxgb4_tc_flower_replace(dev, cls_flower);
+	case TC_CLSFLOWER_DESTROY:
+		return cxgb4_tc_flower_destroy(dev, cls_flower);
+	case TC_CLSFLOWER_STATS:
+		return cxgb4_tc_flower_stats(dev, cls_flower);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int cxgb_setup_tc_cls_u32(struct net_device *dev,
 				 struct tc_cls_u32_offload *cls_u32)
 {
@@ -2907,6 +2927,8 @@ static int cxgb_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	switch (type) {
 	case TC_SETUP_CLSU32:
 		return cxgb_setup_tc_cls_u32(dev, type_data);
+	case TC_SETUP_CLSFLOWER:
+		return cxgb_setup_tc_flower(dev, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -4615,6 +4637,7 @@ static void free_some_resources(struct adapter *adapter)
 	kvfree(adapter->l2t);
 	t4_cleanup_sched(adapter);
 	kvfree(adapter->tids.tid_tab);
+	cxgb4_cleanup_tc_flower(adapter);
 	cxgb4_cleanup_tc_u32(adapter);
 	kfree(adapter->sge.egr_map);
 	kfree(adapter->sge.ingr_map);
@@ -5083,6 +5106,8 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (!adapter->tc_u32)
 			dev_warn(&pdev->dev,
 				 "could not offload tc u32, continuing\n");
+
+		cxgb4_init_tc_flower(adapter);
 	}
 
 	if (is_offload(adapter)) {
