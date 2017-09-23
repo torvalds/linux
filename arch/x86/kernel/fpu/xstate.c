@@ -926,7 +926,7 @@ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
  */
 static inline int
 __copy_xstate_to_kernel(unsigned int pos, unsigned int count,
-			void *kbuf, void __user *ubuf,
+			void *kbuf,
 			const void *data, const int start_pos,
 			const int end_pos)
 {
@@ -936,12 +936,7 @@ __copy_xstate_to_kernel(unsigned int pos, unsigned int count,
 	if (end_pos < 0 || pos < end_pos) {
 		unsigned int copy = (end_pos < 0 ? count : min(count, end_pos - pos));
 
-		if (kbuf) {
-			memcpy(kbuf + pos, data, copy);
-		} else {
-			if (__copy_to_user(ubuf + pos, data, copy))
-				return -EFAULT;
-		}
+		memcpy(kbuf + pos, data, copy);
 	}
 	return 0;
 }
@@ -953,8 +948,7 @@ __copy_xstate_to_kernel(unsigned int pos, unsigned int count,
  * It supports partial copy but pos always starts from zero. This is called
  * from xstateregs_get() and there we check the CPU has XSAVES.
  */
-int copy_xstate_to_kernel(unsigned int pos, unsigned int count, void *kbuf,
-			void __user *ubuf, struct xregs_state *xsave)
+int copy_xstate_to_kernel(unsigned int pos, unsigned int count, void *kbuf, struct xregs_state *xsave)
 {
 	unsigned int offset, size;
 	int ret, i;
@@ -979,8 +973,7 @@ int copy_xstate_to_kernel(unsigned int pos, unsigned int count, void *kbuf,
 	offset = offsetof(struct xregs_state, header);
 	size = sizeof(header);
 
-	ret = __copy_xstate_to_kernel(offset, size, kbuf, ubuf, &header, 0, count);
-
+	ret = __copy_xstate_to_kernel(offset, size, kbuf, &header, 0, count);
 	if (ret)
 		return ret;
 
@@ -994,8 +987,7 @@ int copy_xstate_to_kernel(unsigned int pos, unsigned int count, void *kbuf,
 			offset = xstate_offsets[i];
 			size = xstate_sizes[i];
 
-			ret = __copy_xstate_to_kernel(offset, size, kbuf, ubuf, src, 0, count);
-
+			ret = __copy_xstate_to_kernel(offset, size, kbuf, src, 0, count);
 			if (ret)
 				return ret;
 
@@ -1011,8 +1003,7 @@ int copy_xstate_to_kernel(unsigned int pos, unsigned int count, void *kbuf,
 	offset = offsetof(struct fxregs_state, sw_reserved);
 	size = sizeof(xstate_fx_sw_bytes);
 
-	ret = __copy_xstate_to_kernel(offset, size, kbuf, ubuf, xstate_fx_sw_bytes, 0, count);
-
+	ret = __copy_xstate_to_kernel(offset, size, kbuf, xstate_fx_sw_bytes, 0, count);
 	if (ret)
 		return ret;
 
