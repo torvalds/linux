@@ -48,8 +48,8 @@ void fpu__xstate_clear_all_cpu_caps(void);
 void *get_xsave_addr(struct xregs_state *xsave, int xstate);
 const void *get_xsave_field_ptr(int xstate_field);
 int using_compacted_format(void);
-int copyout_from_xsaves(unsigned int pos, unsigned int count, void *kbuf,
+int copy_xstate_to_user(unsigned int pos, unsigned int count, void *kbuf,
 			void __user *ubuf, struct xregs_state *xsave);
-int copyin_to_xsaves(const void *kbuf, const void __user *ubuf,
+int copy_user_to_xstate(const void *kbuf, const void __user *ubuf,
 		     struct xregs_state *xsave);
 #endif

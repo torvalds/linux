@@ -951,7 +951,7 @@ static inline int xstate_copyout(unsigned int pos, unsigned int count,
  * zero. This is called from xstateregs_get() and there we check the CPU
  * has XSAVES.
  */
-int copyout_from_xsaves(unsigned int pos, unsigned int count, void *kbuf,
+int copy_xstate_to_user(unsigned int pos, unsigned int count, void *kbuf,
 			void __user *ubuf, struct xregs_state *xsave)
 {
 	unsigned int offset, size;
@@ -1023,7 +1023,7 @@ int copyout_from_xsaves(unsigned int pos, unsigned int count, void *kbuf,
  * there we check the CPU has XSAVES and a whole standard-sized buffer
  * exists.
  */
-int copyin_to_xsaves(const void *kbuf, const void __user *ubuf,
+int copy_user_to_xstate(const void *kbuf, const void __user *ubuf,
 		     struct xregs_state *xsave)
 {
 	unsigned int offset, size;

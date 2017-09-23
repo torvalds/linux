@@ -92,7 +92,7 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 	fpu__activate_fpstate_read(fpu);
 
 	if (using_compacted_format()) {
-		ret = copyout_from_xsaves(pos, count, kbuf, ubuf, xsave);
+		ret = copy_xstate_to_user(pos, count, kbuf, ubuf, xsave);
 	} else {
 		fpstate_sanitize_xstate(fpu);
 		/*
@@ -132,7 +132,7 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	fpu__activate_fpstate_write(fpu);
 
 	if (boot_cpu_has(X86_FEATURE_XSAVES))
-		ret = copyin_to_xsaves(kbuf, ubuf, xsave);
+		ret = copy_user_to_xstate(kbuf, ubuf, xsave);
 	else
 		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, xsave, 0, -1);
 
