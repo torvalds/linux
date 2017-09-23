@@ -206,22 +206,13 @@ int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 	 * Save current FPU registers directly into the child
 	 * FPU context, without any memory-to-memory copying.
 	 *
-	 * We have to do all this with preemption disabled,
-	 * mostly because of the FNSAVE case, because in that
-	 * case we must not allow preemption in the window
-	 * between the FNSAVE and us marking the context lazy.
-	 *
-	 * It shouldn't be an issue as even FNSAVE is plenty
-	 * fast in terms of critical section length.
+	 * ( The function 'fails' in the FNSAVE case, which destroys
+	 *   register contents so we have to copy them back. )
 	 */
-	preempt_disable();
 	if (!copy_fpregs_to_fpstate(dst_fpu)) {
-		memcpy(&src_fpu->state, &dst_fpu->state,
-		       fpu_kernel_xstate_size);
-
+		memcpy(&src_fpu->state, &dst_fpu->state, fpu_kernel_xstate_size);
 		copy_kernel_to_fpregs(&src_fpu->state);
 	}
-	preempt_enable();
 
 	trace_x86_fpu_copy_src(src_fpu);
 	trace_x86_fpu_copy_dst(dst_fpu);
