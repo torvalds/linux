@@ -266,7 +266,7 @@ static inline int sk_reuseport_match(struct inet_bind_bucket *tb,
 #if IS_ENABLED(CONFIG_IPV6)
 	if (tb->fast_sk_family == AF_INET6)
 		return ipv6_rcv_saddr_equal(&tb->fast_v6_rcv_saddr,
-					    &sk->sk_v6_rcv_saddr,
+					    inet6_rcv_saddr(sk),
 					    tb->fast_rcv_saddr,
 					    sk->sk_rcv_saddr,
 					    tb->fast_ipv6_only,
