@@ -1325,9 +1325,7 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 {
 	int j;
 	int nr_pages = 0;
-	struct page **pages;
 	struct bio *bio;
-	int cur_page = 0;
 	int ret;
 	struct iov_iter i;
 	struct iovec iov;
@@ -1360,19 +1358,14 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 	if (!bio)
 		return ERR_PTR(-ENOMEM);
 
-	ret = -ENOMEM;
-	pages = kcalloc(nr_pages, sizeof(struct page *), gfp_mask);
-	if (!pages)
-		goto out;
-
 	i = *iter;
 	while (iov_iter_count(&i)) {
+		struct page **pages;
 		ssize_t bytes;
 		size_t offs, added = 0;
 		int npages;
 
-		bytes = iov_iter_get_pages(&i, pages + cur_page, LONG_MAX,
-						nr_pages - cur_page, &offs);
+		bytes = iov_iter_get_pages_alloc(&i, &pages, LONG_MAX, &offs);
 		if (unlikely(bytes <= 0)) {
 			ret = bytes ? bytes : -EFAULT;
 			goto out_unmap;
@@ -1380,7 +1373,7 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 
 		npages = DIV_ROUND_UP(offs + bytes, PAGE_SIZE);
 
-		for (j = cur_page; j < cur_page + npages; j++) {
+		for (j = 0; j < npages; j++) {
 			unsigned int n = PAGE_SIZE - offs;
 			unsigned short prev_bi_vcnt = bio->bi_vcnt;
 
@@ -1409,12 +1402,10 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 		/*
 		 * release the pages we didn't map into the bio, if any
 		 */
-		while (j < cur_page + npages)
+		while (j < npages)
 			put_page(pages[j++]);
-		cur_page = j;
+		kvfree(pages);
 	}
-
-	kfree(pages);
 
 	bio_set_flag(bio, BIO_USER_MAPPED);
 
@@ -1431,8 +1422,6 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 	bio_for_each_segment_all(bvec, bio, j) {
 		put_page(bvec->bv_page);
 	}
- out:
-	kfree(pages);
 	bio_put(bio);
 	return ERR_PTR(ret);
 }
