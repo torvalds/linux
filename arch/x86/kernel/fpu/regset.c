@@ -93,9 +93,9 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 
 	if (using_compacted_format()) {
 		if (kbuf)
-			ret = copy_xstate_to_kernel(pos, count, kbuf, xsave);
+			ret = copy_xstate_to_kernel(kbuf, xsave, pos, count);
 		else
-			ret = copy_xstate_to_user(pos, count, ubuf, xsave);
+			ret = copy_xstate_to_user(ubuf, xsave, pos, count);
 	} else {
 		fpstate_sanitize_xstate(fpu);
 		/*

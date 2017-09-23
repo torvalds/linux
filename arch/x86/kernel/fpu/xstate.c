@@ -925,10 +925,9 @@ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
  * the source data pointer or increment pos, count, kbuf, and ubuf.
  */
 static inline int
-__copy_xstate_to_kernel(unsigned int pos, unsigned int count,
-			void *kbuf,
-			const void *data, const int start_pos,
-			const int end_pos)
+__copy_xstate_to_kernel(void *kbuf,
+			const void *data,
+			unsigned int pos, unsigned int count, const int start_pos, const int end_pos)
 {
 	if ((count == 0) || (pos < start_pos))
 		return 0;
@@ -948,7 +947,7 @@ __copy_xstate_to_kernel(unsigned int pos, unsigned int count,
  * It supports partial copy but pos always starts from zero. This is called
  * from xstateregs_get() and there we check the CPU has XSAVES.
  */
-int copy_xstate_to_kernel(unsigned int pos, unsigned int count, void *kbuf, struct xregs_state *xsave)
+int copy_xstate_to_kernel(void *kbuf, struct xregs_state *xsave, unsigned int pos, unsigned int count)
 {
 	unsigned int offset, size;
 	int ret, i;
@@ -973,7 +972,7 @@ int copy_xstate_to_kernel(unsigned int pos, unsigned int count, void *kbuf, stru
 	offset = offsetof(struct xregs_state, header);
 	size = sizeof(header);
 
-	ret = __copy_xstate_to_kernel(offset, size, kbuf, &header, 0, count);
+	ret = __copy_xstate_to_kernel(kbuf, &header, offset, size, 0, count);
 	if (ret)
 		return ret;
 
@@ -987,7 +986,7 @@ int copy_xstate_to_kernel(unsigned int pos, unsigned int count, void *kbuf, stru
 			offset = xstate_offsets[i];
 			size = xstate_sizes[i];
 
-			ret = __copy_xstate_to_kernel(offset, size, kbuf, src, 0, count);
+			ret = __copy_xstate_to_kernel(kbuf, src, offset, size, 0, count);
 			if (ret)
 				return ret;
 
@@ -1003,7 +1002,7 @@ int copy_xstate_to_kernel(unsigned int pos, unsigned int count, void *kbuf, stru
 	offset = offsetof(struct fxregs_state, sw_reserved);
 	size = sizeof(xstate_fx_sw_bytes);
 
-	ret = __copy_xstate_to_kernel(offset, size, kbuf, xstate_fx_sw_bytes, 0, count);
+	ret = __copy_xstate_to_kernel(kbuf, xstate_fx_sw_bytes, offset, size, 0, count);
 	if (ret)
 		return ret;
 
@@ -1011,7 +1010,7 @@ int copy_xstate_to_kernel(unsigned int pos, unsigned int count, void *kbuf, stru
 }
 
 static inline int
-__copy_xstate_to_user(unsigned int pos, unsigned int count, void __user *ubuf, const void *data, const int start_pos, const int end_pos)
+__copy_xstate_to_user(void __user *ubuf, const void *data, unsigned int pos, unsigned int count, const int start_pos, const int end_pos)
 {
 	if ((count == 0) || (pos < start_pos))
 		return 0;
@@ -1031,7 +1030,7 @@ __copy_xstate_to_user(unsigned int pos, unsigned int count, void __user *ubuf, c
  * zero. This is called from xstateregs_get() and there we check the CPU
  * has XSAVES.
  */
-int copy_xstate_to_user(unsigned int pos, unsigned int count, void __user *ubuf, struct xregs_state *xsave)
+int copy_xstate_to_user(void __user *ubuf, struct xregs_state *xsave, unsigned int pos, unsigned int count)
 {
 	unsigned int offset, size;
 	int ret, i;
@@ -1056,7 +1055,7 @@ int copy_xstate_to_user(unsigned int pos, unsigned int count, void __user *ubuf,
 	offset = offsetof(struct xregs_state, header);
 	size = sizeof(header);
 
-	ret = __copy_xstate_to_user(offset, size, ubuf, &header, 0, count);
+	ret = __copy_xstate_to_user(ubuf, &header, offset, size, 0, count);
 	if (ret)
 		return ret;
 
@@ -1070,7 +1069,7 @@ int copy_xstate_to_user(unsigned int pos, unsigned int count, void __user *ubuf,
 			offset = xstate_offsets[i];
 			size = xstate_sizes[i];
 
-			ret = __copy_xstate_to_user(offset, size, ubuf, src, 0, count);
+			ret = __copy_xstate_to_user(ubuf, src, offset, size, 0, count);
 			if (ret)
 				return ret;
 
@@ -1086,7 +1085,7 @@ int copy_xstate_to_user(unsigned int pos, unsigned int count, void __user *ubuf,
 	offset = offsetof(struct fxregs_state, sw_reserved);
 	size = sizeof(xstate_fx_sw_bytes);
 
-	ret = __copy_xstate_to_user(offset, size, ubuf, xstate_fx_sw_bytes, 0, count);
+	ret = __copy_xstate_to_user(ubuf, xstate_fx_sw_bytes, offset, size, 0, count);
 	if (ret)
 		return ret;
 
