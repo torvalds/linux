@@ -138,7 +138,7 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 		if (kbuf)
 			ret = copy_kernel_to_xstate(kbuf, xsave);
 		else
-			ret = copy_user_to_xstate(kbuf, ubuf, xsave);
+			ret = copy_user_to_xstate(ubuf, xsave);
 	} else {
 		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, xsave, 0, -1);
 	}

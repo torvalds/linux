@@ -51,5 +51,5 @@ int using_compacted_format(void);
 int copy_xstate_to_kernel(void *kbuf, struct xregs_state *xsave, unsigned int offset, unsigned int size);
 int copy_xstate_to_user(void __user *ubuf, struct xregs_state *xsave, unsigned int offset, unsigned int size);
 int copy_kernel_to_xstate(const void *kbuf, struct xregs_state *xsave);
-int copy_user_to_xstate(const void *kbuf, const void __user *ubuf, struct xregs_state *xsave);
+int copy_user_to_xstate(const void __user *ubuf, struct xregs_state *xsave);
 #endif
