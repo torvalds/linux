@@ -57,7 +57,10 @@ int ir_lirc_register(struct rc_dev *dev)
 	dev->lirc_dev.release = lirc_release_device;
 	dev->send_mode = LIRC_MODE_PULSE;
 
-	dev->rec_mode = LIRC_MODE_MODE2;
+	if (dev->driver_type == RC_DRIVER_SCANCODE)
+		dev->rec_mode = LIRC_MODE_SCANCODE;
+	else
+		dev->rec_mode = LIRC_MODE_MODE2;
 
 	if (dev->driver_type == RC_DRIVER_IR_RAW) {
 		if (kfifo_alloc(&dev->rawir, MAX_IR_EVENT_SIZE, GFP_KERNEL))

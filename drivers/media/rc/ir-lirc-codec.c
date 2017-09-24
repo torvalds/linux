@@ -304,6 +304,9 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 
 	switch (cmd) {
 	case LIRC_GET_FEATURES:
+		if (dev->driver_type == RC_DRIVER_SCANCODE)
+			val |= LIRC_CAN_REC_SCANCODE;
+
 		if (dev->driver_type == RC_DRIVER_IR_RAW) {
 			val |= LIRC_CAN_REC_MODE2 | LIRC_CAN_REC_SCANCODE;
 			if (dev->rx_resolution)
@@ -344,11 +347,19 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 		break;
 
 	case LIRC_SET_REC_MODE:
-		if (dev->driver_type == RC_DRIVER_IR_RAW_TX)
+		switch (dev->driver_type) {
+		case RC_DRIVER_IR_RAW_TX:
 			return -ENOTTY;
-
-		if (!(val == LIRC_MODE_MODE2 || val == LIRC_MODE_SCANCODE))
-			return -EINVAL;
+		case RC_DRIVER_SCANCODE:
+			if (val != LIRC_MODE_SCANCODE)
+				return -EINVAL;
+			break;
+		case RC_DRIVER_IR_RAW:
+			if (!(val == LIRC_MODE_MODE2 ||
+			      val == LIRC_MODE_SCANCODE))
+				return -EINVAL;
+			break;
+		}
 
 		dev->rec_mode = val;
 		return 0;
