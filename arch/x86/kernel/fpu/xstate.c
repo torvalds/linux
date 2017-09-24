@@ -1199,12 +1199,15 @@ int copy_user_to_xstate(struct xregs_state *xsave, const void __user *ubuf)
 	int i;
 	u64 xfeatures;
 	u64 allowed_features;
+	struct xstate_header hdr;
 
 	offset = offsetof(struct xregs_state, header);
-	size = sizeof(xfeatures);
+	size = sizeof(hdr);
 
-	if (__copy_from_user(&xfeatures, ubuf + offset, size))
+	if (__copy_from_user(&hdr, ubuf + offset, size))
 		return -EFAULT;
+
+	xfeatures = hdr.xfeatures;
 
 	/*
 	 * Reject if the user sets any disabled or supervisor features:
