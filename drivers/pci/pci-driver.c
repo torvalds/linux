@@ -680,13 +680,6 @@ static int pci_pm_prepare(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 
-	/*
-	 * Devices having power.ignore_children set may still be necessary for
-	 * suspending their children in the next phase of device suspend.
-	 */
-	if (dev->power.ignore_children)
-		pm_runtime_resume(dev);
-
 	if (drv && drv->pm && drv->pm->prepare) {
 		int error = drv->pm->prepare(dev);
 		if (error)
