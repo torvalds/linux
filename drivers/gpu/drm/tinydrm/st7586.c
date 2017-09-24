@@ -17,6 +17,7 @@
 #include <linux/spi/spi.h>
 #include <video/mipi_display.h>
 
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/tinydrm/mipi-dbi.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
 
@@ -167,8 +168,8 @@ out_unlock:
 }
 
 static const struct drm_framebuffer_funcs st7586_fb_funcs = {
-	.destroy	= drm_fb_cma_destroy,
-	.create_handle	= drm_fb_cma_create_handle,
+	.destroy	= drm_gem_fb_destroy,
+	.create_handle	= drm_gem_fb_create_handle,
 	.dirty		= st7586_fb_dirty,
 };
 
