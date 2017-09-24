@@ -2478,12 +2478,10 @@ void qib_notify_create_mad_agent(struct rvt_dev_info *rdi, int port_idx)
 
 	/* Initialize xmit_wait structure */
 	dd->pport[port_idx].cong_stats.counter = 0;
-	init_timer(&dd->pport[port_idx].cong_stats.timer);
-	dd->pport[port_idx].cong_stats.timer.function = xmit_wait_timer_func;
-	dd->pport[port_idx].cong_stats.timer.data =
-		(unsigned long)(&dd->pport[port_idx]);
-	dd->pport[port_idx].cong_stats.timer.expires = 0;
-	add_timer(&dd->pport[port_idx].cong_stats.timer);
+	setup_timer(&dd->pport[port_idx].cong_stats.timer,
+		    xmit_wait_timer_func,
+		    (unsigned long)(&dd->pport[port_idx]));
+	mod_timer(&dd->pport[port_idx].cong_stats.timer, 0);
 }
 
 void qib_notify_free_mad_agent(struct rvt_dev_info *rdi, int port_idx)
