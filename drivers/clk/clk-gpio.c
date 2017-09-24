@@ -109,14 +109,6 @@ static struct clk_hw *clk_register_gpio(struct device *dev, const char *name,
 	if (!clk_gpio)
 		return ERR_PTR(-ENOMEM);
 
-	/*
-	 * Set to disabled no matter what: NOTE if the GPIO line is active low
-	 * the GPIO descriptor knows this and will set it high to deassert the
-	 * line. This assumes the GPIO descriptor has been requested using
-	 * GPIOD_ASIS by the callers so we need to initialize it as disabled here.
-	 */
-	gpiod_set_value(gpiod, 0);
-
 	init.name = name;
 	init.ops = clk_gpio_ops;
 	init.flags = flags | CLK_IS_BASIC;
@@ -237,7 +229,7 @@ static int gpio_clk_driver_probe(struct platform_device *pdev)
 	is_mux = of_device_is_compatible(node, "gpio-mux-clock");
 
 	gpio_name = is_mux ? "select" : "enable";
-	gpiod = devm_gpiod_get(&pdev->dev, gpio_name, GPIOD_ASIS);
+	gpiod = devm_gpiod_get(&pdev->dev, gpio_name, GPIOD_OUT_LOW);
 	if (IS_ERR(gpiod)) {
 		ret = PTR_ERR(gpiod);
 		if (ret == -EPROBE_DEFER)
