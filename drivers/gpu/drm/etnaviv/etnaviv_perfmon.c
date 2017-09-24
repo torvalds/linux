@@ -200,6 +200,44 @@ static const struct etnaviv_pm_domain doms_3d[] = {
 				&pipe_reg_read
 			}
 		}
+	},
+	{
+		.name = "PA",
+		.profile_read = VIVS_MC_PROFILE_PA_READ,
+		.profile_config = VIVS_MC_PROFILE_CONFIG1,
+		.nr_signals = 6,
+		.signal = (const struct etnaviv_pm_signal[]) {
+			{
+				"INPUT_VTX_COUNTER",
+				VIVS_MC_PROFILE_CONFIG1_PA_INPUT_VTX_COUNTER,
+				&perf_reg_read
+			},
+			{
+				"INPUT_PRIM_COUNTER",
+				VIVS_MC_PROFILE_CONFIG1_PA_INPUT_PRIM_COUNTER,
+				&perf_reg_read
+			},
+			{
+				"OUTPUT_PRIM_COUNTER",
+				VIVS_MC_PROFILE_CONFIG1_PA_OUTPUT_PRIM_COUNTER,
+				&perf_reg_read
+			},
+			{
+				"DEPTH_CLIPPED_COUNTER",
+				VIVS_MC_PROFILE_CONFIG1_PA_DEPTH_CLIPPED_COUNTER,
+				&pipe_reg_read
+			},
+			{
+				"TRIVIAL_REJECTED_COUNTER",
+				VIVS_MC_PROFILE_CONFIG1_PA_TRIVIAL_REJECTED_COUNTER,
+				&pipe_reg_read
+			},
+			{
+				"CULLED_COUNTER",
+				VIVS_MC_PROFILE_CONFIG1_PA_CULLED_COUNTER,
+				&pipe_reg_read
+			}
+		}
 	}
 };
 
