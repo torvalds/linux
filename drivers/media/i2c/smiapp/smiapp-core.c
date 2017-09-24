@@ -3093,7 +3093,7 @@ static int smiapp_probe(struct i2c_client *client,
 	if (rval < 0)
 		goto out_media_entity_cleanup;
 
-	rval = v4l2_async_register_subdev(&sensor->src->sd);
+	rval = v4l2_async_register_subdev_sensor_common(&sensor->src->sd);
 	if (rval < 0)
 		goto out_media_entity_cleanup;
 
