@@ -749,11 +749,10 @@ config HID_PRIMAX
 	HID standard.
 
 config HID_RETRODE
-	tristate "Retrode"
+	tristate "Retrode 2 USB adapter for vintage video games"
 	depends on USB_HID
 	---help---
 	Support for
-
 	  * Retrode 2 cartridge and controller adapter
 
 config HID_ROCCAT
