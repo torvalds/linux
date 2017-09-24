@@ -2331,11 +2331,8 @@ static int bcm_enetsw_open(struct net_device *dev)
 	}
 
 	/* start phy polling timer */
-	init_timer(&priv->swphy_poll);
-	priv->swphy_poll.function = swphy_poll_timer;
-	priv->swphy_poll.data = (unsigned long)priv;
-	priv->swphy_poll.expires = jiffies;
-	add_timer(&priv->swphy_poll);
+	setup_timer(&priv->swphy_poll, swphy_poll_timer, (unsigned long)priv);
+	mod_timer(&priv->swphy_poll, jiffies);
 	return 0;
 
 out:
