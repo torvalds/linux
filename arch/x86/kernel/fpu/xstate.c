@@ -1197,7 +1197,6 @@ int copy_user_to_xstate(struct xregs_state *xsave, const void __user *ubuf)
 {
 	unsigned int offset, size;
 	int i;
-	u64 xfeatures;
 	u64 allowed_features;
 	struct xstate_header hdr;
 
@@ -1207,20 +1206,18 @@ int copy_user_to_xstate(struct xregs_state *xsave, const void __user *ubuf)
 	if (__copy_from_user(&hdr, ubuf + offset, size))
 		return -EFAULT;
 
-	xfeatures = hdr.xfeatures;
-
 	/*
 	 * Reject if the user sets any disabled or supervisor features:
 	 */
 	allowed_features = xfeatures_mask & ~XFEATURE_MASK_SUPERVISOR;
 
-	if (xfeatures & ~allowed_features)
+	if (hdr.xfeatures & ~allowed_features)
 		return -EINVAL;
 
 	for (i = 0; i < XFEATURE_MAX; i++) {
 		u64 mask = ((u64)1 << i);
 
-		if (xfeatures & mask) {
+		if (hdr.xfeatures & mask) {
 			void *dst = __raw_xsave_addr(xsave, 1 << i);
 
 			offset = xstate_offsets[i];
@@ -1231,7 +1228,7 @@ int copy_user_to_xstate(struct xregs_state *xsave, const void __user *ubuf)
 		}
 	}
 
-	if (xfeatures_mxcsr_quirk(xfeatures)) {
+	if (xfeatures_mxcsr_quirk(hdr.xfeatures)) {
 		offset = offsetof(struct fxregs_state, mxcsr);
 		size = MXCSR_AND_FLAGS_SIZE;
 		if (__copy_from_user(&xsave->i387.mxcsr, ubuf + offset, size))
@@ -1247,7 +1244,7 @@ int copy_user_to_xstate(struct xregs_state *xsave, const void __user *ubuf)
 	/*
 	 * Add back in the features that came in from userspace:
 	 */
-	xsave->header.xfeatures |= xfeatures;
+	xsave->header.xfeatures |= hdr.xfeatures;
 
 	return 0;
 }
