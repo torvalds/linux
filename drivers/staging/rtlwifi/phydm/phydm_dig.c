@@ -490,6 +490,8 @@ void odm_pause_dig(void *dm_void, enum phydm_pause_type pause_type,
 				break;
 		}
 
+		/* pin max_level to be >= 0 */
+		max_level = max_t(s8, 0, max_level);
 		/* write IGI of lower level */
 		odm_write_dig(dm, dig_tab->pause_dig_value[max_level]);
 		ODM_RT_TRACE(dm, ODM_COMP_DIG,
