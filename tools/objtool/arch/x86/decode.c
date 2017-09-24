@@ -208,14 +208,14 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 		break;
 
 	case 0x89:
-		if (rex == 0x48 && modrm == 0xe5) {
+		if (rex_w && !rex_r && modrm_mod == 3 && modrm_reg == 4) {
 
-			/* mov %rsp, %rbp */
+			/* mov %rsp, reg */
 			*type = INSN_STACK;
 			op->src.type = OP_SRC_REG;
 			op->src.reg = CFI_SP;
 			op->dest.type = OP_DEST_REG;
-			op->dest.reg = CFI_BP;
+			op->dest.reg = op_to_cfi_reg[modrm_rm][rex_b];
 			break;
 		}
 
