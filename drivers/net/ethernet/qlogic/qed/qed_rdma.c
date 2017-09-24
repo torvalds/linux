@@ -209,11 +209,11 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
 		goto free_pd_map;
 	}
 
-	/* Allocate bitmap for cq's. The maximum number of CQs is bounded to
-	 * twice the number of QPs.
+	/* Allocate bitmap for cq's. The maximum number of CQs is bound to
+	 * the number of connections we support. (num_qps in iWARP or
+	 * num_qps/2 in RoCE).
 	 */
-	rc = qed_rdma_bmap_alloc(p_hwfn, &p_rdma_info->cq_map,
-				 p_rdma_info->num_qps * 2, "CQ");
+	rc = qed_rdma_bmap_alloc(p_hwfn, &p_rdma_info->cq_map, num_cons, "CQ");
 	if (rc) {
 		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
 			   "Failed to allocate cq bitmap, rc = %d\n", rc);
@@ -222,10 +222,10 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
 
 	/* Allocate bitmap for toggle bit for cq icids
 	 * We toggle the bit every time we create or resize cq for a given icid.
-	 * The maximum number of CQs is bounded to  twice the number of QPs.
+	 * Size needs to equal the size of the cq bmap.
 	 */
 	rc = qed_rdma_bmap_alloc(p_hwfn, &p_rdma_info->toggle_bits,
-				 p_rdma_info->num_qps * 2, "Toggle");
+				 num_cons, "Toggle");
 	if (rc) {
 		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
 			   "Failed to allocate toogle bits, rc = %d\n", rc);
