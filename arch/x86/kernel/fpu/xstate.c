@@ -1138,15 +1138,12 @@ int copy_xstate_to_user(void __user *ubuf, struct xregs_state *xsave, unsigned i
 
 /*
  * Convert from a ptrace standard-format kernel buffer to kernel XSAVES format
- * and copy to the target thread. This is called from xstateregs_set() and
- * there we check the CPU has XSAVES and a whole standard-sized buffer
- * exists.
+ * and copy to the target thread. This is called from xstateregs_set().
  */
 int copy_kernel_to_xstate(struct xregs_state *xsave, const void *kbuf)
 {
 	unsigned int offset, size;
 	int i;
-	u64 allowed_features;
 	struct xstate_header hdr;
 
 	offset = offsetof(struct xregs_state, header);
@@ -1154,12 +1151,7 @@ int copy_kernel_to_xstate(struct xregs_state *xsave, const void *kbuf)
 
 	memcpy(&hdr, kbuf + offset, size);
 
-	/*
-	 * Reject if the user sets any disabled or supervisor features:
-	 */
-	allowed_features = xfeatures_mask & ~XFEATURE_MASK_SUPERVISOR;
-
-	if (hdr.xfeatures & ~allowed_features)
+	if (validate_xstate_header(&hdr))
 		return -EINVAL;
 
 	for (i = 0; i < XFEATURE_MAX; i++) {
