@@ -315,9 +315,12 @@ static int vl6180_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_LIGHT:
-			*val = 0; /* one ALS count is 0.32 Lux */
-			*val2 = 320000;
-			break;
+			/* one ALS count is 0.32 Lux @ gain 1, IT 100 ms */
+			*val = 32000; /* 0.32 * 1000 * 100 */
+			*val2 = data->als_gain_milli * data->als_it_ms;
+
+			return IIO_VAL_FRACTIONAL;
+
 		case IIO_DISTANCE:
 			*val = 0; /* sensor reports mm, scale to meter */
 			*val2 = 1000;
