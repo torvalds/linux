@@ -31,9 +31,9 @@ do {								\
 } while (0)
 
 /**
- * enum rc_driver_type - type of the RC output
+ * enum rc_driver_type - type of the RC driver.
  *
- * @RC_DRIVER_SCANCODE:	 Driver or hardware generates a scancode
+ * @RC_DRIVER_SCANCODE:	 Driver or hardware generates a scancode.
  * @RC_DRIVER_IR_RAW:	 Driver or hardware generates pulse/space sequences.
  *			 It needs a Infra-Red pulse/space decoder
  * @RC_DRIVER_IR_RAW_TX: Device transmitter only,
