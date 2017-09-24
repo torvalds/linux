@@ -1070,14 +1070,21 @@ struct bio_map_data {
 	struct iovec iov[];
 };
 
-static struct bio_map_data *bio_alloc_map_data(unsigned int iov_count,
+static struct bio_map_data *bio_alloc_map_data(struct iov_iter *data,
 					       gfp_t gfp_mask)
 {
-	if (iov_count > UIO_MAXIOV)
+	struct bio_map_data *bmd;
+	if (data->nr_segs > UIO_MAXIOV)
 		return NULL;
 
-	return kmalloc(sizeof(struct bio_map_data) +
-		       sizeof(struct iovec) * iov_count, gfp_mask);
+	bmd = kmalloc(sizeof(struct bio_map_data) +
+		       sizeof(struct iovec) * data->nr_segs, gfp_mask);
+	if (!bmd)
+		return NULL;
+	memcpy(bmd->iov, data->iov, sizeof(struct iovec) * data->nr_segs);
+	bmd->iter = *data;
+	bmd->iter.iov = bmd->iov;
+	return bmd;
 }
 
 /**
@@ -1206,7 +1213,7 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	unsigned int len = iter->count;
 	unsigned int offset = map_data ? offset_in_page(map_data->offset) : 0;
 
-	bmd = bio_alloc_map_data(iter->nr_segs, gfp_mask);
+	bmd = bio_alloc_map_data(iter, gfp_mask);
 	if (!bmd)
 		return ERR_PTR(-ENOMEM);
 
@@ -1216,9 +1223,6 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	 * shortlived one.
 	 */
 	bmd->is_our_pages = map_data ? 0 : 1;
-	memcpy(bmd->iov, iter->iov, sizeof(struct iovec) * iter->nr_segs);
-	bmd->iter = *iter;
-	bmd->iter.iov = bmd->iov;
 
 	nr_pages = DIV_ROUND_UP(offset + len, PAGE_SIZE);
 	if (nr_pages > BIO_MAX_PAGES)
