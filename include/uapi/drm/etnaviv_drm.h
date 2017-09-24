@@ -210,6 +210,27 @@ struct drm_etnaviv_gem_wait {
 	struct drm_etnaviv_timespec timeout;	/* in */
 };
 
+/*
+ * Performance Monitor (PM):
+ */
+
+struct drm_etnaviv_pm_domain {
+	__u32 pipe;       /* in */
+	__u8  iter;       /* in/out, select pm domain at index iter */
+	__u8  id;         /* out, id of domain */
+	__u16 nr_signals; /* out, how many signals does this domain provide */
+	char  name[64];   /* out, name of domain */
+};
+
+struct drm_etnaviv_pm_signal {
+	__u32 pipe;       /* in */
+	__u8  domain;     /* in, pm domain index */
+	__u8  pad;
+	__u16 iter;       /* in/out, select pm source at index iter */
+	__u16 id;         /* out, id of signal */
+	char  name[64];   /* out, name of domain */
+};
+
 #define DRM_ETNAVIV_GET_PARAM          0x00
 /* placeholder:
 #define DRM_ETNAVIV_SET_PARAM          0x01
@@ -222,7 +243,9 @@ struct drm_etnaviv_gem_wait {
 #define DRM_ETNAVIV_WAIT_FENCE         0x07
 #define DRM_ETNAVIV_GEM_USERPTR        0x08
 #define DRM_ETNAVIV_GEM_WAIT           0x09
-#define DRM_ETNAVIV_NUM_IOCTLS         0x0a
+#define DRM_ETNAVIV_PM_QUERY_DOM       0x0a
+#define DRM_ETNAVIV_PM_QUERY_SIG       0x0b
+#define DRM_ETNAVIV_NUM_IOCTLS         0x0c
 
 #define DRM_IOCTL_ETNAVIV_GET_PARAM    DRM_IOWR(DRM_COMMAND_BASE + DRM_ETNAVIV_GET_PARAM, struct drm_etnaviv_param)
 #define DRM_IOCTL_ETNAVIV_GEM_NEW      DRM_IOWR(DRM_COMMAND_BASE + DRM_ETNAVIV_GEM_NEW, struct drm_etnaviv_gem_new)
@@ -233,6 +256,8 @@ struct drm_etnaviv_gem_wait {
 #define DRM_IOCTL_ETNAVIV_WAIT_FENCE   DRM_IOW(DRM_COMMAND_BASE + DRM_ETNAVIV_WAIT_FENCE, struct drm_etnaviv_wait_fence)
 #define DRM_IOCTL_ETNAVIV_GEM_USERPTR  DRM_IOWR(DRM_COMMAND_BASE + DRM_ETNAVIV_GEM_USERPTR, struct drm_etnaviv_gem_userptr)
 #define DRM_IOCTL_ETNAVIV_GEM_WAIT     DRM_IOW(DRM_COMMAND_BASE + DRM_ETNAVIV_GEM_WAIT, struct drm_etnaviv_gem_wait)
+#define DRM_IOCTL_ETNAVIV_PM_QUERY_DOM DRM_IOWR(DRM_COMMAND_BASE + DRM_ETNAVIV_PM_QUERY_DOM, struct drm_etnaviv_pm_domain)
+#define DRM_IOCTL_ETNAVIV_PM_QUERY_SIG DRM_IOWR(DRM_COMMAND_BASE + DRM_ETNAVIV_PM_QUERY_SIG, struct drm_etnaviv_pm_signal)
 
 #if defined(__cplusplus)
 }
