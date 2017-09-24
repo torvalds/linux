@@ -141,14 +141,17 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 		return restart_syscall();
 	}
 
-	priv = ipoib_intf_alloc(ppriv->ca, ppriv->port, intf_name);
-	if (!priv) {
+	if (!down_write_trylock(&ppriv->vlan_rwsem)) {
 		rtnl_unlock();
 		mutex_unlock(&ppriv->sysfs_mutex);
-		return -ENOMEM;
+		return restart_syscall();
 	}
 
-	down_write(&ppriv->vlan_rwsem);
+	priv = ipoib_intf_alloc(ppriv->ca, ppriv->port, intf_name);
+	if (!priv) {
+		result = -ENOMEM;
+		goto out;
+	}
 
 	/*
 	 * First ensure this isn't a duplicate. We check the parent device and
@@ -175,7 +178,7 @@ out:
 	rtnl_unlock();
 	mutex_unlock(&ppriv->sysfs_mutex);
 
-	if (result) {
+	if (result && priv) {
 		free_netdev(priv->dev);
 		kfree(priv);
 	}
@@ -204,7 +207,12 @@ int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
 		return restart_syscall();
 	}
 
-	down_write(&ppriv->vlan_rwsem);
+	if (!down_write_trylock(&ppriv->vlan_rwsem)) {
+		rtnl_unlock();
+		mutex_unlock(&ppriv->sysfs_mutex);
+		return restart_syscall();
+	}
+
 	list_for_each_entry_safe(priv, tpriv, &ppriv->child_intfs, list) {
 		if (priv->pkey == pkey &&
 		    priv->child_type == IPOIB_LEGACY_CHILD) {
