@@ -156,7 +156,10 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
 		return rc;
 
 	p_hwfn->p_rdma_info = p_rdma_info;
-	p_rdma_info->proto = PROTOCOLID_ROCE;
+	if (QED_IS_IWARP_PERSONALITY(p_hwfn))
+		p_rdma_info->proto = PROTOCOLID_IWARP;
+	else
+		p_rdma_info->proto = PROTOCOLID_ROCE;
 
 	num_cons = qed_cxt_get_proto_cid_count(p_hwfn, p_rdma_info->proto,
 					       NULL);
