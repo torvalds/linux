@@ -750,6 +750,9 @@ struct v4l2_subdev {
 	/* Pointer to the managing notifier. */
 	struct v4l2_async_notifier *notifier;
 	/* common part of subdevice platform data */
+	struct v4l2_async_notifier *subdev_notifier;
+	/* A sub-device notifier implicitly registered for the sub-device
+	   using v4l2_device_register_sensor_subdev(). */
 	struct v4l2_subdev_platform_data *pdata;
 };
 

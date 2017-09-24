@@ -584,6 +584,11 @@ void v4l2_async_unregister_subdev(struct v4l2_subdev *sd)
 {
 	struct v4l2_async_notifier *notifier = sd->notifier;
 
+	if (sd->subdev_notifier)
+		v4l2_async_notifier_unregister(sd->subdev_notifier);
+	v4l2_async_notifier_cleanup(sd->subdev_notifier);
+	kfree(sd->subdev_notifier);
+
 	if (!sd->asd) {
 		if (!list_empty(&sd->async_list))
 			v4l2_async_cleanup(sd);
