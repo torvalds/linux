@@ -136,9 +136,11 @@ static inline void cr4_set_bits_and_update_boot(unsigned long mask)
  * to avoid the need for asm/kaiser.h in unexpected places.
  */
 #ifdef CONFIG_KAISER
+extern int kaiser_enabled;
 extern void kaiser_setup_pcid(void);
 extern void kaiser_flush_tlb_on_return_to_user(void);
 #else
+#define kaiser_enabled 0
 static inline void kaiser_setup_pcid(void)
 {
 }
@@ -163,7 +165,7 @@ static inline void __native_flush_tlb(void)
 	 * back:
 	 */
 	preempt_disable();
-	if (this_cpu_has(X86_FEATURE_PCID))
+	if (kaiser_enabled && this_cpu_has(X86_FEATURE_PCID))
 		kaiser_flush_tlb_on_return_to_user();
 	native_write_cr3(native_read_cr3());
 	preempt_enable();
@@ -174,19 +176,29 @@ static inline void __native_flush_tlb_global_irq_disabled(void)
 	unsigned long cr4;
 
 	cr4 = this_cpu_read(cpu_tlbstate.cr4);
-	/* clear PGE */
-	native_write_cr4(cr4 & ~X86_CR4_PGE);
-	/* write old PGE again and flush TLBs */
-	native_write_cr4(cr4);
+	if (cr4 & X86_CR4_PGE) {
+		/* clear PGE and flush TLB of all entries */
+		native_write_cr4(cr4 & ~X86_CR4_PGE);
+		/* restore PGE as it was before */
+		native_write_cr4(cr4);
+	} else {
+		/*
+		 * x86_64 microcode update comes this way when CR4.PGE is not
+		 * enabled, and it's safer for all callers to allow this case.
+		 */
+		native_write_cr3(native_read_cr3());
+	}
 }
 
 static inline void __native_flush_tlb_global(void)
 {
-#ifdef CONFIG_KAISER
-	/* Globals are not used at all */
-	__native_flush_tlb();
-#else
 	unsigned long flags;
+
+	if (kaiser_enabled) {
+		/* Globals are not used at all */
+		__native_flush_tlb();
+		return;
+	}
 
 	if (this_cpu_has(X86_FEATURE_INVPCID)) {
 		/*
@@ -207,7 +219,6 @@ static inline void __native_flush_tlb_global(void)
 	raw_local_irq_save(flags);
 	__native_flush_tlb_global_irq_disabled();
 	raw_local_irq_restore(flags);
-#endif
 }
 
 static inline void __native_flush_tlb_single(unsigned long addr)
@@ -222,7 +233,7 @@ static inline void __native_flush_tlb_single(unsigned long addr)
 	 */
 
 	if (!this_cpu_has(X86_FEATURE_INVPCID_SINGLE)) {
-		if (this_cpu_has(X86_FEATURE_PCID))
+		if (kaiser_enabled && this_cpu_has(X86_FEATURE_PCID))
 			kaiser_flush_tlb_on_return_to_user();
 		asm volatile("invlpg (%0)" ::"r" (addr) : "memory");
 		return;
@@ -237,9 +248,9 @@ static inline void __native_flush_tlb_single(unsigned long addr)
 	 * Make sure to do only a single invpcid when KAISER is
 	 * disabled and we have only a single ASID.
 	 */
-	if (X86_CR3_PCID_ASID_KERN != X86_CR3_PCID_ASID_USER)
-		invpcid_flush_one(X86_CR3_PCID_ASID_KERN, addr);
-	invpcid_flush_one(X86_CR3_PCID_ASID_USER, addr);
+	if (kaiser_enabled)
+		invpcid_flush_one(X86_CR3_PCID_ASID_USER, addr);
+	invpcid_flush_one(X86_CR3_PCID_ASID_KERN, addr);
 }
 
 static inline void __flush_tlb_all(void)

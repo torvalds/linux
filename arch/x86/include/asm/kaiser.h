@@ -46,28 +46,33 @@ movq \reg, %cr3
 .endm
 
 .macro SWITCH_KERNEL_CR3
-pushq %rax
+ALTERNATIVE "jmp 8f", "pushq %rax", X86_FEATURE_KAISER
 _SWITCH_TO_KERNEL_CR3 %rax
 popq %rax
+8:
 .endm
 
 .macro SWITCH_USER_CR3
-pushq %rax
+ALTERNATIVE "jmp 8f", "pushq %rax", X86_FEATURE_KAISER
 _SWITCH_TO_USER_CR3 %rax %al
 popq %rax
+8:
 .endm
 
 .macro SWITCH_KERNEL_CR3_NO_STACK
-movq %rax, PER_CPU_VAR(unsafe_stack_register_backup)
+ALTERNATIVE "jmp 8f", \
+	__stringify(movq %rax, PER_CPU_VAR(unsafe_stack_register_backup)), \
+	X86_FEATURE_KAISER
 _SWITCH_TO_KERNEL_CR3 %rax
 movq PER_CPU_VAR(unsafe_stack_register_backup), %rax
+8:
 .endm
 
 #else /* CONFIG_KAISER */
 
-.macro SWITCH_KERNEL_CR3 reg
+.macro SWITCH_KERNEL_CR3
 .endm
-.macro SWITCH_USER_CR3 reg regb
+.macro SWITCH_USER_CR3
 .endm
 .macro SWITCH_KERNEL_CR3_NO_STACK
 .endm
@@ -89,6 +94,16 @@ extern unsigned long x86_cr3_pcid_noflush;
 DECLARE_PER_CPU(unsigned long, x86_cr3_pcid_user);
 
 extern char __per_cpu_user_mapped_start[], __per_cpu_user_mapped_end[];
+
+extern int kaiser_enabled;
+#else
+#define kaiser_enabled	0
+#endif /* CONFIG_KAISER */
+
+/*
+ * Kaiser function prototypes are needed even when CONFIG_KAISER is not set,
+ * so as to build with tests on kaiser_enabled instead of #ifdefs.
+ */
 
 /**
  *  kaiser_add_mapping - map a virtual memory part to the shadow (user) mapping
@@ -118,8 +133,6 @@ extern void kaiser_remove_mapping(unsigned long start, unsigned long size);
  *  time mappings are permanent and never unmapped.
  */
 extern void kaiser_init(void);
-
-#endif /* CONFIG_KAISER */
 
 #endif /* __ASSEMBLY */
 

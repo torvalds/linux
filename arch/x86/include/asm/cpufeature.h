@@ -200,6 +200,9 @@
 #define X86_FEATURE_HWP_PKG_REQ ( 7*32+14) /* Intel HWP_PKG_REQ */
 #define X86_FEATURE_INTEL_PT	( 7*32+15) /* Intel Processor Trace */
 
+/* Because the ALTERNATIVE scheme is for members of the X86_FEATURE club... */
+#define X86_FEATURE_KAISER	( 7*32+31) /* CONFIG_KAISER w/o nokaiser */
+
 /* Virtualization flags: Linux defined, word 8 */
 #define X86_FEATURE_TPR_SHADOW  ( 8*32+ 0) /* Intel TPR Shadow */
 #define X86_FEATURE_VNMI        ( 8*32+ 1) /* Intel Virtual NMI */

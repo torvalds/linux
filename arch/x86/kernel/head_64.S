@@ -183,8 +183,8 @@ ENTRY(secondary_startup_64)
 	movq	$(init_level4_pgt - __START_KERNEL_map), %rax
 1:
 
-	/* Enable PAE mode and PGE */
-	movl	$(X86_CR4_PAE | X86_CR4_PGE), %ecx
+	/* Enable PAE and PSE, but defer PGE until kaiser_enabled is decided */
+	movl	$(X86_CR4_PAE | X86_CR4_PSE), %ecx
 	movq	%rcx, %cr4
 
 	/* Setup early boot stage 4 level pagetables. */

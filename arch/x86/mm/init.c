@@ -165,7 +165,7 @@ static void __init probe_page_size_mask(void)
 		cr4_set_bits_and_update_boot(X86_CR4_PSE);
 
 	/* Enable PGE if available */
-	if (cpu_has_pge) {
+	if (cpu_has_pge && !kaiser_enabled) {
 		cr4_set_bits_and_update_boot(X86_CR4_PGE);
 		__supported_pte_mask |= _PAGE_GLOBAL;
 	} else

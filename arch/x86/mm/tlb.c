@@ -39,8 +39,7 @@ static void load_new_mm_cr3(pgd_t *pgdir)
 {
 	unsigned long new_mm_cr3 = __pa(pgdir);
 
-#ifdef CONFIG_KAISER
-	if (this_cpu_has(X86_FEATURE_PCID)) {
+	if (kaiser_enabled && this_cpu_has(X86_FEATURE_PCID)) {
 		/*
 		 * We reuse the same PCID for different tasks, so we must
 		 * flush all the entries for the PCID out when we change tasks.
@@ -57,7 +56,6 @@ static void load_new_mm_cr3(pgd_t *pgdir)
 		new_mm_cr3 |= X86_CR3_PCID_KERN_FLUSH;
 		kaiser_flush_tlb_on_return_to_user();
 	}
-#endif /* CONFIG_KAISER */
 
 	/*
 	 * Caution: many callers of this function expect
