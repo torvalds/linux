@@ -1289,6 +1289,9 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	if (ret)
 		goto cleanup;
 
+	if (map_data)
+		map_data->offset += bio->bi_iter.bi_size;
+
 	/*
 	 * success
 	 */
@@ -1301,6 +1304,8 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	iov_iter_advance(iter, bio->bi_iter.bi_size);
 
 	bio->bi_private = bmd;
+	if (map_data && map_data->null_mapped)
+		bio_set_flag(bio, BIO_NULL_MAPPED);
 	return bio;
 cleanup:
 	if (!map_data)
