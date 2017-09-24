@@ -1169,6 +1169,7 @@ static int event_alloc(struct etnaviv_gpu *gpu, unsigned nr_events,
 		int event = find_first_zero_bit(gpu->event_bitmap, ETNA_NR_EVENTS);
 
 		events[i] = event;
+		memset(&gpu->event[event], 0, sizeof(struct etnaviv_event));
 		set_bit(event, gpu->event_bitmap);
 	}
 
@@ -1365,7 +1366,6 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	}
 
 	gpu->event[event].fence = fence;
-	gpu->event[event].sync_point = NULL;
 	submit->fence = dma_fence_get(fence);
 	gpu->active_fence = submit->fence->seqno;
 
