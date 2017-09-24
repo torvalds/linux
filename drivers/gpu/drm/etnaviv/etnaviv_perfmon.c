@@ -352,6 +352,29 @@ static const struct etnaviv_pm_domain doms_3d[] = {
 				&perf_reg_read
 			}
 		}
+	},
+	{
+		.name = "MC",
+		.profile_read = VIVS_MC_PROFILE_MC_READ,
+		.profile_config = VIVS_MC_PROFILE_CONFIG2,
+		.nr_signals = 3,
+		.signal = (const struct etnaviv_pm_signal[]) {
+			{
+				"TOTAL_READ_REQ_8B_FROM_PIPELINE",
+				VIVS_MC_PROFILE_CONFIG2_MC_TOTAL_READ_REQ_8B_FROM_PIPELINE,
+				&perf_reg_read
+			},
+			{
+				"TOTAL_READ_REQ_8B_FROM_IP",
+				VIVS_MC_PROFILE_CONFIG2_MC_TOTAL_READ_REQ_8B_FROM_IP,
+				&perf_reg_read
+			},
+			{
+				"TOTAL_WRITE_REQ_8B_FROM_PIPELINE",
+				VIVS_MC_PROFILE_CONFIG2_MC_TOTAL_WRITE_REQ_8B_FROM_PIPELINE,
+				&perf_reg_read
+			}
+		}
 	}
 };
 
