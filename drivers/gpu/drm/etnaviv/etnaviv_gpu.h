@@ -88,12 +88,13 @@ struct etnaviv_chip_identity {
 };
 
 struct etnaviv_event {
-	bool used;
 	struct dma_fence *fence;
 };
 
 struct etnaviv_cmdbuf_suballoc;
 struct etnaviv_cmdbuf;
+
+#define ETNA_NR_EVENTS 30
 
 struct etnaviv_gpu {
 	struct drm_device *drm;
@@ -112,7 +113,8 @@ struct etnaviv_gpu {
 	u32 memory_base;
 
 	/* event management: */
-	struct etnaviv_event event[30];
+	DECLARE_BITMAP(event_bitmap, ETNA_NR_EVENTS);
+	struct etnaviv_event event[ETNA_NR_EVENTS];
 	struct completion event_free;
 	spinlock_t event_spinlock;
 

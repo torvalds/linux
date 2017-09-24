@@ -744,10 +744,9 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	/* Setup event management */
 	spin_lock_init(&gpu->event_spinlock);
 	init_completion(&gpu->event_free);
-	for (i = 0; i < ARRAY_SIZE(gpu->event); i++) {
-		gpu->event[i].used = false;
+	bitmap_zero(gpu->event_bitmap, ETNA_NR_EVENTS);
+	for (i = 0; i < ARRAY_SIZE(gpu->event); i++)
 		complete(&gpu->event_free);
-	}
 
 	/* Now program the hardware */
 	mutex_lock(&gpu->lock);
@@ -931,7 +930,7 @@ static void recover_worker(struct work_struct *work)
 	struct etnaviv_gpu *gpu = container_of(work, struct etnaviv_gpu,
 					       recover_work);
 	unsigned long flags;
-	unsigned int i;
+	unsigned int i = 0;
 
 	dev_err(gpu->dev, "hangcheck recover!\n");
 
@@ -950,14 +949,12 @@ static void recover_worker(struct work_struct *work)
 
 	/* complete all events, the GPU won't do it after the reset */
 	spin_lock_irqsave(&gpu->event_spinlock, flags);
-	for (i = 0; i < ARRAY_SIZE(gpu->event); i++) {
-		if (!gpu->event[i].used)
-			continue;
+	for_each_set_bit_from(i, gpu->event_bitmap, ETNA_NR_EVENTS) {
 		dma_fence_signal(gpu->event[i].fence);
 		gpu->event[i].fence = NULL;
-		gpu->event[i].used = false;
 		complete(&gpu->event_free);
 	}
+	bitmap_zero(gpu->event_bitmap, ETNA_NR_EVENTS);
 	spin_unlock_irqrestore(&gpu->event_spinlock, flags);
 	gpu->completed_fence = gpu->active_fence;
 
@@ -1148,7 +1145,7 @@ int etnaviv_gpu_fence_sync_obj(struct etnaviv_gem_object *etnaviv_obj,
 static unsigned int event_alloc(struct etnaviv_gpu *gpu)
 {
 	unsigned long ret, flags;
-	unsigned int i, event = ~0U;
+	unsigned int event;
 
 	ret = wait_for_completion_timeout(&gpu->event_free,
 					  msecs_to_jiffies(10 * 10000));
@@ -1158,13 +1155,11 @@ static unsigned int event_alloc(struct etnaviv_gpu *gpu)
 	spin_lock_irqsave(&gpu->event_spinlock, flags);
 
 	/* find first free event */
-	for (i = 0; i < ARRAY_SIZE(gpu->event); i++) {
-		if (gpu->event[i].used == false) {
-			gpu->event[i].used = true;
-			event = i;
-			break;
-		}
-	}
+	event = find_first_zero_bit(gpu->event_bitmap, ETNA_NR_EVENTS);
+	if (event < ETNA_NR_EVENTS)
+		set_bit(event, gpu->event_bitmap);
+	else
+		event = ~0U;
 
 	spin_unlock_irqrestore(&gpu->event_spinlock, flags);
 
@@ -1177,12 +1172,12 @@ static void event_free(struct etnaviv_gpu *gpu, unsigned int event)
 
 	spin_lock_irqsave(&gpu->event_spinlock, flags);
 
-	if (gpu->event[event].used == false) {
+	if (!test_bit(event, gpu->event_bitmap)) {
 		dev_warn(gpu->dev, "event %u is already marked as free",
 			 event);
 		spin_unlock_irqrestore(&gpu->event_spinlock, flags);
 	} else {
-		gpu->event[event].used = false;
+		clear_bit(event, gpu->event_bitmap);
 		spin_unlock_irqrestore(&gpu->event_spinlock, flags);
 
 		complete(&gpu->event_free);
