@@ -16,6 +16,7 @@
  */
 
 #include "etnaviv_gpu.h"
+#include "etnaviv_perfmon.h"
 
 struct etnaviv_pm_domain;
 
@@ -127,4 +128,20 @@ int etnaviv_pm_req_validate(const struct drm_etnaviv_gem_submit_pmr *r,
 		return -EINVAL;
 
 	return 0;
+}
+
+void etnaviv_perfmon_process(struct etnaviv_gpu *gpu,
+	const struct etnaviv_perfmon_request *pmr)
+{
+	const struct etnaviv_pm_domain_meta *meta = &doms_meta[gpu->exec_state];
+	const struct etnaviv_pm_domain *dom;
+	const struct etnaviv_pm_signal *sig;
+	u32 *bo = pmr->bo_vma;
+	u32 val;
+
+	dom = meta->domains + pmr->domain;
+	sig = &dom->signal[pmr->signal];
+	val = sig->sample(gpu, dom, sig);
+
+	*(bo + pmr->offset) = val;
 }
