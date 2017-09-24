@@ -86,6 +86,7 @@
 struct vl6180_data {
 	struct i2c_client *client;
 	struct mutex lock;
+	unsigned int als_it_ms;
 };
 
 enum { VL6180_ALS, VL6180_RANGE, VL6180_PROX };
@@ -306,13 +307,11 @@ static int vl6180_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_INT_TIME:
-		ret = vl6180_read_word(data->client, VL6180_ALS_IT);
-		if (ret < 0)
-			return ret;
-		*val = 0; /* 1 count = 1ms (0 = 1ms) */
-		*val2 = (ret + 1) * 1000; /* convert to seconds */
+		*val = data->als_it_ms;
+		*val2 = 1000;
 
-		return IIO_VAL_INT_PLUS_MICRO;
+		return IIO_VAL_FRACTIONAL;
+
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_LIGHT:
@@ -401,6 +400,9 @@ static int vl6180_set_it(struct vl6180_data *data, int val, int val2)
 
 	ret = vl6180_write_word(data->client, VL6180_ALS_IT, it_ms - 1);
 
+	if (ret >= 0)
+		data->als_it_ms = it_ms;
+
 fail:
 	vl6180_hold(data, false);
 	mutex_unlock(&data->lock);
@@ -470,6 +472,7 @@ static int vl6180_init(struct vl6180_data *data)
 		return ret;
 
 	/* ALS integration time: 100ms */
+	data->als_it_ms = 100;
 	ret = vl6180_write_word(client, VL6180_ALS_IT, VL6180_ALS_IT_100);
 	if (ret < 0)
 		return ret;
