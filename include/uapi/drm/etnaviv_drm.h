@@ -150,6 +150,19 @@ struct drm_etnaviv_gem_submit_bo {
 	__u64 presumed;       /* in/out, presumed buffer address */
 };
 
+/* performance monitor request (pmr) */
+#define ETNA_PM_PROCESS_PRE             0x0001
+#define ETNA_PM_PROCESS_POST            0x0002
+struct drm_etnaviv_gem_submit_pmr {
+	__u32 flags;          /* in, when to process request (ETNA_PM_PROCESS_x) */
+	__u8  domain;         /* in, pm domain */
+	__u8  pad;
+	__u16 signal;         /* in, pm signal */
+	__u32 sequence;       /* in, sequence number */
+	__u32 read_offset;    /* in, offset from read_bo */
+	__u32 read_idx;       /* in, index of read_bo buffer */
+};
+
 /* Each cmdstream submit consists of a table of buffers involved, and
  * one or more cmdstream buffers.  This allows for conditional execution
  * (context-restore), and IB buffers needed for per tile/bin draw cmds.
@@ -175,6 +188,9 @@ struct drm_etnaviv_gem_submit {
 	__u64 stream;         /* in, ptr to cmdstream */
 	__u32 flags;          /* in, mask of ETNA_SUBMIT_x */
 	__s32 fence_fd;       /* in/out, fence fd (see ETNA_SUBMIT_FENCE_FD_x) */
+	__u64 pmrs;           /* in, ptr to array of submit_pmr's */
+	__u32 nr_pmrs;        /* in, number of submit_pmr's */
+	__u32 pad;
 };
 
 /* The normal way to synchronize with the GPU is just to CPU_PREP on
