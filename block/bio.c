@@ -1088,7 +1088,7 @@ static struct bio_map_data *bio_alloc_map_data(unsigned int iov_count,
  * Copy all pages from iov_iter to bio.
  * Returns 0 on success, or error on failure.
  */
-static int bio_copy_from_iter(struct bio *bio, struct iov_iter iter)
+static int bio_copy_from_iter(struct bio *bio, struct iov_iter *iter)
 {
 	int i;
 	struct bio_vec *bvec;
@@ -1099,9 +1099,9 @@ static int bio_copy_from_iter(struct bio *bio, struct iov_iter iter)
 		ret = copy_page_from_iter(bvec->bv_page,
 					  bvec->bv_offset,
 					  bvec->bv_len,
-					  &iter);
+					  iter);
 
-		if (!iov_iter_count(&iter))
+		if (!iov_iter_count(iter))
 			break;
 
 		if (ret < bvec->bv_len)
@@ -1297,11 +1297,12 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	 */
 	if (((iter->type & WRITE) && (!map_data || !map_data->null_mapped)) ||
 	    (map_data && map_data->from_user)) {
-		ret = bio_copy_from_iter(bio, *iter);
+		ret = bio_copy_from_iter(bio, iter);
 		if (ret)
 			goto cleanup;
+	} else {
+		iov_iter_advance(iter, bio->bi_iter.bi_size);
 	}
-	iov_iter_advance(iter, bio->bi_iter.bi_size);
 
 	bio->bi_private = bmd;
 	if (map_data && map_data->null_mapped)
