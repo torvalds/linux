@@ -299,6 +299,59 @@ static const struct etnaviv_pm_domain doms_3d[] = {
 				&perf_reg_read
 			}
 		}
+	},
+	{
+		.name = "TX",
+		.profile_read = VIVS_MC_PROFILE_TX_READ,
+		.profile_config = VIVS_MC_PROFILE_CONFIG1,
+		.nr_signals = 9,
+		.signal = (const struct etnaviv_pm_signal[]) {
+			{
+				"TOTAL_BILINEAR_REQUESTS",
+				VIVS_MC_PROFILE_CONFIG1_TX_TOTAL_BILINEAR_REQUESTS,
+				&perf_reg_read
+			},
+			{
+				"TOTAL_TRILINEAR_REQUESTS",
+				VIVS_MC_PROFILE_CONFIG1_TX_TOTAL_TRILINEAR_REQUESTS,
+				&perf_reg_read
+			},
+			{
+				"TOTAL_DISCARDED_TEXTURE_REQUESTS",
+				VIVS_MC_PROFILE_CONFIG1_TX_TOTAL_DISCARDED_TEXTURE_REQUESTS,
+				&perf_reg_read
+			},
+			{
+				"TOTAL_TEXTURE_REQUESTS",
+				VIVS_MC_PROFILE_CONFIG1_TX_TOTAL_TEXTURE_REQUESTS,
+				&perf_reg_read
+			},
+			{
+				"MEM_READ_COUNT",
+				VIVS_MC_PROFILE_CONFIG1_TX_MEM_READ_COUNT,
+				&perf_reg_read
+			},
+			{
+				"MEM_READ_IN_8B_COUNT",
+				VIVS_MC_PROFILE_CONFIG1_TX_MEM_READ_IN_8B_COUNT,
+				&perf_reg_read
+			},
+			{
+				"CACHE_MISS_COUNT",
+				VIVS_MC_PROFILE_CONFIG1_TX_CACHE_MISS_COUNT,
+				&perf_reg_read
+			},
+			{
+				"CACHE_HIT_TEXEL_COUNT",
+				VIVS_MC_PROFILE_CONFIG1_TX_CACHE_HIT_TEXEL_COUNT,
+				&perf_reg_read
+			},
+			{
+				"CACHE_MISS_TEXEL_COUNT",
+				VIVS_MC_PROFILE_CONFIG1_TX_CACHE_MISS_TEXEL_COUNT,
+				&perf_reg_read
+			}
+		}
 	}
 };
 
