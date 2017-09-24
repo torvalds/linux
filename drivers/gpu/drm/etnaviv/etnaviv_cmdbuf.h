@@ -21,6 +21,7 @@
 
 struct etnaviv_gpu;
 struct etnaviv_cmdbuf_suballoc;
+struct etnaviv_perfmon_request;
 
 struct etnaviv_cmdbuf {
 	/* suballocator this cmdbuf is allocated from */
@@ -38,6 +39,9 @@ struct etnaviv_cmdbuf {
 	u32 exec_state;
 	/* per GPU in-flight list */
 	struct list_head node;
+	/* perfmon requests */
+	unsigned int nr_pmrs;
+	struct etnaviv_perfmon_request *pmrs;
 	/* BOs attached to this command buffer */
 	unsigned int nr_bos;
 	struct etnaviv_vram_mapping *bo_map[0];

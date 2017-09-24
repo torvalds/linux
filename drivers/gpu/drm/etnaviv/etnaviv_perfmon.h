@@ -22,6 +22,18 @@ struct etnaviv_gpu;
 struct drm_etnaviv_pm_domain;
 struct drm_etnaviv_pm_signal;
 
+struct etnaviv_perfmon_request
+{
+	u32 flags;
+	u8 domain;
+	u8 signal;
+	u32 sequence;
+
+	/* bo to store a value */
+	u32 *bo_vma;
+	u32 offset;
+};
+
 int etnaviv_pm_query_dom(struct etnaviv_gpu *gpu,
 	struct drm_etnaviv_pm_domain *domain);
 
