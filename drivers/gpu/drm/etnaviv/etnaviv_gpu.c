@@ -1142,28 +1142,44 @@ int etnaviv_gpu_fence_sync_obj(struct etnaviv_gem_object *etnaviv_obj,
  * event management:
  */
 
-static unsigned int event_alloc(struct etnaviv_gpu *gpu)
+static int event_alloc(struct etnaviv_gpu *gpu, unsigned nr_events,
+	unsigned int *events)
 {
-	unsigned long ret, flags;
-	unsigned int event;
+	unsigned long flags, timeout = msecs_to_jiffies(10 * 10000);
+	unsigned i, acquired = 0;
 
-	ret = wait_for_completion_timeout(&gpu->event_free,
-					  msecs_to_jiffies(10 * 10000));
-	if (!ret)
-		dev_err(gpu->dev, "wait_for_completion_timeout failed");
+	for (i = 0; i < nr_events; i++) {
+		unsigned long ret;
+
+		ret = wait_for_completion_timeout(&gpu->event_free, timeout);
+
+		if (!ret) {
+			dev_err(gpu->dev, "wait_for_completion_timeout failed");
+			goto out;
+		}
+
+		acquired++;
+		timeout = ret;
+	}
 
 	spin_lock_irqsave(&gpu->event_spinlock, flags);
 
-	/* find first free event */
-	event = find_first_zero_bit(gpu->event_bitmap, ETNA_NR_EVENTS);
-	if (event < ETNA_NR_EVENTS)
+	for (i = 0; i < nr_events; i++) {
+		int event = find_first_zero_bit(gpu->event_bitmap, ETNA_NR_EVENTS);
+
+		events[i] = event;
 		set_bit(event, gpu->event_bitmap);
-	else
-		event = ~0U;
+	}
 
 	spin_unlock_irqrestore(&gpu->event_spinlock, flags);
 
-	return event;
+	return 0;
+
+out:
+	for (i = 0; i < acquired; i++)
+		complete(&gpu->event_free);
+
+	return -EBUSY;
 }
 
 static void event_free(struct etnaviv_gpu *gpu, unsigned int event)
@@ -1332,10 +1348,9 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	 *
 	 */
 
-	event = event_alloc(gpu);
-	if (unlikely(event == ~0U)) {
+	ret = event_alloc(gpu, 1, &event);
+	if (ret) {
 		DRM_ERROR("no free event\n");
-		ret = -EBUSY;
 		goto out_pm_put;
 	}
 
