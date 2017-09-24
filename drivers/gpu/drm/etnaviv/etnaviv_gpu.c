@@ -1329,12 +1329,48 @@ void etnaviv_gpu_pm_put(struct etnaviv_gpu *gpu)
 	pm_runtime_put_autosuspend(gpu->dev);
 }
 
+static void sync_point_perfmon_sample(struct etnaviv_gpu *gpu,
+	struct etnaviv_event *event, unsigned int flags)
+{
+	const struct etnaviv_cmdbuf *cmdbuf = event->cmdbuf;
+	unsigned int i;
+
+	for (i = 0; i < cmdbuf->nr_pmrs; i++) {
+		const struct etnaviv_perfmon_request *pmr = cmdbuf->pmrs + i;
+
+		if (pmr->flags == flags)
+			etnaviv_perfmon_process(gpu, pmr);
+	}
+}
+
+static void sync_point_perfmon_sample_pre(struct etnaviv_gpu *gpu,
+	struct etnaviv_event *event)
+{
+	sync_point_perfmon_sample(gpu, event, ETNA_PM_PROCESS_PRE);
+}
+
+static void sync_point_perfmon_sample_post(struct etnaviv_gpu *gpu,
+	struct etnaviv_event *event)
+{
+	const struct etnaviv_cmdbuf *cmdbuf = event->cmdbuf;
+	unsigned int i;
+
+	sync_point_perfmon_sample(gpu, event, ETNA_PM_PROCESS_POST);
+
+	for (i = 0; i < cmdbuf->nr_pmrs; i++) {
+		const struct etnaviv_perfmon_request *pmr = cmdbuf->pmrs + i;
+
+		*pmr->bo_vma = pmr->sequence;
+	}
+}
+
+
 /* add bo's to gpu's ring, and kick gpu: */
 int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	struct etnaviv_gem_submit *submit, struct etnaviv_cmdbuf *cmdbuf)
 {
 	struct dma_fence *fence;
-	unsigned int event, i;
+	unsigned int i, nr_events = 1, event[3];
 	int ret;
 
 	ret = etnaviv_gpu_pm_get_sync(gpu);
@@ -1350,9 +1386,19 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	 *
 	 */
 
-	ret = event_alloc(gpu, 1, &event);
+	/*
+	 * if there are performance monitor requests we need to have
+	 * - a sync point to re-configure gpu and process ETNA_PM_PROCESS_PRE
+	 *   requests.
+	 * - a sync point to re-configure gpu, process ETNA_PM_PROCESS_POST requests
+	 *   and update the sequence number for userspace.
+	 */
+	if (cmdbuf->nr_pmrs)
+		nr_events = 3;
+
+	ret = event_alloc(gpu, nr_events, event);
 	if (ret) {
-		DRM_ERROR("no free event\n");
+		DRM_ERROR("no free events\n");
 		goto out_pm_put;
 	}
 
@@ -1360,12 +1406,14 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 
 	fence = etnaviv_gpu_fence_alloc(gpu);
 	if (!fence) {
-		event_free(gpu, event);
+		for (i = 0; i < nr_events; i++)
+			event_free(gpu, event[i]);
+
 		ret = -ENOMEM;
 		goto out_unlock;
 	}
 
-	gpu->event[event].fence = fence;
+	gpu->event[event[0]].fence = fence;
 	submit->fence = dma_fence_get(fence);
 	gpu->active_fence = submit->fence->seqno;
 
@@ -1375,7 +1423,19 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 		gpu->lastctx = cmdbuf->ctx;
 	}
 
-	etnaviv_buffer_queue(gpu, event, cmdbuf);
+	if (cmdbuf->nr_pmrs) {
+		gpu->event[event[1]].sync_point = &sync_point_perfmon_sample_pre;
+		gpu->event[event[1]].cmdbuf = cmdbuf;
+		etnaviv_sync_point_queue(gpu, event[1]);
+	}
+
+	etnaviv_buffer_queue(gpu, event[0], cmdbuf);
+
+	if (cmdbuf->nr_pmrs) {
+		gpu->event[event[2]].sync_point = &sync_point_perfmon_sample_post;
+		gpu->event[event[2]].cmdbuf = cmdbuf;
+		etnaviv_sync_point_queue(gpu, event[2]);
+	}
 
 	cmdbuf->fence = fence;
 	list_add_tail(&cmdbuf->node, &gpu->active_cmd_list);
@@ -1481,6 +1541,9 @@ static irqreturn_t irq_handler(int irq, void *data)
 			}
 
 			fence = gpu->event[event].fence;
+			if (!fence)
+				continue;
+
 			gpu->event[event].fence = NULL;
 			dma_fence_signal(fence);
 

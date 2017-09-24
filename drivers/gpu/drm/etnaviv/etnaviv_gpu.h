@@ -89,6 +89,7 @@ struct etnaviv_chip_identity {
 
 struct etnaviv_event {
 	struct dma_fence *fence;
+	struct etnaviv_cmdbuf *cmdbuf;
 
 	void (*sync_point)(struct etnaviv_gpu *gpu, struct etnaviv_event *event);
 };
