@@ -983,9 +983,7 @@ static int ovl_get_indexdir(struct ovl_fs *ofs, struct ovl_entry *oe,
 	int err;
 
 	/* Verify lower root is upper root origin */
-	err = ovl_verify_origin(upperpath->dentry,
-				oe->lowerstack[0].layer->mnt,
-				oe->lowerstack[0].dentry,
+	err = ovl_verify_origin(upperpath->dentry, oe->lowerstack[0].dentry,
 				false, true);
 	if (err) {
 		pr_err("overlayfs: failed to verify upper root origin\n");
@@ -995,8 +993,8 @@ static int ovl_get_indexdir(struct ovl_fs *ofs, struct ovl_entry *oe,
 	ofs->indexdir = ovl_workdir_create(ofs, OVL_INDEXDIR_NAME, true);
 	if (ofs->indexdir) {
 		/* Verify upper root is index dir origin */
-		err = ovl_verify_origin(ofs->indexdir, ofs->upper_mnt,
-					upperpath->dentry, true, true);
+		err = ovl_verify_origin(ofs->indexdir, upperpath->dentry,
+					true, true);
 		if (err)
 			pr_err("overlayfs: failed to verify index dir origin\n");
 
