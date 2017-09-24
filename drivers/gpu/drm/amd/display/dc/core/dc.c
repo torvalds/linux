@@ -651,40 +651,6 @@ void dc_destroy(struct dc **dc)
 	*dc = NULL;
 }
 
-bool dc_validate_guaranteed(
-		struct dc *dc,
-		struct dc_stream_state *stream)
-{
-	enum dc_status result = DC_ERROR_UNEXPECTED;
-	struct dc_state *context;
-
-	if (!dc_validate_stream(dc, stream))
-		return false;
-
-	context = dm_alloc(sizeof(struct dc_state));
-	if (context == NULL)
-		goto context_alloc_fail;
-
-	dc_resource_state_construct(dc, dc->current_state);
-
-	atomic_inc(&context->ref_count);
-
-	result = dc->res_pool->funcs->validate_guaranteed(
-					dc, stream, context);
-
-	dc_release_state(context);
-
-context_alloc_fail:
-	if (result != DC_OK) {
-		dm_logger_write(dc->ctx->logger, LOG_WARNING,
-			"%s:guaranteed validation failed, dc_status:%d\n",
-			__func__,
-			result);
-		}
-
-	return (result == DC_OK);
-}
-
 static void program_timing_sync(
 		struct dc *dc,
 		struct dc_state *ctx)
