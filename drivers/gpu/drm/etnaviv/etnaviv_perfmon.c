@@ -238,6 +238,24 @@ static const struct etnaviv_pm_domain doms_3d[] = {
 				&pipe_reg_read
 			}
 		}
+	},
+	{
+		.name = "SE",
+		.profile_read = VIVS_MC_PROFILE_SE_READ,
+		.profile_config = VIVS_MC_PROFILE_CONFIG1,
+		.nr_signals = 2,
+		.signal = (const struct etnaviv_pm_signal[]) {
+			{
+				"CULLED_TRIANGLE_COUNT",
+				VIVS_MC_PROFILE_CONFIG1_SE_CULLED_TRIANGLE_COUNT,
+				&perf_reg_read
+			},
+			{
+				"CULLED_LINES_COUNT",
+				VIVS_MC_PROFILE_CONFIG1_SE_CULLED_LINES_COUNT,
+				&perf_reg_read
+			}
+		}
 	}
 };
 
