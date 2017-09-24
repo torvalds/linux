@@ -1733,6 +1733,14 @@ qed_iwarp_ll2_comp_syn_pkt(void *cxt, struct qed_ll2_comp_rx_data *data)
 
 	memset(&cm_info, 0, sizeof(cm_info));
 	ll2_syn_handle = p_hwfn->p_rdma_info->iwarp.ll2_syn_handle;
+
+	/* Check if packet was received with errors... */
+	if (data->err_flags) {
+		DP_NOTICE(p_hwfn, "Error received on SYN packet: 0x%x\n",
+			  data->err_flags);
+		goto err;
+	}
+
 	if (GET_FIELD(data->parse_flags,
 		      PARSING_AND_ERR_FLAGS_L4CHKSMWASCALCULATED) &&
 	    GET_FIELD(data->parse_flags, PARSING_AND_ERR_FLAGS_L4CHKSMERROR)) {
