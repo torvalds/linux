@@ -551,10 +551,13 @@ static int qed_rdma_start_fw(struct qed_hwfn *p_hwfn,
 	if (rc)
 		return rc;
 
-	if (QED_IS_IWARP_PERSONALITY(p_hwfn))
+	if (QED_IS_IWARP_PERSONALITY(p_hwfn)) {
+		qed_iwarp_init_fw_ramrod(p_hwfn,
+					 &p_ent->ramrod.iwarp_init_func.iwarp);
 		p_ramrod = &p_ent->ramrod.iwarp_init_func.rdma;
-	else
+	} else {
 		p_ramrod = &p_ent->ramrod.roce_init_func.rdma;
+	}
 
 	p_params_header = &p_ramrod->params_header;
 	p_params_header->cnq_start_offset = (u8)RESC_START(p_hwfn,

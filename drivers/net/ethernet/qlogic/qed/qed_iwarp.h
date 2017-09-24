@@ -47,7 +47,12 @@ enum qed_iwarp_qp_state qed_roce2iwarp_state(enum qed_roce_qp_state state);
 #define QED_IWARP_LL2_SYN_TX_SIZE       (128)
 #define QED_IWARP_LL2_SYN_RX_SIZE       (256)
 #define QED_IWARP_MAX_SYN_PKT_SIZE      (128)
-#define QED_IWARP_HANDLE_INVAL			(0xff)
+
+#define QED_IWARP_LL2_OOO_DEF_TX_SIZE   (256)
+#define QED_IWARP_MAX_OOO		(16)
+#define QED_IWARP_LL2_OOO_MAX_RX_SIZE   (16384)
+
+#define QED_IWARP_HANDLE_INVAL		(0xff)
 
 struct qed_iwarp_ll2_buff {
 	void *data;
@@ -67,6 +72,7 @@ struct qed_iwarp_info {
 	u8 crc_needed;
 	u8 tcp_flags;
 	u8 ll2_syn_handle;
+	u8 ll2_ooo_handle;
 	u8 peer2peer;
 	enum mpa_negotiation_mode mpa_rev;
 	enum mpa_rtr_type rtr_type;
@@ -146,6 +152,9 @@ int qed_iwarp_alloc(struct qed_hwfn *p_hwfn);
 
 int qed_iwarp_setup(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		    struct qed_rdma_start_in_params *params);
+
+void qed_iwarp_init_fw_ramrod(struct qed_hwfn *p_hwfn,
+			      struct iwarp_init_func_params *p_ramrod);
 
 int qed_iwarp_stop(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 
