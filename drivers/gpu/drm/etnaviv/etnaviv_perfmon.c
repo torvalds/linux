@@ -256,6 +256,49 @@ static const struct etnaviv_pm_domain doms_3d[] = {
 				&perf_reg_read
 			}
 		}
+	},
+	{
+		.name = "RA",
+		.profile_read = VIVS_MC_PROFILE_RA_READ,
+		.profile_config = VIVS_MC_PROFILE_CONFIG1,
+		.nr_signals = 7,
+		.signal = (const struct etnaviv_pm_signal[]) {
+			{
+				"VALID_PIXEL_COUNT",
+				VIVS_MC_PROFILE_CONFIG1_RA_VALID_PIXEL_COUNT,
+				&perf_reg_read
+			},
+			{
+				"TOTAL_QUAD_COUNT",
+				VIVS_MC_PROFILE_CONFIG1_RA_TOTAL_QUAD_COUNT,
+				&perf_reg_read
+			},
+			{
+				"VALID_QUAD_COUNT_AFTER_EARLY_Z",
+				VIVS_MC_PROFILE_CONFIG1_RA_VALID_QUAD_COUNT_AFTER_EARLY_Z,
+				&perf_reg_read
+			},
+			{
+				"TOTAL_PRIMITIVE_COUNT",
+				VIVS_MC_PROFILE_CONFIG1_RA_TOTAL_PRIMITIVE_COUNT,
+				&perf_reg_read
+			},
+			{
+				"PIPE_CACHE_MISS_COUNTER",
+				VIVS_MC_PROFILE_CONFIG1_RA_PIPE_CACHE_MISS_COUNTER,
+				&perf_reg_read
+			},
+			{
+				"PREFETCH_CACHE_MISS_COUNTER",
+				VIVS_MC_PROFILE_CONFIG1_RA_PREFETCH_CACHE_MISS_COUNTER,
+				&perf_reg_read
+			},
+			{
+				"CULLED_QUAD_COUNT",
+				VIVS_MC_PROFILE_CONFIG1_RA_CULLED_QUAD_COUNT,
+				&perf_reg_read
+			}
+		}
 	}
 };
 
