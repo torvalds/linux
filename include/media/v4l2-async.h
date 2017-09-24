@@ -174,6 +174,28 @@ void v4l2_async_notifier_cleanup(struct v4l2_async_notifier *notifier);
 int v4l2_async_register_subdev(struct v4l2_subdev *sd);
 
 /**
+ * v4l2_async_register_subdev_sensor_common - registers a sensor sub-device to
+ *					      the asynchronous sub-device
+ *					      framework and parse set up common
+ *					      sensor related devices
+ *
+ * @sd: pointer to struct &v4l2_subdev
+ *
+ * This function is just like v4l2_async_register_subdev() with the exception
+ * that calling it will also parse firmware interfaces for remote references
+ * using v4l2_async_notifier_parse_fwnode_sensor_common() and registers the
+ * async sub-devices. The sub-device is similarly unregistered by calling
+ * v4l2_async_unregister_subdev().
+ *
+ * While registered, the subdev module is marked as in-use.
+ *
+ * An error is returned if the module is no longer loaded on any attempts
+ * to register it.
+ */
+int __must_check v4l2_async_register_subdev_sensor_common(
+	struct v4l2_subdev *sd);
+
+/**
  * v4l2_async_unregister_subdev - unregisters a sub-device to the asynchronous
  * 	subdevice framework
  *

@@ -29,6 +29,7 @@
 
 #include <media/v4l2-async.h>
 #include <media/v4l2-fwnode.h>
+#include <media/v4l2-subdev.h>
 
 enum v4l2_fwnode_bus_type {
 	V4L2_FWNODE_BUS_TYPE_GUESS = 0,
@@ -899,6 +900,46 @@ int v4l2_async_notifier_parse_fwnode_sensor_common(
 	return 0;
 }
 EXPORT_SYMBOL_GPL(v4l2_async_notifier_parse_fwnode_sensor_common);
+
+int v4l2_async_register_subdev_sensor_common(struct v4l2_subdev *sd)
+{
+	struct v4l2_async_notifier *notifier;
+	int ret;
+
+	if (WARN_ON(!sd->dev))
+		return -ENODEV;
+
+	notifier = kzalloc(sizeof(*notifier), GFP_KERNEL);
+	if (!notifier)
+		return -ENOMEM;
+
+	ret = v4l2_async_notifier_parse_fwnode_sensor_common(sd->dev,
+							     notifier);
+	if (ret < 0)
+		goto out_cleanup;
+
+	ret = v4l2_async_subdev_notifier_register(sd, notifier);
+	if (ret < 0)
+		goto out_cleanup;
+
+	ret = v4l2_async_register_subdev(sd);
+	if (ret < 0)
+		goto out_unregister;
+
+	sd->subdev_notifier = notifier;
+
+	return 0;
+
+out_unregister:
+	v4l2_async_notifier_unregister(notifier);
+
+out_cleanup:
+	v4l2_async_notifier_cleanup(notifier);
+	kfree(notifier);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(v4l2_async_register_subdev_sensor_common);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sakari Ailus <sakari.ailus@linux.intel.com>");

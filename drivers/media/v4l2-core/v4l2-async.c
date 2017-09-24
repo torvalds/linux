@@ -474,12 +474,11 @@ int v4l2_async_subdev_notifier_register(struct v4l2_subdev *sd,
 }
 EXPORT_SYMBOL(v4l2_async_subdev_notifier_register);
 
-void v4l2_async_notifier_unregister(struct v4l2_async_notifier *notifier)
+static void __v4l2_async_notifier_unregister(
+	struct v4l2_async_notifier *notifier)
 {
-	if (!notifier->v4l2_dev && !notifier->sd)
+	if (!notifier || (!notifier->v4l2_dev && !notifier->sd))
 		return;
-
-	mutex_lock(&list_lock);
 
 	v4l2_async_notifier_unbind_all_subdevs(notifier);
 
@@ -487,6 +486,13 @@ void v4l2_async_notifier_unregister(struct v4l2_async_notifier *notifier)
 	notifier->v4l2_dev = NULL;
 
 	list_del(&notifier->list);
+}
+
+void v4l2_async_notifier_unregister(struct v4l2_async_notifier *notifier)
+{
+	mutex_lock(&list_lock);
+
+	__v4l2_async_notifier_unregister(notifier);
 
 	mutex_unlock(&list_lock);
 }
@@ -595,6 +601,11 @@ EXPORT_SYMBOL(v4l2_async_register_subdev);
 void v4l2_async_unregister_subdev(struct v4l2_subdev *sd)
 {
 	mutex_lock(&list_lock);
+
+	__v4l2_async_notifier_unregister(sd->subdev_notifier);
+	v4l2_async_notifier_cleanup(sd->subdev_notifier);
+	kfree(sd->subdev_notifier);
+	sd->subdev_notifier = NULL;
 
 	if (sd->asd) {
 		struct v4l2_async_notifier *notifier = sd->notifier;
