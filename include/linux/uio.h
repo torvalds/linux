@@ -80,8 +80,6 @@ static inline struct iovec iov_iter_iovec(const struct iov_iter *iter)
 	     ((iov = iov_iter_iovec(&(iter))), 1);		\
 	     iov_iter_advance(&(iter), (iov).iov_len))
 
-unsigned long iov_shorten(struct iovec *iov, unsigned long nr_segs, size_t to);
-
 size_t iov_iter_copy_from_user_atomic(struct page *page,
 		struct iov_iter *i, unsigned long offset, size_t bytes);
 void iov_iter_advance(struct iov_iter *i, size_t bytes);
