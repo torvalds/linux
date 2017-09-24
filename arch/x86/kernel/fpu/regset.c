@@ -134,7 +134,7 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 
 	fpu__prepare_write(fpu);
 
-	if (boot_cpu_has(X86_FEATURE_XSAVES)) {
+	if (using_compacted_format()) {
 		if (kbuf)
 			ret = copy_kernel_to_xstate(xsave, kbuf);
 		else
