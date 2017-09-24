@@ -25,6 +25,7 @@
 #include "etnaviv_gpu.h"
 #include "etnaviv_gem.h"
 #include "etnaviv_mmu.h"
+#include "etnaviv_perfmon.h"
 #include "common.xml.h"
 #include "state.xml.h"
 #include "state_hi.xml.h"
@@ -1364,6 +1365,7 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	}
 
 	gpu->event[event].fence = fence;
+	gpu->event[event].sync_point = NULL;
 	submit->fence = dma_fence_get(fence);
 	gpu->active_fence = submit->fence->seqno;
 
@@ -1407,6 +1409,24 @@ out_pm_put:
 	etnaviv_gpu_pm_put(gpu);
 
 	return ret;
+}
+
+static void etnaviv_process_sync_point(struct etnaviv_gpu *gpu,
+	struct etnaviv_event *event)
+{
+	u32 addr = gpu_read(gpu, VIVS_FE_DMA_ADDRESS);
+
+	event->sync_point(gpu, event);
+	etnaviv_gpu_start_fe(gpu, addr + 2, 2);
+}
+
+static void sync_point_worker(struct work_struct *work)
+{
+	struct etnaviv_gpu *gpu = container_of(work, struct etnaviv_gpu,
+					       sync_point_work);
+
+	etnaviv_process_sync_point(gpu, &gpu->event[gpu->sync_point_event]);
+	event_free(gpu, gpu->sync_point_event);
 }
 
 /*
@@ -1454,6 +1474,11 @@ static irqreturn_t irq_handler(int irq, void *data)
 			intr &= ~(1 << event);
 
 			dev_dbg(gpu->dev, "event %u\n", event);
+
+			if (gpu->event[event].sync_point) {
+				gpu->sync_point_event = event;
+				etnaviv_queue_work(gpu->drm, &gpu->sync_point_work);
+			}
 
 			fence = gpu->event[event].fence;
 			gpu->event[event].fence = NULL;
@@ -1660,6 +1685,7 @@ static int etnaviv_gpu_bind(struct device *dev, struct device *master,
 
 	INIT_LIST_HEAD(&gpu->active_cmd_list);
 	INIT_WORK(&gpu->retire_work, retire_worker);
+	INIT_WORK(&gpu->sync_point_work, sync_point_worker);
 	INIT_WORK(&gpu->recover_work, recover_worker);
 	init_waitqueue_head(&gpu->fence_event);
 
