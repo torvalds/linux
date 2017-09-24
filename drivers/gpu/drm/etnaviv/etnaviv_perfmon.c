@@ -147,6 +147,59 @@ static const struct etnaviv_pm_domain doms_3d[] = {
 				&pipe_reg_read
 			}
 		}
+	},
+	{
+		.name = "SH",
+		.profile_read = VIVS_MC_PROFILE_SH_READ,
+		.profile_config = VIVS_MC_PROFILE_CONFIG0,
+		.nr_signals = 9,
+		.signal = (const struct etnaviv_pm_signal[]) {
+			{
+				"SHADER_CYCLES",
+				VIVS_MC_PROFILE_CONFIG0_SH_SHADER_CYCLES,
+				&perf_reg_read
+			},
+			{
+				"PS_INST_COUNTER",
+				VIVS_MC_PROFILE_CONFIG0_SH_PS_INST_COUNTER,
+				&perf_reg_read
+			},
+			{
+				"RENDERED_PIXEL_COUNTER",
+				VIVS_MC_PROFILE_CONFIG0_SH_RENDERED_PIXEL_COUNTER,
+				&perf_reg_read
+			},
+			{
+				"VS_INST_COUNTER",
+				VIVS_MC_PROFILE_CONFIG0_SH_VS_INST_COUNTER,
+				&pipe_reg_read
+			},
+			{
+				"RENDERED_VERTICE_COUNTER",
+				VIVS_MC_PROFILE_CONFIG0_SH_RENDERED_VERTICE_COUNTER,
+				&pipe_reg_read
+			},
+			{
+				"VTX_BRANCH_INST_COUNTER",
+				VIVS_MC_PROFILE_CONFIG0_SH_VTX_BRANCH_INST_COUNTER,
+				&pipe_reg_read
+			},
+			{
+				"VTX_TEXLD_INST_COUNTER",
+				VIVS_MC_PROFILE_CONFIG0_SH_VTX_TEXLD_INST_COUNTER,
+				&pipe_reg_read
+			},
+			{
+				"PXL_BRANCH_INST_COUNTER",
+				VIVS_MC_PROFILE_CONFIG0_SH_PXL_BRANCH_INST_COUNTER,
+				&pipe_reg_read
+			},
+			{
+				"PXL_TEXLD_INST_COUNTER",
+				VIVS_MC_PROFILE_CONFIG0_SH_PXL_TEXLD_INST_COUNTER,
+				&pipe_reg_read
+			}
+		}
 	}
 };
 
