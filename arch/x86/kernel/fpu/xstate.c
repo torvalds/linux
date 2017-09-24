@@ -1148,11 +1148,13 @@ int copy_kernel_to_xstate(struct xregs_state *xsave, const void *kbuf)
 	int i;
 	u64 xfeatures;
 	u64 allowed_features;
+	struct xstate_header hdr;
 
 	offset = offsetof(struct xregs_state, header);
-	size = sizeof(xfeatures);
+	size = sizeof(hdr);
 
-	memcpy(&xfeatures, kbuf + offset, size);
+	memcpy(&hdr, kbuf + offset, size);
+	xfeatures = hdr.xfeatures;
 
 	/*
 	 * Reject if the user sets any disabled or supervisor features:
