@@ -325,31 +325,46 @@ err_scan:
 	return ret;
 }
 
+static void release_shadow_batch_buffer(struct intel_vgpu_workload *workload);
+
 static int prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 {
 	struct intel_gvt *gvt = workload->vgpu->gvt;
 	const int gmadr_bytes = gvt->device_info.gmadr_bytes_in_cmd;
-	struct intel_shadow_bb_entry *entry_obj;
+	struct intel_vgpu_shadow_bb *bb;
+	int ret;
 
-	/* pin the gem object to ggtt */
-	list_for_each_entry(entry_obj, &workload->shadow_bb, list) {
-		struct i915_vma *vma;
+	list_for_each_entry(bb, &workload->shadow_bb, list) {
+		bb->vma = i915_gem_object_ggtt_pin(bb->obj, NULL, 0, 0, 0);
+		if (IS_ERR(bb->vma)) {
+			ret = PTR_ERR(bb->vma);
+			goto err;
+		}
 
-		vma = i915_gem_object_ggtt_pin(entry_obj->obj, NULL, 0, 4, 0);
-		if (IS_ERR(vma))
-			return PTR_ERR(vma);
-
-		/* FIXME: we are not tracking our pinned VMA leaving it
-		 * up to the core to fix up the stray pin_count upon
-		 * free.
-		 */
-
-		/* update the relocate gma with shadow batch buffer*/
-		entry_obj->bb_start_cmd_va[1] = i915_ggtt_offset(vma);
+		/* relocate shadow batch buffer */
+		bb->bb_start_cmd_va[1] = i915_ggtt_offset(bb->vma);
 		if (gmadr_bytes == 8)
-			entry_obj->bb_start_cmd_va[2] = 0;
+			bb->bb_start_cmd_va[2] = 0;
+
+		/* No one is going to touch shadow bb from now on. */
+		if (bb->clflush & CLFLUSH_AFTER) {
+			drm_clflush_virt_range(bb->va, bb->obj->base.size);
+			bb->clflush &= ~CLFLUSH_AFTER;
+		}
+
+		ret = i915_gem_object_set_to_gtt_domain(bb->obj, false);
+		if (ret)
+			goto err;
+
+		i915_gem_obj_finish_shmem_access(bb->obj);
+		bb->accessing = false;
+
+		i915_vma_move_to_active(bb->vma, workload->req, 0);
 	}
 	return 0;
+err:
+	release_shadow_batch_buffer(workload);
+	return ret;
 }
 
 static int update_wa_ctx_2_shadow_ctx(struct intel_shadow_wa_ctx *wa_ctx)
@@ -410,22 +425,37 @@ static int prepare_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 
 static void release_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 {
-	/* release all the shadow batch buffer */
-	if (!list_empty(&workload->shadow_bb)) {
-		struct intel_shadow_bb_entry *entry_obj =
-			list_first_entry(&workload->shadow_bb,
-					 struct intel_shadow_bb_entry,
-					 list);
-		struct intel_shadow_bb_entry *temp;
+	struct intel_vgpu *vgpu = workload->vgpu;
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct intel_vgpu_shadow_bb *bb, *pos;
 
-		list_for_each_entry_safe(entry_obj, temp, &workload->shadow_bb,
-					 list) {
-			i915_gem_object_unpin_map(entry_obj->obj);
-			i915_gem_object_put(entry_obj->obj);
-			list_del(&entry_obj->list);
-			kfree(entry_obj);
+	if (list_empty(&workload->shadow_bb))
+		return;
+
+	bb = list_first_entry(&workload->shadow_bb,
+			struct intel_vgpu_shadow_bb, list);
+
+	mutex_lock(&dev_priv->drm.struct_mutex);
+
+	list_for_each_entry_safe(bb, pos, &workload->shadow_bb, list) {
+		if (bb->obj) {
+			if (bb->accessing)
+				i915_gem_obj_finish_shmem_access(bb->obj);
+
+			if (bb->va && !IS_ERR(bb->va))
+				i915_gem_object_unpin_map(bb->obj);
+
+			if (bb->vma && !IS_ERR(bb->vma)) {
+				i915_vma_unpin(bb->vma);
+				i915_vma_close(bb->vma);
+			}
+			__i915_gem_object_release_unless_active(bb->obj);
 		}
+		list_del(&bb->list);
+		kfree(bb);
 	}
+
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 }
 
 static int prepare_workload(struct intel_vgpu_workload *workload)

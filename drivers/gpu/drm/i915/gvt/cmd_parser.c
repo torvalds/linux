@@ -1645,11 +1645,10 @@ static int find_bb_size(struct parser_exec_state *s, unsigned long *bb_size)
 
 static int perform_bb_shadow(struct parser_exec_state *s)
 {
-	struct intel_shadow_bb_entry *entry_obj;
 	struct intel_vgpu *vgpu = s->vgpu;
+	struct intel_vgpu_shadow_bb *bb;
 	unsigned long gma = 0;
 	unsigned long bb_size;
-	void *dst = NULL;
 	int ret = 0;
 
 	/* get the start gm address of the batch buffer */
@@ -1657,51 +1656,51 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	if (gma == INTEL_GVT_INVALID_ADDR)
 		return -EFAULT;
 
-	/* get the size of the batch buffer */
 	ret = find_bb_size(s, &bb_size);
 	if (ret)
 		return ret;
 
-	/* allocate shadow batch buffer */
-	entry_obj = kmalloc(sizeof(*entry_obj), GFP_KERNEL);
-	if (entry_obj == NULL)
+	bb = kzalloc(sizeof(*bb), GFP_KERNEL);
+	if (!bb)
 		return -ENOMEM;
 
-	entry_obj->obj =
-		i915_gem_object_create(s->vgpu->gvt->dev_priv,
-				       roundup(bb_size, PAGE_SIZE));
-	if (IS_ERR(entry_obj->obj)) {
-		ret = PTR_ERR(entry_obj->obj);
-		goto free_entry;
-	}
-	entry_obj->len = bb_size;
-	INIT_LIST_HEAD(&entry_obj->list);
-
-	dst = i915_gem_object_pin_map(entry_obj->obj, I915_MAP_WB);
-	if (IS_ERR(dst)) {
-		ret = PTR_ERR(dst);
-		goto put_obj;
+	bb->obj = i915_gem_object_create(s->vgpu->gvt->dev_priv,
+					 roundup(bb_size, PAGE_SIZE));
+	if (IS_ERR(bb->obj)) {
+		ret = PTR_ERR(bb->obj);
+		goto err_free_bb;
 	}
 
-	ret = i915_gem_object_set_to_cpu_domain(entry_obj->obj, false);
-	if (ret) {
-		gvt_vgpu_err("failed to set shadow batch to CPU\n");
-		goto unmap_src;
+	ret = i915_gem_obj_prepare_shmem_write(bb->obj, &bb->clflush);
+	if (ret)
+		goto err_free_obj;
+
+	bb->va = i915_gem_object_pin_map(bb->obj, I915_MAP_WB);
+	if (IS_ERR(bb->va)) {
+		ret = PTR_ERR(bb->va);
+		goto err_finish_shmem_access;
 	}
 
-	entry_obj->va = dst;
-	entry_obj->bb_start_cmd_va = s->ip_va;
+	if (bb->clflush & CLFLUSH_BEFORE) {
+		drm_clflush_virt_range(bb->va, bb->obj->base.size);
+		bb->clflush &= ~CLFLUSH_BEFORE;
+	}
 
-	/* copy batch buffer to shadow batch buffer*/
 	ret = copy_gma_to_hva(s->vgpu, s->vgpu->gtt.ggtt_mm,
 			      gma, gma + bb_size,
-			      dst);
+			      bb->va);
 	if (ret < 0) {
 		gvt_vgpu_err("fail to copy guest ring buffer\n");
-		goto unmap_src;
+		ret = -EFAULT;
+		goto err_unmap;
 	}
 
-	list_add(&entry_obj->list, &s->workload->shadow_bb);
+	INIT_LIST_HEAD(&bb->list);
+	list_add(&bb->list, &s->workload->shadow_bb);
+
+	bb->accessing = true;
+	bb->bb_start_cmd_va = s->ip_va;
+
 	/*
 	 * ip_va saves the virtual address of the shadow batch buffer, while
 	 * ip_gma saves the graphics address of the original batch buffer.
@@ -1710,17 +1709,17 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	 * buffer's gma in pair. After all, we don't want to pin the shadow
 	 * buffer here (too early).
 	 */
-	s->ip_va = dst;
+	s->ip_va = bb->va;
 	s->ip_gma = gma;
-
 	return 0;
-
-unmap_src:
-	i915_gem_object_unpin_map(entry_obj->obj);
-put_obj:
-	i915_gem_object_put(entry_obj->obj);
-free_entry:
-	kfree(entry_obj);
+err_unmap:
+	i915_gem_object_unpin_map(bb->obj);
+err_finish_shmem_access:
+	i915_gem_obj_finish_shmem_access(bb->obj);
+err_free_obj:
+	i915_gem_object_put(bb->obj);
+err_free_bb:
+	kfree(bb);
 	return ret;
 }
 
@@ -1762,7 +1761,6 @@ static int cmd_handler_mi_batch_buffer_start(struct parser_exec_state *s)
 		if (ret < 0)
 			return ret;
 	}
-
 	return ret;
 }
 

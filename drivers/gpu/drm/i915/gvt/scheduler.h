@@ -112,13 +112,14 @@ struct intel_vgpu_workload {
 	struct intel_shadow_wa_ctx wa_ctx;
 };
 
-/* Intel shadow batch buffer is a i915 gem object */
-struct intel_shadow_bb_entry {
+struct intel_vgpu_shadow_bb {
 	struct list_head list;
 	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
 	void *va;
-	unsigned long len;
 	u32 *bb_start_cmd_va;
+	unsigned int clflush;
+	bool accessing;
 };
 
 #define workload_q_head(vgpu, ring_id) \
