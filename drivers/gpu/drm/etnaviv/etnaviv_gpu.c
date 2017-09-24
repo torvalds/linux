@@ -1353,6 +1353,11 @@ static void sync_point_perfmon_sample_pre(struct etnaviv_gpu *gpu,
 	val &= ~VIVS_PM_POWER_CONTROLS_ENABLE_MODULE_CLOCK_GATING;
 	gpu_write(gpu, VIVS_PM_POWER_CONTROLS, val);
 
+	/* enable debug register */
+	val = gpu_read(gpu, VIVS_HI_CLOCK_CONTROL);
+	val &= ~VIVS_HI_CLOCK_CONTROL_DISABLE_DEBUG_REGISTERS;
+	gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, val);
+
 	sync_point_perfmon_sample(gpu, event, ETNA_PM_PROCESS_PRE);
 }
 
@@ -1370,6 +1375,11 @@ static void sync_point_perfmon_sample_post(struct etnaviv_gpu *gpu,
 
 		*pmr->bo_vma = pmr->sequence;
 	}
+
+	/* disable debug register */
+	val = gpu_read(gpu, VIVS_HI_CLOCK_CONTROL);
+	val |= VIVS_HI_CLOCK_CONTROL_DISABLE_DEBUG_REGISTERS;
+	gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, val);
 
 	/* enable clock gating */
 	val = gpu_read(gpu, VIVS_PM_POWER_CONTROLS);
