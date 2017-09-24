@@ -1201,32 +1201,10 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	struct bio_map_data *bmd;
 	struct page *page;
 	struct bio *bio;
-	int i, ret;
-	int nr_pages = 0;
+	int i = 0, ret;
+	int nr_pages;
 	unsigned int len = iter->count;
 	unsigned int offset = map_data ? offset_in_page(map_data->offset) : 0;
-
-	for (i = 0; i < iter->nr_segs; i++) {
-		unsigned long uaddr;
-		unsigned long end;
-		unsigned long start;
-
-		uaddr = (unsigned long) iter->iov[i].iov_base;
-		end = (uaddr + iter->iov[i].iov_len + PAGE_SIZE - 1)
-			>> PAGE_SHIFT;
-		start = uaddr >> PAGE_SHIFT;
-
-		/*
-		 * Overflow, abort
-		 */
-		if (end < start)
-			return ERR_PTR(-EINVAL);
-
-		nr_pages += end - start;
-	}
-
-	if (offset)
-		nr_pages++;
 
 	bmd = bio_alloc_map_data(iter->nr_segs, gfp_mask);
 	if (!bmd)
@@ -1241,6 +1219,10 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	memcpy(bmd->iov, iter->iov, sizeof(struct iovec) * iter->nr_segs);
 	bmd->iter = *iter;
 	bmd->iter.iov = bmd->iov;
+
+	nr_pages = DIV_ROUND_UP(offset + len, PAGE_SIZE);
+	if (nr_pages > BIO_MAX_PAGES)
+		nr_pages = BIO_MAX_PAGES;
 
 	ret = -ENOMEM;
 	bio = bio_kmalloc(gfp_mask, nr_pages);
