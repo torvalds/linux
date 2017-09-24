@@ -483,6 +483,30 @@ int using_compacted_format(void)
 	return boot_cpu_has(X86_FEATURE_XSAVES);
 }
 
+/* Validate an xstate header supplied by userspace (ptrace or sigreturn) */
+int validate_xstate_header(const struct xstate_header *hdr)
+{
+	/* No unknown or supervisor features may be set */
+	if (hdr->xfeatures & (~xfeatures_mask | XFEATURE_MASK_SUPERVISOR))
+		return -EINVAL;
+
+	/* Userspace must use the uncompacted format */
+	if (hdr->xcomp_bv)
+		return -EINVAL;
+
+	/*
+	 * If 'reserved' is shrunken to add a new field, make sure to validate
+	 * that new field here!
+	 */
+	BUILD_BUG_ON(sizeof(hdr->reserved) != 48);
+
+	/* No reserved bits may be set */
+	if (memchr_inv(hdr->reserved, 0, sizeof(hdr->reserved)))
+		return -EINVAL;
+
+	return 0;
+}
+
 static void __xstate_dump_leaves(void)
 {
 	int i;
