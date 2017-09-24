@@ -53,7 +53,7 @@ void etnaviv_cmdbuf_suballoc_destroy(struct etnaviv_cmdbuf_suballoc *suballoc);
 
 struct etnaviv_cmdbuf *
 etnaviv_cmdbuf_new(struct etnaviv_cmdbuf_suballoc *suballoc, u32 size,
-		   size_t nr_bos);
+		   size_t nr_bos, size_t nr_pmrs);
 void etnaviv_cmdbuf_free(struct etnaviv_cmdbuf *cmdbuf);
 
 u32 etnaviv_cmdbuf_get_va(struct etnaviv_cmdbuf *buf);
