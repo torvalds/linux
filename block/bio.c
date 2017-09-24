@@ -1239,8 +1239,8 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	 */
 	bmd->is_our_pages = map_data ? 0 : 1;
 	memcpy(bmd->iov, iter->iov, sizeof(struct iovec) * iter->nr_segs);
-	iov_iter_init(&bmd->iter, iter->type, bmd->iov,
-			iter->nr_segs, iter->count);
+	bmd->iter = *iter;
+	bmd->iter.iov = bmd->iov;
 
 	ret = -ENOMEM;
 	bio = bio_kmalloc(gfp_mask, nr_pages);
