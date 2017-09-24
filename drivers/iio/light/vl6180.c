@@ -386,16 +386,21 @@ fail:
 	return -EINVAL;
 }
 
-static int vl6180_set_it(struct vl6180_data *data, int val2)
+static int vl6180_set_it(struct vl6180_data *data, int val, int val2)
 {
-	int ret;
+	int ret, it_ms;
+
+	it_ms = (val2 + 500) / 1000; /* round to ms */
+	if (val != 0 || it_ms < 1 || it_ms > 512)
+		return -EINVAL;
 
 	mutex_lock(&data->lock);
 	ret = vl6180_hold(data, true);
 	if (ret < 0)
 		goto fail;
-	ret = vl6180_write_word(data->client, VL6180_ALS_IT,
-		(val2 - 500) / 1000); /* write value in ms */
+
+	ret = vl6180_write_word(data->client, VL6180_ALS_IT, it_ms - 1);
+
 fail:
 	vl6180_hold(data, false);
 	mutex_unlock(&data->lock);
@@ -411,10 +416,8 @@ static int vl6180_write_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_INT_TIME:
-		if (val != 0 || val2 < 500 || val2 >= 512500)
-			return -EINVAL;
+		return vl6180_set_it(data, val, val2);
 
-		return vl6180_set_it(data, val2);
 	case IIO_CHAN_INFO_HARDWAREGAIN:
 		if (chan->type != IIO_LIGHT)
 			return -EINVAL;
