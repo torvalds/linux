@@ -571,14 +571,17 @@ done:
 		execlists_submit_ports(engine);
 }
 
-static void execlist_cancel_port_requests(struct intel_engine_execlists *execlists)
+static void
+execlist_cancel_port_requests(struct intel_engine_execlists *execlists)
 {
-	unsigned int i;
+	struct execlist_port *port = execlists->port;
+	unsigned int num_ports = ARRAY_SIZE(execlists->port);
 
-	for (i = 0; i < ARRAY_SIZE(execlists->port); i++)
-		i915_gem_request_put(port_request(&execlists->port[i]));
-
-	memset(execlists->port, 0, sizeof(execlists->port));
+	while (num_ports-- && port_isset(port)) {
+		i915_gem_request_put(port_request(port));
+		memset(port, 0, sizeof(*port));
+		port++;
+	}
 }
 
 static void execlists_cancel_requests(struct intel_engine_cs *engine)
@@ -625,7 +628,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 
 	execlists->queue = RB_ROOT;
 	execlists->first = NULL;
-	GEM_BUG_ON(port_isset(&execlists->port[0]));
+	GEM_BUG_ON(port_isset(execlists->port));
 
 	/*
 	 * The port is checked prior to scheduling a tasklet, but
