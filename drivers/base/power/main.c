@@ -848,16 +848,10 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 		goto Driver;
 	}
 
-	if (dev->class) {
-		if (dev->class->pm) {
-			info = "class ";
-			callback = pm_op(dev->class->pm, state);
-			goto Driver;
-		} else if (dev->class->resume) {
-			info = "legacy class ";
-			callback = dev->class->resume;
-			goto End;
-		}
+	if (dev->class && dev->class->pm) {
+		info = "class ";
+		callback = pm_op(dev->class->pm, state);
+		goto Driver;
 	}
 
 	if (dev->bus) {
@@ -1508,17 +1502,10 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 		goto Run;
 	}
 
-	if (dev->class) {
-		if (dev->class->pm) {
-			info = "class ";
-			callback = pm_op(dev->class->pm, state);
-			goto Run;
-		} else if (dev->class->suspend) {
-			pm_dev_dbg(dev, state, "legacy class ");
-			error = legacy_suspend(dev, state, dev->class->suspend,
-						"legacy class ");
-			goto End;
-		}
+	if (dev->class && dev->class->pm) {
+		info = "class ";
+		callback = pm_op(dev->class->pm, state);
+		goto Run;
 	}
 
 	if (dev->bus) {
@@ -1862,8 +1849,7 @@ void device_pm_check_callbacks(struct device *dev)
 	dev->power.no_pm_callbacks =
 		(!dev->bus || (pm_ops_is_empty(dev->bus->pm) &&
 		 !dev->bus->suspend && !dev->bus->resume)) &&
-		(!dev->class || (pm_ops_is_empty(dev->class->pm) &&
-		 !dev->class->suspend && !dev->class->resume)) &&
+		(!dev->class || pm_ops_is_empty(dev->class->pm)) &&
 		(!dev->type || pm_ops_is_empty(dev->type->pm)) &&
 		(!dev->pm_domain || pm_ops_is_empty(&dev->pm_domain->ops)) &&
 		(!dev->driver || (pm_ops_is_empty(dev->driver->pm) &&
