@@ -56,10 +56,9 @@ struct dc_caps {
 	uint32_t max_planes;
 	uint32_t max_downscale_ratio;
 	uint32_t i2c_speed_in_khz;
-
 	unsigned int max_cursor_size;
+	bool dcc_const_color;
 };
-
 
 struct dc_dcc_surface_param {
 	struct dc_size surface_size;
@@ -162,6 +161,12 @@ struct dc_config {
 	bool disable_disp_pll_sharing;
 };
 
+enum dcc_option {
+	DCC_ENABLE = 0,
+	DCC_DISABLE = 1,
+	DCC_HALF_REQ_DISALBE = 2,
+};
+
 enum pipe_split_policy {
 	MPC_SPLIT_DYNAMIC = 0,
 	MPC_SPLIT_AVOID = 1,
@@ -177,7 +182,7 @@ struct dc_debug {
 	bool clock_trace;
 	bool validation_trace;
 	bool disable_stutter;
-	bool disable_dcc;
+	enum dcc_option disable_dcc;
 	bool disable_dfs_bypass;
 	bool disable_dpp_power_gate;
 	bool disable_hubp_power_gate;

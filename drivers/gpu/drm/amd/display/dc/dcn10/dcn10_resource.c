@@ -414,7 +414,6 @@ static const struct resource_caps res_cap = {
 };
 
 static const struct dc_debug debug_defaults_drv = {
-		.disable_dcc = false,
 		.sanity_checks = true,
 		.disable_dmcu = true,
 		.force_abm_enable = false,
@@ -428,6 +427,7 @@ static const struct dc_debug debug_defaults_drv = {
 		.use_dml_wm = false,
 
 		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
+		.disable_dcc = DCC_ENABLE,
 };
 
 static const struct dc_debug debug_defaults_diags = {
@@ -1080,7 +1080,7 @@ static bool get_dcc_compression_cap(const struct dc *dc,
 
 	memset(output, 0, sizeof(*output));
 
-	if (dc->debug.disable_dcc)
+	if (dc->debug.disable_dcc == DCC_DISABLE)
 		return false;
 
 	if (!dcc_support_pixel_format(input->format,
@@ -1124,32 +1124,30 @@ static bool get_dcc_compression_cap(const struct dc *dc,
 			dcc_control = dcc_control__128_128_xxx;
 	}
 
+	if (dc->debug.disable_dcc == DCC_HALF_REQ_DISALBE &&
+		dcc_control != dcc_control__256_256_xxx)
+		return false;
+
 	switch (dcc_control) {
 	case dcc_control__256_256_xxx:
 		output->grph.rgb.max_uncompressed_blk_size = 256;
 		output->grph.rgb.max_compressed_blk_size = 256;
 		output->grph.rgb.independent_64b_blks = false;
-		output->capable = true;
-		output->const_color_support = false;
 		break;
 	case dcc_control__128_128_xxx:
 		output->grph.rgb.max_uncompressed_blk_size = 128;
 		output->grph.rgb.max_compressed_blk_size = 128;
 		output->grph.rgb.independent_64b_blks = false;
-		/*temp: not allow dcc on high res*/
-		output->capable = false;
-		output->const_color_support = false;
 		break;
 	case dcc_control__256_64_64:
 		output->grph.rgb.max_uncompressed_blk_size = 256;
 		output->grph.rgb.max_compressed_blk_size = 64;
 		output->grph.rgb.independent_64b_blks = true;
-		/*temp: not allow dcc on high res*/
-		output->capable = false;
-		output->const_color_support = false;
 		break;
 	}
 
+	output->capable = true;
+	output->const_color_support = false;
 
 	return true;
 }
