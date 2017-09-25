@@ -196,5 +196,6 @@ void nfp_tunnel_write_macs(struct nfp_app *app);
 void nfp_tunnel_del_ipv4_off(struct nfp_app *app, __be32 ipv4);
 void nfp_tunnel_add_ipv4_off(struct nfp_app *app, __be32 ipv4);
 void nfp_tunnel_request_route(struct nfp_app *app, struct sk_buff *skb);
+void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb);
 
 #endif

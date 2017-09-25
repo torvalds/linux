@@ -36,11 +36,35 @@
 #include <net/netevent.h>
 #include <linux/idr.h>
 #include <net/dst_metadata.h>
+#include <net/arp.h>
 
 #include "cmsg.h"
 #include "main.h"
 #include "../nfp_net_repr.h"
 #include "../nfp_net.h"
+
+#define NFP_FL_MAX_ROUTES               32
+
+/**
+ * struct nfp_tun_active_tuns - periodic message of active tunnels
+ * @seq:		sequence number of the message
+ * @count:		number of tunnels report in message
+ * @flags:		options part of the request
+ * @ipv4:		dest IPv4 address of active route
+ * @egress_port:	port the encapsulated packet egressed
+ * @extra:		reserved for future use
+ * @tun_info:		tunnels that have sent traffic in reported period
+ */
+struct nfp_tun_active_tuns {
+	__be32 seq;
+	__be32 count;
+	__be32 flags;
+	struct route_ip_info {
+		__be32 ipv4;
+		__be32 egress_port;
+		__be32 extra[2];
+	} tun_info[];
+};
 
 /**
  * struct nfp_tun_neigh - neighbour/route entry on the NFP
@@ -146,6 +170,46 @@ struct nfp_tun_mac_non_nfp_idx {
 	u8 index;
 	struct list_head list;
 };
+
+void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb)
+{
+	struct nfp_tun_active_tuns *payload;
+	struct net_device *netdev;
+	int count, i, pay_len;
+	struct neighbour *n;
+	__be32 ipv4_addr;
+	u32 port;
+
+	payload = nfp_flower_cmsg_get_data(skb);
+	count = be32_to_cpu(payload->count);
+	if (count > NFP_FL_MAX_ROUTES) {
+		nfp_flower_cmsg_warn(app, "Tunnel keep-alive request exceeds max routes.\n");
+		return;
+	}
+
+	pay_len = nfp_flower_cmsg_get_data_len(skb);
+	if (pay_len != sizeof(struct nfp_tun_active_tuns) +
+	    sizeof(struct route_ip_info) * count) {
+		nfp_flower_cmsg_warn(app, "Corruption in tunnel keep-alive message.\n");
+		return;
+	}
+
+	for (i = 0; i < count; i++) {
+		ipv4_addr = payload->tun_info[i].ipv4;
+		port = be32_to_cpu(payload->tun_info[i].egress_port);
+		netdev = nfp_app_repr_get(app, port);
+		if (!netdev)
+			continue;
+
+		n = neigh_lookup(&arp_tbl, &ipv4_addr, netdev);
+		if (!n)
+			continue;
+
+		/* Update the used timestamp of neighbour */
+		neigh_event_send(n, NULL);
+		neigh_release(n);
+	}
+}
 
 static bool nfp_tun_is_netdev_to_offload(struct net_device *netdev)
 {

@@ -184,6 +184,9 @@ nfp_flower_cmsg_process_one_rx(struct nfp_app *app, struct sk_buff *skb)
 	case NFP_FLOWER_CMSG_TYPE_NO_NEIGH:
 		nfp_tunnel_request_route(app, skb);
 		break;
+	case NFP_FLOWER_CMSG_TYPE_ACTIVE_TUNS:
+		nfp_tunnel_keep_alive(app, skb);
+		break;
 	case NFP_FLOWER_CMSG_TYPE_TUN_NEIGH:
 		/* Acks from the NFP that the route is added - ignore. */
 		break;
