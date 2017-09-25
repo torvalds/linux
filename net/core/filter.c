@@ -1402,7 +1402,7 @@ static inline int bpf_try_make_writable(struct sk_buff *skb,
 {
 	int err = __bpf_try_make_writable(skb, write_len);
 
-	bpf_compute_data_end(skb);
+	bpf_compute_data_pointers(skb);
 	return err;
 }
 
@@ -1962,7 +1962,7 @@ BPF_CALL_3(bpf_skb_vlan_push, struct sk_buff *, skb, __be16, vlan_proto,
 	ret = skb_vlan_push(skb, vlan_proto, vlan_tci);
 	bpf_pull_mac_rcsum(skb);
 
-	bpf_compute_data_end(skb);
+	bpf_compute_data_pointers(skb);
 	return ret;
 }
 
@@ -1984,7 +1984,7 @@ BPF_CALL_1(bpf_skb_vlan_pop, struct sk_buff *, skb)
 	ret = skb_vlan_pop(skb);
 	bpf_pull_mac_rcsum(skb);
 
-	bpf_compute_data_end(skb);
+	bpf_compute_data_pointers(skb);
 	return ret;
 }
 
@@ -2178,7 +2178,7 @@ BPF_CALL_3(bpf_skb_change_proto, struct sk_buff *, skb, __be16, proto,
 	 * need to be verified first.
 	 */
 	ret = bpf_skb_proto_xlat(skb, proto);
-	bpf_compute_data_end(skb);
+	bpf_compute_data_pointers(skb);
 	return ret;
 }
 
@@ -2303,7 +2303,7 @@ static int bpf_skb_adjust_net(struct sk_buff *skb, s32 len_diff)
 	ret = shrink ? bpf_skb_net_shrink(skb, len_diff_abs) :
 		       bpf_skb_net_grow(skb, len_diff_abs);
 
-	bpf_compute_data_end(skb);
+	bpf_compute_data_pointers(skb);
 	return ret;
 }
 
@@ -2394,7 +2394,7 @@ BPF_CALL_3(bpf_skb_change_tail, struct sk_buff *, skb, u32, new_len,
 			skb_gso_reset(skb);
 	}
 
-	bpf_compute_data_end(skb);
+	bpf_compute_data_pointers(skb);
 	return ret;
 }
 
@@ -2434,7 +2434,7 @@ BPF_CALL_3(bpf_skb_change_head, struct sk_buff *, skb, u32, head_room,
 		skb_reset_mac_header(skb);
 	}
 
-	bpf_compute_data_end(skb);
+	bpf_compute_data_pointers(skb);
 	return 0;
 }
 

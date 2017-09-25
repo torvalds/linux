@@ -133,7 +133,7 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 	if (is_l2)
 		__skb_push(skb, ETH_HLEN);
 	if (is_direct_pkt_access)
-		bpf_compute_data_end(skb);
+		bpf_compute_data_pointers(skb);
 	retval = bpf_test_run(prog, skb, repeat, &duration);
 	if (!is_l2)
 		__skb_push(skb, ETH_HLEN);

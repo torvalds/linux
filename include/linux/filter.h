@@ -496,10 +496,13 @@ struct xdp_buff {
 	void *data_hard_start;
 };
 
-/* compute the linear packet data range [data, data_end) which
- * will be accessed by cls_bpf, act_bpf and lwt programs
+/* Compute the linear packet data range [data, data_end) which
+ * will be accessed by various program types (cls_bpf, act_bpf,
+ * lwt, ...). Subsystems allowing direct data access must (!)
+ * ensure that cb[] area can be written to when BPF program is
+ * invoked (otherwise cb[] save/restore is necessary).
  */
-static inline void bpf_compute_data_end(struct sk_buff *skb)
+static inline void bpf_compute_data_pointers(struct sk_buff *skb)
 {
 	struct bpf_skb_data_end *cb = (struct bpf_skb_data_end *)skb->cb;
 
