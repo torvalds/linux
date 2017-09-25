@@ -30,11 +30,32 @@
 #include <linux/mutex.h>
 #include <linux/hwmon.h>
 #include <linux/gpio.h>
-#include <linux/gpio-fan.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/thermal.h>
+
+struct gpio_fan_alarm {
+	unsigned int	gpio;
+	unsigned int	active_low;
+};
+
+struct gpio_fan_speed {
+	int rpm;
+	int ctrl_val;
+};
+
+struct gpio_fan_platform_data {
+	int			num_ctrl;
+	unsigned int		*ctrl;	/* fan control GPIOs. */
+	struct gpio_fan_alarm	*alarm;	/* fan alarm GPIO. */
+	/*
+	 * Speed conversion array: rpm from/to GPIO bit field.
+	 * This array _must_ be sorted in ascending rpm order.
+	 */
+	int			num_speed;
+	struct gpio_fan_speed	*speed;
+};
 
 struct gpio_fan_data {
 	struct platform_device	*pdev;
