@@ -39,6 +39,7 @@
 #include <linux/types.h>
 
 #include "../nfp_app.h"
+#include "../nfpcore/nfp_cpp.h"
 
 #define NFP_FLOWER_LAYER_META		BIT(0)
 #define NFP_FLOWER_LAYER_PORT		BIT(1)
@@ -89,6 +90,12 @@
 #define NFP_FL_PORT_TYPE_TUN		0x50000000
 #define NFP_FL_IPV4_TUNNEL_TYPE		GENMASK(7, 4)
 #define NFP_FL_IPV4_PRE_TUN_INDEX	GENMASK(2, 0)
+
+#define nfp_flower_cmsg_warn(app, fmt, args...)                         \
+	do {                                                            \
+		if (net_ratelimit())                                    \
+			nfp_warn((app)->cpp, fmt, ## args);             \
+	} while (0)
 
 enum nfp_flower_tun_type {
 	NFP_FL_TUNNEL_NONE =	0,
@@ -310,6 +317,7 @@ enum nfp_flower_cmsg_type_port {
 	NFP_FLOWER_CMSG_TYPE_FLOW_DEL =		2,
 	NFP_FLOWER_CMSG_TYPE_MAC_REPR =		7,
 	NFP_FLOWER_CMSG_TYPE_PORT_MOD =		8,
+	NFP_FLOWER_CMSG_TYPE_TUN_MAC =		11,
 	NFP_FLOWER_CMSG_TYPE_FLOW_STATS =	15,
 	NFP_FLOWER_CMSG_TYPE_PORT_ECHO =	16,
 	NFP_FLOWER_CMSG_TYPE_MAX =		32,
@@ -343,6 +351,7 @@ enum nfp_flower_cmsg_port_type {
 	NFP_FLOWER_CMSG_PORT_TYPE_UNSPEC =	0x0,
 	NFP_FLOWER_CMSG_PORT_TYPE_PHYS_PORT =	0x1,
 	NFP_FLOWER_CMSG_PORT_TYPE_PCIE_PORT =	0x2,
+	NFP_FLOWER_CMSG_PORT_TYPE_OTHER_PORT =  0x3,
 };
 
 enum nfp_flower_cmsg_port_vnic_type {

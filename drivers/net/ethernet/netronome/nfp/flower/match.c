@@ -232,6 +232,7 @@ int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 				  struct nfp_fl_payload *nfp_flow)
 {
 	enum nfp_flower_tun_type tun_type = NFP_FL_TUNNEL_NONE;
+	struct nfp_repr *netdev_repr;
 	int err;
 	u8 *ext;
 	u8 *msk;
@@ -341,6 +342,12 @@ int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 					 flow, true);
 		ext += sizeof(struct nfp_flower_vxlan);
 		msk += sizeof(struct nfp_flower_vxlan);
+
+		/* Configure tunnel end point MAC. */
+		if (nfp_netdev_is_nfp_repr(netdev)) {
+			netdev_repr = netdev_priv(netdev);
+			nfp_tunnel_write_macs(netdev_repr->app);
+		}
 	}
 
 	return 0;
