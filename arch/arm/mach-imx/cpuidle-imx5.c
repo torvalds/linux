@@ -9,6 +9,7 @@
 #include <linux/cpuidle.h>
 #include <linux/module.h>
 #include <asm/system_misc.h>
+#include "cpuidle.h"
 
 static int imx5_cpuidle_enter(struct cpuidle_device *dev,
 			      struct cpuidle_driver *drv, int index)
