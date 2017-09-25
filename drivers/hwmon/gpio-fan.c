@@ -58,7 +58,7 @@ struct gpio_fan_platform_data {
 };
 
 struct gpio_fan_data {
-	struct platform_device	*pdev;
+	struct device		*dev;
 	struct device		*hwmon_dev;
 	/* Cooling device if any */
 	struct thermal_cooling_device *cdev;
@@ -85,8 +85,8 @@ static void fan_alarm_notify(struct work_struct *ws)
 	struct gpio_fan_data *fan_data =
 		container_of(ws, struct gpio_fan_data, alarm_work);
 
-	sysfs_notify(&fan_data->pdev->dev.kobj, NULL, "fan1_alarm");
-	kobject_uevent(&fan_data->pdev->dev.kobj, KOBJ_CHANGE);
+	sysfs_notify(&fan_data->dev->kobj, NULL, "fan1_alarm");
+	kobject_uevent(&fan_data->dev->kobj, KOBJ_CHANGE);
 }
 
 static irqreturn_t fan_alarm_irq_handler(int irq, void *dev_id)
@@ -118,11 +118,11 @@ static int fan_alarm_init(struct gpio_fan_data *fan_data,
 {
 	int err;
 	int alarm_irq;
-	struct platform_device *pdev = fan_data->pdev;
+	struct device *dev = fan_data->dev;
 
 	fan_data->alarm = alarm;
 
-	err = devm_gpio_request(&pdev->dev, alarm->gpio, "GPIO fan alarm");
+	err = devm_gpio_request(dev, alarm->gpio, "GPIO fan alarm");
 	if (err)
 		return err;
 
@@ -140,7 +140,7 @@ static int fan_alarm_init(struct gpio_fan_data *fan_data,
 
 	INIT_WORK(&fan_data->alarm_work, fan_alarm_notify);
 	irq_set_irq_type(alarm_irq, IRQ_TYPE_EDGE_BOTH);
-	err = devm_request_irq(&pdev->dev, alarm_irq, fan_alarm_irq_handler,
+	err = devm_request_irq(dev, alarm_irq, fan_alarm_irq_handler,
 			       IRQF_SHARED, "GPIO fan alarm", fan_data);
 	return err;
 }
@@ -191,7 +191,7 @@ static int get_fan_speed_index(struct gpio_fan_data *fan_data)
 		if (fan_data->speed[i].ctrl_val == ctrl_val)
 			return i;
 
-	dev_warn(&fan_data->pdev->dev,
+	dev_warn(fan_data->dev,
 		 "missing speed array entry for GPIO value 0x%x\n", ctrl_val);
 
 	return -ENODEV;
@@ -382,13 +382,13 @@ static const struct attribute_group *gpio_fan_groups[] = {
 static int fan_ctrl_init(struct gpio_fan_data *fan_data,
 			 struct gpio_fan_platform_data *pdata)
 {
-	struct platform_device *pdev = fan_data->pdev;
+	struct device *dev = fan_data->dev;
 	int num_ctrl = pdata->num_ctrl;
 	unsigned *ctrl = pdata->ctrl;
 	int i, err;
 
 	for (i = 0; i < num_ctrl; i++) {
-		err = devm_gpio_request(&pdev->dev, ctrl[i],
+		err = devm_gpio_request(dev, ctrl[i],
 					"GPIO fan control");
 		if (err)
 			return err;
@@ -588,7 +588,7 @@ static int gpio_fan_probe(struct platform_device *pdev)
 		return -EINVAL;
 #endif /* CONFIG_OF_GPIO */
 
-	fan_data->pdev = pdev;
+	fan_data->dev = dev;
 	platform_set_drvdata(pdev, fan_data);
 	mutex_init(&fan_data->lock);
 
