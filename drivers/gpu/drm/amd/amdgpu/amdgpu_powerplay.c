@@ -45,7 +45,7 @@ static int amdgpu_create_pp_handle(struct amdgpu_device *adev)
 	pp_init.chip_id = adev->asic_type;
 	pp_init.pm_en = (amdgpu_dpm != 0 && !amdgpu_sriov_vf(adev)) ? true : false;
 	pp_init.feature_mask = amdgpu_pp_feature_mask;
-	pp_init.device = amdgpu_cgs_create_device(adev);
+	pp_init.device = amd_pp->cgs_device;
 	ret = amd_powerplay_create(&pp_init, &(amd_pp->pp_handle));
 	if (ret)
 		return -EINVAL;
@@ -74,6 +74,7 @@ static int amdgpu_pp_early_init(void *handle)
 	case CHIP_VEGA10:
 	case CHIP_RAVEN:
 		adev->pp_enabled = true;
+		amd_pp->cgs_device = amdgpu_cgs_create_device(adev);
 		if (amdgpu_create_pp_handle(adev))
 			return -EINVAL;
 		amd_pp->ip_funcs = &pp_ip_funcs;
@@ -97,7 +98,7 @@ static int amdgpu_pp_early_init(void *handle)
 			amd_pp->ip_funcs = &ci_dpm_ip_funcs;
 			amd_pp->pp_funcs = &ci_dpm_funcs;
 		} else {
-			adev->pp_enabled = true;
+			amd_pp->cgs_device = amdgpu_cgs_create_device(adev);
 			if (amdgpu_create_pp_handle(adev))
 				return -EINVAL;
 			amd_pp->ip_funcs = &pp_ip_funcs;
@@ -211,8 +212,10 @@ static void amdgpu_pp_late_fini(void *handle)
 			  adev->powerplay.pp_handle);
 
 
-	if (adev->pp_enabled)
+	if (adev->pp_enabled) {
 		amd_powerplay_destroy(adev->powerplay.pp_handle);
+		amdgpu_cgs_destroy_device(adev->powerplay.cgs_device);
+	}
 }
 
 static int amdgpu_pp_suspend(void *handle)
