@@ -104,8 +104,7 @@ static void p8_aes_ctr_final(struct p8_aes_ctr_ctx *ctx,
 	pagefault_enable();
 	preempt_enable();
 
-	crypto_xor(keystream, src, nbytes);
-	memcpy(dst, keystream, nbytes);
+	crypto_xor_cpy(dst, keystream, src, nbytes);
 	crypto_inc(ctrblk, AES_BLOCK_SIZE);
 }
 

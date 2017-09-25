@@ -285,9 +285,12 @@ static void *threadproc(void *ctx)
 	}
 }
 
-static void set_gs_and_switch_to(unsigned long local, unsigned long remote)
+static void set_gs_and_switch_to(unsigned long local,
+				 unsigned short force_sel,
+				 unsigned long remote)
 {
 	unsigned long base;
+	unsigned short sel_pre_sched, sel_post_sched;
 
 	bool hard_zero = false;
 	if (local == HARD_ZERO) {
@@ -297,6 +300,8 @@ static void set_gs_and_switch_to(unsigned long local, unsigned long remote)
 
 	printf("[RUN]\tARCH_SET_GS(0x%lx)%s, then schedule to 0x%lx\n",
 	       local, hard_zero ? " and clear gs" : "", remote);
+	if (force_sel)
+		printf("\tBefore schedule, set selector to 0x%hx\n", force_sel);
 	if (syscall(SYS_arch_prctl, ARCH_SET_GS, local) != 0)
 		err(1, "ARCH_SET_GS");
 	if (hard_zero)
@@ -307,18 +312,35 @@ static void set_gs_and_switch_to(unsigned long local, unsigned long remote)
 		printf("[FAIL]\tGSBASE wasn't set as expected\n");
 	}
 
+	if (force_sel) {
+		asm volatile ("mov %0, %%gs" : : "rm" (force_sel));
+		sel_pre_sched = force_sel;
+		local = read_base(GS);
+
+		/*
+		 * Signal delivery seems to mess up weird selectors.  Put it
+		 * back.
+		 */
+		asm volatile ("mov %0, %%gs" : : "rm" (force_sel));
+	} else {
+		asm volatile ("mov %%gs, %0" : "=rm" (sel_pre_sched));
+	}
+
 	remote_base = remote;
 	ftx = 1;
 	syscall(SYS_futex, &ftx, FUTEX_WAKE, 0, NULL, NULL, 0);
 	while (ftx != 0)
 		syscall(SYS_futex, &ftx, FUTEX_WAIT, 1, NULL, NULL, 0);
 
+	asm volatile ("mov %%gs, %0" : "=rm" (sel_post_sched));
 	base = read_base(GS);
-	if (base == local) {
-		printf("[OK]\tGSBASE remained 0x%lx\n", local);
+	if (base == local && sel_pre_sched == sel_post_sched) {
+		printf("[OK]\tGS/BASE remained 0x%hx/0x%lx\n",
+		       sel_pre_sched, local);
 	} else {
 		nerrs++;
-		printf("[FAIL]\tGSBASE changed to 0x%lx\n", base);
+		printf("[FAIL]\tGS/BASE changed from 0x%hx/0x%lx to 0x%hx/0x%lx\n",
+		       sel_pre_sched, local, sel_post_sched, base);
 	}
 }
 
@@ -381,8 +403,15 @@ int main()
 
 	for (int local = 0; local < 4; local++) {
 		for (int remote = 0; remote < 4; remote++) {
-			set_gs_and_switch_to(bases_with_hard_zero[local],
-					     bases_with_hard_zero[remote]);
+			for (unsigned short s = 0; s < 5; s++) {
+				unsigned short sel = s;
+				if (s == 4)
+					asm ("mov %%ss, %0" : "=rm" (sel));
+				set_gs_and_switch_to(
+					bases_with_hard_zero[local],
+					sel,
+					bases_with_hard_zero[remote]);
+			}
 		}
 	}
 

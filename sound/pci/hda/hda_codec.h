@@ -164,6 +164,7 @@ enum {
 	HDA_PCM_NTYPES
 };
 
+#define SNDRV_PCM_INVALID_DEVICE	(-1)
 /* for PCM creation */
 struct hda_pcm {
 	char *name;

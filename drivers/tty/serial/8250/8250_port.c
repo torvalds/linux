@@ -37,7 +37,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/pm_runtime.h>
-#include <linux/timer.h>
+#include <linux/ktime.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -288,6 +288,14 @@ static const struct serial8250_config uart_config[] = {
 				  UART_FCR_R_TRIG_10,
 		.rxtrig_bytes	= {1, 4, 8, 14},
 		.flags		= UART_CAP_FIFO | UART_CAP_AFE,
+	},
+	[PORT_MTK_BTIF] = {
+		.name		= "MediaTek BTIF",
+		.fifo_size	= 16,
+		.tx_loadsz	= 16,
+		.fcr		= UART_FCR_ENABLE_FIFO |
+				  UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT,
+		.flags		= UART_CAP_FIFO,
 	},
 };
 
@@ -553,8 +561,8 @@ static inline void serial8250_em485_rts_after_send(struct uart_8250_port *p)
 	serial8250_out_MCR(p, mcr);
 }
 
-static void serial8250_em485_handle_start_tx(unsigned long arg);
-static void serial8250_em485_handle_stop_tx(unsigned long arg);
+static enum hrtimer_restart serial8250_em485_handle_start_tx(struct hrtimer *t);
+static enum hrtimer_restart serial8250_em485_handle_stop_tx(struct hrtimer *t);
 
 void serial8250_clear_and_reinit_fifos(struct uart_8250_port *p)
 {
@@ -609,12 +617,14 @@ int serial8250_em485_init(struct uart_8250_port *p)
 	if (!p->em485)
 		return -ENOMEM;
 
-	setup_timer(&p->em485->stop_tx_timer,
-		serial8250_em485_handle_stop_tx, (unsigned long)p);
-	setup_timer(&p->em485->start_tx_timer,
-		serial8250_em485_handle_start_tx, (unsigned long)p);
+	hrtimer_init(&p->em485->stop_tx_timer, CLOCK_MONOTONIC,
+		     HRTIMER_MODE_REL);
+	hrtimer_init(&p->em485->start_tx_timer, CLOCK_MONOTONIC,
+		     HRTIMER_MODE_REL);
+	p->em485->stop_tx_timer.function = &serial8250_em485_handle_stop_tx;
+	p->em485->start_tx_timer.function = &serial8250_em485_handle_start_tx;
+	p->em485->port = p;
 	p->em485->active_timer = NULL;
-
 	serial8250_em485_rts_after_send(p);
 
 	return 0;
@@ -639,8 +649,8 @@ void serial8250_em485_destroy(struct uart_8250_port *p)
 	if (!p->em485)
 		return;
 
-	del_timer(&p->em485->start_tx_timer);
-	del_timer(&p->em485->stop_tx_timer);
+	hrtimer_cancel(&p->em485->start_tx_timer);
+	hrtimer_cancel(&p->em485->stop_tx_timer);
 
 	kfree(p->em485);
 	p->em485 = NULL;
@@ -1435,22 +1445,33 @@ static void __do_stop_tx_rs485(struct uart_8250_port *p)
 		serial_port_out(&p->port, UART_IER, p->ier);
 	}
 }
-
-static void serial8250_em485_handle_stop_tx(unsigned long arg)
+static enum hrtimer_restart serial8250_em485_handle_stop_tx(struct hrtimer *t)
 {
-	struct uart_8250_port *p = (struct uart_8250_port *)arg;
-	struct uart_8250_em485 *em485 = p->em485;
+	struct uart_8250_em485 *em485;
+	struct uart_8250_port *p;
 	unsigned long flags;
+
+	em485 = container_of(t, struct uart_8250_em485, stop_tx_timer);
+	p = em485->port;
 
 	serial8250_rpm_get(p);
 	spin_lock_irqsave(&p->port.lock, flags);
-	if (em485 &&
-	    em485->active_timer == &em485->stop_tx_timer) {
+	if (em485->active_timer == &em485->stop_tx_timer) {
 		__do_stop_tx_rs485(p);
 		em485->active_timer = NULL;
 	}
 	spin_unlock_irqrestore(&p->port.lock, flags);
 	serial8250_rpm_put(p);
+	return HRTIMER_NORESTART;
+}
+
+static void start_hrtimer_ms(struct hrtimer *hrt, unsigned long msec)
+{
+	long sec = msec / 1000;
+	long nsec = (msec % 1000) * 1000000;
+	ktime_t t = ktime_set(sec, nsec);
+
+	hrtimer_start(hrt, t, HRTIMER_MODE_REL);
 }
 
 static void __stop_tx_rs485(struct uart_8250_port *p)
@@ -1463,8 +1484,8 @@ static void __stop_tx_rs485(struct uart_8250_port *p)
 	 */
 	if (p->port.rs485.delay_rts_after_send > 0) {
 		em485->active_timer = &em485->stop_tx_timer;
-		mod_timer(&em485->stop_tx_timer, jiffies +
-			p->port.rs485.delay_rts_after_send * HZ / 1000);
+		start_hrtimer_ms(&em485->stop_tx_timer,
+				   p->port.rs485.delay_rts_after_send);
 	} else {
 		__do_stop_tx_rs485(p);
 	}
@@ -1494,8 +1515,8 @@ static inline void __stop_tx(struct uart_8250_port *p)
 		if ((lsr & BOTH_EMPTY) != BOTH_EMPTY)
 			return;
 
-		del_timer(&em485->start_tx_timer);
 		em485->active_timer = NULL;
+		hrtimer_cancel(&em485->start_tx_timer);
 
 		__stop_tx_rs485(p);
 	}
@@ -1558,8 +1579,9 @@ static inline void start_tx_rs485(struct uart_port *port)
 	if (!(up->port.rs485.flags & SER_RS485_RX_DURING_TX))
 		serial8250_stop_rx(&up->port);
 
-	del_timer(&em485->stop_tx_timer);
 	em485->active_timer = NULL;
+	if (hrtimer_is_queued(&em485->stop_tx_timer))
+		hrtimer_cancel(&em485->stop_tx_timer);
 
 	mcr = serial8250_in_MCR(up);
 	if (!!(up->port.rs485.flags & SER_RS485_RTS_ON_SEND) !=
@@ -1572,8 +1594,8 @@ static inline void start_tx_rs485(struct uart_port *port)
 
 		if (up->port.rs485.delay_rts_before_send > 0) {
 			em485->active_timer = &em485->start_tx_timer;
-			mod_timer(&em485->start_tx_timer, jiffies +
-				up->port.rs485.delay_rts_before_send * HZ / 1000);
+			start_hrtimer_ms(&em485->start_tx_timer,
+					 up->port.rs485.delay_rts_before_send);
 			return;
 		}
 	}
@@ -1581,19 +1603,22 @@ static inline void start_tx_rs485(struct uart_port *port)
 	__start_tx(port);
 }
 
-static void serial8250_em485_handle_start_tx(unsigned long arg)
+static enum hrtimer_restart serial8250_em485_handle_start_tx(struct hrtimer *t)
 {
-	struct uart_8250_port *p = (struct uart_8250_port *)arg;
-	struct uart_8250_em485 *em485 = p->em485;
+	struct uart_8250_em485 *em485;
+	struct uart_8250_port *p;
 	unsigned long flags;
 
+	em485 = container_of(t, struct uart_8250_em485, start_tx_timer);
+	p = em485->port;
+
 	spin_lock_irqsave(&p->port.lock, flags);
-	if (em485 &&
-	    em485->active_timer == &em485->start_tx_timer) {
+	if (em485->active_timer == &em485->start_tx_timer) {
 		__start_tx(&p->port);
 		em485->active_timer = NULL;
 	}
 	spin_unlock_irqrestore(&p->port.lock, flags);
+	return HRTIMER_NORESTART;
 }
 
 static void serial8250_start_tx(struct uart_port *port)
@@ -2304,7 +2329,7 @@ int serial8250_do_startup(struct uart_port *port)
 	 * test if we receive TX irq.  This way, we'll never enable
 	 * UART_BUG_TXEN.
 	 */
-	if (up->port.flags & UPF_NO_TXEN_TEST)
+	if (up->port.quirks & UPQ_NO_TXEN_TEST)
 		goto dont_test_tx_en;
 
 	/*

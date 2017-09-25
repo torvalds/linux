@@ -42,6 +42,14 @@ struct stm32_dac_priv {
 	struct stm32_dac_common common;
 };
 
+/**
+ * struct stm32_dac_cfg - DAC configuration
+ * @has_hfsel: DAC has high frequency control
+ */
+struct stm32_dac_cfg {
+	bool has_hfsel;
+};
+
 static struct stm32_dac_priv *to_stm32_dac_priv(struct stm32_dac_common *com)
 {
 	return container_of(com, struct stm32_dac_priv, common);
@@ -57,6 +65,7 @@ static const struct regmap_config stm32_dac_regmap_cfg = {
 static int stm32_dac_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	const struct stm32_dac_cfg *cfg;
 	struct stm32_dac_priv *priv;
 	struct regmap *regmap;
 	struct resource *res;
@@ -69,6 +78,8 @@ static int stm32_dac_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+	cfg = (const struct stm32_dac_cfg *)
+		of_match_device(dev->driver->of_match_table, dev)->data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mmio = devm_ioremap_resource(dev, res);
@@ -114,19 +125,23 @@ static int stm32_dac_probe(struct platform_device *pdev)
 		goto err_vref;
 	}
 
-	priv->rst = devm_reset_control_get(dev, NULL);
+	priv->rst = devm_reset_control_get_exclusive(dev, NULL);
 	if (!IS_ERR(priv->rst)) {
 		reset_control_assert(priv->rst);
 		udelay(2);
 		reset_control_deassert(priv->rst);
 	}
 
-	/* When clock speed is higher than 80MHz, set HFSEL */
-	priv->common.hfsel = (clk_get_rate(priv->pclk) > 80000000UL);
-	ret = regmap_update_bits(regmap, STM32_DAC_CR, STM32H7_DAC_CR_HFSEL,
-				 priv->common.hfsel ? STM32H7_DAC_CR_HFSEL : 0);
-	if (ret)
-		goto err_pclk;
+	if (cfg && cfg->has_hfsel) {
+		/* When clock speed is higher than 80MHz, set HFSEL */
+		priv->common.hfsel = (clk_get_rate(priv->pclk) > 80000000UL);
+		ret = regmap_update_bits(regmap, STM32_DAC_CR,
+					 STM32H7_DAC_CR_HFSEL,
+					 priv->common.hfsel ?
+					 STM32H7_DAC_CR_HFSEL : 0);
+		if (ret)
+			goto err_pclk;
+	}
 
 	platform_set_drvdata(pdev, &priv->common);
 
@@ -158,8 +173,17 @@ static int stm32_dac_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct stm32_dac_cfg stm32h7_dac_cfg = {
+	.has_hfsel = true,
+};
+
 static const struct of_device_id stm32_dac_of_match[] = {
-	{ .compatible = "st,stm32h7-dac-core", },
+	{
+		.compatible = "st,stm32f4-dac-core",
+	}, {
+		.compatible = "st,stm32h7-dac-core",
+		.data = (void *)&stm32h7_dac_cfg,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, stm32_dac_of_match);

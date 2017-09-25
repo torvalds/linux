@@ -2,14 +2,14 @@
 
 .. _dmx_fclose:
 
-=================
-DVB demux close()
-=================
+========================
+Digital TV demux close()
+========================
 
 Name
 ----
 
-DVB demux close()
+Digital TV demux close()
 
 
 Synopsis
@@ -23,25 +23,23 @@ Arguments
 ---------
 
 ``fd``
-  File descriptor returned by a previous call to :c:func:`open() <dvb-ca-open>`.
+  File descriptor returned by a previous call to
+  :c:func:`open() <dvb-dmx-open>`.
 
 Description
 -----------
 
 This system call deactivates and deallocates a filter that was
-previously allocated via the open() call.
+previously allocated via the :c:func:`open() <dvb-dmx-open>` call.
 
 
 Return Value
 ------------
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
+On success 0 is returned.
 
+On error, -1 is returned and the ``errno`` variable is set
+appropriately.
 
-    -  .. row 1
-
-       -  ``EBADF``
-
-       -  fd is not a valid open file descriptor.
+The generic error codes are described at the
+:ref:`Generic Error Codes <gen-errors>` chapter.

@@ -20,6 +20,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include "vc4_drv.h"
 
 static void vc4_output_poll_changed(struct drm_device *dev)
@@ -29,16 +30,9 @@ static void vc4_output_poll_changed(struct drm_device *dev)
 	drm_fbdev_cma_hotplug_event(vc4->fbdev);
 }
 
-struct vc4_commit {
-	struct drm_device *dev;
-	struct drm_atomic_state *state;
-	struct vc4_seqno_cb cb;
-};
-
 static void
-vc4_atomic_complete_commit(struct vc4_commit *c)
+vc4_atomic_complete_commit(struct drm_atomic_state *state)
 {
-	struct drm_atomic_state *state = c->state;
 	struct drm_device *dev = state->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
@@ -72,28 +66,14 @@ vc4_atomic_complete_commit(struct vc4_commit *c)
 	drm_atomic_state_put(state);
 
 	up(&vc4->async_modeset);
-
-	kfree(c);
 }
 
-static void
-vc4_atomic_complete_commit_seqno_cb(struct vc4_seqno_cb *cb)
+static void commit_work(struct work_struct *work)
 {
-	struct vc4_commit *c = container_of(cb, struct vc4_commit, cb);
-
-	vc4_atomic_complete_commit(c);
-}
-
-static struct vc4_commit *commit_init(struct drm_atomic_state *state)
-{
-	struct vc4_commit *c = kzalloc(sizeof(*c), GFP_KERNEL);
-
-	if (!c)
-		return NULL;
-	c->dev = state->dev;
-	c->state = state;
-
-	return c;
+	struct drm_atomic_state *state = container_of(work,
+						      struct drm_atomic_state,
+						      commit_work);
+	vc4_atomic_complete_commit(state);
 }
 
 /**
@@ -115,40 +95,29 @@ static int vc4_atomic_commit(struct drm_device *dev,
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	int ret;
-	int i;
-	uint64_t wait_seqno = 0;
-	struct vc4_commit *c;
-	struct drm_plane *plane;
-	struct drm_plane_state *new_state;
-
-	c = commit_init(state);
-	if (!c)
-		return -ENOMEM;
 
 	ret = drm_atomic_helper_setup_commit(state, nonblock);
 	if (ret)
 		return ret;
 
+	INIT_WORK(&state->commit_work, commit_work);
+
 	ret = down_interruptible(&vc4->async_modeset);
-	if (ret) {
-		kfree(c);
+	if (ret)
 		return ret;
-	}
 
 	ret = drm_atomic_helper_prepare_planes(dev, state);
 	if (ret) {
-		kfree(c);
 		up(&vc4->async_modeset);
 		return ret;
 	}
 
-	for_each_plane_in_state(state, plane, new_state, i) {
-		if ((plane->state->fb != new_state->fb) && new_state->fb) {
-			struct drm_gem_cma_object *cma_bo =
-				drm_fb_cma_get_gem_obj(new_state->fb, 0);
-			struct vc4_bo *bo = to_vc4_bo(&cma_bo->base);
-
-			wait_seqno = max(bo->seqno, wait_seqno);
+	if (!nonblock) {
+		ret = drm_atomic_helper_wait_for_fences(dev, state, true);
+		if (ret) {
+			drm_atomic_helper_cleanup_planes(dev, state);
+			up(&vc4->async_modeset);
+			return ret;
 		}
 	}
 
@@ -158,7 +127,7 @@ static int vc4_atomic_commit(struct drm_device *dev,
 	 * the software side now.
 	 */
 
-	drm_atomic_helper_swap_state(state, true);
+	BUG_ON(drm_atomic_helper_swap_state(state, false) < 0);
 
 	/*
 	 * Everything below can be run asynchronously without the need to grab
@@ -177,13 +146,10 @@ static int vc4_atomic_commit(struct drm_device *dev,
 	 */
 
 	drm_atomic_state_get(state);
-	if (nonblock) {
-		vc4_queue_seqno_cb(dev, &c->cb, wait_seqno,
-				   vc4_atomic_complete_commit_seqno_cb);
-	} else {
-		vc4_wait_for_seqno(dev, wait_seqno, ~0ull, false);
-		vc4_atomic_complete_commit(c);
-	}
+	if (nonblock)
+		queue_work(system_unbound_wq, &state->commit_work);
+	else
+		vc4_atomic_complete_commit(state);
 
 	return 0;
 }
@@ -204,7 +170,7 @@ static struct drm_framebuffer *vc4_fb_create(struct drm_device *dev,
 		gem_obj = drm_gem_object_lookup(file_priv,
 						mode_cmd->handles[0]);
 		if (!gem_obj) {
-			DRM_ERROR("Failed to look up GEM BO %d\n",
+			DRM_DEBUG("Failed to look up GEM BO %d\n",
 				  mode_cmd->handles[0]);
 			return ERR_PTR(-ENOENT);
 		}
@@ -219,12 +185,12 @@ static struct drm_framebuffer *vc4_fb_create(struct drm_device *dev,
 			mode_cmd_local.modifier[0] = DRM_FORMAT_MOD_NONE;
 		}
 
-		drm_gem_object_unreference_unlocked(gem_obj);
+		drm_gem_object_put_unlocked(gem_obj);
 
 		mode_cmd = &mode_cmd_local;
 	}
 
-	return drm_fb_cma_create(dev, file_priv, mode_cmd);
+	return drm_gem_fb_create(dev, file_priv, mode_cmd);
 }
 
 static const struct drm_mode_config_funcs vc4_mode_funcs = {
@@ -240,6 +206,9 @@ int vc4_kms_load(struct drm_device *dev)
 	int ret;
 
 	sema_init(&vc4->async_modeset, 1);
+
+	/* Set support for vblank irq fast disable, before drm_vblank_init() */
+	dev->vblank_disable_immediate = true;
 
 	ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
 	if (ret < 0) {

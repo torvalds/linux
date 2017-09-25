@@ -395,7 +395,7 @@ static int saa7146_i2c_xfer(struct i2c_adapter* adapter, struct i2c_msg *msg, in
 /* i2c-adapter helper functions                                              */
 
 /* exported algorithm data */
-static struct i2c_algorithm saa7146_algo = {
+static const struct i2c_algorithm saa7146_algo = {
 	.master_xfer	= saa7146_i2c_xfer,
 	.functionality	= saa7146_i2c_func,
 };

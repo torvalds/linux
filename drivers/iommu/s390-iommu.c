@@ -18,6 +18,8 @@
  */
 #define S390_IOMMU_PGSIZES	(~0xFFFUL)
 
+static const struct iommu_ops s390_iommu_ops;
+
 struct s390_domain {
 	struct iommu_domain	domain;
 	struct list_head	devices;
@@ -166,11 +168,13 @@ static void s390_iommu_detach_device(struct iommu_domain *domain,
 static int s390_iommu_add_device(struct device *dev)
 {
 	struct iommu_group *group = iommu_group_get_for_dev(dev);
+	struct zpci_dev *zdev = to_pci_dev(dev)->sysdata;
 
 	if (IS_ERR(group))
 		return PTR_ERR(group);
 
 	iommu_group_put(group);
+	iommu_device_link(&zdev->iommu_dev, dev);
 
 	return 0;
 }
@@ -197,6 +201,7 @@ static void s390_iommu_remove_device(struct device *dev)
 			s390_iommu_detach_device(domain, dev);
 	}
 
+	iommu_device_unlink(&zdev->iommu_dev, dev);
 	iommu_group_remove_device(dev);
 }
 
@@ -327,7 +332,37 @@ static size_t s390_iommu_unmap(struct iommu_domain *domain,
 	return size;
 }
 
-static struct iommu_ops s390_iommu_ops = {
+int zpci_init_iommu(struct zpci_dev *zdev)
+{
+	int rc = 0;
+
+	rc = iommu_device_sysfs_add(&zdev->iommu_dev, NULL, NULL,
+				    "s390-iommu.%08x", zdev->fid);
+	if (rc)
+		goto out_err;
+
+	iommu_device_set_ops(&zdev->iommu_dev, &s390_iommu_ops);
+
+	rc = iommu_device_register(&zdev->iommu_dev);
+	if (rc)
+		goto out_sysfs;
+
+	return 0;
+
+out_sysfs:
+	iommu_device_sysfs_remove(&zdev->iommu_dev);
+
+out_err:
+	return rc;
+}
+
+void zpci_destroy_iommu(struct zpci_dev *zdev)
+{
+	iommu_device_unregister(&zdev->iommu_dev);
+	iommu_device_sysfs_remove(&zdev->iommu_dev);
+}
+
+static const struct iommu_ops s390_iommu_ops = {
 	.capable = s390_iommu_capable,
 	.domain_alloc = s390_domain_alloc,
 	.domain_free = s390_domain_free,

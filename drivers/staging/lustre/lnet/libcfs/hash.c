@@ -105,7 +105,7 @@
 #include <linux/seq_file.h>
 #include <linux/log2.h>
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
 #if CFS_HASH_DEBUG_LEVEL >= CFS_HASH_DEBUG_1
 static unsigned int warn_on_depth = 8;
@@ -1008,7 +1008,7 @@ cfs_hash_create(char *name, unsigned int cur_bits, unsigned int max_bits,
 	LASSERT(ops->hs_object);
 	LASSERT(ops->hs_keycmp);
 	LASSERT(ops->hs_get);
-	LASSERT(ops->hs_put_locked);
+	LASSERT(ops->hs_put || ops->hs_put_locked);
 
 	if (flags & CFS_HASH_REHASH)
 		flags |= CFS_HASH_COUNTER; /* must have counter */
@@ -1553,19 +1553,20 @@ static int
 cfs_hash_for_each_relax(struct cfs_hash *hs, cfs_hash_for_each_cb_t func,
 			void *data, int start)
 {
+	struct hlist_node *next = NULL;
 	struct hlist_node *hnode;
-	struct hlist_node *tmp;
 	struct cfs_hash_bd bd;
 	u32 version;
 	int count = 0;
 	int stop_on_change;
+	int has_put_locked;
 	int end = -1;
 	int rc = 0;
 	int i;
 
 	stop_on_change = cfs_hash_with_rehash_key(hs) ||
-			 !cfs_hash_with_no_itemref(hs) ||
-			 !hs->hs_ops->hs_put_locked;
+			 !cfs_hash_with_no_itemref(hs);
+	has_put_locked = hs->hs_ops->hs_put_locked != NULL;
 	cfs_hash_lock(hs, 0);
 again:
 	LASSERT(!cfs_hash_is_rehashing(hs));
@@ -1582,38 +1583,52 @@ again:
 		version = cfs_hash_bd_version_get(&bd);
 
 		cfs_hash_bd_for_each_hlist(hs, &bd, hhead) {
-			for (hnode = hhead->first; hnode;) {
+			hnode = hhead->first;
+			if (!hnode)
+				continue;
+			cfs_hash_get(hs, hnode);
+
+			for (; hnode; hnode = next) {
 				cfs_hash_bucket_validate(hs, &bd, hnode);
-				cfs_hash_get(hs, hnode);
+				next = hnode->next;
+				if (next)
+					cfs_hash_get(hs, next);
 				cfs_hash_bd_unlock(hs, &bd, 0);
 				cfs_hash_unlock(hs, 0);
 
 				rc = func(hs, &bd, hnode, data);
-				if (stop_on_change)
+				if (stop_on_change || !has_put_locked)
 					cfs_hash_put(hs, hnode);
 				cond_resched();
 				count++;
 
 				cfs_hash_lock(hs, 0);
 				cfs_hash_bd_lock(hs, &bd, 0);
-				if (!stop_on_change) {
-					tmp = hnode->next;
-					cfs_hash_put_locked(hs, hnode);
-					hnode = tmp;
-				} else { /* bucket changed? */
+				if (stop_on_change) {
 					if (version !=
 					    cfs_hash_bd_version_get(&bd))
-						break;
-					/* safe to continue because no change */
-					hnode = hnode->next;
+						rc = -EINTR;
+				} else if (has_put_locked) {
+					cfs_hash_put_locked(hs, hnode);
 				}
 				if (rc) /* callback wants to break iteration */
 					break;
 			}
-			if (rc) /* callback wants to break iteration */
+			if (next) {
+				if (has_put_locked) {
+					cfs_hash_put_locked(hs, next);
+					next = NULL;
+				}
 				break;
+			} else if (rc) {
+				break;
+			}
 		}
 		cfs_hash_bd_unlock(hs, &bd, 0);
+		if (next && !has_put_locked) {
+			cfs_hash_put(hs, next);
+			next = NULL;
+		}
 		if (rc) /* callback wants to break iteration */
 			break;
 	}

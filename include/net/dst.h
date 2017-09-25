@@ -14,6 +14,7 @@
 #include <linux/rcupdate.h>
 #include <linux/bug.h>
 #include <linux/jiffies.h>
+#include <linux/refcount.h>
 #include <net/neighbour.h>
 #include <asm/processor.h>
 
@@ -107,7 +108,7 @@ struct dst_entry {
 
 struct dst_metrics {
 	u32		metrics[RTAX_MAX];
-	atomic_t	refcnt;
+	refcount_t	refcnt;
 };
 extern const struct dst_metrics dst_default_metrics;
 
@@ -270,7 +271,7 @@ static inline void dst_use_noref(struct dst_entry *dst, unsigned long time)
 static inline struct dst_entry *dst_clone(struct dst_entry *dst)
 {
 	if (dst)
-		atomic_inc(&dst->__refcnt);
+		dst_hold(dst);
 	return dst;
 }
 
@@ -311,21 +312,6 @@ static inline void skb_dst_copy(struct sk_buff *nskb, const struct sk_buff *oskb
 }
 
 /**
- * skb_dst_force - makes sure skb dst is refcounted
- * @skb: buffer
- *
- * If dst is not yet refcounted, let's do it
- */
-static inline void skb_dst_force(struct sk_buff *skb)
-{
-	if (skb_dst_is_noref(skb)) {
-		WARN_ON(!rcu_read_lock_held());
-		skb->_skb_refdst &= ~SKB_DST_NOREF;
-		dst_clone(skb_dst(skb));
-	}
-}
-
-/**
  * dst_hold_safe - Take a reference on a dst if possible
  * @dst: pointer to dst entry
  *
@@ -338,16 +324,17 @@ static inline bool dst_hold_safe(struct dst_entry *dst)
 }
 
 /**
- * skb_dst_force_safe - makes sure skb dst is refcounted
+ * skb_dst_force - makes sure skb dst is refcounted
  * @skb: buffer
  *
  * If dst is not yet refcounted and not destroyed, grab a ref on it.
  */
-static inline void skb_dst_force_safe(struct sk_buff *skb)
+static inline void skb_dst_force(struct sk_buff *skb)
 {
 	if (skb_dst_is_noref(skb)) {
 		struct dst_entry *dst = skb_dst(skb);
 
+		WARN_ON(!rcu_read_lock_held());
 		if (!dst_hold_safe(dst))
 			dst = NULL;
 

@@ -139,7 +139,7 @@ out:
 	return ret;
 }
 
-static struct hc_driver usb_gb_hc_driver = {
+static const struct hc_driver usb_gb_hc_driver = {
 	.description = "greybus-hcd",
 	.product_desc = "Greybus USB Host Controller",
 	.hcd_priv_size = sizeof(struct gb_usb_device),

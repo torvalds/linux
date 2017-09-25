@@ -237,6 +237,14 @@ are the following:
 	This attribute is not present if the scaling driver in use does not
 	support it.
 
+``cpuinfo_cur_freq``
+	Current frequency of the CPUs belonging to this policy as obtained from
+	the hardware (in KHz).
+
+	This is expected to be the frequency the hardware actually runs at.
+	If that frequency cannot be determined, this attribute should not
+	be present.
+
 ``cpuinfo_max_freq``
 	Maximum possible operating frequency the CPUs belonging to this policy
 	can run at (in kHz).
@@ -470,14 +478,6 @@ This governor exposes the following tunables:
 	represented by it to be 750 times as high as the transition latency::
 
 	# echo `$(($(cat cpuinfo_transition_latency) * 750 / 1000)) > ondemand/sampling_rate
-
-
-``min_sampling_rate``
-	The minimum value of ``sampling_rate``.
-
-	Equal to 10000 (10 ms) if :c:macro:`CONFIG_NO_HZ_COMMON` and
-	:c:data:`tick_nohz_active` are both set or to 20 times the value of
-	:c:data:`jiffies` in microseconds otherwise.
 
 ``up_threshold``
 	If the estimated CPU load is above this value (in percent), the governor

@@ -273,7 +273,7 @@ static int trace_selftest_ops(struct trace_array *tr, int cnt)
 		goto out_free;
 	if (cnt > 1) {
 		if (trace_selftest_test_global_cnt == 0)
-			goto out;
+			goto out_free;
 	}
 	if (trace_selftest_test_dyn_cnt == 0)
 		goto out_free;

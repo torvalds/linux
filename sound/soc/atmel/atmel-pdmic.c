@@ -694,7 +694,6 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 	}
 
 	snd_soc_card_set_drvdata(card, dd);
-	platform_set_drvdata(pdev, card);
 
 	ret = atmel_pdmic_asoc_card_init(dev, card);
 	if (ret) {

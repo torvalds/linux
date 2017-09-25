@@ -691,12 +691,6 @@ struct Scsi_Host {
 	unsigned int prot_capabilities;
 	unsigned char prot_guard_type;
 
-	/*
-	 * q used for scsi_tgt msgs, async events or any other requests that
-	 * need to be processed in userspace
-	 */
-	struct request_queue *uspace_req_q;
-
 	/* legacy crap */
 	unsigned long base;
 	unsigned long io_port;

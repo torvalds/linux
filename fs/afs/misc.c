@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/errno.h>
-#include <rxrpc/packet.h>
 #include "internal.h"
 #include "afs_fs.h"
 

@@ -98,8 +98,10 @@ static int add_cgroup(struct perf_evlist *evlist, char *str)
 		cgrp = counter->cgrp;
 		if (!cgrp)
 			continue;
-		if (!strcmp(cgrp->name, str))
+		if (!strcmp(cgrp->name, str)) {
+			refcount_inc(&cgrp->refcnt);
 			break;
+		}
 
 		cgrp = NULL;
 	}
@@ -110,6 +112,7 @@ static int add_cgroup(struct perf_evlist *evlist, char *str)
 			return -1;
 
 		cgrp->name = str;
+		refcount_set(&cgrp->refcnt, 1);
 
 		cgrp->fd = open_cgroup(str);
 		if (cgrp->fd == -1) {
@@ -128,12 +131,11 @@ static int add_cgroup(struct perf_evlist *evlist, char *str)
 			goto found;
 		n++;
 	}
-	if (refcount_read(&cgrp->refcnt) == 0)
+	if (refcount_dec_and_test(&cgrp->refcnt))
 		free(cgrp);
 
 	return -1;
 found:
-	refcount_inc(&cgrp->refcnt);
 	counter->cgrp = cgrp;
 	return 0;
 }

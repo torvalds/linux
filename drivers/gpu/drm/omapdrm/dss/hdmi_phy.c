@@ -19,14 +19,6 @@
 #include "dss.h"
 #include "hdmi.h"
 
-struct hdmi_phy_features {
-	bool bist_ctrl;
-	bool ldo_voltage;
-	unsigned long max_phy;
-};
-
-static const struct hdmi_phy_features *phy_feat;
-
 void hdmi_phy_dump(struct hdmi_phy_data *phy, struct seq_file *s)
 {
 #define DUMPPHY(r) seq_printf(s, "%-35s %08x\n", #r,\
@@ -36,7 +28,7 @@ void hdmi_phy_dump(struct hdmi_phy_data *phy, struct seq_file *s)
 	DUMPPHY(HDMI_TXPHY_DIGITAL_CTRL);
 	DUMPPHY(HDMI_TXPHY_POWER_CTRL);
 	DUMPPHY(HDMI_TXPHY_PAD_CFG_CTRL);
-	if (phy_feat->bist_ctrl)
+	if (phy->features->bist_ctrl)
 		DUMPPHY(HDMI_TXPHY_BIST_CONTROL);
 }
 
@@ -146,7 +138,7 @@ int hdmi_phy_configure(struct hdmi_phy_data *phy, unsigned long hfbitclk,
 	 * In OMAP5+, the HFBITCLK must be divided by 2 before issuing the
 	 * HDMI_PHYPWRCMD_LDOON command.
 	*/
-	if (phy_feat->bist_ctrl)
+	if (phy->features->bist_ctrl)
 		REG_FLD_MOD(phy->base, HDMI_TXPHY_BIST_CONTROL, 1, 11, 11);
 
 	/*
@@ -155,7 +147,7 @@ int hdmi_phy_configure(struct hdmi_phy_data *phy, unsigned long hfbitclk,
 	 */
 	if (hfbitclk != lfbitclk)
 		freqout = 0;
-	else if (hfbitclk / 10 < phy_feat->max_phy)
+	else if (hfbitclk / 10 < phy->features->max_phy)
 		freqout = 1;
 	else
 		freqout = 2;
@@ -170,7 +162,7 @@ int hdmi_phy_configure(struct hdmi_phy_data *phy, unsigned long hfbitclk,
 	hdmi_write_reg(phy->base, HDMI_TXPHY_DIGITAL_CTRL, 0xF0000000);
 
 	/* Setup max LDO voltage */
-	if (phy_feat->ldo_voltage)
+	if (phy->features->ldo_voltage)
 		REG_FLD_MOD(phy->base, HDMI_TXPHY_POWER_CTRL, 0xB, 3, 0);
 
 	hdmi_phy_configure_lanes(phy);
@@ -190,47 +182,15 @@ static const struct hdmi_phy_features omap54xx_phy_feats = {
 	.max_phy	=	186000000,
 };
 
-static int hdmi_phy_init_features(struct platform_device *pdev)
+int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy,
+		  unsigned int version)
 {
-	struct hdmi_phy_features *dst;
-	const struct hdmi_phy_features *src;
-
-	dst = devm_kzalloc(&pdev->dev, sizeof(*dst), GFP_KERNEL);
-	if (!dst) {
-		dev_err(&pdev->dev, "Failed to allocate HDMI PHY Features\n");
-		return -ENOMEM;
-	}
-
-	switch (omapdss_get_version()) {
-	case OMAPDSS_VER_OMAP4430_ES1:
-	case OMAPDSS_VER_OMAP4430_ES2:
-	case OMAPDSS_VER_OMAP4:
-		src = &omap44xx_phy_feats;
-		break;
-
-	case OMAPDSS_VER_OMAP5:
-	case OMAPDSS_VER_DRA7xx:
-		src = &omap54xx_phy_feats;
-		break;
-
-	default:
-		return -ENODEV;
-	}
-
-	memcpy(dst, src, sizeof(*dst));
-	phy_feat = dst;
-
-	return 0;
-}
-
-int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy)
-{
-	int r;
 	struct resource *res;
 
-	r = hdmi_phy_init_features(pdev);
-	if (r)
-		return r;
+	if (version == 4)
+		phy->features = &omap44xx_phy_feats;
+	else
+		phy->features = &omap54xx_phy_feats;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
 	phy->base = devm_ioremap_resource(&pdev->dev, res);

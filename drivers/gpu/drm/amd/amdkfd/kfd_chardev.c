@@ -142,12 +142,12 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 				struct kfd_ioctl_create_queue_args *args)
 {
 	if (args->queue_percentage > KFD_MAX_QUEUE_PERCENTAGE) {
-		pr_err("kfd: queue percentage must be between 0 to KFD_MAX_QUEUE_PERCENTAGE\n");
+		pr_err("Queue percentage must be between 0 to KFD_MAX_QUEUE_PERCENTAGE\n");
 		return -EINVAL;
 	}
 
 	if (args->queue_priority > KFD_MAX_QUEUE_PRIORITY) {
-		pr_err("kfd: queue priority must be between 0 to KFD_MAX_QUEUE_PRIORITY\n");
+		pr_err("Queue priority must be between 0 to KFD_MAX_QUEUE_PRIORITY\n");
 		return -EINVAL;
 	}
 
@@ -155,26 +155,26 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 		(!access_ok(VERIFY_WRITE,
 			(const void __user *) args->ring_base_address,
 			sizeof(uint64_t)))) {
-		pr_err("kfd: can't access ring base address\n");
+		pr_err("Can't access ring base address\n");
 		return -EFAULT;
 	}
 
 	if (!is_power_of_2(args->ring_size) && (args->ring_size != 0)) {
-		pr_err("kfd: ring size must be a power of 2 or 0\n");
+		pr_err("Ring size must be a power of 2 or 0\n");
 		return -EINVAL;
 	}
 
 	if (!access_ok(VERIFY_WRITE,
 			(const void __user *) args->read_pointer_address,
 			sizeof(uint32_t))) {
-		pr_err("kfd: can't access read pointer\n");
+		pr_err("Can't access read pointer\n");
 		return -EFAULT;
 	}
 
 	if (!access_ok(VERIFY_WRITE,
 			(const void __user *) args->write_pointer_address,
 			sizeof(uint32_t))) {
-		pr_err("kfd: can't access write pointer\n");
+		pr_err("Can't access write pointer\n");
 		return -EFAULT;
 	}
 
@@ -182,7 +182,7 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 		!access_ok(VERIFY_WRITE,
 			(const void __user *) args->eop_buffer_address,
 			sizeof(uint32_t))) {
-		pr_debug("kfd: can't access eop buffer");
+		pr_debug("Can't access eop buffer");
 		return -EFAULT;
 	}
 
@@ -190,7 +190,7 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 		!access_ok(VERIFY_WRITE,
 			(const void __user *) args->ctx_save_restore_address,
 			sizeof(uint32_t))) {
-		pr_debug("kfd: can't access ctx save restore buffer");
+		pr_debug("Can't access ctx save restore buffer");
 		return -EFAULT;
 	}
 
@@ -219,27 +219,27 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 	else
 		q_properties->format = KFD_QUEUE_FORMAT_PM4;
 
-	pr_debug("Queue Percentage (%d, %d)\n",
+	pr_debug("Queue Percentage: %d, %d\n",
 			q_properties->queue_percent, args->queue_percentage);
 
-	pr_debug("Queue Priority (%d, %d)\n",
+	pr_debug("Queue Priority: %d, %d\n",
 			q_properties->priority, args->queue_priority);
 
-	pr_debug("Queue Address (0x%llX, 0x%llX)\n",
+	pr_debug("Queue Address: 0x%llX, 0x%llX\n",
 			q_properties->queue_address, args->ring_base_address);
 
-	pr_debug("Queue Size (0x%llX, %u)\n",
+	pr_debug("Queue Size: 0x%llX, %u\n",
 			q_properties->queue_size, args->ring_size);
 
-	pr_debug("Queue r/w Pointers (0x%llX, 0x%llX)\n",
-			(uint64_t) q_properties->read_ptr,
-			(uint64_t) q_properties->write_ptr);
+	pr_debug("Queue r/w Pointers: %p, %p\n",
+			q_properties->read_ptr,
+			q_properties->write_ptr);
 
-	pr_debug("Queue Format (%d)\n", q_properties->format);
+	pr_debug("Queue Format: %d\n", q_properties->format);
 
-	pr_debug("Queue EOP (0x%llX)\n", q_properties->eop_ring_buffer_address);
+	pr_debug("Queue EOP: 0x%llX\n", q_properties->eop_ring_buffer_address);
 
-	pr_debug("Queue CTX save arex (0x%llX)\n",
+	pr_debug("Queue CTX save area: 0x%llX\n",
 			q_properties->ctx_save_restore_area_address);
 
 	return 0;
@@ -257,16 +257,16 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 
 	memset(&q_properties, 0, sizeof(struct queue_properties));
 
-	pr_debug("kfd: creating queue ioctl\n");
+	pr_debug("Creating queue ioctl\n");
 
 	err = set_queue_properties_from_user(&q_properties, args);
 	if (err)
 		return err;
 
-	pr_debug("kfd: looking for gpu id 0x%x\n", args->gpu_id);
+	pr_debug("Looking for gpu id 0x%x\n", args->gpu_id);
 	dev = kfd_device_by_id(args->gpu_id);
-	if (dev == NULL) {
-		pr_debug("kfd: gpu id 0x%x was not found\n", args->gpu_id);
+	if (!dev) {
+		pr_debug("Could not find gpu id 0x%x\n", args->gpu_id);
 		return -EINVAL;
 	}
 
@@ -278,7 +278,7 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 		goto err_bind_process;
 	}
 
-	pr_debug("kfd: creating queue for PASID %d on GPU 0x%x\n",
+	pr_debug("Creating queue for PASID %d on gpu 0x%x\n",
 			p->pasid,
 			dev->id);
 
@@ -296,15 +296,15 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 
 	mutex_unlock(&p->mutex);
 
-	pr_debug("kfd: queue id %d was created successfully\n", args->queue_id);
+	pr_debug("Queue id %d was created successfully\n", args->queue_id);
 
-	pr_debug("ring buffer address == 0x%016llX\n",
+	pr_debug("Ring buffer address == 0x%016llX\n",
 			args->ring_base_address);
 
-	pr_debug("read ptr address    == 0x%016llX\n",
+	pr_debug("Read ptr address    == 0x%016llX\n",
 			args->read_pointer_address);
 
-	pr_debug("write ptr address   == 0x%016llX\n",
+	pr_debug("Write ptr address   == 0x%016llX\n",
 			args->write_pointer_address);
 
 	return 0;
@@ -321,7 +321,7 @@ static int kfd_ioctl_destroy_queue(struct file *filp, struct kfd_process *p,
 	int retval;
 	struct kfd_ioctl_destroy_queue_args *args = data;
 
-	pr_debug("kfd: destroying queue id %d for PASID %d\n",
+	pr_debug("Destroying queue id %d for pasid %d\n",
 				args->queue_id,
 				p->pasid);
 
@@ -341,12 +341,12 @@ static int kfd_ioctl_update_queue(struct file *filp, struct kfd_process *p,
 	struct queue_properties properties;
 
 	if (args->queue_percentage > KFD_MAX_QUEUE_PERCENTAGE) {
-		pr_err("kfd: queue percentage must be between 0 to KFD_MAX_QUEUE_PERCENTAGE\n");
+		pr_err("Queue percentage must be between 0 to KFD_MAX_QUEUE_PERCENTAGE\n");
 		return -EINVAL;
 	}
 
 	if (args->queue_priority > KFD_MAX_QUEUE_PRIORITY) {
-		pr_err("kfd: queue priority must be between 0 to KFD_MAX_QUEUE_PRIORITY\n");
+		pr_err("Queue priority must be between 0 to KFD_MAX_QUEUE_PRIORITY\n");
 		return -EINVAL;
 	}
 
@@ -354,12 +354,12 @@ static int kfd_ioctl_update_queue(struct file *filp, struct kfd_process *p,
 		(!access_ok(VERIFY_WRITE,
 			(const void __user *) args->ring_base_address,
 			sizeof(uint64_t)))) {
-		pr_err("kfd: can't access ring base address\n");
+		pr_err("Can't access ring base address\n");
 		return -EFAULT;
 	}
 
 	if (!is_power_of_2(args->ring_size) && (args->ring_size != 0)) {
-		pr_err("kfd: ring size must be a power of 2 or 0\n");
+		pr_err("Ring size must be a power of 2 or 0\n");
 		return -EINVAL;
 	}
 
@@ -368,7 +368,7 @@ static int kfd_ioctl_update_queue(struct file *filp, struct kfd_process *p,
 	properties.queue_percent = args->queue_percentage;
 	properties.priority = args->queue_priority;
 
-	pr_debug("kfd: updating queue id %d for PASID %d\n",
+	pr_debug("Updating queue id %d for pasid %d\n",
 			args->queue_id, p->pasid);
 
 	mutex_lock(&p->mutex);
@@ -400,7 +400,7 @@ static int kfd_ioctl_set_memory_policy(struct file *filep,
 	}
 
 	dev = kfd_device_by_id(args->gpu_id);
-	if (dev == NULL)
+	if (!dev)
 		return -EINVAL;
 
 	mutex_lock(&p->mutex);
@@ -443,7 +443,7 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 	long status = 0;
 
 	dev = kfd_device_by_id(args->gpu_id);
-	if (dev == NULL)
+	if (!dev)
 		return -EINVAL;
 
 	if (dev->device_info->asic_family == CHIP_CARRIZO) {
@@ -460,12 +460,11 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 	 */
 	pdd = kfd_bind_process_to_device(dev, p);
 	if (IS_ERR(pdd)) {
-		mutex_unlock(&p->mutex);
-		mutex_unlock(kfd_get_dbgmgr_mutex());
-		return PTR_ERR(pdd);
+		status = PTR_ERR(pdd);
+		goto out;
 	}
 
-	if (dev->dbgmgr == NULL) {
+	if (!dev->dbgmgr) {
 		/* In case of a legal call, we have no dbgmgr yet */
 		create_ok = kfd_dbgmgr_create(&dbgmgr_ptr, dev);
 		if (create_ok) {
@@ -480,6 +479,7 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 		status = -EINVAL;
 	}
 
+out:
 	mutex_unlock(&p->mutex);
 	mutex_unlock(kfd_get_dbgmgr_mutex());
 
@@ -494,7 +494,7 @@ static int kfd_ioctl_dbg_unregister(struct file *filep,
 	long status;
 
 	dev = kfd_device_by_id(args->gpu_id);
-	if (dev == NULL)
+	if (!dev)
 		return -EINVAL;
 
 	if (dev->device_info->asic_family == CHIP_CARRIZO) {
@@ -505,7 +505,7 @@ static int kfd_ioctl_dbg_unregister(struct file *filep,
 	mutex_lock(kfd_get_dbgmgr_mutex());
 
 	status = kfd_dbgmgr_unregister(dev->dbgmgr, p);
-	if (status == 0) {
+	if (!status) {
 		kfd_dbgmgr_destroy(dev->dbgmgr);
 		dev->dbgmgr = NULL;
 	}
@@ -539,7 +539,7 @@ static int kfd_ioctl_dbg_address_watch(struct file *filep,
 	memset((void *) &aw_info, 0, sizeof(struct dbg_address_watch_info));
 
 	dev = kfd_device_by_id(args->gpu_id);
-	if (dev == NULL)
+	if (!dev)
 		return -EINVAL;
 
 	if (dev->device_info->asic_family == CHIP_CARRIZO) {
@@ -580,8 +580,8 @@ static int kfd_ioctl_dbg_address_watch(struct file *filep,
 	args_idx += sizeof(aw_info.watch_address) * aw_info.num_watch_points;
 
 	if (args_idx >= args->buf_size_in_bytes - sizeof(*args)) {
-		kfree(args_buff);
-		return -EINVAL;
+		status = -EINVAL;
+		goto out;
 	}
 
 	watch_mask_value = (uint64_t) args_buff[args_idx];
@@ -604,8 +604,8 @@ static int kfd_ioctl_dbg_address_watch(struct file *filep,
 	}
 
 	if (args_idx >= args->buf_size_in_bytes - sizeof(args)) {
-		kfree(args_buff);
-		return -EINVAL;
+		status = -EINVAL;
+		goto out;
 	}
 
 	/* Currently HSA Event is not supported for DBG */
@@ -617,6 +617,7 @@ static int kfd_ioctl_dbg_address_watch(struct file *filep,
 
 	mutex_unlock(kfd_get_dbgmgr_mutex());
 
+out:
 	kfree(args_buff);
 
 	return status;
@@ -646,7 +647,7 @@ static int kfd_ioctl_dbg_wave_control(struct file *filep,
 				sizeof(wac_info.trapId);
 
 	dev = kfd_device_by_id(args->gpu_id);
-	if (dev == NULL)
+	if (!dev)
 		return -EINVAL;
 
 	if (dev->device_info->asic_family == CHIP_CARRIZO) {
@@ -782,8 +783,9 @@ static int kfd_ioctl_get_process_apertures(struct file *filp,
 				"scratch_limit %llX\n", pdd->scratch_limit);
 
 			args->num_of_nodes++;
-		} while ((pdd = kfd_get_next_process_device_data(p, pdd)) != NULL &&
-				(args->num_of_nodes < NUM_OF_SUPPORTED_GPUS));
+
+			pdd = kfd_get_next_process_device_data(p, pdd);
+		} while (pdd && (args->num_of_nodes < NUM_OF_SUPPORTED_GPUS));
 	}
 
 	mutex_unlock(&p->mutex);
@@ -846,9 +848,84 @@ static int kfd_ioctl_wait_events(struct file *filp, struct kfd_process *p,
 
 	return err;
 }
+static int kfd_ioctl_set_scratch_backing_va(struct file *filep,
+					struct kfd_process *p, void *data)
+{
+	struct kfd_ioctl_set_scratch_backing_va_args *args = data;
+	struct kfd_process_device *pdd;
+	struct kfd_dev *dev;
+	long err;
+
+	dev = kfd_device_by_id(args->gpu_id);
+	if (!dev)
+		return -EINVAL;
+
+	mutex_lock(&p->mutex);
+
+	pdd = kfd_bind_process_to_device(dev, p);
+	if (IS_ERR(pdd)) {
+		err = PTR_ERR(pdd);
+		goto bind_process_to_device_fail;
+	}
+
+	pdd->qpd.sh_hidden_private_base = args->va_addr;
+
+	mutex_unlock(&p->mutex);
+
+	if (sched_policy == KFD_SCHED_POLICY_NO_HWS && pdd->qpd.vmid != 0)
+		dev->kfd2kgd->set_scratch_backing_va(
+			dev->kgd, args->va_addr, pdd->qpd.vmid);
+
+	return 0;
+
+bind_process_to_device_fail:
+	mutex_unlock(&p->mutex);
+	return err;
+}
+
+static int kfd_ioctl_get_tile_config(struct file *filep,
+		struct kfd_process *p, void *data)
+{
+	struct kfd_ioctl_get_tile_config_args *args = data;
+	struct kfd_dev *dev;
+	struct tile_config config;
+	int err = 0;
+
+	dev = kfd_device_by_id(args->gpu_id);
+
+	dev->kfd2kgd->get_tile_config(dev->kgd, &config);
+
+	args->gb_addr_config = config.gb_addr_config;
+	args->num_banks = config.num_banks;
+	args->num_ranks = config.num_ranks;
+
+	if (args->num_tile_configs > config.num_tile_configs)
+		args->num_tile_configs = config.num_tile_configs;
+	err = copy_to_user((void __user *)args->tile_config_ptr,
+			config.tile_config_ptr,
+			args->num_tile_configs * sizeof(uint32_t));
+	if (err) {
+		args->num_tile_configs = 0;
+		return -EFAULT;
+	}
+
+	if (args->num_macro_tile_configs > config.num_macro_tile_configs)
+		args->num_macro_tile_configs =
+				config.num_macro_tile_configs;
+	err = copy_to_user((void __user *)args->macro_tile_config_ptr,
+			config.macro_tile_config_ptr,
+			args->num_macro_tile_configs * sizeof(uint32_t));
+	if (err) {
+		args->num_macro_tile_configs = 0;
+		return -EFAULT;
+	}
+
+	return 0;
+}
 
 #define AMDKFD_IOCTL_DEF(ioctl, _func, _flags) \
-	[_IOC_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, .cmd_drv = 0, .name = #ioctl}
+	[_IOC_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, \
+			    .cmd_drv = 0, .name = #ioctl}
 
 /** Ioctl table */
 static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
@@ -899,6 +976,12 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_DBG_WAVE_CONTROL,
 			kfd_ioctl_dbg_wave_control, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_SET_SCRATCH_BACKING_VA,
+			kfd_ioctl_set_scratch_backing_va, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_GET_TILE_CONFIG,
+			kfd_ioctl_get_tile_config, 0)
 };
 
 #define AMDKFD_CORE_IOCTL_COUNT	ARRAY_SIZE(amdkfd_ioctls)

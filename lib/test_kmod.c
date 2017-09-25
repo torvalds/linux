@@ -485,7 +485,7 @@ static ssize_t config_show(struct device *dev,
 				config->test_driver);
 	else
 		len += snprintf(buf+len, PAGE_SIZE - len,
-				"driver:\tEMTPY\n");
+				"driver:\tEMPTY\n");
 
 	if (config->test_fs)
 		len += snprintf(buf+len, PAGE_SIZE - len,
@@ -493,7 +493,7 @@ static ssize_t config_show(struct device *dev,
 				config->test_fs);
 	else
 		len += snprintf(buf+len, PAGE_SIZE - len,
-				"fs:\tEMTPY\n");
+				"fs:\tEMPTY\n");
 
 	mutex_unlock(&test_dev->config_mutex);
 
@@ -746,11 +746,11 @@ static int trigger_config_run_type(struct kmod_test_device *test_dev,
 						      strlen(test_str));
 		break;
 	case TEST_KMOD_FS_TYPE:
-		break;
 		kfree_const(config->test_fs);
 		config->test_driver = NULL;
 		copied = config_copy_test_fs(config, test_str,
 					     strlen(test_str));
+		break;
 	default:
 		mutex_unlock(&test_dev->config_mutex);
 		return -EINVAL;
@@ -880,10 +880,10 @@ static int test_dev_config_update_uint_sync(struct kmod_test_device *test_dev,
 					    int (*test_sync)(struct kmod_test_device *test_dev))
 {
 	int ret;
-	long new;
+	unsigned long new;
 	unsigned int old_val;
 
-	ret = kstrtol(buf, 10, &new);
+	ret = kstrtoul(buf, 10, &new);
 	if (ret)
 		return ret;
 
@@ -918,13 +918,13 @@ static int test_dev_config_update_uint_range(struct kmod_test_device *test_dev,
 					     unsigned int max)
 {
 	int ret;
-	long new;
+	unsigned long new;
 
-	ret = kstrtol(buf, 10, &new);
+	ret = kstrtoul(buf, 10, &new);
 	if (ret)
 		return ret;
 
-	if (new < min || new >  max || new > UINT_MAX)
+	if (new < min || new > max)
 		return -EINVAL;
 
 	mutex_lock(&test_dev->config_mutex);
@@ -946,7 +946,7 @@ static int test_dev_config_update_int(struct kmod_test_device *test_dev,
 	if (ret)
 		return ret;
 
-	if (new > INT_MAX || new < INT_MIN)
+	if (new < INT_MIN || new > INT_MAX)
 		return -EINVAL;
 
 	mutex_lock(&test_dev->config_mutex);
@@ -1146,7 +1146,7 @@ static struct kmod_test_device *register_test_dev_kmod(void)
 	struct kmod_test_device *test_dev = NULL;
 	int ret;
 
-	mutex_unlock(&reg_dev_mutex);
+	mutex_lock(&reg_dev_mutex);
 
 	/* int should suffice for number of devices, test for wrap */
 	if (unlikely(num_test_devs + 1) < 0) {

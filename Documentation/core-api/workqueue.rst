@@ -243,10 +243,14 @@ throttling the number of active work items, specifying '0' is
 recommended.
 
 Some users depend on the strict execution ordering of ST wq.  The
-combination of ``@max_active`` of 1 and ``WQ_UNBOUND`` is used to
-achieve this behavior.  Work items on such wq are always queued to the
-unbound worker-pools and only one work item can be active at any given
+combination of ``@max_active`` of 1 and ``WQ_UNBOUND`` used to
+achieve this behavior.  Work items on such wq were always queued to the
+unbound worker-pools and only one work item could be active at any given
 time thus achieving the same ordering property as ST wq.
+
+In the current implementation the above configuration only guarantees
+ST behavior within a given NUMA node. Instead alloc_ordered_queue should
+be used to achieve system wide ST behavior.
 
 
 Example Execution Scenarios

@@ -596,9 +596,9 @@ static int act8945a_charger_probe(struct platform_device *pdev)
 		return ret;
 
 	irq = of_irq_get(pdev->dev.of_node, 0);
-	if (irq == -EPROBE_DEFER) {
+	if (irq <= 0) {
 		dev_err(&pdev->dev, "failed to find IRQ number\n");
-		return -EPROBE_DEFER;
+		return irq ?: -ENXIO;
 	}
 
 	ret = devm_request_irq(&pdev->dev, irq, act8945a_status_changed,

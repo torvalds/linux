@@ -23,18 +23,7 @@
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
-#ifdef KTEST
 #include "../kselftest.h"
-#else
-static inline int ksft_exit_pass(void)
-{
-	exit(0);
-}
-static inline int ksft_exit_fail(void)
-{
-	exit(1);
-}
-#endif
 
 int set_tz(int min, int dst)
 {

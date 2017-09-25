@@ -1469,7 +1469,14 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
 		return;
 
 	dev_warn(&pdev->dev, "Found %d remapped NVMe devices.\n", count);
-	dev_warn(&pdev->dev, "Switch your BIOS from RAID to AHCI mode to use them.\n");
+	dev_warn(&pdev->dev,
+		 "Switch your BIOS from RAID to AHCI mode to use them.\n");
+
+	/*
+	 * Don't rely on the msi-x capability in the remap case,
+	 * share the legacy interrupt across ahci and remapped devices.
+	 */
+	hpriv->flags |= AHCI_HFLAG_NO_MSI;
 }
 
 static int ahci_get_irq_vector(struct ata_host *host, int port)

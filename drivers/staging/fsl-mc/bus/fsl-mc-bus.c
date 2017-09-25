@@ -757,8 +757,8 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	error = of_address_to_resource(pdev->dev.of_node, 0, &res);
 	if (error < 0) {
 		dev_err(&pdev->dev,
-			"of_address_to_resource() failed for %s\n",
-			pdev->dev.of_node->full_name);
+			"of_address_to_resource() failed for %pOF\n",
+			pdev->dev.of_node);
 		return error;
 	}
 

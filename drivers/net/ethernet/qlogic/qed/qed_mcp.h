@@ -53,15 +53,25 @@ struct qed_mcp_link_pause_params {
 	bool    forced_tx;
 };
 
+enum qed_mcp_eee_mode {
+	QED_MCP_EEE_DISABLED,
+	QED_MCP_EEE_ENABLED,
+	QED_MCP_EEE_UNSUPPORTED
+};
+
 struct qed_mcp_link_params {
-	struct qed_mcp_link_speed_params	speed;
-	struct qed_mcp_link_pause_params	pause;
-	u32				     loopback_mode;
+	struct qed_mcp_link_speed_params speed;
+	struct qed_mcp_link_pause_params pause;
+	u32 loopback_mode;
+	struct qed_link_eee_params eee;
 };
 
 struct qed_mcp_link_capabilities {
 	u32 speed_capabilities;
 	bool default_speed_autoneg;
+	enum qed_mcp_eee_mode default_eee;
+	u32 eee_lpi_timer;
+	u8 eee_speed_caps;
 };
 
 struct qed_mcp_link_state {
@@ -102,6 +112,9 @@ struct qed_mcp_link_state {
 	u8      partner_adv_pause;
 
 	bool    sfp_tx_fault;
+	bool    eee_active;
+	u8      eee_adv_caps;
+	u8      eee_lp_adv_caps;
 };
 
 struct qed_mcp_function_info {
@@ -546,6 +559,9 @@ struct qed_mcp_info {
 	u8					*mfw_mb_shadow;
 	u16					mfw_mb_length;
 	u32					mcp_hist;
+
+	/* Capabilties negotiated with the MFW */
+	u32					capabilities;
 };
 
 struct qed_mcp_mb_params {
@@ -925,5 +941,20 @@ void qed_mcp_resc_lock_default_init(struct qed_resc_lock_params *p_lock,
 				    struct qed_resc_unlock_params *p_unlock,
 				    enum qed_resc_lock
 				    resource, bool b_is_permanent);
+/**
+ * @brief Learn of supported MFW features; To be done during early init
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ */
+int qed_mcp_get_capabilities(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 
+/**
+ * @brief Inform MFW of set of features supported by driver. Should be done
+ * inside the content of the LOAD_REQ.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ */
+int qed_mcp_set_capabilities(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 #endif

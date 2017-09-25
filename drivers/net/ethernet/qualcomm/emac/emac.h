@@ -363,6 +363,9 @@ struct emac_adapter {
 	bool				tx_flow_control;
 	bool				rx_flow_control;
 
+	/* True == use single-pause-frame mode. */
+	bool				single_pause_mode;
+
 	/* Ring parameter */
 	u8				tpd_burst;
 	u8				rfd_burst;

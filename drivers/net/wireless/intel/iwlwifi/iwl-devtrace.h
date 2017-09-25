@@ -55,8 +55,8 @@ static inline bool iwl_trace_data(struct sk_buff *skb)
 	/* also account for the RFC 1042 header, of course */
 	offs += 6;
 
-	return skb->len > offs + 2 &&
-	       *(__be16 *)(skb->data + offs) == cpu_to_be16(ETH_P_PAE);
+	return skb->len <= offs + 2 ||
+		*(__be16 *)(skb->data + offs) != cpu_to_be16(ETH_P_PAE);
 }
 
 static inline size_t iwl_rx_trace_len(const struct iwl_trans *trans,

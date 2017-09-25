@@ -301,7 +301,7 @@ static int max9850_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_max9850 = {
+static const struct snd_soc_codec_driver soc_codec_dev_max9850 = {
 	.probe =	max9850_probe,
 	.set_bias_level = max9850_set_bias_level,
 	.suspend_bias_off = true,

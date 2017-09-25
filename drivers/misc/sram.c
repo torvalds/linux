@@ -196,15 +196,15 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 		ret = of_address_to_resource(child, 0, &child_res);
 		if (ret < 0) {
 			dev_err(sram->dev,
-				"could not get address for node %s\n",
-				child->full_name);
+				"could not get address for node %pOF\n",
+				child);
 			goto err_chunks;
 		}
 
 		if (child_res.start < res->start || child_res.end > res->end) {
 			dev_err(sram->dev,
-				"reserved block %s outside the sram area\n",
-				child->full_name);
+				"reserved block %pOF outside the sram area\n",
+				child);
 			ret = -EINVAL;
 			goto err_chunks;
 		}
@@ -230,8 +230,8 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 			ret = of_property_read_string(child, "label", &label);
 			if (ret && ret != -EINVAL) {
 				dev_err(sram->dev,
-					"%s has invalid label name\n",
-					child->full_name);
+					"%pOF has invalid label name\n",
+					child);
 				goto err_chunks;
 			}
 			if (!label)

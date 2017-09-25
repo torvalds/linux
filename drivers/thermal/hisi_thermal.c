@@ -206,7 +206,7 @@ static int hisi_thermal_get_temp(void *_sensor, int *temp)
 	return 0;
 }
 
-static struct thermal_zone_of_device_ops hisi_of_thermal_ops = {
+static const struct thermal_zone_of_device_ops hisi_of_thermal_ops = {
 	.get_temp = hisi_thermal_get_temp,
 };
 

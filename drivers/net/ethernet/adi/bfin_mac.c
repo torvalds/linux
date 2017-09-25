@@ -986,7 +986,7 @@ static int bfin_ptp_enable(struct ptp_clock_info *ptp,
 	return -EOPNOTSUPP;
 }
 
-static struct ptp_clock_info bfin_ptp_caps = {
+static const struct ptp_clock_info bfin_ptp_caps = {
 	.owner		= THIS_MODULE,
 	.name		= "BF518 clock",
 	.max_adj	= 0,

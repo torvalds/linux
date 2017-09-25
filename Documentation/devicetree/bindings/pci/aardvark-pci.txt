@@ -33,7 +33,6 @@ Example:
 	pcie0: pcie@d0070000 {
 		compatible = "marvell,armada-3700-pcie";
 		device_type = "pci";
-		status = "disabled";
 		reg = <0 0xd0070000 0 0x20000>;
 		#address-cells = <3>;
 		#size-cells = <2>;

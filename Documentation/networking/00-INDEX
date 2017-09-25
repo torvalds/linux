@@ -30,8 +30,6 @@ atm.txt
 	- info on where to get ATM programs and support for Linux.
 ax25.txt
 	- info on using AX.25 and NET/ROM code for Linux
-batman-adv.txt
-	- B.A.T.M.A.N routing protocol on top of layer 2 Ethernet Frames.
 baycom.txt
 	- info on the driver for Baycom style amateur radio modems
 bonding.txt

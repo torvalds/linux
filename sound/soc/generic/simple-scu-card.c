@@ -191,6 +191,10 @@ static int asoc_simple_card_parse_of(struct simple_card_data *priv)
 	if (!node)
 		return -EINVAL;
 
+	ret = asoc_simple_card_of_parse_widgets(card, PREFIX);
+	if (ret < 0)
+		return ret;
+
 	ret = asoc_simple_card_of_parse_routing(card, PREFIX, 0);
 	if (ret < 0)
 		return ret;
@@ -296,6 +300,7 @@ MODULE_DEVICE_TABLE(of, asoc_simple_of_match);
 static struct platform_driver asoc_simple_card = {
 	.driver = {
 		.name = "simple-scu-audio-card",
+		.pm = &snd_soc_pm_ops,
 		.of_match_table = asoc_simple_of_match,
 	},
 	.probe = asoc_simple_card_probe,

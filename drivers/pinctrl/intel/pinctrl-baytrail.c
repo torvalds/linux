@@ -981,12 +981,12 @@ static int byt_gpio_request_enable(struct pinctrl_dev *pctl_dev,
 	 */
 	value = readl(reg) & BYT_PIN_MUX;
 	gpio_mux = byt_get_gpio_mux(vg, offset);
-	if (WARN_ON(gpio_mux != value)) {
+	if (gpio_mux != value) {
 		value = readl(reg) & ~BYT_PIN_MUX;
 		value |= gpio_mux;
 		writel(value, reg);
 
-		dev_warn(&vg->pdev->dev,
+		dev_warn(&vg->pdev->dev, FW_BUG
 			 "pin %u forcibly re-configured as GPIO\n", offset);
 	}
 

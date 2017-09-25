@@ -46,7 +46,7 @@ struct i915_params i915 __read_mostly = {
 	.prefault_disable = 0,
 	.load_detect_test = 0,
 	.force_reset_modeset_test = 0,
-	.reset = true,
+	.reset = 2,
 	.error_capture = true,
 	.invert_brightness = 0,
 	.disable_display = 0,
@@ -115,8 +115,12 @@ MODULE_PARM_DESC(vbt_sdvo_panel_type,
 	"Override/Ignore selection of SDVO panel mode in the VBT "
 	"(-2=ignore, -1=auto [default], index in VBT BIOS table)");
 
-module_param_named_unsafe(reset, i915.reset, bool, 0600);
-MODULE_PARM_DESC(reset, "Attempt GPU resets (default: true)");
+module_param_named_unsafe(reset, i915.reset, int, 0600);
+MODULE_PARM_DESC(reset, "Attempt GPU resets (0=disabled, 1=full gpu reset, 2=engine reset [default])");
+
+module_param_named_unsafe(vbt_firmware, i915.vbt_firmware, charp, 0400);
+MODULE_PARM_DESC(vbt_firmware,
+		 "Load VBT from specified file under /lib/firmware");
 
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 module_param_named(error_capture, i915.error_capture, bool, 0600);

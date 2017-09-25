@@ -38,8 +38,9 @@
 #include <linux/hashtable.h>
 #include <linux/time64.h>
 #include <linux/types.h>
+#include <net/pkt_cls.h>
+#include <linux/workqueue.h>
 
-struct tc_to_netdev;
 struct net_device;
 struct nfp_app;
 
@@ -71,6 +72,7 @@ struct nfp_fl_stats_id {
 
 /**
  * struct nfp_flower_priv - Flower APP per-vNIC priv data
+ * @app:		Back pointer to app
  * @nn:			Pointer to vNIC
  * @mask_id_seed:	Seed used for mask hash table
  * @flower_version:	HW version of flower
@@ -78,8 +80,11 @@ struct nfp_fl_stats_id {
  * @mask_ids:		List of free mask ids
  * @mask_table:		Hash table used to store masks
  * @flow_table:		Hash table used to store flower rules
+ * @cmsg_work:		Workqueue for control messages processing
+ * @cmsg_skbs:		List of skbs for control message processing
  */
 struct nfp_flower_priv {
+	struct nfp_app *app;
 	struct nfp_net *nn;
 	u32 mask_id_seed;
 	u64 flower_version;
@@ -87,6 +92,8 @@ struct nfp_flower_priv {
 	struct nfp_fl_mask_id mask_ids;
 	DECLARE_HASHTABLE(mask_table, NFP_FLOWER_MASK_HASH_BITS);
 	DECLARE_HASHTABLE(flow_table, NFP_FLOWER_HASH_BITS);
+	struct work_struct cmsg_work;
+	struct sk_buff_head cmsg_skbs;
 };
 
 struct nfp_fl_key_ls {
@@ -135,7 +142,7 @@ int nfp_flower_metadata_init(struct nfp_app *app);
 void nfp_flower_metadata_cleanup(struct nfp_app *app);
 
 int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
-			u32 handle, __be16 proto, struct tc_to_netdev *tc);
+			enum tc_setup_type type, void *type_data);
 int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 				  struct nfp_fl_key_ls *key_ls,
 				  struct net_device *netdev,

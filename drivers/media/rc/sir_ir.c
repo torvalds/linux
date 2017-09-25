@@ -155,7 +155,7 @@ static irqreturn_t sir_interrupt(int irq, void *dev_id)
 {
 	unsigned char data;
 	ktime_t curr_time;
-	static unsigned long delt;
+	unsigned long delt;
 	unsigned long deltintr;
 	unsigned long flags;
 	int counter = 0;
@@ -308,14 +308,14 @@ static int sir_ir_probe(struct platform_device *dev)
 	if (!rcdev)
 		return -ENOMEM;
 
-	rcdev->input_name = "SIR IrDA port";
+	rcdev->device_name = "SIR IrDA port";
 	rcdev->input_phys = KBUILD_MODNAME "/input0";
 	rcdev->input_id.bustype = BUS_HOST;
 	rcdev->input_id.vendor = 0x0001;
 	rcdev->input_id.product = 0x0001;
 	rcdev->input_id.version = 0x0100;
 	rcdev->tx_ir = sir_tx_ir;
-	rcdev->allowed_protocols = RC_BIT_ALL_IR_DECODER;
+	rcdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	rcdev->driver_name = KBUILD_MODNAME;
 	rcdev->map_name = RC_MAP_RC6_MCE;
 	rcdev->timeout = IR_DEFAULT_TIMEOUT;

@@ -324,8 +324,8 @@ skip_irq:
 	return 0;
 teardown:
 	of_mm_gpiochip_remove(&altera_gc->mmchip);
-	pr_err("%s: registration failed with status %d\n",
-		node->full_name, ret);
+	pr_err("%pOF: registration failed with status %d\n",
+		node, ret);
 
 	return ret;
 }

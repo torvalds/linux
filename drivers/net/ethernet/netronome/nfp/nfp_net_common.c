@@ -71,6 +71,7 @@
 #include "nfp_app.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
+#include "nfp_net_sriov.h"
 #include "nfp_port.h"
 
 /**
@@ -513,6 +514,7 @@ nfp_net_tx_ring_init(struct nfp_net_tx_ring *tx_ring,
 	tx_ring->idx = idx;
 	tx_ring->r_vec = r_vec;
 	tx_ring->is_xdp = is_xdp;
+	u64_stats_init(&tx_ring->r_vec->tx_sync);
 
 	tx_ring->qcidx = tx_ring->idx * nn->stride_tx;
 	tx_ring->qcp_q = nn->tx_bar + NFP_QCP_QUEUE_OFF(tx_ring->qcidx);
@@ -532,6 +534,7 @@ nfp_net_rx_ring_init(struct nfp_net_rx_ring *rx_ring,
 
 	rx_ring->idx = idx;
 	rx_ring->r_vec = r_vec;
+	u64_stats_init(&rx_ring->r_vec->rx_sync);
 
 	rx_ring->fl_qcidx = rx_ring->idx * nn->stride_rx;
 	rx_ring->qcp_fl = nn->rx_bar + NFP_QCP_QUEUE_OFF(rx_ring->fl_qcidx);
@@ -893,6 +896,8 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 
 	netdev_tx_sent_queue(nd_q, txbuf->real_len);
 
+	skb_tx_timestamp(skb);
+
 	tx_ring->wr_p += nr_frags + 1;
 	if (nfp_net_tx_ring_should_stop(tx_ring))
 		nfp_net_tx_ring_stop(nd_q, tx_ring);
@@ -901,13 +906,10 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 	if (!skb->xmit_more || netif_xmit_stopped(nd_q))
 		nfp_net_tx_xmit_more_flush(tx_ring);
 
-	skb_tx_timestamp(skb);
-
 	return NETDEV_TX_OK;
 
 err_unmap:
-	--f;
-	while (f >= 0) {
+	while (--f >= 0) {
 		frag = &skb_shinfo(skb)->frags[f];
 		dma_unmap_page(dp->dev, tx_ring->txbufs[wr_idx].dma_addr,
 			       skb_frag_size(frag), DMA_TO_DEVICE);
@@ -989,7 +991,7 @@ static void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring)
 
 		/* check for last gather fragment */
 		if (fidx == nr_frags - 1)
-			dev_kfree_skb_any(skb);
+			dev_consume_skb_any(skb);
 
 		tx_ring->txbufs[idx].dma_addr = 0;
 		tx_ring->txbufs[idx].skb = NULL;
@@ -1750,6 +1752,10 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 			continue;
 		}
 
+		nfp_net_dma_unmap_rx(dp, rxbuf->dma_addr);
+
+		nfp_net_rx_give_one(dp, rx_ring, new_frag, new_dma_addr);
+
 		if (likely(!meta.portid)) {
 			netdev = dp->netdev;
 		} else {
@@ -1758,15 +1764,11 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 			nn = netdev_priv(dp->netdev);
 			netdev = nfp_app_repr_get(nn->app, meta.portid);
 			if (unlikely(!netdev)) {
-				nfp_net_rx_drop(dp, r_vec, rx_ring, rxbuf, skb);
+				nfp_net_rx_drop(dp, r_vec, rx_ring, NULL, skb);
 				continue;
 			}
 			nfp_repr_inc_rx_stats(netdev, pkt_len);
 		}
-
-		nfp_net_dma_unmap_rx(dp, rxbuf->dma_addr);
-
-		nfp_net_rx_give_one(dp, rx_ring, new_frag, new_dma_addr);
 
 		skb_reserve(skb, pkt_off);
 		skb_put(skb, pkt_len);
@@ -2658,6 +2660,7 @@ static int nfp_net_netdev_close(struct net_device *netdev)
 	/* Step 2: Tell NFP
 	 */
 	nfp_net_clear_config_and_disable(nn);
+	nfp_port_configure(netdev, false);
 
 	/* Step 3: Free resources
 	 */
@@ -2775,15 +2778,20 @@ static int nfp_net_netdev_open(struct net_device *netdev)
 		goto err_free_all;
 
 	/* Step 2: Configure the NFP
+	 * - Ifup the physical interface if it exists
 	 * - Enable rings from 0 to tx_rings/rx_rings - 1.
 	 * - Write MAC address (in case it changed)
 	 * - Set the MTU
 	 * - Set the Freelist buffer size
 	 * - Enable the FW
 	 */
-	err = nfp_net_set_config_and_enable(nn);
+	err = nfp_port_configure(netdev, true);
 	if (err)
 		goto err_free_all;
+
+	err = nfp_net_set_config_and_enable(nn);
+	if (err)
+		goto err_port_disable;
 
 	/* Step 3: Enable for kernel
 	 * - put some freelist descriptors on each RX ring
@@ -2795,6 +2803,8 @@ static int nfp_net_netdev_open(struct net_device *netdev)
 
 	return 0;
 
+err_port_disable:
+	nfp_port_configure(netdev, false);
 err_free_all:
 	nfp_net_close_free_all(nn);
 	return err;
@@ -3412,6 +3422,11 @@ const struct net_device_ops nfp_net_netdev_ops = {
 	.ndo_get_stats64	= nfp_net_stat64,
 	.ndo_vlan_rx_add_vid	= nfp_net_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= nfp_net_vlan_rx_kill_vid,
+	.ndo_set_vf_mac         = nfp_app_set_vf_mac,
+	.ndo_set_vf_vlan        = nfp_app_set_vf_vlan,
+	.ndo_set_vf_spoofchk    = nfp_app_set_vf_spoofchk,
+	.ndo_get_vf_config	= nfp_app_get_vf_config,
+	.ndo_set_vf_link_state  = nfp_app_set_vf_link_state,
 	.ndo_setup_tc		= nfp_port_setup_tc,
 	.ndo_tx_timeout		= nfp_net_tx_timeout,
 	.ndo_set_rx_mode	= nfp_net_set_rx_mode,

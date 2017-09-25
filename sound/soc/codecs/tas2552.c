@@ -192,7 +192,7 @@ static int tas2552_setup_pll(struct snd_soc_codec *codec,
 		 * pll_clk = (.5 * pll_clkin * J.D) / 2^p
 		 * Need to fill in J and D here based on incoming freq
 		 */
-		unsigned int d;
+		unsigned int d, q, t;
 		u8 j;
 		u8 pll_sel = (tas2552->pll_clk_id << 3) & TAS2552_PLL_SRC_MASK;
 		u8 p = snd_soc_read(codec, TAS2552_PLL_CTRL_1);
@@ -200,9 +200,12 @@ static int tas2552_setup_pll(struct snd_soc_codec *codec,
 		p = (p >> 7);
 
 recalc:
-		j = (pll_clk * 2 * (1 << p)) / pll_clkin;
-		d = (pll_clk * 2 * (1 << p)) % pll_clkin;
-		d /= (pll_clkin / 10000);
+		t = (pll_clk * 2) << p;
+		j = t / pll_clkin;
+		d = t % pll_clkin;
+		t = pll_clkin / 10000;
+		q = d / (t + 1);
+		d = q + ((9999 - pll_clkin % 10000) * (d / t - q)) / 10000;
 
 		if (d && (pll_clkin < 512000 || pll_clkin > 9200000)) {
 			if (tas2552->pll_clk_id == TAS2552_PLL_CLKIN_BCLK) {
@@ -660,7 +663,7 @@ static int tas2552_resume(struct snd_soc_codec *codec)
 #define tas2552_resume NULL
 #endif
 
-static struct snd_soc_codec_driver soc_codec_dev_tas2552 = {
+static const struct snd_soc_codec_driver soc_codec_dev_tas2552 = {
 	.probe = tas2552_codec_probe,
 	.remove = tas2552_codec_remove,
 	.suspend =	tas2552_suspend,

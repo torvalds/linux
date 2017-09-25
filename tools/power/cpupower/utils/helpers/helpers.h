@@ -34,6 +34,7 @@
 /* Internationalization ****************************/
 
 extern int run_as_root;
+extern int base_cpu;
 extern struct bitmask *cpus_chosen;
 
 /* Global verbose (-d) stuff *********************************/
@@ -87,11 +88,11 @@ struct cpupower_cpu_info {
  *
  * Extract CPU vendor, family, model, stepping info from /proc/cpuinfo
  *
- * Returns 0 on success or a negativ error code
+ * Returns 0 on success or a negative error code
  * Only used on x86, below global's struct values are zero/unknown on
  * other archs
  */
-extern int get_cpu_info(unsigned int cpu, struct cpupower_cpu_info *cpu_info);
+extern int get_cpu_info(struct cpupower_cpu_info *cpu_info);
 extern struct cpupower_cpu_info cpupower_cpu_info;
 /* cpuid and cpuinfo helpers  **************************/
 

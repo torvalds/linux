@@ -43,6 +43,10 @@
 #define DRIVER_VERSION "5.0-0"
 
 #define MLX5_TOTAL_VPORTS(mdev) (1 + pci_sriov_get_totalvfs(mdev->pdev))
+#define MLX5_VPORT_MANAGER(mdev) \
+	(MLX5_CAP_GEN(mdev, vport_group_manager) && \
+	(MLX5_CAP_GEN(mdev, port_type) == MLX5_CAP_PORT_TYPE_ETH) && \
+	 mlx5_core_is_pf(mdev))
 
 extern uint mlx5_core_debug_mask;
 
@@ -152,6 +156,11 @@ int mlx5_query_mtpps(struct mlx5_core_dev *dev, u32 *mtpps, u32 mtpps_size);
 int mlx5_set_mtpps(struct mlx5_core_dev *mdev, u32 *mtpps, u32 mtpps_size);
 int mlx5_query_mtppse(struct mlx5_core_dev *mdev, u8 pin, u8 *arm, u8 *mode);
 int mlx5_set_mtppse(struct mlx5_core_dev *mdev, u8 pin, u8 arm, u8 mode);
+
+#define MLX5_PPS_CAP(mdev) (MLX5_CAP_GEN((mdev), pps) &&		\
+			    MLX5_CAP_GEN((mdev), pps_modify) &&		\
+			    MLX5_CAP_MCAM_FEATURE((mdev), mtpps_fs) &&	\
+			    MLX5_CAP_MCAM_FEATURE((mdev), mtpps_enh_out_per_adj))
 
 int mlx5_firmware_flash(struct mlx5_core_dev *dev, const struct firmware *fw);
 

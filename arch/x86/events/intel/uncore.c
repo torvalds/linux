@@ -721,7 +721,7 @@ static struct attribute *uncore_pmu_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group uncore_pmu_attr_group = {
+static const struct attribute_group uncore_pmu_attr_group = {
 	.attrs = uncore_pmu_attrs,
 };
 

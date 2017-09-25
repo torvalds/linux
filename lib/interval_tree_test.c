@@ -19,14 +19,14 @@ __param(bool, search_all, false, "Searches will iterate all nodes in the tree");
 
 __param(uint, max_endpoint, ~0, "Largest value for the interval's endpoint");
 
-static struct rb_root root = RB_ROOT;
+static struct rb_root_cached root = RB_ROOT_CACHED;
 static struct interval_tree_node *nodes = NULL;
 static u32 *queries = NULL;
 
 static struct rnd_state rnd;
 
 static inline unsigned long
-search(struct rb_root *root, unsigned long start, unsigned long last)
+search(struct rb_root_cached *root, unsigned long start, unsigned long last)
 {
 	struct interval_tree_node *node;
 	unsigned long results = 0;

@@ -1510,11 +1510,13 @@ cxgbit_pass_open_rpl(struct cxgbit_device *cdev, struct sk_buff *skb)
 
 	if (!cnp) {
 		pr_info("%s stid %d lookup failure\n", __func__, stid);
-		return;
+		goto rel_skb;
 	}
 
 	cxgbit_wake_up(&cnp->com.wr_wait, __func__, rpl->status);
 	cxgbit_put_cnp(cnp);
+rel_skb:
+	__kfree_skb(skb);
 }
 
 static void
@@ -1530,11 +1532,13 @@ cxgbit_close_listsrv_rpl(struct cxgbit_device *cdev, struct sk_buff *skb)
 
 	if (!cnp) {
 		pr_info("%s stid %d lookup failure\n", __func__, stid);
-		return;
+		goto rel_skb;
 	}
 
 	cxgbit_wake_up(&cnp->com.wr_wait, __func__, rpl->status);
 	cxgbit_put_cnp(cnp);
+rel_skb:
+	__kfree_skb(skb);
 }
 
 static void
@@ -1819,12 +1823,16 @@ static void cxgbit_set_tcb_rpl(struct cxgbit_device *cdev, struct sk_buff *skb)
 	struct tid_info *t = lldi->tids;
 
 	csk = lookup_tid(t, tid);
-	if (unlikely(!csk))
+	if (unlikely(!csk)) {
 		pr_err("can't find connection for tid %u.\n", tid);
-	else
+		goto rel_skb;
+	} else {
 		cxgbit_wake_up(&csk->com.wr_wait, __func__, rpl->status);
+	}
 
 	cxgbit_put_csk(csk);
+rel_skb:
+	__kfree_skb(skb);
 }
 
 static void cxgbit_rx_data(struct cxgbit_device *cdev, struct sk_buff *skb)

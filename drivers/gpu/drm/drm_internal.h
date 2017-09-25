@@ -32,6 +32,7 @@ void drm_lastclose(struct drm_device *dev);
 int drm_irq_by_busid(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv);
 void drm_pci_agp_destroy(struct drm_device *dev);
+int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master);
 
 /* drm_prime.c */
 int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
@@ -56,13 +57,18 @@ int drm_gem_name_info(struct seq_file *m, void *data);
 /* drm_vblank.c */
 extern unsigned int drm_timestamp_monotonic;
 void drm_vblank_disable_and_save(struct drm_device *dev, unsigned int pipe);
+void drm_vblank_cleanup(struct drm_device *dev);
 
 /* IOCTLS */
-int drm_wait_vblank(struct drm_device *dev, void *data,
-		    struct drm_file *filp);
+int drm_wait_vblank_ioctl(struct drm_device *dev, void *data,
+			  struct drm_file *filp);
+int drm_legacy_modeset_ctl_ioctl(struct drm_device *dev, void *data,
+				 struct drm_file *file_priv);
+
+/* drm_irq.c */
+
+/* IOCTLS */
 int drm_legacy_irq_control(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv);
-int drm_legacy_modeset_ctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
 
 /* drm_auth.c */
@@ -161,3 +167,9 @@ int drm_syncobj_handle_to_fd_ioctl(struct drm_device *dev, void *data,
 				   struct drm_file *file_private);
 int drm_syncobj_fd_to_handle_ioctl(struct drm_device *dev, void *data,
 				   struct drm_file *file_private);
+int drm_syncobj_wait_ioctl(struct drm_device *dev, void *data,
+			   struct drm_file *file_private);
+int drm_syncobj_reset_ioctl(struct drm_device *dev, void *data,
+			    struct drm_file *file_private);
+int drm_syncobj_signal_ioctl(struct drm_device *dev, void *data,
+			     struct drm_file *file_private);

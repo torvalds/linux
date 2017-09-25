@@ -160,8 +160,13 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			if ((ses->serverDomain == NULL) ||
 				(ses->serverOS == NULL) ||
 				(ses->serverNOS == NULL)) {
-				seq_printf(m, "\n%d) entry for %s not fully "
-					   "displayed\n\t", i, ses->serverName);
+				seq_printf(m, "\n%d) Name: %s Uses: %d Capability: 0x%x\tSession Status: %d\t",
+					i, ses->serverName, ses->ses_count,
+					ses->capabilities, ses->status);
+				if (ses->session_flags & SMB2_SESSION_FLAG_IS_GUEST)
+					seq_printf(m, "Guest\t");
+				else if (ses->session_flags & SMB2_SESSION_FLAG_IS_NULL)
+					seq_printf(m, "Anonymous\t");
 			} else {
 				seq_printf(m,
 				    "\n%d) Name: %s  Domain: %s Uses: %d OS:"

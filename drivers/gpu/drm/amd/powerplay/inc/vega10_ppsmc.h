@@ -124,6 +124,10 @@ typedef uint16_t PPSMC_Result;
 #define PPSMC_MSG_NumOfDisplays                  0x56
 #define PPSMC_MSG_ReadSerialNumTop32             0x58
 #define PPSMC_MSG_ReadSerialNumBottom32          0x59
+#define PPSMC_MSG_RunAcgBtc                      0x5C
+#define PPSMC_MSG_RunAcgInClosedLoop             0x5D
+#define PPSMC_MSG_RunAcgInOpenLoop               0x5E
+#define PPSMC_MSG_InitializeAcg                  0x5F
 #define PPSMC_MSG_GetCurrPkgPwr                  0x61
 #define PPSMC_Message_Count                      0x62
 

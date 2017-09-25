@@ -34,6 +34,7 @@ perf-y += thread-map.o
 perf-y += llvm.o llvm-src-base.o llvm-src-kbuild.o llvm-src-prologue.o llvm-src-relocation.o
 perf-y += bpf.o
 perf-y += topology.o
+perf-y += mem.o
 perf-y += cpumap.o
 perf-y += stat.o
 perf-y += event_update.o

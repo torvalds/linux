@@ -37,7 +37,7 @@
 #include <asm/cacheflush.h> /* for run_uncached() */
 #include <asm/traps.h>
 #include <asm/dma-coherence.h>
-#include <asm/mips-cm.h>
+#include <asm/mips-cps.h>
 
 /*
  * Bits describing what cache ops an SMP callback function may perform.

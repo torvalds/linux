@@ -37,10 +37,10 @@
 #include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/component.h>
+#include <linux/sys_soc.h>
 
 #include "omapdss.h"
 #include "dss.h"
-#include "dss_features.h"
 
 /* Venc registers */
 #define VENC_REV_ID				0x00
@@ -263,7 +263,13 @@ static const struct venc_config venc_config_pal_bdghi = {
 	.fid_ext_start_y__fid_ext_offset_y	= 0x01380005,
 };
 
-const struct videomode omap_dss_pal_vm = {
+enum venc_videomode {
+	VENC_MODE_UNKNOWN,
+	VENC_MODE_PAL,
+	VENC_MODE_NTSC,
+};
+
+static const struct videomode omap_dss_pal_vm = {
 	.hactive	= 720,
 	.vactive	= 574,
 	.pixelclock	= 13500000,
@@ -279,9 +285,8 @@ const struct videomode omap_dss_pal_vm = {
 			  DISPLAY_FLAGS_PIXDATA_POSEDGE |
 			  DISPLAY_FLAGS_SYNC_NEGEDGE,
 };
-EXPORT_SYMBOL(omap_dss_pal_vm);
 
-const struct videomode omap_dss_ntsc_vm = {
+static const struct videomode omap_dss_ntsc_vm = {
 	.hactive	= 720,
 	.vactive	= 482,
 	.pixelclock	= 13500000,
@@ -297,7 +302,24 @@ const struct videomode omap_dss_ntsc_vm = {
 			  DISPLAY_FLAGS_PIXDATA_POSEDGE |
 			  DISPLAY_FLAGS_SYNC_NEGEDGE,
 };
-EXPORT_SYMBOL(omap_dss_ntsc_vm);
+
+static enum venc_videomode venc_get_videomode(const struct videomode *vm)
+{
+	if (!(vm->flags & DISPLAY_FLAGS_INTERLACED))
+		return VENC_MODE_UNKNOWN;
+
+	if (vm->pixelclock == omap_dss_pal_vm.pixelclock &&
+	    vm->hactive == omap_dss_pal_vm.hactive &&
+	    vm->vactive == omap_dss_pal_vm.vactive)
+		return VENC_MODE_PAL;
+
+	if (vm->pixelclock == omap_dss_ntsc_vm.pixelclock &&
+	    vm->hactive == omap_dss_ntsc_vm.hactive &&
+	    vm->vactive == omap_dss_ntsc_vm.vactive)
+		return VENC_MODE_NTSC;
+
+	return VENC_MODE_UNKNOWN;
+}
 
 static struct {
 	struct platform_device *pdev;
@@ -311,6 +333,7 @@ static struct {
 	struct videomode vm;
 	enum omap_dss_venc_type type;
 	bool invert_polarity;
+	bool requires_tv_dac_clk;
 
 	struct omap_dss_device output;
 } venc;
@@ -424,14 +447,14 @@ static void venc_runtime_put(void)
 
 static const struct venc_config *venc_timings_to_config(struct videomode *vm)
 {
-	if (memcmp(&omap_dss_pal_vm, vm, sizeof(*vm)) == 0)
+	switch (venc_get_videomode(vm)) {
+	default:
+		WARN_ON_ONCE(1);
+	case VENC_MODE_PAL:
 		return &venc_config_pal_trm;
-
-	if (memcmp(&omap_dss_ntsc_vm, vm, sizeof(*vm)) == 0)
+	case VENC_MODE_NTSC:
 		return &venc_config_ntsc_trm;
-
-	BUG();
-	return NULL;
+	}
 }
 
 static int venc_power_on(struct omap_dss_device *dssdev)
@@ -542,15 +565,28 @@ static void venc_display_disable(struct omap_dss_device *dssdev)
 static void venc_set_timings(struct omap_dss_device *dssdev,
 			     struct videomode *vm)
 {
+	struct videomode actual_vm;
+
 	DSSDBG("venc_set_timings\n");
 
 	mutex_lock(&venc.venc_lock);
 
+	switch (venc_get_videomode(vm)) {
+	default:
+		WARN_ON_ONCE(1);
+	case VENC_MODE_PAL:
+		actual_vm = omap_dss_pal_vm;
+		break;
+	case VENC_MODE_NTSC:
+		actual_vm = omap_dss_ntsc_vm;
+		break;
+	}
+
 	/* Reset WSS data when the TV standard changes. */
-	if (memcmp(&venc.vm, vm, sizeof(*vm)))
+	if (memcmp(&venc.vm, &actual_vm, sizeof(actual_vm)))
 		venc.wss_data = 0;
 
-	venc.vm = *vm;
+	venc.vm = actual_vm;
 
 	dispc_set_tv_pclk(13500000);
 
@@ -562,13 +598,13 @@ static int venc_check_timings(struct omap_dss_device *dssdev,
 {
 	DSSDBG("venc_check_timings\n");
 
-	if (memcmp(&omap_dss_pal_vm, vm, sizeof(*vm)) == 0)
+	switch (venc_get_videomode(vm)) {
+	case VENC_MODE_PAL:
+	case VENC_MODE_NTSC:
 		return 0;
-
-	if (memcmp(&omap_dss_ntsc_vm, vm, sizeof(*vm)) == 0)
-		return 0;
-
-	return -EINVAL;
+	default:
+		return -EINVAL;
+	}
 }
 
 static void venc_get_timings(struct omap_dss_device *dssdev,
@@ -693,7 +729,7 @@ static int venc_get_clocks(struct platform_device *pdev)
 {
 	struct clk *clk;
 
-	if (dss_has_feature(FEAT_VENC_REQUIRES_TV_DAC_CLK)) {
+	if (venc.requires_tv_dac_clk) {
 		clk = devm_clk_get(&pdev->dev, "tv_dac_clk");
 		if (IS_ERR(clk)) {
 			DSSERR("can't get tv_dac_clk\n");
@@ -828,6 +864,12 @@ err:
 }
 
 /* VENC HW IP initialisation */
+static const struct soc_device_attribute venc_soc_devices[] = {
+	{ .machine = "OMAP3[45]*" },
+	{ .machine = "AM35*" },
+	{ /* sentinel */ }
+};
+
 static int venc_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -836,6 +878,10 @@ static int venc_bind(struct device *dev, struct device *master, void *data)
 	int r;
 
 	venc.pdev = pdev;
+
+	/* The OMAP34xx, OMAP35xx and AM35xx VENC require the TV DAC clock. */
+	if (soc_device_match(venc_soc_devices))
+		venc.requires_tv_dac_clk = true;
 
 	mutex_init(&venc.venc_lock);
 

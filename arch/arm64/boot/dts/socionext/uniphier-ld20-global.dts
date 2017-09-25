@@ -9,7 +9,7 @@
  */
 
 /dts-v1/;
-/include/ "uniphier-ld20.dtsi"
+#include "uniphier-ld20.dtsi"
 
 / {
 	model = "UniPhier LD20 Global Board (REF_LD20_GP)";
@@ -48,5 +48,9 @@
 };
 
 &i2c0 {
+	status = "okay";
+};
+
+&nand {
 	status = "okay";
 };

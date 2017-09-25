@@ -247,11 +247,26 @@ struct nfp_flower_cmsg_hdr {
 enum nfp_flower_cmsg_type_port {
 	NFP_FLOWER_CMSG_TYPE_FLOW_ADD =		0,
 	NFP_FLOWER_CMSG_TYPE_FLOW_DEL =		2,
+	NFP_FLOWER_CMSG_TYPE_MAC_REPR =		7,
 	NFP_FLOWER_CMSG_TYPE_PORT_MOD =		8,
 	NFP_FLOWER_CMSG_TYPE_FLOW_STATS =	15,
 	NFP_FLOWER_CMSG_TYPE_PORT_ECHO =	16,
 	NFP_FLOWER_CMSG_TYPE_MAX =		32,
 };
+
+/* NFP_FLOWER_CMSG_TYPE_MAC_REPR */
+struct nfp_flower_cmsg_mac_repr {
+	u8 reserved[3];
+	u8 num_ports;
+	struct {
+		u8 idx;
+		u8 info;
+		u8 nbi_port;
+		u8 phys_port;
+	} ports[0];
+};
+
+#define NFP_FLOWER_CMSG_MAC_REPR_NBI		GENMASK(1, 0)
 
 /* NFP_FLOWER_CMSG_TYPE_PORT_MOD */
 struct nfp_flower_cmsg_portmod {
@@ -308,7 +323,14 @@ static inline void *nfp_flower_cmsg_get_data(struct sk_buff *skb)
 	return (unsigned char *)skb->data + NFP_FLOWER_CMSG_HLEN;
 }
 
+struct sk_buff *
+nfp_flower_cmsg_mac_repr_start(struct nfp_app *app, unsigned int num_ports);
+void
+nfp_flower_cmsg_mac_repr_add(struct sk_buff *skb, unsigned int idx,
+			     unsigned int nbi, unsigned int nbi_port,
+			     unsigned int phys_port);
 int nfp_flower_cmsg_portmod(struct nfp_repr *repr, bool carrier_ok);
+void nfp_flower_cmsg_process_rx(struct work_struct *work);
 void nfp_flower_cmsg_rx(struct nfp_app *app, struct sk_buff *skb);
 struct sk_buff *
 nfp_flower_cmsg_alloc(struct nfp_app *app, unsigned int size,

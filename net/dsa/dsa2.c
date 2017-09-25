@@ -219,7 +219,7 @@ static int dsa_dsa_port_apply(struct dsa_port *port)
 	struct dsa_switch *ds = port->ds;
 	int err;
 
-	err = dsa_cpu_dsa_setup(ds, ds->dev, port, port->index);
+	err = dsa_cpu_dsa_setup(port);
 	if (err) {
 		dev_warn(ds->dev, "Failed to setup dsa port %d: %d\n",
 			 port->index, err);
@@ -243,7 +243,7 @@ static int dsa_cpu_port_apply(struct dsa_port *port)
 	struct dsa_switch *ds = port->ds;
 	int err;
 
-	err = dsa_cpu_dsa_setup(ds, ds->dev, port, port->index);
+	err = dsa_cpu_dsa_setup(port);
 	if (err) {
 		dev_warn(ds->dev, "Failed to setup cpu port %d: %d\n",
 			 port->index, err);
@@ -275,7 +275,7 @@ static int dsa_user_port_apply(struct dsa_port *port)
 	if (!name)
 		name = "eth%d";
 
-	err = dsa_slave_create(ds, ds->dev, port->index, name);
+	err = dsa_slave_create(port, name);
 	if (err) {
 		dev_warn(ds->dev, "Failed to create slave %d: %d\n",
 			 port->index, err);
@@ -509,20 +509,21 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 		dst->cpu_dp->netdev = ethernet_dev;
 	}
 
-	tag_protocol = ds->ops->get_tag_protocol(ds);
-	dst->tag_ops = dsa_resolve_tag_protocol(tag_protocol);
-	if (IS_ERR(dst->tag_ops)) {
-		dev_warn(ds->dev, "No tagger for this switch\n");
-		return PTR_ERR(dst->tag_ops);
-	}
-
-	dst->rcv = dst->tag_ops->rcv;
-
 	/* Initialize cpu_port_mask now for drv->setup()
 	 * to have access to a correct value, just like what
 	 * net/dsa/dsa.c::dsa_switch_setup_one does.
 	 */
 	ds->cpu_port_mask |= BIT(index);
+
+	tag_protocol = ds->ops->get_tag_protocol(ds);
+	dst->tag_ops = dsa_resolve_tag_protocol(tag_protocol);
+	if (IS_ERR(dst->tag_ops)) {
+		dev_warn(ds->dev, "No tagger for this switch\n");
+		ds->cpu_port_mask &= ~BIT(index);
+		return PTR_ERR(dst->tag_ops);
+	}
+
+	dst->rcv = dst->tag_ops->rcv;
 
 	return 0;
 }
@@ -576,7 +577,7 @@ static int dsa_dst_parse(struct dsa_switch_tree *dst)
 			return err;
 	}
 
-	if (!dst->cpu_dp->netdev) {
+	if (!dst->cpu_dp) {
 		pr_warn("Tree has no master device\n");
 		return -EINVAL;
 	}

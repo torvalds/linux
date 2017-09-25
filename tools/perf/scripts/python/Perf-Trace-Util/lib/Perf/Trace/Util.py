@@ -57,6 +57,7 @@ try:
 		'ia64'	: audit.MACH_IA64,
 		'ppc'	: audit.MACH_PPC,
 		'ppc64'	: audit.MACH_PPC64,
+		'ppc64le' : audit.MACH_PPC64LE,
 		's390'	: audit.MACH_S390,
 		's390x'	: audit.MACH_S390X,
 		'i386'	: audit.MACH_X86,

@@ -823,9 +823,12 @@ static int cpumsf_pmu_event_init(struct perf_event *event)
 	}
 
 	/* Check online status of the CPU to which the event is pinned */
-	if ((unsigned int)event->cpu >= nr_cpumask_bits ||
-	    (event->cpu >= 0 && !cpu_online(event->cpu)))
-		return -ENODEV;
+	if (event->cpu >= 0) {
+		if ((unsigned int)event->cpu >= nr_cpumask_bits)
+			return -ENODEV;
+		if (!cpu_online(event->cpu))
+			return -ENODEV;
+	}
 
 	/* Force reset of idle/hv excludes regardless of what the
 	 * user requested.
@@ -998,7 +1001,7 @@ static int perf_push_sample(struct perf_event *event, struct sf_raw_sample *sfr)
 	psw_bits(regs.psw).ia	= sfr->basic.ia;
 	psw_bits(regs.psw).dat	= sfr->basic.T;
 	psw_bits(regs.psw).wait = sfr->basic.W;
-	psw_bits(regs.psw).per	= sfr->basic.P;
+	psw_bits(regs.psw).pstate = sfr->basic.P;
 	psw_bits(regs.psw).as	= sfr->basic.AS;
 
 	/*

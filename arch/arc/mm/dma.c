@@ -117,7 +117,7 @@ static int arc_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-	if (dma_mmap_from_coherent(dev, vma, cpu_addr, size, &ret))
+	if (dma_mmap_from_dev_coherent(dev, vma, cpu_addr, size, &ret))
 		return ret;
 
 	if (off < count && user_count <= (count - off)) {
@@ -153,6 +153,19 @@ static void _dma_cache_sync(phys_addr_t paddr, size_t size,
 	}
 }
 
+/*
+ * arc_dma_map_page - map a portion of a page for streaming DMA
+ *
+ * Ensure that any data held in the cache is appropriately discarded
+ * or written back.
+ *
+ * The device owns this memory once this call has completed.  The CPU
+ * can regain ownership by calling dma_unmap_page().
+ *
+ * Note: while it takes struct page as arg, caller can "abuse" it to pass
+ * a region larger than PAGE_SIZE, provided it is physically contiguous
+ * and this still works correctly
+ */
 static dma_addr_t arc_dma_map_page(struct device *dev, struct page *page,
 		unsigned long offset, size_t size, enum dma_data_direction dir,
 		unsigned long attrs)
@@ -163,6 +176,24 @@ static dma_addr_t arc_dma_map_page(struct device *dev, struct page *page,
 		_dma_cache_sync(paddr, size, dir);
 
 	return plat_phys_to_dma(dev, paddr);
+}
+
+/*
+ * arc_dma_unmap_page - unmap a buffer previously mapped through dma_map_page()
+ *
+ * After this call, reads by the CPU to the buffer are guaranteed to see
+ * whatever the device wrote there.
+ *
+ * Note: historically this routine was not implemented for ARC
+ */
+static void arc_dma_unmap_page(struct device *dev, dma_addr_t handle,
+			       size_t size, enum dma_data_direction dir,
+			       unsigned long attrs)
+{
+	phys_addr_t paddr = plat_dma_to_phys(dev, handle);
+
+	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
+		_dma_cache_sync(paddr, size, dir);
 }
 
 static int arc_dma_map_sg(struct device *dev, struct scatterlist *sg,
@@ -176,6 +207,18 @@ static int arc_dma_map_sg(struct device *dev, struct scatterlist *sg,
 					       s->length, dir);
 
 	return nents;
+}
+
+static void arc_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
+			     int nents, enum dma_data_direction dir,
+			     unsigned long attrs)
+{
+	struct scatterlist *s;
+	int i;
+
+	for_each_sg(sg, s, nents, i)
+		arc_dma_unmap_page(dev, sg_dma_address(s), sg_dma_len(s), dir,
+				   attrs);
 }
 
 static void arc_dma_sync_single_for_cpu(struct device *dev,
@@ -223,7 +266,9 @@ const struct dma_map_ops arc_dma_ops = {
 	.free			= arc_dma_free,
 	.mmap			= arc_dma_mmap,
 	.map_page		= arc_dma_map_page,
+	.unmap_page		= arc_dma_unmap_page,
 	.map_sg			= arc_dma_map_sg,
+	.unmap_sg		= arc_dma_unmap_sg,
 	.sync_single_for_device	= arc_dma_sync_single_for_device,
 	.sync_single_for_cpu	= arc_dma_sync_single_for_cpu,
 	.sync_sg_for_cpu	= arc_dma_sync_sg_for_cpu,

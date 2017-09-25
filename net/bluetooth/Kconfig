@@ -45,6 +45,11 @@ config BT_BREDR
 	bool "Bluetooth Classic (BR/EDR) features"
 	depends on BT
 	default y
+	help
+	  Bluetooth Classic includes support for Basic Rate (BR)
+	  available with Bluetooth version 1.0b or later and support
+	  for Enhanced Data Rate (EDR) available with Bluetooth
+	  version 2.0 or later.
 
 source "net/bluetooth/rfcomm/Kconfig"
 
@@ -58,11 +63,18 @@ config BT_HS
 	bool "Bluetooth High Speed (HS) features"
 	depends on BT_BREDR
 	default y
+	help
+	  Bluetooth High Speed includes support for off-loading
+	  Bluetooth connections via 802.11 (wifi) physical layer
+	  available with Bluetooth version 3.0 or later.
 
 config BT_LE
 	bool "Bluetooth Low Energy (LE) features"
 	depends on BT
 	default y
+	help
+	  Bluetooth Low Energy includes support low-energy physical
+	  layer available with Bluetooth version 4.0 or later.
 
 config BT_6LOWPAN
 	tristate "Bluetooth 6LoWPAN support"
@@ -113,5 +125,15 @@ config BT_DEBUGFS
 	help
 	  Provide extensive information about internal Bluetooth states
 	  in debugfs.
+
+config BT_LEGACY_IOCTL
+	bool "Enable legacy ioctl interfaces"
+	depends on BT && BT_BREDR
+	default y
+	help
+	  Enable support for legacy ioctl interfaces.  This is only needed
+	  for old and deprecated applications using direct ioctl calls for
+	  controller management.  Since Linux 3.4 all configuration and
+	  setup is done via mgmt interface and this is no longer needed.
 
 source "drivers/bluetooth/Kconfig"

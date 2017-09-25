@@ -17,6 +17,16 @@
 #include <linux/serial_core.h>
 
 /*
+ * Erratum 44 for QDF2432v1 and QDF2400v1 SoCs describes the BUSY bit as
+ * occasionally getting stuck as 1. To avoid the potential for a hang, check
+ * TXFE == 0 instead of BUSY == 1. This may not be suitable for all UART
+ * implementations, so only do so if an affected platform is detected in
+ * parse_spcr().
+ */
+bool qdf2400_e44_present;
+EXPORT_SYMBOL(qdf2400_e44_present);
+
+/*
  * Some Qualcomm Datacenter Technologies SoCs have a defective UART BUSY bit.
  * Detect them by examining the OEM fields in the SPCR header, similiar to PCI
  * quirk detection in pci_mcfg.c.
@@ -43,17 +53,24 @@ static bool qdf2400_erratum_44_present(struct acpi_table_header *h)
  */
 static bool xgene_8250_erratum_present(struct acpi_table_spcr *tb)
 {
+	bool xgene_8250 = false;
+
 	if (tb->interface_type != ACPI_DBG2_16550_COMPATIBLE)
 		return false;
 
-	if (memcmp(tb->header.oem_id, "APMC0D", ACPI_OEM_ID_SIZE))
+	if (memcmp(tb->header.oem_id, "APMC0D", ACPI_OEM_ID_SIZE) &&
+	    memcmp(tb->header.oem_id, "HPE   ", ACPI_OEM_ID_SIZE))
 		return false;
 
 	if (!memcmp(tb->header.oem_table_id, "XGENESPC",
 	    ACPI_OEM_TABLE_ID_SIZE) && tb->header.oem_revision == 0)
-		return true;
+		xgene_8250 = true;
 
-	return false;
+	if (!memcmp(tb->header.oem_table_id, "ProLiant",
+	    ACPI_OEM_TABLE_ID_SIZE) && tb->header.oem_revision == 1)
+		xgene_8250 = true;
+
+	return xgene_8250;
 }
 
 /**
@@ -95,16 +112,17 @@ int __init parse_spcr(bool earlycon)
 	}
 
 	if (table->serial_port.space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
-		switch (table->serial_port.access_width) {
+		switch (ACPI_ACCESS_BIT_WIDTH((
+			table->serial_port.access_width))) {
 		default:
 			pr_err("Unexpected SPCR Access Width.  Defaulting to byte size\n");
-		case ACPI_ACCESS_SIZE_BYTE:
+		case 8:
 			iotype = "mmio";
 			break;
-		case ACPI_ACCESS_SIZE_WORD:
+		case 16:
 			iotype = "mmio16";
 			break;
-		case ACPI_ACCESS_SIZE_DWORD:
+		case 32:
 			iotype = "mmio32";
 			break;
 		}
@@ -147,13 +165,43 @@ int __init parse_spcr(bool earlycon)
 		goto done;
 	}
 
-	if (qdf2400_erratum_44_present(&table->header))
-		uart = "qdf2400_e44";
-	if (xgene_8250_erratum_present(table))
+	/*
+	 * If the E44 erratum is required, then we need to tell the pl011
+	 * driver to implement the work-around.
+	 *
+	 * The global variable is used by the probe function when it
+	 * creates the UARTs, whether or not they're used as a console.
+	 *
+	 * If the user specifies "traditional" earlycon, the qdf2400_e44
+	 * console name matches the EARLYCON_DECLARE() statement, and
+	 * SPCR is not used.  Parameter "earlycon" is false.
+	 *
+	 * If the user specifies "SPCR" earlycon, then we need to update
+	 * the console name so that it also says "qdf2400_e44".  Parameter
+	 * "earlycon" is true.
+	 *
+	 * For consistency, if we change the console name, then we do it
+	 * for everyone, not just earlycon.
+	 */
+	if (qdf2400_erratum_44_present(&table->header)) {
+		qdf2400_e44_present = true;
+		if (earlycon)
+			uart = "qdf2400_e44";
+	}
+
+	if (xgene_8250_erratum_present(table)) {
 		iotype = "mmio32";
 
-	snprintf(opts, sizeof(opts), "%s,%s,0x%llx,%d", uart, iotype,
-		 table->serial_port.address, baud_rate);
+		/* for xgene v1 and v2 we don't know the clock rate of the
+		 * UART so don't attempt to change to the baud rate state
+		 * in the table because driver cannot calculate the dividers
+		 */
+		snprintf(opts, sizeof(opts), "%s,%s,0x%llx", uart, iotype,
+			 table->serial_port.address);
+	} else {
+		snprintf(opts, sizeof(opts), "%s,%s,0x%llx,%d", uart, iotype,
+			 table->serial_port.address, baud_rate);
+	}
 
 	pr_info("console: %s\n", opts);
 

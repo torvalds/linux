@@ -323,6 +323,7 @@ struct qed_eth_ops {
 
 	int (*configure_arfs_searcher)(struct qed_dev *cdev,
 				       bool en_searcher);
+	int (*get_coalesce)(struct qed_dev *cdev, u16 *coal, void *handle);
 };
 
 const struct qed_eth_ops *qed_get_eth_ops(void);

@@ -64,6 +64,7 @@
 
 extern int qxl_log_level;
 extern int qxl_num_crtc;
+extern int qxl_max_ioctls;
 
 enum {
 	QXL_INFO_LEVEL = 1,

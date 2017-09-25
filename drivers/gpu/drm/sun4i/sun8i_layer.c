@@ -90,7 +90,7 @@ static struct sun8i_layer *sun8i_layer_init_one(struct drm_device *drm,
 	ret = drm_universal_plane_init(drm, &layer->plane, 0,
 				       &sun8i_mixer_layer_funcs,
 				       plane->formats, plane->nformats,
-				       plane->type, NULL);
+				       NULL, plane->type, NULL);
 	if (ret) {
 		dev_err(drm->dev, "Couldn't initialize layer\n");
 		return ERR_PTR(ret);
