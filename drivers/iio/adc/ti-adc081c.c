@@ -124,7 +124,6 @@ static struct adcxx1c_model adcxx1c_models[] = {
 
 static const struct iio_info adc081c_info = {
 	.read_raw = adc081c_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static irqreturn_t adc081c_trigger_handler(int irq, void *p)

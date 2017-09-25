@@ -280,7 +280,6 @@ static AD7266_DECLARE_DIFF_CHANNELS_FIXED(u, 'u');
 static const struct iio_info ad7266_info = {
 	.read_raw = &ad7266_read_raw,
 	.update_scan_mode = &ad7266_update_scan_mode,
-	.driver_module = THIS_MODULE,
 };
 
 static const unsigned long ad7266_available_scan_masks[] = {

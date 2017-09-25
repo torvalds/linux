@@ -74,7 +74,6 @@ static int iio_loop_trigger_set_state(struct iio_trigger *trig, bool state)
 
 static const struct iio_trigger_ops iio_loop_trigger_ops = {
 	.set_trigger_state = iio_loop_trigger_set_state,
-	.owner = THIS_MODULE,
 };
 
 static struct iio_sw_trigger *iio_trig_loop_probe(const char *name)

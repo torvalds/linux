@@ -241,7 +241,6 @@ static const struct iio_info tcs3414_info = {
 	.read_raw = tcs3414_read_raw,
 	.write_raw = tcs3414_write_raw,
 	.attrs = &tcs3414_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static int tcs3414_buffer_preenable(struct iio_dev *indio_dev)

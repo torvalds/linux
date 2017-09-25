@@ -573,7 +573,6 @@ static const struct attribute_group hts221_attribute_group = {
 };
 
 static const struct iio_info hts221_info = {
-	.driver_module = THIS_MODULE,
 	.attrs = &hts221_attribute_group,
 	.read_raw = hts221_read_raw,
 	.write_raw = hts221_write_raw,

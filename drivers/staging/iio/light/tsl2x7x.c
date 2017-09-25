@@ -192,25 +192,25 @@ struct tsl2X7X_chip {
 };
 
 /* Different devices require different coefficents */
-static const struct tsl2x7x_lux tsl2x71_lux_table[] = {
+static const struct tsl2x7x_lux tsl2x71_lux_table[TSL2X7X_DEF_LUX_TABLE_SZ] = {
 	{ 14461,   611,   1211 },
 	{ 18540,   352,    623 },
 	{     0,     0,      0 },
 };
 
-static const struct tsl2x7x_lux tmd2x71_lux_table[] = {
+static const struct tsl2x7x_lux tmd2x71_lux_table[TSL2X7X_DEF_LUX_TABLE_SZ] = {
 	{ 11635,   115,    256 },
 	{ 15536,    87,    179 },
 	{     0,     0,      0 },
 };
 
-static const struct tsl2x7x_lux tsl2x72_lux_table[] = {
+static const struct tsl2x7x_lux tsl2x72_lux_table[TSL2X7X_DEF_LUX_TABLE_SZ] = {
 	{ 14013,   466,   917 },
 	{ 18222,   310,   552 },
 	{     0,     0,     0 },
 };
 
-static const struct tsl2x7x_lux tmd2x72_lux_table[] = {
+static const struct tsl2x7x_lux tmd2x72_lux_table[TSL2X7X_DEF_LUX_TABLE_SZ] = {
 	{ 13218,   130,   262 },
 	{ 17592,   92,    169 },
 	{     0,     0,     0 },
@@ -530,7 +530,7 @@ static void tsl2x7x_defaults(struct tsl2X7X_chip *chip)
 	else
 		memcpy(chip->tsl2x7x_device_lux,
 		(struct tsl2x7x_lux *)tsl2x7x_default_lux_table_group[chip->id],
-				MAX_DEFAULT_TABLE_BYTES);
+				TSL2X7X_DEFAULT_TABLE_BYTES);
 }
 
 /**
@@ -1113,7 +1113,7 @@ static ssize_t in_illuminance0_lux_table_show(struct device *dev,
 	int i = 0;
 	int offset = 0;
 
-	while (i < (TSL2X7X_MAX_LUX_TABLE_SIZE * 3)) {
+	while (i < TSL2X7X_MAX_LUX_TABLE_SIZE) {
 		offset += snprintf(buf + offset, PAGE_SIZE, "%u,%u,%u,",
 			chip->tsl2x7x_device_lux[i].ratio,
 			chip->tsl2x7x_device_lux[i].ch0,
@@ -1654,7 +1654,6 @@ static const struct iio_info tsl2X7X_device_info[] = {
 	[ALS] = {
 		.attrs = &tsl2X7X_device_attr_group_tbl[ALS],
 		.event_attrs = &tsl2X7X_event_attr_group_tbl[ALS],
-		.driver_module = THIS_MODULE,
 		.read_raw = &tsl2x7x_read_raw,
 		.write_raw = &tsl2x7x_write_raw,
 		.read_event_value = &tsl2x7x_read_event_value,
@@ -1665,7 +1664,6 @@ static const struct iio_info tsl2X7X_device_info[] = {
 	[PRX] = {
 		.attrs = &tsl2X7X_device_attr_group_tbl[PRX],
 		.event_attrs = &tsl2X7X_event_attr_group_tbl[PRX],
-		.driver_module = THIS_MODULE,
 		.read_raw = &tsl2x7x_read_raw,
 		.write_raw = &tsl2x7x_write_raw,
 		.read_event_value = &tsl2x7x_read_event_value,
@@ -1676,7 +1674,6 @@ static const struct iio_info tsl2X7X_device_info[] = {
 	[ALSPRX] = {
 		.attrs = &tsl2X7X_device_attr_group_tbl[ALSPRX],
 		.event_attrs = &tsl2X7X_event_attr_group_tbl[ALSPRX],
-		.driver_module = THIS_MODULE,
 		.read_raw = &tsl2x7x_read_raw,
 		.write_raw = &tsl2x7x_write_raw,
 		.read_event_value = &tsl2x7x_read_event_value,
@@ -1687,7 +1684,6 @@ static const struct iio_info tsl2X7X_device_info[] = {
 	[PRX2] = {
 		.attrs = &tsl2X7X_device_attr_group_tbl[PRX2],
 		.event_attrs = &tsl2X7X_event_attr_group_tbl[PRX],
-		.driver_module = THIS_MODULE,
 		.read_raw = &tsl2x7x_read_raw,
 		.write_raw = &tsl2x7x_write_raw,
 		.read_event_value = &tsl2x7x_read_event_value,
@@ -1698,7 +1694,6 @@ static const struct iio_info tsl2X7X_device_info[] = {
 	[ALSPRX2] = {
 		.attrs = &tsl2X7X_device_attr_group_tbl[ALSPRX2],
 		.event_attrs = &tsl2X7X_event_attr_group_tbl[ALSPRX],
-		.driver_module = THIS_MODULE,
 		.read_raw = &tsl2x7x_read_raw,
 		.write_raw = &tsl2x7x_write_raw,
 		.read_event_value = &tsl2x7x_read_event_value,
@@ -1982,7 +1977,7 @@ static int tsl2x7x_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id tsl2x7x_idtable[] = {
+static const struct i2c_device_id tsl2x7x_idtable[] = {
 	{ "tsl2571", tsl2571 },
 	{ "tsl2671", tsl2671 },
 	{ "tmd2671", tmd2671 },

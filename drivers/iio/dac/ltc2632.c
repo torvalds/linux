@@ -159,7 +159,6 @@ static ssize_t ltc2632_write_dac_powerdown(struct iio_dev *indio_dev,
 static const struct iio_info ltc2632_info = {
 	.write_raw	= ltc2632_write_raw,
 	.read_raw	= ltc2632_read_raw,
-	.driver_module	= THIS_MODULE,
 };
 
 static const struct iio_chan_spec_ext_info ltc2632_ext_info[] = {

@@ -277,7 +277,6 @@ static int rcar_gyroadc_reg_access(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info rcar_gyroadc_iio_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= rcar_gyroadc_read_raw,
 	.debugfs_reg_access	= rcar_gyroadc_reg_access,
 };

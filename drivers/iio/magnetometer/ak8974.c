@@ -658,7 +658,6 @@ static const unsigned long ak8974_scan_masks[] = { 0x7, 0 };
 
 static const struct iio_info ak8974_info = {
 	.read_raw = &ak8974_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static bool ak8974_writeable_reg(struct device *dev, unsigned int reg)

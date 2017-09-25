@@ -828,7 +828,6 @@ static const struct iio_info ad7280_info = {
 	.read_raw = ad7280_read_raw,
 	.event_attrs = &ad7280_event_attrs_group,
 	.attrs = &ad7280_attrs_group,
-	.driver_module = THIS_MODULE,
 };
 
 static const struct ad7280_platform_data ad7793_default_pdata = {

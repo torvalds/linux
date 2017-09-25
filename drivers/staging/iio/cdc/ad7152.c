@@ -441,7 +441,6 @@ static const struct iio_info ad7152_info = {
 	.read_raw = ad7152_read_raw,
 	.write_raw = ad7152_write_raw,
 	.write_raw_get_fmt = ad7152_write_raw_get_fmt,
-	.driver_module = THIS_MODULE,
 };
 
 static const struct iio_chan_spec ad7152_channels[] = {

@@ -168,7 +168,6 @@ static int al3320a_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info al3320a_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw	= al3320a_read_raw,
 	.write_raw	= al3320a_write_raw,
 	.attrs		= &al3320a_attribute_group,

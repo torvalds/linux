@@ -519,7 +519,6 @@ static int iio_dummy_write_raw(struct iio_dev *indio_dev,
  * Device type specific information.
  */
 static const struct iio_info iio_dummy_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &iio_dummy_read_raw,
 	.write_raw = &iio_dummy_write_raw,
 #ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS

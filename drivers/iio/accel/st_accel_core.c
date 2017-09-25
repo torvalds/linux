@@ -721,7 +721,6 @@ static const struct attribute_group st_accel_attribute_group = {
 };
 
 static const struct iio_info accel_info = {
-	.driver_module = THIS_MODULE,
 	.attrs = &st_accel_attribute_group,
 	.read_raw = &st_accel_read_raw,
 	.write_raw = &st_accel_write_raw,
@@ -730,7 +729,6 @@ static const struct iio_info accel_info = {
 
 #ifdef CONFIG_IIO_TRIGGER
 static const struct iio_trigger_ops st_accel_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = ST_ACCEL_TRIGGER_SET_STATE,
 	.validate_device = st_sensors_validate_device,
 };

@@ -352,7 +352,6 @@ static int sun4i_gpadc_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info sun4i_gpadc_iio_info = {
 	.read_raw = sun4i_gpadc_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static irqreturn_t sun4i_gpadc_temp_data_irq_handler(int irq, void *dev_id)

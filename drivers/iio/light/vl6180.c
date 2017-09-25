@@ -429,7 +429,6 @@ static const struct iio_info vl6180_info = {
 	.read_raw = vl6180_read_raw,
 	.write_raw = vl6180_write_raw,
 	.attrs = &vl6180_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static int vl6180_init(struct vl6180_data *data)

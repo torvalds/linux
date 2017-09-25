@@ -781,7 +781,6 @@ static const unsigned long ak8975_scan_masks[] = { 0x7, 0 };
 
 static const struct iio_info ak8975_info = {
 	.read_raw = &ak8975_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 #ifdef CONFIG_ACPI

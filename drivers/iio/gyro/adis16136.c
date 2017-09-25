@@ -398,7 +398,6 @@ static const struct attribute_group adis16136_attribute_group = {
 };
 
 static const struct iio_info adis16136_info = {
-	.driver_module = THIS_MODULE,
 	.attrs = &adis16136_attribute_group,
 	.read_raw = &adis16136_read_raw,
 	.write_raw = &adis16136_write_raw,

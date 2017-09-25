@@ -374,7 +374,6 @@ static const struct attribute_group hx711_attribute_group = {
 };
 
 static const struct iio_info hx711_iio_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= hx711_read_raw,
 	.write_raw		= hx711_write_raw,
 	.write_raw_get_fmt	= hx711_write_raw_get_fmt,

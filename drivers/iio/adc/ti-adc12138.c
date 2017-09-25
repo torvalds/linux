@@ -277,7 +277,6 @@ static int adc12138_read_raw(struct iio_dev *iio,
 
 static const struct iio_info adc12138_info = {
 	.read_raw = adc12138_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int adc12138_init(struct adc12138 *adc)

@@ -1385,7 +1385,6 @@ static const struct iio_info stm32_adc_iio_info = {
 	.update_scan_mode = stm32_adc_update_scan_mode,
 	.debugfs_reg_access = stm32_adc_debugfs_reg_access,
 	.of_xlate = stm32_adc_of_xlate,
-	.driver_module = THIS_MODULE,
 };
 
 static unsigned int stm32_adc_dma_residue(struct stm32_adc *adc)

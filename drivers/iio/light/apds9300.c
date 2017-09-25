@@ -337,12 +337,10 @@ static int apds9300_write_interrupt_config(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info apds9300_info_no_irq = {
-	.driver_module	= THIS_MODULE,
 	.read_raw	= apds9300_read_raw,
 };
 
 static const struct iio_info apds9300_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= apds9300_read_raw,
 	.read_event_value	= apds9300_read_thresh,
 	.write_event_value	= apds9300_write_thresh,

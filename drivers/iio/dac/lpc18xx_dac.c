@@ -103,7 +103,6 @@ static int lpc18xx_dac_write_raw(struct iio_dev *indio_dev,
 static const struct iio_info lpc18xx_dac_info = {
 	.read_raw = lpc18xx_dac_read_raw,
 	.write_raw = lpc18xx_dac_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int lpc18xx_dac_probe(struct platform_device *pdev)

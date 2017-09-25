@@ -66,13 +66,12 @@ ATTRIBUTE_GROUPS(iio_trig_dev);
 
 static struct iio_trigger *__iio_trigger_find_by_name(const char *name);
 
-int iio_trigger_register(struct iio_trigger *trig_info)
+int __iio_trigger_register(struct iio_trigger *trig_info,
+			   struct module *this_mod)
 {
 	int ret;
 
-	/* trig_info->ops is required for the module member */
-	if (!trig_info->ops)
-		return -EINVAL;
+	trig_info->owner = this_mod;
 
 	trig_info->id = ida_simple_get(&iio_trigger_ida, 0, 0, GFP_KERNEL);
 	if (trig_info->id < 0)
@@ -105,7 +104,7 @@ error_unregister_id:
 	ida_simple_remove(&iio_trigger_ida, trig_info->id);
 	return ret;
 }
-EXPORT_SYMBOL(iio_trigger_register);
+EXPORT_SYMBOL(__iio_trigger_register);
 
 void iio_trigger_unregister(struct iio_trigger *trig_info)
 {
@@ -206,7 +205,8 @@ EXPORT_SYMBOL(iio_trigger_poll_chained);
 
 void iio_trigger_notify_done(struct iio_trigger *trig)
 {
-	if (atomic_dec_and_test(&trig->use_count) && trig->ops->try_reenable)
+	if (atomic_dec_and_test(&trig->use_count) && trig->ops &&
+	    trig->ops->try_reenable)
 		if (trig->ops->try_reenable(trig))
 			/* Missed an interrupt so launch new poll now */
 			iio_trigger_poll(trig);
@@ -250,7 +250,7 @@ static int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 		= bitmap_empty(trig->pool, CONFIG_IIO_CONSUMERS_PER_TRIGGER);
 
 	/* Prevent the module from being removed whilst attached to a trigger */
-	__module_get(pf->indio_dev->info->driver_module);
+	__module_get(pf->indio_dev->driver_module);
 
 	/* Get irq number */
 	pf->irq = iio_trigger_get_irq(trig);
@@ -265,7 +265,7 @@ static int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 		goto out_put_irq;
 
 	/* Enable trigger in driver */
-	if (trig->ops->set_trigger_state && notinuse) {
+	if (trig->ops && trig->ops->set_trigger_state && notinuse) {
 		ret = trig->ops->set_trigger_state(trig, true);
 		if (ret < 0)
 			goto out_free_irq;
@@ -286,7 +286,7 @@ out_free_irq:
 out_put_irq:
 	iio_trigger_put_irq(trig, pf->irq);
 out_put_module:
-	module_put(pf->indio_dev->info->driver_module);
+	module_put(pf->indio_dev->driver_module);
 	return ret;
 }
 
@@ -298,7 +298,7 @@ static int iio_trigger_detach_poll_func(struct iio_trigger *trig,
 		= (bitmap_weight(trig->pool,
 				 CONFIG_IIO_CONSUMERS_PER_TRIGGER)
 		   == 1);
-	if (trig->ops->set_trigger_state && no_other_users) {
+	if (trig->ops && trig->ops->set_trigger_state && no_other_users) {
 		ret = trig->ops->set_trigger_state(trig, false);
 		if (ret)
 			return ret;
@@ -307,7 +307,7 @@ static int iio_trigger_detach_poll_func(struct iio_trigger *trig,
 		trig->attached_own_device = false;
 	iio_trigger_put_irq(trig, pf->irq);
 	free_irq(pf->irq, pf);
-	module_put(pf->indio_dev->info->driver_module);
+	module_put(pf->indio_dev->driver_module);
 
 	return ret;
 }
@@ -428,7 +428,7 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 			goto out_trigger_put;
 	}
 
-	if (trig && trig->ops->validate_device) {
+	if (trig && trig->ops && trig->ops->validate_device) {
 		ret = trig->ops->validate_device(trig, indio_dev);
 		if (ret)
 			goto out_trigger_put;
@@ -663,9 +663,10 @@ static void devm_iio_trigger_unreg(struct device *dev, void *res)
 }
 
 /**
- * devm_iio_trigger_register - Resource-managed iio_trigger_register()
+ * __devm_iio_trigger_register - Resource-managed iio_trigger_register()
  * @dev:	device this trigger was allocated for
  * @trig_info:	trigger to register
+ * @this_mod:   module registering the trigger
  *
  * Managed iio_trigger_register().  The IIO trigger registered with this
  * function is automatically unregistered on driver detach. This function
@@ -678,7 +679,9 @@ static void devm_iio_trigger_unreg(struct device *dev, void *res)
  * RETURNS:
  * 0 on success, negative error number on failure.
  */
-int devm_iio_trigger_register(struct device *dev, struct iio_trigger *trig_info)
+int __devm_iio_trigger_register(struct device *dev,
+				struct iio_trigger *trig_info,
+				struct module *this_mod)
 {
 	struct iio_trigger **ptr;
 	int ret;
@@ -688,7 +691,7 @@ int devm_iio_trigger_register(struct device *dev, struct iio_trigger *trig_info)
 		return -ENOMEM;
 
 	*ptr = trig_info;
-	ret = iio_trigger_register(trig_info);
+	ret = __iio_trigger_register(trig_info, this_mod);
 	if (!ret)
 		devres_add(dev, ptr);
 	else
@@ -696,7 +699,7 @@ int devm_iio_trigger_register(struct device *dev, struct iio_trigger *trig_info)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(devm_iio_trigger_register);
+EXPORT_SYMBOL_GPL(__devm_iio_trigger_register);
 
 /**
  * devm_iio_trigger_unregister - Resource-managed iio_trigger_unregister()

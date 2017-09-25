@@ -243,7 +243,6 @@ void hid_sensor_remove_trigger(struct hid_sensor_common *attrb)
 EXPORT_SYMBOL(hid_sensor_remove_trigger);
 
 static const struct iio_trigger_ops hid_sensor_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = &hid_sensor_data_rdy_trigger_set_state,
 };
 
