@@ -2739,7 +2739,8 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 
 	list_for_each_entry(rport, &fc_host->rports, peers) {
 
-		if ((rport->port_state == FC_PORTSTATE_BLOCKED) &&
+		if ((rport->port_state == FC_PORTSTATE_BLOCKED ||
+		     rport->port_state == FC_PORTSTATE_NOTPRESENT) &&
 			(rport->channel == channel)) {
 
 			switch (fc_host->tgtid_bind_type) {
