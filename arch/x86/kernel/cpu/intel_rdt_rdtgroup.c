@@ -478,6 +478,7 @@ static int __rdtgroup_move_task(struct task_struct *tsk,
 		 */
 		atomic_dec(&rdtgrp->waitcount);
 		kfree(callback);
+		rdt_last_cmd_puts("task exited\n");
 	} else {
 		/*
 		 * For ctrl_mon groups move both closid and rmid.
@@ -488,10 +489,12 @@ static int __rdtgroup_move_task(struct task_struct *tsk,
 			tsk->closid = rdtgrp->closid;
 			tsk->rmid = rdtgrp->mon.rmid;
 		} else if (rdtgrp->type == RDTMON_GROUP) {
-			if (rdtgrp->mon.parent->closid == tsk->closid)
+			if (rdtgrp->mon.parent->closid == tsk->closid) {
 				tsk->rmid = rdtgrp->mon.rmid;
-			else
+			} else {
+				rdt_last_cmd_puts("Can't move task to different control group\n");
 				ret = -EINVAL;
+			}
 		}
 	}
 	return ret;
@@ -510,8 +513,10 @@ static int rdtgroup_task_write_permission(struct task_struct *task,
 	 */
 	if (!uid_eq(cred->euid, GLOBAL_ROOT_UID) &&
 	    !uid_eq(cred->euid, tcred->uid) &&
-	    !uid_eq(cred->euid, tcred->suid))
+	    !uid_eq(cred->euid, tcred->suid)) {
+		rdt_last_cmd_printf("No permission to move task %d\n", task->pid);
 		ret = -EPERM;
+	}
 
 	put_cred(tcred);
 	return ret;
@@ -528,6 +533,7 @@ static int rdtgroup_move_task(pid_t pid, struct rdtgroup *rdtgrp,
 		tsk = find_task_by_vpid(pid);
 		if (!tsk) {
 			rcu_read_unlock();
+			rdt_last_cmd_printf("No task %d\n", pid);
 			return -ESRCH;
 		}
 	} else {
@@ -555,6 +561,7 @@ static ssize_t rdtgroup_tasks_write(struct kernfs_open_file *of,
 	if (kstrtoint(strstrip(buf), 0, &pid) || pid < 0)
 		return -EINVAL;
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
+	rdt_last_cmd_clear();
 
 	if (rdtgrp)
 		ret = rdtgroup_move_task(pid, rdtgrp, of);

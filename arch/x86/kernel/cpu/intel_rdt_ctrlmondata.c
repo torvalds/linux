@@ -232,10 +232,8 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 	int closid, ret = 0;
 
 	/* Valid input requires a trailing newline */
-	if (nbytes == 0 || buf[nbytes - 1] != '\n') {
-		seq_buf_puts(&last_cmd_status, "no trailing newline\n");
+	if (nbytes == 0 || buf[nbytes - 1] != '\n')
 		return -EINVAL;
-	}
 	buf[nbytes - 1] = '\0';
 
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
