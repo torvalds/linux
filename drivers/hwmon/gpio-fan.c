@@ -453,7 +453,6 @@ static const struct thermal_cooling_device_ops gpio_fan_cool_ops = {
 	.set_cur_state = gpio_fan_set_cur_state,
 };
 
-#ifdef CONFIG_OF_GPIO
 /*
  * Translate OpenFirmware node properties into platform_data
  */
@@ -556,7 +555,6 @@ static const struct of_device_id of_gpio_fan_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, of_gpio_fan_match);
-#endif /* CONFIG_OF_GPIO */
 
 static int gpio_fan_probe(struct platform_device *pdev)
 {
@@ -564,29 +562,22 @@ static int gpio_fan_probe(struct platform_device *pdev)
 	struct gpio_fan_data *fan_data;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
-	struct gpio_fan_platform_data *pdata = dev_get_platdata(dev);
+	struct gpio_fan_platform_data *pdata;
 
 	fan_data = devm_kzalloc(dev, sizeof(struct gpio_fan_data),
 				GFP_KERNEL);
 	if (!fan_data)
 		return -ENOMEM;
 
-#ifdef CONFIG_OF_GPIO
-	if (!pdata) {
-		pdata = devm_kzalloc(dev,
-					sizeof(struct gpio_fan_platform_data),
-					GFP_KERNEL);
-		if (!pdata)
-			return -ENOMEM;
-
-		err = gpio_fan_get_of_pdata(dev, pdata);
-		if (err)
-			return err;
-	}
-#else /* CONFIG_OF_GPIO */
+	pdata = devm_kzalloc(dev,
+			     sizeof(struct gpio_fan_platform_data),
+			     GFP_KERNEL);
 	if (!pdata)
-		return -EINVAL;
-#endif /* CONFIG_OF_GPIO */
+		return -ENOMEM;
+
+	err = gpio_fan_get_of_pdata(dev, pdata);
+	if (err)
+		return err;
 
 	fan_data->dev = dev;
 	platform_set_drvdata(pdev, fan_data);
@@ -615,17 +606,12 @@ static int gpio_fan_probe(struct platform_device *pdev)
 						       gpio_fan_groups);
 	if (IS_ERR(fan_data->hwmon_dev))
 		return PTR_ERR(fan_data->hwmon_dev);
-#ifdef CONFIG_OF_GPIO
+
 	/* Optional cooling device register for Device tree platforms */
 	fan_data->cdev = thermal_of_cooling_device_register(np,
 							    "gpio-fan",
 							    fan_data,
 							    &gpio_fan_cool_ops);
-#else /* CONFIG_OF_GPIO */
-	/* Optional cooling device register for non Device tree platforms */
-	fan_data->cdev = thermal_cooling_device_register("gpio-fan", fan_data,
-							 &gpio_fan_cool_ops);
-#endif /* CONFIG_OF_GPIO */
 
 	dev_info(dev, "GPIO fan initialized\n");
 
@@ -686,9 +672,7 @@ static struct platform_driver gpio_fan_driver = {
 	.driver	= {
 		.name	= "gpio-fan",
 		.pm	= GPIO_FAN_PM,
-#ifdef CONFIG_OF_GPIO
 		.of_match_table = of_match_ptr(of_gpio_fan_match),
-#endif
 	},
 };
 
