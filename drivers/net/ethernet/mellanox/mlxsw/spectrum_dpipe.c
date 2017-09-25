@@ -841,6 +841,97 @@ static void mlxsw_sp_dpipe_host6_table_fini(struct mlxsw_sp *mlxsw_sp)
 				       MLXSW_SP_DPIPE_TABLE_NAME_HOST6);
 }
 
+static int mlxsw_sp_dpipe_table_adj_matches_dump(void *priv,
+						 struct sk_buff *skb)
+{
+	struct devlink_dpipe_match match = {0};
+	int err;
+
+	match.type = DEVLINK_DPIPE_MATCH_TYPE_FIELD_EXACT;
+	match.header = &mlxsw_sp_dpipe_header_metadata;
+	match.field_id = MLXSW_SP_DPIPE_FIELD_METADATA_ADJ_INDEX;
+
+	err = devlink_dpipe_match_put(skb, &match);
+	if (err)
+		return err;
+
+	match.type = DEVLINK_DPIPE_MATCH_TYPE_FIELD_EXACT;
+	match.header = &mlxsw_sp_dpipe_header_metadata;
+	match.field_id = MLXSW_SP_DPIPE_FIELD_METADATA_ADJ_HASH_INDEX;
+
+	return devlink_dpipe_match_put(skb, &match);
+}
+
+static int mlxsw_sp_dpipe_table_adj_actions_dump(void *priv,
+						 struct sk_buff *skb)
+{
+	struct devlink_dpipe_action action = {0};
+	int err;
+
+	action.type = DEVLINK_DPIPE_ACTION_TYPE_FIELD_MODIFY;
+	action.header = &devlink_dpipe_header_ethernet;
+	action.field_id = DEVLINK_DPIPE_FIELD_ETHERNET_DST_MAC;
+
+	err = devlink_dpipe_action_put(skb, &action);
+	if (err)
+		return err;
+
+	action.type = DEVLINK_DPIPE_ACTION_TYPE_FIELD_MODIFY;
+	action.header = &mlxsw_sp_dpipe_header_metadata;
+	action.field_id = MLXSW_SP_DPIPE_FIELD_METADATA_ERIF_PORT;
+
+	return devlink_dpipe_action_put(skb, &action);
+}
+
+static u64 mlxsw_sp_dpipe_table_adj_size(struct mlxsw_sp *mlxsw_sp)
+{
+	struct mlxsw_sp_nexthop *nh;
+	u64 size = 0;
+
+	mlxsw_sp_nexthop_for_each(nh, mlxsw_sp->router)
+		if (mlxsw_sp_nexthop_offload(nh) &&
+		    !mlxsw_sp_nexthop_group_has_ipip(nh))
+			size++;
+	return size;
+}
+
+static u64
+mlxsw_sp_dpipe_table_adj_size_get(void *priv)
+{
+	struct mlxsw_sp *mlxsw_sp = priv;
+	u64 size;
+
+	rtnl_lock();
+	size = mlxsw_sp_dpipe_table_adj_size(mlxsw_sp);
+	rtnl_unlock();
+
+	return size;
+}
+
+static struct devlink_dpipe_table_ops mlxsw_sp_dpipe_table_adj_ops = {
+	.matches_dump = mlxsw_sp_dpipe_table_adj_matches_dump,
+	.actions_dump = mlxsw_sp_dpipe_table_adj_actions_dump,
+	.size_get = mlxsw_sp_dpipe_table_adj_size_get,
+};
+
+static int mlxsw_sp_dpipe_adj_table_init(struct mlxsw_sp *mlxsw_sp)
+{
+	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
+
+	return devlink_dpipe_table_register(devlink,
+					    MLXSW_SP_DPIPE_TABLE_NAME_ADJ,
+					    &mlxsw_sp_dpipe_table_adj_ops,
+					    mlxsw_sp, false);
+}
+
+static void mlxsw_sp_dpipe_adj_table_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
+
+	devlink_dpipe_table_unregister(devlink,
+				       MLXSW_SP_DPIPE_TABLE_NAME_ADJ);
+}
+
 int mlxsw_sp_dpipe_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
@@ -861,8 +952,14 @@ int mlxsw_sp_dpipe_init(struct mlxsw_sp *mlxsw_sp)
 	err = mlxsw_sp_dpipe_host6_table_init(mlxsw_sp);
 	if (err)
 		goto err_host6_table_init;
-	return 0;
 
+	err = mlxsw_sp_dpipe_adj_table_init(mlxsw_sp);
+	if (err)
+		goto err_adj_table_init;
+
+	return 0;
+err_adj_table_init:
+	mlxsw_sp_dpipe_host6_table_fini(mlxsw_sp);
 err_host6_table_init:
 	mlxsw_sp_dpipe_host4_table_fini(mlxsw_sp);
 err_host4_table_init:
@@ -876,6 +973,7 @@ void mlxsw_sp_dpipe_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 
+	mlxsw_sp_dpipe_adj_table_fini(mlxsw_sp);
 	mlxsw_sp_dpipe_host6_table_fini(mlxsw_sp);
 	mlxsw_sp_dpipe_host4_table_fini(mlxsw_sp);
 	mlxsw_sp_dpipe_erif_table_fini(mlxsw_sp);
