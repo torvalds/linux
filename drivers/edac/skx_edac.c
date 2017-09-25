@@ -67,6 +67,7 @@ static u64 skx_tolm, skx_tohm;
 struct skx_dev {
 	struct list_head	list;
 	u8			bus[4];
+	int			seg;
 	struct pci_dev	*sad_all;
 	struct pci_dev	*util_all;
 	u32	mcroute;
@@ -112,12 +113,12 @@ struct decoded_addr {
 	int	bank_group;
 };
 
-static struct skx_dev *get_skx_dev(u8 bus, u8 idx)
+static struct skx_dev *get_skx_dev(struct pci_bus *bus, u8 idx)
 {
 	struct skx_dev *d;
 
 	list_for_each_entry(d, &skx_edac_list, list) {
-		if (d->bus[idx] == bus)
+		if (d->seg == pci_domain_nr(bus) && d->bus[idx] == bus->number)
 			return d;
 	}
 
@@ -174,6 +175,7 @@ static int get_all_bus_mappings(void)
 			pci_dev_put(pdev);
 			return -ENOMEM;
 		}
+		d->seg = pci_domain_nr(pdev->bus);
 		pci_read_config_dword(pdev, 0xCC, &reg);
 		d->bus[0] =  GET_BITFIELD(reg, 0, 7);
 		d->bus[1] =  GET_BITFIELD(reg, 8, 15);
@@ -209,7 +211,7 @@ static int get_all_munits(const struct munit *m)
 			if (i == NUM_IMC)
 				goto fail;
 		}
-		d = get_skx_dev(pdev->bus->number, m->busidx);
+		d = get_skx_dev(pdev->bus, m->busidx);
 		if (!d)
 			goto fail;
 
