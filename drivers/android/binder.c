@@ -2192,7 +2192,7 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 						     off_start,
 						     offp - off_start);
 			if (!parent) {
-				pr_err("transaction release %d bad parent offset",
+				pr_err("transaction release %d bad parent offset\n",
 				       debug_id);
 				continue;
 			}
