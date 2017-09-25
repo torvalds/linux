@@ -639,8 +639,7 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 
 static void soc_free_pcm_runtime(struct snd_soc_pcm_runtime *rtd)
 {
-	if (rtd && rtd->codec_dais)
-		kfree(rtd->codec_dais);
+	kfree(rtd->codec_dais);
 	snd_soc_rtdcom_del_all(rtd);
 	kfree(rtd);
 }
