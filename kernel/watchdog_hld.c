@@ -220,8 +220,13 @@ void hardlockup_detector_perf_cleanup(void)
 	for_each_cpu(cpu, &dead_events_mask) {
 		struct perf_event *event = per_cpu(watchdog_ev, cpu);
 
+		/*
+		 * Required because for_each_cpu() reports  unconditionally
+		 * CPU0 as set on UP kernels. Sigh.
+		 */
+		if (event)
+			perf_event_release_kernel(event);
 		per_cpu(watchdog_ev, cpu) = NULL;
-		perf_event_release_kernel(event);
 	}
 	cpumask_clear(&dead_events_mask);
 }
