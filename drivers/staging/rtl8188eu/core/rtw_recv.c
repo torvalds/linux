@@ -237,25 +237,31 @@ static int recvframe_chkmic(struct adapter *adapter,
 	stainfo = rtw_get_stainfo(&adapter->stapriv, &prxattrib->ta[0]);
 
 	if (prxattrib->encrypt == _TKIP_) {
-		RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("\n %s: prxattrib->encrypt==_TKIP_\n", __func__));
-		RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("\n %s: da=0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x\n",
-							       __func__, prxattrib->ra[0], prxattrib->ra[1], prxattrib->ra[2], prxattrib->ra[3], prxattrib->ra[4], prxattrib->ra[5]));
+		RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
+			 ("\n %s: prxattrib->encrypt==_TKIP_\n", __func__));
+		RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
+			 ("\n %s: da=0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x\n",
+			  __func__, prxattrib->ra[0], prxattrib->ra[1], prxattrib->ra[2],
+			  prxattrib->ra[3], prxattrib->ra[4], prxattrib->ra[5]));
 
 		/* calculate mic code */
 		if (stainfo != NULL) {
 			if (IS_MCAST(prxattrib->ra)) {
 				if (!psecuritypriv) {
 					res = _FAIL;
-					RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("\n %s: didn't install group key!!!!!!!!!!\n", __func__));
+					RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
+						 ("\n %s: didn't install group key!!!!!!!!!!\n", __func__));
 					DBG_88E("\n %s: didn't install group key!!!!!!!!!!\n", __func__);
 					goto exit;
 				}
 				mickey = &psecuritypriv->dot118021XGrprxmickey[prxattrib->key_index].skey[0];
 
-				RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("\n %s: bcmc key\n", __func__));
+				RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
+					 ("\n %s: bcmc key\n", __func__));
 			} else {
 				mickey = &stainfo->dot11tkiprxmickey.skey[0];
-				RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("\n %s: unicast key\n", __func__));
+				RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
+					 ("\n %s: unicast key\n", __func__));
 			}
 
 			/* icv_len included the mic code */
@@ -346,7 +352,8 @@ static int recvframe_chkmic(struct adapter *adapter,
 				}
 			}
 		} else {
-			RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("%s: rtw_get_stainfo==NULL!!!\n", __func__));
+			RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
+				 ("%s: rtw_get_stainfo==NULL!!!\n", __func__));
 		}
 
 		skb_trim(precvframe->pkt, precvframe->pkt->len - 8);
@@ -1011,7 +1018,8 @@ static int validate_recv_mgnt_frame(struct adapter *padapter,
 
 	precv_frame = recvframe_chk_defrag(padapter, precv_frame);
 	if (precv_frame == NULL) {
-		RT_TRACE(_module_rtl871x_recv_c_, _drv_notice_, ("%s: fragment packet\n", __func__));
+		RT_TRACE(_module_rtl871x_recv_c_, _drv_notice_,
+			 ("%s: fragment packet\n", __func__));
 		return _SUCCESS;
 	}
 
