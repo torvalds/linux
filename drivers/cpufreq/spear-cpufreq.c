@@ -177,7 +177,7 @@ static int spear_cpufreq_probe(struct platform_device *pdev)
 
 	np = of_cpu_device_node_get(0);
 	if (!np) {
-		pr_err("No cpu node found");
+		pr_err("No cpu node found\n");
 		return -ENODEV;
 	}
 
@@ -187,7 +187,7 @@ static int spear_cpufreq_probe(struct platform_device *pdev)
 
 	prop = of_find_property(np, "cpufreq_tbl", NULL);
 	if (!prop || !prop->value) {
-		pr_err("Invalid cpufreq_tbl");
+		pr_err("Invalid cpufreq_tbl\n");
 		ret = -ENODEV;
 		goto out_put_node;
 	}
