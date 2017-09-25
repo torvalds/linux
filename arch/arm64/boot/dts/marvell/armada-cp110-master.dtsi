@@ -315,12 +315,14 @@
 				 * this controller is only usable on the CPM
 				 * for A7K and on the CPS for A8K.
 				 */
-				compatible = "marvell,armada370-nand";
+				compatible = "marvell,armada-8k-nand",
+					     "marvell,armada370-nand";
 				reg = <0x720000 0x54>;
 				#address-cells = <1>;
 				#size-cells = <1>;
 				interrupts = <ICU_GRP_NSR 115 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&cpm_clk 1 2>;
+				marvell,system-controller = <&cpm_syscon0>;
 				status = "disabled";
 			};
 
