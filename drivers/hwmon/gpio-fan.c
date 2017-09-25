@@ -541,22 +541,24 @@ static int gpio_fan_probe(struct platform_device *pdev)
 {
 	int err;
 	struct gpio_fan_data *fan_data;
-	struct gpio_fan_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+	struct gpio_fan_platform_data *pdata = dev_get_platdata(dev);
 
-	fan_data = devm_kzalloc(&pdev->dev, sizeof(struct gpio_fan_data),
+	fan_data = devm_kzalloc(dev, sizeof(struct gpio_fan_data),
 				GFP_KERNEL);
 	if (!fan_data)
 		return -ENOMEM;
 
 #ifdef CONFIG_OF_GPIO
 	if (!pdata) {
-		pdata = devm_kzalloc(&pdev->dev,
+		pdata = devm_kzalloc(dev,
 					sizeof(struct gpio_fan_platform_data),
 					GFP_KERNEL);
 		if (!pdata)
 			return -ENOMEM;
 
-		err = gpio_fan_get_of_pdata(&pdev->dev, pdata);
+		err = gpio_fan_get_of_pdata(dev, pdata);
 		if (err)
 			return err;
 	}
@@ -587,14 +589,14 @@ static int gpio_fan_probe(struct platform_device *pdev)
 
 	/* Make this driver part of hwmon class. */
 	fan_data->hwmon_dev =
-		devm_hwmon_device_register_with_groups(&pdev->dev,
+		devm_hwmon_device_register_with_groups(dev,
 						       "gpio_fan", fan_data,
 						       gpio_fan_groups);
 	if (IS_ERR(fan_data->hwmon_dev))
 		return PTR_ERR(fan_data->hwmon_dev);
 #ifdef CONFIG_OF_GPIO
 	/* Optional cooling device register for Device tree platforms */
-	fan_data->cdev = thermal_of_cooling_device_register(pdev->dev.of_node,
+	fan_data->cdev = thermal_of_cooling_device_register(np,
 							    "gpio-fan",
 							    fan_data,
 							    &gpio_fan_cool_ops);
@@ -604,7 +606,7 @@ static int gpio_fan_probe(struct platform_device *pdev)
 							 &gpio_fan_cool_ops);
 #endif /* CONFIG_OF_GPIO */
 
-	dev_info(&pdev->dev, "GPIO fan initialized\n");
+	dev_info(dev, "GPIO fan initialized\n");
 
 	return 0;
 }
