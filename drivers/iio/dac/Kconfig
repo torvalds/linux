@@ -222,6 +222,15 @@ config DPOT_DAC
 	  To compile this driver as a module, choose M here: the module will be
 	  called dpot-dac.
 
+config DS4424
+	tristate "Maxim Integrated DS4422/DS4424 DAC driver"
+	depends on I2C
+	help
+	  If you say yes here you get support for Maxim chips DS4422, DS4424.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ds4424.
+
 config LPC18XX_DAC
 	tristate "NXP LPC18xx DAC driver"
 	depends on ARCH_LPC18XX || COMPILE_TEST
