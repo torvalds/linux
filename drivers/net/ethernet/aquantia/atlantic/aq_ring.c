@@ -104,6 +104,12 @@ int aq_ring_init(struct aq_ring_s *self)
 	return 0;
 }
 
+static inline bool aq_ring_dx_in_range(unsigned int h, unsigned int i,
+				       unsigned int t)
+{
+	return (h < t) ? ((h < i) && (i < t)) : ((h < i) || (i < t));
+}
+
 void aq_ring_update_queue_state(struct aq_ring_s *ring)
 {
 	if (aq_ring_avail_dx(ring) <= AQ_CFG_SKB_FRAGS_MAX)
@@ -139,23 +145,28 @@ void aq_ring_tx_clean(struct aq_ring_s *self)
 		struct aq_ring_buff_s *buff = &self->buff_ring[self->sw_head];
 
 		if (likely(buff->is_mapped)) {
-			if (unlikely(buff->is_sop))
+			if (unlikely(buff->is_sop)) {
+				if (!buff->is_eop &&
+				    buff->eop_index != 0xffffU &&
+				    (!aq_ring_dx_in_range(self->sw_head,
+						buff->eop_index,
+						self->hw_head)))
+					break;
+
 				dma_unmap_single(dev, buff->pa, buff->len,
 						 DMA_TO_DEVICE);
-			else
+			} else {
 				dma_unmap_page(dev, buff->pa, buff->len,
 					       DMA_TO_DEVICE);
+			}
 		}
 
 		if (unlikely(buff->is_eop))
 			dev_kfree_skb_any(buff->skb);
-	}
-}
 
-static inline unsigned int aq_ring_dx_in_range(unsigned int h, unsigned int i,
-					       unsigned int t)
-{
-	return (h < t) ? ((h < i) && (i < t)) : ((h < i) || (i < t));
+		buff->pa = 0U;
+		buff->eop_index = 0xffffU;
+	}
 }
 
 #define AQ_SKB_ALIGN SKB_DATA_ALIGN(sizeof(struct skb_shared_info))

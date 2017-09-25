@@ -473,6 +473,7 @@ static unsigned int aq_nic_map_skb(struct aq_nic_s *self,
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	unsigned int frag_count = 0U;
 	unsigned int dx = ring->sw_tail;
+	struct aq_ring_buff_s *first = NULL;
 	struct aq_ring_buff_s *dx_buff = &ring->buff_ring[dx];
 
 	if (unlikely(skb_is_gso(skb))) {
@@ -483,6 +484,7 @@ static unsigned int aq_nic_map_skb(struct aq_nic_s *self,
 		dx_buff->len_l4 = tcp_hdrlen(skb);
 		dx_buff->mss = skb_shinfo(skb)->gso_size;
 		dx_buff->is_txc = 1U;
+		dx_buff->eop_index = 0xffffU;
 
 		dx_buff->is_ipv6 =
 			(ip_hdr(skb)->version == 6) ? 1U : 0U;
@@ -502,6 +504,7 @@ static unsigned int aq_nic_map_skb(struct aq_nic_s *self,
 	if (unlikely(dma_mapping_error(aq_nic_get_dev(self), dx_buff->pa)))
 		goto exit;
 
+	first = dx_buff;
 	dx_buff->len_pkt = skb->len;
 	dx_buff->is_sop = 1U;
 	dx_buff->is_mapped = 1U;
@@ -530,40 +533,46 @@ static unsigned int aq_nic_map_skb(struct aq_nic_s *self,
 
 	for (; nr_frags--; ++frag_count) {
 		unsigned int frag_len = 0U;
+		unsigned int buff_offset = 0U;
+		unsigned int buff_size = 0U;
 		dma_addr_t frag_pa;
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[frag_count];
 
 		frag_len = skb_frag_size(frag);
-		frag_pa = skb_frag_dma_map(aq_nic_get_dev(self), frag, 0,
-					   frag_len, DMA_TO_DEVICE);
 
-		if (unlikely(dma_mapping_error(aq_nic_get_dev(self), frag_pa)))
-			goto mapping_error;
+		while (frag_len) {
+			if (frag_len > AQ_CFG_TX_FRAME_MAX)
+				buff_size = AQ_CFG_TX_FRAME_MAX;
+			else
+				buff_size = frag_len;
 
-		while (frag_len > AQ_CFG_TX_FRAME_MAX) {
+			frag_pa = skb_frag_dma_map(aq_nic_get_dev(self),
+						   frag,
+						   buff_offset,
+						   buff_size,
+						   DMA_TO_DEVICE);
+
+			if (unlikely(dma_mapping_error(aq_nic_get_dev(self),
+						       frag_pa)))
+				goto mapping_error;
+
 			dx = aq_ring_next_dx(ring, dx);
 			dx_buff = &ring->buff_ring[dx];
 
 			dx_buff->flags = 0U;
-			dx_buff->len = AQ_CFG_TX_FRAME_MAX;
+			dx_buff->len = buff_size;
 			dx_buff->pa = frag_pa;
 			dx_buff->is_mapped = 1U;
+			dx_buff->eop_index = 0xffffU;
 
-			frag_len -= AQ_CFG_TX_FRAME_MAX;
-			frag_pa += AQ_CFG_TX_FRAME_MAX;
+			frag_len -= buff_size;
+			buff_offset += buff_size;
+
 			++ret;
 		}
-
-		dx = aq_ring_next_dx(ring, dx);
-		dx_buff = &ring->buff_ring[dx];
-
-		dx_buff->flags = 0U;
-		dx_buff->len = frag_len;
-		dx_buff->pa = frag_pa;
-		dx_buff->is_mapped = 1U;
-		++ret;
 	}
 
+	first->eop_index = dx;
 	dx_buff->is_eop = 1U;
 	dx_buff->skb = skb;
 	goto exit;

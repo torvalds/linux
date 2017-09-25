@@ -65,7 +65,7 @@ struct __packed aq_ring_buff_s {
 	};
 	union {
 		struct {
-			u32 len:16;
+			u16 len;
 			u32 is_ip_cso:1;
 			u32 is_udp_cso:1;
 			u32 is_tcp_cso:1;
@@ -77,8 +77,10 @@ struct __packed aq_ring_buff_s {
 			u32 is_cleaned:1;
 			u32 is_error:1;
 			u32 rsvd3:6;
+			u16 eop_index;
+			u16 rsvd4;
 		};
-		u32 flags;
+		u64 flags;
 	};
 };
 
