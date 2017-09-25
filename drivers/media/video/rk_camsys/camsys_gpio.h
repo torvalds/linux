@@ -2,7 +2,7 @@
 #define __RKCAMSYS_GPIO_H__
 
 #if defined(CONFIG_ARCH_ROCKCHIP)
-#define RK30_PIN0_PA0 (0)
+#define RK30_PIN0_PA0 (1000)
 #define NUM_GROUP (32)
 #define GPIO_BANKS (9)
 #endif
