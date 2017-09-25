@@ -24,6 +24,7 @@
 #include <linux/fs.h>
 #include <linux/sysfs.h>
 #include <linux/kernfs.h>
+#include <linux/seq_buf.h>
 #include <linux/seq_file.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/task.h>
@@ -50,6 +51,31 @@ static struct kernfs_node *kn_mongrp;
 
 /* Kernel fs node for "mon_data" directory under root */
 static struct kernfs_node *kn_mondata;
+
+static struct seq_buf last_cmd_status;
+static char last_cmd_status_buf[512];
+
+void rdt_last_cmd_clear(void)
+{
+	lockdep_assert_held(&rdtgroup_mutex);
+	seq_buf_clear(&last_cmd_status);
+}
+
+void rdt_last_cmd_puts(const char *s)
+{
+	lockdep_assert_held(&rdtgroup_mutex);
+	seq_buf_puts(&last_cmd_status, s);
+}
+
+void rdt_last_cmd_printf(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	lockdep_assert_held(&rdtgroup_mutex);
+	seq_buf_vprintf(&last_cmd_status, fmt, ap);
+	va_end(ap);
+}
 
 /*
  * Trivial allocator for CLOSIDs. Since h/w only supports a small number,
@@ -569,6 +595,21 @@ static int rdtgroup_tasks_show(struct kernfs_open_file *of,
 	return ret;
 }
 
+static int rdt_last_cmd_status_show(struct kernfs_open_file *of,
+				    struct seq_file *seq, void *v)
+{
+	int len;
+
+	mutex_lock(&rdtgroup_mutex);
+	len = seq_buf_used(&last_cmd_status);
+	if (len)
+		seq_printf(seq, "%.*s", len, last_cmd_status_buf);
+	else
+		seq_puts(seq, "ok\n");
+	mutex_unlock(&rdtgroup_mutex);
+	return 0;
+}
+
 static int rdt_num_closids_show(struct kernfs_open_file *of,
 				struct seq_file *seq, void *v)
 {
@@ -685,6 +726,13 @@ static ssize_t max_threshold_occ_write(struct kernfs_open_file *of,
 
 /* rdtgroup information files for one cache resource. */
 static struct rftype res_common_files[] = {
+	{
+		.name		= "last_cmd_status",
+		.mode		= 0444,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.seq_show	= rdt_last_cmd_status_show,
+		.fflags		= RF_TOP_INFO,
+	},
 	{
 		.name		= "num_closids",
 		.mode		= 0444,
@@ -854,6 +902,10 @@ static int rdtgroup_create_info_dir(struct kernfs_node *parent_kn)
 	if (IS_ERR(kn_info))
 		return PTR_ERR(kn_info);
 	kernfs_get(kn_info);
+
+	ret = rdtgroup_add_files(kn_info, RF_TOP_INFO);
+	if (ret)
+		goto out_destroy;
 
 	for_each_alloc_enabled_rdt_resource(r) {
 		fflags =  r->fflags | RF_CTRL_INFO;
@@ -1156,6 +1208,7 @@ out_info:
 out_cdp:
 	cdp_disable();
 out:
+	rdt_last_cmd_clear();
 	mutex_unlock(&rdtgroup_mutex);
 
 	return dentry;
@@ -1901,6 +1954,9 @@ out:
 int __init rdtgroup_init(void)
 {
 	int ret = 0;
+
+	seq_buf_init(&last_cmd_status, last_cmd_status_buf,
+		     sizeof(last_cmd_status_buf));
 
 	ret = rdtgroup_setup_root();
 	if (ret)
