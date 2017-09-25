@@ -425,10 +425,9 @@ static const struct dc_debug debug_defaults_drv = {
 
 		.disable_pplib_clock_request = true,
 		.disable_pplib_wm_range = false,
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 		.use_dml_wm = false,
-		.disable_pipe_split = true
-#endif
+
+		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
 };
 
 static const struct dc_debug debug_defaults_diags = {
@@ -437,12 +436,9 @@ static const struct dc_debug debug_defaults_diags = {
 		.timing_trace = true,
 		.clock_trace = true,
 		.disable_stutter = true,
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 		.disable_pplib_clock_request = true,
 		.disable_pplib_wm_range = true,
 		.use_dml_wm = false,
-		.disable_pipe_split = false
-#endif
 };
 
 static void dcn10_dpp_destroy(struct transform **xfm)

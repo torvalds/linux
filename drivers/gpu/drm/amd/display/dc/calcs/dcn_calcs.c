@@ -720,6 +720,46 @@ static bool dcn_bw_apply_registry_override(struct dc *dc)
 	return updated;
 }
 
+void hack_disable_optional_pipe_split(struct dcn_bw_internal_vars *v)
+{
+	/*
+	 * disable optional pipe split by lower dispclk bounding box
+	 * at DPM0
+	 */
+	v->max_dispclk[0] = v->max_dppclk_vmin0p65;
+}
+
+void hack_force_pipe_split(struct dcn_bw_internal_vars *v,
+		unsigned int pixel_rate_khz)
+{
+	/*
+	 * force enabling pipe split by lower dpp clock for DPM0 to just
+	 * below the specify pixel_rate, so bw calc would split pipe.
+	 */
+	v->max_dppclk[0] = pixel_rate_khz / 1000;
+}
+
+void hack_bounding_box(struct dcn_bw_internal_vars *v,
+		struct dc_debug *dbg,
+		struct dc_state *context)
+{
+	if (dbg->pipe_split_policy == MPC_SPLIT_AVOID) {
+		hack_disable_optional_pipe_split(v);
+	}
+
+	if (dbg->pipe_split_policy == MPC_SPLIT_AVOID_MULT_DISP &&
+		context->stream_count >= 2) {
+		hack_disable_optional_pipe_split(v);
+	}
+
+	if (context->stream_count == 1 &&
+			dbg->force_single_disp_pipe_split) {
+		struct dc_stream_state *stream0 = context->streams[0];
+
+		hack_force_pipe_split(v, stream0->timing.pix_clk_khz);
+	}
+}
+
 bool dcn_validate_bandwidth(
 		struct dc *dc,
 		struct dc_state *context)
@@ -851,9 +891,7 @@ bool dcn_validate_bandwidth(
 	v->phyclk_per_state[1] = v->phyclkv_mid0p72;
 	v->phyclk_per_state[0] = v->phyclkv_min0p65;
 
-	if (dc->debug.disable_pipe_split) {
-		v->max_dispclk[0] = v->max_dppclk_vmin0p65;
-	}
+	hack_bounding_box(v, &dc->debug, context);
 
 	if (v->voltage_override == dcn_bw_v_max0p9) {
 		v->voltage_override_level = number_of_states - 1;

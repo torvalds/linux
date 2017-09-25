@@ -162,6 +162,12 @@ struct dc_config {
 	bool disable_disp_pll_sharing;
 };
 
+enum pipe_split_policy {
+	MPC_SPLIT_DYNAMIC = 0,
+	MPC_SPLIT_AVOID = 1,
+	MPC_SPLIT_AVOID_MULT_DISP = 2,
+};
+
 struct dc_debug {
 	bool surface_visual_confirm;
 	bool sanity_checks;
@@ -177,7 +183,8 @@ struct dc_debug {
 	bool disable_hubp_power_gate;
 	bool disable_pplib_wm_range;
 	bool use_dml_wm;
-	bool disable_pipe_split;
+	enum pipe_split_policy pipe_split_policy;
+	bool force_single_disp_pipe_split;
 	unsigned int min_disp_clk_khz;
 	int sr_exit_time_dpm0_ns;
 	int sr_enter_plus_exit_time_dpm0_ns;
