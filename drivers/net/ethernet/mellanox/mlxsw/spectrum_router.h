@@ -120,5 +120,7 @@ bool mlxsw_sp_nexthop_group_has_ipip(struct mlxsw_sp_nexthop *nh);
 #define mlxsw_sp_nexthop_for_each(nh, router)				\
 	for (nh = mlxsw_sp_nexthop_next(router, NULL); nh;		\
 	     nh = mlxsw_sp_nexthop_next(router, nh))
+int mlxsw_sp_nexthop_counter_get(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_nexthop *nh, u64 *p_counter);
 
 #endif /* _MLXSW_ROUTER_H_*/
