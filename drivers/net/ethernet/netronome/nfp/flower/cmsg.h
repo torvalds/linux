@@ -323,6 +323,11 @@ static inline void *nfp_flower_cmsg_get_data(struct sk_buff *skb)
 	return (unsigned char *)skb->data + NFP_FLOWER_CMSG_HLEN;
 }
 
+static inline int nfp_flower_cmsg_get_data_len(struct sk_buff *skb)
+{
+	return skb->len - NFP_FLOWER_CMSG_HLEN;
+}
+
 struct sk_buff *
 nfp_flower_cmsg_mac_repr_start(struct nfp_app *app, unsigned int num_ports);
 void
