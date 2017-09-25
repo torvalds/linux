@@ -114,10 +114,6 @@ struct dce110_link_enc_hpd_registers {
 };
 
 struct dce110_link_enc_registers {
-	/* Backlight registers */
-	uint32_t LVTMA_PWRSEQ_CNTL;
-	uint32_t LVTMA_PWRSEQ_STATE;
-
 	/* DMCU registers */
 	uint32_t MASTER_COMM_DATA_REG1;
 	uint32_t MASTER_COMM_DATA_REG2;
@@ -249,10 +245,6 @@ void dce110_link_encoder_dp_set_phy_pattern(
 void dce110_link_encoder_update_mst_stream_allocation_table(
 	struct link_encoder *enc,
 	const struct link_mst_stream_allocation_table *table);
-
-void dce110_link_encoder_edp_power_control(
-	struct link_encoder *enc,
-	bool power_up);
 
 void dce110_link_encoder_connect_dig_be_to_fe(
 	struct link_encoder *enc,

@@ -32,6 +32,7 @@
 #include "dce110_hw_sequencer.h"
 #include "dce110_timing_generator.h"
 #include "dce/dce_hwseq.h"
+#include "gpio_service_interface.h"
 
 #ifdef ENABLE_FBC
 #include "dce110_compressor.h"
@@ -45,16 +46,25 @@
 #include "transform.h"
 #include "stream_encoder.h"
 #include "link_encoder.h"
+#include "link_hwss.h"
 #include "clock_source.h"
 #include "abm.h"
 #include "audio.h"
-#include "dce/dce_hwseq.h"
 #include "reg_helper.h"
 
 /* include DCE11 register header files */
 #include "dce/dce_11_0_d.h"
 #include "dce/dce_11_0_sh_mask.h"
 #include "custom_float.h"
+
+/*
+ * All values are in milliseconds;
+ * For eDP, after power-up/power/down,
+ * 300/500 msec max. delay from LCDVCC to black video generation
+ */
+#define PANEL_POWER_UP_TIMEOUT 300
+#define PANEL_POWER_DOWN_TIMEOUT 500
+#define HPD_CHECK_INTERVAL 10
 
 #define CTX \
 	hws->ctx
@@ -780,25 +790,150 @@ static bool is_panel_backlight_on(struct dce_hwseq *hws)
 	return value;
 }
 
+static bool is_panel_powered_on(struct dce_hwseq *hws)
+{
+	uint32_t value;
+
+	REG_GET(LVTMA_PWRSEQ_STATE, LVTMA_PWRSEQ_TARGET_STATE_R, &value);
+	return value == 1;
+}
+
 static enum bp_result link_transmitter_control(
-		struct dc_link *link,
+		struct dc_bios *bios,
 	struct bp_transmitter_control *cntl)
 {
 	enum bp_result result;
-	struct dc_bios *bp = link->dc->ctx->dc_bios;
 
-	result = bp->funcs->transmitter_control(bp, cntl);
+	result = bios->funcs->transmitter_control(bios, cntl);
 
 	return result;
 }
 
+/*
+ * @brief
+ * eDP only.
+ */
+void hwss_edp_wait_for_hpd_ready(
+	struct link_encoder *enc,
+	bool power_up)
+{
+	struct dc_context *ctx = enc->ctx;
+	struct graphics_object_id connector = enc->connector;
+	struct gpio *hpd;
+	bool edp_hpd_high = false;
+	uint32_t time_elapsed = 0;
+	uint32_t timeout = power_up ?
+		PANEL_POWER_UP_TIMEOUT : PANEL_POWER_DOWN_TIMEOUT;
+
+	if (dal_graphics_object_id_get_connector_id(connector)
+			!= CONNECTOR_ID_EDP) {
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+
+	if (!power_up)
+		/*
+		 * From KV, we will not HPD low after turning off VCC -
+		 * instead, we will check the SW timer in power_up().
+		 */
+		return;
+
+	/*
+	 * When we power on/off the eDP panel,
+	 * we need to wait until SENSE bit is high/low.
+	 */
+
+	/* obtain HPD */
+	/* TODO what to do with this? */
+	hpd = get_hpd_gpio(ctx->dc_bios, connector, ctx->gpio_service);
+
+	if (!hpd) {
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+
+	dal_gpio_open(hpd, GPIO_MODE_INTERRUPT);
+
+	/* wait until timeout or panel detected */
+
+	do {
+		uint32_t detected = 0;
+
+		dal_gpio_get_value(hpd, &detected);
+
+		if (!(detected ^ power_up)) {
+			edp_hpd_high = true;
+			break;
+		}
+
+		msleep(HPD_CHECK_INTERVAL);
+
+		time_elapsed += HPD_CHECK_INTERVAL;
+	} while (time_elapsed < timeout);
+
+	dal_gpio_close(hpd);
+
+	dal_gpio_destroy_irq(&hpd);
+
+	if (false == edp_hpd_high) {
+		dm_logger_write(ctx->logger, LOG_ERROR,
+				"%s: wait timed out!\n", __func__);
+	}
+}
+
+void hwss_edp_power_control(
+	struct link_encoder *enc,
+	bool power_up)
+{
+	struct dc_context *ctx = enc->ctx;
+	struct dce_hwseq *hwseq = ctx->dc->hwseq;
+	struct bp_transmitter_control cntl = { 0 };
+	enum bp_result bp_result;
+
+
+	if (dal_graphics_object_id_get_connector_id(enc->connector)
+			!= CONNECTOR_ID_EDP) {
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+
+	if (power_up != is_panel_powered_on(hwseq)) {
+		/* Send VBIOS command to prompt eDP panel power */
+
+		dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
+				"%s: Panel Power action: %s\n",
+				__func__, (power_up ? "On":"Off"));
+
+		cntl.action = power_up ?
+			TRANSMITTER_CONTROL_POWER_ON :
+			TRANSMITTER_CONTROL_POWER_OFF;
+		cntl.transmitter = enc->transmitter;
+		cntl.connector_obj_id = enc->connector;
+		cntl.coherent = false;
+		cntl.lanes_number = LANE_COUNT_FOUR;
+		cntl.hpd_sel = enc->hpd_source;
+
+		bp_result = link_transmitter_control(ctx->dc_bios, &cntl);
+
+		if (bp_result != BP_RESULT_OK)
+			dm_logger_write(ctx->logger, LOG_ERROR,
+					"%s: Panel Power bp_result: %d\n",
+					__func__, bp_result);
+	} else {
+		dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
+				"%s: Skipping Panel Power action: %s\n",
+				__func__, (power_up ? "On":"Off"));
+	}
+
+	hwss_edp_wait_for_hpd_ready(enc, true);
+}
 
 /*todo: cloned in stream enc, fix*/
 /*
  * @brief
  * eDP only. Control the backlight of the eDP panel
  */
-void hwss_blacklight_control(
+void hwss_edp_backlight_control(
 	struct dc_link *link,
 	bool enable)
 {
@@ -828,6 +963,7 @@ void hwss_blacklight_control(
 	cntl.action = enable ?
 		TRANSMITTER_CONTROL_BACKLIGHT_ON :
 		TRANSMITTER_CONTROL_BACKLIGHT_OFF;
+
 	/*cntl.engine_id = ctx->engine;*/
 	cntl.transmitter = link->link_enc->transmitter;
 	cntl.connector_obj_id = link->link_enc->connector;
@@ -846,7 +982,7 @@ void hwss_blacklight_control(
 	 * Enable it in the future if necessary.
 	 */
 	/* dc_service_sleep_in_milliseconds(50); */
-	link_transmitter_control(link, &cntl);
+	link_transmitter_control(link->dc->ctx->dc_bios, &cntl);
 }
 
 void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
@@ -886,7 +1022,7 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 	/* blank at encoder level */
 	if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
 		if (pipe_ctx->stream->sink->link->connector_signal == SIGNAL_TYPE_EDP)
-			hwss_blacklight_control(link, false);
+			hwss_edp_backlight_control(link, false);
 		pipe_ctx->stream_res.stream_enc->funcs->dp_blank(pipe_ctx->stream_res.stream_enc);
 	}
 	link->link_enc->funcs->connect_dig_be_to_fe(
@@ -908,7 +1044,7 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 	params.link_settings.link_rate = link_settings->link_rate;
 	pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(pipe_ctx->stream_res.stream_enc, &params);
 	if (link->connector_signal == SIGNAL_TYPE_EDP)
-		hwss_blacklight_control(link, true);
+		hwss_edp_backlight_control(link, true);
 }
 
 
@@ -2821,7 +2957,8 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.wait_for_mpcc_disconnect = dce110_wait_for_mpcc_disconnect,
 	.ready_shared_resources = ready_shared_resources,
 	.optimize_shared_resources = optimize_shared_resources,
-	.backlight_control = hwss_blacklight_control
+	.edp_backlight_control = hwss_edp_backlight_control,
+	.edp_power_control = hwss_edp_power_control,
 };
 
 void dce110_hw_sequencer_construct(struct dc *dc)

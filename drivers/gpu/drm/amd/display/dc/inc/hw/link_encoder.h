@@ -123,8 +123,6 @@ struct link_encoder_funcs {
 			bool exit_link_training_required);
 	void (*psr_program_secondary_packet)(struct link_encoder *enc,
 				unsigned int sdp_transmit_line_num_deadline);
-	void (*power_control) (struct link_encoder *enc,
-		bool power_up);
 	void (*connect_dig_be_to_fe)(struct link_encoder *enc,
 		enum engine_id engine,
 		bool connect);

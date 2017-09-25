@@ -89,12 +89,12 @@ void dp_enable_link_phy(
 
 	if (dc_is_dp_sst_signal(signal)) {
 		if (signal == SIGNAL_TYPE_EDP) {
-			link_enc->funcs->power_control(link_enc, true);
+			link->dc->hwss.edp_power_control(link->link_enc, true);
 			link_enc->funcs->enable_dp_output(
 						link_enc,
 						link_settings,
 						clock_source);
-			link->dc->hwss.backlight_control(link, true);
+			link->dc->hwss.edp_backlight_control(link, true);
 		} else
 			link_enc->funcs->enable_dp_output(
 						link_enc,
@@ -138,10 +138,10 @@ void dp_disable_link_phy(struct dc_link *link, enum signal_type signal)
 		dp_receiver_power_ctrl(link, false);
 
 	if (signal == SIGNAL_TYPE_EDP) {
-		link->dc->hwss.backlight_control(link, false);
+		link->dc->hwss.edp_backlight_control(link, false);
 		edp_receiver_ready_T9(link);
 		link->link_enc->funcs->disable_output(link->link_enc, signal, link);
-		link->link_enc->funcs->power_control(link->link_enc, false);
+		link->dc->hwss.edp_power_control(link->link_enc, false);
 	} else
 		link->link_enc->funcs->disable_output(link->link_enc, signal, link);
 

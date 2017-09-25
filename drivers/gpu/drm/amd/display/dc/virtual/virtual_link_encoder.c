@@ -73,10 +73,6 @@ static void virtual_link_encoder_update_mst_stream_allocation_table(
 	struct link_encoder *enc,
 	const struct link_mst_stream_allocation_table *table) {}
 
-static void virtual_link_encoder_edp_power_control(
-	struct link_encoder *enc,
-	bool power_up) {}
-
 static void virtual_link_encoder_connect_dig_be_to_fe(
 	struct link_encoder *enc,
 	enum engine_id engine,
@@ -102,7 +98,6 @@ static const struct link_encoder_funcs virtual_lnk_enc_funcs = {
 	.dp_set_phy_pattern = virtual_link_encoder_dp_set_phy_pattern,
 	.update_mst_stream_allocation_table =
 		virtual_link_encoder_update_mst_stream_allocation_table,
-	.power_control = virtual_link_encoder_edp_power_control,
 	.connect_dig_be_to_fe = virtual_link_encoder_connect_dig_be_to_fe,
 	.destroy = virtual_link_encoder_destroy
 };

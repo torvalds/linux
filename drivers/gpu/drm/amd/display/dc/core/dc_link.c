@@ -78,14 +78,15 @@ static void destruct(struct dc_link *link)
 		dc_sink_release(link->remote_sinks[i]);
 }
 
-static struct gpio *get_hpd_gpio(const struct dc_link *link)
+struct gpio *get_hpd_gpio(struct dc_bios *dcb,
+		struct graphics_object_id link_id,
+		struct gpio_service *gpio_service)
 {
 	enum bp_result bp_result;
-	struct dc_bios *dcb = link->ctx->dc_bios;
 	struct graphics_object_hpd_info hpd_info;
 	struct gpio_pin_info pin_info;
 
-	if (dcb->funcs->get_hpd_info(dcb, link->link_id, &hpd_info) != BP_RESULT_OK)
+	if (dcb->funcs->get_hpd_info(dcb, link_id, &hpd_info) != BP_RESULT_OK)
 		return NULL;
 
 	bp_result = dcb->funcs->get_gpio_pin_info(dcb,
@@ -97,7 +98,7 @@ static struct gpio *get_hpd_gpio(const struct dc_link *link)
 	}
 
 	return dal_gpio_service_create_irq(
-		link->ctx->gpio_service,
+		gpio_service,
 		pin_info.offset,
 		pin_info.mask);
 }
@@ -153,7 +154,7 @@ static bool program_hpd_filter(
 	}
 
 	/* Obtain HPD handle */
-	hpd = get_hpd_gpio(link);
+	hpd = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
 
 	if (!hpd)
 		return result;
@@ -186,7 +187,7 @@ static bool detect_sink(struct dc_link *link, enum dc_connection_type *type)
 	struct gpio *hpd_pin;
 
 	/* todo: may need to lock gpio access */
-	hpd_pin = get_hpd_gpio(link);
+	hpd_pin = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
 	if (hpd_pin == NULL)
 		goto hpd_gpio_failure;
 
@@ -795,7 +796,7 @@ static enum hpd_source_id get_hpd_line(
 	struct gpio *hpd;
 	enum hpd_source_id hpd_id = HPD_SOURCEID_UNKNOWN;
 
-	hpd = get_hpd_gpio(link);
+	hpd = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
 
 	if (hpd) {
 		switch (dal_irq_get_source(hpd)) {
@@ -965,7 +966,7 @@ static bool construct(
 		goto create_fail;
 	}
 
-	hpd_gpio = get_hpd_gpio(link);
+	hpd_gpio = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
 
 	if (hpd_gpio != NULL)
 		link->irq_source_hpd = dal_irq_get_source(hpd_gpio);
