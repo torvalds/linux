@@ -274,11 +274,6 @@ struct amd_powerplay {
 	const struct amd_pm_funcs *pp_funcs;
 };
 
-int amd_powerplay_create(struct amd_pp_init *pp_init,
-				void **handle);
-
-int amd_powerplay_destroy(void *handle);
-
 int amd_powerplay_reset(void *handle);
 
 int amd_powerplay_display_configuration_change(void *handle,
