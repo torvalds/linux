@@ -58,14 +58,14 @@
 	param(bool, alpha_support, IS_ENABLED(CONFIG_DRM_I915_ALPHA_SUPPORT)) \
 	param(bool, enable_cmd_parser, true) \
 	param(bool, enable_hangcheck, true) \
-	param(bool, fastboot, 0) \
-	param(bool, prefault_disable, 0) \
-	param(bool, load_detect_test, 0) \
-	param(bool, force_reset_modeset_test, 0) \
+	param(bool, fastboot, false) \
+	param(bool, prefault_disable, false) \
+	param(bool, load_detect_test, false) \
+	param(bool, force_reset_modeset_test, false) \
 	param(bool, error_capture, true) \
-	param(bool, disable_display, 0) \
-	param(bool, verbose_state_checks, 1) \
-	param(bool, nuclear_pageflip, 0) \
+	param(bool, disable_display, false) \
+	param(bool, verbose_state_checks, true) \
+	param(bool, nuclear_pageflip, false) \
 	param(bool, enable_dp_mst, true) \
 	param(bool, enable_dpcd_backlight, false) \
 	param(bool, enable_gvt, false)
