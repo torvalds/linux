@@ -249,6 +249,14 @@ static void dw_i2c_set_fifo_size(struct dw_i2c_dev *dev, int id)
 	}
 }
 
+static void dw_i2c_plat_pm_cleanup(struct dw_i2c_dev *dev)
+{
+	pm_runtime_disable(dev->dev);
+
+	if (dev->pm_disabled)
+		pm_runtime_put_noidle(dev->dev);
+}
+
 static int dw_i2c_plat_probe(struct platform_device *pdev)
 {
 	struct dw_i2c_platform_data *pdata = dev_get_platdata(&pdev->dev);
@@ -362,14 +370,17 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	ACPI_COMPANION_SET(&adap->dev, ACPI_COMPANION(&pdev->dev));
 	adap->dev.of_node = pdev->dev.of_node;
 
-	if (dev->pm_disabled) {
-		pm_runtime_forbid(&pdev->dev);
-	} else {
-		pm_runtime_set_autosuspend_delay(&pdev->dev, 1000);
-		pm_runtime_use_autosuspend(&pdev->dev);
-		pm_runtime_set_active(&pdev->dev);
-		pm_runtime_enable(&pdev->dev);
-	}
+	/* The code below assumes runtime PM to be disabled. */
+	WARN_ON(pm_runtime_enabled(&pdev->dev));
+
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 1000);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
+
+	if (dev->pm_disabled)
+		pm_runtime_get_noresume(&pdev->dev);
+
+	pm_runtime_enable(&pdev->dev);
 
 	if (dev->mode == DW_IC_SLAVE)
 		ret = i2c_dw_probe_slave(dev);
@@ -382,8 +393,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	return ret;
 
 exit_probe:
-	if (!dev->pm_disabled)
-		pm_runtime_disable(&pdev->dev);
+	dw_i2c_plat_pm_cleanup(dev);
 exit_reset:
 	if (!IS_ERR_OR_NULL(dev->rst))
 		reset_control_assert(dev->rst);
@@ -402,8 +412,8 @@ static int dw_i2c_plat_remove(struct platform_device *pdev)
 
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
-	if (!dev->pm_disabled)
-		pm_runtime_disable(&pdev->dev);
+	dw_i2c_plat_pm_cleanup(dev);
+
 	if (!IS_ERR_OR_NULL(dev->rst))
 		reset_control_assert(dev->rst);
 
