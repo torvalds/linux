@@ -550,6 +550,9 @@ struct ath10k_hw_params {
 	 */
 	int vht160_mcs_rx_highest;
 	int vht160_mcs_tx_highest;
+
+	/* Number of ciphers supported (i.e First N) in cipher_suites array */
+	int n_cipher_suites;
 };
 
 struct htt_rx_desc;
