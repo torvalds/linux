@@ -274,7 +274,7 @@ static int recvframe_chkmic(struct adapter *adapter,
 				if (miccode[i] != *(pframemic+i)) {
 					RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
 						 ("%s: miccode[%d](%02x)!=*(pframemic+%d)(%02x) ",
-						  __func__, i, miccode[i], i, *(pframemic+i)));
+						  __func__, i, miccode[i], i, *(pframemic + i)));
 					bmic_err = true;
 				}
 			}
