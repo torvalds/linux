@@ -46,18 +46,21 @@ enum mlxsw_sp_field_metadata_id {
 };
 
 static struct devlink_dpipe_field mlxsw_sp_dpipe_fields_metadata[] = {
-	{ .name = "erif_port",
-	  .id = MLXSW_SP_DPIPE_FIELD_METADATA_ERIF_PORT,
-	  .bitwidth = 32,
-	  .mapping_type = DEVLINK_DPIPE_FIELD_MAPPING_TYPE_IFINDEX,
+	{
+		.name = "erif_port",
+		.id = MLXSW_SP_DPIPE_FIELD_METADATA_ERIF_PORT,
+		.bitwidth = 32,
+		.mapping_type = DEVLINK_DPIPE_FIELD_MAPPING_TYPE_IFINDEX,
 	},
-	{ .name = "l3_forward",
-	  .id = MLXSW_SP_DPIPE_FIELD_METADATA_L3_FORWARD,
-	  .bitwidth = 1,
+	{
+		.name = "l3_forward",
+		.id = MLXSW_SP_DPIPE_FIELD_METADATA_L3_FORWARD,
+		.bitwidth = 1,
 	},
-	{ .name = "l3_drop",
-	  .id = MLXSW_SP_DPIPE_FIELD_METADATA_L3_DROP,
-	  .bitwidth = 1,
+	{
+		.name = "l3_drop",
+		.id = MLXSW_SP_DPIPE_FIELD_METADATA_L3_DROP,
+		.bitwidth = 1,
 	},
 };
 
