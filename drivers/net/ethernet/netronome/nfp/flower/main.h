@@ -58,6 +58,8 @@ struct nfp_app;
 #define NFP_FL_MASK_REUSE_TIME_NS	40000
 #define NFP_FL_MASK_ID_LOCATION		1
 
+#define NFP_FL_VXLAN_PORT		4789
+
 struct nfp_fl_mask_id {
 	struct circ_buf mask_id_free_list;
 	struct timespec64 *last_used;

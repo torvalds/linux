@@ -83,6 +83,14 @@
 #define NFP_FL_PUSH_VLAN_CFI		BIT(12)
 #define NFP_FL_PUSH_VLAN_VID		GENMASK(11, 0)
 
+/* Tunnel ports */
+#define NFP_FL_PORT_TYPE_TUN		0x50000000
+
+enum nfp_flower_tun_type {
+	NFP_FL_TUNNEL_NONE =	0,
+	NFP_FL_TUNNEL_VXLAN =	2,
+};
+
 struct nfp_fl_output {
 	__be16 a_op;
 	__be16 flags;
@@ -229,6 +237,36 @@ struct nfp_flower_ipv6 {
 	struct in6_addr ipv6_src;
 	struct in6_addr ipv6_dst;
 };
+
+/* Flow Frame VXLAN --> Tunnel details (4W/16B)
+ * -----------------------------------------------------------------
+ *    3                   2                   1
+ *  1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                         ipv4_addr_src                         |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                         ipv4_addr_dst                         |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |           tun_flags           |       tos     |       ttl     |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |   gpe_flags   |            Reserved           | Next Protocol |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                     VNI                       |   Reserved    |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+struct nfp_flower_vxlan {
+	__be32 ip_src;
+	__be32 ip_dst;
+	__be16 tun_flags;
+	u8 tos;
+	u8 ttl;
+	u8 gpe_flags;
+	u8 reserved[2];
+	u8 nxt_proto;
+	__be32 tun_id;
+};
+
+#define NFP_FL_TUN_VNI_OFFSET 8
 
 /* The base header for a control message packet.
  * Defines an 8-bit version, and an 8-bit type, padded
