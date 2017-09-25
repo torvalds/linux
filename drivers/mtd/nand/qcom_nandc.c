@@ -22,6 +22,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/delay.h>
+#include <linux/dma/qcom_bam_dma.h>
 
 /* NANDc reg offsets */
 #define	NAND_FLASH_CMD			0x00
@@ -199,6 +200,7 @@ nandc_set_reg(nandc, NAND_READ_LOCATION_##reg,			\
  */
 #define dev_cmd_reg_addr(nandc, reg) ((nandc)->props->dev_cmd_reg_start + (reg))
 
+#define QPIC_PER_CW_CMD_ELEMENTS	32
 #define QPIC_PER_CW_CMD_SGL		32
 #define QPIC_PER_CW_DATA_SGL		8
 
@@ -221,8 +223,13 @@ nandc_set_reg(nandc, NAND_READ_LOCATION_##reg,			\
 /*
  * This data type corresponds to the BAM transaction which will be used for all
  * NAND transfers.
+ * @bam_ce - the array of BAM command elements
  * @cmd_sgl - sgl for NAND BAM command pipe
  * @data_sgl - sgl for NAND BAM consumer/producer pipe
+ * @bam_ce_pos - the index in bam_ce which is available for next sgl
+ * @bam_ce_start - the index in bam_ce which marks the start position ce
+ *		   for current sgl. It will be used for size calculation
+ *		   for current sgl
  * @cmd_sgl_pos - current index in command sgl.
  * @cmd_sgl_start - start index in command sgl.
  * @tx_sgl_pos - current index in data sgl for tx.
@@ -231,8 +238,11 @@ nandc_set_reg(nandc, NAND_READ_LOCATION_##reg,			\
  * @rx_sgl_start - start index in data sgl for rx.
  */
 struct bam_transaction {
+	struct bam_cmd_element *bam_ce;
 	struct scatterlist *cmd_sgl;
 	struct scatterlist *data_sgl;
+	u32 bam_ce_pos;
+	u32 bam_ce_start;
 	u32 cmd_sgl_pos;
 	u32 cmd_sgl_start;
 	u32 tx_sgl_pos;
@@ -462,7 +472,8 @@ alloc_bam_transaction(struct qcom_nand_controller *nandc)
 
 	bam_txn_size =
 		sizeof(*bam_txn) + num_cw *
-		((sizeof(*bam_txn->cmd_sgl) * QPIC_PER_CW_CMD_SGL) +
+		((sizeof(*bam_txn->bam_ce) * QPIC_PER_CW_CMD_ELEMENTS) +
+		(sizeof(*bam_txn->cmd_sgl) * QPIC_PER_CW_CMD_SGL) +
 		(sizeof(*bam_txn->data_sgl) * QPIC_PER_CW_DATA_SGL));
 
 	bam_txn_buf = devm_kzalloc(nandc->dev, bam_txn_size, GFP_KERNEL);
@@ -471,6 +482,10 @@ alloc_bam_transaction(struct qcom_nand_controller *nandc)
 
 	bam_txn = bam_txn_buf;
 	bam_txn_buf += sizeof(*bam_txn);
+
+	bam_txn->bam_ce = bam_txn_buf;
+	bam_txn_buf +=
+		sizeof(*bam_txn->bam_ce) * QPIC_PER_CW_CMD_ELEMENTS * num_cw;
 
 	bam_txn->cmd_sgl = bam_txn_buf;
 	bam_txn_buf +=
@@ -489,6 +504,8 @@ static void clear_bam_transaction(struct qcom_nand_controller *nandc)
 	if (!nandc->props->is_bam)
 		return;
 
+	bam_txn->bam_ce_pos = 0;
+	bam_txn->bam_ce_start = 0;
 	bam_txn->cmd_sgl_pos = 0;
 	bam_txn->cmd_sgl_start = 0;
 	bam_txn->tx_sgl_pos = 0;
