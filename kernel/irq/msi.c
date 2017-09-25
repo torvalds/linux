@@ -16,6 +16,8 @@
 #include <linux/msi.h>
 #include <linux/slab.h>
 
+#include "internals.h"
+
 /**
  * alloc_msi_entry - Allocate an initialize msi_entry
  * @dev:	Pointer to the device for which this is allocated
@@ -100,13 +102,14 @@ int msi_domain_set_affinity(struct irq_data *irq_data,
 	return ret;
 }
 
-static void msi_domain_activate(struct irq_domain *domain,
-				struct irq_data *irq_data)
+static int msi_domain_activate(struct irq_domain *domain,
+			       struct irq_data *irq_data, bool early)
 {
 	struct msi_msg msg;
 
 	BUG_ON(irq_chip_compose_msi_msg(irq_data, &msg));
 	irq_chip_write_msi_msg(irq_data, &msg);
+	return 0;
 }
 
 static void msi_domain_deactivate(struct irq_domain *domain,
@@ -373,8 +376,10 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 			return ret;
 		}
 
-		for (i = 0; i < desc->nvec_used; i++)
+		for (i = 0; i < desc->nvec_used; i++) {
 			irq_set_msi_desc_off(virq, i, desc);
+			irq_debugfs_copy_devname(virq + i, dev);
+		}
 	}
 
 	if (ops->msi_finish)
@@ -396,11 +401,28 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 			struct irq_data *irq_data;
 
 			irq_data = irq_domain_get_irq_data(domain, desc->irq);
-			irq_domain_activate_irq(irq_data);
+			ret = irq_domain_activate_irq(irq_data, true);
+			if (ret)
+				goto cleanup;
+			if (info->flags & MSI_FLAG_MUST_REACTIVATE)
+				irqd_clr_activated(irq_data);
 		}
 	}
-
 	return 0;
+
+cleanup:
+	for_each_msi_entry(desc, dev) {
+		struct irq_data *irqd;
+
+		if (desc->irq == virq)
+			break;
+
+		irqd = irq_domain_get_irq_data(domain, desc->irq);
+		if (irqd_is_activated(irqd))
+			irq_domain_deactivate_irq(irqd);
+	}
+	msi_domain_free_irqs(domain, dev);
+	return ret;
 }
 
 /**

@@ -1682,18 +1682,6 @@ void irq_domain_free_irqs_parent(struct irq_domain *domain,
 }
 EXPORT_SYMBOL_GPL(irq_domain_free_irqs_parent);
 
-static void __irq_domain_activate_irq(struct irq_data *irq_data)
-{
-	if (irq_data && irq_data->domain) {
-		struct irq_domain *domain = irq_data->domain;
-
-		if (irq_data->parent_data)
-			__irq_domain_activate_irq(irq_data->parent_data);
-		if (domain->ops->activate)
-			domain->ops->activate(domain, irq_data);
-	}
-}
-
 static void __irq_domain_deactivate_irq(struct irq_data *irq_data)
 {
 	if (irq_data && irq_data->domain) {
@@ -1706,6 +1694,26 @@ static void __irq_domain_deactivate_irq(struct irq_data *irq_data)
 	}
 }
 
+static int __irq_domain_activate_irq(struct irq_data *irqd, bool early)
+{
+	int ret = 0;
+
+	if (irqd && irqd->domain) {
+		struct irq_domain *domain = irqd->domain;
+
+		if (irqd->parent_data)
+			ret = __irq_domain_activate_irq(irqd->parent_data,
+							early);
+		if (!ret && domain->ops->activate) {
+			ret = domain->ops->activate(domain, irqd, early);
+			/* Rollback in case of error */
+			if (ret && irqd->parent_data)
+				__irq_domain_deactivate_irq(irqd->parent_data);
+		}
+	}
+	return ret;
+}
+
 /**
  * irq_domain_activate_irq - Call domain_ops->activate recursively to activate
  *			     interrupt
@@ -1714,12 +1722,15 @@ static void __irq_domain_deactivate_irq(struct irq_data *irq_data)
  * This is the second step to call domain_ops->activate to program interrupt
  * controllers, so the interrupt could actually get delivered.
  */
-void irq_domain_activate_irq(struct irq_data *irq_data)
+int irq_domain_activate_irq(struct irq_data *irq_data, bool early)
 {
-	if (!irqd_is_activated(irq_data)) {
-		__irq_domain_activate_irq(irq_data);
+	int ret = 0;
+
+	if (!irqd_is_activated(irq_data))
+		ret = __irq_domain_activate_irq(irq_data, early);
+	if (!ret)
 		irqd_set_activated(irq_data);
-	}
+	return ret;
 }
 
 /**
@@ -1810,6 +1821,8 @@ irq_domain_debug_show_one(struct seq_file *m, struct irq_domain *d, int ind)
 		   d->revmap_size + d->revmap_direct_max_irq);
 	seq_printf(m, "%*smapped: %u\n", ind + 1, "", d->mapcount);
 	seq_printf(m, "%*sflags:  0x%08x\n", ind +1 , "", d->flags);
+	if (d->ops && d->ops->debug_show)
+		d->ops->debug_show(m, d, NULL, ind + 1);
 #ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
 	if (!d->parent)
 		return;

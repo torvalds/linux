@@ -448,7 +448,7 @@ static int alloc_descs(unsigned int start, unsigned int cnt, int node,
 		}
 	}
 
-	flags = affinity ? IRQD_AFFINITY_MANAGED : 0;
+	flags = affinity ? IRQD_AFFINITY_MANAGED | IRQD_MANAGED_SHUTDOWN : 0;
 	mask = NULL;
 
 	for (i = 0; i < cnt; i++) {
@@ -462,6 +462,7 @@ static int alloc_descs(unsigned int start, unsigned int cnt, int node,
 			goto err;
 		irq_insert_desc(start + i, desc);
 		irq_sysfs_add(start + i, desc);
+		irq_add_debugfs_entry(start + i, desc);
 	}
 	bitmap_set(allocated_irqs, start, cnt);
 	return start;
