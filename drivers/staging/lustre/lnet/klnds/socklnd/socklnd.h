@@ -357,11 +357,7 @@ struct ksock_conn {
 	__u8               ksnc_rx_scheduled; /* being progressed */
 	__u8               ksnc_rx_state;     /* what is being read */
 	int                ksnc_rx_nob_left;  /* # bytes to next hdr/body */
-	int                ksnc_rx_nob_wanted;/* bytes actually wanted */
-	int                ksnc_rx_niov;      /* # iovec frags */
-	struct kvec        *ksnc_rx_iov;      /* the iovec frags */
-	int                ksnc_rx_nkiov;     /* # page frags */
-	struct bio_vec		*ksnc_rx_kiov;	/* the page frags */
+	struct iov_iter    ksnc_rx_to;		/* copy destination */
 	union ksock_rxiovspace ksnc_rx_iov_space; /* space for frag descriptors */
 	__u32              ksnc_rx_csum;      /* partial checksum for incoming
 					       * data

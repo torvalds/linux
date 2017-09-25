@@ -164,26 +164,19 @@ ksocknal_lib_eager_ack(struct ksock_conn *conn)
 int
 ksocknal_lib_recv_iov(struct ksock_conn *conn)
 {
-	unsigned int niov = conn->ksnc_rx_niov;
-	struct kvec *iov = conn->ksnc_rx_iov;
+	unsigned int niov = conn->ksnc_rx_to.nr_segs;
+	const struct iovec *iov = conn->ksnc_rx_to.iov;
 	struct msghdr msg = {
 		.msg_flags = 0
 	};
-	int nob;
 	int i;
 	int rc;
 	int fragnob;
 	int sum;
 	__u32 saved_csum;
+	int off = conn->ksnc_rx_to.iov_offset;
 
-	LASSERT(niov > 0);
-
-	for (nob = i = 0; i < niov; i++)
-		nob += iov[i].iov_len;
-
-	LASSERT(nob <= conn->ksnc_rx_nob_wanted);
-
-	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, iov, niov, nob);
+	msg.msg_iter = conn->ksnc_rx_to;
 	rc = sock_recvmsg(conn->ksnc_sock, &msg, MSG_DONTWAIT);
 
 	saved_csum = 0;
@@ -197,13 +190,14 @@ ksocknal_lib_recv_iov(struct ksock_conn *conn)
 		for (i = 0, sum = rc; sum > 0; i++, sum -= fragnob) {
 			LASSERT(i < niov);
 
-			fragnob = iov[i].iov_len;
+			fragnob = iov[i].iov_len - off;
 			if (fragnob > sum)
 				fragnob = sum;
 
 			conn->ksnc_rx_csum = crc32_le(conn->ksnc_rx_csum,
-						      iov[i].iov_base,
+						      iov[i].iov_base + off,
 						      fragnob);
+			off = 0;
 		}
 		conn->ksnc_msg.ksm_csum = saved_csum;
 	}
@@ -214,32 +208,29 @@ ksocknal_lib_recv_iov(struct ksock_conn *conn)
 int
 ksocknal_lib_recv_kiov(struct ksock_conn *conn)
 {
-	unsigned int niov = conn->ksnc_rx_nkiov;
-	struct bio_vec *kiov = conn->ksnc_rx_kiov;
+	unsigned int niov = conn->ksnc_rx_to.nr_segs;
+	const struct bio_vec *kiov = conn->ksnc_rx_to.bvec;
+	int off = conn->ksnc_rx_to.iov_offset;
 	struct msghdr msg = {
 		.msg_flags = 0
 	};
-	int nob;
 	int i;
 	int rc;
 	void *base;
 	int sum;
 	int fragnob;
 
-	for (nob = i = 0; i < niov; i++)
-		nob += kiov[i].bv_len;
-
-	LASSERT(nob <= conn->ksnc_rx_nob_wanted);
-
-	iov_iter_bvec(&msg.msg_iter, READ | ITER_BVEC, kiov, niov, nob);
+	msg.msg_iter = conn->ksnc_rx_to;
 	rc = sock_recvmsg(conn->ksnc_sock, &msg, MSG_DONTWAIT);
+	if (rc <= 0)
+		return rc;
 
 	if (conn->ksnc_msg.ksm_csum) {
 		for (i = 0, sum = rc; sum > 0; i++, sum -= fragnob) {
 			LASSERT(i < niov);
 
-			base = kmap(kiov[i].bv_page) + kiov[i].bv_offset;
-			fragnob = kiov[i].bv_len;
+			base = kmap(kiov[i].bv_page) + kiov[i].bv_offset + off;
+			fragnob = kiov[i].bv_len - off;
 			if (fragnob > sum)
 				fragnob = sum;
 
@@ -247,6 +238,7 @@ ksocknal_lib_recv_kiov(struct ksock_conn *conn)
 						      base, fragnob);
 
 			kunmap(kiov[i].bv_page);
+			off = 0;
 		}
 	}
 	return rc;
