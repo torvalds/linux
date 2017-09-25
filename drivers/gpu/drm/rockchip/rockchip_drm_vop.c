@@ -1810,8 +1810,7 @@ static size_t vop_crtc_bandwidth(struct drm_crtc *crtc,
 	struct drm_plane_state *pstate;
 	struct vop_bandwidth *pbandwidth;
 	struct drm_plane *plane;
-	size_t bandwidth;
-	size_t max_bandwidth;
+	u64 bandwidth;
 	int i, cnt = 0;
 
 	if (!htotal || !vdisplay)
@@ -1834,13 +1833,14 @@ static size_t vop_crtc_bandwidth(struct drm_crtc *crtc,
 
 	sort(pbandwidth, cnt, sizeof(pbandwidth[0]), vop_bandwidth_cmp, NULL);
 
-	max_bandwidth = vop_calc_max_bandwidth(pbandwidth, 0, cnt, vdisplay);
+	bandwidth = vop_calc_max_bandwidth(pbandwidth, 0, cnt, vdisplay);
 	/*
 	 * bandwidth(MB/s)
 	 *    = line_bandwidth / line_time
 	 *    = line_bandwidth(Byte) * clock(KHZ) / 1000 / htotal
 	 */
-	bandwidth = max_bandwidth * clock / 1000 / htotal;
+	bandwidth *= clock;
+	do_div(bandwidth, htotal * 1000);
 
 	return bandwidth;
 }
