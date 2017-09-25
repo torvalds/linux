@@ -42,7 +42,7 @@ cpuid_func(edx);
  *
  * TBD: Should there be a cpuid alternative for this if /proc is not mounted?
  */
-int get_cpu_info(unsigned int cpu, struct cpupower_cpu_info *cpu_info)
+int get_cpu_info(struct cpupower_cpu_info *cpu_info)
 {
 	FILE *fp;
 	char value[64];
@@ -70,7 +70,7 @@ int get_cpu_info(unsigned int cpu, struct cpupower_cpu_info *cpu_info)
 		if (!strncmp(value, "processor\t: ", 12))
 			sscanf(value, "processor\t: %u", &proc);
 
-		if (proc != cpu)
+		if (proc != (unsigned int)base_cpu)
 			continue;
 
 		/* Get CPU vendor */

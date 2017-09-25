@@ -282,8 +282,7 @@ static int __init bcm2836_arm_irqchip_l1_intc_of_init(struct device_node *node,
 {
 	intc.base = of_iomap(node, 0);
 	if (!intc.base) {
-		panic("%s: unable to map local interrupt registers\n",
-			node->full_name);
+		panic("%pOF: unable to map local interrupt registers\n", node);
 	}
 
 	bcm2835_init_local_timer_frequency();
@@ -292,7 +291,7 @@ static int __init bcm2836_arm_irqchip_l1_intc_of_init(struct device_node *node,
 					    &bcm2836_arm_irqchip_intc_ops,
 					    NULL);
 	if (!intc.domain)
-		panic("%s: unable to create IRQ domain\n", node->full_name);
+		panic("%pOF: unable to create IRQ domain\n", node);
 
 	bcm2836_arm_irqchip_register_irq(LOCAL_IRQ_CNTPSIRQ,
 					 &bcm2836_arm_irqchip_timer);

@@ -17,7 +17,7 @@ static inline bool nf_hook_ingress_active(const struct sk_buff *skb)
 /* caller must hold rcu_read_lock */
 static inline int nf_hook_ingress(struct sk_buff *skb)
 {
-	struct nf_hook_entry *e = rcu_dereference(skb->dev->nf_hooks_ingress);
+	struct nf_hook_entries *e = rcu_dereference(skb->dev->nf_hooks_ingress);
 	struct nf_hook_state state;
 	int ret;
 
@@ -30,7 +30,7 @@ static inline int nf_hook_ingress(struct sk_buff *skb)
 	nf_hook_state_init(&state, NF_NETDEV_INGRESS,
 			   NFPROTO_NETDEV, skb->dev, NULL, NULL,
 			   dev_net(skb->dev), NULL);
-	ret = nf_hook_slow(skb, &state, e);
+	ret = nf_hook_slow(skb, &state, e, 0);
 	if (ret == 0)
 		return -1;
 

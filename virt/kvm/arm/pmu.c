@@ -203,11 +203,15 @@ static u64 kvm_pmu_overflow_status(struct kvm_vcpu *vcpu)
 	return reg;
 }
 
-static void kvm_pmu_check_overflow(struct kvm_vcpu *vcpu)
+static void kvm_pmu_update_state(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = &vcpu->arch.pmu;
-	bool overflow = !!kvm_pmu_overflow_status(vcpu);
+	bool overflow;
 
+	if (!kvm_arm_pmu_v3_ready(vcpu))
+		return;
+
+	overflow = !!kvm_pmu_overflow_status(vcpu);
 	if (pmu->irq_level == overflow)
 		return;
 
@@ -215,31 +219,9 @@ static void kvm_pmu_check_overflow(struct kvm_vcpu *vcpu)
 
 	if (likely(irqchip_in_kernel(vcpu->kvm))) {
 		int ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
-					      pmu->irq_num, overflow,
-					      &vcpu->arch.pmu);
+					      pmu->irq_num, overflow, pmu);
 		WARN_ON(ret);
 	}
-}
-
-/**
- * kvm_pmu_overflow_set - set PMU overflow interrupt
- * @vcpu: The vcpu pointer
- * @val: the value guest writes to PMOVSSET register
- */
-void kvm_pmu_overflow_set(struct kvm_vcpu *vcpu, u64 val)
-{
-	if (val == 0)
-		return;
-
-	vcpu_sys_reg(vcpu, PMOVSSET_EL0) |= val;
-	kvm_pmu_check_overflow(vcpu);
-}
-
-static void kvm_pmu_update_state(struct kvm_vcpu *vcpu)
-{
-	if (!kvm_arm_pmu_v3_ready(vcpu))
-		return;
-	kvm_pmu_check_overflow(vcpu);
 }
 
 bool kvm_pmu_should_notify_user(struct kvm_vcpu *vcpu)
@@ -303,7 +285,7 @@ static inline struct kvm_vcpu *kvm_pmc_to_vcpu(struct kvm_pmc *pmc)
 }
 
 /**
- * When perf event overflows, call kvm_pmu_overflow_set to set overflow status.
+ * When the perf event overflows, set the overflow status and inform the vcpu.
  */
 static void kvm_pmu_perf_overflow(struct perf_event *perf_event,
 				  struct perf_sample_data *data,
@@ -313,7 +295,12 @@ static void kvm_pmu_perf_overflow(struct perf_event *perf_event,
 	struct kvm_vcpu *vcpu = kvm_pmc_to_vcpu(pmc);
 	int idx = pmc->idx;
 
-	kvm_pmu_overflow_set(vcpu, BIT(idx));
+	vcpu_sys_reg(vcpu, PMOVSSET_EL0) |= BIT(idx);
+
+	if (kvm_pmu_overflow_status(vcpu)) {
+		kvm_make_request(KVM_REQ_IRQ_PENDING, vcpu);
+		kvm_vcpu_kick(vcpu);
+	}
 }
 
 /**
@@ -341,7 +328,7 @@ void kvm_pmu_software_increment(struct kvm_vcpu *vcpu, u64 val)
 			reg = lower_32_bits(reg);
 			vcpu_sys_reg(vcpu, PMEVCNTR0_EL0 + i) = reg;
 			if (!reg)
-				kvm_pmu_overflow_set(vcpu, BIT(i));
+				vcpu_sys_reg(vcpu, PMOVSSET_EL0) |= BIT(i);
 		}
 	}
 }

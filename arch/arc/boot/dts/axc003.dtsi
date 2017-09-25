@@ -14,20 +14,27 @@
 
 / {
 	compatible = "snps,arc";
-	#address-cells = <1>;
-	#size-cells = <1>;
+	#address-cells = <2>;
+	#size-cells = <2>;
 
 	cpu_card {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		ranges = <0x00000000 0xf0000000 0x10000000>;
+		ranges = <0x00000000 0x0 0xf0000000 0x10000000>;
 
-		core_clk: core_clk {
+		input_clk: input-clk {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
-			clock-frequency = <90000000>;
+			clock-frequency = <33333333>;
+		};
+
+		core_clk: core-clk@80 {
+			compatible = "snps,axs10x-arc-pll-clock";
+			reg = <0x80 0x10>, <0x100 0x10>;
+			#clock-cells = <0>;
+			clocks = <&input_clk>;
 		};
 
 		core_intc: archs-intc@cpu {
@@ -94,30 +101,29 @@
 	mb_intc: dw-apb-ictl@0xe0012000 {
 		#interrupt-cells = <1>;
 		compatible = "snps,dw-apb-ictl";
-		reg = < 0xe0012000 0x200 >;
+		reg = < 0x0 0xe0012000 0x0 0x200 >;
 		interrupt-controller;
 		interrupt-parent = <&core_intc>;
 		interrupts = < 24 >;
 	};
 
 	memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges = <0x00000000 0x80000000 0x40000000>;
 		device_type = "memory";
-		reg = <0x80000000 0x20000000>;	/* 512MiB */
+		/* CONFIG_LINUX_RAM_BASE needs to match low mem start */
+		reg = <0x0 0x80000000 0x0 0x20000000	/* 512 MiB low mem */
+		       0x1 0xc0000000 0x0 0x40000000>;	/* 1 GiB highmem */
 	};
 
 	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
+		#address-cells = <2>;
+		#size-cells = <2>;
 		ranges;
 		/*
 		 * Move frame buffer out of IOC aperture (0x8z-0xAz).
 		 */
 		frame_buffer: frame_buffer@be000000 {
 			compatible = "shared-dma-pool";
-			reg = <0xbe000000 0x2000000>;
+			reg = <0x0 0xbe000000 0x0 0x2000000>;
 			no-map;
 		};
 	};

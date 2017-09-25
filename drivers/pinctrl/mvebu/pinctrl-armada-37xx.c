@@ -37,7 +37,7 @@
 #define IRQ_STATUS	0x10
 #define IRQ_WKUP	0x18
 
-#define NB_FUNCS 2
+#define NB_FUNCS 3
 #define GPIO_PER_REG	32
 
 /**
@@ -126,6 +126,16 @@ struct armada_37xx_pinctrl {
 		.funcs = {_func1, "gpio"}	\
 	}
 
+#define PIN_GRP_GPIO_3(_name, _start, _nr, _mask, _v1, _v2, _v3, _f1, _f2) \
+	{					\
+		.name = _name,			\
+		.start_pin = _start,		\
+		.npins = _nr,			\
+		.reg_mask = _mask,		\
+		.val = {_v1, _v2, _v3},	\
+		.funcs = {_f1, _f2, "gpio"}	\
+	}
+
 #define PIN_GRP_EXTRA(_name, _start, _nr, _mask, _v1, _v2, _start2, _nr2, \
 		      _f1, _f2)				\
 	{						\
@@ -171,23 +181,24 @@ static struct armada_37xx_pin_group armada_37xx_sb_groups[] = {
 	PIN_GRP_GPIO("usb32_drvvbus0", 0, 1, BIT(0), "drvbus"),
 	PIN_GRP_GPIO("usb2_drvvbus1", 1, 1, BIT(1), "drvbus"),
 	PIN_GRP_GPIO("sdio_sb", 24, 6, BIT(2), "sdio"),
-	PIN_GRP_EXTRA("rgmii", 6, 12, BIT(3), 0, BIT(3), 23, 1, "mii", "gpio"),
+	PIN_GRP_GPIO("rgmii", 6, 12, BIT(3), "mii"),
 	PIN_GRP_GPIO("pcie1", 3, 2, BIT(4), "pcie"),
 	PIN_GRP_GPIO("ptp", 20, 3, BIT(5), "ptp"),
 	PIN_GRP("ptp_clk", 21, 1, BIT(6), "ptp", "mii"),
 	PIN_GRP("ptp_trig", 22, 1, BIT(7), "ptp", "mii"),
-	PIN_GRP("mii_col", 23, 1, BIT(8), "mii", "mii_err"),
+	PIN_GRP_GPIO_3("mii_col", 23, 1, BIT(8) | BIT(14), 0, BIT(8), BIT(14),
+		       "mii", "mii_err"),
 };
 
-const struct armada_37xx_pin_data armada_37xx_pin_nb = {
+static const struct armada_37xx_pin_data armada_37xx_pin_nb = {
 	.nr_pins = 36,
 	.name = "GPIO1",
 	.groups = armada_37xx_nb_groups,
 	.ngroups = ARRAY_SIZE(armada_37xx_nb_groups),
 };
 
-const struct armada_37xx_pin_data armada_37xx_pin_sb = {
-	.nr_pins = 29,
+static const struct armada_37xx_pin_data armada_37xx_pin_sb = {
+	.nr_pins = 30,
 	.name = "GPIO2",
 	.groups = armada_37xx_sb_groups,
 	.ngroups = ARRAY_SIZE(armada_37xx_sb_groups),
@@ -208,7 +219,7 @@ static int armada_37xx_get_func_reg(struct armada_37xx_pin_group *grp,
 {
 	int f;
 
-	for (f = 0; f < NB_FUNCS; f++)
+	for (f = 0; (f < NB_FUNCS) && grp->funcs[f]; f++)
 		if (!strcmp(grp->funcs[f], func))
 			return f;
 
@@ -243,7 +254,7 @@ static int armada_37xx_pin_config_group_set(struct pinctrl_dev *pctldev,
 	return -ENOTSUPP;
 }
 
-static struct pinconf_ops armada_37xx_pinconf_ops = {
+static const struct pinconf_ops armada_37xx_pinconf_ops = {
 	.is_generic = true,
 	.pin_config_group_get = armada_37xx_pin_config_group_get,
 	.pin_config_group_set = armada_37xx_pin_config_group_set,
@@ -539,9 +550,9 @@ static int armada_37xx_irq_set_wake(struct irq_data *d, unsigned int on)
 	spin_lock_irqsave(&info->irq_lock, flags);
 	val = readl(info->base + reg);
 	if (on)
-		val |= d->mask;
+		val |= (BIT(d->hwirq % GPIO_PER_REG));
 	else
-		val &= ~d->mask;
+		val &= ~(BIT(d->hwirq % GPIO_PER_REG));
 	writel(val, info->base + reg);
 	spin_unlock_irqrestore(&info->irq_lock, flags);
 
@@ -560,10 +571,10 @@ static int armada_37xx_irq_set_type(struct irq_data *d, unsigned int type)
 	val = readl(info->base + reg);
 	switch (type) {
 	case IRQ_TYPE_EDGE_RISING:
-		val &= ~d->mask;
+		val &= ~(BIT(d->hwirq % GPIO_PER_REG));
 		break;
 	case IRQ_TYPE_EDGE_FALLING:
-		val |= d->mask;
+		val |= (BIT(d->hwirq % GPIO_PER_REG));
 		break;
 	default:
 		spin_unlock_irqrestore(&info->irq_lock, flags);
@@ -613,11 +624,27 @@ static void armada_37xx_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
+static unsigned int armada_37xx_irq_startup(struct irq_data *d)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
+	int irq = d->hwirq - chip->irq_base;
+	/*
+	 * The mask field is a "precomputed bitmask for accessing the
+	 * chip registers" which was introduced for the generic
+	 * irqchip framework. As we don't use this framework, we can
+	 * reuse this field for our own usage.
+	 */
+	d->mask = BIT(irq % GPIO_PER_REG);
+
+	armada_37xx_irq_unmask(d);
+
+	return 0;
+}
+
 static int armada_37xx_irqchip_register(struct platform_device *pdev,
 					struct armada_37xx_pinctrl *info)
 {
 	struct device_node *np = info->dev->of_node;
-	int nrirqs = info->data->nr_pins;
 	struct gpio_chip *gc = &info->gpio_chip;
 	struct irq_chip *irqchip = &info->irq_chip;
 	struct resource res;
@@ -655,8 +682,8 @@ static int armada_37xx_irqchip_register(struct platform_device *pdev,
 	irqchip->irq_unmask = armada_37xx_irq_unmask;
 	irqchip->irq_set_wake = armada_37xx_irq_set_wake;
 	irqchip->irq_set_type = armada_37xx_irq_set_type;
+	irqchip->irq_startup = armada_37xx_irq_startup;
 	irqchip->name = info->data->name;
-
 	ret = gpiochip_irqchip_add(gc, irqchip, 0,
 				   handle_edge_irq, IRQ_TYPE_NONE);
 	if (ret) {
@@ -669,19 +696,6 @@ static int armada_37xx_irqchip_register(struct platform_device *pdev,
 	 * controller. But we do not take advantage of this and use
 	 * the chained irq with all of them.
 	 */
-	for (i = 0; i < nrirqs; i++) {
-		struct irq_data *d = irq_get_irq_data(gc->irq_base + i);
-
-		/*
-		 * The mask field is a "precomputed bitmask for
-		 * accessing the chip registers" which was introduced
-		 * for the generic irqchip framework. As we don't use
-		 * this framework, we can reuse this field for our own
-		 * usage.
-		 */
-		d->mask = BIT(i % GPIO_PER_REG);
-	}
-
 	for (i = 0; i < nr_irq_parent; i++) {
 		int irq = irq_of_parse_and_map(np, i);
 
@@ -795,7 +809,7 @@ static int armada_37xx_fill_group(struct armada_37xx_pinctrl *info)
 		for (j = 0; j < grp->extra_npins; j++)
 			grp->pins[i+j] = grp->extra_pin + j;
 
-		for (f = 0; f < NB_FUNCS; f++) {
+		for (f = 0; (f < NB_FUNCS) && grp->funcs[f]; f++) {
 			int ret;
 			/* check for unique functions and count groups */
 			ret = armada_37xx_add_function(info->funcs, &funcsize,
@@ -847,7 +861,7 @@ static int armada_37xx_fill_func(struct armada_37xx_pinctrl *info)
 			struct armada_37xx_pin_group *gp = &info->groups[g];
 			int f;
 
-			for (f = 0; f < NB_FUNCS; f++) {
+			for (f = 0; (f < NB_FUNCS) && gp->funcs[f]; f++) {
 				if (strcmp(gp->funcs[f], name) == 0) {
 					*groups = gp->name;
 					groups++;

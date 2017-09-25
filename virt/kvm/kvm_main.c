@@ -322,47 +322,6 @@ static inline struct kvm *mmu_notifier_to_kvm(struct mmu_notifier *mn)
 	return container_of(mn, struct kvm, mmu_notifier);
 }
 
-static void kvm_mmu_notifier_invalidate_page(struct mmu_notifier *mn,
-					     struct mm_struct *mm,
-					     unsigned long address)
-{
-	struct kvm *kvm = mmu_notifier_to_kvm(mn);
-	int need_tlb_flush, idx;
-
-	/*
-	 * When ->invalidate_page runs, the linux pte has been zapped
-	 * already but the page is still allocated until
-	 * ->invalidate_page returns. So if we increase the sequence
-	 * here the kvm page fault will notice if the spte can't be
-	 * established because the page is going to be freed. If
-	 * instead the kvm page fault establishes the spte before
-	 * ->invalidate_page runs, kvm_unmap_hva will release it
-	 * before returning.
-	 *
-	 * The sequence increase only need to be seen at spin_unlock
-	 * time, and not at spin_lock time.
-	 *
-	 * Increasing the sequence after the spin_unlock would be
-	 * unsafe because the kvm page fault could then establish the
-	 * pte after kvm_unmap_hva returned, without noticing the page
-	 * is going to be freed.
-	 */
-	idx = srcu_read_lock(&kvm->srcu);
-	spin_lock(&kvm->mmu_lock);
-
-	kvm->mmu_notifier_seq++;
-	need_tlb_flush = kvm_unmap_hva(kvm, address) | kvm->tlbs_dirty;
-	/* we've to flush the tlb before the pages can be freed */
-	if (need_tlb_flush)
-		kvm_flush_remote_tlbs(kvm);
-
-	spin_unlock(&kvm->mmu_lock);
-
-	kvm_arch_mmu_notifier_invalidate_page(kvm, address);
-
-	srcu_read_unlock(&kvm->srcu, idx);
-}
-
 static void kvm_mmu_notifier_change_pte(struct mmu_notifier *mn,
 					struct mm_struct *mm,
 					unsigned long address,
@@ -510,7 +469,6 @@ static void kvm_mmu_notifier_release(struct mmu_notifier *mn,
 }
 
 static const struct mmu_notifier_ops kvm_mmu_notifier_ops = {
-	.invalidate_page	= kvm_mmu_notifier_invalidate_page,
 	.invalidate_range_start	= kvm_mmu_notifier_invalidate_range_start,
 	.invalidate_range_end	= kvm_mmu_notifier_invalidate_range_end,
 	.clear_flush_young	= kvm_mmu_notifier_clear_flush_young,
@@ -716,11 +674,11 @@ out_err_no_irq_srcu:
 out_err_no_srcu:
 	hardware_disable_all();
 out_err_no_disable:
+	refcount_set(&kvm->users_count, 0);
 	for (i = 0; i < KVM_NR_BUSES; i++)
-		kfree(rcu_access_pointer(kvm->buses[i]));
+		kfree(kvm_get_bus(kvm, i));
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++)
-		kvm_free_memslots(kvm,
-			rcu_dereference_protected(kvm->memslots[i], 1));
+		kvm_free_memslots(kvm, __kvm_memslots(kvm, i));
 	kvm_arch_free_vm(kvm);
 	mmdrop(current->mm);
 	return ERR_PTR(r);
@@ -754,9 +712,8 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	spin_unlock(&kvm_lock);
 	kvm_free_irq_routing(kvm);
 	for (i = 0; i < KVM_NR_BUSES; i++) {
-		struct kvm_io_bus *bus;
+		struct kvm_io_bus *bus = kvm_get_bus(kvm, i);
 
-		bus = rcu_dereference_protected(kvm->buses[i], 1);
 		if (bus)
 			kvm_io_bus_destroy(bus);
 		kvm->buses[i] = NULL;
@@ -770,8 +727,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	kvm_arch_destroy_vm(kvm);
 	kvm_destroy_devices(kvm);
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++)
-		kvm_free_memslots(kvm,
-			rcu_dereference_protected(kvm->memslots[i], 1));
+		kvm_free_memslots(kvm, __kvm_memslots(kvm, i));
 	cleanup_srcu_struct(&kvm->irq_srcu);
 	cleanup_srcu_struct(&kvm->srcu);
 	kvm_arch_free_vm(kvm);
@@ -1654,7 +1610,7 @@ int gfn_to_page_many_atomic(struct kvm_memory_slot *slot, gfn_t gfn,
 			    struct page **pages, int nr_pages)
 {
 	unsigned long addr;
-	gfn_t entry;
+	gfn_t entry = 0;
 
 	addr = gfn_to_hva_many(slot, gfn, &entry);
 	if (kvm_is_error_hva(addr))
@@ -1973,6 +1929,7 @@ static int __kvm_gfn_to_hva_cache_init(struct kvm_memslots *slots,
 		 * verify that the entire region is valid here.
 		 */
 		while (start_gfn <= end_gfn) {
+			nr_pages_avail = 0;
 			ghc->memslot = __gfn_to_memslot(slots, start_gfn);
 			ghc->hva = gfn_to_hva_many(ghc->memslot, start_gfn,
 						   &nr_pages_avail);
@@ -2230,7 +2187,7 @@ bool kvm_vcpu_wake_up(struct kvm_vcpu *vcpu)
 	struct swait_queue_head *wqp;
 
 	wqp = kvm_arch_vcpu_wq(vcpu);
-	if (swait_active(wqp)) {
+	if (swq_has_sleeper(wqp)) {
 		swake_up(wqp);
 		++vcpu->stat.halt_wakeup;
 		return true;
@@ -2320,7 +2277,7 @@ static bool kvm_vcpu_eligible_for_directed_yield(struct kvm_vcpu *vcpu)
 #endif
 }
 
-void kvm_vcpu_on_spin(struct kvm_vcpu *me)
+void kvm_vcpu_on_spin(struct kvm_vcpu *me, bool yield_to_kernel_mode)
 {
 	struct kvm *kvm = me->kvm;
 	struct kvm_vcpu *vcpu;
@@ -2350,6 +2307,8 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 			if (vcpu == me)
 				continue;
 			if (swait_active(&vcpu->wq) && !kvm_arch_vcpu_runnable(vcpu))
+				continue;
+			if (yield_to_kernel_mode && !kvm_arch_vcpu_in_kernel(vcpu))
 				continue;
 			if (!kvm_vcpu_eligible_for_directed_yield(vcpu))
 				continue;
@@ -3883,7 +3842,6 @@ static const struct file_operations *stat_fops[] = {
 static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm)
 {
 	struct kobj_uevent_env *env;
-	char *tmp, *pathbuf = NULL;
 	unsigned long long created, active;
 
 	if (!kvm_dev.this_device || !kvm)
@@ -3907,38 +3865,28 @@ static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm)
 	add_uevent_var(env, "CREATED=%llu", created);
 	add_uevent_var(env, "COUNT=%llu", active);
 
-	if (type == KVM_EVENT_CREATE_VM)
+	if (type == KVM_EVENT_CREATE_VM) {
 		add_uevent_var(env, "EVENT=create");
-	else if (type == KVM_EVENT_DESTROY_VM)
+		kvm->userspace_pid = task_pid_nr(current);
+	} else if (type == KVM_EVENT_DESTROY_VM) {
 		add_uevent_var(env, "EVENT=destroy");
+	}
+	add_uevent_var(env, "PID=%d", kvm->userspace_pid);
 
 	if (kvm->debugfs_dentry) {
-		char p[ITOA_MAX_LEN];
+		char *tmp, *p = kmalloc(PATH_MAX, GFP_KERNEL);
 
-		snprintf(p, sizeof(p), "%s", kvm->debugfs_dentry->d_name.name);
-		tmp = strchrnul(p + 1, '-');
-		*tmp = '\0';
-		add_uevent_var(env, "PID=%s", p);
-		pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
-		if (pathbuf) {
-			/* sizeof counts the final '\0' */
-			int len = sizeof("STATS_PATH=") - 1;
-			const char *pvar = "STATS_PATH=";
-
-			tmp = dentry_path_raw(kvm->debugfs_dentry,
-					      pathbuf + len,
-					      PATH_MAX - len);
-			if (!IS_ERR(tmp)) {
-				memcpy(tmp - len, pvar, len);
-				env->envp[env->envp_idx++] = tmp - len;
-			}
+		if (p) {
+			tmp = dentry_path_raw(kvm->debugfs_dentry, p, PATH_MAX);
+			if (!IS_ERR(tmp))
+				add_uevent_var(env, "STATS_PATH=%s", tmp);
+			kfree(p);
 		}
 	}
 	/* no need for checks, since we are adding at most only 5 keys */
 	env->envp[env->envp_idx++] = NULL;
 	kobject_uevent_env(&kvm_dev.this_device->kobj, KOBJ_CHANGE, env->envp);
 	kfree(env);
-	kfree(pathbuf);
 }
 
 static int kvm_init_debug(void)

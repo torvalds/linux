@@ -24,7 +24,6 @@ spi@f0020000 {
 	#size-cells = <0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_spi0_default>;
-	status = "okay";
 
 	m25p80@0 {
 		...

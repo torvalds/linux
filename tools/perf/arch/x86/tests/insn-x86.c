@@ -171,7 +171,7 @@ static int test_data_set(struct test_data *dat_set, int x86_64)
  * verbose (-v) option to see all the instructions and whether or not they
  * decoded successfuly.
  */
-int test__insn_x86(int subtest __maybe_unused)
+int test__insn_x86(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int ret = 0;
 

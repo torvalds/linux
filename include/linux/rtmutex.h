@@ -22,18 +22,17 @@ extern int max_lock_depth; /* for sysctl */
  * The rt_mutex structure
  *
  * @wait_lock:	spinlock to protect the structure
- * @waiters:	rbtree root to enqueue waiters in priority order
- * @waiters_leftmost: top waiter
+ * @waiters:	rbtree root to enqueue waiters in priority order;
+ *              caches top-waiter (leftmost node).
  * @owner:	the mutex owner
  */
 struct rt_mutex {
 	raw_spinlock_t		wait_lock;
-	struct rb_root          waiters;
-	struct rb_node          *waiters_leftmost;
+	struct rb_root_cached   waiters;
 	struct task_struct	*owner;
 #ifdef CONFIG_DEBUG_RT_MUTEXES
 	int			save_state;
-	const char 		*name, *file;
+	const char		*name, *file;
 	int			line;
 	void			*magic;
 #endif
@@ -84,7 +83,7 @@ do { \
 
 #define __RT_MUTEX_INITIALIZER(mutexname) \
 	{ .wait_lock = __RAW_SPIN_LOCK_UNLOCKED(mutexname.wait_lock) \
-	, .waiters = RB_ROOT \
+	, .waiters = RB_ROOT_CACHED \
 	, .owner = NULL \
 	__DEBUG_RT_MUTEX_INITIALIZER(mutexname) \
 	__DEP_MAP_RT_MUTEX_INITIALIZER(mutexname)}

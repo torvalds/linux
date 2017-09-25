@@ -258,12 +258,16 @@ static const struct tegra_drm_client_ops vic_ops = {
 	.submit = tegra_drm_submit,
 };
 
+#define NVIDIA_TEGRA_124_VIC_FIRMWARE "nvidia/tegra124/vic03_ucode.bin"
+
 static const struct vic_config vic_t124_config = {
-	.firmware = "nvidia/tegra124/vic03_ucode.bin",
+	.firmware = NVIDIA_TEGRA_124_VIC_FIRMWARE,
 };
 
+#define NVIDIA_TEGRA_210_VIC_FIRMWARE "nvidia/tegra210/vic04_ucode.bin"
+
 static const struct vic_config vic_t210_config = {
-	.firmware = "nvidia/tegra210/vic04_ucode.bin",
+	.firmware = NVIDIA_TEGRA_210_VIC_FIRMWARE,
 };
 
 static const struct of_device_id vic_match[] = {
@@ -394,3 +398,10 @@ struct platform_driver tegra_vic_driver = {
 	.probe = vic_probe,
 	.remove = vic_remove,
 };
+
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_124_SOC)
+MODULE_FIRMWARE(NVIDIA_TEGRA_124_VIC_FIRMWARE);
+#endif
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_210_SOC)
+MODULE_FIRMWARE(NVIDIA_TEGRA_210_VIC_FIRMWARE);
+#endif

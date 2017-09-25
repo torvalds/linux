@@ -40,7 +40,7 @@
 #define CFI_R14			14
 #define CFI_R15			15
 #define CFI_RA			16
-#define CFI_NUM_REGS	17
+#define CFI_NUM_REGS		17
 
 struct cfi_reg {
 	int base;

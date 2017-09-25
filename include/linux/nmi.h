@@ -168,6 +168,14 @@ extern int sysctl_hardlockup_all_cpu_backtrace;
 #define sysctl_softlockup_all_cpu_backtrace 0
 #define sysctl_hardlockup_all_cpu_backtrace 0
 #endif
+
+#if defined(CONFIG_HARDLOCKUP_CHECK_TIMESTAMP) && \
+    defined(CONFIG_HARDLOCKUP_DETECTOR)
+void watchdog_update_hrtimer_threshold(u64 period);
+#else
+static inline void watchdog_update_hrtimer_threshold(u64 period) { }
+#endif
+
 extern bool is_hardlockup(void);
 struct ctl_table;
 extern int proc_watchdog(struct ctl_table *, int ,

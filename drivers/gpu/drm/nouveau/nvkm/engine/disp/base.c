@@ -267,6 +267,8 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 	/* Create output path objects for each VBIOS display path. */
 	i = -1;
 	while ((data = dcb_outp_parse(bios, ++i, &ver, &hdr, &dcbE))) {
+		if (ver < 0x40) /* No support for chipsets prior to NV50. */
+			break;
 		if (dcbE.type == DCB_OUTPUT_UNUSED)
 			continue;
 		if (dcbE.type == DCB_OUTPUT_EOL)
@@ -283,6 +285,10 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 		case DCB_OUTPUT_DP:
 			ret = nvkm_dp_new(disp, i, &dcbE, &outp);
 			break;
+		case DCB_OUTPUT_WFD:
+			/* No support for WFD yet. */
+			ret = -ENODEV;
+			continue;
 		default:
 			nvkm_warn(subdev, "dcb %d type %d unknown\n",
 				  i, dcbE.type);

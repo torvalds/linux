@@ -321,10 +321,7 @@ int vega10_fan_ctrl_reset_fan_speed_to_default(struct pp_hwmgr *hwmgr)
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_MicrocodeFanControl)) {
-		result = vega10_fan_ctrl_set_static_mode(hwmgr,
-				FDO_PWM_MODE_STATIC);
-		if (!result)
-			result = vega10_fan_ctrl_start_smc_fan_control(hwmgr);
+		result = vega10_fan_ctrl_start_smc_fan_control(hwmgr);
 	} else
 		result = vega10_fan_ctrl_set_default_mode(hwmgr);
 
@@ -633,7 +630,6 @@ int tf_vega10_thermal_start_smc_fan_control(struct pp_hwmgr *hwmgr,
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_MicrocodeFanControl)) {
 		vega10_fan_ctrl_start_smc_fan_control(hwmgr);
-		vega10_fan_ctrl_set_static_mode(hwmgr, FDO_PWM_MODE_STATIC);
 	}
 
 	return 0;

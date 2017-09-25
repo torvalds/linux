@@ -213,6 +213,7 @@ int bnxt_qplib_del_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	}
 	memcpy(&sgid_tbl->tbl[index], &bnxt_qplib_gid_zero,
 	       sizeof(bnxt_qplib_gid_zero));
+	sgid_tbl->vlan[index] = 0;
 	sgid_tbl->active--;
 	dev_dbg(&res->pdev->dev,
 		"QPLIB: SGID deleted hw_id[0x%x] = 0x%x active = 0x%x",
@@ -265,28 +266,32 @@ int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 		struct cmdq_add_gid req;
 		struct creq_add_gid_resp resp;
 		u16 cmd_flags = 0;
-		u32 temp32[4];
-		u16 temp16[3];
 		int rc;
 
 		RCFW_CMD_PREP(req, ADD_GID, cmd_flags);
 
-		memcpy(temp32, gid->data, sizeof(struct bnxt_qplib_gid));
-		req.gid[0] = cpu_to_be32(temp32[3]);
-		req.gid[1] = cpu_to_be32(temp32[2]);
-		req.gid[2] = cpu_to_be32(temp32[1]);
-		req.gid[3] = cpu_to_be32(temp32[0]);
-		if (vlan_id != 0xFFFF)
-			req.vlan = cpu_to_le16((vlan_id &
-					CMDQ_ADD_GID_VLAN_VLAN_ID_MASK) |
-					CMDQ_ADD_GID_VLAN_TPID_TPID_8100 |
-					CMDQ_ADD_GID_VLAN_VLAN_EN);
+		req.gid[0] = cpu_to_be32(((u32 *)gid->data)[3]);
+		req.gid[1] = cpu_to_be32(((u32 *)gid->data)[2]);
+		req.gid[2] = cpu_to_be32(((u32 *)gid->data)[1]);
+		req.gid[3] = cpu_to_be32(((u32 *)gid->data)[0]);
+		/*
+		 * driver should ensure that all RoCE traffic is always VLAN
+		 * tagged if RoCE traffic is running on non-zero VLAN ID or
+		 * RoCE traffic is running on non-zero Priority.
+		 */
+		if ((vlan_id != 0xFFFF) || res->prio) {
+			if (vlan_id != 0xFFFF)
+				req.vlan = cpu_to_le16
+				(vlan_id & CMDQ_ADD_GID_VLAN_VLAN_ID_MASK);
+			req.vlan |= cpu_to_le16
+					(CMDQ_ADD_GID_VLAN_TPID_TPID_8100 |
+					 CMDQ_ADD_GID_VLAN_VLAN_EN);
+		}
 
 		/* MAC in network format */
-		memcpy(temp16, smac, 6);
-		req.src_mac[0] = cpu_to_be16(temp16[0]);
-		req.src_mac[1] = cpu_to_be16(temp16[1]);
-		req.src_mac[2] = cpu_to_be16(temp16[2]);
+		req.src_mac[0] = cpu_to_be16(((u16 *)smac)[0]);
+		req.src_mac[1] = cpu_to_be16(((u16 *)smac)[1]);
+		req.src_mac[2] = cpu_to_be16(((u16 *)smac)[2]);
 
 		rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
 						  (void *)&resp, NULL, 0);
@@ -297,6 +302,9 @@ int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	/* Add GID to the sgid_tbl */
 	memcpy(&sgid_tbl->tbl[free_idx], gid, sizeof(*gid));
 	sgid_tbl->active++;
+	if (vlan_id != 0xFFFF)
+		sgid_tbl->vlan[free_idx] = 1;
+
 	dev_dbg(&res->pdev->dev,
 		"QPLIB: SGID added hw_id[0x%x] = 0x%x active = 0x%x",
 		 free_idx, sgid_tbl->hw_id[free_idx], sgid_tbl->active);
@@ -304,6 +312,43 @@ int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	*index = free_idx;
 	/* unlock */
 	return 0;
+}
+
+int bnxt_qplib_update_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
+			   struct bnxt_qplib_gid *gid, u16 gid_idx,
+			   u8 *smac)
+{
+	struct bnxt_qplib_res *res = to_bnxt_qplib(sgid_tbl,
+						   struct bnxt_qplib_res,
+						   sgid_tbl);
+	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
+	struct creq_modify_gid_resp resp;
+	struct cmdq_modify_gid req;
+	int rc;
+	u16 cmd_flags = 0;
+
+	RCFW_CMD_PREP(req, MODIFY_GID, cmd_flags);
+
+	req.gid[0] = cpu_to_be32(((u32 *)gid->data)[3]);
+	req.gid[1] = cpu_to_be32(((u32 *)gid->data)[2]);
+	req.gid[2] = cpu_to_be32(((u32 *)gid->data)[1]);
+	req.gid[3] = cpu_to_be32(((u32 *)gid->data)[0]);
+	if (res->prio) {
+		req.vlan |= cpu_to_le16
+			(CMDQ_ADD_GID_VLAN_TPID_TPID_8100 |
+			 CMDQ_ADD_GID_VLAN_VLAN_EN);
+	}
+
+	/* MAC in network format */
+	req.src_mac[0] = cpu_to_be16(((u16 *)smac)[0]);
+	req.src_mac[1] = cpu_to_be16(((u16 *)smac)[1]);
+	req.src_mac[2] = cpu_to_be16(((u16 *)smac)[2]);
+
+	req.gid_index = cpu_to_le16(gid_idx);
+
+	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
+					  (void *)&resp, NULL, 0);
+	return rc;
 }
 
 /* pkeys */

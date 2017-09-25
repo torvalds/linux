@@ -69,13 +69,22 @@ static inline int mm_is_core_local(struct mm_struct *mm)
 			      topology_sibling_cpumask(smp_processor_id()));
 }
 
+#ifdef CONFIG_PPC_BOOK3S_64
+static inline int mm_is_thread_local(struct mm_struct *mm)
+{
+	if (atomic_read(&mm->context.active_cpus) > 1)
+		return false;
+	return cpumask_test_cpu(smp_processor_id(), mm_cpumask(mm));
+}
+#else /* CONFIG_PPC_BOOK3S_64 */
 static inline int mm_is_thread_local(struct mm_struct *mm)
 {
 	return cpumask_equal(mm_cpumask(mm),
 			      cpumask_of(smp_processor_id()));
 }
+#endif /* !CONFIG_PPC_BOOK3S_64 */
 
-#else
+#else /* CONFIG_SMP */
 static inline int mm_is_core_local(struct mm_struct *mm)
 {
 	return 1;

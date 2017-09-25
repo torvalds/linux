@@ -104,6 +104,10 @@ struct kvmppc_host_state {
 	u8 napping;
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	/*
+	 * hwthread_req/hwthread_state pair is used to pull sibling threads
+	 * out of guest on pre-ISAv3.0B CPUs where threads share MMU.
+	 */
 	u8 hwthread_req;
 	u8 hwthread_state;
 	u8 host_ipi;

@@ -308,7 +308,7 @@ static	int bf5xx_pcm_copy_user(struct snd_pcm_substream *substream,
 }
 #endif
 
-static struct snd_pcm_ops bf5xx_pcm_ac97_ops = {
+static const struct snd_pcm_ops bf5xx_pcm_ac97_ops = {
 	.open		= bf5xx_pcm_open,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= bf5xx_pcm_hw_params,

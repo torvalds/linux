@@ -303,7 +303,7 @@ static struct sk_buff *alloc_and_align_skb(struct net_device *dev,
 	return skb;
 }
 
-static inline void vnet_fullcsum(struct sk_buff *skb)
+static inline void vnet_fullcsum_ipv4(struct sk_buff *skb)
 {
 	struct iphdr *iph = ip_hdr(skb);
 	int offset = skb_transport_offset(skb);
@@ -334,6 +334,40 @@ static inline void vnet_fullcsum(struct sk_buff *skb)
 						skb->csum);
 	}
 }
+
+#if IS_ENABLED(CONFIG_IPV6)
+static inline void vnet_fullcsum_ipv6(struct sk_buff *skb)
+{
+	struct ipv6hdr *ip6h = ipv6_hdr(skb);
+	int offset = skb_transport_offset(skb);
+
+	if (skb->protocol != htons(ETH_P_IPV6))
+		return;
+	if (ip6h->nexthdr != IPPROTO_TCP &&
+	    ip6h->nexthdr != IPPROTO_UDP)
+		return;
+	skb->ip_summed = CHECKSUM_NONE;
+	skb->csum_level = 1;
+	skb->csum = 0;
+	if (ip6h->nexthdr == IPPROTO_TCP) {
+		struct tcphdr *ptcp = tcp_hdr(skb);
+
+		ptcp->check = 0;
+		skb->csum = skb_checksum(skb, offset, skb->len - offset, 0);
+		ptcp->check = csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
+					      skb->len - offset, IPPROTO_TCP,
+					      skb->csum);
+	} else if (ip6h->nexthdr == IPPROTO_UDP) {
+		struct udphdr *pudp = udp_hdr(skb);
+
+		pudp->check = 0;
+		skb->csum = skb_checksum(skb, offset, skb->len - offset, 0);
+		pudp->check = csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
+					      skb->len - offset, IPPROTO_UDP,
+					      skb->csum);
+	}
+}
+#endif
 
 static int vnet_rx_one(struct vnet_port *port, struct vio_net_desc *desc)
 {
@@ -394,9 +428,14 @@ static int vnet_rx_one(struct vnet_port *port, struct vio_net_desc *desc)
 				struct iphdr *iph = ip_hdr(skb);
 				int ihl = iph->ihl * 4;
 
-				skb_reset_transport_header(skb);
 				skb_set_transport_header(skb, ihl);
-				vnet_fullcsum(skb);
+				vnet_fullcsum_ipv4(skb);
+#if IS_ENABLED(CONFIG_IPV6)
+			} else if (skb->protocol == htons(ETH_P_IPV6)) {
+				skb_set_transport_header(skb,
+							 sizeof(struct ipv6hdr));
+				vnet_fullcsum_ipv6(skb);
+#endif
 			}
 		}
 		if (dext->flags & VNET_PKT_HCK_IPV4_HDRCKSUM_OK) {
@@ -1115,24 +1154,47 @@ static inline struct sk_buff *vnet_skb_shape(struct sk_buff *skb, int ncookies)
 		if (skb->ip_summed == CHECKSUM_PARTIAL)
 			start = skb_checksum_start_offset(skb);
 		if (start) {
-			struct iphdr *iph = ip_hdr(nskb);
 			int offset = start + nskb->csum_offset;
 
+			/* copy the headers, no csum here */
 			if (skb_copy_bits(skb, 0, nskb->data, start)) {
 				dev_kfree_skb(nskb);
 				dev_kfree_skb(skb);
 				return NULL;
 			}
+
+			/* copy the rest, with csum calculation */
 			*(__sum16 *)(skb->data + offset) = 0;
 			csum = skb_copy_and_csum_bits(skb, start,
 						      nskb->data + start,
 						      skb->len - start, 0);
-			if (iph->protocol == IPPROTO_TCP ||
-			    iph->protocol == IPPROTO_UDP) {
-				csum = csum_tcpudp_magic(iph->saddr, iph->daddr,
-							 skb->len - start,
-							 iph->protocol, csum);
+
+			/* add in the header checksums */
+			if (skb->protocol == htons(ETH_P_IP)) {
+				struct iphdr *iph = ip_hdr(nskb);
+
+				if (iph->protocol == IPPROTO_TCP ||
+				    iph->protocol == IPPROTO_UDP) {
+					csum = csum_tcpudp_magic(iph->saddr,
+								 iph->daddr,
+								 skb->len - start,
+								 iph->protocol,
+								 csum);
+				}
+			} else if (skb->protocol == htons(ETH_P_IPV6)) {
+				struct ipv6hdr *ip6h = ipv6_hdr(nskb);
+
+				if (ip6h->nexthdr == IPPROTO_TCP ||
+				    ip6h->nexthdr == IPPROTO_UDP) {
+					csum = csum_ipv6_magic(&ip6h->saddr,
+							       &ip6h->daddr,
+							       skb->len - start,
+							       ip6h->nexthdr,
+							       csum);
+				}
 			}
+
+			/* save the final result */
 			*(__sum16 *)(nskb->data + offset) = csum;
 
 			nskb->ip_summed = CHECKSUM_NONE;
@@ -1318,8 +1380,14 @@ int sunvnet_start_xmit_common(struct sk_buff *skb, struct net_device *dev,
 	if (unlikely(!skb))
 		goto out_dropped;
 
-	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		vnet_fullcsum(skb);
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		if (skb->protocol == htons(ETH_P_IP))
+			vnet_fullcsum_ipv4(skb);
+#if IS_ENABLED(CONFIG_IPV6)
+		else if (skb->protocol == htons(ETH_P_IPV6))
+			vnet_fullcsum_ipv6(skb);
+#endif
+	}
 
 	dr = &port->vio.drings[VIO_DRIVER_TX_RING];
 	i = skb_get_queue_mapping(skb);

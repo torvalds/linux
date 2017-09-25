@@ -1338,7 +1338,7 @@ static int tc35815_send_packet(struct sk_buff *skb, struct net_device *dev)
 static void tc35815_fatal_error_interrupt(struct net_device *dev, u32 status)
 {
 	static int count;
-	printk(KERN_WARNING "%s: Fatal Error Intterrupt (%#x):",
+	printk(KERN_WARNING "%s: Fatal Error Interrupt (%#x):",
 	       dev->name, status);
 	if (status & Int_IntPCI)
 		printk(" IntPCI");

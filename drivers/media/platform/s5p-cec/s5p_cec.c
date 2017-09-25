@@ -219,11 +219,8 @@ static int s5p_cec_probe(struct platform_device *pdev)
 	if (cec->notifier == NULL)
 		return -ENOMEM;
 
-	cec->adap = cec_allocate_adapter(&s5p_cec_adap_ops, cec,
-		CEC_NAME,
-		CEC_CAP_LOG_ADDRS | CEC_CAP_TRANSMIT |
-		CEC_CAP_PASSTHROUGH | CEC_CAP_RC |
-		(needs_hpd ? CEC_CAP_NEEDS_HPD : 0), 1);
+	cec->adap = cec_allocate_adapter(&s5p_cec_adap_ops, cec, CEC_NAME,
+		CEC_CAP_DEFAULTS | (needs_hpd ? CEC_CAP_NEEDS_HPD : 0), 1);
 	ret = PTR_ERR_OR_ZERO(cec->adap);
 	if (ret)
 		return ret;

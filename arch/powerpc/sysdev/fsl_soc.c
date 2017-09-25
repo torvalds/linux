@@ -98,7 +98,7 @@ u32 fsl_get_sys_freq(void)
 }
 EXPORT_SYMBOL(fsl_get_sys_freq);
 
-#if defined(CONFIG_CPM2) || defined(CONFIG_QUICC_ENGINE) || defined(CONFIG_8xx)
+#if defined(CONFIG_CPM) || defined(CONFIG_QUICC_ENGINE)
 
 u32 get_brgfreq(void)
 {

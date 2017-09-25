@@ -48,12 +48,14 @@ static int aic32x4_spi_remove(struct spi_device *spi)
 
 static const struct spi_device_id aic32x4_spi_id[] = {
 	{ "tlv320aic32x4", 0 },
+	{ "tlv320aic32x6", 1 },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(spi, aic32x4_spi_id);
 
 static const struct of_device_id aic32x4_of_id[] = {
 	{ .compatible = "ti,tlv320aic32x4", },
+	{ .compatible = "ti,tlv320aic32x6", },
 	{ /* senitel */ }
 };
 MODULE_DEVICE_TABLE(of, aic32x4_of_id);

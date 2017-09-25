@@ -149,6 +149,46 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 	return 0;
 }
 
+static void copy_segments_to_skb(cvmx_wqe_t *work, struct sk_buff *skb)
+{
+	int segments = work->word2.s.bufs;
+	union cvmx_buf_ptr segment_ptr = work->packet_ptr;
+	int len = work->word1.len;
+	int segment_size;
+
+	while (segments--) {
+		union cvmx_buf_ptr next_ptr;
+
+		next_ptr = *(union cvmx_buf_ptr *)
+			cvmx_phys_to_ptr(segment_ptr.s.addr - 8);
+
+		/*
+		 * Octeon Errata PKI-100: The segment size is wrong.
+		 *
+		 * Until it is fixed, calculate the segment size based on
+		 * the packet pool buffer size.
+		 * When it is fixed, the following line should be replaced
+		 * with this one:
+		 * int segment_size = segment_ptr.s.size;
+		 */
+		segment_size =
+			CVMX_FPA_PACKET_POOL_SIZE -
+			(segment_ptr.s.addr -
+			 (((segment_ptr.s.addr >> 7) -
+			   segment_ptr.s.back) << 7));
+
+		/* Don't copy more than what is left in the packet */
+		if (segment_size > len)
+			segment_size = len;
+
+		/* Copy the data into the packet */
+		skb_put_data(skb, cvmx_phys_to_ptr(segment_ptr.s.addr),
+			     segment_size);
+		len -= segment_size;
+		segment_ptr = next_ptr;
+	}
+}
+
 static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 {
 	const int	coreid = cvmx_get_core_num();
@@ -290,44 +330,7 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 				skb_put_data(skb, ptr, work->word1.len);
 				/* No packet buffers to free */
 			} else {
-				int segments = work->word2.s.bufs;
-				union cvmx_buf_ptr segment_ptr =
-				    work->packet_ptr;
-				int len = work->word1.len;
-
-				while (segments--) {
-					union cvmx_buf_ptr next_ptr =
-					    *(union cvmx_buf_ptr *)
-					      cvmx_phys_to_ptr(
-					      segment_ptr.s.addr - 8);
-
-			/*
-			 * Octeon Errata PKI-100: The segment size is
-			 * wrong. Until it is fixed, calculate the
-			 * segment size based on the packet pool
-			 * buffer size. When it is fixed, the
-			 * following line should be replaced with this
-			 * one: int segment_size =
-			 * segment_ptr.s.size;
-			 */
-					int segment_size =
-					    CVMX_FPA_PACKET_POOL_SIZE -
-					    (segment_ptr.s.addr -
-					     (((segment_ptr.s.addr >> 7) -
-					       segment_ptr.s.back) << 7));
-					/*
-					 * Don't copy more than what
-					 * is left in the packet.
-					 */
-					if (segment_size > len)
-						segment_size = len;
-					/* Copy the data into the packet */
-					skb_put_data(skb,
-						     cvmx_phys_to_ptr(segment_ptr.s.addr),
-						     segment_size);
-					len -= segment_size;
-					segment_ptr = next_ptr;
-				}
+				copy_segments_to_skb(work, skb);
 			}
 			packet_not_copied = 0;
 		}

@@ -29,6 +29,7 @@ struct dm_rq_target_io {
 	struct dm_stats_aux stats_aux;
 	unsigned long duration_jiffies;
 	unsigned n_sectors;
+	unsigned completed;
 };
 
 /*

@@ -220,6 +220,90 @@ static int __nvme_fc_del_ctrl(struct nvme_fc_ctrl *);
 static void __nvme_fc_delete_hw_queue(struct nvme_fc_ctrl *,
 			struct nvme_fc_queue *, unsigned int);
 
+static void
+nvme_fc_free_lport(struct kref *ref)
+{
+	struct nvme_fc_lport *lport =
+		container_of(ref, struct nvme_fc_lport, ref);
+	unsigned long flags;
+
+	WARN_ON(lport->localport.port_state != FC_OBJSTATE_DELETED);
+	WARN_ON(!list_empty(&lport->endp_list));
+
+	/* remove from transport list */
+	spin_lock_irqsave(&nvme_fc_lock, flags);
+	list_del(&lport->port_list);
+	spin_unlock_irqrestore(&nvme_fc_lock, flags);
+
+	/* let the LLDD know we've finished tearing it down */
+	lport->ops->localport_delete(&lport->localport);
+
+	ida_simple_remove(&nvme_fc_local_port_cnt, lport->localport.port_num);
+	ida_destroy(&lport->endp_cnt);
+
+	put_device(lport->dev);
+
+	kfree(lport);
+}
+
+static void
+nvme_fc_lport_put(struct nvme_fc_lport *lport)
+{
+	kref_put(&lport->ref, nvme_fc_free_lport);
+}
+
+static int
+nvme_fc_lport_get(struct nvme_fc_lport *lport)
+{
+	return kref_get_unless_zero(&lport->ref);
+}
+
+
+static struct nvme_fc_lport *
+nvme_fc_attach_to_unreg_lport(struct nvme_fc_port_info *pinfo)
+{
+	struct nvme_fc_lport *lport;
+	unsigned long flags;
+
+	spin_lock_irqsave(&nvme_fc_lock, flags);
+
+	list_for_each_entry(lport, &nvme_fc_lport_list, port_list) {
+		if (lport->localport.node_name != pinfo->node_name ||
+		    lport->localport.port_name != pinfo->port_name)
+			continue;
+
+		if (lport->localport.port_state != FC_OBJSTATE_DELETED) {
+			lport = ERR_PTR(-EEXIST);
+			goto out_done;
+		}
+
+		if (!nvme_fc_lport_get(lport)) {
+			/*
+			 * fails if ref cnt already 0. If so,
+			 * act as if lport already deleted
+			 */
+			lport = NULL;
+			goto out_done;
+		}
+
+		/* resume the lport */
+
+		lport->localport.port_role = pinfo->port_role;
+		lport->localport.port_id = pinfo->port_id;
+		lport->localport.port_state = FC_OBJSTATE_ONLINE;
+
+		spin_unlock_irqrestore(&nvme_fc_lock, flags);
+
+		return lport;
+	}
+
+	lport = NULL;
+
+out_done:
+	spin_unlock_irqrestore(&nvme_fc_lock, flags);
+
+	return lport;
+}
 
 /**
  * nvme_fc_register_localport - transport entry point called by an
@@ -256,6 +340,28 @@ nvme_fc_register_localport(struct nvme_fc_port_info *pinfo,
 		ret = -EINVAL;
 		goto out_reghost_failed;
 	}
+
+	/*
+	 * look to see if there is already a localport that had been
+	 * deregistered and in the process of waiting for all the
+	 * references to fully be removed.  If the references haven't
+	 * expired, we can simply re-enable the localport. Remoteports
+	 * and controller reconnections should resume naturally.
+	 */
+	newrec = nvme_fc_attach_to_unreg_lport(pinfo);
+
+	/* found an lport, but something about its state is bad */
+	if (IS_ERR(newrec)) {
+		ret = PTR_ERR(newrec);
+		goto out_reghost_failed;
+
+	/* found existing lport, which was resumed */
+	} else if (newrec) {
+		*portptr = &newrec->localport;
+		return 0;
+	}
+
+	/* nothing found - allocate a new localport struct */
 
 	newrec = kmalloc((sizeof(*newrec) + template->local_priv_sz),
 			 GFP_KERNEL);
@@ -309,44 +415,6 @@ out_reghost_failed:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nvme_fc_register_localport);
-
-static void
-nvme_fc_free_lport(struct kref *ref)
-{
-	struct nvme_fc_lport *lport =
-		container_of(ref, struct nvme_fc_lport, ref);
-	unsigned long flags;
-
-	WARN_ON(lport->localport.port_state != FC_OBJSTATE_DELETED);
-	WARN_ON(!list_empty(&lport->endp_list));
-
-	/* remove from transport list */
-	spin_lock_irqsave(&nvme_fc_lock, flags);
-	list_del(&lport->port_list);
-	spin_unlock_irqrestore(&nvme_fc_lock, flags);
-
-	/* let the LLDD know we've finished tearing it down */
-	lport->ops->localport_delete(&lport->localport);
-
-	ida_simple_remove(&nvme_fc_local_port_cnt, lport->localport.port_num);
-	ida_destroy(&lport->endp_cnt);
-
-	put_device(lport->dev);
-
-	kfree(lport);
-}
-
-static void
-nvme_fc_lport_put(struct nvme_fc_lport *lport)
-{
-	kref_put(&lport->ref, nvme_fc_free_lport);
-}
-
-static int
-nvme_fc_lport_get(struct nvme_fc_lport *lport)
-{
-	return kref_get_unless_zero(&lport->ref);
-}
 
 /**
  * nvme_fc_unregister_localport - transport entry point called by an
@@ -1888,7 +1956,7 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 	 * the target device is present
 	 */
 	if (ctrl->rport->remoteport.port_state != FC_OBJSTATE_ONLINE)
-		return BLK_STS_IOERR;
+		goto busy;
 
 	if (!nvme_fc_ctrl_get(ctrl))
 		return BLK_STS_IOERR;
@@ -1958,22 +2026,25 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 					queue->lldd_handle, &op->fcp_req);
 
 	if (ret) {
-		if (op->rq)			/* normal request */
+		if (!(op->flags & FCOP_FLAGS_AEN))
 			nvme_fc_unmap_data(ctrl, op->rq, op);
-		/* else - aen. no cleanup needed */
 
 		nvme_fc_ctrl_put(ctrl);
 
-		if (ret != -EBUSY)
+		if (ctrl->rport->remoteport.port_state == FC_OBJSTATE_ONLINE &&
+				ret != -EBUSY)
 			return BLK_STS_IOERR;
 
-		if (op->rq)
-			blk_mq_delay_run_hw_queue(queue->hctx, NVMEFC_QUEUE_DELAY);
-
-		return BLK_STS_RESOURCE;
+		goto busy;
 	}
 
 	return BLK_STS_OK;
+
+busy:
+	if (!(op->flags & FCOP_FLAGS_AEN) && queue->hctx)
+		blk_mq_delay_run_hw_queue(queue->hctx, NVMEFC_QUEUE_DELAY);
+
+	return BLK_STS_RESOURCE;
 }
 
 static blk_status_t
@@ -2165,7 +2236,6 @@ static const struct blk_mq_ops nvme_fc_mq_ops = {
 	.complete	= nvme_fc_complete_rq,
 	.init_request	= nvme_fc_init_request,
 	.exit_request	= nvme_fc_exit_request,
-	.reinit_request	= nvme_fc_reinit_request,
 	.init_hctx	= nvme_fc_init_hctx,
 	.poll		= nvme_fc_poll,
 	.timeout	= nvme_fc_timeout,
@@ -2266,7 +2336,7 @@ nvme_fc_reinit_io_queues(struct nvme_fc_ctrl *ctrl)
 
 	nvme_fc_init_io_queues(ctrl);
 
-	ret = blk_mq_reinit_tagset(&ctrl->tag_set);
+	ret = blk_mq_reinit_tagset(&ctrl->tag_set, nvme_fc_reinit_request);
 	if (ret)
 		goto out_free_io_queues;
 
@@ -2652,7 +2722,6 @@ static const struct blk_mq_ops nvme_fc_admin_mq_ops = {
 	.complete	= nvme_fc_complete_rq,
 	.init_request	= nvme_fc_init_request,
 	.exit_request	= nvme_fc_exit_request,
-	.reinit_request	= nvme_fc_reinit_request,
 	.init_hctx	= nvme_fc_init_admin_hctx,
 	.timeout	= nvme_fc_timeout,
 };
@@ -2730,6 +2799,7 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	ret = blk_mq_alloc_tag_set(&ctrl->admin_tag_set);
 	if (ret)
 		goto out_free_queues;
+	ctrl->ctrl.admin_tagset = &ctrl->admin_tag_set;
 
 	ctrl->ctrl.admin_q = blk_mq_init_queue(&ctrl->admin_tag_set);
 	if (IS_ERR(ctrl->ctrl.admin_q)) {
@@ -2802,66 +2872,70 @@ out_fail:
 	return ERR_PTR(ret);
 }
 
-enum {
-	FCT_TRADDR_ERR		= 0,
-	FCT_TRADDR_WWNN		= 1 << 0,
-	FCT_TRADDR_WWPN		= 1 << 1,
-};
 
 struct nvmet_fc_traddr {
 	u64	nn;
 	u64	pn;
 };
 
-static const match_table_t traddr_opt_tokens = {
-	{ FCT_TRADDR_WWNN,	"nn-%s"		},
-	{ FCT_TRADDR_WWPN,	"pn-%s"		},
-	{ FCT_TRADDR_ERR,	NULL		}
-};
-
 static int
-nvme_fc_parse_address(struct nvmet_fc_traddr *traddr, char *buf)
+__nvme_fc_parse_u64(substring_t *sstr, u64 *val)
 {
-	substring_t args[MAX_OPT_ARGS];
-	char *options, *o, *p;
-	int token, ret = 0;
 	u64 token64;
 
-	options = o = kstrdup(buf, GFP_KERNEL);
-	if (!options)
-		return -ENOMEM;
+	if (match_u64(sstr, &token64))
+		return -EINVAL;
+	*val = token64;
 
-	while ((p = strsep(&o, ":\n")) != NULL) {
-		if (!*p)
-			continue;
+	return 0;
+}
 
-		token = match_token(p, traddr_opt_tokens, args);
-		switch (token) {
-		case FCT_TRADDR_WWNN:
-			if (match_u64(args, &token64)) {
-				ret = -EINVAL;
-				goto out;
-			}
-			traddr->nn = token64;
-			break;
-		case FCT_TRADDR_WWPN:
-			if (match_u64(args, &token64)) {
-				ret = -EINVAL;
-				goto out;
-			}
-			traddr->pn = token64;
-			break;
-		default:
-			pr_warn("unknown traddr token or missing value '%s'\n",
-					p);
-			ret = -EINVAL;
-			goto out;
-		}
-	}
+/*
+ * This routine validates and extracts the WWN's from the TRADDR string.
+ * As kernel parsers need the 0x to determine number base, universally
+ * build string to parse with 0x prefix before parsing name strings.
+ */
+static int
+nvme_fc_parse_traddr(struct nvmet_fc_traddr *traddr, char *buf, size_t blen)
+{
+	char name[2 + NVME_FC_TRADDR_HEXNAMELEN + 1];
+	substring_t wwn = { name, &name[sizeof(name)-1] };
+	int nnoffset, pnoffset;
 
-out:
-	kfree(options);
-	return ret;
+	/* validate it string one of the 2 allowed formats */
+	if (strnlen(buf, blen) == NVME_FC_TRADDR_MAXLENGTH &&
+			!strncmp(buf, "nn-0x", NVME_FC_TRADDR_OXNNLEN) &&
+			!strncmp(&buf[NVME_FC_TRADDR_MAX_PN_OFFSET],
+				"pn-0x", NVME_FC_TRADDR_OXNNLEN)) {
+		nnoffset = NVME_FC_TRADDR_OXNNLEN;
+		pnoffset = NVME_FC_TRADDR_MAX_PN_OFFSET +
+						NVME_FC_TRADDR_OXNNLEN;
+	} else if ((strnlen(buf, blen) == NVME_FC_TRADDR_MINLENGTH &&
+			!strncmp(buf, "nn-", NVME_FC_TRADDR_NNLEN) &&
+			!strncmp(&buf[NVME_FC_TRADDR_MIN_PN_OFFSET],
+				"pn-", NVME_FC_TRADDR_NNLEN))) {
+		nnoffset = NVME_FC_TRADDR_NNLEN;
+		pnoffset = NVME_FC_TRADDR_MIN_PN_OFFSET + NVME_FC_TRADDR_NNLEN;
+	} else
+		goto out_einval;
+
+	name[0] = '0';
+	name[1] = 'x';
+	name[2 + NVME_FC_TRADDR_HEXNAMELEN] = 0;
+
+	memcpy(&name[2], &buf[nnoffset], NVME_FC_TRADDR_HEXNAMELEN);
+	if (__nvme_fc_parse_u64(&wwn, &traddr->nn))
+		goto out_einval;
+
+	memcpy(&name[2], &buf[pnoffset], NVME_FC_TRADDR_HEXNAMELEN);
+	if (__nvme_fc_parse_u64(&wwn, &traddr->pn))
+		goto out_einval;
+
+	return 0;
+
+out_einval:
+	pr_warn("%s: bad traddr string\n", __func__);
+	return -EINVAL;
 }
 
 static struct nvme_ctrl *
@@ -2875,11 +2949,11 @@ nvme_fc_create_ctrl(struct device *dev, struct nvmf_ctrl_options *opts)
 	unsigned long flags;
 	int ret;
 
-	ret = nvme_fc_parse_address(&raddr, opts->traddr);
+	ret = nvme_fc_parse_traddr(&raddr, opts->traddr, NVMF_TRADDR_SIZE);
 	if (ret || !raddr.nn || !raddr.pn)
 		return ERR_PTR(-EINVAL);
 
-	ret = nvme_fc_parse_address(&laddr, opts->host_traddr);
+	ret = nvme_fc_parse_traddr(&laddr, opts->host_traddr, NVMF_TRADDR_SIZE);
 	if (ret || !laddr.nn || !laddr.pn)
 		return ERR_PTR(-EINVAL);
 

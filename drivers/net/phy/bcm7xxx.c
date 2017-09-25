@@ -511,7 +511,7 @@ static int bcm7xxx_config_init(struct phy_device *phydev)
 static int bcm7xxx_suspend(struct phy_device *phydev)
 {
 	int ret;
-	const struct bcm7xxx_regs {
+	static const struct bcm7xxx_regs {
 		int reg;
 		u16 value;
 	} bcm7xxx_suspend_cfg[] = {

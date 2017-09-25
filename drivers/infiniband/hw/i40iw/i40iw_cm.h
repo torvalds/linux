@@ -71,6 +71,9 @@
 #define	I40IW_HW_IRD_SETTING_32	32
 #define	I40IW_HW_IRD_SETTING_64	64
 
+#define MAX_PORTS		65536
+#define I40IW_VLAN_PRIO_SHIFT   13
+
 enum ietf_mpa_flags {
 	IETF_MPA_FLAGS_MARKERS = 0x80,	/* receive Markers */
 	IETF_MPA_FLAGS_CRC = 0x40,	/* receive Markers */
@@ -410,6 +413,8 @@ struct i40iw_cm_core {
 
 	spinlock_t ht_lock; /* manage hash table */
 	spinlock_t listen_list_lock; /* listen list */
+
+	unsigned long active_side_ports[BITS_TO_LONGS(MAX_PORTS)];
 
 	u64	stats_nodes_created;
 	u64	stats_nodes_destroyed;

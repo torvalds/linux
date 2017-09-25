@@ -368,9 +368,10 @@ static int coda_venus_readdir(struct file *coda_file, struct dir_context *ctx)
 		goto out;
 
 	while (1) {
+		loff_t pos = ctx->pos - 2;
+
 		/* read entries from the directory file */
-		ret = kernel_read(host_file, ctx->pos - 2, (char *)vdir,
-				  sizeof(*vdir));
+		ret = kernel_read(host_file, vdir, sizeof(*vdir), &pos);
 		if (ret < 0) {
 			pr_err("%s: read dir %s failed %d\n",
 			       __func__, coda_f2s(&cii->c_fid), ret);

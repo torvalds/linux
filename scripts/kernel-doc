@@ -2226,6 +2226,7 @@ sub dump_enum($$) {
     if ($x =~ /enum\s+(\w+)\s*{(.*)}/) {
 	$declaration_name = $1;
 	my $members = $2;
+	$members =~ s/\s+$//;
 
 	foreach my $arg (split ',', $members) {
 	    $arg =~ s/^\s*(\w+).*/$1/;
@@ -2766,6 +2767,9 @@ sub process_proto_type($$) {
 
     while (1) {
 	if ( $x =~ /([^{};]*)([{};])(.*)/ ) {
+            if( length $prototype ) {
+                $prototype .= " "
+            }
 	    $prototype .= $1 . $2;
 	    ($2 eq '{') && $brcount++;
 	    ($2 eq '}') && $brcount--;

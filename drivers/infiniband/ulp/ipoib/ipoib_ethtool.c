@@ -52,7 +52,8 @@ static const struct ipoib_stats ipoib_gstrings_stats[] = {
 	IPOIB_NETDEV_STAT(tx_bytes),
 	IPOIB_NETDEV_STAT(tx_errors),
 	IPOIB_NETDEV_STAT(rx_dropped),
-	IPOIB_NETDEV_STAT(tx_dropped)
+	IPOIB_NETDEV_STAT(tx_dropped),
+	IPOIB_NETDEV_STAT(multicast),
 };
 
 #define IPOIB_GLOBAL_STATS_LEN	ARRAY_SIZE(ipoib_gstrings_stats)
@@ -62,8 +63,7 @@ static void ipoib_get_drvinfo(struct net_device *netdev,
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(netdev);
 
-	ib_get_device_fw_str(priv->ca, drvinfo->fw_version,
-			     sizeof(drvinfo->fw_version));
+	ib_get_device_fw_str(priv->ca, drvinfo->fw_version);
 
 	strlcpy(drvinfo->bus_info, dev_name(priv->ca->dev.parent),
 		sizeof(drvinfo->bus_info));

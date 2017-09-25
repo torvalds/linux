@@ -65,6 +65,8 @@ static __inline__ void atomic_set(atomic_t *v, int i)
 	_atomic_spin_unlock_irqrestore(v, flags);
 }
 
+#define atomic_set_release(v, i)	atomic_set((v), (i))
+
 static __inline__ int atomic_read(const atomic_t *v)
 {
 	return READ_ONCE((v)->counter);

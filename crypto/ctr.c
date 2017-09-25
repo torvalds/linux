@@ -65,8 +65,7 @@ static void crypto_ctr_crypt_final(struct blkcipher_walk *walk,
 	unsigned int nbytes = walk->nbytes;
 
 	crypto_cipher_encrypt_one(tfm, keystream, ctrblk);
-	crypto_xor(keystream, src, nbytes);
-	memcpy(dst, keystream, nbytes);
+	crypto_xor_cpy(dst, keystream, src, nbytes);
 
 	crypto_inc(ctrblk, bsize);
 }

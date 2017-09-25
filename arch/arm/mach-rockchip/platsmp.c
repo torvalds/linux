@@ -67,7 +67,7 @@ static struct reset_control *rockchip_get_core_reset(int cpu)
 	else
 		np = of_get_cpu_node(cpu, NULL);
 
-	return of_reset_control_get(np, NULL);
+	return of_reset_control_get_exclusive(np, NULL);
 }
 
 static int pmu_set_power_domain(int pd, bool on)
@@ -182,8 +182,8 @@ static int __init rockchip_smp_prepare_sram(struct device_node *node)
 
 	ret = of_address_to_resource(node, 0, &res);
 	if (ret < 0) {
-		pr_err("%s: could not get address for node %s\n",
-		       __func__, node->full_name);
+		pr_err("%s: could not get address for node %pOF\n",
+		       __func__, node);
 		return ret;
 	}
 

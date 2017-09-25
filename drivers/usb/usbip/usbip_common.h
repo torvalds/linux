@@ -34,8 +34,6 @@
 #include <linux/sched/task.h>
 #include <uapi/linux/usbip.h>
 
-#define USBIP_VERSION "1.0.0"
-
 #undef pr_fmt
 
 #ifdef DEBUG

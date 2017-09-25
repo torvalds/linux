@@ -33,6 +33,8 @@
 #include <drm/drm_modeset_helper.h>
 
 struct drm_atomic_state;
+struct drm_private_obj;
+struct drm_private_state;
 
 int drm_atomic_helper_check_modeset(struct drm_device *dev,
 				struct drm_atomic_state *state);
@@ -41,9 +43,14 @@ int drm_atomic_helper_check_planes(struct drm_device *dev,
 int drm_atomic_helper_check(struct drm_device *dev,
 			    struct drm_atomic_state *state);
 void drm_atomic_helper_commit_tail(struct drm_atomic_state *state);
+void drm_atomic_helper_commit_tail_rpm(struct drm_atomic_state *state);
 int drm_atomic_helper_commit(struct drm_device *dev,
 			     struct drm_atomic_state *state,
 			     bool nonblock);
+int drm_atomic_helper_async_check(struct drm_device *dev,
+				  struct drm_atomic_state *state);
+void drm_atomic_helper_async_commit(struct drm_device *dev,
+				    struct drm_atomic_state *state);
 
 int drm_atomic_helper_wait_for_fences(struct drm_device *dev,
 					struct drm_atomic_state *state,
@@ -51,6 +58,9 @@ int drm_atomic_helper_wait_for_fences(struct drm_device *dev,
 
 void drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 					struct drm_atomic_state *old_state);
+
+void drm_atomic_helper_wait_for_flip_done(struct drm_device *dev,
+					  struct drm_atomic_state *old_state);
 
 void
 drm_atomic_helper_update_legacy_modeset_state(struct drm_device *dev,
@@ -77,8 +87,8 @@ void
 drm_atomic_helper_disable_planes_on_crtc(struct drm_crtc_state *old_crtc_state,
 					 bool atomic);
 
-void drm_atomic_helper_swap_state(struct drm_atomic_state *state,
-				  bool stall);
+int __must_check drm_atomic_helper_swap_state(struct drm_atomic_state *state,
+					      bool stall);
 
 /* nonblocking commit helpers */
 int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
@@ -114,15 +124,6 @@ int drm_atomic_helper_commit_duplicated_state(struct drm_atomic_state *state,
 int drm_atomic_helper_resume(struct drm_device *dev,
 			     struct drm_atomic_state *state);
 
-int drm_atomic_helper_crtc_set_property(struct drm_crtc *crtc,
-					struct drm_property *property,
-					uint64_t val);
-int drm_atomic_helper_plane_set_property(struct drm_plane *plane,
-					struct drm_property *property,
-					uint64_t val);
-int drm_atomic_helper_connector_set_property(struct drm_connector *connector,
-					struct drm_property *property,
-					uint64_t val);
 int drm_atomic_helper_page_flip(struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
 				struct drm_pending_vblank_event *event,
@@ -135,8 +136,6 @@ int drm_atomic_helper_page_flip_target(
 				uint32_t flags,
 				uint32_t target,
 				struct drm_modeset_acquire_ctx *ctx);
-int drm_atomic_helper_connector_dpms(struct drm_connector *connector,
-				     int mode);
 struct drm_encoder *
 drm_atomic_helper_best_encoder(struct drm_connector *connector);
 
@@ -178,6 +177,8 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
 				       u16 *red, u16 *green, u16 *blue,
 				       uint32_t size,
 				       struct drm_modeset_acquire_ctx *ctx);
+void __drm_atomic_helper_private_obj_duplicate_state(struct drm_private_obj *obj,
+						     struct drm_private_state *state);
 
 /**
  * drm_atomic_crtc_for_each_plane - iterate over planes currently attached to CRTC

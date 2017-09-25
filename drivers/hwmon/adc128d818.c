@@ -384,7 +384,7 @@ static struct attribute *adc128_attrs[] = {
 	NULL
 };
 
-static struct attribute_group adc128_group = {
+static const struct attribute_group adc128_group = {
 	.attrs = adc128_attrs,
 	.is_visible = adc128_is_visible,
 };

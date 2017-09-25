@@ -128,6 +128,9 @@ EXPORT_SYMBOL(drm_color_lut_extract);
  * optional. The gamma and degamma properties are only attached if
  * their size is not 0 and ctm_property is only attached if has_ctm is
  * true.
+ *
+ * Drivers should use drm_atomic_helper_legacy_gamma_set() to implement the
+ * legacy &drm_crtc_funcs.gamma_set callback.
  */
 void drm_crtc_enable_color_mgmt(struct drm_crtc *crtc,
 				uint degamma_lut_size,

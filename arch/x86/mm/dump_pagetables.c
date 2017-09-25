@@ -13,12 +13,12 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/kasan.h>
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 
-#include <asm/kasan.h>
 #include <asm/pgtable.h>
 
 /*
@@ -138,7 +138,7 @@ static void printk_prot(struct seq_file *m, pgprot_t prot, int level, bool dmsg)
 {
 	pgprotval_t pr = pgprot_val(prot);
 	static const char * const level_name[] =
-		{ "cr3", "pgd", "pud", "pmd", "pte" };
+		{ "cr3", "pgd", "p4d", "pud", "pmd", "pte" };
 
 	if (!pgprot_val(prot)) {
 		/* Not present */
@@ -162,12 +162,12 @@ static void printk_prot(struct seq_file *m, pgprot_t prot, int level, bool dmsg)
 			pt_dump_cont_printf(m, dmsg, "    ");
 
 		/* Bit 7 has a different meaning on level 3 vs 4 */
-		if (level <= 3 && pr & _PAGE_PSE)
+		if (level <= 4 && pr & _PAGE_PSE)
 			pt_dump_cont_printf(m, dmsg, "PSE ");
 		else
 			pt_dump_cont_printf(m, dmsg, "    ");
-		if ((level == 4 && pr & _PAGE_PAT) ||
-		    ((level == 3 || level == 2) && pr & _PAGE_PAT_LARGE))
+		if ((level == 5 && pr & _PAGE_PAT) ||
+		    ((level == 4 || level == 3) && pr & _PAGE_PAT_LARGE))
 			pt_dump_cont_printf(m, dmsg, "PAT ");
 		else
 			pt_dump_cont_printf(m, dmsg, "    ");
@@ -188,11 +188,12 @@ static void printk_prot(struct seq_file *m, pgprot_t prot, int level, bool dmsg)
  */
 static unsigned long normalize_addr(unsigned long u)
 {
-#ifdef CONFIG_X86_64
-	return (signed long)(u << 16) >> 16;
-#else
-	return u;
-#endif
+	int shift;
+	if (!IS_ENABLED(CONFIG_X86_64))
+		return u;
+
+	shift = 64 - (__VIRTUAL_MASK_SHIFT + 1);
+	return (signed long)(u << shift) >> shift;
 }
 
 /*
@@ -297,32 +298,62 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr, 
 	for (i = 0; i < PTRS_PER_PTE; i++) {
 		prot = pte_flags(*start);
 		st->current_address = normalize_addr(P + i * PTE_LEVEL_MULT);
-		note_page(m, st, __pgprot(prot), 4);
+		note_page(m, st, __pgprot(prot), 5);
 		start++;
 	}
 }
+#ifdef CONFIG_KASAN
+
+/*
+ * This is an optimization for KASAN=y case. Since all kasan page tables
+ * eventually point to the kasan_zero_page we could call note_page()
+ * right away without walking through lower level page tables. This saves
+ * us dozens of seconds (minutes for 5-level config) while checking for
+ * W+X mapping or reading kernel_page_tables debugfs file.
+ */
+static inline bool kasan_page_table(struct seq_file *m, struct pg_state *st,
+				void *pt)
+{
+	if (__pa(pt) == __pa(kasan_zero_pmd) ||
+#ifdef CONFIG_X86_5LEVEL
+	    __pa(pt) == __pa(kasan_zero_p4d) ||
+#endif
+	    __pa(pt) == __pa(kasan_zero_pud)) {
+		pgprotval_t prot = pte_flags(kasan_zero_pte[0]);
+		note_page(m, st, __pgprot(prot), 5);
+		return true;
+	}
+	return false;
+}
+#else
+static inline bool kasan_page_table(struct seq_file *m, struct pg_state *st,
+				void *pt)
+{
+	return false;
+}
+#endif
 
 #if PTRS_PER_PMD > 1
 
 static void walk_pmd_level(struct seq_file *m, struct pg_state *st, pud_t addr, unsigned long P)
 {
 	int i;
-	pmd_t *start;
+	pmd_t *start, *pmd_start;
 	pgprotval_t prot;
 
-	start = (pmd_t *)pud_page_vaddr(addr);
+	pmd_start = start = (pmd_t *)pud_page_vaddr(addr);
 	for (i = 0; i < PTRS_PER_PMD; i++) {
 		st->current_address = normalize_addr(P + i * PMD_LEVEL_MULT);
 		if (!pmd_none(*start)) {
 			if (pmd_large(*start) || !pmd_present(*start)) {
 				prot = pmd_flags(*start);
-				note_page(m, st, __pgprot(prot), 3);
-			} else {
+				note_page(m, st, __pgprot(prot), 4);
+			} else if (!kasan_page_table(m, st, pmd_start)) {
 				walk_pte_level(m, st, *start,
 					       P + i * PMD_LEVEL_MULT);
 			}
 		} else
-			note_page(m, st, __pgprot(0), 3);
+			note_page(m, st, __pgprot(0), 4);
 		start++;
 	}
 }
@@ -335,39 +366,27 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st, pud_t addr, 
 
 #if PTRS_PER_PUD > 1
 
-/*
- * This is an optimization for CONFIG_DEBUG_WX=y + CONFIG_KASAN=y
- * KASAN fills page tables with the same values. Since there is no
- * point in checking page table more than once we just skip repeated
- * entries. This saves us dozens of seconds during boot.
- */
-static bool pud_already_checked(pud_t *prev_pud, pud_t *pud, bool checkwx)
-{
-	return checkwx && prev_pud && (pud_val(*prev_pud) == pud_val(*pud));
-}
-
 static void walk_pud_level(struct seq_file *m, struct pg_state *st, p4d_t addr, unsigned long P)
 {
 	int i;
-	pud_t *start;
+	pud_t *start, *pud_start;
 	pgprotval_t prot;
 	pud_t *prev_pud = NULL;
 
-	start = (pud_t *)p4d_page_vaddr(addr);
+	pud_start = start = (pud_t *)p4d_page_vaddr(addr);
 
 	for (i = 0; i < PTRS_PER_PUD; i++) {
 		st->current_address = normalize_addr(P + i * PUD_LEVEL_MULT);
-		if (!pud_none(*start) &&
-		    !pud_already_checked(prev_pud, start, st->check_wx)) {
+		if (!pud_none(*start)) {
 			if (pud_large(*start) || !pud_present(*start)) {
 				prot = pud_flags(*start);
-				note_page(m, st, __pgprot(prot), 2);
-			} else {
+				note_page(m, st, __pgprot(prot), 3);
+			} else if (!kasan_page_table(m, st, pud_start)) {
 				walk_pmd_level(m, st, *start,
 					       P + i * PUD_LEVEL_MULT);
 			}
 		} else
-			note_page(m, st, __pgprot(0), 2);
+			note_page(m, st, __pgprot(0), 3);
 
 		prev_pud = start;
 		start++;
@@ -385,10 +404,10 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, p4d_t addr, 
 static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr, unsigned long P)
 {
 	int i;
-	p4d_t *start;
+	p4d_t *start, *p4d_start;
 	pgprotval_t prot;
 
-	start = (p4d_t *)pgd_page_vaddr(addr);
+	p4d_start = start = (p4d_t *)pgd_page_vaddr(addr);
 
 	for (i = 0; i < PTRS_PER_P4D; i++) {
 		st->current_address = normalize_addr(P + i * P4D_LEVEL_MULT);
@@ -396,7 +415,7 @@ static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr, 
 			if (p4d_large(*start) || !p4d_present(*start)) {
 				prot = p4d_flags(*start);
 				note_page(m, st, __pgprot(prot), 2);
-			} else {
+			} else if (!kasan_page_table(m, st, p4d_start)) {
 				walk_pud_level(m, st, *start,
 					       P + i * P4D_LEVEL_MULT);
 			}

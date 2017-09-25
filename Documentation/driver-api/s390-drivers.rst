@@ -75,7 +75,7 @@ The channel-measurement facility provides a means to collect measurement
 data which is made available by the channel subsystem for each channel
 attached device.
 
-.. kernel-doc:: arch/s390/include/asm/cmb.h
+.. kernel-doc:: arch/s390/include/uapi/asm/cmb.h
    :internal:
 
 .. kernel-doc:: drivers/s390/cio/cmf.c

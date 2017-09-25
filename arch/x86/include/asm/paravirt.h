@@ -71,11 +71,6 @@ static inline void write_cr3(unsigned long x)
 	PVOP_VCALL1(pv_mmu_ops.write_cr3, x);
 }
 
-static inline unsigned long __read_cr4(void)
-{
-	return PVOP_CALL0(unsigned long, pv_cpu_ops.read_cr4);
-}
-
 static inline void __write_cr4(unsigned long x)
 {
 	PVOP_VCALL1(pv_cpu_ops.write_cr4, x);
@@ -228,10 +223,6 @@ static inline void set_ldt(const void *addr, unsigned entries)
 {
 	PVOP_VCALL2(pv_cpu_ops.set_ldt, addr, entries);
 }
-static inline void store_idt(struct desc_ptr *dtr)
-{
-	PVOP_VCALL1(pv_cpu_ops.store_idt, dtr);
-}
 static inline unsigned long paravirt_store_tr(void)
 {
 	return PVOP_CALL0(unsigned long, pv_cpu_ops.store_tr);
@@ -365,12 +356,6 @@ static inline void paravirt_release_p4d(unsigned long pfn)
 	PVOP_VCALL1(pv_mmu_ops.release_p4d, pfn);
 }
 
-static inline void pte_update(struct mm_struct *mm, unsigned long addr,
-			      pte_t *ptep)
-{
-	PVOP_VCALL3(pv_mmu_ops.pte_update, mm, addr, ptep);
-}
-
 static inline pte_t __pte(pteval_t val)
 {
 	pteval_t ret;
@@ -470,28 +455,6 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 		pv_mmu_ops.set_pte_at(mm, addr, ptep, pte);
 	else
 		PVOP_VCALL4(pv_mmu_ops.set_pte_at, mm, addr, ptep, pte.pte);
-}
-
-static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
-			      pmd_t *pmdp, pmd_t pmd)
-{
-	if (sizeof(pmdval_t) > sizeof(long))
-		/* 5 arg words */
-		pv_mmu_ops.set_pmd_at(mm, addr, pmdp, pmd);
-	else
-		PVOP_VCALL4(pv_mmu_ops.set_pmd_at, mm, addr, pmdp,
-			    native_pmd_val(pmd));
-}
-
-static inline void set_pud_at(struct mm_struct *mm, unsigned long addr,
-			      pud_t *pudp, pud_t pud)
-{
-	if (sizeof(pudval_t) > sizeof(long))
-		/* 5 arg words */
-		pv_mmu_ops.set_pud_at(mm, addr, pudp, pud);
-	else
-		PVOP_VCALL4(pv_mmu_ops.set_pud_at, mm, addr, pudp,
-			    native_pud_val(pud));
 }
 
 static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
@@ -959,11 +922,6 @@ extern void default_banner(void);
 
 #define GET_CR2_INTO_RAX				\
 	call PARA_INDIRECT(pv_mmu_ops+PV_MMU_read_cr2)
-
-#define PARAVIRT_ADJUST_EXCEPTION_FRAME					\
-	PARA_SITE(PARA_PATCH(pv_irq_ops, PV_IRQ_adjust_exception_frame), \
-		  CLBR_NONE,						\
-		  call PARA_INDIRECT(pv_irq_ops+PV_IRQ_adjust_exception_frame))
 
 #define USERGS_SYSRET64							\
 	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_usergs_sysret64),	\

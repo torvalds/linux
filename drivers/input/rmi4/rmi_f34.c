@@ -516,7 +516,7 @@ static struct attribute *rmi_firmware_attrs[] = {
 	NULL
 };
 
-static struct attribute_group rmi_firmware_attr_group = {
+static const struct attribute_group rmi_firmware_attr_group = {
 	.attrs = rmi_firmware_attrs,
 };
 

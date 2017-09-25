@@ -75,7 +75,7 @@ nvkm_pmu_reset(struct nvkm_pmu *pmu)
 {
 	struct nvkm_device *device = pmu->subdev.device;
 
-	if (!(nvkm_rd32(device, 0x000200) & 0x00002000))
+	if (!pmu->func->enabled(pmu))
 		return 0;
 
 	/* Inhibit interrupts, and wait for idle. */

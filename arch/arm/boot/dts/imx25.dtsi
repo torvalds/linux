@@ -297,6 +297,7 @@
 				#address-cells = <1>;
 				#size-cells = <1>;
 				status = "disabled";
+				ranges;
 
 				adc: adc@50030800 {
 					compatible = "fsl,imx25-gcq";
@@ -449,6 +450,13 @@
 				clock-names = "ipg";
 				interrupts = <49>, <50>;
 				interrupt-names = "scm", "smn";
+			};
+
+			rngb: rngb@53fb0000 {
+				compatible = "fsl,imx25-rngb";
+				reg = <0x53fb0000 0x4000>;
+				clocks = <&clks 109>;
+				interrupts = <22>;
 			};
 
 			esdhc1: esdhc@53fb4000 {

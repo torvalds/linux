@@ -244,8 +244,6 @@ ahc_reg_print_t ahc_scb_tag_print;
 
 #define	SCSIDATH        		0x07
 
-#define	STCNT           		0x08
-
 #define	OPTIONMODE      		0x08
 #define		OPTIONMODE_DEFAULTS	0x03
 #define		AUTORATEEN      	0x80
@@ -256,6 +254,8 @@ ahc_reg_print_t ahc_scb_tag_print;
 #define		SCSIDATL_IMGEN  	0x04
 #define		AUTO_MSGOUT_DE  	0x02
 #define		DIS_MSGIN_DUALEDGE	0x01
+
+#define	STCNT           		0x08
 
 #define	TARGCRCCNT      		0x0a
 
@@ -365,8 +365,6 @@ ahc_reg_print_t ahc_scb_tag_print;
 #define		ALTSTIM         	0x20
 #define		DFLTTID         	0x10
 
-#define	TARGID          		0x1b
-
 #define	SPIOCAP         		0x1b
 #define		SOFT1           	0x80
 #define		SOFT0           	0x40
@@ -377,12 +375,14 @@ ahc_reg_print_t ahc_scb_tag_print;
 #define		ROM             	0x02
 #define		SSPIOCPS        	0x01
 
+#define	TARGID          		0x1b
+
 #define	BRDCTL          		0x1d
 #define		BRDDAT7         	0x80
 #define		BRDDAT6         	0x40
 #define		BRDDAT5         	0x20
-#define		BRDDAT4         	0x10
 #define		BRDSTB          	0x10
+#define		BRDDAT4         	0x10
 #define		BRDDAT3         	0x08
 #define		BRDCS           	0x08
 #define		BRDDAT2         	0x04
@@ -406,8 +406,8 @@ ahc_reg_print_t ahc_scb_tag_print;
 #define		DIAGLEDEN       	0x80
 #define		DIAGLEDON       	0x40
 #define		AUTOFLUSHDIS    	0x20
-#define		ENAB40          	0x08
 #define		SELBUSB         	0x08
+#define		ENAB40          	0x08
 #define		ENAB20          	0x04
 #define		SELWIDE         	0x02
 #define		XCVR            	0x01
@@ -730,8 +730,8 @@ ahc_reg_print_t ahc_scb_tag_print;
 #define	SCB_BASE        		0xa0
 
 #define	SCB_CDB_PTR     		0xa0
-#define	SCB_RESIDUAL_DATACNT		0xa0
 #define	SCB_CDB_STORE   		0xa0
+#define	SCB_RESIDUAL_DATACNT		0xa0
 
 #define	SCB_RESIDUAL_SGPTR		0xa4
 
@@ -756,8 +756,8 @@ ahc_reg_print_t ahc_scb_tag_print;
 
 #define	SCB_CONTROL     		0xb8
 #define		SCB_TAG_TYPE    	0x03
-#define		STATUS_RCVD     	0x80
 #define		TARGET_SCB      	0x80
+#define		STATUS_RCVD     	0x80
 #define		DISCENB         	0x40
 #define		TAG_ENB         	0x20
 #define		MK_MESSAGE      	0x10
@@ -872,40 +872,40 @@ ahc_reg_print_t ahc_scb_tag_print;
 #define	SG_CACHE_PRE    		0xfc
 
 
+#define	TARGET_CMD_CMPLT	0xfe
 #define	MAX_OFFSET_ULTRA2	0x7f
 #define	MAX_OFFSET_16BIT	0x08
 #define	BUS_8_BIT	0x00
-#define	TARGET_CMD_CMPLT	0xfe
+#define	TID_SHIFT	0x04
 #define	STATUS_QUEUE_FULL	0x28
 #define	STATUS_BUSY	0x08
-#define	MAX_OFFSET_8BIT	0x0f
-#define	BUS_32_BIT	0x02
-#define	CCSGADDR_MAX	0x80
-#define	TID_SHIFT	0x04
 #define	SCB_DOWNLOAD_SIZE_64	0x30
+#define	MAX_OFFSET_8BIT	0x0f
 #define	HOST_MAILBOX_SHIFT	0x04
+#define	CCSGADDR_MAX	0x80
+#define	BUS_32_BIT	0x02
+#define	SG_SIZEOF	0x08
+#define	SEQ_MAILBOX_SHIFT	0x00
+#define	SCB_LIST_NULL	0xff
+#define	SCB_DOWNLOAD_SIZE	0x20
 #define	CMD_GROUP_CODE_SHIFT	0x05
 #define	CCSGRAM_MAXSEGS	0x10
-#define	SCB_LIST_NULL	0xff
-#define	SG_SIZEOF	0x08
-#define	SCB_DOWNLOAD_SIZE	0x20
-#define	SEQ_MAILBOX_SHIFT	0x00
 #define	TARGET_DATA_IN	0x01
-#define	HOST_MSG	0xff
-#define	MAX_OFFSET	0x7f
-#define	BUS_16_BIT	0x01
-#define	SCB_UPLOAD_SIZE	0x20
 #define	STACK_SIZE	0x04
+#define	SCB_UPLOAD_SIZE	0x20
+#define	MAX_OFFSET	0x7f
+#define	HOST_MSG	0xff
+#define	BUS_16_BIT	0x01
 
 
 /* Downloaded Constant Definitions */
 #define	INVERTED_CACHESIZE_MASK	0x03
-#define	SG_PREFETCH_ADDR_MASK	0x06
 #define	SG_PREFETCH_ALIGN_MASK	0x05
+#define	SG_PREFETCH_ADDR_MASK	0x06
 #define	QOUTFIFO_OFFSET	0x00
 #define	SG_PREFETCH_CNT	0x04
-#define	CACHESIZE_MASK	0x02
 #define	QINFIFO_OFFSET	0x01
+#define	CACHESIZE_MASK	0x02
 #define	DOWNLOAD_CONST_COUNT	0x07
 
 

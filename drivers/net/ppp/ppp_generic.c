@@ -1915,21 +1915,23 @@ static void __ppp_channel_push(struct channel *pch)
 	spin_unlock(&pch->downl);
 	/* see if there is anything from the attached unit to be sent */
 	if (skb_queue_empty(&pch->file.xq)) {
-		read_lock(&pch->upl);
 		ppp = pch->ppp;
 		if (ppp)
-			ppp_xmit_process(ppp);
-		read_unlock(&pch->upl);
+			__ppp_xmit_process(ppp);
 	}
 }
 
 static void ppp_channel_push(struct channel *pch)
 {
-	local_bh_disable();
-
-	__ppp_channel_push(pch);
-
-	local_bh_enable();
+	read_lock_bh(&pch->upl);
+	if (pch->ppp) {
+		(*this_cpu_ptr(pch->ppp->xmit_recursion))++;
+		__ppp_channel_push(pch);
+		(*this_cpu_ptr(pch->ppp->xmit_recursion))--;
+	} else {
+		__ppp_channel_push(pch);
+	}
+	read_unlock_bh(&pch->upl);
 }
 
 /*

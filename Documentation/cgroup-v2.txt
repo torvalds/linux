@@ -18,7 +18,9 @@ v1 is available under Documentation/cgroup-v1/.
      1-2. What is cgroup?
    2. Basic Operations
      2-1. Mounting
-     2-2. Organizing Processes
+     2-2. Organizing Processes and Threads
+       2-2-1. Processes
+       2-2-2. Threads
      2-3. [Un]populated Notification
      2-4. Controlling Controllers
        2-4-1. Enabling and Disabling
@@ -167,8 +169,11 @@ cgroup v2 currently supports the following mount options.
 	Delegation section for details.
 
 
-Organizing Processes
---------------------
+Organizing Processes and Threads
+--------------------------------
+
+Processes
+~~~~~~~~~
 
 Initially, only the root cgroup exists to which all processes belong.
 A child cgroup can be created by creating a sub-directory::
@@ -217,6 +222,105 @@ is removed subsequently, " (deleted)" is appended to the path::
   # cat /proc/842/cgroup
   ...
   0::/test-cgroup/test-cgroup-nested (deleted)
+
+
+Threads
+~~~~~~~
+
+cgroup v2 supports thread granularity for a subset of controllers to
+support use cases requiring hierarchical resource distribution across
+the threads of a group of processes.  By default, all threads of a
+process belong to the same cgroup, which also serves as the resource
+domain to host resource consumptions which are not specific to a
+process or thread.  The thread mode allows threads to be spread across
+a subtree while still maintaining the common resource domain for them.
+
+Controllers which support thread mode are called threaded controllers.
+The ones which don't are called domain controllers.
+
+Marking a cgroup threaded makes it join the resource domain of its
+parent as a threaded cgroup.  The parent may be another threaded
+cgroup whose resource domain is further up in the hierarchy.  The root
+of a threaded subtree, that is, the nearest ancestor which is not
+threaded, is called threaded domain or thread root interchangeably and
+serves as the resource domain for the entire subtree.
+
+Inside a threaded subtree, threads of a process can be put in
+different cgroups and are not subject to the no internal process
+constraint - threaded controllers can be enabled on non-leaf cgroups
+whether they have threads in them or not.
+
+As the threaded domain cgroup hosts all the domain resource
+consumptions of the subtree, it is considered to have internal
+resource consumptions whether there are processes in it or not and
+can't have populated child cgroups which aren't threaded.  Because the
+root cgroup is not subject to no internal process constraint, it can
+serve both as a threaded domain and a parent to domain cgroups.
+
+The current operation mode or type of the cgroup is shown in the
+"cgroup.type" file which indicates whether the cgroup is a normal
+domain, a domain which is serving as the domain of a threaded subtree,
+or a threaded cgroup.
+
+On creation, a cgroup is always a domain cgroup and can be made
+threaded by writing "threaded" to the "cgroup.type" file.  The
+operation is single direction::
+
+  # echo threaded > cgroup.type
+
+Once threaded, the cgroup can't be made a domain again.  To enable the
+thread mode, the following conditions must be met.
+
+- As the cgroup will join the parent's resource domain.  The parent
+  must either be a valid (threaded) domain or a threaded cgroup.
+
+- When the parent is an unthreaded domain, it must not have any domain
+  controllers enabled or populated domain children.  The root is
+  exempt from this requirement.
+
+Topology-wise, a cgroup can be in an invalid state.  Please consider
+the following toplogy::
+
+  A (threaded domain) - B (threaded) - C (domain, just created)
+
+C is created as a domain but isn't connected to a parent which can
+host child domains.  C can't be used until it is turned into a
+threaded cgroup.  "cgroup.type" file will report "domain (invalid)" in
+these cases.  Operations which fail due to invalid topology use
+EOPNOTSUPP as the errno.
+
+A domain cgroup is turned into a threaded domain when one of its child
+cgroup becomes threaded or threaded controllers are enabled in the
+"cgroup.subtree_control" file while there are processes in the cgroup.
+A threaded domain reverts to a normal domain when the conditions
+clear.
+
+When read, "cgroup.threads" contains the list of the thread IDs of all
+threads in the cgroup.  Except that the operations are per-thread
+instead of per-process, "cgroup.threads" has the same format and
+behaves the same way as "cgroup.procs".  While "cgroup.threads" can be
+written to in any cgroup, as it can only move threads inside the same
+threaded domain, its operations are confined inside each threaded
+subtree.
+
+The threaded domain cgroup serves as the resource domain for the whole
+subtree, and, while the threads can be scattered across the subtree,
+all the processes are considered to be in the threaded domain cgroup.
+"cgroup.procs" in a threaded domain cgroup contains the PIDs of all
+processes in the subtree and is not readable in the subtree proper.
+However, "cgroup.procs" can be written to from anywhere in the subtree
+to migrate all threads of the matching process to the cgroup.
+
+Only threaded controllers can be enabled in a threaded subtree.  When
+a threaded controller is enabled inside a threaded subtree, it only
+accounts for and controls resource consumptions associated with the
+threads in the cgroup and its descendants.  All consumptions which
+aren't tied to a specific thread belong to the threaded domain cgroup.
+
+Because a threaded subtree is exempt from no internal process
+constraint, a threaded controller must be able to handle competition
+between threads in a non-leaf cgroup and its child cgroups.  Each
+threaded controller defines how such competitions are handled.
 
 
 [Un]populated Notification
@@ -302,15 +406,15 @@ disabled if one or more children have it enabled.
 No Internal Process Constraint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Non-root cgroups can only distribute resources to their children when
-they don't have any processes of their own.  In other words, only
-cgroups which don't contain any processes can have controllers enabled
-in their "cgroup.subtree_control" files.
+Non-root cgroups can distribute domain resources to their children
+only when they don't have any processes of their own.  In other words,
+only domain cgroups which don't contain any processes can have domain
+controllers enabled in their "cgroup.subtree_control" files.
 
-This guarantees that, when a controller is looking at the part of the
-hierarchy which has it enabled, processes are always only on the
-leaves.  This rules out situations where child cgroups compete against
-internal processes of the parent.
+This guarantees that, when a domain controller is looking at the part
+of the hierarchy which has it enabled, processes are always only on
+the leaves.  This rules out situations where child cgroups compete
+against internal processes of the parent.
 
 The root cgroup is exempt from this restriction.  Root contains
 processes and anonymous resource consumption which can't be associated
@@ -334,10 +438,10 @@ Model of Delegation
 ~~~~~~~~~~~~~~~~~~~
 
 A cgroup can be delegated in two ways.  First, to a less privileged
-user by granting write access of the directory and its "cgroup.procs"
-and "cgroup.subtree_control" files to the user.  Second, if the
-"nsdelegate" mount option is set, automatically to a cgroup namespace
-on namespace creation.
+user by granting write access of the directory and its "cgroup.procs",
+"cgroup.threads" and "cgroup.subtree_control" files to the user.
+Second, if the "nsdelegate" mount option is set, automatically to a
+cgroup namespace on namespace creation.
 
 Because the resource control interface files in a given directory
 control the distribution of the parent's resources, the delegatee
@@ -644,6 +748,29 @@ Core Interface Files
 
 All cgroup core files are prefixed with "cgroup."
 
+  cgroup.type
+
+	A read-write single value file which exists on non-root
+	cgroups.
+
+	When read, it indicates the current type of the cgroup, which
+	can be one of the following values.
+
+	- "domain" : A normal valid domain cgroup.
+
+	- "domain threaded" : A threaded domain cgroup which is
+          serving as the root of a threaded subtree.
+
+	- "domain invalid" : A cgroup which is in an invalid state.
+	  It can't be populated or have controllers enabled.  It may
+	  be allowed to become a threaded cgroup.
+
+	- "threaded" : A threaded cgroup which is a member of a
+          threaded subtree.
+
+	A cgroup can be turned into a threaded cgroup by writing
+	"threaded" to this file.
+
   cgroup.procs
 	A read-write new-line separated values file which exists on
 	all cgroups.
@@ -658,10 +785,36 @@ All cgroup core files are prefixed with "cgroup."
 	the PID to the cgroup.  The writer should match all of the
 	following conditions.
 
-	- Its euid is either root or must match either uid or suid of
-          the target process.
-
 	- It must have write access to the "cgroup.procs" file.
+
+	- It must have write access to the "cgroup.procs" file of the
+	  common ancestor of the source and destination cgroups.
+
+	When delegating a sub-hierarchy, write access to this file
+	should be granted along with the containing directory.
+
+	In a threaded cgroup, reading this file fails with EOPNOTSUPP
+	as all the processes belong to the thread root.  Writing is
+	supported and moves every thread of the process to the cgroup.
+
+  cgroup.threads
+	A read-write new-line separated values file which exists on
+	all cgroups.
+
+	When read, it lists the TIDs of all threads which belong to
+	the cgroup one-per-line.  The TIDs are not ordered and the
+	same TID may show up more than once if the thread got moved to
+	another cgroup and then back or the TID got recycled while
+	reading.
+
+	A TID can be written to migrate the thread associated with the
+	TID to the cgroup.  The writer should match all of the
+	following conditions.
+
+	- It must have write access to the "cgroup.threads" file.
+
+	- The cgroup that the thread is currently in must be in the
+          same resource domain as the destination cgroup.
 
 	- It must have write access to the "cgroup.procs" file of the
 	  common ancestor of the source and destination cgroups.
@@ -700,6 +853,38 @@ All cgroup core files are prefixed with "cgroup."
 	  populated
 		1 if the cgroup or its descendants contains any live
 		processes; otherwise, 0.
+
+  cgroup.max.descendants
+	A read-write single value files.  The default is "max".
+
+	Maximum allowed number of descent cgroups.
+	If the actual number of descendants is equal or larger,
+	an attempt to create a new cgroup in the hierarchy will fail.
+
+  cgroup.max.depth
+	A read-write single value files.  The default is "max".
+
+	Maximum allowed descent depth below the current cgroup.
+	If the actual descent depth is equal or larger,
+	an attempt to create a new child cgroup will fail.
+
+  cgroup.stat
+	A read-only flat-keyed file with the following entries:
+
+	  nr_descendants
+		Total number of visible descendant cgroups.
+
+	  nr_dying_descendants
+		Total number of dying descendant cgroups. A cgroup becomes
+		dying after being deleted by a user. The cgroup will remain
+		in dying state for some time undefined time (which can depend
+		on system load) before being completely destroyed.
+
+		A process can't enter a dying cgroup under any circumstances,
+		a dying cgroup can't revive.
+
+		A dying cgroup can consume system resources not exceeding
+		limits, which were active at the moment of cgroup deletion.
 
 
 Controllers

@@ -159,8 +159,11 @@ void brcmf_feat_attach(struct brcmf_pub *drvr)
 
 	brcmf_feat_firmware_capabilities(ifp);
 	memset(&gscan_cfg, 0, sizeof(gscan_cfg));
-	brcmf_feat_iovar_data_set(ifp, BRCMF_FEAT_GSCAN, "pfn_gscan_cfg",
-				  &gscan_cfg, sizeof(gscan_cfg));
+	if (drvr->bus_if->chip != BRCM_CC_43430_CHIP_ID &&
+	    drvr->bus_if->chip != BRCM_CC_4345_CHIP_ID)
+		brcmf_feat_iovar_data_set(ifp, BRCMF_FEAT_GSCAN,
+					  "pfn_gscan_cfg",
+					  &gscan_cfg, sizeof(gscan_cfg));
 	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_PNO, "pfn");
 	if (drvr->bus_if->wowl_supported)
 		brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_WOWL, "wowl");

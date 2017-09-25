@@ -43,12 +43,13 @@ struct sync_file {
 #endif
 
 	wait_queue_head_t	wq;
+	unsigned long		flags;
 
 	struct dma_fence	*fence;
 	struct dma_fence_cb cb;
 };
 
-#define POLL_ENABLED DMA_FENCE_FLAG_USER_BITS
+#define POLL_ENABLED 0
 
 struct sync_file *sync_file_create(struct dma_fence *fence);
 struct dma_fence *sync_file_get_fence(int fd);

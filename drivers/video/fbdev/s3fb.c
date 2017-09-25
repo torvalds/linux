@@ -1483,7 +1483,7 @@ static int s3_pci_resume(struct pci_dev* dev)
 
 /* List of boards that we are trying to support */
 
-static struct pci_device_id s3_devices[] = {
+static const struct pci_device_id s3_devices[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_S3, 0x8810), .driver_data = CHIP_XXX_TRIO},
 	{PCI_DEVICE(PCI_VENDOR_ID_S3, 0x8811), .driver_data = CHIP_XXX_TRIO},
 	{PCI_DEVICE(PCI_VENDOR_ID_S3, 0x8812), .driver_data = CHIP_M65_AURORA64VP},

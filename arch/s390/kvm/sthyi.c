@@ -394,7 +394,7 @@ static int sthyi(u64 vaddr)
 		"srl     %[cc],28\n"
 		: [cc] "=d" (cc)
 		: [code] "d" (code), [addr] "a" (addr)
-		: "memory", "cc");
+		: "3", "memory", "cc");
 	return cc;
 }
 
@@ -425,7 +425,7 @@ int handle_sthyi(struct kvm_vcpu *vcpu)
 	VCPU_EVENT(vcpu, 3, "STHYI: fc: %llu addr: 0x%016llx", code, addr);
 	trace_kvm_s390_handle_sthyi(vcpu, code, addr);
 
-	if (reg1 == reg2 || reg1 & 1 || reg2 & 1 || addr & ~PAGE_MASK)
+	if (reg1 == reg2 || reg1 & 1 || reg2 & 1)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	if (code & 0xffff) {
@@ -433,13 +433,8 @@ int handle_sthyi(struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-	/*
-	 * If the page has not yet been faulted in, we want to do that
-	 * now and not after all the expensive calculations.
-	 */
-	r = write_guest(vcpu, addr, reg2, &cc, 1);
-	if (r)
-		return kvm_s390_inject_prog_cond(vcpu, r);
+	if (addr & ~PAGE_MASK)
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	sctns = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!sctns)

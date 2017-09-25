@@ -2,6 +2,15 @@
 #define _ASM_X86_MODULE_H
 
 #include <asm-generic/module.h>
+#include <asm/orc_types.h>
+
+struct mod_arch_specific {
+#ifdef CONFIG_ORC_UNWINDER
+	unsigned int num_orcs;
+	int *orc_unwind_ip;
+	struct orc_entry *orc_unwind;
+#endif
+};
 
 #ifdef CONFIG_X86_64
 /* X86_64 does not define MODULE_PROC_FAMILY */

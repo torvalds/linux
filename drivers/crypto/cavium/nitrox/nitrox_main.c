@@ -18,8 +18,9 @@
 #define SE_GROUP 0
 
 #define DRIVER_VERSION "1.0"
+#define FW_DIR "cavium/"
 /* SE microcode */
-#define SE_FW	"cnn55xx_se.fw"
+#define SE_FW	FW_DIR "cnn55xx_se.fw"
 
 static const char nitrox_driver_name[] = "CNN55XX";
 
@@ -512,8 +513,10 @@ static int nitrox_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	ndev = kzalloc(sizeof(*ndev), GFP_KERNEL);
-	if (!ndev)
+	if (!ndev) {
+		err = -ENOMEM;
 		goto ndev_fail;
+	}
 
 	pci_set_drvdata(pdev, ndev);
 	ndev->pdev = pdev;

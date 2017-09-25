@@ -25,6 +25,8 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 
+#include "dvb_math.h"
+
 #include "stv0367.h"
 #include "stv0367_defs.h"
 #include "stv0367_regs.h"
@@ -1437,7 +1439,7 @@ static int stv0367ter_get_frontend(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int stv0367ter_read_snr(struct dvb_frontend *fe, u16 *snr)
+static u32 stv0367ter_snr_readreg(struct dvb_frontend *fe)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
 	u32 snru32 = 0;
@@ -1453,10 +1455,16 @@ static int stv0367ter_read_snr(struct dvb_frontend *fe, u16 *snr)
 
 		cpt++;
 	}
-
 	snru32 /= 10;/*average on 10 values*/
 
-	*snr = snru32 / 1000;
+	return snru32;
+}
+
+static int stv0367ter_read_snr(struct dvb_frontend *fe, u16 *snr)
+{
+	u32 snrval = stv0367ter_snr_readreg(fe);
+
+	*snr = snrval / 1000;
 
 	return 0;
 }
@@ -1501,7 +1509,8 @@ static int stv0367ter_read_status(struct dvb_frontend *fe,
 	*status = 0;
 
 	if (stv0367_readbits(state, F367TER_LK)) {
-		*status |= FE_HAS_LOCK;
+		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_VITERBI
+			  | FE_HAS_SYNC | FE_HAS_LOCK;
 		dprintk("%s: stv0367 has locked\n", __func__);
 	}
 
@@ -2140,6 +2149,71 @@ static u32 stv0367cab_GetSymbolRate(struct stv0367_state *state, u32 mclk_hz)
 	return regsym;
 }
 
+static u32 stv0367cab_fsm_status(struct stv0367_state *state)
+{
+	return stv0367_readbits(state, F367CAB_FSM_STATUS);
+}
+
+static u32 stv0367cab_qamfec_lock(struct stv0367_state *state)
+{
+	return stv0367_readbits(state,
+		(state->cab_state->qamfec_status_reg ?
+		 state->cab_state->qamfec_status_reg :
+		 F367CAB_QAMFEC_LOCK));
+}
+
+static
+enum stv0367_cab_signal_type stv0367cab_fsm_signaltype(u32 qam_fsm_status)
+{
+	enum stv0367_cab_signal_type signaltype = FE_CAB_NOAGC;
+
+	switch (qam_fsm_status) {
+	case 1:
+		signaltype = FE_CAB_NOAGC;
+		break;
+	case 2:
+		signaltype = FE_CAB_NOTIMING;
+		break;
+	case 3:
+		signaltype = FE_CAB_TIMINGOK;
+		break;
+	case 4:
+		signaltype = FE_CAB_NOCARRIER;
+		break;
+	case 5:
+		signaltype = FE_CAB_CARRIEROK;
+		break;
+	case 7:
+		signaltype = FE_CAB_NOBLIND;
+		break;
+	case 8:
+		signaltype = FE_CAB_BLINDOK;
+		break;
+	case 10:
+		signaltype = FE_CAB_NODEMOD;
+		break;
+	case 11:
+		signaltype = FE_CAB_DEMODOK;
+		break;
+	case 12:
+		signaltype = FE_CAB_DEMODOK;
+		break;
+	case 13:
+		signaltype = FE_CAB_NODEMOD;
+		break;
+	case 14:
+		signaltype = FE_CAB_NOBLIND;
+		break;
+	case 15:
+		signaltype = FE_CAB_NOSIGNAL;
+		break;
+	default:
+		break;
+	}
+
+	return signaltype;
+}
+
 static int stv0367cab_read_status(struct dvb_frontend *fe,
 				  enum fe_status *status)
 {
@@ -2149,10 +2223,26 @@ static int stv0367cab_read_status(struct dvb_frontend *fe,
 
 	*status = 0;
 
-	if (stv0367_readbits(state, (state->cab_state->qamfec_status_reg ?
-		state->cab_state->qamfec_status_reg : F367CAB_QAMFEC_LOCK))) {
-		*status |= FE_HAS_LOCK;
+	/* update cab_state->state from QAM_FSM_STATUS */
+	state->cab_state->state = stv0367cab_fsm_signaltype(
+		stv0367cab_fsm_status(state));
+
+	if (stv0367cab_qamfec_lock(state)) {
+		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_VITERBI
+			  | FE_HAS_SYNC | FE_HAS_LOCK;
 		dprintk("%s: stv0367 has locked\n", __func__);
+	} else {
+		if (state->cab_state->state > FE_CAB_NOSIGNAL)
+			*status |= FE_HAS_SIGNAL;
+
+		if (state->cab_state->state > FE_CAB_NOCARRIER)
+			*status |= FE_HAS_CARRIER;
+
+		if (state->cab_state->state >= FE_CAB_DEMODOK)
+			*status |= FE_HAS_VITERBI;
+
+		if (state->cab_state->state >= FE_CAB_DATAOK)
+			*status |= FE_HAS_SYNC;
 	}
 
 	return 0;
@@ -2353,7 +2443,7 @@ enum stv0367_cab_signal_type stv0367cab_algo(struct stv0367_state *state,
 	LockTime = 0;
 	stv0367_writereg(state, R367CAB_CTRL_1, 0x00);
 	do {
-		QAM_Lock = stv0367_readbits(state, F367CAB_FSM_STATUS);
+		QAM_Lock = stv0367cab_fsm_status(state);
 		if ((LockTime >= (DemodTimeOut - EQLTimeOut)) &&
 							(QAM_Lock == 0x04))
 			/*
@@ -2414,10 +2504,7 @@ enum stv0367_cab_signal_type stv0367cab_algo(struct stv0367_state *state,
 		do {
 			usleep_range(5000, 7000);
 			LockTime += 5;
-			QAMFEC_Lock = stv0367_readbits(state,
-				(state->cab_state->qamfec_status_reg ?
-				state->cab_state->qamfec_status_reg :
-				F367CAB_QAMFEC_LOCK));
+			QAMFEC_Lock = stv0367cab_qamfec_lock(state);
 		} while (!QAMFEC_Lock && (LockTime < FECTimeOut));
 	} else
 		QAMFEC_Lock = 0;
@@ -2453,52 +2540,8 @@ enum stv0367_cab_signal_type stv0367cab_algo(struct stv0367_state *state,
 		cab_state->locked = 1;
 
 		/* stv0367_setbits(state, F367CAB_AGC_ACCUMRSTSEL,7);*/
-	} else {
-		switch (QAM_Lock) {
-		case 1:
-			signalType = FE_CAB_NOAGC;
-			break;
-		case 2:
-			signalType = FE_CAB_NOTIMING;
-			break;
-		case 3:
-			signalType = FE_CAB_TIMINGOK;
-			break;
-		case 4:
-			signalType = FE_CAB_NOCARRIER;
-			break;
-		case 5:
-			signalType = FE_CAB_CARRIEROK;
-			break;
-		case 7:
-			signalType = FE_CAB_NOBLIND;
-			break;
-		case 8:
-			signalType = FE_CAB_BLINDOK;
-			break;
-		case 10:
-			signalType = FE_CAB_NODEMOD;
-			break;
-		case 11:
-			signalType = FE_CAB_DEMODOK;
-			break;
-		case 12:
-			signalType = FE_CAB_DEMODOK;
-			break;
-		case 13:
-			signalType = FE_CAB_NODEMOD;
-			break;
-		case 14:
-			signalType = FE_CAB_NOBLIND;
-			break;
-		case 15:
-			signalType = FE_CAB_NOSIGNAL;
-			break;
-		default:
-			break;
-		}
-
-	}
+	} else
+		signalType = stv0367cab_fsm_signaltype(QAM_Lock);
 
 	/* Set the AGC control values to tracking values */
 	stv0367_writebits(state, F367CAB_AGC_ACCUMRSTSEL, TrackAGCAccum);
@@ -2702,51 +2745,61 @@ static int stv0367cab_read_strength(struct dvb_frontend *fe, u16 *strength)
 	return 0;
 }
 
-static int stv0367cab_read_snr(struct dvb_frontend *fe, u16 *snr)
+static int stv0367cab_snr_power(struct dvb_frontend *fe)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
-	u32 noisepercentage;
 	enum stv0367cab_mod QAMSize;
-	u32 regval = 0, temp = 0;
-	int power, i;
 
 	QAMSize = stv0367_readbits(state, F367CAB_QAM_MODE);
 	switch (QAMSize) {
 	case FE_CAB_MOD_QAM4:
-		power = 21904;
-		break;
+		return 21904;
 	case FE_CAB_MOD_QAM16:
-		power = 20480;
-		break;
+		return 20480;
 	case FE_CAB_MOD_QAM32:
-		power = 23040;
-		break;
+		return 23040;
 	case FE_CAB_MOD_QAM64:
-		power = 21504;
-		break;
+		return 21504;
 	case FE_CAB_MOD_QAM128:
-		power = 23616;
-		break;
+		return 23616;
 	case FE_CAB_MOD_QAM256:
-		power = 21760;
-		break;
-	case FE_CAB_MOD_QAM512:
-		power = 1;
-		break;
+		return 21760;
 	case FE_CAB_MOD_QAM1024:
-		power = 21280;
-		break;
+		return 21280;
 	default:
-		power = 1;
 		break;
 	}
+
+	return 1;
+}
+
+static int stv0367cab_snr_readreg(struct dvb_frontend *fe, int avgdiv)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+	u32 regval = 0;
+	int i;
 
 	for (i = 0; i < 10; i++) {
 		regval += (stv0367_readbits(state, F367CAB_SNR_LO)
 			+ 256 * stv0367_readbits(state, F367CAB_SNR_HI));
 	}
 
-	regval /= 10; /*for average over 10 times in for loop above*/
+	if (avgdiv)
+		regval /= 10;
+
+	return regval;
+}
+
+static int stv0367cab_read_snr(struct dvb_frontend *fe, u16 *snr)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+	u32 noisepercentage;
+	u32 regval = 0, temp = 0;
+	int power;
+
+	power = stv0367cab_snr_power(fe);
+	regval = stv0367cab_snr_readreg(fe, 1);
+
 	if (regval != 0) {
 		temp = power
 			* (1 << (3 + stv0367_readbits(state, F367CAB_SNR_PER)));
@@ -2980,21 +3033,117 @@ static int stv0367ddb_set_frontend(struct dvb_frontend *fe)
 	return -EINVAL;
 }
 
+static void stv0367ddb_read_signal_strength(struct dvb_frontend *fe)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	s32 signalstrength;
+
+	switch (state->activedemod) {
+	case demod_cab:
+		signalstrength = stv0367cab_get_rf_lvl(state) * 1000;
+		break;
+	default:
+		p->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return;
+	}
+
+	p->strength.stat[0].scale = FE_SCALE_DECIBEL;
+	p->strength.stat[0].uvalue = signalstrength;
+}
+
+static void stv0367ddb_read_snr(struct dvb_frontend *fe)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	int cab_pwr;
+	u32 regval, tmpval, snrval = 0;
+
+	switch (state->activedemod) {
+	case demod_ter:
+		snrval = stv0367ter_snr_readreg(fe);
+		break;
+	case demod_cab:
+		cab_pwr = stv0367cab_snr_power(fe);
+		regval = stv0367cab_snr_readreg(fe, 0);
+
+		/* prevent division by zero */
+		if (!regval) {
+			snrval = 0;
+			break;
+		}
+
+		tmpval = (cab_pwr * 320) / regval;
+		snrval = ((tmpval != 0) ? (intlog2(tmpval) / 5581) : 0);
+		break;
+	default:
+		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return;
+	}
+
+	p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+	p->cnr.stat[0].uvalue = snrval;
+}
+
+static void stv0367ddb_read_ucblocks(struct dvb_frontend *fe)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	u32 ucblocks = 0;
+
+	switch (state->activedemod) {
+	case demod_ter:
+		stv0367ter_read_ucblocks(fe, &ucblocks);
+		break;
+	case demod_cab:
+		stv0367cab_read_ucblcks(fe, &ucblocks);
+		break;
+	default:
+		p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return;
+	}
+
+	p->block_error.stat[0].scale = FE_SCALE_COUNTER;
+	p->block_error.stat[0].uvalue = ucblocks;
+}
+
 static int stv0367ddb_read_status(struct dvb_frontend *fe,
 				  enum fe_status *status)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	int ret = 0;
 
 	switch (state->activedemod) {
 	case demod_ter:
-		return stv0367ter_read_status(fe, status);
+		ret = stv0367ter_read_status(fe, status);
+		break;
 	case demod_cab:
-		return stv0367cab_read_status(fe, status);
+		ret = stv0367cab_read_status(fe, status);
+		break;
 	default:
 		break;
 	}
 
-	return -EINVAL;
+	/* stop and report on *_read_status failure */
+	if (ret)
+		return ret;
+
+	stv0367ddb_read_signal_strength(fe);
+
+	/* read carrier/noise when a carrier is detected */
+	if (*status & FE_HAS_CARRIER)
+		stv0367ddb_read_snr(fe);
+	else
+		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+
+	/* read uncorrected blocks on FE_HAS_LOCK */
+	if (*status & FE_HAS_LOCK)
+		stv0367ddb_read_ucblocks(fe);
+	else
+		p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+
+	return 0;
 }
 
 static int stv0367ddb_get_frontend(struct dvb_frontend *fe,
@@ -3011,7 +3160,7 @@ static int stv0367ddb_get_frontend(struct dvb_frontend *fe,
 		break;
 	}
 
-	return -EINVAL;
+	return 0;
 }
 
 static int stv0367ddb_sleep(struct dvb_frontend *fe)
@@ -3035,6 +3184,7 @@ static int stv0367ddb_sleep(struct dvb_frontend *fe)
 static int stv0367ddb_init(struct stv0367_state *state)
 {
 	struct stv0367ter_state *ter_state = state->ter_state;
+	struct dtv_frontend_properties *p = &state->fe.dtv_property_cache;
 
 	stv0367_writereg(state, R367TER_TOPCTRL, 0x10);
 
@@ -3109,6 +3259,13 @@ static int stv0367ddb_init(struct stv0367_state *state)
 	ter_state->first_lock = 0;
 	ter_state->unlock_counter = 2;
 
+	p->strength.len = 1;
+	p->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->cnr.len = 1;
+	p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->block_error.len = 1;
+	p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+
 	return 0;
 }
 
@@ -3126,15 +3283,12 @@ static const struct dvb_frontend_ops stv0367ddb_ops = {
 			0x400 |/* FE_CAN_QAM_4 */
 			FE_CAN_QAM_16 | FE_CAN_QAM_32  |
 			FE_CAN_QAM_64 | FE_CAN_QAM_128 |
-			FE_CAN_QAM_256 | FE_CAN_FEC_AUTO |
+			FE_CAN_QAM_256 |
 			/* DVB-T */
-			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 |
-			FE_CAN_FEC_3_4 | FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 |
-			FE_CAN_FEC_AUTO |
-			FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 |
-			FE_CAN_QAM_128 | FE_CAN_QAM_256 | FE_CAN_QAM_AUTO |
-			FE_CAN_TRANSMISSION_MODE_AUTO | FE_CAN_RECOVER |
-			FE_CAN_INVERSION_AUTO |
+			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
+			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
+			FE_CAN_QPSK | FE_CAN_TRANSMISSION_MODE_AUTO |
+			FE_CAN_RECOVER | FE_CAN_INVERSION_AUTO |
 			FE_CAN_MUTE_TS
 	},
 	.release = stv0367_release,

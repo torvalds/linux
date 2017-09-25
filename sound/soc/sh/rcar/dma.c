@@ -604,8 +604,8 @@ rsnd_gen2_dma_addr(struct rsnd_dai_stream *io,
 		dma_addr_t in_addr;
 	} dma_addrs[3][2][3] = {
 		/* SRC */
+		/* Capture */
 		{{{ 0,				0 },
-		  /* Capture */
 		  { RDMA_SRC_O_N(src, id),	RDMA_SRC_I_P(src, id) },
 		  { RDMA_CMD_O_N(src, id),	RDMA_SRC_I_P(src, id) } },
 		 /* Playback */

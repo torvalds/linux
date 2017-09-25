@@ -1259,7 +1259,7 @@ static struct viafb_pm_hooks viacam_pm_hooks = {
  * Setup stuff.
  */
 
-static struct video_device viacam_v4l_template = {
+static const struct video_device viacam_v4l_template = {
 	.name		= "via-camera",
 	.minor		= -1,
 	.tvnorms	= V4L2_STD_NTSC_M,

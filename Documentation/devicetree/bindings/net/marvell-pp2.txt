@@ -41,6 +41,11 @@ Optional properties (port):
 - marvell,loopback: port is loopback mode
 - phy: a phandle to a phy node defining the PHY address (as the reg
   property, a single integer).
+- interrupt-names: if more than a single interrupt for rx is given, must
+                   be the name associated to the interrupts listed. Valid
+                   names are: "tx-cpu0", "tx-cpu1", "tx-cpu2", "tx-cpu3",
+		   "rx-shared", "link".
+- marvell,system-controller: a phandle to the system controller.
 
 Example for marvell,armada-375-pp2:
 
@@ -52,12 +57,10 @@ ethernet@f0000 {
 	      <0xc5000 0x100>;
 	clocks = <&gateclk 3>, <&gateclk 19>;
 	clock-names = "pp_clk", "gop_clk";
-	status = "okay";
 
 	eth0: eth0@c4000 {
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 		port-id = <0>;
-		status = "okay";
 		phy = <&phy0>;
 		phy-mode = "gmii";
 	};
@@ -65,7 +68,6 @@ ethernet@f0000 {
 	eth1: eth1@c5000 {
 		interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
 		port-id = <1>;
-		status = "okay";
 		phy = <&phy3>;
 		phy-mode = "gmii";
 	};
@@ -80,19 +82,37 @@ cpm_ethernet: ethernet@0 {
 	clock-names = "pp_clk", "gop_clk", "gp_clk";
 
 	eth0: eth0 {
-		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <ICU_GRP_NSR 39 IRQ_TYPE_LEVEL_HIGH>,
+			     <ICU_GRP_NSR 43 IRQ_TYPE_LEVEL_HIGH>,
+			     <ICU_GRP_NSR 47 IRQ_TYPE_LEVEL_HIGH>,
+			     <ICU_GRP_NSR 51 IRQ_TYPE_LEVEL_HIGH>,
+			     <ICU_GRP_NSR 55 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "tx-cpu0", "tx-cpu1", "tx-cpu2",
+				  "tx-cpu3", "rx-shared";
 		port-id = <0>;
 		gop-port-id = <0>;
 	};
 
 	eth1: eth1 {
-		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <ICU_GRP_NSR 40 IRQ_TYPE_LEVEL_HIGH>,
+			     <ICU_GRP_NSR 44 IRQ_TYPE_LEVEL_HIGH>,
+			     <ICU_GRP_NSR 48 IRQ_TYPE_LEVEL_HIGH>,
+			     <ICU_GRP_NSR 52 IRQ_TYPE_LEVEL_HIGH>,
+			     <ICU_GRP_NSR 56 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "tx-cpu0", "tx-cpu1", "tx-cpu2",
+				  "tx-cpu3", "rx-shared";
 		port-id = <1>;
 		gop-port-id = <2>;
 	};
 
 	eth2: eth2 {
-		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <ICU_GRP_NSR 41 IRQ_TYPE_LEVEL_HIGH>,
+			     <ICU_GRP_NSR 45 IRQ_TYPE_LEVEL_HIGH>,
+			     <ICU_GRP_NSR 49 IRQ_TYPE_LEVEL_HIGH>,
+			     <ICU_GRP_NSR 53 IRQ_TYPE_LEVEL_HIGH>,
+			     <ICU_GRP_NSR 57 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "tx-cpu0", "tx-cpu1", "tx-cpu2",
+				  "tx-cpu3", "rx-shared";
 		port-id = <2>;
 		gop-port-id = <3>;
 	};

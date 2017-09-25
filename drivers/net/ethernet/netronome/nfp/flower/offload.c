@@ -44,6 +44,16 @@
 #include "../nfp_net.h"
 #include "../nfp_port.h"
 
+#define NFP_FLOWER_WHITELIST_DISSECTOR \
+	(BIT(FLOW_DISSECTOR_KEY_CONTROL) | \
+	 BIT(FLOW_DISSECTOR_KEY_BASIC) | \
+	 BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_PORTS) | \
+	 BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_VLAN) | \
+	 BIT(FLOW_DISSECTOR_KEY_IP))
+
 static int
 nfp_flower_xmit_flow(struct net_device *netdev,
 		     struct nfp_fl_payload *nfp_flow, u8 mtype)
@@ -105,43 +115,65 @@ static int
 nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 				struct tc_cls_flower_offload *flow)
 {
-	struct flow_dissector_key_control *mask_enc_ctl;
-	struct flow_dissector_key_basic *mask_basic;
-	struct flow_dissector_key_basic *key_basic;
+	struct flow_dissector_key_basic *mask_basic = NULL;
+	struct flow_dissector_key_basic *key_basic = NULL;
+	struct flow_dissector_key_ip *mask_ip = NULL;
 	u32 key_layer_two;
 	u8 key_layer;
 	int key_size;
 
-	mask_enc_ctl = skb_flow_dissector_target(flow->dissector,
-						 FLOW_DISSECTOR_KEY_ENC_CONTROL,
-						 flow->mask);
+	if (flow->dissector->used_keys & ~NFP_FLOWER_WHITELIST_DISSECTOR)
+		return -EOPNOTSUPP;
 
-	mask_basic = skb_flow_dissector_target(flow->dissector,
-					       FLOW_DISSECTOR_KEY_BASIC,
-					       flow->mask);
+	if (dissector_uses_key(flow->dissector,
+			       FLOW_DISSECTOR_KEY_ENC_CONTROL)) {
+		struct flow_dissector_key_control *mask_enc_ctl =
+			skb_flow_dissector_target(flow->dissector,
+						  FLOW_DISSECTOR_KEY_ENC_CONTROL,
+						  flow->mask);
+		/* We are expecting a tunnel. For now we ignore offloading. */
+		if (mask_enc_ctl->addr_type)
+			return -EOPNOTSUPP;
+	}
 
-	key_basic = skb_flow_dissector_target(flow->dissector,
-					      FLOW_DISSECTOR_KEY_BASIC,
-					      flow->key);
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
+		mask_basic = skb_flow_dissector_target(flow->dissector,
+						       FLOW_DISSECTOR_KEY_BASIC,
+						       flow->mask);
+
+		key_basic = skb_flow_dissector_target(flow->dissector,
+						      FLOW_DISSECTOR_KEY_BASIC,
+						      flow->key);
+	}
+
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_IP))
+		mask_ip = skb_flow_dissector_target(flow->dissector,
+						    FLOW_DISSECTOR_KEY_IP,
+						    flow->mask);
+
 	key_layer_two = 0;
 	key_layer = NFP_FLOWER_LAYER_PORT | NFP_FLOWER_LAYER_MAC;
 	key_size = sizeof(struct nfp_flower_meta_one) +
 		   sizeof(struct nfp_flower_in_port) +
 		   sizeof(struct nfp_flower_mac_mpls);
 
-	/* We are expecting a tunnel. For now we ignore offloading. */
-	if (mask_enc_ctl->addr_type)
-		return -EOPNOTSUPP;
-
-	if (mask_basic->n_proto) {
+	if (mask_basic && mask_basic->n_proto) {
 		/* Ethernet type is present in the key. */
 		switch (key_basic->n_proto) {
 		case cpu_to_be16(ETH_P_IP):
+			if (mask_ip && mask_ip->tos)
+				return -EOPNOTSUPP;
+			if (mask_ip && mask_ip->ttl)
+				return -EOPNOTSUPP;
 			key_layer |= NFP_FLOWER_LAYER_IPV4;
 			key_size += sizeof(struct nfp_flower_ipv4);
 			break;
 
 		case cpu_to_be16(ETH_P_IPV6):
+			if (mask_ip && mask_ip->tos)
+				return -EOPNOTSUPP;
+			if (mask_ip && mask_ip->ttl)
+				return -EOPNOTSUPP;
 			key_layer |= NFP_FLOWER_LAYER_IPV6;
 			key_size += sizeof(struct nfp_flower_ipv6);
 			break;
@@ -150,6 +182,11 @@ nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 		 * because we rely on it to get to the host.
 		 */
 		case cpu_to_be16(ETH_P_ARP):
+			return -EOPNOTSUPP;
+
+		/* Currently we do not offload MPLS. */
+		case cpu_to_be16(ETH_P_MPLS_UC):
+		case cpu_to_be16(ETH_P_MPLS_MC):
 			return -EOPNOTSUPP;
 
 		/* Will be included in layer 2. */
@@ -166,7 +203,7 @@ nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 		}
 	}
 
-	if (mask_basic->ip_proto) {
+	if (mask_basic && mask_basic->ip_proto) {
 		/* Ethernet type is present in the key. */
 		switch (key_basic->ip_proto) {
 		case IPPROTO_TCP:
@@ -385,16 +422,15 @@ nfp_flower_repr_offload(struct nfp_app *app, struct net_device *netdev,
 }
 
 int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
-			u32 handle, __be16 proto, struct tc_to_netdev *tc)
+			enum tc_setup_type type, void *type_data)
 {
-	if (TC_H_MAJ(handle) != TC_H_MAJ(TC_H_INGRESS))
+	struct tc_cls_flower_offload *cls_flower = type_data;
+
+	if (type != TC_SETUP_CLSFLOWER ||
+	    !is_classid_clsact_ingress(cls_flower->common.classid) ||
+	    !eth_proto_is_802_3(cls_flower->common.protocol) ||
+	    cls_flower->common.chain_index)
 		return -EOPNOTSUPP;
 
-	if (!eth_proto_is_802_3(proto))
-		return -EOPNOTSUPP;
-
-	if (tc->type != TC_SETUP_CLSFLOWER)
-		return -EINVAL;
-
-	return nfp_flower_repr_offload(app, netdev, tc->cls_flower);
+	return nfp_flower_repr_offload(app, netdev, cls_flower);
 }

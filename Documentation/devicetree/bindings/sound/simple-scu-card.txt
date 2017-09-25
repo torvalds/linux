@@ -24,6 +24,7 @@ Optional subnode properties:
 - simple-audio-card,convert-rate	: platform specified sampling rate convert
 - simple-audio-card,convert-channels	: platform specified converted channel size (2 - 8 ch)
 - simple-audio-card,prefix		: see routing
+- simple-audio-card,widgets		: Please refer to widgets.txt.
 - simple-audio-card,routing		: A list of the connections between audio components.
 					  Each entry is a pair of strings, the first being the connection's sink,
 					  the second being the connection's source. Valid names for sources.

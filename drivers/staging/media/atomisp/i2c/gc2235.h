@@ -530,7 +530,7 @@ static struct gc2235_reg const gc2235_1616_1216_30fps[] = {
 	{ GC2235_TOK_TERM, 0, 0 }
 };
 
-struct gc2235_resolution gc2235_res_preview[] = {
+static struct gc2235_resolution gc2235_res_preview[] = {
 
 	{
 		.desc = "gc2235_1600_900_30fps",
@@ -582,7 +582,7 @@ struct gc2235_resolution gc2235_res_preview[] = {
 };
 #define N_RES_PREVIEW (ARRAY_SIZE(gc2235_res_preview))
 
-struct gc2235_resolution gc2235_res_still[] = {
+static struct gc2235_resolution gc2235_res_still[] = {
 	{
 		.desc = "gc2235_1600_900_30fps",
 		.width = 1600,
@@ -632,7 +632,7 @@ struct gc2235_resolution gc2235_res_still[] = {
 };
 #define N_RES_STILL (ARRAY_SIZE(gc2235_res_still))
 
-struct gc2235_resolution gc2235_res_video[] = {
+static struct gc2235_resolution gc2235_res_video[] = {
 	{
 		.desc = "gc2235_1296_736_30fps",
 		.width = 1296,
@@ -668,5 +668,5 @@ struct gc2235_resolution gc2235_res_video[] = {
 #define N_RES_VIDEO (ARRAY_SIZE(gc2235_res_video))
 
 static struct gc2235_resolution *gc2235_res = gc2235_res_preview;
-static int N_RES = N_RES_PREVIEW;
+static unsigned long N_RES = N_RES_PREVIEW;
 #endif

@@ -136,7 +136,7 @@ int ad5816g_vcm_power_down(struct v4l2_subdev *sd)
 }
 
 
-int ad5816g_t_focus_vcm(struct v4l2_subdev *sd, u16 val)
+static int ad5816g_t_focus_vcm(struct v4l2_subdev *sd, u16 val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	u16 data = val & VCM_CODE_MASK;
@@ -214,12 +214,3 @@ int ad5816g_t_vcm_timing(struct v4l2_subdev *sd, s32 value)
 {
 	return 0;
 }
-
-int ad5816g_vcm_init(struct v4l2_subdev *sd)
-{
-	ad5816g_dev.platform_data = camera_get_af_platform_data();
-	return (NULL == ad5816g_dev.platform_data) ? -ENODEV : 0;
-
-}
-
-

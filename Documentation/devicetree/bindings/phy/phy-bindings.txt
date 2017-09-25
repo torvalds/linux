@@ -34,7 +34,9 @@ PHY user node
 =============
 
 Required Properties:
-phys : the phandle for the PHY device (used by the PHY subsystem)
+phys : the phandle for the PHY device (used by the PHY subsystem; not to be
+       confused with the Ethernet specific 'phy' and 'phy-handle' properties,
+       see Documentation/devicetree/bindings/net/ethernet.txt for these)
 phy-names : the names of the PHY corresponding to the PHYs present in the
 	    *phys* phandle
 
