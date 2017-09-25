@@ -225,7 +225,7 @@ static int tve200_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->regs = devm_ioremap_resource(dev, res);
-	if (!priv->regs) {
+	if (IS_ERR(priv->regs)) {
 		dev_err(dev, "%s failed mmio\n", __func__);
 		ret = -EINVAL;
 		goto clk_disable;
