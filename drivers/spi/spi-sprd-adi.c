@@ -341,8 +341,8 @@ static int sprd_adi_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	sadi->base = devm_ioremap_resource(&pdev->dev, res);
-	if (!sadi->base) {
-		ret = -ENOMEM;
+	if (IS_ERR(sadi->base)) {
+		ret = PTR_ERR(sadi->base);
 		goto put_ctlr;
 	}
 
