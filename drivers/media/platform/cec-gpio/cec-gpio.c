@@ -80,9 +80,12 @@ static irqreturn_t cec_hpd_gpio_irq_handler_thread(int irq, void *priv)
 static irqreturn_t cec_hpd_gpio_irq_handler(int irq, void *priv)
 {
 	struct cec_gpio *cec = priv;
+	bool is_high = gpiod_get_value(cec->hpd_gpio);
 
+	if (is_high == cec->hpd_is_high)
+		return IRQ_HANDLED;
 	cec->hpd_ts = ktime_get();
-	cec->hpd_is_high = gpiod_get_value(cec->hpd_gpio);
+	cec->hpd_is_high = is_high;
 	return IRQ_WAKE_THREAD;
 }
 
