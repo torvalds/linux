@@ -224,7 +224,7 @@ static int chcr_uld_state_change(void *handle, enum cxgb4_state state)
 static int __init chcr_crypto_init(void)
 {
 	if (cxgb4_register_uld(CXGB4_ULD_CRYPTO, &chcr_uld_info))
-		pr_err("ULD register fail: No chcr crypto support in cxgb4");
+		pr_err("ULD register fail: No chcr crypto support in cxgb4\n");
 
 	return 0;
 }
