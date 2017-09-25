@@ -393,21 +393,6 @@ static int __init early_coherent_pool(char *p)
 }
 early_param("coherent_pool", early_coherent_pool);
 
-void __init init_dma_coherent_pool_size(unsigned long size)
-{
-	/*
-	 * Catch any attempt to set the pool size too late.
-	 */
-	BUG_ON(atomic_pool);
-
-	/*
-	 * Set architecture specific coherent pool size only if
-	 * it has not been changed by kernel command line parameter.
-	 */
-	if (atomic_pool_size == DEFAULT_DMA_COHERENT_POOL_SIZE)
-		atomic_pool_size = size;
-}
-
 /*
  * Initialise the coherent pool for atomic allocations.
  */
