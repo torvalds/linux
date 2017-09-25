@@ -1525,7 +1525,6 @@ struct amdgpu_device {
 
 	/* powerplay */
 	struct amd_powerplay		powerplay;
-	bool				pp_enabled;
 	bool				pp_force_state_enabled;
 
 	/* dpm */

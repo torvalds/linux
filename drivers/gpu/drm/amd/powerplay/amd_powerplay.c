@@ -30,6 +30,9 @@
 #include "pp_instance.h"
 #include "power_state.h"
 
+static int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_task task_id,
+		void *input, void *output);
+
 static inline int pp_check(struct pp_instance *handle)
 {
 	if (handle == NULL || handle->pp_valid != PP_VALID)
@@ -146,6 +149,19 @@ static int pp_hw_fini(void *handle)
 	return 0;
 }
 
+static int pp_late_init(void *handle)
+{
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+	int ret = 0;
+
+	ret = pp_check(pp_handle);
+	if (ret == 0)
+		pp_dpm_dispatch_tasks(pp_handle,
+					AMD_PP_TASK_COMPLETE_INIT, NULL, NULL);
+
+	return 0;
+}
+
 static bool pp_is_idle(void *handle)
 {
 	return false;
@@ -254,7 +270,7 @@ static int pp_resume(void *handle)
 const struct amd_ip_funcs pp_ip_funcs = {
 	.name = "powerplay",
 	.early_init = pp_early_init,
-	.late_init = NULL,
+	.late_init = pp_late_init,
 	.sw_init = pp_sw_init,
 	.sw_fini = pp_sw_fini,
 	.hw_init = pp_hw_init,

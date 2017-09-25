@@ -59,7 +59,6 @@ static int amdgpu_pp_early_init(void *handle)
 	int ret = 0;
 
 	amd_pp = &(adev->powerplay);
-	adev->pp_enabled = false;
 	amd_pp->pp_handle = (void *)adev;
 
 	switch (adev->asic_type) {
@@ -73,7 +72,6 @@ static int amdgpu_pp_early_init(void *handle)
 	case CHIP_STONEY:
 	case CHIP_VEGA10:
 	case CHIP_RAVEN:
-		adev->pp_enabled = true;
 		amd_pp->cgs_device = amdgpu_cgs_create_device(adev);
 		if (amdgpu_create_pp_handle(adev))
 			return -EINVAL;
@@ -137,9 +135,6 @@ static int amdgpu_pp_late_init(void *handle)
 	if (adev->powerplay.ip_funcs->late_init)
 		ret = adev->powerplay.ip_funcs->late_init(
 					adev->powerplay.pp_handle);
-
-	if (adev->pp_enabled && adev->pm.dpm_enabled)
-		amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_COMPLETE_INIT, NULL, NULL);
 
 	return ret;
 }
@@ -212,7 +207,7 @@ static void amdgpu_pp_late_fini(void *handle)
 			  adev->powerplay.pp_handle);
 
 
-	if (adev->pp_enabled) {
+	if (adev->powerplay.cgs_device) {
 		amd_powerplay_destroy(adev->powerplay.pp_handle);
 		amdgpu_cgs_destroy_device(adev->powerplay.cgs_device);
 	}
