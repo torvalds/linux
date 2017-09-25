@@ -1322,6 +1322,7 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	const struct dc_stream_status *stream_status;
 	enum surface_update_type update_type;
 	struct dc_state *context;
+	struct dc_context *dc_ctx = dc->ctx;
 	int i;
 
 	stream_status = dc_stream_get_status(stream);
@@ -1334,8 +1335,17 @@ void dc_commit_updates_for_stream(struct dc *dc,
 		update_surface_trace(dc, srf_updates, surface_count);
 
 
-	if (update_type >= UPDATE_TYPE_FULL)
+	if (update_type >= UPDATE_TYPE_FULL) {
+
+		/* initialize scratch memory for building context */
+		context = dc_create_state();
+		if (context == NULL) {
+			DC_ERROR("Failed to allocate new validate context!\n");
+			return;
+		}
+
 		dc_resource_state_copy_construct(state, context);
+	}
 
 
 	for (i = 0; i < surface_count; i++) {
@@ -1360,6 +1370,15 @@ void dc_commit_updates_for_stream(struct dc *dc,
 				context);
 
 	dc_post_update_surfaces_to_stream(dc);
+
+	if (dc->current_state != context) {
+
+		struct dc_state *old = dc->current_state;
+
+		dc->current_state = context;
+		dc_release_state(old);
+
+	}
 
 	return;
 
