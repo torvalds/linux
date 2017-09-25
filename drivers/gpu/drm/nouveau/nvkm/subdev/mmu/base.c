@@ -240,6 +240,8 @@ nvkm_vm_unmap_pgt(struct nvkm_vm *vm, int big, u32 fpde, u32 lpde)
 			mmu->func->map_pgt(vpgd->obj, pde, vpgt->mem);
 		}
 
+		mmu->func->flush(vm);
+
 		nvkm_memory_del(&pgt);
 	}
 }
