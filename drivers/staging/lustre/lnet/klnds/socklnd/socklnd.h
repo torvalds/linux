@@ -696,8 +696,7 @@ int ksocknal_lib_setup_sock(struct socket *so);
 int ksocknal_lib_send_iov(struct ksock_conn *conn, struct ksock_tx *tx);
 int ksocknal_lib_send_kiov(struct ksock_conn *conn, struct ksock_tx *tx);
 void ksocknal_lib_eager_ack(struct ksock_conn *conn);
-int ksocknal_lib_recv_iov(struct ksock_conn *conn);
-int ksocknal_lib_recv_kiov(struct ksock_conn *conn);
+int ksocknal_lib_recv(struct ksock_conn *conn);
 int ksocknal_lib_get_conn_tunables(struct ksock_conn *conn, int *txmem,
 				   int *rxmem, int *nagle);
 

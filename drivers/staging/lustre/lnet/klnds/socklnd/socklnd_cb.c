@@ -249,16 +249,16 @@ ksocknal_transmit(struct ksock_conn *conn, struct ksock_tx *tx)
 }
 
 static int
-ksocknal_recv_iov(struct ksock_conn *conn)
+ksocknal_recv_iter(struct ksock_conn *conn)
 {
 	int nob;
 	int rc;
 
 	/*
 	 * Never touch conn->ksnc_rx_to or change connection
-	 * status inside ksocknal_lib_recv_iov
+	 * status inside ksocknal_lib_recv
 	 */
-	rc = ksocknal_lib_recv_iov(conn);
+	rc = ksocknal_lib_recv(conn);
 
 	if (rc <= 0)
 		return rc;
@@ -274,38 +274,6 @@ ksocknal_recv_iov(struct ksock_conn *conn)
 
 	conn->ksnc_rx_nob_left -= nob;
 
-	iov_iter_advance(&conn->ksnc_rx_to, nob);
-	if (iov_iter_count(&conn->ksnc_rx_to))
-		return -EAGAIN;
-
-	return rc;
-}
-
-static int
-ksocknal_recv_kiov(struct ksock_conn *conn)
-{
-	int nob;
-	int rc;
-
-	/*
-	 * Never touch conn->ksnc_rx_to or change connection
-	 * status inside ksocknal_lib_recv_iov
-	 */
-	rc = ksocknal_lib_recv_kiov(conn);
-
-	if (rc <= 0)
-		return rc;
-
-	/* received something... */
-	nob = rc;
-
-	conn->ksnc_peer->ksnp_last_alive = cfs_time_current();
-	conn->ksnc_rx_deadline =
-		cfs_time_shift(*ksocknal_tunables.ksnd_timeout);
-	mb();		       /* order with setting rx_started */
-	conn->ksnc_rx_started = 1;
-
-	conn->ksnc_rx_nob_left -= nob;
 	iov_iter_advance(&conn->ksnc_rx_to, nob);
 	if (iov_iter_count(&conn->ksnc_rx_to))
 		return -EAGAIN;
@@ -335,11 +303,7 @@ ksocknal_receive(struct ksock_conn *conn)
 	}
 
 	for (;;) {
-		if (conn->ksnc_rx_to.type & ITER_KVEC)
-			rc = ksocknal_recv_iov(conn);
-		else
-			rc = ksocknal_recv_kiov(conn);
-
+		rc = ksocknal_recv_iter(conn);
 		if (rc <= 0) {
 			/* error/EOF or partial receive */
 			if (rc == -EAGAIN) {

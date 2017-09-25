@@ -161,86 +161,39 @@ ksocknal_lib_eager_ack(struct ksock_conn *conn)
 			  sizeof(opt));
 }
 
-int
-ksocknal_lib_recv_iov(struct ksock_conn *conn)
+static int lustre_csum(struct kvec *v, void *context)
 {
-	unsigned int niov = conn->ksnc_rx_to.nr_segs;
-	const struct iovec *iov = conn->ksnc_rx_to.iov;
-	struct msghdr msg = {
-		.msg_flags = 0
-	};
-	int i;
-	int rc;
-	int fragnob;
-	int sum;
-	__u32 saved_csum;
-	int off = conn->ksnc_rx_to.iov_offset;
-
-	msg.msg_iter = conn->ksnc_rx_to;
-	rc = sock_recvmsg(conn->ksnc_sock, &msg, MSG_DONTWAIT);
-
-	saved_csum = 0;
-	if (conn->ksnc_proto == &ksocknal_protocol_v2x) {
-		saved_csum = conn->ksnc_msg.ksm_csum;
-		conn->ksnc_msg.ksm_csum = 0;
-	}
-
-	if (saved_csum) {
-		/* accumulate checksum */
-		for (i = 0, sum = rc; sum > 0; i++, sum -= fragnob) {
-			LASSERT(i < niov);
-
-			fragnob = iov[i].iov_len - off;
-			if (fragnob > sum)
-				fragnob = sum;
-
-			conn->ksnc_rx_csum = crc32_le(conn->ksnc_rx_csum,
-						      iov[i].iov_base + off,
-						      fragnob);
-			off = 0;
-		}
-		conn->ksnc_msg.ksm_csum = saved_csum;
-	}
-
-	return rc;
+	struct ksock_conn *conn = context;
+	conn->ksnc_rx_csum = crc32_le(conn->ksnc_rx_csum,
+				      v->iov_base, v->iov_len);
+	return 0;
 }
 
 int
-ksocknal_lib_recv_kiov(struct ksock_conn *conn)
+ksocknal_lib_recv(struct ksock_conn *conn)
 {
-	unsigned int niov = conn->ksnc_rx_to.nr_segs;
-	const struct bio_vec *kiov = conn->ksnc_rx_to.bvec;
-	int off = conn->ksnc_rx_to.iov_offset;
-	struct msghdr msg = {
-		.msg_flags = 0
-	};
-	int i;
+	struct msghdr msg = { .msg_iter = conn->ksnc_rx_to };
+	__u32 saved_csum;
 	int rc;
-	void *base;
-	int sum;
-	int fragnob;
 
-	msg.msg_iter = conn->ksnc_rx_to;
 	rc = sock_recvmsg(conn->ksnc_sock, &msg, MSG_DONTWAIT);
 	if (rc <= 0)
 		return rc;
 
-	if (conn->ksnc_msg.ksm_csum) {
-		for (i = 0, sum = rc; sum > 0; i++, sum -= fragnob) {
-			LASSERT(i < niov);
+	saved_csum = conn->ksnc_msg.ksm_csum;
+	if (!saved_csum)
+		return rc;
 
-			base = kmap(kiov[i].bv_page) + kiov[i].bv_offset + off;
-			fragnob = kiov[i].bv_len - off;
-			if (fragnob > sum)
-				fragnob = sum;
+	/* header is included only in V2 - V3 checksums only the bulk data */
+	if (!(conn->ksnc_rx_to.type & ITER_BVEC) &&
+	     conn->ksnc_proto != &ksocknal_protocol_v2x)
+		return rc;
+		
+	/* accumulate checksum */
+	conn->ksnc_msg.ksm_csum = 0;
+	iov_iter_for_each_range(&conn->ksnc_rx_to, rc, lustre_csum, conn);
+	conn->ksnc_msg.ksm_csum = saved_csum;
 
-			conn->ksnc_rx_csum = crc32_le(conn->ksnc_rx_csum,
-						      base, fragnob);
-
-			kunmap(kiov[i].bv_page);
-			off = 0;
-		}
-	}
 	return rc;
 }
 
