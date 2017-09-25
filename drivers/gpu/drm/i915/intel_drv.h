@@ -494,6 +494,8 @@ struct intel_crtc_scaler_state {
 
 /* drm_mode->private_flags */
 #define I915_MODE_FLAG_INHERITED 1
+/* Flag to get scanline using frame time stamps */
+#define I915_MODE_FLAG_GET_SCANLINE_FROM_TIMESTAMP (1<<1)
 
 struct intel_pipe_wm {
 	struct intel_wm_level wm[5];

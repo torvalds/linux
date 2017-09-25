@@ -8808,6 +8808,15 @@ enum skl_power_gate {
 #define MIPIO_TXESC_CLK_DIV2			_MMIO(0x160008)
 #define  GLK_TX_ESC_CLK_DIV2_MASK			0x3FF
 
+/* Gen4+ Timestamp and Pipe Frame time stamp registers */
+#define GEN4_TIMESTAMP		_MMIO(0x2358)
+#define ILK_TIMESTAMP_HI	_MMIO(0x70070)
+#define IVB_TIMESTAMP_CTR	_MMIO(0x44070)
+
+#define _PIPE_FRMTMSTMP_A		0x70048
+#define PIPE_FRMTMSTMP(pipe)		\
+			_MMIO_PIPE2(pipe, _PIPE_FRMTMSTMP_A)
+
 /* BXT MIPI clock controls */
 #define BXT_MAX_VAR_OUTPUT_KHZ			39500
 

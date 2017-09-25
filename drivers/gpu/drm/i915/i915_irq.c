@@ -783,6 +783,57 @@ static u32 g4x_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 	return I915_READ(PIPE_FRMCOUNT_G4X(pipe));
 }
 
+/*
+ * On certain encoders on certain platforms, pipe
+ * scanline register will not work to get the scanline,
+ * since the timings are driven from the PORT or issues
+ * with scanline register updates.
+ * This function will use Framestamp and current
+ * timestamp registers to calculate the scanline.
+ */
+static u32 __intel_get_crtc_scanline_from_timestamp(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct drm_vblank_crtc *vblank =
+		&crtc->base.dev->vblank[drm_crtc_index(&crtc->base)];
+	const struct drm_display_mode *mode = &vblank->hwmode;
+	u32 vblank_start = mode->crtc_vblank_start;
+	u32 vtotal = mode->crtc_vtotal;
+	u32 htotal = mode->crtc_htotal;
+	u32 clock = mode->crtc_clock;
+	u32 scanline, scan_prev_time, scan_curr_time, scan_post_time;
+
+	/*
+	 * To avoid the race condition where we might cross into the
+	 * next vblank just between the PIPE_FRMTMSTMP and TIMESTAMP_CTR
+	 * reads. We make sure we read PIPE_FRMTMSTMP and TIMESTAMP_CTR
+	 * during the same frame.
+	 */
+	do {
+		/*
+		 * This field provides read back of the display
+		 * pipe frame time stamp. The time stamp value
+		 * is sampled at every start of vertical blank.
+		 */
+		scan_prev_time = I915_READ_FW(PIPE_FRMTMSTMP(crtc->pipe));
+
+		/*
+		 * The TIMESTAMP_CTR register has the current
+		 * time stamp value.
+		 */
+		scan_curr_time = I915_READ_FW(IVB_TIMESTAMP_CTR);
+
+		scan_post_time = I915_READ_FW(PIPE_FRMTMSTMP(crtc->pipe));
+	} while (scan_post_time != scan_prev_time);
+
+	scanline = div_u64(mul_u32_u32(scan_curr_time - scan_prev_time,
+					clock), 1000 * htotal);
+	scanline = min(scanline, vtotal - 1);
+	scanline = (scanline + vblank_start) % vtotal;
+
+	return scanline;
+}
+
 /* I915_READ_FW, only for fast reads of display block, no need for forcewake etc. */
 static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 {
@@ -798,6 +849,9 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 
 	vblank = &crtc->base.dev->vblank[drm_crtc_index(&crtc->base)];
 	mode = &vblank->hwmode;
+
+	if (mode->private_flags & I915_MODE_FLAG_GET_SCANLINE_FROM_TIMESTAMP)
+		return __intel_get_crtc_scanline_from_timestamp(crtc);
 
 	vtotal = mode->crtc_vtotal;
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
