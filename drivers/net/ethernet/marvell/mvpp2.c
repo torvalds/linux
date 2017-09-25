@@ -333,7 +333,7 @@
 #define     MVPP2_GMAC_INBAND_AN_MASK		BIT(0)
 #define     MVPP2_GMAC_FLOW_CTRL_MASK		GENMASK(2, 1)
 #define     MVPP2_GMAC_PCS_ENABLE_MASK		BIT(3)
-#define     MVPP2_GMAC_PORT_RGMII_MASK		BIT(4)
+#define     MVPP2_GMAC_INTERNAL_CLK_MASK	BIT(4)
 #define     MVPP2_GMAC_DISABLE_PADDING		BIT(5)
 #define     MVPP2_GMAC_PORT_RESET_MASK		BIT(6)
 #define MVPP2_GMAC_AUTONEG_CONFIG		0xc
@@ -4599,7 +4599,6 @@ static void mvpp2_port_mii_gmac_configure(struct mvpp2_port *port)
 	        val |= MVPP2_GMAC_INBAND_AN_MASK | MVPP2_GMAC_PCS_ENABLE_MASK;
 	} else if (phy_interface_mode_is_rgmii(port->phy_interface)) {
 		val &= ~MVPP2_GMAC_PCS_ENABLE_MASK;
-		val |= MVPP2_GMAC_PORT_RGMII_MASK;
 	}
 	writel(val, port->base + MVPP2_GMAC_CTRL_2_REG);
 
