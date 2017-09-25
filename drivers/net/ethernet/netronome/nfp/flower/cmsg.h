@@ -67,10 +67,12 @@
 #define NFP_FL_LW_SIZ			2
 
 /* Action opcodes */
-#define NFP_FL_ACTION_OPCODE_OUTPUT	0
-#define NFP_FL_ACTION_OPCODE_PUSH_VLAN	1
-#define NFP_FL_ACTION_OPCODE_POP_VLAN	2
-#define NFP_FL_ACTION_OPCODE_NUM	32
+#define NFP_FL_ACTION_OPCODE_OUTPUT		0
+#define NFP_FL_ACTION_OPCODE_PUSH_VLAN		1
+#define NFP_FL_ACTION_OPCODE_POP_VLAN		2
+#define NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL	6
+#define NFP_FL_ACTION_OPCODE_PRE_TUNNEL		17
+#define NFP_FL_ACTION_OPCODE_NUM		32
 
 #define NFP_FL_ACT_JMP_ID		GENMASK(15, 8)
 #define NFP_FL_ACT_LEN_LW		GENMASK(7, 0)
@@ -85,6 +87,8 @@
 
 /* Tunnel ports */
 #define NFP_FL_PORT_TYPE_TUN		0x50000000
+#define NFP_FL_IPV4_TUNNEL_TYPE		GENMASK(7, 4)
+#define NFP_FL_IPV4_PRE_TUN_INDEX	GENMASK(2, 0)
 
 enum nfp_flower_tun_type {
 	NFP_FL_TUNNEL_NONE =	0,
@@ -122,6 +126,25 @@ struct nfp_flower_meta_one {
 	u8 mask_id;
 	u16 reserved;
 };
+
+struct nfp_fl_pre_tunnel {
+	__be16 a_op;
+	__be16 reserved;
+	__be32 ipv4_dst;
+	/* reserved for use with IPv6 addresses */
+	__be32 extra[3];
+};
+
+struct nfp_fl_set_vxlan {
+	__be16 a_op;
+	__be16 reserved;
+	__be64 tun_id;
+	__be32 tun_type_index;
+	__be16 tun_flags;
+	u8 ipv4_ttl;
+	u8 ipv4_tos;
+	__be32 extra[2];
+} __packed;
 
 /* Metadata with L2 (1W/4B)
  * ----------------------------------------------------------------
