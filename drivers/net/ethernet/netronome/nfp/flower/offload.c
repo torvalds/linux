@@ -306,6 +306,7 @@ nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer)
 	if (!flow_pay->action_data)
 		goto err_free_mask;
 
+	flow_pay->nfp_tun_ipv4_addr = 0;
 	flow_pay->meta.flags = 0;
 	spin_lock_init(&flow_pay->lock);
 
@@ -414,6 +415,9 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 	err = nfp_modify_flow_metadata(app, nfp_flow);
 	if (err)
 		goto err_free_flow;
+
+	if (nfp_flow->nfp_tun_ipv4_addr)
+		nfp_tunnel_del_ipv4_off(app, nfp_flow->nfp_tun_ipv4_addr);
 
 	err = nfp_flower_xmit_flow(netdev, nfp_flow,
 				   NFP_FLOWER_CMSG_TYPE_FLOW_DEL);

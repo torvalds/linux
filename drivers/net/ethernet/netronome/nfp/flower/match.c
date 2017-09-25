@@ -195,7 +195,7 @@ nfp_flower_compile_ipv6(struct nfp_flower_ipv6 *frame,
 static void
 nfp_flower_compile_vxlan(struct nfp_flower_vxlan *frame,
 			 struct tc_cls_flower_offload *flow,
-			 bool mask_version)
+			 bool mask_version, __be32 *tun_dst)
 {
 	struct fl_flow_key *target = mask_version ? flow->mask : flow->key;
 	struct flow_dissector_key_ipv4_addrs *vxlan_ips;
@@ -223,6 +223,7 @@ nfp_flower_compile_vxlan(struct nfp_flower_vxlan *frame,
 					     target);
 		frame->ip_src = vxlan_ips->src;
 		frame->ip_dst = vxlan_ips->dst;
+		*tun_dst = vxlan_ips->dst;
 	}
 }
 
@@ -232,6 +233,7 @@ int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 				  struct nfp_fl_payload *nfp_flow)
 {
 	enum nfp_flower_tun_type tun_type = NFP_FL_TUNNEL_NONE;
+	__be32 tun_dst, tun_dst_mask = 0;
 	struct nfp_repr *netdev_repr;
 	int err;
 	u8 *ext;
@@ -336,10 +338,10 @@ int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 	if (key_ls->key_layer & NFP_FLOWER_LAYER_VXLAN) {
 		/* Populate Exact VXLAN Data. */
 		nfp_flower_compile_vxlan((struct nfp_flower_vxlan *)ext,
-					 flow, false);
+					 flow, false, &tun_dst);
 		/* Populate Mask VXLAN Data. */
 		nfp_flower_compile_vxlan((struct nfp_flower_vxlan *)msk,
-					 flow, true);
+					 flow, true, &tun_dst_mask);
 		ext += sizeof(struct nfp_flower_vxlan);
 		msk += sizeof(struct nfp_flower_vxlan);
 
@@ -347,6 +349,12 @@ int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 		if (nfp_netdev_is_nfp_repr(netdev)) {
 			netdev_repr = netdev_priv(netdev);
 			nfp_tunnel_write_macs(netdev_repr->app);
+
+			/* Store the tunnel destination in the rule data.
+			 * This must be present and be an exact match.
+			 */
+			nfp_flow->nfp_tun_ipv4_addr = tun_dst;
+			nfp_tunnel_add_ipv4_off(netdev_repr->app, tun_dst);
 		}
 	}
 

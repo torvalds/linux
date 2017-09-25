@@ -32,6 +32,7 @@
  */
 
 #include <linux/etherdevice.h>
+#include <linux/inetdevice.h>
 #include <linux/idr.h>
 #include <net/dst_metadata.h>
 
@@ -39,6 +40,30 @@
 #include "main.h"
 #include "../nfp_net_repr.h"
 #include "../nfp_net.h"
+
+#define NFP_FL_IPV4_ADDRS_MAX        32
+
+/**
+ * struct nfp_tun_ipv4_addr - set the IP address list on the NFP
+ * @count:	number of IPs populated in the array
+ * @ipv4_addr:	array of IPV4_ADDRS_MAX 32 bit IPv4 addresses
+ */
+struct nfp_tun_ipv4_addr {
+	__be32 count;
+	__be32 ipv4_addr[NFP_FL_IPV4_ADDRS_MAX];
+};
+
+/**
+ * struct nfp_ipv4_addr_entry - cached IPv4 addresses
+ * @ipv4_addr:	IP address
+ * @ref_count:	number of rules currently using this IP
+ * @list:	list pointer
+ */
+struct nfp_ipv4_addr_entry {
+	__be32 ipv4_addr;
+	int ref_count;
+	struct list_head list;
+};
 
 /**
  * struct nfp_tun_mac_addr - configure MAC address of tunnel EP on NFP
@@ -110,6 +135,87 @@ nfp_flower_xmit_tun_conf(struct nfp_app *app, u8 mtype, u16 plen, void *pdata)
 
 	nfp_ctrl_tx(app->ctrl, skb);
 	return 0;
+}
+
+static void nfp_tun_write_ipv4_list(struct nfp_app *app)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_ipv4_addr_entry *entry;
+	struct nfp_tun_ipv4_addr payload;
+	struct list_head *ptr, *storage;
+	int count;
+
+	memset(&payload, 0, sizeof(struct nfp_tun_ipv4_addr));
+	mutex_lock(&priv->nfp_ipv4_off_lock);
+	count = 0;
+	list_for_each_safe(ptr, storage, &priv->nfp_ipv4_off_list) {
+		if (count >= NFP_FL_IPV4_ADDRS_MAX) {
+			mutex_unlock(&priv->nfp_ipv4_off_lock);
+			nfp_flower_cmsg_warn(app, "IPv4 offload exceeds limit.\n");
+			return;
+		}
+		entry = list_entry(ptr, struct nfp_ipv4_addr_entry, list);
+		payload.ipv4_addr[count++] = entry->ipv4_addr;
+	}
+	payload.count = cpu_to_be32(count);
+	mutex_unlock(&priv->nfp_ipv4_off_lock);
+
+	nfp_flower_xmit_tun_conf(app, NFP_FLOWER_CMSG_TYPE_TUN_IPS,
+				 sizeof(struct nfp_tun_ipv4_addr),
+				 &payload);
+}
+
+void nfp_tunnel_add_ipv4_off(struct nfp_app *app, __be32 ipv4)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_ipv4_addr_entry *entry;
+	struct list_head *ptr, *storage;
+
+	mutex_lock(&priv->nfp_ipv4_off_lock);
+	list_for_each_safe(ptr, storage, &priv->nfp_ipv4_off_list) {
+		entry = list_entry(ptr, struct nfp_ipv4_addr_entry, list);
+		if (entry->ipv4_addr == ipv4) {
+			entry->ref_count++;
+			mutex_unlock(&priv->nfp_ipv4_off_lock);
+			return;
+		}
+	}
+
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry) {
+		mutex_unlock(&priv->nfp_ipv4_off_lock);
+		nfp_flower_cmsg_warn(app, "Mem error when offloading IP address.\n");
+		return;
+	}
+	entry->ipv4_addr = ipv4;
+	entry->ref_count = 1;
+	list_add_tail(&entry->list, &priv->nfp_ipv4_off_list);
+	mutex_unlock(&priv->nfp_ipv4_off_lock);
+
+	nfp_tun_write_ipv4_list(app);
+}
+
+void nfp_tunnel_del_ipv4_off(struct nfp_app *app, __be32 ipv4)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_ipv4_addr_entry *entry;
+	struct list_head *ptr, *storage;
+
+	mutex_lock(&priv->nfp_ipv4_off_lock);
+	list_for_each_safe(ptr, storage, &priv->nfp_ipv4_off_list) {
+		entry = list_entry(ptr, struct nfp_ipv4_addr_entry, list);
+		if (entry->ipv4_addr == ipv4) {
+			entry->ref_count--;
+			if (!entry->ref_count) {
+				list_del(&entry->list);
+				kfree(entry);
+			}
+			break;
+		}
+	}
+	mutex_unlock(&priv->nfp_ipv4_off_lock);
+
+	nfp_tun_write_ipv4_list(app);
 }
 
 void nfp_tunnel_write_macs(struct nfp_app *app)
@@ -324,6 +430,10 @@ int nfp_tunnel_config_start(struct nfp_app *app)
 	INIT_LIST_HEAD(&priv->nfp_mac_index_list);
 	ida_init(&priv->nfp_mac_off_ids);
 
+	/* Initialise priv data for IPv4 offloading. */
+	mutex_init(&priv->nfp_ipv4_off_lock);
+	INIT_LIST_HEAD(&priv->nfp_ipv4_off_list);
+
 	err = register_netdevice_notifier(&priv->nfp_tun_mac_nb);
 	if (err)
 		goto err_free_mac_ida;
@@ -346,6 +456,7 @@ void nfp_tunnel_config_stop(struct nfp_app *app)
 	struct nfp_tun_mac_offload_entry *mac_entry;
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_tun_mac_non_nfp_idx *mac_idx;
+	struct nfp_ipv4_addr_entry *ip_entry;
 	struct list_head *ptr, *storage;
 
 	unregister_netdevice_notifier(&priv->nfp_tun_mac_nb);
@@ -371,4 +482,13 @@ void nfp_tunnel_config_stop(struct nfp_app *app)
 	mutex_unlock(&priv->nfp_mac_index_lock);
 
 	ida_destroy(&priv->nfp_mac_off_ids);
+
+	/* Free any memory that may be occupied by ipv4 list. */
+	mutex_lock(&priv->nfp_ipv4_off_lock);
+	list_for_each_safe(ptr, storage, &priv->nfp_ipv4_off_list) {
+		ip_entry = list_entry(ptr, struct nfp_ipv4_addr_entry, list);
+		list_del(&ip_entry->list);
+		kfree(ip_entry);
+	}
+	mutex_unlock(&priv->nfp_ipv4_off_lock);
 }
