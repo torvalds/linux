@@ -378,15 +378,15 @@ void mlxsw_sp_acl_rulei_keymask_buf(struct mlxsw_sp_acl_rule_info *rulei,
 				 key_value, mask_value, len);
 }
 
-void mlxsw_sp_acl_rulei_act_continue(struct mlxsw_sp_acl_rule_info *rulei)
+int mlxsw_sp_acl_rulei_act_continue(struct mlxsw_sp_acl_rule_info *rulei)
 {
-	mlxsw_afa_block_continue(rulei->act_block);
+	return mlxsw_afa_block_continue(rulei->act_block);
 }
 
-void mlxsw_sp_acl_rulei_act_jump(struct mlxsw_sp_acl_rule_info *rulei,
-				 u16 group_id)
+int mlxsw_sp_acl_rulei_act_jump(struct mlxsw_sp_acl_rule_info *rulei,
+				u16 group_id)
 {
-	mlxsw_afa_block_jump(rulei->act_block, group_id);
+	return mlxsw_afa_block_jump(rulei->act_block, group_id);
 }
 
 int mlxsw_sp_acl_rulei_act_drop(struct mlxsw_sp_acl_rule_info *rulei)
