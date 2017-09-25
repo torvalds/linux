@@ -561,10 +561,8 @@ static int ovl_do_copy_up(struct ovl_copy_up_ctx *c)
 		c->tmpfile = true;
 		err = ovl_copy_up_locked(c);
 	} else {
-		err = -EIO;
-		if (lock_rename(c->workdir, c->destdir) != NULL) {
-			pr_err("overlayfs: failed to lock workdir+upperdir\n");
-		} else {
+		err = ovl_lock_rename_workdir(c->workdir, c->destdir);
+		if (!err) {
 			err = ovl_copy_up_locked(c);
 			unlock_rename(c->workdir, c->destdir);
 		}
