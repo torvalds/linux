@@ -4132,18 +4132,12 @@ static int gfx_v8_0_rlc_resume(struct amdgpu_device *adev)
 	gfx_v8_0_rlc_reset(adev);
 	gfx_v8_0_init_pg(adev);
 
-	if (!adev->pp_enabled) {
-		if (adev->firmware.load_type != AMDGPU_FW_LOAD_SMU) {
-			/* legacy rlc firmware loading */
-			r = gfx_v8_0_rlc_load_microcode(adev);
-			if (r)
-				return r;
-		} else {
-			r = adev->smu.smumgr_funcs->check_fw_load_finish(adev,
-							AMDGPU_UCODE_ID_RLC_G);
-			if (r)
-				return -EINVAL;
-		}
+
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
+		/* legacy rlc firmware loading */
+		r = gfx_v8_0_rlc_load_microcode(adev);
+		if (r)
+			return r;
 	}
 
 	gfx_v8_0_rlc_start(adev);
@@ -4959,43 +4953,15 @@ static int gfx_v8_0_cp_resume(struct amdgpu_device *adev)
 	if (!(adev->flags & AMD_IS_APU))
 		gfx_v8_0_enable_gui_idle_interrupt(adev, false);
 
-	if (!adev->pp_enabled) {
-		if (adev->firmware.load_type != AMDGPU_FW_LOAD_SMU) {
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
 			/* legacy firmware loading */
-			r = gfx_v8_0_cp_gfx_load_microcode(adev);
-			if (r)
-				return r;
+		r = gfx_v8_0_cp_gfx_load_microcode(adev);
+		if (r)
+			return r;
 
-			r = gfx_v8_0_cp_compute_load_microcode(adev);
-			if (r)
-				return r;
-		} else {
-			r = adev->smu.smumgr_funcs->check_fw_load_finish(adev,
-							AMDGPU_UCODE_ID_CP_CE);
-			if (r)
-				return -EINVAL;
-
-			r = adev->smu.smumgr_funcs->check_fw_load_finish(adev,
-							AMDGPU_UCODE_ID_CP_PFP);
-			if (r)
-				return -EINVAL;
-
-			r = adev->smu.smumgr_funcs->check_fw_load_finish(adev,
-							AMDGPU_UCODE_ID_CP_ME);
-			if (r)
-				return -EINVAL;
-
-			if (adev->asic_type == CHIP_TOPAZ) {
-				r = gfx_v8_0_cp_compute_load_microcode(adev);
-				if (r)
-					return r;
-			} else {
-				r = adev->smu.smumgr_funcs->check_fw_load_finish(adev,
-										 AMDGPU_UCODE_ID_CP_MEC1);
-				if (r)
-					return -EINVAL;
-			}
-		}
+		r = gfx_v8_0_cp_compute_load_microcode(adev);
+		if (r)
+			return r;
 	}
 
 	r = gfx_v8_0_cp_gfx_resume(adev);
