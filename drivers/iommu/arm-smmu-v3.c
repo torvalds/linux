@@ -2535,7 +2535,7 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 	 * register, but warn on mismatch.
 	 */
 	if (!!(reg & IDR0_COHACC) != coherent)
-		dev_warn(smmu->dev, "IDR0.COHACC overridden by dma-coherent property (%s)\n",
+		dev_warn(smmu->dev, "IDR0.COHACC overridden by FW configuration (%s)\n",
 			 coherent ? "true" : "false");
 
 	switch (reg & IDR0_STALL_MODEL_MASK << IDR0_STALL_MODEL_SHIFT) {
