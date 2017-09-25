@@ -104,6 +104,32 @@ int aq_ring_init(struct aq_ring_s *self)
 	return 0;
 }
 
+void aq_ring_update_queue_state(struct aq_ring_s *ring)
+{
+	if (aq_ring_avail_dx(ring) <= AQ_CFG_SKB_FRAGS_MAX)
+		aq_ring_queue_stop(ring);
+	else if (aq_ring_avail_dx(ring) > AQ_CFG_RESTART_DESC_THRES)
+		aq_ring_queue_wake(ring);
+}
+
+void aq_ring_queue_wake(struct aq_ring_s *ring)
+{
+	struct net_device *ndev = aq_nic_get_ndev(ring->aq_nic);
+
+	if (__netif_subqueue_stopped(ndev, ring->idx)) {
+		netif_wake_subqueue(ndev, ring->idx);
+		ring->stats.tx.queue_restarts++;
+	}
+}
+
+void aq_ring_queue_stop(struct aq_ring_s *ring)
+{
+	struct net_device *ndev = aq_nic_get_ndev(ring->aq_nic);
+
+	if (!__netif_subqueue_stopped(ndev, ring->idx))
+		netif_stop_subqueue(ndev, ring->idx);
+}
+
 void aq_ring_tx_clean(struct aq_ring_s *self)
 {
 	struct device *dev = aq_nic_get_dev(self->aq_nic);

@@ -94,6 +94,7 @@ struct aq_ring_stats_tx_s {
 	u64 errors;
 	u64 packets;
 	u64 bytes;
+	u64 queue_restarts;
 };
 
 union aq_ring_stats_s {
@@ -147,6 +148,9 @@ struct aq_ring_s *aq_ring_rx_alloc(struct aq_ring_s *self,
 int aq_ring_init(struct aq_ring_s *self);
 void aq_ring_rx_deinit(struct aq_ring_s *self);
 void aq_ring_free(struct aq_ring_s *self);
+void aq_ring_update_queue_state(struct aq_ring_s *ring);
+void aq_ring_queue_wake(struct aq_ring_s *ring);
+void aq_ring_queue_stop(struct aq_ring_s *ring);
 void aq_ring_tx_clean(struct aq_ring_s *self);
 int aq_ring_rx_clean(struct aq_ring_s *self,
 		     struct napi_struct *napi,

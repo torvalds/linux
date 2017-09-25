@@ -119,6 +119,35 @@ int aq_nic_cfg_start(struct aq_nic_s *self)
 	return 0;
 }
 
+static int aq_nic_update_link_status(struct aq_nic_s *self)
+{
+	int err = self->aq_hw_ops.hw_get_link_status(self->aq_hw);
+
+	if (err)
+		return err;
+
+	if (self->link_status.mbps != self->aq_hw->aq_link_status.mbps)
+		pr_info("%s: link change old %d new %d\n",
+			AQ_CFG_DRV_NAME, self->link_status.mbps,
+			self->aq_hw->aq_link_status.mbps);
+
+	self->link_status = self->aq_hw->aq_link_status;
+	if (!netif_carrier_ok(self->ndev) && self->link_status.mbps) {
+		aq_utils_obj_set(&self->header.flags,
+				 AQ_NIC_FLAG_STARTED);
+		aq_utils_obj_clear(&self->header.flags,
+				   AQ_NIC_LINK_DOWN);
+		netif_carrier_on(self->ndev);
+		netif_tx_wake_all_queues(self->ndev);
+	}
+	if (netif_carrier_ok(self->ndev) && !self->link_status.mbps) {
+		netif_carrier_off(self->ndev);
+		netif_tx_disable(self->ndev);
+		aq_utils_obj_set(&self->header.flags, AQ_NIC_LINK_DOWN);
+	}
+	return 0;
+}
+
 static void aq_nic_service_timer_cb(unsigned long param)
 {
 	struct aq_nic_s *self = (struct aq_nic_s *)param;
@@ -131,25 +160,12 @@ static void aq_nic_service_timer_cb(unsigned long param)
 	if (aq_utils_obj_test(&self->header.flags, AQ_NIC_FLAGS_IS_NOT_READY))
 		goto err_exit;
 
-	err = self->aq_hw_ops.hw_get_link_status(self->aq_hw);
-	if (err < 0)
+	err = aq_nic_update_link_status(self);
+	if (err)
 		goto err_exit;
-
-	self->link_status = self->aq_hw->aq_link_status;
 
 	self->aq_hw_ops.hw_interrupt_moderation_set(self->aq_hw,
 		    self->aq_nic_cfg.is_interrupt_moderation);
-
-	if (self->link_status.mbps) {
-		aq_utils_obj_set(&self->header.flags,
-				 AQ_NIC_FLAG_STARTED);
-		aq_utils_obj_clear(&self->header.flags,
-				   AQ_NIC_LINK_DOWN);
-		netif_carrier_on(self->ndev);
-	} else {
-		netif_carrier_off(self->ndev);
-		aq_utils_obj_set(&self->header.flags, AQ_NIC_LINK_DOWN);
-	}
 
 	memset(&stats_rx, 0U, sizeof(struct aq_ring_stats_rx_s));
 	memset(&stats_tx, 0U, sizeof(struct aq_ring_stats_tx_s));
@@ -240,7 +256,6 @@ err_exit:
 int aq_nic_ndev_register(struct aq_nic_s *self)
 {
 	int err = 0;
-	unsigned int i = 0U;
 
 	if (!self->ndev) {
 		err = -EINVAL;
@@ -262,8 +277,7 @@ int aq_nic_ndev_register(struct aq_nic_s *self)
 
 	netif_carrier_off(self->ndev);
 
-	for (i = AQ_CFG_VECS_MAX; i--;)
-		aq_nic_ndev_queue_stop(self, i);
+	netif_tx_disable(self->ndev);
 
 	err = register_netdev(self->ndev);
 	if (err < 0)
@@ -318,12 +332,8 @@ struct aq_nic_s *aq_nic_alloc_hot(struct net_device *ndev)
 		err = -EINVAL;
 		goto err_exit;
 	}
-	if (netif_running(ndev)) {
-		unsigned int i;
-
-		for (i = AQ_CFG_VECS_MAX; i--;)
-			netif_stop_subqueue(ndev, i);
-	}
+	if (netif_running(ndev))
+		netif_tx_disable(ndev);
 
 	for (self->aq_vecs = 0; self->aq_vecs < self->aq_nic_cfg.vecs;
 		self->aq_vecs++) {
@@ -381,16 +391,6 @@ int aq_nic_init(struct aq_nic_s *self)
 
 err_exit:
 	return err;
-}
-
-void aq_nic_ndev_queue_start(struct aq_nic_s *self, unsigned int idx)
-{
-	netif_start_subqueue(self->ndev, idx);
-}
-
-void aq_nic_ndev_queue_stop(struct aq_nic_s *self, unsigned int idx)
-{
-	netif_stop_subqueue(self->ndev, idx);
 }
 
 int aq_nic_start(struct aq_nic_s *self)
@@ -451,10 +451,6 @@ int aq_nic_start(struct aq_nic_s *self)
 			goto err_exit;
 	}
 
-	for (i = 0U, aq_vec = self->aq_vec[0];
-		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i])
-		aq_nic_ndev_queue_start(self, i);
-
 	err = netif_set_real_num_tx_queues(self->ndev, self->aq_vecs);
 	if (err < 0)
 		goto err_exit;
@@ -462,6 +458,8 @@ int aq_nic_start(struct aq_nic_s *self)
 	err = netif_set_real_num_rx_queues(self->ndev, self->aq_vecs);
 	if (err < 0)
 		goto err_exit;
+
+	netif_tx_start_all_queues(self->ndev);
 
 err_exit:
 	return err;
@@ -602,7 +600,6 @@ int aq_nic_xmit(struct aq_nic_s *self, struct sk_buff *skb)
 	unsigned int vec = skb->queue_mapping % self->aq_nic_cfg.vecs;
 	unsigned int tc = 0U;
 	int err = NETDEV_TX_OK;
-	bool is_nic_in_bad_state;
 
 	frags = skb_shinfo(skb)->nr_frags + 1;
 
@@ -613,13 +610,10 @@ int aq_nic_xmit(struct aq_nic_s *self, struct sk_buff *skb)
 		goto err_exit;
 	}
 
-	is_nic_in_bad_state = aq_utils_obj_test(&self->header.flags,
-						AQ_NIC_FLAGS_IS_NOT_TX_READY) ||
-						(aq_ring_avail_dx(ring) <
-						AQ_CFG_SKB_FRAGS_MAX);
+	aq_ring_update_queue_state(ring);
 
-	if (is_nic_in_bad_state) {
-		aq_nic_ndev_queue_stop(self, ring->idx);
+	/* Above status update may stop the queue. Check this. */
+	if (__netif_subqueue_stopped(self->ndev, ring->idx)) {
 		err = NETDEV_TX_BUSY;
 		goto err_exit;
 	}
@@ -631,9 +625,6 @@ int aq_nic_xmit(struct aq_nic_s *self, struct sk_buff *skb)
 						      ring,
 						      frags);
 		if (err >= 0) {
-			if (aq_ring_avail_dx(ring) < AQ_CFG_SKB_FRAGS_MAX + 1)
-				aq_nic_ndev_queue_stop(self, ring->idx);
-
 			++ring->stats.tx.packets;
 			ring->stats.tx.bytes += skb->len;
 		}
@@ -898,9 +889,7 @@ int aq_nic_stop(struct aq_nic_s *self)
 	struct aq_vec_s *aq_vec = NULL;
 	unsigned int i = 0U;
 
-	for (i = 0U, aq_vec = self->aq_vec[0];
-		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i])
-		aq_nic_ndev_queue_stop(self, i);
+	netif_tx_disable(self->ndev);
 
 	del_timer_sync(&self->service_timer);
 
