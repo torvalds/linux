@@ -1468,6 +1468,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 
 		xdp.data_hard_start = buf;
 		xdp.data = buf + pad;
+		xdp_set_data_meta_invalid(&xdp);
 		xdp.data_end = xdp.data + len;
 		orig_data = xdp.data;
 		act = bpf_prog_run_xdp(xdp_prog, &xdp);

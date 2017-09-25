@@ -1583,6 +1583,7 @@ static int nfp_net_run_xdp(struct bpf_prog *prog, void *data, void *hard_start,
 
 	xdp.data_hard_start = hard_start;
 	xdp.data = data + *off;
+	xdp_set_data_meta_invalid(&xdp);
 	xdp.data_end = data + *off + *len;
 
 	orig_data = xdp.data;

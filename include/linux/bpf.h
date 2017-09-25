@@ -137,6 +137,7 @@ enum bpf_reg_type {
 	PTR_TO_MAP_VALUE,	 /* reg points to map element value */
 	PTR_TO_MAP_VALUE_OR_NULL,/* points to map elem value or NULL */
 	PTR_TO_STACK,		 /* reg == frame_pointer + offset */
+	PTR_TO_PACKET_META,	 /* skb->data - meta_len */
 	PTR_TO_PACKET,		 /* reg points to skb->data */
 	PTR_TO_PACKET_END,	 /* skb->data + headlen */
 };

@@ -162,6 +162,7 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 
 	xdp.data_hard_start = data;
 	xdp.data = data + XDP_PACKET_HEADROOM + NET_IP_ALIGN;
+	xdp.data_meta = xdp.data;
 	xdp.data_end = xdp.data + size;
 
 	retval = bpf_test_run(prog, &xdp, repeat, &duration);
