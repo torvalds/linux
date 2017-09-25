@@ -703,17 +703,39 @@ static inline void cpuacct_account_field(struct task_struct *tsk, int index,
 					 u64 val) {}
 #endif
 
+void cgroup_stat_show_cputime(struct seq_file *seq, const char *prefix);
+
+void __cgroup_account_cputime(struct cgroup *cgrp, u64 delta_exec);
+void __cgroup_account_cputime_field(struct cgroup *cgrp,
+				    enum cpu_usage_stat index, u64 delta_exec);
+
 static inline void cgroup_account_cputime(struct task_struct *task,
 					  u64 delta_exec)
 {
+	struct cgroup *cgrp;
+
 	cpuacct_charge(task, delta_exec);
+
+	rcu_read_lock();
+	cgrp = task_dfl_cgroup(task);
+	if (cgroup_parent(cgrp))
+		__cgroup_account_cputime(cgrp, delta_exec);
+	rcu_read_unlock();
 }
 
 static inline void cgroup_account_cputime_field(struct task_struct *task,
 						enum cpu_usage_stat index,
 						u64 delta_exec)
 {
+	struct cgroup *cgrp;
+
 	cpuacct_account_field(task, index, delta_exec);
+
+	rcu_read_lock();
+	cgrp = task_dfl_cgroup(task);
+	if (cgroup_parent(cgrp))
+		__cgroup_account_cputime_field(cgrp, index, delta_exec);
+	rcu_read_unlock();
 }
 
 #else	/* CONFIG_CGROUPS */

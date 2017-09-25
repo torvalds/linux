@@ -886,6 +886,15 @@ All cgroup core files are prefixed with "cgroup."
 		A dying cgroup can consume system resources not exceeding
 		limits, which were active at the moment of cgroup deletion.
 
+	  cpu.usage_usec
+		CPU time consumed in the subtree.
+
+	  cpu.user_usec
+		User CPU time consumed in the subtree.
+
+	  cpu.system_usec
+		System CPU time consumed in the subtree.
+
 
 Controllers
 ===========
