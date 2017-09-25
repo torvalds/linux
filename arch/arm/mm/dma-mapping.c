@@ -443,7 +443,7 @@ static int __init atomic_pool_init(void)
 
 		gen_pool_set_algo(atomic_pool,
 				gen_pool_first_fit_order_align,
-				(void *)PAGE_SHIFT);
+				NULL);
 		pr_info("DMA: preallocated %zu KiB pool for atomic coherent allocations\n",
 		       atomic_pool_size / 1024);
 		return 0;
