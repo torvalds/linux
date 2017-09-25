@@ -200,6 +200,13 @@ void nvdimm_set_locked(struct device *dev)
 	set_bit(NDD_LOCKED, &nvdimm->flags);
 }
 
+void nvdimm_clear_locked(struct device *dev)
+{
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+
+	clear_bit(NDD_LOCKED, &nvdimm->flags);
+}
+
 static void nvdimm_release(struct device *dev)
 {
 	struct nvdimm *nvdimm = to_nvdimm(dev);
