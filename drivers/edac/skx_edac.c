@@ -301,7 +301,7 @@ static int get_dimm_attr(u32 reg, int lobit, int hibit, int add, int minval,
 
 #define IS_DIMM_PRESENT(mtr)		GET_BITFIELD((mtr), 15, 15)
 
-#define numrank(reg) get_dimm_attr((reg), 12, 13, 0, 1, 2, "ranks")
+#define numrank(reg) get_dimm_attr((reg), 12, 13, 0, 0, 2, "ranks")
 #define numrow(reg) get_dimm_attr((reg), 2, 4, 12, 1, 6, "rows")
 #define numcol(reg) get_dimm_attr((reg), 0, 1, 10, 0, 2, "cols")
 
@@ -362,7 +362,7 @@ static int get_dimm_info(u32 mtr, u32 amap, struct dimm_info *dimm,
 
 	edac_dbg(0, "mc#%d: channel %d, dimm %d, %lld Mb (%d pages) bank: %d, rank: %d, row: %#x, col: %#x\n",
 		 imc->mc, chan, dimmno, size, npages,
-		 banks, ranks, rows, cols);
+		 banks, 1 << ranks, rows, cols);
 
 	imc->chan[chan].dimms[dimmno].close_pg = GET_BITFIELD(mtr, 0, 0);
 	imc->chan[chan].dimms[dimmno].bank_xor_enable = GET_BITFIELD(mtr, 9, 9);
