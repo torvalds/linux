@@ -125,12 +125,13 @@ static struct v4l2_async_subdev *v4l2_async_find_match(
 }
 
 static int v4l2_async_match_notify(struct v4l2_async_notifier *notifier,
+				   struct v4l2_device *v4l2_dev,
 				   struct v4l2_subdev *sd,
 				   struct v4l2_async_subdev *asd)
 {
 	int ret;
 
-	ret = v4l2_device_register_subdev(notifier->v4l2_dev, sd);
+	ret = v4l2_device_register_subdev(v4l2_dev, sd);
 	if (ret < 0)
 		return ret;
 
@@ -147,6 +148,29 @@ static int v4l2_async_match_notify(struct v4l2_async_notifier *notifier,
 
 	/* Move from the global subdevice list to notifier's done */
 	list_move(&sd->async_list, &notifier->done);
+
+	return 0;
+}
+
+/* Test all async sub-devices in a notifier for a match. */
+static int v4l2_async_notifier_try_all_subdevs(
+	struct v4l2_async_notifier *notifier)
+{
+	struct v4l2_device *v4l2_dev = notifier->v4l2_dev;
+	struct v4l2_subdev *sd, *tmp;
+
+	list_for_each_entry_safe(sd, tmp, &subdev_list, async_list) {
+		struct v4l2_async_subdev *asd;
+		int ret;
+
+		asd = v4l2_async_find_match(notifier, sd);
+		if (!asd)
+			continue;
+
+		ret = v4l2_async_match_notify(notifier, v4l2_dev, sd, asd);
+		if (ret < 0)
+			return ret;
+	}
 
 	return 0;
 }
@@ -172,18 +196,15 @@ static void v4l2_async_notifier_unbind_all_subdevs(
 	}
 }
 
-int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
-				 struct v4l2_async_notifier *notifier)
+static int __v4l2_async_notifier_register(struct v4l2_async_notifier *notifier)
 {
-	struct v4l2_subdev *sd, *tmp;
 	struct v4l2_async_subdev *asd;
 	int ret;
 	int i;
 
-	if (!v4l2_dev || notifier->num_subdevs > V4L2_MAX_SUBDEVS)
+	if (notifier->num_subdevs > V4L2_MAX_SUBDEVS)
 		return -EINVAL;
 
-	notifier->v4l2_dev = v4l2_dev;
 	INIT_LIST_HEAD(&notifier->waiting);
 	INIT_LIST_HEAD(&notifier->done);
 
@@ -216,18 +237,10 @@ int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
 
 	mutex_lock(&list_lock);
 
-	list_for_each_entry_safe(sd, tmp, &subdev_list, async_list) {
-		int ret;
-
-		asd = v4l2_async_find_match(notifier, sd);
-		if (!asd)
-			continue;
-
-		ret = v4l2_async_match_notify(notifier, sd, asd);
-		if (ret < 0) {
-			mutex_unlock(&list_lock);
-			return ret;
-		}
+	ret = v4l2_async_notifier_try_all_subdevs(notifier);
+	if (ret) {
+		mutex_unlock(&list_lock);
+		return ret;
 	}
 
 	if (list_empty(&notifier->waiting)) {
@@ -247,6 +260,23 @@ err_complete:
 	v4l2_async_notifier_unbind_all_subdevs(notifier);
 
 	mutex_unlock(&list_lock);
+
+	return ret;
+}
+
+int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
+				 struct v4l2_async_notifier *notifier)
+{
+	int ret;
+
+	if (WARN_ON(!v4l2_dev))
+		return -EINVAL;
+
+	notifier->v4l2_dev = v4l2_dev;
+
+	ret = __v4l2_async_notifier_register(notifier);
+	if (ret)
+		notifier->v4l2_dev = NULL;
 
 	return ret;
 }
@@ -324,7 +354,8 @@ int v4l2_async_register_subdev(struct v4l2_subdev *sd)
 		if (!asd)
 			continue;
 
-		ret = v4l2_async_match_notify(notifier, sd, asd);
+		ret = v4l2_async_match_notify(notifier, notifier->v4l2_dev, sd,
+					      asd);
 		if (ret)
 			goto err_unlock;
 
