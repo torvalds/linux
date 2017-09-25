@@ -2054,7 +2054,16 @@ static u32 usb3_calc_ramarea(int ram_size)
 static u32 usb3_calc_rammap_val(struct renesas_usb3_ep *usb3_ep,
 				const struct usb_endpoint_descriptor *desc)
 {
-	return usb3_ep->rammap_val | PN_RAMMAP_MPKT(usb_endpoint_maxp(desc));
+	int i;
+	const u32 max_packet_array[] = {8, 16, 32, 64, 512};
+	u32 mpkt = PN_RAMMAP_MPKT(1024);
+
+	for (i = 0; i < ARRAY_SIZE(max_packet_array); i++) {
+		if (usb_endpoint_maxp(desc) <= max_packet_array[i])
+			mpkt = PN_RAMMAP_MPKT(max_packet_array[i]);
+	}
+
+	return usb3_ep->rammap_val | mpkt;
 }
 
 static int usb3_enable_pipe_n(struct renesas_usb3_ep *usb3_ep,
