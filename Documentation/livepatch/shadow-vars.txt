@@ -6,7 +6,7 @@ Shadow variables are a simple way for livepatch modules to associate
 additional "shadow" data with existing data structures.  Shadow data is
 allocated separately from parent data structures, which are left
 unmodified.  The shadow variable API described in this document is used
-to allocate/attach and detach/release shadow variables to their parents.
+to allocate/add and remove/free shadow variables to/from their parents.
 
 The implementation introduces a global, in-kernel hashtable that
 associates pointers to parent objects and a numeric identifier of the
@@ -107,7 +107,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	sta = kzalloc(sizeof(*sta) + hw->sta_data_size, gfp);
 
 	/* Attach a corresponding shadow variable, then initialize it */
-	ps_lock = klp_shadow_alloc(sta, PS_LOCK, NULL, sizeof(ps_lock), gfp);
+	ps_lock = klp_shadow_alloc(sta, PS_LOCK, NULL, sizeof(*ps_lock), gfp);
 	if (!ps_lock)
 		goto shadow_fail;
 	spin_lock_init(ps_lock);
