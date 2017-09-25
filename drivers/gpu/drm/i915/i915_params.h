@@ -28,49 +28,49 @@
 #include <linux/cache.h> /* for __read_mostly */
 
 #define I915_PARAMS_FOR_EACH(param) \
-	param(char *, vbt_firmware) \
-	param(int, modeset) \
-	param(int, panel_ignore_lid) \
-	param(int, semaphores) \
-	param(int, lvds_channel_mode) \
-	param(int, panel_use_ssc) \
-	param(int, vbt_sdvo_panel_type) \
-	param(int, enable_rc6) \
-	param(int, enable_dc) \
-	param(int, enable_fbc) \
-	param(int, enable_ppgtt) \
-	param(int, enable_execlists) \
-	param(int, enable_psr) \
-	param(int, disable_power_well) \
-	param(int, enable_ips) \
-	param(int, invert_brightness) \
-	param(int, enable_guc_loading) \
-	param(int, enable_guc_submission) \
-	param(int, guc_log_level) \
-	param(char *, guc_firmware_path) \
-	param(char *, huc_firmware_path) \
-	param(int, use_mmio_flip) \
-	param(int, mmio_debug) \
-	param(int, edp_vswing) \
-	param(int, reset) \
-	param(unsigned int, inject_load_failure) \
+	param(char *, vbt_firmware, NULL) \
+	param(int, modeset, -1) \
+	param(int, panel_ignore_lid, 1) \
+	param(int, semaphores, -1) \
+	param(int, lvds_channel_mode, 0) \
+	param(int, panel_use_ssc, -1) \
+	param(int, vbt_sdvo_panel_type, -1) \
+	param(int, enable_rc6, -1) \
+	param(int, enable_dc, -1) \
+	param(int, enable_fbc, -1) \
+	param(int, enable_ppgtt, -1) \
+	param(int, enable_execlists, -1) \
+	param(int, enable_psr, -1) \
+	param(int, disable_power_well, -1) \
+	param(int, enable_ips, 1) \
+	param(int, invert_brightness, 0) \
+	param(int, enable_guc_loading, 0) \
+	param(int, enable_guc_submission, 0) \
+	param(int, guc_log_level, -1) \
+	param(char *, guc_firmware_path, NULL) \
+	param(char *, huc_firmware_path, NULL) \
+	param(int, use_mmio_flip, 0) \
+	param(int, mmio_debug, 0) \
+	param(int, edp_vswing, 0) \
+	param(int, reset, 2) \
+	param(unsigned int, inject_load_failure, 0) \
 	/* leave bools at the end to not create holes */ \
-	param(bool, alpha_support) \
-	param(bool, enable_cmd_parser) \
-	param(bool, enable_hangcheck) \
-	param(bool, fastboot) \
-	param(bool, prefault_disable) \
-	param(bool, load_detect_test) \
-	param(bool, force_reset_modeset_test) \
-	param(bool, error_capture) \
-	param(bool, disable_display) \
-	param(bool, verbose_state_checks) \
-	param(bool, nuclear_pageflip) \
-	param(bool, enable_dp_mst) \
-	param(bool, enable_dpcd_backlight) \
-	param(bool, enable_gvt)
+	param(bool, alpha_support, IS_ENABLED(CONFIG_DRM_I915_ALPHA_SUPPORT)) \
+	param(bool, enable_cmd_parser, true) \
+	param(bool, enable_hangcheck, true) \
+	param(bool, fastboot, 0) \
+	param(bool, prefault_disable, 0) \
+	param(bool, load_detect_test, 0) \
+	param(bool, force_reset_modeset_test, 0) \
+	param(bool, error_capture, true) \
+	param(bool, disable_display, 0) \
+	param(bool, verbose_state_checks, 1) \
+	param(bool, nuclear_pageflip, 0) \
+	param(bool, enable_dp_mst, true) \
+	param(bool, enable_dpcd_backlight, false) \
+	param(bool, enable_gvt, false)
 
-#define MEMBER(T, member) T member;
+#define MEMBER(T, member, ...) T member;
 struct i915_params {
 	I915_PARAMS_FOR_EACH(MEMBER);
 };

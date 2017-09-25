@@ -572,7 +572,7 @@ static __always_inline void err_print_param(struct drm_i915_error_state_buf *m,
 static void err_print_params(struct drm_i915_error_state_buf *m,
 			     const struct i915_params *p)
 {
-#define PRINT(T, x) err_print_param(m, #x, #T, &p->x);
+#define PRINT(T, x, ...) err_print_param(m, #x, #T, &p->x);
 	I915_PARAMS_FOR_EACH(PRINT);
 #undef PRINT
 }
@@ -866,7 +866,7 @@ void __i915_gpu_state_free(struct kref *error_ref)
 	kfree(error->overlay);
 	kfree(error->display);
 
-#define FREE(T, x) free_param(#T, &error->params.x);
+#define FREE(T, x, ...) free_param(#T, &error->params.x);
 	I915_PARAMS_FOR_EACH(FREE);
 #undef FREE
 
@@ -1704,7 +1704,7 @@ static int capture(void *data)
 					   error->i915->gt.last_init_time));
 
 	error->params = i915_modparams;
-#define DUP(T, x) dup_param(#T, &error->params.x);
+#define DUP(T, x, ...) dup_param(#T, &error->params.x);
 	I915_PARAMS_FOR_EACH(DUP);
 #undef DUP
 
