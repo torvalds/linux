@@ -2311,7 +2311,8 @@ static void ipoib_add_one(struct ib_device *device)
 	}
 
 	if (!count) {
-		kfree(dev_list);
+		pr_err("Failed to init port, removing it\n");
+		ipoib_remove_one(device, dev_list);
 		return;
 	}
 
