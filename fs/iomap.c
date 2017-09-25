@@ -713,7 +713,23 @@ struct iomap_dio {
 static ssize_t iomap_dio_complete(struct iomap_dio *dio)
 {
 	struct kiocb *iocb = dio->iocb;
+	struct inode *inode = file_inode(iocb->ki_filp);
 	ssize_t ret;
+
+	/*
+	 * Try again to invalidate clean pages which might have been cached by
+	 * non-direct readahead, or faulted in by get_user_pages() if the source
+	 * of the write was an mmap'ed region of the file we're writing.  Either
+	 * one is a pretty crazy thing to do, so we don't support it 100%.  If
+	 * this invalidation fails, tough, the write still worked...
+	 */
+	if (!dio->error &&
+	    (dio->flags & IOMAP_DIO_WRITE) && inode->i_mapping->nrpages) {
+		ret = invalidate_inode_pages2_range(inode->i_mapping,
+				iocb->ki_pos >> PAGE_SHIFT,
+				(iocb->ki_pos + dio->size - 1) >> PAGE_SHIFT);
+		WARN_ON_ONCE(ret);
+	}
 
 	if (dio->end_io) {
 		ret = dio->end_io(iocb,
@@ -1041,19 +1057,6 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	}
 
 	ret = iomap_dio_complete(dio);
-
-	/*
-	 * Try again to invalidate clean pages which might have been cached by
-	 * non-direct readahead, or faulted in by get_user_pages() if the source
-	 * of the write was an mmap'ed region of the file we're writing.  Either
-	 * one is a pretty crazy thing to do, so we don't support it 100%.  If
-	 * this invalidation fails, tough, the write still worked...
-	 */
-	if (iov_iter_rw(iter) == WRITE) {
-		int err = invalidate_inode_pages2_range(mapping,
-				start >> PAGE_SHIFT, end >> PAGE_SHIFT);
-		WARN_ON_ONCE(err);
-	}
 
 	return ret;
 
