@@ -62,6 +62,7 @@ enum mlxsw_sp_rif_counter_dir {
 };
 
 struct mlxsw_sp_neigh_entry;
+struct mlxsw_sp_nexthop;
 
 struct mlxsw_sp_rif *mlxsw_sp_rif_by_index(const struct mlxsw_sp *mlxsw_sp,
 					   u16 rif_index);
@@ -108,5 +109,16 @@ union mlxsw_sp_l3addr
 mlxsw_sp_ipip_netdev_daddr(enum mlxsw_sp_l3proto proto,
 			   const struct net_device *ol_dev);
 __be32 mlxsw_sp_ipip_netdev_daddr4(const struct net_device *ol_dev);
+struct mlxsw_sp_nexthop *mlxsw_sp_nexthop_next(struct mlxsw_sp_router *router,
+					       struct mlxsw_sp_nexthop *nh);
+bool mlxsw_sp_nexthop_offload(struct mlxsw_sp_nexthop *nh);
+unsigned char *mlxsw_sp_nexthop_ha(struct mlxsw_sp_nexthop *nh);
+int mlxsw_sp_nexthop_indexes(struct mlxsw_sp_nexthop *nh, u32 *p_adj_index,
+			     u32 *p_adj_hash_index);
+struct mlxsw_sp_rif *mlxsw_sp_nexthop_rif(struct mlxsw_sp_nexthop *nh);
+bool mlxsw_sp_nexthop_group_has_ipip(struct mlxsw_sp_nexthop *nh);
+#define mlxsw_sp_nexthop_for_each(nh, router)				\
+	for (nh = mlxsw_sp_nexthop_next(router, NULL); nh;		\
+	     nh = mlxsw_sp_nexthop_next(router, nh))
 
 #endif /* _MLXSW_ROUTER_H_*/

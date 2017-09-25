@@ -2068,6 +2068,77 @@ struct mlxsw_sp_nexthop_group {
 #define nh_rif	nexthops[0].rif
 };
 
+struct mlxsw_sp_nexthop *mlxsw_sp_nexthop_next(struct mlxsw_sp_router *router,
+					       struct mlxsw_sp_nexthop *nh)
+{
+	if (!nh) {
+		if (list_empty(&router->nexthop_list))
+			return NULL;
+		else
+			return list_first_entry(&router->nexthop_list,
+						typeof(*nh), router_list_node);
+	}
+	if (list_is_last(&nh->router_list_node, &router->nexthop_list))
+		return NULL;
+	return list_next_entry(nh, router_list_node);
+}
+
+bool mlxsw_sp_nexthop_offload(struct mlxsw_sp_nexthop *nh)
+{
+	return nh->offloaded;
+}
+
+unsigned char *mlxsw_sp_nexthop_ha(struct mlxsw_sp_nexthop *nh)
+{
+	if (!nh->offloaded)
+		return NULL;
+	return nh->neigh_entry->ha;
+}
+
+int mlxsw_sp_nexthop_indexes(struct mlxsw_sp_nexthop *nh, u32 *p_adj_index,
+			     u32 *p_adj_hash_index)
+{
+	struct mlxsw_sp_nexthop_group *nh_grp = nh->nh_grp;
+	u32 adj_hash_index = 0;
+	int i;
+
+	if (!nh->offloaded || !nh_grp->adj_index_valid)
+		return -EINVAL;
+
+	*p_adj_index = nh_grp->adj_index;
+
+	for (i = 0; i < nh_grp->count; i++) {
+		struct mlxsw_sp_nexthop *nh_iter = &nh_grp->nexthops[i];
+
+		if (nh_iter == nh)
+			break;
+		if (nh_iter->offloaded)
+			adj_hash_index++;
+	}
+
+	*p_adj_hash_index = adj_hash_index;
+	return 0;
+}
+
+struct mlxsw_sp_rif *mlxsw_sp_nexthop_rif(struct mlxsw_sp_nexthop *nh)
+{
+	return nh->rif;
+}
+
+bool mlxsw_sp_nexthop_group_has_ipip(struct mlxsw_sp_nexthop *nh)
+{
+	struct mlxsw_sp_nexthop_group *nh_grp = nh->nh_grp;
+	int i;
+
+	for (i = 0; i < nh_grp->count; i++) {
+		struct mlxsw_sp_nexthop *nh_iter = &nh_grp->nexthops[i];
+
+		if (nh_iter->type == MLXSW_SP_NEXTHOP_TYPE_IPIP)
+			return true;
+	}
+	return false;
+}
+
 static struct fib_info *
 mlxsw_sp_nexthop4_group_fi(const struct mlxsw_sp_nexthop_group *nh_grp)
 {
