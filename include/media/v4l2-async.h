@@ -82,7 +82,8 @@ struct v4l2_async_subdev {
 /**
  * struct v4l2_async_notifier_operations - Asynchronous V4L2 notifier operations
  * @bound:	a subdevice driver has successfully probed one of the subdevices
- * @complete:	all subdevices have been probed successfully
+ * @complete:	All subdevices have been probed successfully. The complete
+ *		callback is only executed for the root notifier.
  * @unbind:	a subdevice is leaving
  */
 struct v4l2_async_notifier_operations {
@@ -102,7 +103,9 @@ struct v4l2_async_notifier_operations {
  * @num_subdevs: number of subdevices used in the subdevs array
  * @max_subdevs: number of subdevices allocated in the subdevs array
  * @subdevs:	array of pointers to subdevice descriptors
- * @v4l2_dev:	pointer to struct v4l2_device
+ * @v4l2_dev:	v4l2_device of the root notifier, NULL otherwise
+ * @sd:		sub-device that registered the notifier, NULL otherwise
+ * @parent:	parent notifier
  * @waiting:	list of struct v4l2_async_subdev, waiting for their drivers
  * @done:	list of struct v4l2_subdev, already probed
  * @list:	member in a global list of notifiers
@@ -113,6 +116,8 @@ struct v4l2_async_notifier {
 	unsigned int max_subdevs;
 	struct v4l2_async_subdev **subdevs;
 	struct v4l2_device *v4l2_dev;
+	struct v4l2_subdev *sd;
+	struct v4l2_async_notifier *parent;
 	struct list_head waiting;
 	struct list_head done;
 	struct list_head list;
@@ -126,6 +131,16 @@ struct v4l2_async_notifier {
  */
 int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
 				 struct v4l2_async_notifier *notifier);
+
+/**
+ * v4l2_async_subdev_notifier_register - registers a subdevice asynchronous
+ *					 notifier for a sub-device
+ *
+ * @sd: pointer to &struct v4l2_subdev
+ * @notifier: pointer to &struct v4l2_async_notifier
+ */
+int v4l2_async_subdev_notifier_register(struct v4l2_subdev *sd,
+					struct v4l2_async_notifier *notifier);
 
 /**
  * v4l2_async_notifier_unregister - unregisters a subdevice asynchronous notifier
