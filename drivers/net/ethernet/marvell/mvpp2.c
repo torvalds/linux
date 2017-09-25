@@ -7504,7 +7504,7 @@ static void mvpp2_port_copy_mac_addr(struct net_device *dev, struct mvpp2 *priv,
 /* Ports initialization */
 static int mvpp2_port_probe(struct platform_device *pdev,
 			    struct device_node *port_node,
-			    struct mvpp2 *priv)
+			    struct mvpp2 *priv, int index)
 {
 	struct device_node *phy_node;
 	struct phy *comphy;
@@ -7678,7 +7678,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	}
 	netdev_info(dev, "Using %s mac address %pM\n", mac_from, dev->dev_addr);
 
-	priv->port_list[id] = port;
+	priv->port_list[index] = port;
 	return 0;
 
 err_free_port_pcpu:
@@ -8013,10 +8013,12 @@ static int mvpp2_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize ports */
+	i = 0;
 	for_each_available_child_of_node(dn, port_node) {
-		err = mvpp2_port_probe(pdev, port_node, priv);
+		err = mvpp2_port_probe(pdev, port_node, priv, i);
 		if (err < 0)
 			goto err_mg_clk;
+		i++;
 	}
 
 	platform_set_drvdata(pdev, priv);
