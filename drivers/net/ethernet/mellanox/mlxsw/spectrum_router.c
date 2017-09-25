@@ -1317,7 +1317,7 @@ mlxsw_sp_rif_neigh_next(struct mlxsw_sp_rif *rif,
 						typeof(*neigh_entry),
 						rif_list_node);
 	}
-	if (neigh_entry->rif_list_node.next == &rif->neigh_list)
+	if (list_is_last(&neigh_entry->rif_list_node, &rif->neigh_list))
 		return NULL;
 	return list_next_entry(neigh_entry, rif_list_node);
 }
