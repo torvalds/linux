@@ -683,6 +683,10 @@ EXPORT_SYMBOL_GPL(fwnode_property_match_string);
  * Caller is responsible to call fwnode_handle_put() on the returned
  * args->fwnode pointer.
  *
+ * Returns: %0 on success
+ *	    %-ENOENT when the index is out of bounds, the index has an empty
+ *		     reference or the property was not found
+ *	    %-EINVAL on parse error
  */
 int fwnode_property_get_reference_args(const struct fwnode_handle *fwnode,
 				       const char *prop, const char *nargs_prop,
