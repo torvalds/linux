@@ -351,6 +351,11 @@ static void print_bpf_insn(const struct bpf_verifier_env *env,
 				verbose("BUG_alu64_%02x\n", insn->code);
 			else
 				print_bpf_end_insn(env, insn);
+		} else if (BPF_OP(insn->code) == BPF_NEG) {
+			verbose("(%02x) r%d = %s-r%d\n",
+				insn->code, insn->dst_reg,
+				class == BPF_ALU ? "(u32) " : "",
+				insn->dst_reg);
 		} else if (BPF_SRC(insn->code) == BPF_X) {
 			verbose("(%02x) %sr%d %s %sr%d\n",
 				insn->code, class == BPF_ALU ? "(u32) " : "",
