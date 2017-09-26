@@ -55,13 +55,6 @@ locks_end_grace(struct lock_manager *lm)
 }
 EXPORT_SYMBOL_GPL(locks_end_grace);
 
-/**
- * locks_in_grace
- *
- * Lock managers call this function to determine when it is OK for them
- * to answer ordinary lock requests, and when they should accept only
- * lock reclaims.
- */
 static int
 __state_in_grace(struct net *net, bool open)
 {
@@ -78,6 +71,13 @@ __state_in_grace(struct net *net, bool open)
 	return false;
 }
 
+/**
+ * locks_in_grace
+ *
+ * Lock managers call this function to determine when it is OK for them
+ * to answer ordinary lock requests, and when they should accept only
+ * lock reclaims.
+ */
 int locks_in_grace(struct net *net)
 {
 	return __state_in_grace(net, 0);
