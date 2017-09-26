@@ -5,7 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2017 Intel Deutschland GmbH
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -16,6 +18,9 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.
+ *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -25,7 +30,9 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2017 Intel Deutschland GmbH
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,30 +62,26 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#include "iwl-drv.h"
+
 #include "runtime.h"
-#include "dbg.h"
-#include "debugfs.h"
 
-void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,
-			const struct iwl_fw *fw,
-			const struct iwl_fw_runtime_ops *ops, void *ops_ctx,
-			struct dentry *dbgfs_dir)
-{
-	memset(fwrt, 0, sizeof(*fwrt));
-	fwrt->trans = trans;
-	fwrt->fw = fw;
-	fwrt->dev = trans->dev;
-	fwrt->dump.conf = FW_DBG_INVALID;
-	fwrt->ops = ops;
-	fwrt->ops_ctx = ops_ctx;
-	INIT_DELAYED_WORK(&fwrt->dump.wk, iwl_fw_error_dump_wk);
-	iwl_fwrt_dbgfs_register(fwrt, dbgfs_dir);
-}
-IWL_EXPORT_SYMBOL(iwl_fw_runtime_init);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+int iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
+			    struct dentry *dbgfs_dir);
 
-void iwl_fw_runtime_exit(struct iwl_fw_runtime *fwrt)
+static inline void iwl_fw_cancel_timestamp(struct iwl_fw_runtime *fwrt)
 {
-	iwl_fw_cancel_timestamp(fwrt);
+	fwrt->timestamp.delay = 0;
+	cancel_delayed_work_sync(&fwrt->timestamp.wk);
 }
-IWL_EXPORT_SYMBOL(iwl_fw_runtime_exit);
+
+#else
+static inline int iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
+					  struct dentry *dbgfs_dir)
+{
+	return 0;
+}
+
+static inline void iwl_fw_cancel_timestamp(struct iwl_fw_runtime *fwrt) {}
+
+#endif /* CONFIG_IWLWIFI_DEBUGFS */
