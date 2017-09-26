@@ -103,6 +103,17 @@
 #define OPA_VNIC_ETH_LINK_UP     1
 #define OPA_VNIC_ETH_LINK_DOWN   2
 
+/* routing control */
+#define OPA_VNIC_ENCAP_RC_DEFAULT   0
+#define OPA_VNIC_ENCAP_RC_IPV4      4
+#define OPA_VNIC_ENCAP_RC_IPV4_UDP  8
+#define OPA_VNIC_ENCAP_RC_IPV4_TCP  12
+#define OPA_VNIC_ENCAP_RC_IPV6      16
+#define OPA_VNIC_ENCAP_RC_IPV6_TCP  20
+#define OPA_VNIC_ENCAP_RC_IPV6_UDP  24
+
+#define OPA_VNIC_ENCAP_RC_EXT(w, b) (((w) >> OPA_VNIC_ENCAP_RC_ ## b) & 0x7)
+
 /**
  * struct opa_vesw_info - OPA vnic switch information
  * @fabric_id: 10-bit fabric id
@@ -111,6 +122,7 @@
  * @pkey: partition key
  * @u_mcast_dlid: unknown multicast dlid
  * @u_ucast_dlid: array of unknown unicast dlids
+ * @rc: routing control
  * @eth_mtu: Ethernet MTU
  */
 struct opa_vesw_info {
@@ -127,7 +139,9 @@ struct opa_vesw_info {
 	__be32  u_mcast_dlid;
 	__be32  u_ucast_dlid[OPA_VESW_MAX_NUM_DEF_PORT];
 
-	u8      rsvd3[60];
+	__be32  rc;
+
+	u8      rsvd3[56];
 	__be16  eth_mtu;
 	u8      rsvd4[2];
 } __packed;
