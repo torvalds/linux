@@ -130,7 +130,7 @@ void opa_vnic_process_vema_config(struct opa_vnic_adapter *adapter)
 		memcpy(saddr.sa_data, info->vport.base_mac_addr,
 		       ARRAY_SIZE(info->vport.base_mac_addr));
 		mutex_lock(&adapter->lock);
-		eth_mac_addr(netdev, &saddr);
+		eth_commit_mac_addr_change(netdev, &saddr);
 		memcpy(adapter->vema_mac_addr,
 		       info->vport.base_mac_addr, ETH_ALEN);
 		mutex_unlock(&adapter->lock);
