@@ -84,8 +84,7 @@ static void init_subctxts(struct hfi1_ctxtdata *uctxt,
 static int init_user_ctxt(struct hfi1_filedata *fd,
 			  struct hfi1_ctxtdata *uctxt);
 static void user_init(struct hfi1_ctxtdata *uctxt);
-static int get_ctxt_info(struct hfi1_filedata *fd, void __user *ubase,
-			 __u32 len);
+static int get_ctxt_info(struct hfi1_filedata *fd, unsigned long arg, u32 len);
 static int get_base_info(struct hfi1_filedata *fd, void __user *ubase,
 			 __u32 len);
 static int setup_base_ctxt(struct hfi1_filedata *fd,
@@ -240,9 +239,9 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 		break;
 
 	case HFI1_IOCTL_CTXT_INFO:
-		ret = get_ctxt_info(fd, (void __user *)(unsigned long)arg,
-				    sizeof(struct hfi1_ctxt_info));
+		ret = get_ctxt_info(fd, arg, _IOC_SIZE(cmd));
 		break;
+
 	case HFI1_IOCTL_USER_INFO:
 		ret = get_base_info(fd, (void __user *)(unsigned long)arg,
 				    sizeof(struct hfi1_base_info));
@@ -1237,12 +1236,13 @@ static void user_init(struct hfi1_ctxtdata *uctxt)
 	hfi1_rcvctrl(uctxt->dd, rcvctrl_ops, uctxt);
 }
 
-static int get_ctxt_info(struct hfi1_filedata *fd, void __user *ubase,
-			 __u32 len)
+static int get_ctxt_info(struct hfi1_filedata *fd, unsigned long arg, u32 len)
 {
 	struct hfi1_ctxt_info cinfo;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
-	int ret = 0;
+
+	if (sizeof(cinfo) != len)
+		return -EINVAL;
 
 	memset(&cinfo, 0, sizeof(cinfo));
 	cinfo.runtime_flags = (((uctxt->flags >> HFI1_CAP_MISC_SHIFT) &
@@ -1272,10 +1272,10 @@ static int get_ctxt_info(struct hfi1_filedata *fd, void __user *ubase,
 	cinfo.rcvegr_size = uctxt->egrbufs.rcvtid_size;
 
 	trace_hfi1_ctxt_info(uctxt->dd, uctxt->ctxt, fd->subctxt, cinfo);
-	if (copy_to_user(ubase, &cinfo, sizeof(cinfo)))
-		ret = -EFAULT;
+	if (copy_to_user((void __user *)arg, &cinfo, len))
+		return -EFAULT;
 
-	return ret;
+	return 0;
 }
 
 static int init_user_ctxt(struct hfi1_filedata *fd,
