@@ -1027,24 +1027,6 @@ static int rcar_pcie_inbound_ranges(struct rcar_pcie *pcie,
 	return 0;
 }
 
-static int pci_dma_range_parser_init(struct of_pci_range_parser *parser,
-				     struct device_node *node)
-{
-	const int na = 3, ns = 2;
-	int rlen;
-
-	parser->node = node;
-	parser->pna = of_n_addr_cells(node);
-	parser->np = parser->pna + na + ns;
-
-	parser->range = of_get_property(node, "dma-ranges", &rlen);
-	if (!parser->range)
-		return -ENOENT;
-
-	parser->end = parser->range + rlen / sizeof(__be32);
-	return 0;
-}
-
 static int rcar_pcie_parse_map_dma_ranges(struct rcar_pcie *pcie,
 					  struct device_node *np)
 {
@@ -1053,7 +1035,7 @@ static int rcar_pcie_parse_map_dma_ranges(struct rcar_pcie *pcie,
 	int index = 0;
 	int err;
 
-	if (pci_dma_range_parser_init(&parser, np))
+	if (of_pci_dma_range_parser_init(&parser, np))
 		return -EINVAL;
 
 	/* Get the dma-ranges from DT */

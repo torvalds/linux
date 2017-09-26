@@ -370,24 +370,6 @@ static int faraday_pci_setup_cascaded_irq(struct faraday_pci *p)
 	return 0;
 }
 
-static int pci_dma_range_parser_init(struct of_pci_range_parser *parser,
-				     struct device_node *node)
-{
-	const int na = 3, ns = 2;
-	int rlen;
-
-	parser->node = node;
-	parser->pna = of_n_addr_cells(node);
-	parser->np = parser->pna + na + ns;
-
-	parser->range = of_get_property(node, "dma-ranges", &rlen);
-	if (!parser->range)
-		return -ENOENT;
-	parser->end = parser->range + rlen / sizeof(__be32);
-
-	return 0;
-}
-
 static int faraday_pci_parse_map_dma_ranges(struct faraday_pci *p,
 					    struct device_node *np)
 {
@@ -402,7 +384,7 @@ static int faraday_pci_parse_map_dma_ranges(struct faraday_pci *p,
 	int i = 0;
 	u32 val;
 
-	if (pci_dma_range_parser_init(&parser, np)) {
+	if (of_pci_dma_range_parser_init(&parser, np)) {
 		dev_err(dev, "missing dma-ranges property\n");
 		return -EINVAL;
 	}
