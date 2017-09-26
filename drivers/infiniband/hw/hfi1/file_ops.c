@@ -86,6 +86,8 @@ static int init_user_ctxt(struct hfi1_filedata *fd,
 static void user_init(struct hfi1_ctxtdata *uctxt);
 static int get_ctxt_info(struct hfi1_filedata *fd, unsigned long arg, u32 len);
 static int get_base_info(struct hfi1_filedata *fd, unsigned long arg, u32 len);
+static int user_exp_rcv_setup(struct hfi1_filedata *fd, unsigned long arg,
+			      u32 len);
 static int setup_base_ctxt(struct hfi1_filedata *fd,
 			   struct hfi1_ctxtdata *uctxt);
 static int setup_subctxt(struct hfi1_ctxtdata *uctxt);
@@ -251,27 +253,7 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 		break;
 
 	case HFI1_IOCTL_TID_UPDATE:
-		if (copy_from_user(&tinfo,
-				   (struct hfi11_tid_info __user *)arg,
-				   sizeof(tinfo)))
-			return -EFAULT;
-
-		ret = hfi1_user_exp_rcv_setup(fd, &tinfo);
-		if (!ret) {
-			/*
-			 * Copy the number of tidlist entries we used
-			 * and the length of the buffer we registered.
-			 */
-			addr = arg + offsetof(struct hfi1_tid_info, tidcnt);
-			if (copy_to_user((void __user *)addr, &tinfo.tidcnt,
-					 sizeof(tinfo.tidcnt)))
-				return -EFAULT;
-
-			addr = arg + offsetof(struct hfi1_tid_info, length);
-			if (copy_to_user((void __user *)addr, &tinfo.length,
-					 sizeof(tinfo.length)))
-				ret = -EFAULT;
-		}
+		ret = user_exp_rcv_setup(fd, arg, _IOC_SIZE(cmd));
 		break;
 
 	case HFI1_IOCTL_TID_FREE:
@@ -1415,6 +1397,48 @@ static int get_base_info(struct hfi1_filedata *fd, unsigned long arg, u32 len)
 		return -EFAULT;
 
 	return 0;
+}
+
+/**
+ * user_exp_rcv_setup - Set up the given tid rcv list
+ * @fd: file data of the current driver instance
+ * @arg: ioctl argumnent for user space information
+ * @len: length of data structure associated with ioctl command
+ *
+ * Wrapper to validate ioctl information before doing _rcv_setup.
+ *
+ */
+static int user_exp_rcv_setup(struct hfi1_filedata *fd, unsigned long arg,
+			      u32 len)
+{
+	int ret;
+	unsigned long addr;
+	struct hfi1_tid_info tinfo;
+
+	if (sizeof(tinfo) != len)
+		return -EINVAL;
+
+	if (copy_from_user(&tinfo, (void __user *)arg, (sizeof(tinfo))))
+		return -EFAULT;
+
+	ret = hfi1_user_exp_rcv_setup(fd, &tinfo);
+	if (!ret) {
+		/*
+		 * Copy the number of tidlist entries we used
+		 * and the length of the buffer we registered.
+		 */
+		addr = arg + offsetof(struct hfi1_tid_info, tidcnt);
+		if (copy_to_user((void __user *)addr, &tinfo.tidcnt,
+				 sizeof(tinfo.tidcnt)))
+			return -EFAULT;
+
+		addr = arg + offsetof(struct hfi1_tid_info, length);
+		if (copy_to_user((void __user *)addr, &tinfo.length,
+				 sizeof(tinfo.length)))
+			ret = -EFAULT;
+	}
+
+	return ret;
 }
 
 static unsigned int poll_urgent(struct file *fp,
