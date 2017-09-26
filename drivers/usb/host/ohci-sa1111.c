@@ -247,8 +247,9 @@ static int ohci_hcd_sa1111_remove(struct sa1111_dev *dev)
 	return 0;
 }
 
-static void ohci_hcd_sa1111_shutdown(struct sa1111_dev *dev)
+static void ohci_hcd_sa1111_shutdown(struct device *_dev)
 {
+	struct sa1111_dev *dev = to_sa1111_device(_dev);
 	struct usb_hcd *hcd = sa1111_get_drvdata(dev);
 
 	if (test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
@@ -261,9 +262,9 @@ static struct sa1111_driver ohci_hcd_sa1111_driver = {
 	.drv = {
 		.name	= "sa1111-ohci",
 		.owner	= THIS_MODULE,
+		.shutdown = ohci_hcd_sa1111_shutdown,
 	},
 	.devid		= SA1111_DEVID_USB,
 	.probe		= ohci_hcd_sa1111_probe,
 	.remove		= ohci_hcd_sa1111_remove,
-	.shutdown	= ohci_hcd_sa1111_shutdown,
 };
