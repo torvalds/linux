@@ -335,7 +335,7 @@
 				function = "spi1";
 			};
 
-			uart0_pins_a: uart0@0 {
+			uart0_pins_a: uart0 {
 				pins = "PB8", "PB9";
 				function = "uart0";
 			};
@@ -538,7 +538,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 
-			r_rsb_pins: rsb@0 {
+			r_rsb_pins: rsb {
 				pins = "PL0", "PL1";
 				function = "s_rsb";
 			};
