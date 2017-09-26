@@ -332,26 +332,40 @@ static const char *const bpf_jmp_string[16] = {
 	[BPF_EXIT >> 4] = "exit",
 };
 
+static void print_bpf_end_insn(const struct bpf_verifier_env *env,
+			       const struct bpf_insn *insn)
+{
+	verbose("(%02x) r%d = %s%d r%d\n", insn->code, insn->dst_reg,
+		BPF_SRC(insn->code) == BPF_TO_BE ? "be" : "le",
+		insn->imm, insn->dst_reg);
+}
+
 static void print_bpf_insn(const struct bpf_verifier_env *env,
 			   const struct bpf_insn *insn)
 {
 	u8 class = BPF_CLASS(insn->code);
 
 	if (class == BPF_ALU || class == BPF_ALU64) {
-		if (BPF_SRC(insn->code) == BPF_X)
+		if (BPF_OP(insn->code) == BPF_END) {
+			if (class == BPF_ALU64)
+				verbose("BUG_alu64_%02x\n", insn->code);
+			else
+				print_bpf_end_insn(env, insn);
+		} else if (BPF_SRC(insn->code) == BPF_X) {
 			verbose("(%02x) %sr%d %s %sr%d\n",
 				insn->code, class == BPF_ALU ? "(u32) " : "",
 				insn->dst_reg,
 				bpf_alu_string[BPF_OP(insn->code) >> 4],
 				class == BPF_ALU ? "(u32) " : "",
 				insn->src_reg);
-		else
+		} else {
 			verbose("(%02x) %sr%d %s %s%d\n",
 				insn->code, class == BPF_ALU ? "(u32) " : "",
 				insn->dst_reg,
 				bpf_alu_string[BPF_OP(insn->code) >> 4],
 				class == BPF_ALU ? "(u32) " : "",
 				insn->imm);
+		}
 	} else if (class == BPF_STX) {
 		if (BPF_MODE(insn->code) == BPF_MEM)
 			verbose("(%02x) *(%s *)(r%d %+d) = r%d\n",
