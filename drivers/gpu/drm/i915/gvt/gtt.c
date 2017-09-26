@@ -351,7 +351,7 @@ static bool gen8_gtt_test_pse(struct intel_gvt_gtt_entry *e)
 		return false;
 
 	e->type = get_entry_type(e->type);
-	if (!(e->val64 & (1 << 7)))
+	if (!(e->val64 & BIT(7)))
 		return false;
 
 	e->type = get_pse_type(e->type);
@@ -369,12 +369,12 @@ static bool gen8_gtt_test_present(struct intel_gvt_gtt_entry *e)
 			|| e->type == GTT_TYPE_PPGTT_ROOT_L4_ENTRY)
 		return (e->val64 != 0);
 	else
-		return (e->val64 & (1 << 0));
+		return (e->val64 & BIT(0));
 }
 
 static void gtt_entry_clear_present(struct intel_gvt_gtt_entry *e)
 {
-	e->val64 &= ~(1 << 0);
+	e->val64 &= ~BIT(0);
 }
 
 /*
