@@ -481,10 +481,8 @@ static void fill_page_dma(struct i915_address_space *vm,
 			  const u64 val)
 {
 	u64 * const vaddr = kmap_atomic(p->page);
-	int i;
 
-	for (i = 0; i < 512; i++)
-		vaddr[i] = val;
+	memset64(vaddr, val, PAGE_SIZE / sizeof(val));
 
 	kunmap_atomic(vaddr);
 }
