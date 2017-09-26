@@ -74,7 +74,6 @@
 #include "iwl-csr.h" /* for iwl_mvm_rx_card_state_notif */
 #include "iwl-io.h" /* for iwl_mvm_rx_card_state_notif */
 #include "iwl-prph.h"
-#include "iwl-eeprom-parse.h"
 #include "fw/acpi.h"
 
 #include "mvm.h"

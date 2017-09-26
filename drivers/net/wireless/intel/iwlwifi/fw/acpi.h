@@ -98,6 +98,16 @@ union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 					 union acpi_object *data,
 					 int data_size);
 
+/**
+ * iwl_acpi_get_mcc - read MCC from ACPI, if available
+ *
+ * @dev: the struct device
+ * @mcc: output buffer (3 bytes) that will get the MCC
+ *
+ * This function tries to read the current MCC from ACPI if available.
+ */
+int iwl_acpi_get_mcc(struct device *dev, char *mcc);
+
 #else /* CONFIG_ACPI */
 
 static inline void *iwl_acpi_get_object(struct device *dev, acpi_string method)
@@ -110,6 +120,11 @@ static inline union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 						       int data_size)
 {
 	return ERR_PTR(-ENOENT);
+}
+
+static inline int iwl_acpi_get_mcc(struct device *dev, char *mcc)
+{
+	return -ENOENT;
 }
 
 #endif /* CONFIG_ACPI */

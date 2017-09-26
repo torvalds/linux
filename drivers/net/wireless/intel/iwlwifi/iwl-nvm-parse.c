@@ -944,37 +944,3 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	return regd;
 }
 IWL_EXPORT_SYMBOL(iwl_parse_nvm_mcc_info);
-
-int iwl_get_bios_mcc(struct device *dev, char *mcc)
-{
-	union acpi_object *wifi_pkg, *data;
-	u32 mcc_val;
-	int ret;
-
-	data = iwl_acpi_get_object(dev, ACPI_WRDD_METHOD);
-	if (IS_ERR(data))
-		return PTR_ERR(data);
-
-	wifi_pkg = iwl_acpi_get_wifi_pkg(dev, data, ACPI_WRDD_WIFI_DATA_SIZE);
-	if (IS_ERR(wifi_pkg)) {
-		ret = PTR_ERR(wifi_pkg);
-		goto out_free;
-	}
-
-	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER) {
-		ret = -EINVAL;
-		goto out_free;
-	}
-
-	mcc_val = wifi_pkg->package.elements[1].integer.value;
-
-	mcc[0] = (mcc_val >> 8) & 0xff;
-	mcc[1] = mcc_val & 0xff;
-	mcc[2] = '\0';
-
-	ret = 0;
-out_free:
-	kfree(data);
-	return ret;
-}
-IWL_EXPORT_SYMBOL(iwl_get_bios_mcc);
