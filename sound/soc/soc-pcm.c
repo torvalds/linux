@@ -2633,12 +2633,18 @@ static int dpcm_fe_dai_close(struct snd_pcm_substream *fe_substream)
 static void soc_pcm_private_free(struct snd_pcm *pcm)
 {
 	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
-	struct snd_soc_platform *platform = rtd->platform;
+	struct snd_soc_rtdcom_list *rtdcom;
+	struct snd_soc_component *component;
 
-	/* need to sync the delayed work before releasing resources */
-	flush_delayed_work(&rtd->delayed_work);
-	if (platform->driver->pcm_free)
-		platform->driver->pcm_free(pcm);
+	for_each_rtdcom(rtd, rtdcom) {
+		/* need to sync the delayed work before releasing resources */
+
+		flush_delayed_work(&rtd->delayed_work);
+		component = rtdcom->component;
+
+		if (component->pcm_free)
+			component->pcm_free(component, pcm);
+	}
 }
 
 /* create a new pcm */
@@ -2647,6 +2653,8 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_dai *codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_component *component;
+	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_pcm *pcm;
 	char new_name[64];
 	int ret = 0, playback = 0, capture = 0;
@@ -2756,10 +2764,15 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	if (capture)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &rtd->ops);
 
-	if (platform->driver->pcm_new) {
-		ret = platform->driver->pcm_new(rtd);
+	for_each_rtdcom(rtd, rtdcom) {
+		component = rtdcom->component;
+
+		if (!component->pcm_new)
+			continue;
+
+		ret = component->pcm_new(component, rtd);
 		if (ret < 0) {
-			dev_err(platform->dev,
+			dev_err(component->dev,
 				"ASoC: pcm constructor failed: %d\n",
 				ret);
 			return ret;

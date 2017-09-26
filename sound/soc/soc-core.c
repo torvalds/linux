@@ -3254,6 +3254,22 @@ static int snd_soc_component_stream_event(struct snd_soc_dapm_context *dapm,
 	return component->driver->stream_event(component, event);
 }
 
+static int snd_soc_component_drv_pcm_new(struct snd_soc_component *component,
+					struct snd_soc_pcm_runtime *rtd)
+{
+	if (component->driver->pcm_new)
+		return component->driver->pcm_new(rtd);
+
+	return 0;
+}
+
+static void snd_soc_component_drv_pcm_free(struct snd_soc_component *component,
+					  struct snd_pcm *pcm)
+{
+	if (component->driver->pcm_free)
+		component->driver->pcm_free(pcm);
+}
+
 static int snd_soc_component_initialize(struct snd_soc_component *component,
 	const struct snd_soc_component_driver *driver, struct device *dev)
 {
@@ -3274,6 +3290,8 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	component->set_sysclk = component->driver->set_sysclk;
 	component->set_pll = component->driver->set_pll;
 	component->set_jack = component->driver->set_jack;
+	component->pcm_new = snd_soc_component_drv_pcm_new;
+	component->pcm_free = snd_soc_component_drv_pcm_free;
 
 	dapm = snd_soc_component_get_dapm(component);
 	dapm->dev = dev;
@@ -3466,6 +3484,26 @@ static void snd_soc_platform_drv_remove(struct snd_soc_component *component)
 	platform->driver->remove(platform);
 }
 
+static int snd_soc_platform_drv_pcm_new(struct snd_soc_component *component,
+					struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_platform *platform = snd_soc_component_to_platform(component);
+
+	if (platform->driver->pcm_new)
+		return platform->driver->pcm_new(rtd);
+
+	return 0;
+}
+
+static void snd_soc_platform_drv_pcm_free(struct snd_soc_component *component,
+					  struct snd_pcm *pcm)
+{
+	struct snd_soc_platform *platform = snd_soc_component_to_platform(component);
+
+	if (platform->driver->pcm_free)
+		platform->driver->pcm_free(pcm);
+}
+
 /**
  * snd_soc_add_platform - Add a platform to the ASoC core
  * @dev: The parent device for the platform
@@ -3489,6 +3527,10 @@ int snd_soc_add_platform(struct device *dev, struct snd_soc_platform *platform,
 		platform->component.probe = snd_soc_platform_drv_probe;
 	if (platform_drv->remove)
 		platform->component.remove = snd_soc_platform_drv_remove;
+	if (platform_drv->pcm_new)
+		platform->component.pcm_new = snd_soc_platform_drv_pcm_new;
+	if (platform_drv->pcm_free)
+		platform->component.pcm_free = snd_soc_platform_drv_pcm_free;
 
 #ifdef CONFIG_DEBUG_FS
 	platform->component.debugfs_prefix = "platform";
