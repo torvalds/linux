@@ -723,7 +723,7 @@ void handle_link_downgrade(struct work_struct *work);
 void handle_link_bounce(struct work_struct *work);
 void handle_start_link(struct work_struct *work);
 void handle_sma_message(struct work_struct *work);
-void reset_qsfp(struct hfi1_pportdata *ppd);
+int reset_qsfp(struct hfi1_pportdata *ppd);
 void qsfp_event(struct work_struct *work);
 void start_freeze_handling(struct hfi1_pportdata *ppd, int flags);
 int send_idle_sma(struct hfi1_devdata *dd, u64 message);

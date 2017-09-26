@@ -9415,7 +9415,7 @@ static void set_qsfp_int_n(struct hfi1_pportdata *ppd, u8 enable)
 	write_csr(dd, dd->hfi1_id ? ASIC_QSFP2_MASK : ASIC_QSFP1_MASK, mask);
 }
 
-void reset_qsfp(struct hfi1_pportdata *ppd)
+int reset_qsfp(struct hfi1_pportdata *ppd)
 {
 	struct hfi1_devdata *dd = ppd->dd;
 	u64 mask, qsfp_mask;
@@ -9445,6 +9445,13 @@ void reset_qsfp(struct hfi1_pportdata *ppd)
 	 * for alarms and warnings
 	 */
 	set_qsfp_int_n(ppd, 1);
+
+	/*
+	 * After the reset, AOC transmitters are enabled by default. They need
+	 * to be turned off to complete the QSFP setup before they can be
+	 * enabled again.
+	 */
+	return set_qsfp_tx(ppd, 0);
 }
 
 static int handle_qsfp_error_conditions(struct hfi1_pportdata *ppd,
@@ -10406,6 +10413,9 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 			& (HLS_DN_POLL | HLS_VERIFY_CAP | HLS_GOING_UP)) {
 		/* went down while attempting link up */
 		check_lni_states(ppd);
+
+		/* The QSFP doesn't need to be reset on LNI failure */
+		ppd->qsfp_info.reset_needed = 0;
 	}
 
 	/* the active link width (downgrade) is 0 on link down */
