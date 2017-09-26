@@ -181,15 +181,19 @@ struct dc_debug {
 	bool timing_trace;
 	bool clock_trace;
 	bool validation_trace;
+
+	/* stutter efficiency related */
 	bool disable_stutter;
+	bool use_max_lb;
 	enum dcc_option disable_dcc;
+	enum pipe_split_policy pipe_split_policy;
+	bool force_single_disp_pipe_split;
+
 	bool disable_dfs_bypass;
 	bool disable_dpp_power_gate;
 	bool disable_hubp_power_gate;
 	bool disable_pplib_wm_range;
 	bool use_dml_wm;
-	enum pipe_split_policy pipe_split_policy;
-	bool force_single_disp_pipe_split;
 	unsigned int min_disp_clk_khz;
 	int sr_exit_time_dpm0_ns;
 	int sr_enter_plus_exit_time_dpm0_ns;

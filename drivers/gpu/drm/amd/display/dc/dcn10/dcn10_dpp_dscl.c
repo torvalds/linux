@@ -507,6 +507,9 @@ static enum lb_memory_config find_lb_memory_config(struct dcn10_dpp *xfm,
 {
 	enum lb_memory_config mem_cfg = LB_MEMORY_CONFIG_0;
 
+	if (xfm->base.ctx->dc->debug.use_max_lb)
+		return mem_cfg;
+
 	if (xfm->tf_mask->PIXEL_DEPTH) {
 		mem_cfg = dpp10_find_lb_memory_config(scl_data);
 	}
