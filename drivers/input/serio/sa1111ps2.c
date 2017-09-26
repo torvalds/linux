@@ -47,6 +47,8 @@ struct ps2if {
 	struct serio		*io;
 	struct sa1111_dev	*dev;
 	void __iomem		*base;
+	int			rx_irq;
+	int			tx_irq;
 	unsigned int		open;
 	spinlock_t		lock;
 	unsigned int		head;
@@ -126,7 +128,7 @@ static int ps2_write(struct serio *io, unsigned char val)
 		sa1111_writel(val, ps2if->base + PS2DATA);
 	} else {
 		if (ps2if->head == ps2if->tail)
-			enable_irq(ps2if->dev->irq[1]);
+			enable_irq(ps2if->tx_irq);
 		head = (ps2if->head + 1) & (sizeof(ps2if->buf) - 1);
 		if (head != ps2if->tail) {
 			ps2if->buf[ps2if->head] = val;
@@ -147,28 +149,28 @@ static int ps2_open(struct serio *io)
 	if (ret)
 		return ret;
 
-	ret = request_irq(ps2if->dev->irq[0], ps2_rxint, 0,
+	ret = request_irq(ps2if->rx_irq, ps2_rxint, 0,
 			  SA1111_DRIVER_NAME(ps2if->dev), ps2if);
 	if (ret) {
 		printk(KERN_ERR "sa1111ps2: could not allocate IRQ%d: %d\n",
-			ps2if->dev->irq[0], ret);
+			ps2if->rx_irq, ret);
 		sa1111_disable_device(ps2if->dev);
 		return ret;
 	}
 
-	ret = request_irq(ps2if->dev->irq[1], ps2_txint, 0,
+	ret = request_irq(ps2if->tx_irq, ps2_txint, 0,
 			  SA1111_DRIVER_NAME(ps2if->dev), ps2if);
 	if (ret) {
 		printk(KERN_ERR "sa1111ps2: could not allocate IRQ%d: %d\n",
-			ps2if->dev->irq[1], ret);
-		free_irq(ps2if->dev->irq[0], ps2if);
+			ps2if->tx_irq, ret);
+		free_irq(ps2if->rx_irq, ps2if);
 		sa1111_disable_device(ps2if->dev);
 		return ret;
 	}
 
 	ps2if->open = 1;
 
-	enable_irq_wake(ps2if->dev->irq[0]);
+	enable_irq_wake(ps2if->rx_irq);
 
 	sa1111_writel(PS2CR_ENA, ps2if->base + PS2CR);
 	return 0;
@@ -180,12 +182,12 @@ static void ps2_close(struct serio *io)
 
 	sa1111_writel(0, ps2if->base + PS2CR);
 
-	disable_irq_wake(ps2if->dev->irq[0]);
+	disable_irq_wake(ps2if->rx_irq);
 
 	ps2if->open = 0;
 
-	free_irq(ps2if->dev->irq[1], ps2if);
-	free_irq(ps2if->dev->irq[0], ps2if);
+	free_irq(ps2if->tx_irq, ps2if);
+	free_irq(ps2if->rx_irq, ps2if);
 
 	sa1111_disable_device(ps2if->dev);
 }
@@ -264,7 +266,6 @@ static int ps2_probe(struct sa1111_dev *dev)
 		goto free;
 	}
 
-
 	serio->id.type		= SERIO_8042;
 	serio->write		= ps2_write;
 	serio->open		= ps2_open;
@@ -278,6 +279,18 @@ static int ps2_probe(struct sa1111_dev *dev)
 	sa1111_set_drvdata(dev, ps2if);
 
 	spin_lock_init(&ps2if->lock);
+
+	ps2if->rx_irq = sa1111_get_irq(dev, 0);
+	if (ps2if->rx_irq <= 0) {
+		ret = ps2if->rx_irq ? : -ENXIO;
+		goto free;
+	}
+
+	ps2if->tx_irq = sa1111_get_irq(dev, 1);
+	if (ps2if->tx_irq <= 0) {
+		ret = ps2if->tx_irq ? : -ENXIO;
+		goto free;
+	}
 
 	/*
 	 * Request the physical region for this PS2 port.
