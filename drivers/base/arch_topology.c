@@ -212,6 +212,8 @@ static struct notifier_block init_cpu_capacity_notifier = {
 
 static int __init register_cpufreq_notifier(void)
 {
+	int ret;
+
 	/*
 	 * on ACPI-based systems we need to use the default cpu capacity
 	 * until we have the necessary code to parse the cpu capacity, so
@@ -227,8 +229,13 @@ static int __init register_cpufreq_notifier(void)
 
 	cpumask_copy(cpus_to_visit, cpu_possible_mask);
 
-	return cpufreq_register_notifier(&init_cpu_capacity_notifier,
-					 CPUFREQ_POLICY_NOTIFIER);
+	ret = cpufreq_register_notifier(&init_cpu_capacity_notifier,
+					CPUFREQ_POLICY_NOTIFIER);
+
+	if (ret)
+		free_cpumask_var(cpus_to_visit);
+
+	return ret;
 }
 core_initcall(register_cpufreq_notifier);
 
@@ -236,6 +243,7 @@ static void parsing_done_workfn(struct work_struct *work)
 {
 	cpufreq_unregister_notifier(&init_cpu_capacity_notifier,
 					 CPUFREQ_POLICY_NOTIFIER);
+	free_cpumask_var(cpus_to_visit);
 }
 
 #else
