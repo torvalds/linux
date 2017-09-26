@@ -92,7 +92,7 @@
 };
 
 &pio {
-	usb3_vbus_pin_a: usb3_vbus_pin@0 {
+	usb3_vbus_pin_a: usb3_vbus_pin {
 		pins = "PG11";
 		function = "gpio_out";
 	};
