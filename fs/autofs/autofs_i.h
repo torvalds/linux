@@ -18,6 +18,7 @@
 #include <linux/string.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/uaccess.h>

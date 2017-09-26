@@ -46,15 +46,6 @@ extern struct cred init_cred;
 #define INIT_CPU_TIMERS(s)
 #endif
 
-#define INIT_PID_LINK(type) 					\
-{								\
-	.node = {						\
-		.next = NULL,					\
-		.pprev = NULL,					\
-	},							\
-	.pid = &init_struct_pid,				\
-}
-
 #define INIT_TASK_COMM "swapper"
 
 /* Attach to the init_task data structure for proper alignment */

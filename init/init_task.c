@@ -34,6 +34,11 @@ static struct signal_struct init_signals = {
 #endif
 	INIT_CPU_TIMERS(init_signals)
 	.leader_pid = &init_struct_pid,
+	.pids = {
+		[PIDTYPE_PID]	= &init_struct_pid,
+		[PIDTYPE_PGID]	= &init_struct_pid,
+		[PIDTYPE_SID]	= &init_struct_pid,
+	},
 	INIT_PREV_CPUTIME(init_signals)
 };
 
@@ -112,11 +117,7 @@ struct task_struct init_task
 	INIT_CPU_TIMERS(init_task)
 	.pi_lock	= __RAW_SPIN_LOCK_UNLOCKED(init_task.pi_lock),
 	.timer_slack_ns = 50000, /* 50 usec default slack */
-	.pids = {
-		[PIDTYPE_PID]  = INIT_PID_LINK(PIDTYPE_PID),
-		[PIDTYPE_PGID] = INIT_PID_LINK(PIDTYPE_PGID),
-		[PIDTYPE_SID]  = INIT_PID_LINK(PIDTYPE_SID),
-	},
+	.thread_pid	= &init_struct_pid,
 	.thread_group	= LIST_HEAD_INIT(init_task.thread_group),
 	.thread_node	= LIST_HEAD_INIT(init_signals.thread_head),
 #ifdef CONFIG_AUDITSYSCALL
