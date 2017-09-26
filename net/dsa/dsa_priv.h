@@ -117,7 +117,8 @@ void dsa_master_ethtool_restore(struct net_device *dev);
 /* port.c */
 int dsa_port_set_state(struct dsa_port *dp, u8 state,
 		       struct switchdev_trans *trans);
-void dsa_port_set_state_now(struct dsa_port *dp, u8 state);
+int dsa_port_enable(struct dsa_port *dp, struct phy_device *phy);
+void dsa_port_disable(struct dsa_port *dp, struct phy_device *phy);
 int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br);
 void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br);
 int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
