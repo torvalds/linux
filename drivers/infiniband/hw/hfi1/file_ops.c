@@ -88,6 +88,8 @@ static int get_ctxt_info(struct hfi1_filedata *fd, unsigned long arg, u32 len);
 static int get_base_info(struct hfi1_filedata *fd, unsigned long arg, u32 len);
 static int user_exp_rcv_setup(struct hfi1_filedata *fd, unsigned long arg,
 			      u32 len);
+static int user_exp_rcv_clear(struct hfi1_filedata *fd, unsigned long arg,
+			      u32 len);
 static int setup_base_ctxt(struct hfi1_filedata *fd,
 			   struct hfi1_ctxtdata *uctxt);
 static int setup_subctxt(struct hfi1_ctxtdata *uctxt);
@@ -257,18 +259,7 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 		break;
 
 	case HFI1_IOCTL_TID_FREE:
-		if (copy_from_user(&tinfo,
-				   (struct hfi11_tid_info __user *)arg,
-				   sizeof(tinfo)))
-			return -EFAULT;
-
-		ret = hfi1_user_exp_rcv_clear(fd, &tinfo);
-		if (ret)
-			break;
-		addr = arg + offsetof(struct hfi1_tid_info, tidcnt);
-		if (copy_to_user((void __user *)addr, &tinfo.tidcnt,
-				 sizeof(tinfo.tidcnt)))
-			ret = -EFAULT;
+		ret = user_exp_rcv_clear(fd, arg, _IOC_SIZE(cmd));
 		break;
 
 	case HFI1_IOCTL_TID_INVAL_READ:
@@ -1436,6 +1427,40 @@ static int user_exp_rcv_setup(struct hfi1_filedata *fd, unsigned long arg,
 		if (copy_to_user((void __user *)addr, &tinfo.length,
 				 sizeof(tinfo.length)))
 			ret = -EFAULT;
+	}
+
+	return ret;
+}
+
+/**
+ * user_exp_rcv_clear - Clear the given tid rcv list
+ * @fd: file data of the current driver instance
+ * @arg: ioctl argumnent for user space information
+ * @len: length of data structure associated with ioctl command
+ *
+ * The hfi1_user_exp_rcv_clear() can be called from the error path.  Because
+ * of this, we need to use this wrapper to copy the user space information
+ * before doing the clear.
+ */
+static int user_exp_rcv_clear(struct hfi1_filedata *fd, unsigned long arg,
+			      u32 len)
+{
+	int ret;
+	unsigned long addr;
+	struct hfi1_tid_info tinfo;
+
+	if (sizeof(tinfo) != len)
+		return -EINVAL;
+
+	if (copy_from_user(&tinfo, (void __user *)arg, (sizeof(tinfo))))
+		return -EFAULT;
+
+	ret = hfi1_user_exp_rcv_clear(fd, &tinfo);
+	if (!ret) {
+		addr = arg + offsetof(struct hfi1_tid_info, tidcnt);
+		if (copy_to_user((void __user *)addr, &tinfo.tidcnt,
+				 sizeof(tinfo.tidcnt)))
+			return -EFAULT;
 	}
 
 	return ret;
