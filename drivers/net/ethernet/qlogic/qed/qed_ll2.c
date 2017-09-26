@@ -413,6 +413,7 @@ static void qed_ll2_rxq_parse_reg(struct qed_hwfn *p_hwfn,
 				  struct qed_ll2_comp_rx_data *data)
 {
 	data->parse_flags = le16_to_cpu(p_cqe->rx_cqe_fp.parse_flags.flags);
+	data->err_flags = le16_to_cpu(p_cqe->rx_cqe_fp.err_flags.flags);
 	data->length.packet_length =
 	    le16_to_cpu(p_cqe->rx_cqe_fp.packet_length);
 	data->vlan = le16_to_cpu(p_cqe->rx_cqe_fp.vlan);

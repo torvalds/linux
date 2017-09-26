@@ -41,6 +41,7 @@
 #include "qed_rdma.h"
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
+#include "qed_ooo.h"
 
 #define QED_IWARP_ORD_DEFAULT		32
 #define QED_IWARP_IRD_DEFAULT		32
@@ -117,6 +118,13 @@ static void qed_iwarp_cid_cleaned(struct qed_hwfn *p_hwfn, u32 cid)
 		qed_bmap_release_id(p_hwfn, &p_hwfn->p_rdma_info->cid_map, cid);
 
 	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
+}
+
+void qed_iwarp_init_fw_ramrod(struct qed_hwfn *p_hwfn,
+			      struct iwarp_init_func_params *p_ramrod)
+{
+	p_ramrod->ll2_ooo_q_index = RESC_START(p_hwfn, QED_LL2_QUEUE) +
+				    p_hwfn->p_rdma_info->iwarp.ll2_ooo_handle;
 }
 
 static int qed_iwarp_alloc_cid(struct qed_hwfn *p_hwfn, u32 *cid)
@@ -1725,6 +1733,14 @@ qed_iwarp_ll2_comp_syn_pkt(void *cxt, struct qed_ll2_comp_rx_data *data)
 
 	memset(&cm_info, 0, sizeof(cm_info));
 	ll2_syn_handle = p_hwfn->p_rdma_info->iwarp.ll2_syn_handle;
+
+	/* Check if packet was received with errors... */
+	if (data->err_flags) {
+		DP_NOTICE(p_hwfn, "Error received on SYN packet: 0x%x\n",
+			  data->err_flags);
+		goto err;
+	}
+
 	if (GET_FIELD(data->parse_flags,
 		      PARSING_AND_ERR_FLAGS_L4CHKSMWASCALCULATED) &&
 	    GET_FIELD(data->parse_flags, PARSING_AND_ERR_FLAGS_L4CHKSMERROR)) {
@@ -1876,6 +1892,16 @@ static int qed_iwarp_ll2_stop(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		iwarp_info->ll2_syn_handle = QED_IWARP_HANDLE_INVAL;
 	}
 
+	if (iwarp_info->ll2_ooo_handle != QED_IWARP_HANDLE_INVAL) {
+		rc = qed_ll2_terminate_connection(p_hwfn,
+						  iwarp_info->ll2_ooo_handle);
+		if (rc)
+			DP_INFO(p_hwfn, "Failed to terminate ooo connection\n");
+
+		qed_ll2_release_connection(p_hwfn, iwarp_info->ll2_ooo_handle);
+		iwarp_info->ll2_ooo_handle = QED_IWARP_HANDLE_INVAL;
+	}
+
 	qed_llh_remove_mac_filter(p_hwfn,
 				  p_ptt, p_hwfn->p_rdma_info->iwarp.mac_addr);
 	return rc;
@@ -1927,10 +1953,12 @@ qed_iwarp_ll2_start(struct qed_hwfn *p_hwfn,
 	struct qed_iwarp_info *iwarp_info;
 	struct qed_ll2_acquire_data data;
 	struct qed_ll2_cbs cbs;
+	u16 n_ooo_bufs;
 	int rc = 0;
 
 	iwarp_info = &p_hwfn->p_rdma_info->iwarp;
 	iwarp_info->ll2_syn_handle = QED_IWARP_HANDLE_INVAL;
+	iwarp_info->ll2_ooo_handle = QED_IWARP_HANDLE_INVAL;
 
 	iwarp_info->max_mtu = params->max_mtu;
 
@@ -1978,6 +2006,29 @@ qed_iwarp_ll2_start(struct qed_hwfn *p_hwfn,
 	if (rc)
 		goto err;
 
+	/* Start OOO connection */
+	data.input.conn_type = QED_LL2_TYPE_OOO;
+	data.input.mtu = params->max_mtu;
+
+	n_ooo_bufs = (QED_IWARP_MAX_OOO * QED_IWARP_RCV_WND_SIZE_DEF) /
+		     iwarp_info->max_mtu;
+	n_ooo_bufs = min_t(u32, n_ooo_bufs, QED_IWARP_LL2_OOO_MAX_RX_SIZE);
+
+	data.input.rx_num_desc = n_ooo_bufs;
+	data.input.rx_num_ooo_buffers = n_ooo_bufs;
+
+	data.input.tx_max_bds_per_packet = 1;	/* will never be fragmented */
+	data.input.tx_num_desc = QED_IWARP_LL2_OOO_DEF_TX_SIZE;
+	data.p_connection_handle = &iwarp_info->ll2_ooo_handle;
+
+	rc = qed_ll2_acquire_connection(p_hwfn, &data);
+	if (rc)
+		goto err;
+
+	rc = qed_ll2_establish_connection(p_hwfn, iwarp_info->ll2_ooo_handle);
+	if (rc)
+		goto err;
+
 	return rc;
 err:
 	qed_iwarp_ll2_stop(p_hwfn, p_ptt);
@@ -2014,6 +2065,7 @@ int qed_iwarp_setup(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 
 	qed_spq_register_async_cb(p_hwfn, PROTOCOLID_IWARP,
 				  qed_iwarp_async_event);
+	qed_ooo_setup(p_hwfn);
 
 	return qed_iwarp_ll2_start(p_hwfn, params, p_ptt);
 }
