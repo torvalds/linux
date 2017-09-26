@@ -107,6 +107,7 @@ static unsigned int poll_next(struct file *fp, struct poll_table_struct *pt);
 static int user_event_ack(struct hfi1_ctxtdata *uctxt, u16 subctxt,
 			  unsigned long arg);
 static int set_ctxt_pkey(struct hfi1_ctxtdata *uctxt, unsigned long arg);
+static int ctxt_reset(struct hfi1_ctxtdata *uctxt);
 static int manage_rcvq(struct hfi1_ctxtdata *uctxt, u16 subctxt,
 		       unsigned long arg);
 static int vma_fault(struct vm_fault *vmf);
@@ -282,63 +283,9 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 		ret = set_ctxt_pkey(uctxt, arg);
 		break;
 
-	case HFI1_IOCTL_CTXT_RESET: {
-		struct send_context *sc;
-		struct hfi1_devdata *dd;
-
-		if (!uctxt || !uctxt->dd || !uctxt->sc)
-			return -EINVAL;
-
-		/*
-		 * There is no protection here. User level has to
-		 * guarantee that no one will be writing to the send
-		 * context while it is being re-initialized.
-		 * If user level breaks that guarantee, it will break
-		 * it's own context and no one else's.
-		 */
-		dd = uctxt->dd;
-		sc = uctxt->sc;
-		/*
-		 * Wait until the interrupt handler has marked the
-		 * context as halted or frozen. Report error if we time
-		 * out.
-		 */
-		wait_event_interruptible_timeout(
-			sc->halt_wait, (sc->flags & SCF_HALTED),
-			msecs_to_jiffies(SEND_CTXT_HALT_TIMEOUT));
-		if (!(sc->flags & SCF_HALTED))
-			return -ENOLCK;
-
-		/*
-		 * If the send context was halted due to a Freeze,
-		 * wait until the device has been "unfrozen" before
-		 * resetting the context.
-		 */
-		if (sc->flags & SCF_FROZEN) {
-			wait_event_interruptible_timeout(
-				dd->event_queue,
-				!(ACCESS_ONCE(dd->flags) & HFI1_FROZEN),
-				msecs_to_jiffies(SEND_CTXT_HALT_TIMEOUT));
-			if (dd->flags & HFI1_FROZEN)
-				return -ENOLCK;
-
-			if (dd->flags & HFI1_FORCED_FREEZE)
-				/*
-				 * Don't allow context reset if we are into
-				 * forced freeze
-				 */
-				return -ENODEV;
-
-			sc_disable(sc);
-			ret = sc_enable(sc);
-			hfi1_rcvctrl(dd, HFI1_RCVCTRL_CTXT_ENB, uctxt);
-		} else {
-			ret = sc_restart(sc);
-		}
-		if (!ret)
-			sc_return_credits(sc);
+	case HFI1_IOCTL_CTXT_RESET:
+		ret = ctxt_reset(uctxt);
 		break;
-	}
 
 	case HFI1_IOCTL_GET_VERS:
 		uval = HFI1_USER_SWVERSION;
@@ -1653,6 +1600,69 @@ static int set_ctxt_pkey(struct hfi1_ctxtdata *uctxt, unsigned long arg)
 			return hfi1_set_ctxt_pkey(dd, uctxt, pkey);
 
 	return -ENOENT;
+}
+
+/**
+ * ctxt_reset - Reset the user context
+ * @uctxt: valid user context
+ */
+static int ctxt_reset(struct hfi1_ctxtdata *uctxt)
+{
+	struct send_context *sc;
+	struct hfi1_devdata *dd;
+	int ret = 0;
+
+	if (!uctxt || !uctxt->dd || !uctxt->sc)
+		return -EINVAL;
+
+	/*
+	 * There is no protection here. User level has to guarantee that
+	 * no one will be writing to the send context while it is being
+	 * re-initialized.  If user level breaks that guarantee, it will
+	 * break it's own context and no one else's.
+	 */
+	dd = uctxt->dd;
+	sc = uctxt->sc;
+
+	/*
+	 * Wait until the interrupt handler has marked the context as
+	 * halted or frozen. Report error if we time out.
+	 */
+	wait_event_interruptible_timeout(
+		sc->halt_wait, (sc->flags & SCF_HALTED),
+		msecs_to_jiffies(SEND_CTXT_HALT_TIMEOUT));
+	if (!(sc->flags & SCF_HALTED))
+		return -ENOLCK;
+
+	/*
+	 * If the send context was halted due to a Freeze, wait until the
+	 * device has been "unfrozen" before resetting the context.
+	 */
+	if (sc->flags & SCF_FROZEN) {
+		wait_event_interruptible_timeout(
+			dd->event_queue,
+			!(READ_ONCE(dd->flags) & HFI1_FROZEN),
+			msecs_to_jiffies(SEND_CTXT_HALT_TIMEOUT));
+		if (dd->flags & HFI1_FROZEN)
+			return -ENOLCK;
+
+		if (dd->flags & HFI1_FORCED_FREEZE)
+			/*
+			 * Don't allow context reset if we are into
+			 * forced freeze
+			 */
+			return -ENODEV;
+
+		sc_disable(sc);
+		ret = sc_enable(sc);
+		hfi1_rcvctrl(dd, HFI1_RCVCTRL_CTXT_ENB, uctxt);
+	} else {
+		ret = sc_restart(sc);
+	}
+	if (!ret)
+		sc_return_credits(sc);
+
+	return ret;
 }
 
 static void user_remove(struct hfi1_devdata *dd)
