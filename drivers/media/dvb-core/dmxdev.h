@@ -89,19 +89,24 @@ struct dmxdev_feed {
 /**
  * struct dmxdev_filter - digital TV dmxdev filter
  *
- * @filter:	a dmxdev filter. Currently used only for section filter:
- *		if the filter is Section, it contains a
- *		&struct dmx_section_filter @sec pointer.
- * @feed:	a dmxdev feed. Depending on the feed type, it can be:
- *		for TS feed: a &struct list_head @ts list of TS and PES
- *		feeds;
- *		for section feed: a &struct dmx_section_feed @sec pointer.
- * @params:	dmxdev filter parameters. Depending on the feed type, it
- *		can be:
- *		for section filter: a &struct dmx_sct_filter_params @sec
- *		embedded struct;
- *		for a TS filter: a &struct dmx_pes_filter_params @pes
- *		embedded struct.
+ * @filter:	a union describing a dmxdev filter.
+ *		Currently used only for section filters.
+ * @filter.sec: a &struct dmx_section_filter pointer.
+ *		For section filter only.
+ * @feed:	a union describing a dmxdev feed.
+ *		Depending on the filter type, it can be either
+ *		@feed.ts or @feed.sec.
+ * @feed.ts:	a &struct list_head list.
+ *		For TS and PES feeds.
+ * @feed.sec:	a &struct dmx_section_feed pointer.
+ *		For section feed only.
+ * @params:	a union describing dmxdev filter parameters.
+ *		Depending on the filter type, it can be either
+ *		@params.sec or @params.pes.
+ * @params.sec:	a &struct dmx_sct_filter_params embedded struct.
+ *		For section filter only.
+ * @params.pes:	a &struct dmx_pes_filter_params embedded struct.
+ *		For PES filter only.
  * @type:	type of the dmxdev filter, as defined by &enum dmxdev_type.
  * @state:	state of the dmxdev filter, as defined by &enum dmxdev_state.
  * @dev:	pointer to &struct dmxdev.
