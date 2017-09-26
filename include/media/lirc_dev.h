@@ -21,7 +21,6 @@
 /**
  * struct lirc_dev - represents a LIRC device
  *
- * @name:		used for logging
  * @minor:		the minor device (/dev/lircX) number for the device
  * @rdev:		&struct rc_dev associated with the device
  * @fops:		&struct file_operations for the device
@@ -30,7 +29,6 @@
  * @cdev:		&struct cdev assigned to the device
  */
 struct lirc_dev {
-	char name[40];
 	unsigned int minor;
 
 	struct rc_dev *rdev;
