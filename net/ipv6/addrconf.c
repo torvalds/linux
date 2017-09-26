@@ -3297,7 +3297,7 @@ static int fixup_permanent_addr(struct inet6_dev *idev,
 		struct rt6_info *rt, *prev;
 
 		rt = addrconf_dst_alloc(idev, &ifp->addr, false);
-		if (unlikely(IS_ERR(rt)))
+		if (IS_ERR(rt))
 			return PTR_ERR(rt);
 
 		/* ifp->rt can be accessed outside of rtnl */
