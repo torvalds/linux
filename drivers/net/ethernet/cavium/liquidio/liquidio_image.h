@@ -24,6 +24,7 @@
 #define LIO_FW_BASE_NAME        "lio_"
 #define LIO_FW_NAME_SUFFIX      ".bin"
 #define LIO_FW_NAME_TYPE_NIC    "nic"
+#define LIO_FW_NAME_TYPE_AUTO   "auto"
 #define LIO_FW_NAME_TYPE_NONE   "none"
 #define LIO_MAX_FIRMWARE_VERSION_LEN 16
 
