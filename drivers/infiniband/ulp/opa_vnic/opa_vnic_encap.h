@@ -111,8 +111,7 @@
  * @pkey: partition key
  * @u_mcast_dlid: unknown multicast dlid
  * @u_ucast_dlid: array of unknown unicast dlids
- * @eth_mtu: MTUs for each vlan PCP
- * @eth_mtu_non_vlan: MTU for non vlan packets
+ * @eth_mtu: Ethernet MTU
  */
 struct opa_vesw_info {
 	__be16  fabric_id;
@@ -128,9 +127,8 @@ struct opa_vesw_info {
 	__be32  u_mcast_dlid;
 	__be32  u_ucast_dlid[OPA_VESW_MAX_NUM_DEF_PORT];
 
-	u8      rsvd3[44];
-	__be16  eth_mtu[OPA_VNIC_MAX_NUM_PCP];
-	__be16  eth_mtu_non_vlan;
+	u8      rsvd3[60];
+	__be16  eth_mtu;
 	u8      rsvd4[2];
 } __packed;
 
