@@ -23,6 +23,8 @@
  *
  * Having this all in one kernel can help some stages of development,
  * bypassing some hardware (and driver) issues.  UML could help too.
+ *
+ * Note: The emulation does not include isochronous transfers!
  */
 
 #include <linux/module.h>
@@ -137,6 +139,9 @@ static const struct {
 		.caps = _caps, \
 	}
 
+/* we don't provide isochronous endpoints since we don't support them */
+#define TYPE_BULK_OR_INT	(USB_EP_CAPS_TYPE_BULK | USB_EP_CAPS_TYPE_INT)
+
 	/* everyone has ep0 */
 	EP_INFO(ep0name,
 		USB_EP_CAPS(USB_EP_CAPS_TYPE_CONTROL, USB_EP_CAPS_DIR_ALL)),
@@ -145,64 +150,72 @@ static const struct {
 		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
 	EP_INFO("ep2out-bulk",
 		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_OUT)),
+/*
 	EP_INFO("ep3in-iso",
 		USB_EP_CAPS(USB_EP_CAPS_TYPE_ISO, USB_EP_CAPS_DIR_IN)),
 	EP_INFO("ep4out-iso",
 		USB_EP_CAPS(USB_EP_CAPS_TYPE_ISO, USB_EP_CAPS_DIR_OUT)),
+*/
 	EP_INFO("ep5in-int",
 		USB_EP_CAPS(USB_EP_CAPS_TYPE_INT, USB_EP_CAPS_DIR_IN)),
 	EP_INFO("ep6in-bulk",
 		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
 	EP_INFO("ep7out-bulk",
 		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_OUT)),
+/*
 	EP_INFO("ep8in-iso",
 		USB_EP_CAPS(USB_EP_CAPS_TYPE_ISO, USB_EP_CAPS_DIR_IN)),
 	EP_INFO("ep9out-iso",
 		USB_EP_CAPS(USB_EP_CAPS_TYPE_ISO, USB_EP_CAPS_DIR_OUT)),
+*/
 	EP_INFO("ep10in-int",
 		USB_EP_CAPS(USB_EP_CAPS_TYPE_INT, USB_EP_CAPS_DIR_IN)),
 	EP_INFO("ep11in-bulk",
 		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
 	EP_INFO("ep12out-bulk",
 		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_OUT)),
+/*
 	EP_INFO("ep13in-iso",
 		USB_EP_CAPS(USB_EP_CAPS_TYPE_ISO, USB_EP_CAPS_DIR_IN)),
 	EP_INFO("ep14out-iso",
 		USB_EP_CAPS(USB_EP_CAPS_TYPE_ISO, USB_EP_CAPS_DIR_OUT)),
+*/
 	EP_INFO("ep15in-int",
 		USB_EP_CAPS(USB_EP_CAPS_TYPE_INT, USB_EP_CAPS_DIR_IN)),
+
 	/* or like sa1100: two fixed function endpoints */
 	EP_INFO("ep1out-bulk",
 		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_OUT)),
 	EP_INFO("ep2in-bulk",
 		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
+
 	/* and now some generic EPs so we have enough in multi config */
 	EP_INFO("ep3out",
-		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_OUT)),
+		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_OUT)),
 	EP_INFO("ep4in",
-		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_IN)),
+		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_IN)),
 	EP_INFO("ep5out",
-		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_OUT)),
+		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_OUT)),
 	EP_INFO("ep6out",
-		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_OUT)),
+		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_OUT)),
 	EP_INFO("ep7in",
-		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_IN)),
+		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_IN)),
 	EP_INFO("ep8out",
-		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_OUT)),
+		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_OUT)),
 	EP_INFO("ep9in",
-		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_IN)),
+		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_IN)),
 	EP_INFO("ep10out",
-		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_OUT)),
+		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_OUT)),
 	EP_INFO("ep11out",
-		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_OUT)),
+		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_OUT)),
 	EP_INFO("ep12in",
-		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_IN)),
+		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_IN)),
 	EP_INFO("ep13out",
-		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_OUT)),
+		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_OUT)),
 	EP_INFO("ep14in",
-		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_IN)),
+		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_IN)),
 	EP_INFO("ep15out",
-		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_OUT)),
+		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_OUT)),
 
 #undef EP_INFO
 };
@@ -1923,13 +1936,17 @@ restart:
 		limit = total;
 		switch (usb_pipetype(urb->pipe)) {
 		case PIPE_ISOCHRONOUS:
-			/* FIXME is it urb->interval since the last xfer?
-			 * use urb->iso_frame_desc[i].
-			 * complete whether or not ep has requests queued.
-			 * report random errors, to debug drivers.
+			/*
+			 * We don't support isochronous.  But if we did,
+			 * here are some of the issues we'd have to face:
+			 *
+			 * Is it urb->interval since the last xfer?
+			 * Use urb->iso_frame_desc[i].
+			 * Complete whether or not ep has requests queued.
+			 * Report random errors, to debug drivers.
 			 */
 			limit = max(limit, periodic_bytes(dum, ep));
-			status = -ENOSYS;
+			status = -EINVAL;	/* fail all xfers */
 			break;
 
 		case PIPE_INTERRUPT:
