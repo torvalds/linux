@@ -8240,6 +8240,7 @@ static irqreturn_t general_interrupt(int irq, void *data)
 	u64 regs[CCE_NUM_INT_CSRS];
 	u32 bit;
 	int i;
+	irqreturn_t handled = IRQ_NONE;
 
 	this_cpu_inc(*dd->int_counter);
 
@@ -8260,9 +8261,10 @@ static irqreturn_t general_interrupt(int irq, void *data)
 	for_each_set_bit(bit, (unsigned long *)&regs[0],
 			 CCE_NUM_INT_CSRS * 64) {
 		is_interrupt(dd, bit);
+		handled = IRQ_HANDLED;
 	}
 
-	return IRQ_HANDLED;
+	return handled;
 }
 
 static irqreturn_t sdma_interrupt(int irq, void *data)
