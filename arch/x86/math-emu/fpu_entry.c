@@ -114,7 +114,7 @@ void math_emulate(struct math_emu_info *info)
 	struct desc_struct code_descriptor;
 	struct fpu *fpu = &current->thread.fpu;
 
-	fpu__activate_curr(fpu);
+	fpu__initialize(fpu);
 
 #ifdef RE_ENTRANT_CHECKING
 	if (emulating) {
