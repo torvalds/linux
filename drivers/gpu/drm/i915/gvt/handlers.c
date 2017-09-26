@@ -2928,8 +2928,6 @@ int intel_gvt_setup_mmio_info(struct intel_gvt *gvt)
 	gvt->mmio.mmio_block = mmio_blocks;
 	gvt->mmio.num_mmio_block = ARRAY_SIZE(mmio_blocks);
 
-	gvt_dbg_mmio("traced %u virtual mmio registers\n",
-		     gvt->mmio.num_tracked_mmio);
 	return 0;
 err:
 	intel_gvt_clean_mmio_info(gvt);
