@@ -1766,6 +1766,7 @@ static void dummy_timer(unsigned long _dum_hcd)
 	int			i;
 
 	/* simplistic model for one frame's bandwidth */
+	/* FIXME: account for transaction and packet overhead */
 	switch (dum->gadget.speed) {
 	case USB_SPEED_LOW:
 		total = 8/*bytes*/ * 12/*packets*/;
@@ -1810,7 +1811,6 @@ restart:
 		struct dummy_request	*req;
 		u8			address;
 		struct dummy_ep		*ep = NULL;
-		int			type;
 		int			status = -EINPROGRESS;
 
 		/* stop when we reach URBs queued after the timer interrupt */
@@ -1822,14 +1822,10 @@ restart:
 			goto return_urb;
 		else if (dum_hcd->rh_state != DUMMY_RH_RUNNING)
 			continue;
-		type = usb_pipetype(urb->pipe);
 
-		/* used up this frame's non-periodic bandwidth?
-		 * FIXME there's infinite bandwidth for control and
-		 * periodic transfers ... unrealistic.
-		 */
-		if (total <= 0 && type == PIPE_BULK)
-			continue;
+		/* Used up this frame's bandwidth? */
+		if (total <= 0)
+			break;
 
 		/* find the gadget's ep for this request (if configured) */
 		address = usb_pipeendpoint (urb->pipe);
