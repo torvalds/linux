@@ -61,7 +61,6 @@ lirc_allocate_device(void)
 
 	d = kzalloc(sizeof(*d), GFP_KERNEL);
 	if (d) {
-		mutex_init(&d->mutex);
 		device_initialize(&d->dev);
 		d->dev.class = lirc_class;
 		d->dev.release = lirc_release_device;
@@ -150,82 +149,21 @@ void lirc_unregister_device(struct lirc_dev *d)
 	dev_dbg(&d->dev, "lirc_dev: driver %s unregistered from minor = %d\n",
 		d->name, d->minor);
 
-	mutex_lock(&d->mutex);
+	mutex_lock(&rcdev->lock);
 
-	if (d->open) {
+	if (rcdev->lirc_open) {
 		dev_dbg(&d->dev, LOGHEAD "releasing opened driver\n",
 			d->name, d->minor);
 		wake_up_poll(&rcdev->wait_poll, POLLHUP);
 	}
 
-	mutex_unlock(&d->mutex);
+	mutex_unlock(&rcdev->lock);
 
 	cdev_device_del(&d->cdev, &d->dev);
 	ida_simple_remove(&lirc_ida, d->minor);
 	put_device(&d->dev);
 }
 EXPORT_SYMBOL(lirc_unregister_device);
-
-int lirc_dev_fop_open(struct inode *inode, struct file *file)
-{
-	struct lirc_dev *d = container_of(inode->i_cdev, struct lirc_dev, cdev);
-	struct rc_dev *rcdev = d->rdev;
-	int retval;
-
-	dev_dbg(&d->dev, LOGHEAD "open called\n", d->name, d->minor);
-
-	retval = mutex_lock_interruptible(&d->mutex);
-	if (retval)
-		return retval;
-
-	if (!rcdev->registered) {
-		retval = -ENODEV;
-		goto out;
-	}
-
-	if (d->open) {
-		retval = -EBUSY;
-		goto out;
-	}
-
-	if (d->rdev) {
-		retval = rc_open(d->rdev);
-		if (retval)
-			goto out;
-	}
-
-	if (rcdev->driver_type == RC_DRIVER_IR_RAW)
-		kfifo_reset_out(&rcdev->rawir);
-
-	d->open++;
-
-	file->private_data = d->rdev;
-	nonseekable_open(inode, file);
-	mutex_unlock(&d->mutex);
-
-	return 0;
-
-out:
-	mutex_unlock(&d->mutex);
-	return retval;
-}
-EXPORT_SYMBOL(lirc_dev_fop_open);
-
-int lirc_dev_fop_close(struct inode *inode, struct file *file)
-{
-	struct rc_dev *rcdev = file->private_data;
-	struct lirc_dev *d = rcdev->lirc_dev;
-
-	mutex_lock(&d->mutex);
-
-	rc_close(rcdev);
-	d->open--;
-
-	mutex_unlock(&d->mutex);
-
-	return 0;
-}
-EXPORT_SYMBOL(lirc_dev_fop_close);
 
 int __init lirc_dev_init(void)
 {
