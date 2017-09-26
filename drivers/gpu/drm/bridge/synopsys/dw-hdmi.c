@@ -2527,7 +2527,9 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	struct hdr_static_metadata *metedata =
 			&connector->hdr_sink_metadata.hdmi_type1;
 	struct edid *edid;
-	int ret = 0;
+	struct drm_display_mode *mode;
+	const u8 def_modes[6] = {4, 16, 31, 19, 17, 2};
+	int i, ret = 0;
 
 	if (!hdmi->ddc)
 		return 0;
@@ -2545,7 +2547,20 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 		drm_mode_connector_update_hdr_property(connector, metedata);
 		kfree(edid);
 	} else {
-		dev_dbg(hdmi->dev, "failed to get edid\n");
+		hdmi->sink_is_hdmi = true;
+		hdmi->sink_has_audio = true;
+		for (i = 0; i < sizeof(def_modes); i++) {
+			mode = drm_display_mode_from_vic_index(connector,
+							       def_modes,
+							       31, i);
+			if (mode) {
+				if (!i)
+					mode->type = DRM_MODE_TYPE_PREFERRED;
+				drm_mode_probed_add(connector, mode);
+				ret++;
+			}
+		}
+		dev_info(hdmi->dev, "failed to get edid\n");
 	}
 
 	return ret;
