@@ -212,7 +212,7 @@ static unsigned int ps2_test_one(struct ps2if *ps2if,
 
 	writel_relaxed(PS2CR_ENA | mask, ps2if->base + PS2CR);
 
-	udelay(2);
+	udelay(10);
 
 	val = readl_relaxed(ps2if->base + PS2STAT);
 	return val & (PS2STAT_KBC | PS2STAT_KBD);
