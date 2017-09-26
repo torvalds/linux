@@ -578,7 +578,11 @@ execlist_cancel_port_requests(struct intel_engine_execlists *execlists)
 	unsigned int num_ports = ARRAY_SIZE(execlists->port);
 
 	while (num_ports-- && port_isset(port)) {
-		i915_gem_request_put(port_request(port));
+		struct drm_i915_gem_request *rq = port_request(port);
+
+		execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_OUT);
+		i915_gem_request_put(rq);
+
 		memset(port, 0, sizeof(*port));
 		port++;
 	}
