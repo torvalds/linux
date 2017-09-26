@@ -2491,7 +2491,8 @@ int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond,
 	struct slave *curr_active_slave, *curr_arp_slave;
 	unsigned char *arp_ptr;
 	__be32 sip, tip;
-	int alen, is_arp = skb->protocol == __cpu_to_be16(ETH_P_ARP);
+	int is_arp = skb->protocol == __cpu_to_be16(ETH_P_ARP);
+	unsigned int alen;
 
 	if (!slave_do_arp_validate(bond, slave)) {
 		if ((slave_do_arp_validate_only(bond) && is_arp) ||
