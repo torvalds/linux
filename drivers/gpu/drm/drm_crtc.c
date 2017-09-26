@@ -1817,11 +1817,6 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
 					ARRAY_SIZE(drm_cp_enum_list));
 	dev->mode_config.content_protection_property = prop;
 
-	prop = drm_property_create_range(dev, DRM_MODE_PROP_IMMUTABLE,
-					 "Content Protection KSV", 0,
-					 0xFFFFFFFFFF);
-	dev->mode_config.content_protection_ksv_property = prop;
-
 	return 0;
 }
 
