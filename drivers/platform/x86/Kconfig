@@ -774,7 +774,7 @@ config TOSHIBA_WMI
 	  WARNING: This driver is incomplete as it lacks a proper keymap and the
 	  *notify function only prints the ACPI event type value. Be warned that
 	  you will need to provide some information if you have a Toshiba model
-	  with WMI event hotkeys and want to help with the develpment of this
+	  with WMI event hotkeys and want to help with the development of this
 	  driver.
 
 	  If you have a WMI-based hotkeys Toshiba laptop, say Y or M here.
