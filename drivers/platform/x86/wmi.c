@@ -1264,8 +1264,8 @@ err_unreg_class:
 static void __exit acpi_wmi_exit(void)
 {
 	platform_driver_unregister(&acpi_wmi_driver);
-	class_unregister(&wmi_bus_class);
 	bus_unregister(&wmi_bus_type);
+	class_unregister(&wmi_bus_class);
 }
 
 subsys_initcall(acpi_wmi_init);
