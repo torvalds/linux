@@ -450,14 +450,6 @@ dsa_slave_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *_p)
 		ds->ops->get_regs(ds, p->dp->index, regs, _p);
 }
 
-static int dsa_slave_nway_reset(struct net_device *dev)
-{
-	if (!dev->phydev)
-		return -ENODEV;
-
-	return genphy_restart_aneg(dev->phydev);
-}
-
 static u32 dsa_slave_get_link(struct net_device *dev)
 {
 	if (!dev->phydev)
@@ -888,7 +880,7 @@ static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_drvinfo		= dsa_slave_get_drvinfo,
 	.get_regs_len		= dsa_slave_get_regs_len,
 	.get_regs		= dsa_slave_get_regs,
-	.nway_reset		= dsa_slave_nway_reset,
+	.nway_reset		= phy_ethtool_nway_reset,
 	.get_link		= dsa_slave_get_link,
 	.get_eeprom_len		= dsa_slave_get_eeprom_len,
 	.get_eeprom		= dsa_slave_get_eeprom,
