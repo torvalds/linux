@@ -732,11 +732,14 @@ void hack_disable_optional_pipe_split(struct dcn_bw_internal_vars *v)
 void hack_force_pipe_split(struct dcn_bw_internal_vars *v,
 		unsigned int pixel_rate_khz)
 {
+	float pixel_rate_mhz = pixel_rate_khz / 1000;
+
 	/*
 	 * force enabling pipe split by lower dpp clock for DPM0 to just
 	 * below the specify pixel_rate, so bw calc would split pipe.
 	 */
-	v->max_dppclk[0] = pixel_rate_khz / 1000;
+	if (pixel_rate_mhz < v->max_dppclk[0])
+		v->max_dppclk[0] = pixel_rate_mhz;
 }
 
 void hack_bounding_box(struct dcn_bw_internal_vars *v,
