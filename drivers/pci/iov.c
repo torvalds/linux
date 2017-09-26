@@ -113,7 +113,7 @@ resource_size_t pci_iov_resource_size(struct pci_dev *dev, int resno)
 	return dev->sriov->barsz[resno - PCI_IOV_RESOURCES];
 }
 
-int pci_iov_add_virtfn(struct pci_dev *dev, int id, int reset)
+int pci_iov_add_virtfn(struct pci_dev *dev, int id)
 {
 	int i;
 	int rc = -ENOMEM;
@@ -157,9 +157,6 @@ int pci_iov_add_virtfn(struct pci_dev *dev, int id, int reset)
 		BUG_ON(rc);
 	}
 
-	if (reset)
-		__pci_reset_function(virtfn);
-
 	pci_device_add(virtfn, virtfn->bus);
 
 	pci_bus_add_device(virtfn);
@@ -187,7 +184,7 @@ failed:
 	return rc;
 }
 
-void pci_iov_remove_virtfn(struct pci_dev *dev, int id, int reset)
+void pci_iov_remove_virtfn(struct pci_dev *dev, int id)
 {
 	char buf[VIRTFN_ID_LEN];
 	struct pci_dev *virtfn;
@@ -197,11 +194,6 @@ void pci_iov_remove_virtfn(struct pci_dev *dev, int id, int reset)
 					     pci_iov_virtfn_devfn(dev, id));
 	if (!virtfn)
 		return;
-
-	if (reset) {
-		device_release_driver(&virtfn->dev);
-		__pci_reset_function(virtfn);
-	}
 
 	sprintf(buf, "virtfn%u", id);
 	sysfs_remove_link(&dev->dev.kobj, buf);
@@ -317,7 +309,7 @@ static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 	pci_cfg_access_unlock(dev);
 
 	for (i = 0; i < initial; i++) {
-		rc = pci_iov_add_virtfn(dev, i, 0);
+		rc = pci_iov_add_virtfn(dev, i);
 		if (rc)
 			goto failed;
 	}
@@ -329,7 +321,7 @@ static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 
 failed:
 	while (i--)
-		pci_iov_remove_virtfn(dev, i, 0);
+		pci_iov_remove_virtfn(dev, i);
 
 err_pcibios:
 	iov->ctrl &= ~(PCI_SRIOV_CTRL_VFE | PCI_SRIOV_CTRL_MSE);
@@ -356,7 +348,7 @@ static void sriov_disable(struct pci_dev *dev)
 		return;
 
 	for (i = 0; i < iov->num_VFs; i++)
-		pci_iov_remove_virtfn(dev, i, 0);
+		pci_iov_remove_virtfn(dev, i);
 
 	iov->ctrl &= ~(PCI_SRIOV_CTRL_VFE | PCI_SRIOV_CTRL_MSE);
 	pci_cfg_access_lock(dev);
