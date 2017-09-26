@@ -491,7 +491,7 @@ static const struct chv_community north_community = {
 	.ngpio_ranges = ARRAY_SIZE(north_gpio_ranges),
 	.ngpios = ARRAY_SIZE(north_pins),
 	/*
-	 * North community can benerate GPIO interrupts only for the first
+	 * North community can generate GPIO interrupts only for the first
 	 * 8 interrupts. The upper half (8-15) can only be used to trigger
 	 * GPEs.
 	 */
