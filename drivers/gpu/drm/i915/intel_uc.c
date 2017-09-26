@@ -328,6 +328,27 @@ static void guc_disable_communication(struct intel_guc *guc)
 	guc->send = intel_guc_send_nop;
 }
 
+/**
+ * intel_guc_auth_huc() - Send action to GuC to authenticate HuC ucode
+ * @guc: intel_guc structure
+ * @rsa_offset: rsa offset w.r.t ggtt base of huc vma
+ *
+ * Triggers a HuC firmware authentication request to the GuC via intel_guc_send
+ * INTEL_GUC_ACTION_AUTHENTICATE_HUC interface. This function is invoked by
+ * intel_huc_auth().
+ *
+ * Return:	non-zero code on error
+ */
+int intel_guc_auth_huc(struct intel_guc *guc, u32 rsa_offset)
+{
+	u32 action[] = {
+		INTEL_GUC_ACTION_AUTHENTICATE_HUC,
+		rsa_offset
+	};
+
+	return intel_guc_send(guc, action, ARRAY_SIZE(action));
+}
+
 int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
@@ -390,7 +411,7 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_log_capture;
 
-	intel_guc_auth_huc(dev_priv);
+	intel_huc_auth(&dev_priv->huc);
 	if (i915_modparams.enable_guc_submission) {
 		if (i915_modparams.guc_log_level >= 0)
 			gen9_enable_guc_interrupts(dev_priv);

@@ -211,6 +211,7 @@ void intel_uc_fini_hw(struct drm_i915_private *dev_priv);
 int intel_guc_sample_forcewake(struct intel_guc *guc);
 int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len);
 int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len);
+int intel_guc_auth_huc(struct intel_guc *guc, u32 rsa_offset);
 
 static inline int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len)
 {
@@ -254,6 +255,6 @@ static inline u32 guc_ggtt_offset(struct i915_vma *vma)
 /* intel_huc.c */
 void intel_huc_select_fw(struct intel_huc *huc);
 void intel_huc_init_hw(struct intel_huc *huc);
-void intel_guc_auth_huc(struct drm_i915_private *dev_priv);
+void intel_huc_auth(struct intel_huc *huc);
 
 #endif
