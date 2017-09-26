@@ -1850,6 +1850,10 @@ extern struct drm_property *drm_mode_create_rotation_property(struct drm_device 
 							      unsigned int supported_rotations);
 extern unsigned int drm_rotation_simplify(unsigned int rotation,
 					  unsigned int supported_rotations);
+struct drm_display_mode *
+drm_display_mode_from_vic_index(struct drm_connector *connector,
+				const u8 *video_db, u8 video_len,
+				u8 video_index);
 
 /* Helpers */
 
