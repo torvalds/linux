@@ -79,7 +79,6 @@ struct dsa_slave_priv {
 	 * The phylib phy_device pointer for the PHY connected
 	 * to this port.
 	 */
-	struct phy_device	*phy;
 	phy_interface_t		phy_interface;
 	int			old_link;
 	int			old_pause;
