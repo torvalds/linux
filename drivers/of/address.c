@@ -232,8 +232,8 @@ int of_pci_address_to_resource(struct device_node *dev, int bar,
 }
 EXPORT_SYMBOL_GPL(of_pci_address_to_resource);
 
-int of_pci_range_parser_init(struct of_pci_range_parser *parser,
-				struct device_node *node)
+static int parser_init(struct of_pci_range_parser *parser,
+			struct device_node *node, const char *name)
 {
 	const int na = 3, ns = 2;
 	int rlen;
@@ -242,7 +242,7 @@ int of_pci_range_parser_init(struct of_pci_range_parser *parser,
 	parser->pna = of_n_addr_cells(node);
 	parser->np = parser->pna + na + ns;
 
-	parser->range = of_get_property(node, "ranges", &rlen);
+	parser->range = of_get_property(node, name, &rlen);
 	if (parser->range == NULL)
 		return -ENOENT;
 
@@ -250,7 +250,20 @@ int of_pci_range_parser_init(struct of_pci_range_parser *parser,
 
 	return 0;
 }
+
+int of_pci_range_parser_init(struct of_pci_range_parser *parser,
+				struct device_node *node)
+{
+	return parser_init(parser, node, "ranges");
+}
 EXPORT_SYMBOL_GPL(of_pci_range_parser_init);
+
+int of_pci_dma_range_parser_init(struct of_pci_range_parser *parser,
+				struct device_node *node)
+{
+	return parser_init(parser, node, "dma-ranges");
+}
+EXPORT_SYMBOL_GPL(of_pci_dma_range_parser_init);
 
 struct of_pci_range *of_pci_range_parser_one(struct of_pci_range_parser *parser,
 						struct of_pci_range *range)
