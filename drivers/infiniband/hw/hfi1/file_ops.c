@@ -105,10 +105,10 @@ static void deallocate_ctxt(struct hfi1_ctxtdata *uctxt);
 static unsigned int poll_urgent(struct file *fp, struct poll_table_struct *pt);
 static unsigned int poll_next(struct file *fp, struct poll_table_struct *pt);
 static int user_event_ack(struct hfi1_ctxtdata *uctxt, u16 subctxt,
-			  unsigned long events);
-static int set_ctxt_pkey(struct hfi1_ctxtdata *uctxt, u16 subctxt, u16 pkey);
+			  unsigned long arg);
+static int set_ctxt_pkey(struct hfi1_ctxtdata *uctxt, unsigned long arg);
 static int manage_rcvq(struct hfi1_ctxtdata *uctxt, u16 subctxt,
-		       int start_stop);
+		       unsigned long arg);
 static int vma_fault(struct vm_fault *vmf);
 static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 			    unsigned long arg);
@@ -227,8 +227,6 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	int ret = 0;
 	int uval = 0;
-	unsigned long ul_uval = 0;
-	u16 uval16 = 0;
 
 	hfi1_cdbg(IOCTL, "IOCTL recv: 0x%x", cmd);
 	if (cmd != HFI1_IOCTL_ASSIGN_CTXT &&
@@ -267,34 +265,21 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 		break;
 
 	case HFI1_IOCTL_RECV_CTRL:
-		ret = get_user(uval, (int __user *)arg);
-		if (ret != 0)
-			return -EFAULT;
-		ret = manage_rcvq(uctxt, fd->subctxt, uval);
+		ret = manage_rcvq(uctxt, fd->subctxt, arg);
 		break;
 
 	case HFI1_IOCTL_POLL_TYPE:
-		ret = get_user(uval, (int __user *)arg);
-		if (ret != 0)
+		if (get_user(uval, (int __user *)arg))
 			return -EFAULT;
 		uctxt->poll_type = (typeof(uctxt->poll_type))uval;
 		break;
 
 	case HFI1_IOCTL_ACK_EVENT:
-		ret = get_user(ul_uval, (unsigned long __user *)arg);
-		if (ret != 0)
-			return -EFAULT;
-		ret = user_event_ack(uctxt, fd->subctxt, ul_uval);
+		ret = user_event_ack(uctxt, fd->subctxt, arg);
 		break;
 
 	case HFI1_IOCTL_SET_PKEY:
-		ret = get_user(uval16, (u16 __user *)arg);
-		if (ret != 0)
-			return -EFAULT;
-		if (HFI1_CAP_IS_USET(PKEY_CHECK))
-			ret = set_ctxt_pkey(uctxt, fd->subctxt, uval16);
-		else
-			return -EPERM;
+		ret = set_ctxt_pkey(uctxt, arg);
 		break;
 
 	case HFI1_IOCTL_CTXT_RESET: {
@@ -1584,13 +1569,18 @@ int hfi1_set_uevent_bits(struct hfi1_pportdata *ppd, const int evtbit)
  * re-init the software copy of the head register
  */
 static int manage_rcvq(struct hfi1_ctxtdata *uctxt, u16 subctxt,
-		       int start_stop)
+		       unsigned long arg)
 {
 	struct hfi1_devdata *dd = uctxt->dd;
 	unsigned int rcvctrl_op;
+	int start_stop;
 
 	if (subctxt)
-		goto bail;
+		return 0;
+
+	if (get_user(start_stop, (int __user *)arg))
+		return -EFAULT;
+
 	/* atomically clear receive enable ctxt. */
 	if (start_stop) {
 		/*
@@ -1609,7 +1599,7 @@ static int manage_rcvq(struct hfi1_ctxtdata *uctxt, u16 subctxt,
 	}
 	hfi1_rcvctrl(dd, rcvctrl_op, uctxt);
 	/* always; new head should be equal to new tail; see above */
-bail:
+
 	return 0;
 }
 
@@ -1619,14 +1609,18 @@ bail:
  * set, if desired, and checks again in future.
  */
 static int user_event_ack(struct hfi1_ctxtdata *uctxt, u16 subctxt,
-			  unsigned long events)
+			  unsigned long arg)
 {
 	int i;
 	struct hfi1_devdata *dd = uctxt->dd;
 	unsigned long *evs;
+	unsigned long events;
 
 	if (!dd->events)
 		return 0;
+
+	if (get_user(events, (unsigned long __user *)arg))
+		return -EFAULT;
 
 	evs = dd->events + uctxt_offset(uctxt) + subctxt;
 
@@ -1638,27 +1632,27 @@ static int user_event_ack(struct hfi1_ctxtdata *uctxt, u16 subctxt,
 	return 0;
 }
 
-static int set_ctxt_pkey(struct hfi1_ctxtdata *uctxt, u16 subctxt, u16 pkey)
+static int set_ctxt_pkey(struct hfi1_ctxtdata *uctxt, unsigned long arg)
 {
-	int ret = -ENOENT, i, intable = 0;
+	int i;
 	struct hfi1_pportdata *ppd = uctxt->ppd;
 	struct hfi1_devdata *dd = uctxt->dd;
+	u16 pkey;
 
-	if (pkey == LIM_MGMT_P_KEY || pkey == FULL_MGMT_P_KEY) {
-		ret = -EINVAL;
-		goto done;
-	}
+	if (!HFI1_CAP_IS_USET(PKEY_CHECK))
+		return -EPERM;
+
+	if (get_user(pkey, (u16 __user *)arg))
+		return -EFAULT;
+
+	if (pkey == LIM_MGMT_P_KEY || pkey == FULL_MGMT_P_KEY)
+		return -EINVAL;
 
 	for (i = 0; i < ARRAY_SIZE(ppd->pkeys); i++)
-		if (pkey == ppd->pkeys[i]) {
-			intable = 1;
-			break;
-		}
+		if (pkey == ppd->pkeys[i])
+			return hfi1_set_ctxt_pkey(dd, uctxt, pkey);
 
-	if (intable)
-		ret = hfi1_set_ctxt_pkey(dd, uctxt, pkey);
-done:
-	return ret;
+	return -ENOENT;
 }
 
 static void user_remove(struct hfi1_devdata *dd)
