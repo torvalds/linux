@@ -562,8 +562,12 @@ static umode_t region_visible(struct kobject *kobj, struct attribute *a, int n)
 	if (!is_nd_pmem(dev) && a == &dev_attr_badblocks.attr)
 		return 0;
 
-	if (!is_nd_pmem(dev) && a == &dev_attr_resource.attr)
-		return 0;
+	if (a == &dev_attr_resource.attr) {
+		if (is_nd_pmem(dev))
+			return 0400;
+		else
+			return 0;
+	}
 
 	if (a == &dev_attr_deep_flush.attr) {
 		int has_flush = nvdimm_has_flush(nd_region);
