@@ -146,10 +146,8 @@ static struct clk *xgene_register_clk_pll(struct device *dev,
 
 	/* allocate the APM clock structure */
 	apmclk = kzalloc(sizeof(*apmclk), GFP_KERNEL);
-	if (!apmclk) {
-		pr_err("%s: could not allocate APM clk\n", __func__);
+	if (!apmclk)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	init.name = name;
 	init.ops = &xgene_clk_pll_ops;
@@ -650,10 +648,8 @@ static struct clk *xgene_register_clk(struct device *dev,
 
 	/* allocate the APM clock structure */
 	apmclk = kzalloc(sizeof(*apmclk), GFP_KERNEL);
-	if (!apmclk) {
-		pr_err("%s: could not allocate APM clk\n", __func__);
+	if (!apmclk)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	init.name = name;
 	init.ops = &xgene_clk_ops;
