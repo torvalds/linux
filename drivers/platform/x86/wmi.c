@@ -33,17 +33,17 @@
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/device.h>
-#include <linux/list.h>
 #include <linux/acpi.h>
-#include <linux/slab.h>
+#include <linux/device.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/wmi.h>
+#include <linux/slab.h>
+#include <linux/types.h>
 #include <linux/uuid.h>
+#include <linux/wmi.h>
 
 ACPI_MODULE_NAME("wmi");
 MODULE_AUTHOR("Carlos Corbacho");
