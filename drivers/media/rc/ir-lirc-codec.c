@@ -88,6 +88,61 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 	wake_up_poll(&dev->wait_poll, POLLIN | POLLRDNORM);
 }
 
+static int ir_lirc_open(struct inode *inode, struct file *file)
+{
+	struct lirc_dev *d = container_of(inode->i_cdev, struct lirc_dev, cdev);
+	struct rc_dev *dev = d->rdev;
+	int retval;
+
+	retval = rc_open(dev);
+	if (retval)
+		return retval;
+
+	retval = mutex_lock_interruptible(&dev->lock);
+	if (retval)
+		goto out_rc;
+
+	if (!dev->registered) {
+		retval = -ENODEV;
+		goto out_unlock;
+	}
+
+	if (dev->lirc_open) {
+		retval = -EBUSY;
+		goto out_unlock;
+	}
+
+	if (dev->driver_type == RC_DRIVER_IR_RAW)
+		kfifo_reset_out(&dev->rawir);
+
+	dev->lirc_open++;
+	file->private_data = dev;
+
+	nonseekable_open(inode, file);
+	mutex_unlock(&dev->lock);
+
+	return 0;
+
+out_unlock:
+	mutex_unlock(&dev->lock);
+out_rc:
+	rc_close(dev);
+	return retval;
+}
+
+static int ir_lirc_close(struct inode *inode, struct file *file)
+{
+	struct rc_dev *dev = file->private_data;
+
+	mutex_lock(&dev->lock);
+	dev->lirc_open--;
+	mutex_unlock(&dev->lock);
+
+	rc_close(dev);
+
+	return 0;
+}
+
 static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 				   size_t n, loff_t *ppos)
 {
@@ -477,8 +532,8 @@ static const struct file_operations lirc_fops = {
 #endif
 	.read		= ir_lirc_read,
 	.poll		= ir_lirc_poll,
-	.open		= lirc_dev_fop_open,
-	.release	= lirc_dev_fop_close,
+	.open		= ir_lirc_open,
+	.release	= ir_lirc_close,
 	.llseek		= no_llseek,
 };
 

@@ -117,6 +117,7 @@ enum rc_filter_type {
  * @rx_resolution : resolution (in ns) of input sampler
  * @tx_resolution: resolution (in ns) of output sampler
  * @lirc_dev: lirc char device
+ * @lirc_open: count of the number of times the device has been opened
  * @carrier_low: when setting the carrier range, first the low end must be
  *	set with an ioctl and then the high end with another ioctl
  * @gap_start: time when gap starts
@@ -190,6 +191,7 @@ struct rc_dev {
 	u32				tx_resolution;
 #ifdef CONFIG_LIRC
 	struct lirc_dev			*lirc_dev;
+	int				lirc_open;
 	int				carrier_low;
 	ktime_t				gap_start;
 	u64				gap_duration;

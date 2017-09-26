@@ -26,8 +26,6 @@
  * @rdev:		&struct rc_dev associated with the device
  * @fops:		&struct file_operations for the device
  * @owner:		the module owning this struct
- * @open:		open count for the device's chardev
- * @mutex:		serialises file_operations calls
  * @dev:		&struct device assigned to the device
  * @cdev:		&struct cdev assigned to the device
  */
@@ -38,10 +36,6 @@ struct lirc_dev {
 	struct rc_dev *rdev;
 	const struct file_operations *fops;
 	struct module *owner;
-
-	int open;
-
-	struct mutex mutex; /* protect from simultaneous accesses */
 
 	struct device dev;
 	struct cdev cdev;
@@ -55,9 +49,4 @@ int lirc_register_device(struct lirc_dev *d);
 
 void lirc_unregister_device(struct lirc_dev *d);
 
-/* default file operations
- * used by drivers if they override only some operations
- */
-int lirc_dev_fop_open(struct inode *inode, struct file *file);
-int lirc_dev_fop_close(struct inode *inode, struct file *file);
 #endif
