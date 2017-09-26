@@ -1374,6 +1374,12 @@ struct hfi1_devdata *hfi1_lookup(int unit);
 extern u32 hfi1_cpulist_count;
 extern unsigned long *hfi1_cpulist;
 
+static inline unsigned long uctxt_offset(struct hfi1_ctxtdata *uctxt)
+{
+	return (uctxt->ctxt - uctxt->dd->first_dyn_alloc_ctxt) *
+		HFI1_MAX_SHARED_CTXTS;
+}
+
 int hfi1_init(struct hfi1_devdata *dd, int reinit);
 int hfi1_count_active_units(void);
 

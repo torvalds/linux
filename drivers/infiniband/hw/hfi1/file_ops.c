@@ -595,9 +595,8 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		 * Use the page where this context's flags are. User level
 		 * knows where it's own bitmap is within the page.
 		 */
-		memaddr = (unsigned long)(dd->events +
-				  ((uctxt->ctxt - dd->first_dyn_alloc_ctxt) *
-				   HFI1_MAX_SHARED_CTXTS)) & PAGE_MASK;
+		memaddr = (unsigned long)
+			(dd->events + uctxt_offset(uctxt)) & PAGE_MASK;
 		memlen = PAGE_SIZE;
 		/*
 		 * v3.7 removes VM_RESERVED but the effect is kept by
@@ -779,8 +778,7 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	 * Clear any left over, unhandled events so the next process that
 	 * gets this context doesn't get confused.
 	 */
-	ev = dd->events + ((uctxt->ctxt - dd->first_dyn_alloc_ctxt) *
-			   HFI1_MAX_SHARED_CTXTS) + fdata->subctxt;
+	ev = dd->events + uctxt_offset(uctxt) + fdata->subctxt;
 	*ev = 0;
 
 	spin_lock_irqsave(&dd->uctxt_lock, flags);
@@ -1389,9 +1387,8 @@ static int get_base_info(struct hfi1_filedata *fd, void __user *ubase,
 	 */
 	binfo.user_regbase = HFI1_MMAP_TOKEN(UREGS, uctxt->ctxt,
 					    fd->subctxt, 0);
-	offset = offset_in_page((((uctxt->ctxt - dd->first_dyn_alloc_ctxt) *
-		    HFI1_MAX_SHARED_CTXTS) + fd->subctxt) *
-		  sizeof(*dd->events));
+	offset = offset_in_page((uctxt_offset(uctxt) + fd->subctxt) *
+				sizeof(*dd->events));
 	binfo.events_bufbase = HFI1_MMAP_TOKEN(EVENTS, uctxt->ctxt,
 					      fd->subctxt,
 					      offset);
@@ -1482,14 +1479,13 @@ int hfi1_set_uevent_bits(struct hfi1_pportdata *ppd, const int evtbit)
 	     ctxt++) {
 		uctxt = hfi1_rcd_get_by_index(dd, ctxt);
 		if (uctxt) {
-			unsigned long *evs = dd->events +
-				(uctxt->ctxt - dd->first_dyn_alloc_ctxt) *
-				HFI1_MAX_SHARED_CTXTS;
+			unsigned long *evs;
 			int i;
 			/*
 			 * subctxt_cnt is 0 if not shared, so do base
 			 * separately, first, then remaining subctxt, if any
 			 */
+			evs = dd->events + uctxt_offset(uctxt);
 			set_bit(evtbit, evs);
 			for (i = 1; i < uctxt->subctxt_cnt; i++)
 				set_bit(evtbit, evs + i);
@@ -1555,8 +1551,7 @@ static int user_event_ack(struct hfi1_ctxtdata *uctxt, u16 subctxt,
 	if (!dd->events)
 		return 0;
 
-	evs = dd->events + ((uctxt->ctxt - dd->first_dyn_alloc_ctxt) *
-			    HFI1_MAX_SHARED_CTXTS) + subctxt;
+	evs = dd->events + uctxt_offset(uctxt) + subctxt;
 
 	for (i = 0; i <= _HFI1_MAX_EVENT_BIT; i++) {
 		if (!test_bit(i, &events))
