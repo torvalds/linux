@@ -463,6 +463,23 @@ void ovl_inuse_unlock(struct dentry *dentry)
 	}
 }
 
+/*
+ * Does this overlay dentry need to be indexed on copy up?
+ */
+bool ovl_need_index(struct dentry *dentry)
+{
+	struct dentry *lower = ovl_dentry_lower(dentry);
+
+	if (!lower || !ovl_indexdir(dentry->d_sb))
+		return false;
+
+	/* Index only lower hardlinks on copy up */
+	if (!d_is_dir(lower) && d_inode(lower)->i_nlink > 1)
+		return true;
+
+	return false;
+}
+
 /* Caller must hold OVL_I(inode)->lock */
 static void ovl_cleanup_index(struct dentry *dentry)
 {
@@ -533,11 +550,11 @@ int ovl_nlink_start(struct dentry *dentry, bool *locked)
 
 	/*
 	 * With inodes index is enabled, we store the union overlay nlink
-	 * in an xattr on the index inode. When whiting out lower hardlinks
+	 * in an xattr on the index inode. When whiting out an indexed lower,
 	 * we need to decrement the overlay persistent nlink, but before the
 	 * first copy up, we have no upper index inode to store the xattr.
 	 *
-	 * As a workaround, before whiteout/rename over of a lower hardlink,
+	 * As a workaround, before whiteout/rename over an indexed lower,
 	 * copy up to create the upper index. Creating the upper index will
 	 * initialize the overlay nlink, so it could be dropped if unlink
 	 * or rename succeeds.
@@ -545,8 +562,7 @@ int ovl_nlink_start(struct dentry *dentry, bool *locked)
 	 * TODO: implement metadata only index copy up when called with
 	 *       ovl_copy_up_flags(dentry, O_PATH).
 	 */
-	if (ovl_indexdir(dentry->d_sb) && !ovl_dentry_has_upper_alias(dentry) &&
-	    d_inode(ovl_dentry_lower(dentry))->i_nlink > 1) {
+	if (ovl_need_index(dentry) && !ovl_dentry_has_upper_alias(dentry)) {
 		err = ovl_copy_up(dentry);
 		if (err)
 			return err;
