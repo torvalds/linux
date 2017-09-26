@@ -850,13 +850,37 @@ static int rv_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 static int rv_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			  void *value, int *size)
 {
+	uint32_t sclk, mclk;
+	int ret = 0;
+
 	switch (idx) {
+	case AMDGPU_PP_SENSOR_GFX_SCLK:
+		ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetGfxclkFrequency);
+		if (!ret) {
+			rv_read_arg_from_smc(hwmgr, &sclk);
+			/* in units of 10KHZ */
+			*((uint32_t *)value) = sclk * 100;
+			*size = 4;
+		}
+		break;
+	case AMDGPU_PP_SENSOR_GFX_MCLK:
+		ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetFclkFrequency);
+		if (!ret) {
+			rv_read_arg_from_smc(hwmgr, &mclk);
+			/* in units of 10KHZ */
+			*((uint32_t *)value) = mclk * 100;
+			*size = 4;
+		}
+		break;
 	case AMDGPU_PP_SENSOR_GPU_TEMP:
 		*((uint32_t *)value) = rv_thermal_get_temperature(hwmgr);
-		return 0;
+		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		break;
 	}
+
+	return ret;
 }
 
 static const struct pp_hwmgr_func rv_hwmgr_funcs = {
