@@ -702,7 +702,7 @@ syscon_clk_register(struct device *dev, const char *name,
 	struct clk_init_data init;
 	int ret;
 
-	sclk = kzalloc(sizeof(struct clk_syscon), GFP_KERNEL);
+	sclk = kzalloc(sizeof(*sclk), GFP_KERNEL);
 	if (!sclk)
 		return ERR_PTR(-ENOMEM);
 
@@ -1121,7 +1121,7 @@ mclk_clk_register(struct device *dev, const char *name,
 	struct clk_init_data init;
 	int ret;
 
-	mclk = kzalloc(sizeof(struct clk_mclk), GFP_KERNEL);
+	mclk = kzalloc(sizeof(*mclk), GFP_KERNEL);
 	if (!mclk)
 		return ERR_PTR(-ENOMEM);
 
