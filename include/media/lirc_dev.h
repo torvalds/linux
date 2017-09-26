@@ -26,7 +26,6 @@
  * @rdev:		&struct rc_dev associated with the device
  * @fops:		&struct file_operations for the device
  * @owner:		the module owning this struct
- * @attached:		if the device is still live
  * @open:		open count for the device's chardev
  * @mutex:		serialises file_operations calls
  * @dev:		&struct device assigned to the device
@@ -40,7 +39,6 @@ struct lirc_dev {
 	const struct file_operations *fops;
 	struct module *owner;
 
-	bool attached;
 	int open;
 
 	struct mutex mutex; /* protect from simultaneous accesses */
