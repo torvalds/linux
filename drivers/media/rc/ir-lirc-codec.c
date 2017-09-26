@@ -101,6 +101,9 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 	unsigned int duration = 0; /* signal duration in us */
 	int i;
 
+	if (!dev->registered)
+		return -ENODEV;
+
 	start = ktime_get();
 
 	if (!dev->tx_ir) {
@@ -223,6 +226,9 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 		if (ret)
 			return ret;
 	}
+
+	if (!dev->registered)
+		return -ENODEV;
 
 	switch (cmd) {
 	case LIRC_GET_FEATURES:
@@ -406,12 +412,11 @@ static unsigned int ir_lirc_poll(struct file *file,
 				 struct poll_table_struct *wait)
 {
 	struct rc_dev *rcdev = file->private_data;
-	struct lirc_dev *d = rcdev->lirc_dev;
 	unsigned int events = 0;
 
 	poll_wait(file, &rcdev->wait_poll, wait);
 
-	if (!d->attached)
+	if (!rcdev->registered)
 		events = POLLHUP | POLLERR;
 	else if (rcdev->driver_type == RC_DRIVER_IR_RAW &&
 		 !kfifo_is_empty(&rcdev->rawir))
@@ -424,7 +429,6 @@ static ssize_t ir_lirc_read(struct file *file, char __user *buffer,
 			    size_t length, loff_t *ppos)
 {
 	struct rc_dev *rcdev = file->private_data;
-	struct lirc_dev *d = rcdev->lirc_dev;
 	unsigned int copied;
 	int ret;
 
@@ -434,7 +438,7 @@ static ssize_t ir_lirc_read(struct file *file, char __user *buffer,
 	if (length < sizeof(unsigned int) || length % sizeof(unsigned int))
 		return -EINVAL;
 
-	if (!d->attached)
+	if (!rcdev->registered)
 		return -ENODEV;
 
 	do {
@@ -444,12 +448,12 @@ static ssize_t ir_lirc_read(struct file *file, char __user *buffer,
 
 			ret = wait_event_interruptible(rcdev->wait_poll,
 					!kfifo_is_empty(&rcdev->rawir) ||
-					!d->attached);
+					!rcdev->registered);
 			if (ret)
 				return ret;
 		}
 
-		if (!d->attached)
+		if (!rcdev->registered)
 			return -ENODEV;
 
 		ret = mutex_lock_interruptible(&rcdev->lock);

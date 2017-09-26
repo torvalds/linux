@@ -128,7 +128,6 @@ int lirc_register_device(struct lirc_dev *d)
 
 	cdev_init(&d->cdev, d->fops);
 	d->cdev.owner = d->owner;
-	d->attached = true;
 
 	err = cdev_device_add(&d->cdev, &d->dev);
 	if (err) {
@@ -159,7 +158,6 @@ void lirc_unregister_device(struct lirc_dev *d)
 
 	mutex_lock(&d->mutex);
 
-	d->attached = false;
 	if (d->open) {
 		dev_dbg(&d->dev, LOGHEAD "releasing opened driver\n",
 			d->name, d->minor);
@@ -186,7 +184,7 @@ int lirc_dev_fop_open(struct inode *inode, struct file *file)
 	if (retval)
 		return retval;
 
-	if (!d->attached) {
+	if (!rcdev->registered) {
 		retval = -ENODEV;
 		goto out;
 	}
