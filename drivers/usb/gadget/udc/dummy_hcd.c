@@ -255,11 +255,13 @@ struct dummy {
 	 */
 	struct dummy_ep			ep[DUMMY_ENDPOINTS];
 	int				address;
+	int				callback_usage;
 	struct usb_gadget		gadget;
 	struct usb_gadget_driver	*driver;
 	struct dummy_request		fifo_req;
 	u8				fifo_buf[FIFO_SIZE];
 	u16				devstatus;
+	unsigned			ints_enabled:1;
 	unsigned			udc_suspended:1;
 	unsigned			pullup:1;
 
@@ -442,18 +444,27 @@ static void set_link_state(struct dummy_hcd *dum_hcd)
 				(~dum_hcd->old_status) & dum_hcd->port_status;
 
 		/* Report reset and disconnect events to the driver */
-		if (dum->driver && (disconnect || reset)) {
+		if (dum->ints_enabled && (disconnect || reset)) {
 			stop_activity(dum);
+			++dum->callback_usage;
+			spin_unlock(&dum->lock);
 			if (reset)
 				usb_gadget_udc_reset(&dum->gadget, dum->driver);
 			else
 				dum->driver->disconnect(&dum->gadget);
+			spin_lock(&dum->lock);
+			--dum->callback_usage;
 		}
-	} else if (dum_hcd->active != dum_hcd->old_active) {
+	} else if (dum_hcd->active != dum_hcd->old_active &&
+			dum->ints_enabled) {
+		++dum->callback_usage;
+		spin_unlock(&dum->lock);
 		if (dum_hcd->old_active && dum->driver->suspend)
 			dum->driver->suspend(&dum->gadget);
 		else if (!dum_hcd->old_active &&  dum->driver->resume)
 			dum->driver->resume(&dum->gadget);
+		spin_lock(&dum->lock);
+		--dum->callback_usage;
 	}
 
 	dum_hcd->old_status = dum_hcd->port_status;
@@ -969,8 +980,11 @@ static int dummy_udc_start(struct usb_gadget *g,
 	 * can't enumerate without help from the driver we're binding.
 	 */
 
+	spin_lock_irq(&dum->lock);
 	dum->devstatus = 0;
 	dum->driver = driver;
+	dum->ints_enabled = 1;
+	spin_unlock_irq(&dum->lock);
 
 	return 0;
 }
@@ -981,6 +995,16 @@ static int dummy_udc_stop(struct usb_gadget *g)
 	struct dummy		*dum = dum_hcd->dum;
 
 	spin_lock_irq(&dum->lock);
+	dum->ints_enabled = 0;
+	stop_activity(dum);
+
+	/* emulate synchronize_irq(): wait for callbacks to finish */
+	while (dum->callback_usage > 0) {
+		spin_unlock_irq(&dum->lock);
+		usleep_range(1000, 2000);
+		spin_lock_irq(&dum->lock);
+	}
+
 	dum->driver = NULL;
 	spin_unlock_irq(&dum->lock);
 
@@ -1526,6 +1550,8 @@ static struct dummy_ep *find_endpoint(struct dummy *dum, u8 address)
 	if (!is_active((dum->gadget.speed == USB_SPEED_SUPER ?
 			dum->ss_hcd : dum->hs_hcd)))
 		return NULL;
+	if (!dum->ints_enabled)
+		return NULL;
 	if ((address & ~USB_DIR_IN) == 0)
 		return &dum->ep[0];
 	for (i = 1; i < DUMMY_ENDPOINTS; i++) {
@@ -1867,10 +1893,12 @@ restart:
 			 * until setup() returns; no reentrancy issues etc.
 			 */
 			if (value > 0) {
+				++dum->callback_usage;
 				spin_unlock(&dum->lock);
 				value = dum->driver->setup(&dum->gadget,
 						&setup);
 				spin_lock(&dum->lock);
+				--dum->callback_usage;
 
 				if (value >= 0) {
 					/* no delays (max 64KB data stage) */
