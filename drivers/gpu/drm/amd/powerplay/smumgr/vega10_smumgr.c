@@ -224,7 +224,7 @@ int vega10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id)
 {
 	struct vega10_smumgr *priv =
-			(struct vega10_smumgr *)(hwmgr->smumgr->backend);
+			(struct vega10_smumgr *)(hwmgr->smu_backend);
 
 	PP_ASSERT_WITH_CODE(table_id < MAX_SMU_TABLE,
 			"Invalid SMU Table ID!", return -EINVAL);
@@ -262,7 +262,7 @@ int vega10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id)
 {
 	struct vega10_smumgr *priv =
-			(struct vega10_smumgr *)(hwmgr->smumgr->backend);
+			(struct vega10_smumgr *)(hwmgr->smu_backend);
 
 	PP_ASSERT_WITH_CODE(table_id < MAX_SMU_TABLE,
 			"Invalid SMU Table ID!", return -EINVAL);
@@ -339,7 +339,7 @@ int vega10_get_smc_features(struct pp_hwmgr *hwmgr,
 int vega10_set_tools_address(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_smumgr *priv =
-			(struct vega10_smumgr *)(hwmgr->smumgr->backend);
+			(struct vega10_smumgr *)(hwmgr->smu_backend);
 
 	if (priv->smu_tables.entry[TOOLSTABLE].table_addr_high ||
 			priv->smu_tables.entry[TOOLSTABLE].table_addr_low) {
@@ -412,7 +412,7 @@ static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 	if (!priv)
 		return -ENOMEM;
 
-	hwmgr->smumgr->backend = priv;
+	hwmgr->smu_backend = priv;
 
 	/* allocate space for pptable */
 	smu_allocate_memory(hwmgr->device,
@@ -425,7 +425,7 @@ static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 
 	PP_ASSERT_WITH_CODE(kaddr,
 			"[vega10_smu_init] Out of memory for pptable.",
-			kfree(hwmgr->smumgr->backend);
+			kfree(hwmgr->smu_backend);
 			cgs_free_gpu_mem(hwmgr->device,
 			(cgs_handle_t)handle);
 			return -EINVAL);
@@ -451,7 +451,7 @@ static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 
 	PP_ASSERT_WITH_CODE(kaddr,
 			"[vega10_smu_init] Out of memory for wmtable.",
-			kfree(hwmgr->smumgr->backend);
+			kfree(hwmgr->smu_backend);
 			cgs_free_gpu_mem(hwmgr->device,
 			(cgs_handle_t)priv->smu_tables.entry[PPTABLE].handle);
 			cgs_free_gpu_mem(hwmgr->device,
@@ -479,7 +479,7 @@ static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 
 	PP_ASSERT_WITH_CODE(kaddr,
 			"[vega10_smu_init] Out of memory for avfs table.",
-			kfree(hwmgr->smumgr->backend);
+			kfree(hwmgr->smu_backend);
 			cgs_free_gpu_mem(hwmgr->device,
 			(cgs_handle_t)priv->smu_tables.entry[PPTABLE].handle);
 			cgs_free_gpu_mem(hwmgr->device,
@@ -532,7 +532,7 @@ static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 
 	PP_ASSERT_WITH_CODE(kaddr,
 			"[vega10_smu_init] Out of memory for avfs fuse table.",
-			kfree(hwmgr->smumgr->backend);
+			kfree(hwmgr->smu_backend);
 			cgs_free_gpu_mem(hwmgr->device,
 			(cgs_handle_t)priv->smu_tables.entry[PPTABLE].handle);
 			cgs_free_gpu_mem(hwmgr->device,
@@ -561,7 +561,7 @@ static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 static int vega10_smu_fini(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_smumgr *priv =
-			(struct vega10_smumgr *)(hwmgr->smumgr->backend);
+			(struct vega10_smumgr *)(hwmgr->smu_backend);
 
 	if (priv) {
 		cgs_free_gpu_mem(hwmgr->device,
@@ -575,8 +575,8 @@ static int vega10_smu_fini(struct pp_hwmgr *hwmgr)
 					(cgs_handle_t)priv->smu_tables.entry[TOOLSTABLE].handle);
 		cgs_free_gpu_mem(hwmgr->device,
 				(cgs_handle_t)priv->smu_tables.entry[AVFSFUSETABLE].handle);
-		kfree(hwmgr->smumgr->backend);
-		hwmgr->smumgr->backend = NULL;
+		kfree(hwmgr->smu_backend);
+		hwmgr->smu_backend = NULL;
 	}
 	return 0;
 }

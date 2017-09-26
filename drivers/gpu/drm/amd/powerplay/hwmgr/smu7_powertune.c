@@ -763,7 +763,7 @@ int smu7_enable_didt_config(struct pp_hwmgr *hwmgr)
 			} else if (hwmgr->chip_id == CHIP_POLARIS11) {
 				result = smu7_program_pt_config_registers(hwmgr, GCCACConfig_Polaris11);
 				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", return result);
-				if (hwmgr->smumgr->is_kicker)
+				if (hwmgr->is_kicker)
 					result = smu7_program_pt_config_registers(hwmgr, DIDTConfig_Polaris11_Kicker);
 				else
 					result = smu7_program_pt_config_registers(hwmgr, DIDTConfig_Polaris11);

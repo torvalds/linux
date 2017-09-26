@@ -35,13 +35,13 @@ static inline int pp_check(struct pp_instance *handle)
 	if (handle == NULL || handle->pp_valid != PP_VALID)
 		return -EINVAL;
 
-	if (handle->smu_mgr == NULL || handle->smu_mgr->smumgr_funcs == NULL)
+	if (handle->hwmgr == NULL || handle->hwmgr->smumgr_funcs == NULL)
 		return -EINVAL;
 
 	if (handle->pm_en == 0)
 		return PP_DPM_DISABLED;
 
-	if (handle->hwmgr == NULL || handle->hwmgr->hwmgr_func == NULL)
+	if (handle->hwmgr->hwmgr_func == NULL)
 		return PP_DPM_DISABLED;
 
 	return 0;
@@ -52,38 +52,32 @@ static int pp_early_init(void *handle)
 	int ret;
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
 
-	ret = smum_early_init(pp_handle);
+	ret = hwmgr_early_init(pp_handle);
 	if (ret)
-		return ret;
+		return -EINVAL;
 
 	if ((pp_handle->pm_en == 0)
 		|| cgs_is_virtualization_enabled(pp_handle->device))
 		return PP_DPM_DISABLED;
-
-	ret = hwmgr_early_init(pp_handle);
-	if (ret) {
-		pp_handle->pm_en = 0;
-		return PP_DPM_DISABLED;
-	}
 
 	return 0;
 }
 
 static int pp_sw_init(void *handle)
 {
-	struct pp_smumgr *smumgr;
+	struct pp_hwmgr *hwmgr;
 	int ret = 0;
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
 
 	ret = pp_check(pp_handle);
 
 	if (ret == 0 || ret == PP_DPM_DISABLED) {
-		smumgr = pp_handle->smu_mgr;
+		hwmgr = pp_handle->hwmgr;
 
-		if (smumgr->smumgr_funcs->smu_init == NULL)
+		if (hwmgr->smumgr_funcs->smu_init == NULL)
 			return -EINVAL;
 
-		ret = smumgr->smumgr_funcs->smu_init(pp_handle->hwmgr);
+		ret = hwmgr->smumgr_funcs->smu_init(hwmgr);
 
 		pr_info("amdgpu: powerplay sw initialized\n");
 	}
@@ -92,39 +86,39 @@ static int pp_sw_init(void *handle)
 
 static int pp_sw_fini(void *handle)
 {
-	struct pp_smumgr *smumgr;
+	struct pp_hwmgr *hwmgr;
 	int ret = 0;
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
 
 	ret = pp_check(pp_handle);
 	if (ret == 0 || ret == PP_DPM_DISABLED) {
-		smumgr = pp_handle->smu_mgr;
+		hwmgr = pp_handle->hwmgr;
 
-		if (smumgr->smumgr_funcs->smu_fini == NULL)
+		if (hwmgr->smumgr_funcs->smu_fini == NULL)
 			return -EINVAL;
 
-		ret = smumgr->smumgr_funcs->smu_fini(pp_handle->hwmgr);
+		ret = hwmgr->smumgr_funcs->smu_fini(pp_handle->hwmgr);
 	}
 	return ret;
 }
 
 static int pp_hw_init(void *handle)
 {
-	struct pp_smumgr *smumgr;
 	int ret = 0;
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+	struct pp_hwmgr *hwmgr;
 
 	ret = pp_check(pp_handle);
 
 	if (ret == 0 || ret == PP_DPM_DISABLED) {
-		smumgr = pp_handle->smu_mgr;
+		hwmgr = pp_handle->hwmgr;
 
-		if (smumgr->smumgr_funcs->start_smu == NULL)
+		if (hwmgr->smumgr_funcs->start_smu == NULL)
 			return -EINVAL;
 
-		if(smumgr->smumgr_funcs->start_smu(pp_handle->hwmgr)) {
+		if(hwmgr->smumgr_funcs->start_smu(pp_handle->hwmgr)) {
 			pr_err("smc start failed\n");
-			smumgr->smumgr_funcs->smu_fini(pp_handle->hwmgr);
+			hwmgr->smumgr_funcs->smu_fini(pp_handle->hwmgr);
 			return -EINVAL;;
 		}
 		if (ret == PP_DPM_DISABLED)
@@ -137,8 +131,6 @@ static int pp_hw_init(void *handle)
 	return 0;
 err:
 	pp_handle->pm_en = 0;
-	kfree(pp_handle->hwmgr);
-	pp_handle->hwmgr = NULL;
 	return PP_DPM_DISABLED;
 }
 
@@ -232,7 +224,7 @@ static int pp_suspend(void *handle)
 
 static int pp_resume(void *handle)
 {
-	struct pp_smumgr *smumgr;
+	struct pp_hwmgr  *hwmgr;
 	int ret, ret1;
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
 
@@ -241,15 +233,15 @@ static int pp_resume(void *handle)
 	if (ret1 != 0 && ret1 != PP_DPM_DISABLED)
 		return ret1;
 
-	smumgr = pp_handle->smu_mgr;
+	hwmgr = pp_handle->hwmgr;
 
-	if (smumgr->smumgr_funcs->start_smu == NULL)
+	if (hwmgr->smumgr_funcs->start_smu == NULL)
 		return -EINVAL;
 
-	ret = smumgr->smumgr_funcs->start_smu(pp_handle->hwmgr);
+	ret = hwmgr->smumgr_funcs->start_smu(pp_handle->hwmgr);
 	if (ret) {
 		pr_err("smc start failed\n");
-		smumgr->smumgr_funcs->smu_fini(pp_handle->hwmgr);
+		hwmgr->smumgr_funcs->smu_fini(pp_handle->hwmgr);
 		return ret;
 	}
 
@@ -1157,13 +1149,9 @@ int amd_powerplay_destroy(void *handle)
 {
 	struct pp_instance *instance = (struct pp_instance *)handle;
 
-	if (instance->pm_en) {
-		kfree(instance->hwmgr);
-		instance->hwmgr = NULL;
-	}
+	kfree(instance->hwmgr);
+	instance->hwmgr = NULL;
 
-	kfree(instance->smu_mgr);
-	instance->smu_mgr = NULL;
 	kfree(instance);
 	instance = NULL;
 	return 0;
@@ -1174,7 +1162,7 @@ int amd_powerplay_reset(void *handle)
 	struct pp_instance *instance = (struct pp_instance *)handle;
 	int ret;
 
-	if (cgs_is_virtualization_enabled(instance->smu_mgr->device))
+	if (cgs_is_virtualization_enabled(instance->hwmgr->device))
 		return PP_DPM_DISABLED;
 
 	ret = pp_check(instance);

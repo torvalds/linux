@@ -43,15 +43,15 @@ static int ci_smu_init(struct pp_hwmgr *hwmgr)
 	for (i = 0; i < SMU7_MAX_LEVELS_GRAPHICS; i++)
 		ci_priv->activity_target[i] = 30;
 
-	hwmgr->smumgr->backend = ci_priv;
+	hwmgr->smu_backend = ci_priv;
 
 	return 0;
 }
 
 static int ci_smu_fini(struct pp_hwmgr *hwmgr)
 {
-	kfree(hwmgr->smumgr->backend);
-	hwmgr->smumgr->backend = NULL;
+	kfree(hwmgr->smu_backend);
+	hwmgr->smu_backend = NULL;
 	cgs_rel_firmware(hwmgr->device, CGS_UCODE_ID_SMU);
 	return 0;
 }

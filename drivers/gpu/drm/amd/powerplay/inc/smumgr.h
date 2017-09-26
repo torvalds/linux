@@ -23,24 +23,13 @@
 #ifndef _SMUMGR_H_
 #define _SMUMGR_H_
 #include <linux/types.h>
-#include "pp_instance.h"
 #include "amd_powerplay.h"
-
-struct pp_smumgr;
-struct pp_instance;
-struct pp_hwmgr;
+#include "hwmgr.h"
 
 #define smu_lower_32_bits(n) ((uint32_t)(n))
 #define smu_upper_32_bits(n) ((uint32_t)(((n)>>16)>>16))
 
-extern const struct pp_smumgr_func ci_smu_funcs;
-extern const struct pp_smumgr_func cz_smu_funcs;
-extern const struct pp_smumgr_func iceland_smu_funcs;
-extern const struct pp_smumgr_func tonga_smu_funcs;
-extern const struct pp_smumgr_func fiji_smu_funcs;
-extern const struct pp_smumgr_func polaris10_smu_funcs;
-extern const struct pp_smumgr_func vega10_smu_funcs;
-extern const struct pp_smumgr_func rv_smu_funcs;
+
 
 enum AVFS_BTC_STATUS {
 	AVFS_BTC_BOOT = 0,
@@ -100,53 +89,6 @@ enum SMU_MAC_DEFINITION {
 	SMU_MAX_LEVELS_MVDD,
 	SMU_UVD_MCLK_HANDSHAKE_DISABLE,
 };
-
-
-struct pp_smumgr_func {
-	int (*smu_init)(struct pp_hwmgr *hwmgr);
-	int (*smu_fini)(struct pp_hwmgr *hwmgr);
-	int (*start_smu)(struct pp_hwmgr *hwmgr);
-	int (*check_fw_load_finish)(struct pp_hwmgr *hwmgr,
-				    uint32_t firmware);
-	int (*request_smu_load_fw)(struct pp_hwmgr *hwmgr);
-	int (*request_smu_load_specific_fw)(struct pp_hwmgr *hwmgr,
-					    uint32_t firmware);
-	int (*get_argument)(struct pp_hwmgr *hwmgr);
-	int (*send_msg_to_smc)(struct pp_hwmgr *hwmgr, uint16_t msg);
-	int (*send_msg_to_smc_with_parameter)(struct pp_hwmgr *hwmgr,
-					  uint16_t msg, uint32_t parameter);
-	int (*download_pptable_settings)(struct pp_hwmgr *hwmgr,
-					 void **table);
-	int (*upload_pptable_settings)(struct pp_hwmgr *hwmgr);
-	int (*update_smc_table)(struct pp_hwmgr *hwmgr, uint32_t type);
-	int (*process_firmware_header)(struct pp_hwmgr *hwmgr);
-	int (*update_sclk_threshold)(struct pp_hwmgr *hwmgr);
-	int (*thermal_setup_fan_table)(struct pp_hwmgr *hwmgr);
-	int (*thermal_avfs_enable)(struct pp_hwmgr *hwmgr);
-	int (*init_smc_table)(struct pp_hwmgr *hwmgr);
-	int (*populate_all_graphic_levels)(struct pp_hwmgr *hwmgr);
-	int (*populate_all_memory_levels)(struct pp_hwmgr *hwmgr);
-	int (*initialize_mc_reg_table)(struct pp_hwmgr *hwmgr);
-	uint32_t (*get_offsetof)(uint32_t type, uint32_t member);
-	uint32_t (*get_mac_definition)(uint32_t value);
-	bool (*is_dpm_running)(struct pp_hwmgr *hwmgr);
-	int (*populate_requested_graphic_levels)(struct pp_hwmgr *hwmgr,
-			struct amd_pp_profile *request);
-	bool (*is_hw_avfs_present)(struct pp_hwmgr *hwmgr);
-};
-
-struct pp_smumgr {
-	uint32_t chip_family;
-	uint32_t chip_id;
-	void *device;
-	void *backend;
-	uint32_t usec_timeout;
-	bool reload_fw;
-	const struct pp_smumgr_func *smumgr_funcs;
-	bool is_kicker;
-};
-
-extern int smum_early_init(struct pp_instance *handle);
 
 extern int smum_get_argument(struct pp_hwmgr *hwmgr);
 

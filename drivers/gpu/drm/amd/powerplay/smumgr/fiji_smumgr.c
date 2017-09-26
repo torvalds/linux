@@ -166,7 +166,7 @@ static int fiji_setup_pwr_virus(struct pp_hwmgr *hwmgr)
 	uint32_t reg, data;
 
 	const PWR_Command_Table *pvirus = PwrVirusTable;
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smumgr->backend);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 
 	for (i = 0; i < PWR_VIRUS_TABLE_SIZE; i++) {
 		switch (pvirus->command) {
@@ -195,7 +195,7 @@ static int fiji_setup_pwr_virus(struct pp_hwmgr *hwmgr)
 static int fiji_start_avfs_btc(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smumgr->backend);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 
 	if (0 != smu_data->avfs.avfs_btc_param) {
 		if (0 != smu7_send_msg_to_smc_with_parameter(hwmgr,
@@ -255,7 +255,7 @@ static int fiji_setup_graphics_level_structure(struct pp_hwmgr *hwmgr)
 
 static int fiji_avfs_event_mgr(struct pp_hwmgr *hwmgr, bool smu_started)
 {
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smumgr->backend);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 
 	switch (smu_data->avfs.avfs_btc_status) {
 	case AVFS_BTC_COMPLETED_PREVIOUSLY:
@@ -296,7 +296,7 @@ static int fiji_avfs_event_mgr(struct pp_hwmgr *hwmgr, bool smu_started)
 static int fiji_start_smu(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
-	struct fiji_smumgr *priv = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *priv = (struct fiji_smumgr *)(hwmgr->smu_backend);
 
 	/* Only start SMC if SMC RAM is not running */
 	if (!(smu7_is_smc_ram_running(hwmgr)
@@ -375,7 +375,7 @@ static int fiji_smu_init(struct pp_hwmgr *hwmgr)
 	if (fiji_priv == NULL)
 		return -ENOMEM;
 
-	hwmgr->smumgr->backend = fiji_priv;
+	hwmgr->smu_backend = fiji_priv;
 
 	if (smu7_init(hwmgr))
 		return -EINVAL;

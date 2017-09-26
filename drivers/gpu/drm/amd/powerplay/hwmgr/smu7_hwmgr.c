@@ -1382,7 +1382,7 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	data->force_pcie_gen = PP_PCIEGenInvalid;
 	data->ulv_supported = hwmgr->feature_mask & PP_ULV_MASK ? true : false;
 
-	if (hwmgr->chip_id == CHIP_POLARIS12 || hwmgr->smumgr->is_kicker) {
+	if (hwmgr->chip_id == CHIP_POLARIS12 || hwmgr->is_kicker) {
 		uint8_t tmp1, tmp2;
 		uint16_t tmp3 = 0;
 		atomctrl_get_svi2_info(hwmgr, VOLTAGE_TYPE_VDDC, &tmp1, &tmp2,
@@ -4623,7 +4623,7 @@ static int smu7_set_power_profile_state(struct pp_hwmgr *hwmgr,
 
 static int smu7_avfs_control(struct pp_hwmgr *hwmgr, bool enable)
 {
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smumgr->backend);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 
 	if (smu_data == NULL)
 		return -EINVAL;

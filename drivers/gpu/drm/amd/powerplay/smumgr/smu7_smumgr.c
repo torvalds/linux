@@ -391,12 +391,12 @@ static int smu7_populate_single_firmware_entry(struct pp_hwmgr *hwmgr,
 
 int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 {
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smumgr->backend);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 	uint32_t fw_to_load;
 	int result = 0;
 	struct SMU_DRAMData_TOC *toc;
 
-	if (!hwmgr->smumgr->reload_fw) {
+	if (!hwmgr->reload_fw) {
 		pr_info("skip reloading...\n");
 		return 0;
 	}
@@ -483,7 +483,7 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 /* Check if the FW has been loaded, SMU will not return if loading has not finished. */
 int smu7_check_fw_load_finish(struct pp_hwmgr *hwmgr, uint32_t fw_type)
 {
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smumgr->backend);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 	uint32_t fw_mask = smu7_get_mask_for_firmware_type(fw_type);
 	uint32_t ret;
 
@@ -497,7 +497,7 @@ int smu7_check_fw_load_finish(struct pp_hwmgr *hwmgr, uint32_t fw_type)
 
 int smu7_reload_firmware(struct pp_hwmgr *hwmgr)
 {
-	return hwmgr->smumgr->smumgr_funcs->start_smu(hwmgr);
+	return hwmgr->smumgr_funcs->start_smu(hwmgr);
 }
 
 static int smu7_upload_smc_firmware_data(struct pp_hwmgr *hwmgr, uint32_t length, uint32_t *src, uint32_t limit)
@@ -523,7 +523,7 @@ static int smu7_upload_smc_firmware_data(struct pp_hwmgr *hwmgr, uint32_t length
 int smu7_upload_smu_firmware_image(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smumgr->backend);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 
 	struct cgs_firmware_info info = {0};
 
@@ -534,7 +534,7 @@ int smu7_upload_smu_firmware_image(struct pp_hwmgr *hwmgr)
 		cgs_get_firmware_info(hwmgr->device,
 			smu7_convert_fw_type_to_cgs(UCODE_ID_SMU_SK), &info);
 
-	hwmgr->smumgr->is_kicker = info.is_kicker;
+	hwmgr->is_kicker = info.is_kicker;
 
 	result = smu7_upload_smc_firmware_data(hwmgr, info.image_size, (uint32_t *)info.kptr, SMU7_SMC_SIZE);
 
@@ -548,7 +548,7 @@ int smu7_init(struct pp_hwmgr *hwmgr)
 	uint64_t mc_addr = 0;
 
 	/* Allocate memory for backend private data */
-	smu_data = (struct smu7_smumgr *)(hwmgr->smumgr->backend);
+	smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 	smu_data->header_buffer.data_size =
 			((sizeof(struct SMU_DRAMData_TOC) / 4096) + 1) * 4096;
 
@@ -568,7 +568,7 @@ int smu7_init(struct pp_hwmgr *hwmgr)
 
 	PP_ASSERT_WITH_CODE((NULL != smu_data->header),
 		"Out of memory.",
-		kfree(hwmgr->smumgr->backend);
+		kfree(hwmgr->smu_backend);
 		cgs_free_gpu_mem(hwmgr->device,
 		(cgs_handle_t)smu_data->header_buffer.handle);
 		return -EINVAL);
@@ -591,7 +591,7 @@ int smu7_init(struct pp_hwmgr *hwmgr)
 
 	PP_ASSERT_WITH_CODE((NULL != internal_buf),
 		"Out of memory.",
-		kfree(hwmgr->smumgr->backend);
+		kfree(hwmgr->smu_backend);
 		cgs_free_gpu_mem(hwmgr->device,
 		(cgs_handle_t)smu_data->smu_buffer.handle);
 		return -EINVAL);
@@ -607,8 +607,8 @@ int smu7_init(struct pp_hwmgr *hwmgr)
 
 int smu7_smu_fini(struct pp_hwmgr *hwmgr)
 {
-	kfree(hwmgr->smumgr->backend);
-	hwmgr->smumgr->backend = NULL;
+	kfree(hwmgr->smu_backend);
+	hwmgr->smu_backend = NULL;
 	cgs_rel_firmware(hwmgr->device, CGS_UCODE_ID_SMU);
 	return 0;
 }

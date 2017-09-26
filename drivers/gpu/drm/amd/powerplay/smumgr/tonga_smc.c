@@ -406,7 +406,7 @@ static int tonga_populate_smc_link_level(struct pp_hwmgr *hwmgr, SMU72_Discrete_
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct smu7_dpm_table *dpm_table = &data->dpm_table;
-	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smumgr->backend);
+	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smu_backend);
 	uint32_t i;
 
 	/* Index (dpm_table->pcie_speed_table.count) is reserved for PCIE boot level. */
@@ -598,7 +598,7 @@ static int tonga_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 int tonga_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smumgr->backend);
+	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smu_backend);
 	struct phm_ppt_v1_information *pptable_info = (struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct smu7_dpm_table *dpm_table = &data->dpm_table;
 	struct phm_ppt_v1_pcie_table *pcie_table = pptable_info->pcie_table;
@@ -1002,7 +1002,7 @@ int tonga_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct tonga_smumgr *smu_data =
-			(struct tonga_smumgr *)(hwmgr->smumgr->backend);
+			(struct tonga_smumgr *)(hwmgr->smu_backend);
 	struct smu7_dpm_table *dpm_table = &data->dpm_table;
 	int result;
 
@@ -1090,7 +1090,7 @@ static int tonga_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 {
 	int result = 0;
 	struct tonga_smumgr *smu_data =
-				(struct tonga_smumgr *)(hwmgr->smumgr->backend);
+				(struct tonga_smumgr *)(hwmgr->smu_backend);
 	const struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct pp_atomctrl_clock_dividers_vi dividers;
 
@@ -1454,7 +1454,7 @@ static int tonga_program_memory_timing_parameters(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct tonga_smumgr *smu_data =
-				(struct tonga_smumgr *)(hwmgr->smumgr->backend);
+				(struct tonga_smumgr *)(hwmgr->smu_backend);
 	int result = 0;
 	SMU72_Discrete_MCArbDramTimingTable  arb_regs;
 	uint32_t i, j;
@@ -1492,7 +1492,7 @@ static int tonga_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 	int result = 0;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct tonga_smumgr *smu_data =
-				(struct tonga_smumgr *)(hwmgr->smumgr->backend);
+				(struct tonga_smumgr *)(hwmgr->smu_backend);
 	table->GraphicsBootLevel = 0;
 	table->MemoryBootLevel = 0;
 
@@ -1543,7 +1543,7 @@ static int tonga_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 			volt_with_cks, value;
 	uint16_t clock_freq_u16;
 	struct tonga_smumgr *smu_data =
-				(struct tonga_smumgr *)(hwmgr->smumgr->backend);
+				(struct tonga_smumgr *)(hwmgr->smu_backend);
 	uint8_t type, i, j, cks_setting, stretch_amount, stretch_amount2,
 			volt_offset = 0;
 	struct phm_ppt_v1_information *table_info =
@@ -1784,7 +1784,7 @@ static int tonga_populate_vr_config(struct pp_hwmgr *hwmgr,
  */
 static int tonga_init_arb_table_index(struct pp_hwmgr *hwmgr)
 {
-	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smumgr->backend);
+	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smu_backend);
 	uint32_t tmp;
 	int result;
 
@@ -1814,7 +1814,7 @@ static int tonga_init_arb_table_index(struct pp_hwmgr *hwmgr)
 static int tonga_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 {
 	struct tonga_smumgr *smu_data =
-				(struct tonga_smumgr *)(hwmgr->smumgr->backend);
+				(struct tonga_smumgr *)(hwmgr->smu_backend);
 	const struct tonga_pt_defaults *defaults = smu_data->power_tune_defaults;
 	SMU72_Discrete_DpmTable  *dpm_table = &(smu_data->smc_state_table);
 	struct phm_ppt_v1_information *table_info =
@@ -1861,7 +1861,7 @@ static int tonga_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 static int tonga_populate_svi_load_line(struct pp_hwmgr *hwmgr)
 {
 	struct tonga_smumgr *smu_data =
-				(struct tonga_smumgr *)(hwmgr->smumgr->backend);
+				(struct tonga_smumgr *)(hwmgr->smu_backend);
 	const struct tonga_pt_defaults *defaults = smu_data->power_tune_defaults;
 
 	smu_data->power_tune_table.SviLoadLineEn = defaults->svi_load_line_en;
@@ -1876,7 +1876,7 @@ static int tonga_populate_tdc_limit(struct pp_hwmgr *hwmgr)
 {
 	uint16_t tdc_limit;
 	struct tonga_smumgr *smu_data =
-				(struct tonga_smumgr *)(hwmgr->smumgr->backend);
+				(struct tonga_smumgr *)(hwmgr->smu_backend);
 	const struct tonga_pt_defaults *defaults = smu_data->power_tune_defaults;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -1897,7 +1897,7 @@ static int tonga_populate_tdc_limit(struct pp_hwmgr *hwmgr)
 static int tonga_populate_dw8(struct pp_hwmgr *hwmgr, uint32_t fuse_table_offset)
 {
 	struct tonga_smumgr *smu_data =
-			(struct tonga_smumgr *)(hwmgr->smumgr->backend);
+			(struct tonga_smumgr *)(hwmgr->smu_backend);
 	const struct tonga_pt_defaults *defaults = smu_data->power_tune_defaults;
 	uint32_t temp;
 
@@ -1919,7 +1919,7 @@ static int tonga_populate_temperature_scaler(struct pp_hwmgr *hwmgr)
 {
 	int i;
 	struct tonga_smumgr *smu_data =
-				(struct tonga_smumgr *)(hwmgr->smumgr->backend);
+				(struct tonga_smumgr *)(hwmgr->smu_backend);
 
 	/* Currently not used. Set all to zero. */
 	for (i = 0; i < 16; i++)
@@ -1930,7 +1930,7 @@ static int tonga_populate_temperature_scaler(struct pp_hwmgr *hwmgr)
 
 static int tonga_populate_fuzzy_fan(struct pp_hwmgr *hwmgr)
 {
-	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smumgr->backend);
+	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smu_backend);
 
 	if ((hwmgr->thermal_controller.advanceFanControlParameters.
 			usFanOutputSensitivity & (1 << 15)) ||
@@ -1949,7 +1949,7 @@ static int tonga_populate_gnb_lpml(struct pp_hwmgr *hwmgr)
 {
 	int i;
 	struct tonga_smumgr *smu_data =
-				(struct tonga_smumgr *)(hwmgr->smumgr->backend);
+				(struct tonga_smumgr *)(hwmgr->smu_backend);
 
 	/* Currently not used. Set all to zero. */
 	for (i = 0; i < 16; i++)
@@ -1961,7 +1961,7 @@ static int tonga_populate_gnb_lpml(struct pp_hwmgr *hwmgr)
 static int tonga_populate_bapm_vddc_base_leakage_sidd(struct pp_hwmgr *hwmgr)
 {
 	struct tonga_smumgr *smu_data =
-				(struct tonga_smumgr *)(hwmgr->smumgr->backend);
+				(struct tonga_smumgr *)(hwmgr->smu_backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	uint16_t hi_sidd = smu_data->power_tune_table.BapmVddCBaseLeakageHiSidd;
@@ -1982,7 +1982,7 @@ static int tonga_populate_bapm_vddc_base_leakage_sidd(struct pp_hwmgr *hwmgr)
 static int tonga_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 {
 	struct tonga_smumgr *smu_data =
-				(struct tonga_smumgr *)(hwmgr->smumgr->backend);
+				(struct tonga_smumgr *)(hwmgr->smu_backend);
 	uint32_t pm_fuse_table_offset;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
@@ -2051,7 +2051,7 @@ static int tonga_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 static int tonga_populate_mc_reg_address(struct pp_hwmgr *hwmgr,
 				 SMU72_Discrete_MCRegisters *mc_reg_table)
 {
-	const struct tonga_smumgr *smu_data = (struct tonga_smumgr *)hwmgr->smumgr->backend;
+	const struct tonga_smumgr *smu_data = (struct tonga_smumgr *)hwmgr->smu_backend;
 
 	uint32_t i, j;
 
@@ -2097,7 +2097,7 @@ static int tonga_convert_mc_reg_table_entry_to_smc(
 		SMU72_Discrete_MCRegisterSet *mc_reg_table_data
 		)
 {
-	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smumgr->backend);
+	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smu_backend);
 	uint32_t i = 0;
 
 	for (i = 0; i < smu_data->mc_reg_table.num_entries; i++) {
@@ -2141,7 +2141,7 @@ static int tonga_convert_mc_reg_table_to_smc(struct pp_hwmgr *hwmgr,
 
 static int tonga_update_and_upload_mc_reg_table(struct pp_hwmgr *hwmgr)
 {
-	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smumgr->backend);
+	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smu_backend);
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	uint32_t address;
 	int32_t result;
@@ -2172,7 +2172,7 @@ static int tonga_update_and_upload_mc_reg_table(struct pp_hwmgr *hwmgr)
 static int tonga_populate_initial_mc_reg_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
-	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smumgr->backend);
+	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smu_backend);
 
 	memset(&smu_data->mc_regs, 0x00, sizeof(SMU72_Discrete_MCRegisters));
 	result = tonga_populate_mc_reg_address(hwmgr, &(smu_data->mc_regs));
@@ -2191,7 +2191,7 @@ static int tonga_populate_initial_mc_reg_table(struct pp_hwmgr *hwmgr)
 
 static void tonga_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 {
-	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smumgr->backend);
+	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smu_backend);
 	struct  phm_ppt_v1_information *table_info =
 			(struct  phm_ppt_v1_information *)(hwmgr->pptable);
 
@@ -2207,7 +2207,7 @@ static void tonga_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 
 static void tonga_save_default_power_profile(struct pp_hwmgr *hwmgr)
 {
-	struct tonga_smumgr *data = (struct tonga_smumgr *)(hwmgr->smumgr->backend);
+	struct tonga_smumgr *data = (struct tonga_smumgr *)(hwmgr->smu_backend);
 	struct SMU72_Discrete_GraphicsLevel *levels =
 				data->smc_state_table.GraphicsLevel;
 	unsigned min_level = 1;
@@ -2253,7 +2253,7 @@ int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 	int result;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct tonga_smumgr *smu_data =
-			(struct tonga_smumgr *)(hwmgr->smumgr->backend);
+			(struct tonga_smumgr *)(hwmgr->smu_backend);
 	SMU72_Discrete_DpmTable *table = &(smu_data->smc_state_table);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -2507,7 +2507,7 @@ int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 int tonga_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 {
 	struct tonga_smumgr *smu_data =
-			(struct tonga_smumgr *)(hwmgr->smumgr->backend);
+			(struct tonga_smumgr *)(hwmgr->smu_backend);
 	SMU72_Discrete_FanTable fan_table = { FDO_MODE_HARDWARE };
 	uint32_t duty100;
 	uint32_t t_diff1, t_diff2, pwm_diff1, pwm_diff2;
@@ -2611,7 +2611,7 @@ int tonga_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct tonga_smumgr *smu_data =
-			(struct tonga_smumgr *)(hwmgr->smumgr->backend);
+			(struct tonga_smumgr *)(hwmgr->smu_backend);
 
 	int result = 0;
 	uint32_t low_sclk_interrupt_threshold = 0;
@@ -2714,7 +2714,7 @@ uint32_t tonga_get_mac_definition(uint32_t value)
 static int tonga_update_uvd_smc_table(struct pp_hwmgr *hwmgr)
 {
 	struct tonga_smumgr *smu_data =
-				(struct tonga_smumgr *)(hwmgr->smumgr->backend);
+				(struct tonga_smumgr *)(hwmgr->smu_backend);
 	uint32_t mm_boot_level_offset, mm_boot_level_value;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -2748,7 +2748,7 @@ static int tonga_update_uvd_smc_table(struct pp_hwmgr *hwmgr)
 static int tonga_update_vce_smc_table(struct pp_hwmgr *hwmgr)
 {
 	struct tonga_smumgr *smu_data =
-				(struct tonga_smumgr *)(hwmgr->smumgr->backend);
+				(struct tonga_smumgr *)(hwmgr->smu_backend);
 	uint32_t mm_boot_level_offset, mm_boot_level_value;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -2778,7 +2778,7 @@ static int tonga_update_vce_smc_table(struct pp_hwmgr *hwmgr)
 
 static int tonga_update_samu_smc_table(struct pp_hwmgr *hwmgr)
 {
-	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smumgr->backend);
+	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smu_backend);
 	uint32_t mm_boot_level_offset, mm_boot_level_value;
 
 	smu_data->smc_state_table.SamuBootLevel = 0;
@@ -2830,7 +2830,7 @@ int tonga_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type)
 int tonga_process_firmware_header(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smumgr->backend);
+	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smu_backend);
 
 	uint32_t tmp;
 	int result;
@@ -3156,7 +3156,7 @@ static int tonga_set_valid_flag(struct tonga_mc_reg_table *table)
 int tonga_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
-	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smumgr->backend);
+	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smu_backend);
 	pp_atomctrl_mc_reg_table *table;
 	struct tonga_mc_reg_table *ni_table = &smu_data->mc_reg_table;
 	uint8_t module_index = tonga_get_memory_modile_index(hwmgr);
@@ -3239,7 +3239,7 @@ int tonga_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
 		struct amd_pp_profile *request)
 {
 	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)
-			(hwmgr->smumgr->backend);
+			(hwmgr->smu_backend);
 	struct SMU72_Discrete_GraphicsLevel *levels =
 			smu_data->smc_state_table.GraphicsLevel;
 	uint32_t array = smu_data->smu7_data.dpm_table_start +

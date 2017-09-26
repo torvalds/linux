@@ -159,7 +159,7 @@ int rv_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id)
 {
 	struct rv_smumgr *priv =
-			(struct rv_smumgr *)(hwmgr->smumgr->backend);
+			(struct rv_smumgr *)(hwmgr->smu_backend);
 
 	PP_ASSERT_WITH_CODE(table_id < MAX_SMU_TABLE,
 			"Invalid SMU Table ID!", return -EINVAL;);
@@ -192,7 +192,7 @@ int rv_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id)
 {
 	struct rv_smumgr *priv =
-			(struct rv_smumgr *)(hwmgr->smumgr->backend);
+			(struct rv_smumgr *)(hwmgr->smu_backend);
 
 	PP_ASSERT_WITH_CODE(table_id < MAX_SMU_TABLE,
 			"Invalid SMU Table ID!", return -EINVAL;);
@@ -287,7 +287,7 @@ static int rv_smc_disable_vcn(struct pp_hwmgr *hwmgr)
 static int rv_smu_fini(struct pp_hwmgr *hwmgr)
 {
 	struct rv_smumgr *priv =
-			(struct rv_smumgr *)(hwmgr->smumgr->backend);
+			(struct rv_smumgr *)(hwmgr->smu_backend);
 
 	if (priv) {
 		rv_smc_disable_sdma(hwmgr);
@@ -296,8 +296,8 @@ static int rv_smu_fini(struct pp_hwmgr *hwmgr)
 				priv->smu_tables.entry[WMTABLE].handle);
 		cgs_free_gpu_mem(hwmgr->device,
 				priv->smu_tables.entry[CLOCKTABLE].handle);
-		kfree(hwmgr->smumgr->backend);
-		hwmgr->smumgr->backend = NULL;
+		kfree(hwmgr->smu_backend);
+		hwmgr->smu_backend = NULL;
 	}
 
 	return 0;
@@ -327,7 +327,7 @@ static int rv_smu_init(struct pp_hwmgr *hwmgr)
 	if (!priv)
 		return -ENOMEM;
 
-	hwmgr->smumgr->backend = priv;
+	hwmgr->smu_backend = priv;
 
 	/* allocate space for watermarks table */
 	smu_allocate_memory(hwmgr->device,
@@ -340,8 +340,8 @@ static int rv_smu_init(struct pp_hwmgr *hwmgr)
 
 	PP_ASSERT_WITH_CODE(kaddr,
 			"[rv_smu_init] Out of memory for wmtable.",
-			kfree(hwmgr->smumgr->backend);
-			hwmgr->smumgr->backend = NULL;
+			kfree(hwmgr->smu_backend);
+			hwmgr->smu_backend = NULL;
 			return -EINVAL);
 
 	priv->smu_tables.entry[WMTABLE].version = 0x01;
@@ -367,8 +367,8 @@ static int rv_smu_init(struct pp_hwmgr *hwmgr)
 			"[rv_smu_init] Out of memory for CLOCKTABLE.",
 			cgs_free_gpu_mem(hwmgr->device,
 			(cgs_handle_t)priv->smu_tables.entry[WMTABLE].handle);
-			kfree(hwmgr->smumgr->backend);
-			hwmgr->smumgr->backend = NULL;
+			kfree(hwmgr->smu_backend);
+			hwmgr->smu_backend = NULL;
 			return -EINVAL);
 
 	priv->smu_tables.entry[CLOCKTABLE].version = 0x01;

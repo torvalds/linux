@@ -67,7 +67,7 @@ static int polaris10_setup_pwr_virus(struct pp_hwmgr *hwmgr)
 	uint32_t reg, data;
 
 	const PWR_Command_Table *pvirus = pwr_virus_table;
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smumgr->backend);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 
 	for (i = 0; i < PWR_VIRUS_TABLE_SIZE; i++) {
 		switch (pvirus->command) {
@@ -96,7 +96,7 @@ static int polaris10_setup_pwr_virus(struct pp_hwmgr *hwmgr)
 static int polaris10_perform_btc(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smumgr->backend);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 
 	if (0 != smu_data->avfs.avfs_btc_param) {
 		if (0 != smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_PerformBtc, smu_data->avfs.avfs_btc_param)) {
@@ -174,7 +174,7 @@ static int polaris10_setup_graphics_level_structure(struct pp_hwmgr *hwmgr)
 static int
 polaris10_avfs_event_mgr(struct pp_hwmgr *hwmgr, bool SMU_VFT_INTACT)
 {
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smumgr->backend);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 
 	switch (smu_data->avfs.avfs_btc_status) {
 	case AVFS_BTC_COMPLETED_PREVIOUSLY:
@@ -310,7 +310,7 @@ static int polaris10_start_smu_in_non_protection_mode(struct pp_hwmgr *hwmgr)
 static int polaris10_start_smu(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	bool SMU_VFT_INTACT;
 
 	/* Only start SMC if SMC RAM is not running */
@@ -371,7 +371,7 @@ static int polaris10_smu_init(struct pp_hwmgr *hwmgr)
 	if (smu_data == NULL)
 		return -ENOMEM;
 
-	hwmgr->smumgr->backend = smu_data;
+	hwmgr->smu_backend = smu_data;
 
 	if (smu7_init(hwmgr))
 		return -EINVAL;

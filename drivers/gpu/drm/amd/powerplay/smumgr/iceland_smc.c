@@ -101,7 +101,7 @@ static const struct iceland_pt_defaults defaults_icelandpro = {
 
 static void iceland_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 {
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 	struct cgs_system_info sys_info = {0};
 	uint32_t dev_id;
 
@@ -130,7 +130,7 @@ static void iceland_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 
 static int iceland_populate_svi_load_line(struct pp_hwmgr *hwmgr)
 {
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 	const struct iceland_pt_defaults *defaults = smu_data->power_tune_defaults;
 
 	smu_data->power_tune_table.SviLoadLineEn = defaults->svi_load_line_en;
@@ -144,7 +144,7 @@ static int iceland_populate_svi_load_line(struct pp_hwmgr *hwmgr)
 static int iceland_populate_tdc_limit(struct pp_hwmgr *hwmgr)
 {
 	uint16_t tdc_limit;
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 	const struct iceland_pt_defaults *defaults = smu_data->power_tune_defaults;
 
 	tdc_limit = (uint16_t)(hwmgr->dyn_state.cac_dtp_table->usTDC * 256);
@@ -159,7 +159,7 @@ static int iceland_populate_tdc_limit(struct pp_hwmgr *hwmgr)
 
 static int iceland_populate_dw8(struct pp_hwmgr *hwmgr, uint32_t fuse_table_offset)
 {
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 	const struct iceland_pt_defaults *defaults = smu_data->power_tune_defaults;
 	uint32_t temp;
 
@@ -184,7 +184,7 @@ static int iceland_populate_temperature_scaler(struct pp_hwmgr *hwmgr)
 static int iceland_populate_gnb_lpml(struct pp_hwmgr *hwmgr)
 {
 	int i;
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 
 	/* Currently not used. Set all to zero. */
 	for (i = 0; i < 8; i++)
@@ -195,7 +195,7 @@ static int iceland_populate_gnb_lpml(struct pp_hwmgr *hwmgr)
 
 static int iceland_populate_bapm_vddc_base_leakage_sidd(struct pp_hwmgr *hwmgr)
 {
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 	uint16_t HiSidd = smu_data->power_tune_table.BapmVddCBaseLeakageHiSidd;
 	uint16_t LoSidd = smu_data->power_tune_table.BapmVddCBaseLeakageLoSidd;
 	struct phm_cac_tdp_table *cac_table = hwmgr->dyn_state.cac_dtp_table;
@@ -214,7 +214,7 @@ static int iceland_populate_bapm_vddc_base_leakage_sidd(struct pp_hwmgr *hwmgr)
 static int iceland_populate_bapm_vddc_vid_sidd(struct pp_hwmgr *hwmgr)
 {
 	int i;
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 	uint8_t *hi_vid = smu_data->power_tune_table.BapmVddCVidHiSidd;
 	uint8_t *lo_vid = smu_data->power_tune_table.BapmVddCVidLoSidd;
 
@@ -240,7 +240,7 @@ static int iceland_populate_bapm_vddc_vid_sidd(struct pp_hwmgr *hwmgr)
 static int iceland_populate_vddc_vid(struct pp_hwmgr *hwmgr)
 {
 	int i;
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 	uint8_t *vid = smu_data->power_tune_table.VddCVid;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
@@ -259,7 +259,7 @@ static int iceland_populate_vddc_vid(struct pp_hwmgr *hwmgr)
 
 static int iceland_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 {
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 	uint32_t pm_fuse_table_offset;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
@@ -590,7 +590,7 @@ static int iceland_populate_smc_link_level(struct pp_hwmgr *hwmgr, SMU71_Discret
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct smu7_dpm_table *dpm_table = &data->dpm_table;
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 	uint32_t i;
 
 	/* Index (dpm_table->pcie_speed_table.count) is reserved for PCIE boot level. */
@@ -805,7 +805,7 @@ static int iceland_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 int iceland_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 	struct smu7_dpm_table *dpm_table = &data->dpm_table;
 	uint32_t level_array_adress = smu_data->smu7_data.dpm_table_start +
 				offsetof(SMU71_Discrete_DpmTable, GraphicsLevel);
@@ -1207,7 +1207,7 @@ static int iceland_populate_single_memory_level(
 int iceland_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 	struct smu7_dpm_table *dpm_table = &data->dpm_table;
 	int result;
 
@@ -1485,7 +1485,7 @@ static int iceland_populate_memory_timing_parameters(
 static int iceland_program_memory_timing_parameters(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 	int result = 0;
 	SMU71_Discrete_MCArbDramTimingTable  arb_regs;
 	uint32_t i, j;
@@ -1523,7 +1523,7 @@ static int iceland_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 {
 	int result = 0;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 	table->GraphicsBootLevel = 0;
 	table->MemoryBootLevel = 0;
 
@@ -1564,7 +1564,7 @@ static int iceland_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 static int iceland_populate_mc_reg_address(struct pp_hwmgr *hwmgr,
 				 SMU71_Discrete_MCRegisters *mc_reg_table)
 {
-	const struct iceland_smumgr *smu_data = (struct iceland_smumgr *)hwmgr->smumgr->backend;
+	const struct iceland_smumgr *smu_data = (struct iceland_smumgr *)hwmgr->smu_backend;
 
 	uint32_t i, j;
 
@@ -1606,7 +1606,7 @@ static int iceland_convert_mc_reg_table_entry_to_smc(struct pp_hwmgr *hwmgr,
 		SMU71_Discrete_MCRegisterSet *mc_reg_table_data
 		)
 {
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 	uint32_t i = 0;
 
 	for (i = 0; i < smu_data->mc_reg_table.num_entries; i++) {
@@ -1650,7 +1650,7 @@ static int iceland_convert_mc_reg_table_to_smc(struct pp_hwmgr *hwmgr,
 
 static int iceland_update_and_upload_mc_reg_table(struct pp_hwmgr *hwmgr)
 {
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	uint32_t address;
 	int32_t result;
@@ -1678,7 +1678,7 @@ static int iceland_update_and_upload_mc_reg_table(struct pp_hwmgr *hwmgr)
 static int iceland_populate_initial_mc_reg_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 
 	memset(&smu_data->mc_regs, 0x00, sizeof(SMU71_Discrete_MCRegisters));
 	result = iceland_populate_mc_reg_address(hwmgr, &(smu_data->mc_regs));
@@ -1696,7 +1696,7 @@ static int iceland_populate_initial_mc_reg_table(struct pp_hwmgr *hwmgr)
 static int iceland_populate_smc_initial_state(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 	uint8_t count, level;
 
 	count = (uint8_t)(hwmgr->dyn_state.vddc_dependency_on_sclk->count);
@@ -1725,7 +1725,7 @@ static int iceland_populate_smc_initial_state(struct pp_hwmgr *hwmgr)
 static int iceland_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 	const struct iceland_pt_defaults *defaults = smu_data->power_tune_defaults;
 	SMU71_Discrete_DpmTable  *dpm_table = &(smu_data->smc_state_table);
 	struct phm_cac_tdp_table *cac_dtp_table = hwmgr->dyn_state.cac_dtp_table;
@@ -1813,7 +1813,7 @@ int iceland_init_smc_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 	SMU71_Discrete_DpmTable  *table = &(smu_data->smc_state_table);
 
 
@@ -1980,7 +1980,7 @@ int iceland_init_smc_table(struct pp_hwmgr *hwmgr)
 */
 int iceland_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 {
-	struct smu7_smumgr *smu7_data = (struct smu7_smumgr *)(hwmgr->smumgr->backend);
+	struct smu7_smumgr *smu7_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 	SMU71_Discrete_FanTable fan_table = { FDO_MODE_HARDWARE };
 	uint32_t duty100;
 	uint32_t t_diff1, t_diff2, pwm_diff1, pwm_diff2;
@@ -2070,7 +2070,7 @@ static int iceland_program_mem_timing_parameters(struct pp_hwmgr *hwmgr)
 int iceland_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 
 	int result = 0;
 	uint32_t low_sclk_interrupt_threshold = 0;
@@ -2168,7 +2168,7 @@ uint32_t iceland_get_mac_definition(uint32_t value)
 int iceland_process_firmware_header(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct smu7_smumgr *smu7_data = (struct smu7_smumgr *)(hwmgr->smumgr->backend);
+	struct smu7_smumgr *smu7_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 
 	uint32_t tmp;
 	int result;
@@ -2508,7 +2508,7 @@ static int iceland_set_valid_flag(struct iceland_mc_reg_table *table)
 int iceland_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
 	pp_atomctrl_mc_reg_table *table;
 	struct iceland_mc_reg_table *ni_table = &smu_data->mc_reg_table;
 	uint8_t module_index = iceland_get_memory_modile_index(hwmgr);

@@ -198,7 +198,7 @@ static void get_scl_sda_value(uint8_t line, uint8_t *scl, uint8_t *sda)
 
 static void fiji_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 {
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct  phm_ppt_v1_information *)(hwmgr->pptable);
 
@@ -216,7 +216,7 @@ static void fiji_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 static int fiji_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 {
 
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 	const struct fiji_pt_defaults *defaults = smu_data->power_tune_defaults;
 
 	SMU73_Discrete_DpmTable  *dpm_table = &(smu_data->smc_state_table);
@@ -299,7 +299,7 @@ static int fiji_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 
 static int fiji_populate_svi_load_line(struct pp_hwmgr *hwmgr)
 {
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 	const struct fiji_pt_defaults *defaults = smu_data->power_tune_defaults;
 
 	smu_data->power_tune_table.SviLoadLineEn = defaults->SviLoadLineEn;
@@ -314,7 +314,7 @@ static int fiji_populate_svi_load_line(struct pp_hwmgr *hwmgr)
 static int fiji_populate_tdc_limit(struct pp_hwmgr *hwmgr)
 {
 	uint16_t tdc_limit;
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	const struct fiji_pt_defaults *defaults = smu_data->power_tune_defaults;
@@ -334,7 +334,7 @@ static int fiji_populate_tdc_limit(struct pp_hwmgr *hwmgr)
 
 static int fiji_populate_dw8(struct pp_hwmgr *hwmgr, uint32_t fuse_table_offset)
 {
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 	const struct fiji_pt_defaults *defaults = smu_data->power_tune_defaults;
 	uint32_t temp;
 
@@ -359,7 +359,7 @@ static int fiji_populate_dw8(struct pp_hwmgr *hwmgr, uint32_t fuse_table_offset)
 static int fiji_populate_temperature_scaler(struct pp_hwmgr *hwmgr)
 {
 	int i;
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 
 	/* Currently not used. Set all to zero. */
 	for (i = 0; i < 16; i++)
@@ -370,7 +370,7 @@ static int fiji_populate_temperature_scaler(struct pp_hwmgr *hwmgr)
 
 static int fiji_populate_fuzzy_fan(struct pp_hwmgr *hwmgr)
 {
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 
 	if ((hwmgr->thermal_controller.advanceFanControlParameters.
 			usFanOutputSensitivity & (1 << 15)) ||
@@ -389,7 +389,7 @@ static int fiji_populate_fuzzy_fan(struct pp_hwmgr *hwmgr)
 static int fiji_populate_gnb_lpml(struct pp_hwmgr *hwmgr)
 {
 	int i;
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 
 	/* Currently not used. Set all to zero. */
 	for (i = 0; i < 16; i++)
@@ -400,7 +400,7 @@ static int fiji_populate_gnb_lpml(struct pp_hwmgr *hwmgr)
 
 static int fiji_populate_bapm_vddc_base_leakage_sidd(struct pp_hwmgr *hwmgr)
 {
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	uint16_t HiSidd = smu_data->power_tune_table.BapmVddCBaseLeakageHiSidd;
@@ -421,7 +421,7 @@ static int fiji_populate_bapm_vddc_base_leakage_sidd(struct pp_hwmgr *hwmgr)
 static int fiji_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 {
 	uint32_t pm_fuse_table_offset;
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_PowerContainment)) {
@@ -575,7 +575,7 @@ static int fiji_populate_smc_link_level(struct pp_hwmgr *hwmgr,
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct smu7_dpm_table *dpm_table = &data->dpm_table;
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 	int i;
 
 	/* Index (dpm_table->pcie_speed_table.count)
@@ -763,7 +763,7 @@ static int fiji_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 int fiji_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 
 	struct smu7_dpm_table *dpm_table = &data->dpm_table;
 	struct phm_ppt_v1_information *table_info =
@@ -989,7 +989,7 @@ static int fiji_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 int fiji_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 	struct smu7_dpm_table *dpm_table = &data->dpm_table;
 	int result;
 	/* populate MCLK dpm table to SMU7 */
@@ -1341,7 +1341,7 @@ static int fiji_populate_memory_timing_parameters(struct pp_hwmgr *hwmgr,
 static int fiji_program_memory_timing_parameters(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 	struct SMU73_Discrete_MCArbDramTimingTable arb_regs;
 	uint32_t i, j;
 	int result = 0;
@@ -1449,7 +1449,7 @@ static int fiji_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 static int fiji_populate_smc_initailial_state(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	uint8_t count, level;
@@ -1480,7 +1480,7 @@ static int fiji_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 	uint32_t ro, efuse, efuse2, clock_freq, volt_without_cks,
 			volt_with_cks, value;
 	uint16_t clock_freq_u16;
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 	uint8_t type, i, j, cks_setting, stretch_amount, stretch_amount2,
 			volt_offset = 0;
 	struct phm_ppt_v1_information *table_info =
@@ -1685,7 +1685,7 @@ static int fiji_populate_vr_config(struct pp_hwmgr *hwmgr,
 
 static int fiji_init_arb_table_index(struct pp_hwmgr *hwmgr)
 {
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 	uint32_t tmp;
 	int result;
 
@@ -1712,7 +1712,7 @@ static int fiji_init_arb_table_index(struct pp_hwmgr *hwmgr)
 
 static int fiji_save_default_power_profile(struct pp_hwmgr *hwmgr)
 {
-	struct fiji_smumgr *data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 	struct SMU73_Discrete_GraphicsLevel *levels =
 				data->smc_state_table.GraphicsLevel;
 	unsigned min_level = 1;
@@ -1788,7 +1788,7 @@ int fiji_init_smc_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct SMU73_Discrete_DpmTable *table = &(smu_data->smc_state_table);
@@ -2011,7 +2011,7 @@ int fiji_init_smc_table(struct pp_hwmgr *hwmgr)
 */
 int fiji_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 {
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 
 	SMU73_Discrete_FanTable fan_table = { FDO_MODE_HARDWARE };
 	uint32_t duty100;
@@ -2122,7 +2122,7 @@ int fiji_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 int fiji_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 {
 	int ret;
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smumgr->backend);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 
 	if (smu_data->avfs.avfs_btc_status != AVFS_BTC_ENABLEAVFS)
 		return 0;
@@ -2150,7 +2150,7 @@ static int fiji_program_mem_timing_parameters(struct pp_hwmgr *hwmgr)
 int fiji_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 
 	int result = 0;
 	uint32_t low_sclk_interrupt_threshold = 0;
@@ -2244,7 +2244,7 @@ uint32_t fiji_get_mac_definition(uint32_t value)
 
 static int fiji_update_uvd_smc_table(struct pp_hwmgr *hwmgr)
 {
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 	uint32_t mm_boot_level_offset, mm_boot_level_value;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -2276,7 +2276,7 @@ static int fiji_update_uvd_smc_table(struct pp_hwmgr *hwmgr)
 
 static int fiji_update_vce_smc_table(struct pp_hwmgr *hwmgr)
 {
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 	uint32_t mm_boot_level_offset, mm_boot_level_value;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -2308,7 +2308,7 @@ static int fiji_update_vce_smc_table(struct pp_hwmgr *hwmgr)
 
 static int fiji_update_samu_smc_table(struct pp_hwmgr *hwmgr)
 {
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 	uint32_t mm_boot_level_offset, mm_boot_level_value;
 
 
@@ -2361,7 +2361,7 @@ int fiji_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type)
 int fiji_process_firmware_header(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
 	uint32_t tmp;
 	int result;
 	bool error = false;
@@ -2464,7 +2464,7 @@ int fiji_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
 		struct amd_pp_profile *request)
 {
 	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)
-			(hwmgr->smumgr->backend);
+			(hwmgr->smu_backend);
 	struct SMU73_Discrete_GraphicsLevel *levels =
 			smu_data->smc_state_table.GraphicsLevel;
 	uint32_t array = smu_data->smu7_data.dpm_table_start +

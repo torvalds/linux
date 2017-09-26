@@ -148,7 +148,7 @@ static uint16_t scale_fan_gain_settings(uint16_t raw_setting)
 
 static int polaris10_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 
 	const struct polaris10_pt_defaults *defaults = smu_data->power_tune_defaults;
 	SMU74_Discrete_DpmTable  *table = &(smu_data->smc_state_table);
@@ -196,7 +196,7 @@ static int polaris10_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmg
 
 static int polaris10_populate_svi_load_line(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	const struct polaris10_pt_defaults *defaults = smu_data->power_tune_defaults;
 
 	smu_data->power_tune_table.SviLoadLineEn = defaults->SviLoadLineEn;
@@ -210,7 +210,7 @@ static int polaris10_populate_svi_load_line(struct pp_hwmgr *hwmgr)
 static int polaris10_populate_tdc_limit(struct pp_hwmgr *hwmgr)
 {
 	uint16_t tdc_limit;
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	const struct polaris10_pt_defaults *defaults = smu_data->power_tune_defaults;
@@ -227,7 +227,7 @@ static int polaris10_populate_tdc_limit(struct pp_hwmgr *hwmgr)
 
 static int polaris10_populate_dw8(struct pp_hwmgr *hwmgr, uint32_t fuse_table_offset)
 {
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	const struct polaris10_pt_defaults *defaults = smu_data->power_tune_defaults;
 	uint32_t temp;
 
@@ -252,7 +252,7 @@ static int polaris10_populate_dw8(struct pp_hwmgr *hwmgr, uint32_t fuse_table_of
 static int polaris10_populate_temperature_scaler(struct pp_hwmgr *hwmgr)
 {
 	int i;
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 
 	/* Currently not used. Set all to zero. */
 	for (i = 0; i < 16; i++)
@@ -263,7 +263,7 @@ static int polaris10_populate_temperature_scaler(struct pp_hwmgr *hwmgr)
 
 static int polaris10_populate_fuzzy_fan(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 
 /* TO DO move to hwmgr */
 	if ((hwmgr->thermal_controller.advanceFanControlParameters.usFanOutputSensitivity & (1 << 15))
@@ -279,7 +279,7 @@ static int polaris10_populate_fuzzy_fan(struct pp_hwmgr *hwmgr)
 static int polaris10_populate_gnb_lpml(struct pp_hwmgr *hwmgr)
 {
 	int i;
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 
 	/* Currently not used. Set all to zero. */
 	for (i = 0; i < 16; i++)
@@ -290,7 +290,7 @@ static int polaris10_populate_gnb_lpml(struct pp_hwmgr *hwmgr)
 
 static int polaris10_populate_bapm_vddc_base_leakage_sidd(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	uint16_t hi_sidd = smu_data->power_tune_table.BapmVddCBaseLeakageHiSidd;
@@ -310,7 +310,7 @@ static int polaris10_populate_bapm_vddc_base_leakage_sidd(struct pp_hwmgr *hwmgr
 
 static int polaris10_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	uint32_t pm_fuse_table_offset;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
@@ -492,7 +492,7 @@ static int polaris10_populate_ulv_level(struct pp_hwmgr *hwmgr,
 	state->VddcOffsetVid = (uint8_t)(table_info->us_ulv_voltage_offset *
 			VOLTAGE_VID_OFFSET_SCALE2 / VOLTAGE_VID_OFFSET_SCALE1);
 
-	if (hwmgr->chip_id == CHIP_POLARIS12 || hwmgr->smumgr->is_kicker)
+	if (hwmgr->chip_id == CHIP_POLARIS12 || hwmgr->is_kicker)
 		state->VddcPhase = data->vddc_phase_shed_control ^ 0x3;
 	else
 		state->VddcPhase = (data->vddc_phase_shed_control) ? 0 : 1;
@@ -514,7 +514,7 @@ static int polaris10_populate_smc_link_level(struct pp_hwmgr *hwmgr,
 		struct SMU74_Discrete_DpmTable *table)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	struct smu7_dpm_table *dpm_table = &data->dpm_table;
 	int i;
 
@@ -545,7 +545,7 @@ static int polaris10_populate_smc_link_level(struct pp_hwmgr *hwmgr,
 static void polaris10_get_sclk_range_table(struct pp_hwmgr *hwmgr,
 				   SMU74_Discrete_DpmTable  *table)
 {
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	uint32_t i, ref_clk;
 
 	struct pp_atom_ctrl_sclk_range_table range_table_from_vbios = { { {0} } };
@@ -595,7 +595,7 @@ static void polaris10_get_sclk_range_table(struct pp_hwmgr *hwmgr,
 static int polaris10_calculate_sclk_params(struct pp_hwmgr *hwmgr,
 		uint32_t clock, SMU_SclkSetting *sclk_setting)
 {
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	const SMU74_Discrete_DpmTable *table = &(smu_data->smc_state_table);
 	struct pp_atomctrl_clock_dividers_ai dividers;
 	uint32_t ref_clock;
@@ -739,7 +739,7 @@ static int polaris10_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 int polaris10_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *hw_data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	struct smu7_dpm_table *dpm_table = &hw_data->dpm_table;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -887,7 +887,7 @@ static int polaris10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 int polaris10_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *hw_data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	struct smu7_dpm_table *dpm_table = &hw_data->dpm_table;
 	int result;
 	/* populate MCLK dpm table to SMU7 */
@@ -1187,7 +1187,7 @@ static int polaris10_populate_memory_timing_parameters(struct pp_hwmgr *hwmgr,
 static int polaris10_program_memory_timing_parameters(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *hw_data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	struct SMU74_Discrete_MCArbDramTimingTable arb_regs;
 	uint32_t i, j;
 	int result = 0;
@@ -1306,7 +1306,7 @@ static int polaris10_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 static int polaris10_populate_smc_initailial_state(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *hw_data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	uint8_t count, level;
@@ -1337,7 +1337,7 @@ static int polaris10_populate_smc_initailial_state(struct pp_hwmgr *hwmgr)
 static int polaris10_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 {
 	uint32_t ro, efuse, volt_without_cks, volt_with_cks, value, max, min;
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 
 	uint8_t i, stretch_amount, stretch_amount2, volt_offset = 0;
 	struct phm_ppt_v1_information *table_info =
@@ -1420,7 +1420,7 @@ static int polaris10_populate_vr_config(struct pp_hwmgr *hwmgr,
 		struct SMU74_Discrete_DpmTable *table)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	uint16_t config;
 
 	config = VR_MERGED_WITH_VDDC;
@@ -1464,7 +1464,7 @@ static int polaris10_populate_vr_config(struct pp_hwmgr *hwmgr,
 static int polaris10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 
 	SMU74_Discrete_DpmTable  *table = &(smu_data->smc_state_table);
 	int result = 0;
@@ -1552,7 +1552,7 @@ static int polaris10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 */
 static int polaris10_init_arb_table_index(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	uint32_t tmp;
 	int result;
 
@@ -1579,7 +1579,7 @@ static int polaris10_init_arb_table_index(struct pp_hwmgr *hwmgr)
 
 static void polaris10_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	struct  phm_ppt_v1_information *table_info =
 			(struct  phm_ppt_v1_information *)(hwmgr->pptable);
 
@@ -1596,7 +1596,7 @@ static void polaris10_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 
 static void polaris10_save_default_power_profile(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_smumgr *data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	struct SMU74_Discrete_GraphicsLevel *levels =
 				data->smc_state_table.GraphicsLevel;
 	unsigned min_level = 1;
@@ -1640,7 +1640,8 @@ int polaris10_init_smc_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
 	struct smu7_hwmgr *hw_data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
+
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct SMU74_Discrete_DpmTable *table = &(smu_data->smc_state_table);
@@ -1868,7 +1869,7 @@ static int polaris10_program_mem_timing_parameters(struct pp_hwmgr *hwmgr)
 int polaris10_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 {
 	int ret;
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smumgr->backend);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
 	if (smu_data->avfs.avfs_btc_status == AVFS_BTC_NOTSUPPORTED)
@@ -1898,7 +1899,7 @@ int polaris10_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 */
 int polaris10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	SMU74_Discrete_FanTable fan_table = { FDO_MODE_HARDWARE };
 	uint32_t duty100;
 	uint32_t t_diff1, t_diff2, pwm_diff1, pwm_diff2;
@@ -2006,7 +2007,7 @@ int polaris10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 
 static int polaris10_update_uvd_smc_table(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	uint32_t mm_boot_level_offset, mm_boot_level_value;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -2038,7 +2039,7 @@ static int polaris10_update_uvd_smc_table(struct pp_hwmgr *hwmgr)
 
 static int polaris10_update_vce_smc_table(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	uint32_t mm_boot_level_offset, mm_boot_level_value;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -2070,7 +2071,7 @@ static int polaris10_update_vce_smc_table(struct pp_hwmgr *hwmgr)
 
 static int polaris10_update_samu_smc_table(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	uint32_t mm_boot_level_offset, mm_boot_level_value;
 
 
@@ -2098,7 +2099,7 @@ static int polaris10_update_samu_smc_table(struct pp_hwmgr *hwmgr)
 
 static int polaris10_update_bif_smc_table(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct phm_ppt_v1_pcie_table *pcie_table = table_info->pcie_table;
@@ -2136,7 +2137,7 @@ int polaris10_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type)
 int polaris10_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 
 	int result = 0;
 	uint32_t low_sclk_interrupt_threshold = 0;
@@ -2241,7 +2242,7 @@ uint32_t polaris10_get_mac_definition(uint32_t value)
 */
 int polaris10_process_firmware_header(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	uint32_t tmp;
 	int result;
@@ -2321,7 +2322,7 @@ int polaris10_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
 		struct amd_pp_profile *request)
 {
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)
-			(hwmgr->smumgr->backend);
+			(hwmgr->smu_backend);
 	struct SMU74_Discrete_GraphicsLevel *levels =
 			smu_data->smc_state_table.GraphicsLevel;
 	uint32_t array = smu_data->smu7_data.dpm_table_start +

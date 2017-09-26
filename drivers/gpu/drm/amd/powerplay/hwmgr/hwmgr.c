@@ -37,6 +37,15 @@
 #include "amd_acpi.h"
 #include "pp_psm.h"
 
+extern const struct pp_smumgr_func ci_smu_funcs;
+extern const struct pp_smumgr_func cz_smu_funcs;
+extern const struct pp_smumgr_func iceland_smu_funcs;
+extern const struct pp_smumgr_func tonga_smu_funcs;
+extern const struct pp_smumgr_func fiji_smu_funcs;
+extern const struct pp_smumgr_func polaris10_smu_funcs;
+extern const struct pp_smumgr_func vega10_smu_funcs;
+extern const struct pp_smumgr_func rv_smu_funcs;
+
 extern int cz_init_function_pointers(struct pp_hwmgr *hwmgr);
 static int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr);
 static void hwmgr_init_default_caps(struct pp_hwmgr *hwmgr);
@@ -132,7 +141,6 @@ int hwmgr_early_init(struct pp_instance *handle)
 		return -ENOMEM;
 
 	handle->hwmgr = hwmgr;
-	hwmgr->smumgr = handle->smu_mgr;
 	hwmgr->device = handle->device;
 	hwmgr->chip_family = handle->chip_family;
 	hwmgr->chip_id = handle->chip_id;
@@ -144,9 +152,11 @@ int hwmgr_early_init(struct pp_instance *handle)
 	hwmgr_init_default_caps(hwmgr);
 	hwmgr_set_user_specify_caps(hwmgr);
 	hwmgr->fan_ctrl_is_in_default_mode = true;
+	hwmgr->reload_fw = 1;
 
 	switch (hwmgr->chip_family) {
 	case AMDGPU_FAMILY_CI:
+		hwmgr->smumgr_funcs = &ci_smu_funcs;
 		ci_set_asic_special_caps(hwmgr);
 		hwmgr->feature_mask &= ~(PP_VBI_TIME_SUPPORT_MASK |
 					PP_ENABLE_GFX_CG_THRU_SMU);
@@ -154,21 +164,25 @@ int hwmgr_early_init(struct pp_instance *handle)
 		smu7_init_function_pointers(hwmgr);
 		break;
 	case AMDGPU_FAMILY_CZ:
+		hwmgr->smumgr_funcs = &cz_smu_funcs;
 		cz_init_function_pointers(hwmgr);
 		break;
 	case AMDGPU_FAMILY_VI:
 		switch (hwmgr->chip_id) {
 		case CHIP_TOPAZ:
+			hwmgr->smumgr_funcs = &iceland_smu_funcs;
 			topaz_set_asic_special_caps(hwmgr);
 			hwmgr->feature_mask &= ~ (PP_VBI_TIME_SUPPORT_MASK |
 						PP_ENABLE_GFX_CG_THRU_SMU);
 			hwmgr->pp_table_version = PP_TABLE_V0;
 			break;
 		case CHIP_TONGA:
+			hwmgr->smumgr_funcs = &tonga_smu_funcs;
 			tonga_set_asic_special_caps(hwmgr);
 			hwmgr->feature_mask &= ~PP_VBI_TIME_SUPPORT_MASK;
 			break;
 		case CHIP_FIJI:
+			hwmgr->smumgr_funcs = &fiji_smu_funcs;
 			fiji_set_asic_special_caps(hwmgr);
 			hwmgr->feature_mask &= ~ (PP_VBI_TIME_SUPPORT_MASK |
 						PP_ENABLE_GFX_CG_THRU_SMU);
@@ -176,6 +190,7 @@ int hwmgr_early_init(struct pp_instance *handle)
 		case CHIP_POLARIS11:
 		case CHIP_POLARIS10:
 		case CHIP_POLARIS12:
+			hwmgr->smumgr_funcs = &polaris10_smu_funcs;
 			polaris_set_asic_special_caps(hwmgr);
 			hwmgr->feature_mask &= ~(PP_UVD_HANDSHAKE_MASK);
 			break;
@@ -187,6 +202,7 @@ int hwmgr_early_init(struct pp_instance *handle)
 	case AMDGPU_FAMILY_AI:
 		switch (hwmgr->chip_id) {
 		case CHIP_VEGA10:
+			hwmgr->smumgr_funcs = &vega10_smu_funcs;
 			vega10_hwmgr_init(hwmgr);
 			break;
 		default:
@@ -196,6 +212,7 @@ int hwmgr_early_init(struct pp_instance *handle)
 	case AMDGPU_FAMILY_RV:
 		switch (hwmgr->chip_id) {
 		case CHIP_RAVEN:
+			hwmgr->smumgr_funcs = &rv_smu_funcs;
 			rv_init_function_pointers(hwmgr);
 			break;
 		default:

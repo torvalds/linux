@@ -235,6 +235,39 @@ struct phm_vce_clock_voltage_dependency_table {
 	struct phm_vce_clock_voltage_dependency_record entries[1];
 };
 
+struct pp_smumgr_func {
+	int (*smu_init)(struct pp_hwmgr  *hwmgr);
+	int (*smu_fini)(struct pp_hwmgr  *hwmgr);
+	int (*start_smu)(struct pp_hwmgr  *hwmgr);
+	int (*check_fw_load_finish)(struct pp_hwmgr  *hwmgr,
+				    uint32_t firmware);
+	int (*request_smu_load_fw)(struct pp_hwmgr  *hwmgr);
+	int (*request_smu_load_specific_fw)(struct pp_hwmgr  *hwmgr,
+					    uint32_t firmware);
+	int (*get_argument)(struct pp_hwmgr  *hwmgr);
+	int (*send_msg_to_smc)(struct pp_hwmgr  *hwmgr, uint16_t msg);
+	int (*send_msg_to_smc_with_parameter)(struct pp_hwmgr  *hwmgr,
+					  uint16_t msg, uint32_t parameter);
+	int (*download_pptable_settings)(struct pp_hwmgr  *hwmgr,
+					 void **table);
+	int (*upload_pptable_settings)(struct pp_hwmgr  *hwmgr);
+	int (*update_smc_table)(struct pp_hwmgr *hwmgr, uint32_t type);
+	int (*process_firmware_header)(struct pp_hwmgr *hwmgr);
+	int (*update_sclk_threshold)(struct pp_hwmgr *hwmgr);
+	int (*thermal_setup_fan_table)(struct pp_hwmgr *hwmgr);
+	int (*thermal_avfs_enable)(struct pp_hwmgr *hwmgr);
+	int (*init_smc_table)(struct pp_hwmgr *hwmgr);
+	int (*populate_all_graphic_levels)(struct pp_hwmgr *hwmgr);
+	int (*populate_all_memory_levels)(struct pp_hwmgr *hwmgr);
+	int (*initialize_mc_reg_table)(struct pp_hwmgr *hwmgr);
+	uint32_t (*get_offsetof)(uint32_t type, uint32_t member);
+	uint32_t (*get_mac_definition)(uint32_t value);
+	bool (*is_dpm_running)(struct pp_hwmgr *hwmgr);
+	int (*populate_requested_graphic_levels)(struct pp_hwmgr *hwmgr,
+			struct amd_pp_profile *request);
+	bool (*is_hw_avfs_present)(struct pp_hwmgr  *hwmgr);
+};
+
 struct pp_hwmgr_func {
 	int (*backend_init)(struct pp_hwmgr *hw_mgr);
 	int (*backend_fini)(struct pp_hwmgr *hw_mgr);
@@ -706,10 +739,17 @@ struct pp_hwmgr {
 	void *pptable;
 	struct phm_platform_descriptor platform_descriptor;
 	void *backend;
+
+	void *smu_backend;
+	const struct pp_smumgr_func *smumgr_funcs;
+	bool is_kicker;
+	bool reload_fw;
+
 	enum PP_DAL_POWERLEVEL dal_power_level;
 	struct phm_dynamic_state_info dyn_state;
 	const struct pp_hwmgr_func *hwmgr_func;
 	const struct pp_table_func *pptable_func;
+
 	struct pp_power_state    *ps;
 	enum pp_power_source  power_source;
 	uint32_t num_ps;

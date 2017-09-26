@@ -27,7 +27,6 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <drm/amdgpu_drm.h>
-#include "pp_instance.h"
 #include "smumgr.h"
 #include "cgs_common.h"
 
@@ -46,89 +45,18 @@ MODULE_FIRMWARE("amdgpu/polaris12_smc.bin");
 MODULE_FIRMWARE("amdgpu/vega10_smc.bin");
 MODULE_FIRMWARE("amdgpu/vega10_acg_smc.bin");
 
-int smum_early_init(struct pp_instance *handle)
-{
-	struct pp_smumgr *smumgr;
-
-	if (handle == NULL)
-		return -EINVAL;
-
-	smumgr = kzalloc(sizeof(struct pp_smumgr), GFP_KERNEL);
-	if (smumgr == NULL)
-		return -ENOMEM;
-
-	smumgr->device = handle->device;
-	smumgr->chip_family = handle->chip_family;
-	smumgr->chip_id = handle->chip_id;
-	smumgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
-	smumgr->reload_fw = 1;
-	handle->smu_mgr = smumgr;
-
-	switch (smumgr->chip_family) {
-	case AMDGPU_FAMILY_CI:
-		smumgr->smumgr_funcs = &ci_smu_funcs;
-		break;
-	case AMDGPU_FAMILY_CZ:
-		smumgr->smumgr_funcs = &cz_smu_funcs;
-		break;
-	case AMDGPU_FAMILY_VI:
-		switch (smumgr->chip_id) {
-		case CHIP_TOPAZ:
-			smumgr->smumgr_funcs = &iceland_smu_funcs;
-			break;
-		case CHIP_TONGA:
-			smumgr->smumgr_funcs = &tonga_smu_funcs;
-			break;
-		case CHIP_FIJI:
-			smumgr->smumgr_funcs = &fiji_smu_funcs;
-			break;
-		case CHIP_POLARIS11:
-		case CHIP_POLARIS10:
-		case CHIP_POLARIS12:
-			smumgr->smumgr_funcs = &polaris10_smu_funcs;
-			break;
-		default:
-			return -EINVAL;
-		}
-		break;
-	case AMDGPU_FAMILY_AI:
-		switch (smumgr->chip_id) {
-		case CHIP_VEGA10:
-			smumgr->smumgr_funcs = &vega10_smu_funcs;
-			break;
-		default:
-			return -EINVAL;
-		}
-		break;
-	case AMDGPU_FAMILY_RV:
-		switch (smumgr->chip_id) {
-		case CHIP_RAVEN:
-			smumgr->smumgr_funcs = &rv_smu_funcs;
-			break;
-		default:
-			return -EINVAL;
-		}
-		break;
-	default:
-		kfree(smumgr);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 int smum_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 {
-	if (NULL != hwmgr->smumgr->smumgr_funcs->thermal_avfs_enable)
-		return hwmgr->smumgr->smumgr_funcs->thermal_avfs_enable(hwmgr);
+	if (NULL != hwmgr->smumgr_funcs->thermal_avfs_enable)
+		return hwmgr->smumgr_funcs->thermal_avfs_enable(hwmgr);
 
 	return 0;
 }
 
 int smum_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 {
-	if (NULL != hwmgr->smumgr->smumgr_funcs->thermal_setup_fan_table)
-		return hwmgr->smumgr->smumgr_funcs->thermal_setup_fan_table(hwmgr);
+	if (NULL != hwmgr->smumgr_funcs->thermal_setup_fan_table)
+		return hwmgr->smumgr_funcs->thermal_setup_fan_table(hwmgr);
 
 	return 0;
 }
@@ -136,8 +64,8 @@ int smum_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 int smum_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
 
-	if (NULL != hwmgr->smumgr->smumgr_funcs->update_sclk_threshold)
-		return hwmgr->smumgr->smumgr_funcs->update_sclk_threshold(hwmgr);
+	if (NULL != hwmgr->smumgr_funcs->update_sclk_threshold)
+		return hwmgr->smumgr_funcs->update_sclk_threshold(hwmgr);
 
 	return 0;
 }
@@ -145,74 +73,74 @@ int smum_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 int smum_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type)
 {
 
-	if (NULL != hwmgr->smumgr->smumgr_funcs->update_smc_table)
-		return hwmgr->smumgr->smumgr_funcs->update_smc_table(hwmgr, type);
+	if (NULL != hwmgr->smumgr_funcs->update_smc_table)
+		return hwmgr->smumgr_funcs->update_smc_table(hwmgr, type);
 
 	return 0;
 }
 
 uint32_t smum_get_offsetof(struct pp_hwmgr *hwmgr, uint32_t type, uint32_t member)
 {
-	if (NULL != hwmgr->smumgr->smumgr_funcs->get_offsetof)
-		return hwmgr->smumgr->smumgr_funcs->get_offsetof(type, member);
+	if (NULL != hwmgr->smumgr_funcs->get_offsetof)
+		return hwmgr->smumgr_funcs->get_offsetof(type, member);
 
 	return 0;
 }
 
 int smum_process_firmware_header(struct pp_hwmgr *hwmgr)
 {
-	if (NULL != hwmgr->smumgr->smumgr_funcs->process_firmware_header)
-		return hwmgr->smumgr->smumgr_funcs->process_firmware_header(hwmgr);
+	if (NULL != hwmgr->smumgr_funcs->process_firmware_header)
+		return hwmgr->smumgr_funcs->process_firmware_header(hwmgr);
 	return 0;
 }
 
 int smum_get_argument(struct pp_hwmgr *hwmgr)
 {
-	if (NULL != hwmgr->smumgr->smumgr_funcs->get_argument)
-		return hwmgr->smumgr->smumgr_funcs->get_argument(hwmgr);
+	if (NULL != hwmgr->smumgr_funcs->get_argument)
+		return hwmgr->smumgr_funcs->get_argument(hwmgr);
 
 	return 0;
 }
 
 uint32_t smum_get_mac_definition(struct pp_hwmgr *hwmgr, uint32_t value)
 {
-	if (NULL != hwmgr->smumgr->smumgr_funcs->get_mac_definition)
-		return hwmgr->smumgr->smumgr_funcs->get_mac_definition(value);
+	if (NULL != hwmgr->smumgr_funcs->get_mac_definition)
+		return hwmgr->smumgr_funcs->get_mac_definition(value);
 
 	return 0;
 }
 
 int smum_download_powerplay_table(struct pp_hwmgr *hwmgr, void **table)
 {
-	if (NULL != hwmgr->smumgr->smumgr_funcs->download_pptable_settings)
-		return hwmgr->smumgr->smumgr_funcs->download_pptable_settings(hwmgr,
+	if (NULL != hwmgr->smumgr_funcs->download_pptable_settings)
+		return hwmgr->smumgr_funcs->download_pptable_settings(hwmgr,
 									table);
 	return 0;
 }
 
 int smum_upload_powerplay_table(struct pp_hwmgr *hwmgr)
 {
-	if (NULL != hwmgr->smumgr->smumgr_funcs->upload_pptable_settings)
-		return hwmgr->smumgr->smumgr_funcs->upload_pptable_settings(hwmgr);
+	if (NULL != hwmgr->smumgr_funcs->upload_pptable_settings)
+		return hwmgr->smumgr_funcs->upload_pptable_settings(hwmgr);
 
 	return 0;
 }
 
 int smum_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 {
-	if (hwmgr == NULL || hwmgr->smumgr->smumgr_funcs->send_msg_to_smc == NULL)
+	if (hwmgr == NULL || hwmgr->smumgr_funcs->send_msg_to_smc == NULL)
 		return -EINVAL;
 
-	return hwmgr->smumgr->smumgr_funcs->send_msg_to_smc(hwmgr, msg);
+	return hwmgr->smumgr_funcs->send_msg_to_smc(hwmgr, msg);
 }
 
 int smum_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 					uint16_t msg, uint32_t parameter)
 {
 	if (hwmgr == NULL ||
-		hwmgr->smumgr->smumgr_funcs->send_msg_to_smc_with_parameter == NULL)
+		hwmgr->smumgr_funcs->send_msg_to_smc_with_parameter == NULL)
 		return -EINVAL;
-	return hwmgr->smumgr->smumgr_funcs->send_msg_to_smc_with_parameter(
+	return hwmgr->smumgr_funcs->send_msg_to_smc_with_parameter(
 						hwmgr, msg, parameter);
 }
 
@@ -356,24 +284,24 @@ int smu_free_memory(void *device, void *handle)
 
 int smum_init_smc_table(struct pp_hwmgr *hwmgr)
 {
-	if (NULL != hwmgr->smumgr->smumgr_funcs->init_smc_table)
-		return hwmgr->smumgr->smumgr_funcs->init_smc_table(hwmgr);
+	if (NULL != hwmgr->smumgr_funcs->init_smc_table)
+		return hwmgr->smumgr_funcs->init_smc_table(hwmgr);
 
 	return 0;
 }
 
 int smum_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 {
-	if (NULL != hwmgr->smumgr->smumgr_funcs->populate_all_graphic_levels)
-		return hwmgr->smumgr->smumgr_funcs->populate_all_graphic_levels(hwmgr);
+	if (NULL != hwmgr->smumgr_funcs->populate_all_graphic_levels)
+		return hwmgr->smumgr_funcs->populate_all_graphic_levels(hwmgr);
 
 	return 0;
 }
 
 int smum_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 {
-	if (NULL != hwmgr->smumgr->smumgr_funcs->populate_all_memory_levels)
-		return hwmgr->smumgr->smumgr_funcs->populate_all_memory_levels(hwmgr);
+	if (NULL != hwmgr->smumgr_funcs->populate_all_memory_levels)
+		return hwmgr->smumgr_funcs->populate_all_memory_levels(hwmgr);
 
 	return 0;
 }
@@ -381,16 +309,16 @@ int smum_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 /*this interface is needed by island ci/vi */
 int smum_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 {
-	if (NULL != hwmgr->smumgr->smumgr_funcs->initialize_mc_reg_table)
-		return hwmgr->smumgr->smumgr_funcs->initialize_mc_reg_table(hwmgr);
+	if (NULL != hwmgr->smumgr_funcs->initialize_mc_reg_table)
+		return hwmgr->smumgr_funcs->initialize_mc_reg_table(hwmgr);
 
 	return 0;
 }
 
 bool smum_is_dpm_running(struct pp_hwmgr *hwmgr)
 {
-	if (NULL != hwmgr->smumgr->smumgr_funcs->is_dpm_running)
-		return hwmgr->smumgr->smumgr_funcs->is_dpm_running(hwmgr);
+	if (NULL != hwmgr->smumgr_funcs->is_dpm_running)
+		return hwmgr->smumgr_funcs->is_dpm_running(hwmgr);
 
 	return true;
 }
@@ -398,8 +326,8 @@ bool smum_is_dpm_running(struct pp_hwmgr *hwmgr)
 int smum_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
 		struct amd_pp_profile *request)
 {
-	if (hwmgr->smumgr->smumgr_funcs->populate_requested_graphic_levels)
-		return hwmgr->smumgr->smumgr_funcs->populate_requested_graphic_levels(
+	if (hwmgr->smumgr_funcs->populate_requested_graphic_levels)
+		return hwmgr->smumgr_funcs->populate_requested_graphic_levels(
 				hwmgr, request);
 
 	return 0;
@@ -407,8 +335,8 @@ int smum_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
 
 bool smum_is_hw_avfs_present(struct pp_hwmgr *hwmgr)
 {
-	if (hwmgr->smumgr->smumgr_funcs->is_hw_avfs_present)
-		return hwmgr->smumgr->smumgr_funcs->is_hw_avfs_present(hwmgr);
+	if (hwmgr->smumgr_funcs->is_hw_avfs_present)
+		return hwmgr->smumgr_funcs->is_hw_avfs_present(hwmgr);
 
 	return false;
 }

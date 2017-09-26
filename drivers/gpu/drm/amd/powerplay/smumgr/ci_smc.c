@@ -236,7 +236,7 @@ int ci_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 
 static void ci_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 {
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	struct cgs_system_info sys_info = {0};
 	uint32_t dev_id;
 
@@ -479,7 +479,7 @@ static int ci_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 int ci_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	struct smu7_dpm_table *dpm_table = &data->dpm_table;
 	int result = 0;
 	uint32_t array = smu_data->dpm_table_start +
@@ -520,7 +520,7 @@ int ci_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 
 static int ci_populate_svi_load_line(struct pp_hwmgr *hwmgr)
 {
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	const struct ci_pt_defaults *defaults = smu_data->power_tune_defaults;
 
 	smu_data->power_tune_table.SviLoadLineEn = defaults->svi_load_line_en;
@@ -534,7 +534,7 @@ static int ci_populate_svi_load_line(struct pp_hwmgr *hwmgr)
 static int ci_populate_tdc_limit(struct pp_hwmgr *hwmgr)
 {
 	uint16_t tdc_limit;
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	const struct ci_pt_defaults *defaults = smu_data->power_tune_defaults;
 
 	tdc_limit = (uint16_t)(hwmgr->dyn_state.cac_dtp_table->usTDC * 256);
@@ -549,7 +549,7 @@ static int ci_populate_tdc_limit(struct pp_hwmgr *hwmgr)
 
 static int ci_populate_dw8(struct pp_hwmgr *hwmgr, uint32_t fuse_table_offset)
 {
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	const struct ci_pt_defaults *defaults = smu_data->power_tune_defaults;
 	uint32_t temp;
 
@@ -568,8 +568,8 @@ static int ci_populate_dw8(struct pp_hwmgr *hwmgr, uint32_t fuse_table_offset)
 
 static int ci_populate_fuzzy_fan(struct pp_hwmgr *hwmgr, uint32_t fuse_table_offset)
 {
-	uint16_t tmp = 0;
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	uint16_t tmp;
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 
 	if ((hwmgr->thermal_controller.advanceFanControlParameters.usFanOutputSensitivity & (1 << 15))
 		|| 0 == hwmgr->thermal_controller.advanceFanControlParameters.usFanOutputSensitivity)
@@ -585,7 +585,7 @@ static int ci_populate_fuzzy_fan(struct pp_hwmgr *hwmgr, uint32_t fuse_table_off
 static int ci_populate_bapm_vddc_vid_sidd(struct pp_hwmgr *hwmgr)
 {
 	int i;
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	uint8_t *hi_vid = smu_data->power_tune_table.BapmVddCVidHiSidd;
 	uint8_t *lo_vid = smu_data->power_tune_table.BapmVddCVidLoSidd;
 	uint8_t *hi2_vid = smu_data->power_tune_table.BapmVddCVidHiSidd2;
@@ -614,7 +614,7 @@ static int ci_populate_bapm_vddc_vid_sidd(struct pp_hwmgr *hwmgr)
 static int ci_populate_vddc_vid(struct pp_hwmgr *hwmgr)
 {
 	int i;
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	uint8_t *vid = smu_data->power_tune_table.VddCVid;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
@@ -630,7 +630,7 @@ static int ci_populate_vddc_vid(struct pp_hwmgr *hwmgr)
 
 static int ci_min_max_v_gnbl_pm_lid_from_bapm_vddc(struct pp_hwmgr *hwmgr)
 {
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	u8 *hi_vid = smu_data->power_tune_table.BapmVddCVidHiSidd;
 	u8 *lo_vid = smu_data->power_tune_table.BapmVddCVidLoSidd;
 	int i, min, max;
@@ -662,7 +662,7 @@ static int ci_min_max_v_gnbl_pm_lid_from_bapm_vddc(struct pp_hwmgr *hwmgr)
 
 static int ci_populate_bapm_vddc_base_leakage_sidd(struct pp_hwmgr *hwmgr)
 {
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	uint16_t HiSidd = smu_data->power_tune_table.BapmVddCBaseLeakageHiSidd;
 	uint16_t LoSidd = smu_data->power_tune_table.BapmVddCBaseLeakageLoSidd;
 	struct phm_cac_tdp_table *cac_table = hwmgr->dyn_state.cac_dtp_table;
@@ -680,7 +680,7 @@ static int ci_populate_bapm_vddc_base_leakage_sidd(struct pp_hwmgr *hwmgr)
 
 static int ci_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 {
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	uint32_t pm_fuse_table_offset;
 	int ret = 0;
 
@@ -722,7 +722,7 @@ static int ci_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 
 static int ci_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 {
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	const struct ci_pt_defaults *defaults = smu_data->power_tune_defaults;
 	SMU7_Discrete_DpmTable  *dpm_table = &(smu_data->smc_state_table);
@@ -997,7 +997,7 @@ static int ci_populate_smc_link_level(struct pp_hwmgr *hwmgr, SMU7_Discrete_DpmT
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct smu7_dpm_table *dpm_table = &data->dpm_table;
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	uint32_t i;
 
 /* Index dpm_table->pcie_speed_table.count is reserved for PCIE boot level.*/
@@ -1300,7 +1300,7 @@ static int ci_populate_single_memory_level(
 int ci_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	struct smu7_dpm_table *dpm_table = &data->dpm_table;
 	int result;
 	struct cgs_system_info sys_info = {0};
@@ -1684,7 +1684,7 @@ static int ci_populate_memory_timing_parameters(
 static int ci_program_memory_timing_parameters(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	int result = 0;
 	SMU7_Discrete_MCArbDramTimingTable  arb_regs;
 	uint32_t i, j;
@@ -1721,7 +1721,7 @@ static int ci_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 {
 	int result = 0;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 
 	table->GraphicsBootLevel = 0;
 	table->MemoryBootLevel = 0;
@@ -1759,7 +1759,7 @@ static int ci_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 static int ci_populate_mc_reg_address(struct pp_hwmgr *hwmgr,
 				 SMU7_Discrete_MCRegisters *mc_reg_table)
 {
-	const struct ci_smumgr *smu_data = (struct ci_smumgr *)hwmgr->smumgr->backend;
+	const struct ci_smumgr *smu_data = (struct ci_smumgr *)hwmgr->smu_backend;
 
 	uint32_t i, j;
 
@@ -1801,7 +1801,7 @@ static int ci_convert_mc_reg_table_entry_to_smc(
 		SMU7_Discrete_MCRegisterSet *mc_reg_table_data
 		)
 {
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	uint32_t i = 0;
 
 	for (i = 0; i < smu_data->mc_reg_table.num_entries; i++) {
@@ -1845,7 +1845,7 @@ static int ci_convert_mc_reg_table_to_smc(struct pp_hwmgr *hwmgr,
 
 static int ci_update_and_upload_mc_reg_table(struct pp_hwmgr *hwmgr)
 {
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	uint32_t address;
 	int32_t result;
@@ -1872,7 +1872,7 @@ static int ci_update_and_upload_mc_reg_table(struct pp_hwmgr *hwmgr)
 static int ci_populate_initial_mc_reg_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 
 	memset(&smu_data->mc_regs, 0x00, sizeof(SMU7_Discrete_MCRegisters));
 	result = ci_populate_mc_reg_address(hwmgr, &(smu_data->mc_regs));
@@ -1890,7 +1890,7 @@ static int ci_populate_initial_mc_reg_table(struct pp_hwmgr *hwmgr)
 static int ci_populate_smc_initial_state(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	uint8_t count, level;
 
 	count = (uint8_t)(hwmgr->dyn_state.vddc_dependency_on_sclk->count);
@@ -1948,7 +1948,7 @@ int ci_init_smc_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	SMU7_Discrete_DpmTable  *table = &(smu_data->smc_state_table);
 	struct pp_atomctrl_gpio_pin_assignment gpio_pin;
 	u32 i;
@@ -2127,7 +2127,7 @@ int ci_init_smc_table(struct pp_hwmgr *hwmgr)
 
 int ci_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 {
-	struct ci_smumgr *ci_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *ci_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	SMU7_Discrete_FanTable fan_table = { FDO_MODE_HARDWARE };
 	uint32_t duty100;
 	uint32_t t_diff1, t_diff2, pwm_diff1, pwm_diff2;
@@ -2214,7 +2214,7 @@ static int ci_program_mem_timing_parameters(struct pp_hwmgr *hwmgr)
 int ci_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 
 	int result = 0;
 	uint32_t low_sclk_interrupt_threshold = 0;
@@ -2311,7 +2311,7 @@ static int ci_load_smc_ucode(struct pp_hwmgr *hwmgr)
 
 	cgs_get_firmware_info(hwmgr->device, CGS_UCODE_ID_SMU, &info);
 
-	hwmgr->smumgr->is_kicker = info.is_kicker;
+	hwmgr->is_kicker = info.is_kicker;
 	byte_count = info.image_size;
 	src = (uint8_t *)info.kptr;
 	start_addr = info.ucode_start_address;
@@ -2358,7 +2358,7 @@ static int ci_upload_firmware(struct pp_hwmgr *hwmgr)
 int ci_process_firmware_header(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct ci_smumgr *ci_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *ci_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 
 	uint32_t tmp = 0;
 	int result;
@@ -2670,7 +2670,7 @@ static int ci_set_valid_flag(struct ci_mc_reg_table *table)
 int ci_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smumgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	pp_atomctrl_mc_reg_table *table;
 	struct ci_mc_reg_table *ni_table = &smu_data->mc_reg_table;
 	uint8_t module_index = ci_get_memory_modile_index(hwmgr);
@@ -2731,7 +2731,7 @@ int ci_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
 		struct amd_pp_profile *request)
 {
 	struct ci_smumgr *smu_data = (struct ci_smumgr *)
-			(hwmgr->smumgr->backend);
+			(hwmgr->smu_backend);
 	struct SMU7_Discrete_GraphicsLevel *levels =
 			smu_data->smc_state_table.GraphicsLevel;
 	uint32_t array = smu_data->dpm_table_start +

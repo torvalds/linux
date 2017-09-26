@@ -176,7 +176,7 @@ static int tonga_smu_init(struct pp_hwmgr *hwmgr)
 	if (tonga_priv == NULL)
 		return -ENOMEM;
 
-	hwmgr->smumgr->backend = tonga_priv;
+	hwmgr->smu_backend = tonga_priv;
 
 	if (smu7_init(hwmgr))
 		return -EINVAL;
