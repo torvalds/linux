@@ -116,7 +116,7 @@ config DELL_LAPTOP
 	laptops (except for some models covered by the Compal driver).
 
 config DELL_WMI
-	tristate "Dell WMI extras"
+	tristate "Dell WMI notifications"
 	depends on ACPI_WMI
 	depends on DMI
 	depends on INPUT

@@ -3996,7 +3996,7 @@ S:	Maintained
 F:	Documentation/dcdbas.txt
 F:	drivers/firmware/dcdbas.*
 
-DELL WMI EXTRAS DRIVER
+DELL WMI NOTIFICATIONS DRIVER
 M:	Matthew Garrett <mjg59@srcf.ucam.org>
 M:	Pali Rohár <pali.rohar@gmail.com>
 S:	Maintained
