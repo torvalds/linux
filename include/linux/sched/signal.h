@@ -564,6 +564,11 @@ struct pid *task_pid_type(struct task_struct *task, enum pid_type type)
 	return task->pids[type].pid;
 }
 
+static inline struct pid *task_tgid(struct task_struct *task)
+{
+	return task->signal->leader_pid;
+}
+
 static inline int get_nr_threads(struct task_struct *tsk)
 {
 	return tsk->signal->nr_threads;

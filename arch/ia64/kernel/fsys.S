@@ -62,16 +62,16 @@ ENTRY(fsys_getpid)
 	.prologue
 	.altrp b6
 	.body
-	add r17=IA64_TASK_GROUP_LEADER_OFFSET,r16
+	add r17=IA64_TASK_SIGNAL_OFFSET,r16
 	;;
-	ld8 r17=[r17]				// r17 = current->group_leader
+	ld8 r17=[r17]				// r17 = current->signal
 	add r9=TI_FLAGS+IA64_TASK_SIZE,r16
 	;;
 	ld4 r9=[r9]
-	add r17=IA64_TASK_TGIDLINK_OFFSET,r17
+	add r17=IA64_SIGNAL_LEADER_PID_OFFSET,r17
 	;;
 	and r9=TIF_ALLWORK_MASK,r9
-	ld8 r17=[r17]				// r17 = current->group_leader->pids[PIDTYPE_PID].pid
+	ld8 r17=[r17]				// r17 = current->signal->leader_pid
 	;;
 	add r8=IA64_PID_LEVEL_OFFSET,r17
 	;;
