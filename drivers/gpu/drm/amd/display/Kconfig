@@ -17,6 +17,16 @@ config DRM_AMD_DC_PRE_VEGA
 	  by default. This includes Polaris, Carrizo, Tonga, Bonaire,
 	  and Hawaii.
 
+config DRM_AMD_DC_FBC
+	bool "AMD FBC - Enable Frame Buffer Compression"
+	depends on DRM_AMD_DC
+	help
+	  Choose this option if you want to use frame buffer compression
+	  support.
+	  This is a power optimisation feature, check its availability
+	  on your hardware before enabling this option.
+
+
 config DRM_AMD_DC_DCN1_0
 	bool "DCN 1.0 Raven family"
 	depends on DRM_AMD_DC && X86

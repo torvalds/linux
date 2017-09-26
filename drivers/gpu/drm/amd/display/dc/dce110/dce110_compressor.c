@@ -514,7 +514,7 @@ void dce110_compressor_construct(struct dce110_compressor *compressor,
 	compressor->base.lpt_channels_num = 0;
 	compressor->base.attached_inst = 0;
 	compressor->base.is_enabled = false;
-#ifdef ENABLE_FBC
+#if defined(CONFIG_DRM_AMD_DC_FBC)
 	compressor->base.funcs = &dce110_compressor_funcs;
 
 #endif

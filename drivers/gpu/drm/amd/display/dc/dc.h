@@ -258,7 +258,7 @@ struct dc {
 	struct dm_pp_display_configuration prev_display_config;
 
 	/* FBC compressor */
-#ifdef ENABLE_FBC
+#if defined(CONFIG_DRM_AMD_DC_FBC)
 	struct compressor *fbc_compressor;
 #endif
 };
@@ -293,7 +293,7 @@ struct dc_init_data {
 
 	struct dc_config flags;
 	uint32_t log_mask;
-#ifdef ENABLE_FBC
+#if defined(CONFIG_DRM_AMD_DC_FBC)
 	uint64_t fbc_gpu_addr;
 #endif
 };

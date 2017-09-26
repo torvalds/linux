@@ -52,7 +52,7 @@
 #include "dce/dce_abm.h"
 #include "dce/dce_dmcu.h"
 
-#ifdef ENABLE_FBC
+#if defined(CONFIG_DRM_AMD_DC_FBC)
 #include "dce110/dce110_compressor.h"
 #endif
 
@@ -1279,7 +1279,7 @@ static bool construct(
 		}
 	}
 
-#ifdef ENABLE_FBC
+#if defined(CONFIG_DRM_AMD_DC_FBC)
 	dc->fbc_compressor = dce110_compressor_create(ctx);
 
 

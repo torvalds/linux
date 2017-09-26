@@ -507,7 +507,7 @@ static bool construct(struct dc *dc,
 
 	dc_version = resource_parse_asic_id(init_params->asic_id);
 	dc->ctx->dce_version = dc_version;
-#ifdef ENABLE_FBC
+#if defined(CONFIG_DRM_AMD_DC_FBC)
 	dc->ctx->fbc_gpu_addr = init_params->fbc_gpu_addr;
 #endif
 	/* Resource should construct all asic specific resources.
