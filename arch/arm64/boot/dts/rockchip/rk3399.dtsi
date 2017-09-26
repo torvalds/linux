@@ -1630,8 +1630,8 @@
 		reg = <0x0 0xff960000 0x0 0x8000>;
 		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&cru SCLK_DPHY_PLL>, <&cru PCLK_MIPI_DSI0>,
-			 <&cru SCLK_DPHY_TX0_CFG>;
-		clock-names = "ref", "pclk", "phy_cfg";
+			 <&cru SCLK_DPHY_TX0_CFG>, <&cru PCLK_VIO_GRF>;
+		clock-names = "ref", "pclk", "phy_cfg", "grf";
 		power-domains = <&power RK3399_PD_VIO>;
 		rockchip,grf = <&grf>;
 		status = "disabled";
