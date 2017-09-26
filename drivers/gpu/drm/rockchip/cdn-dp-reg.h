@@ -344,6 +344,11 @@
 #define IS_HDCP_TX_RECEIVER_ID_VALID_RESP_SIZE_VALID(x)	\
 			(((((x) - 2) % 5) == 0) || ((((x) - 4) % 5) == 0))
 
+/* For configuring which version of HDCP to use */
+#define HDCP_TX_CONFIGURATION_HDCP_V2		0x0
+#define HDCP_TX_CONFIGURATION_HDCP_V1		0x1
+#define HDCP_TX_CONFIGURATION_HDCP_VBEST	0x2
+
 #define DPTX_SET_POWER_MNG			0x00
 #define DPTX_SET_HOST_CAPABILITIES		0x01
 #define DPTX_GET_EDID				0x02
@@ -481,12 +486,6 @@ enum vic_color_depth {
 enum vic_bt_type {
 	BT_601 = 0x0,
 	BT_709 = 0x1,
-};
-
-enum HDCP_TX_SUPPORT {
-	HDCP_TX_2,
-	HDCP_TX_1,
-	HDCP_TX_BOTH,
 };
 
 struct cdn_dp_device;

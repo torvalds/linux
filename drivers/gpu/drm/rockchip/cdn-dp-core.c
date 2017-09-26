@@ -233,7 +233,8 @@ static int cdn_dp_start_hdcp1x_auth(struct cdn_dp_device *dp)
 	arm_smccc_smc(RK_SIP_HDCP_CONTROL, HDCP_KEY_DATA_START_DECRYPT,
 		      0, 0, 0, 0, 0, 0, &res);
 
-	ret = cdn_dp_hdcp_tx_configuration(dp, HDCP_TX_1, true);
+	ret = cdn_dp_hdcp_tx_configuration(dp, HDCP_TX_CONFIGURATION_HDCP_V1,
+					   true);
 	if (ret) {
 		DRM_DEV_ERROR(dp->dev, "start hdcp authentication failed: %d\n",
 			      ret);
@@ -268,7 +269,8 @@ static int cdn_dp_stop_hdcp1x_auth(struct cdn_dp_device *dp)
 	if (!dp->active)
 		return 0;
 
-	ret = cdn_dp_hdcp_tx_configuration(dp, HDCP_TX_1, false);
+	ret = cdn_dp_hdcp_tx_configuration(dp, HDCP_TX_CONFIGURATION_HDCP_V1,
+					   false);
 	if (!ret)
 		DRM_DEV_INFO(dp->dev, "HDCP has been disabled\n");
 	else
