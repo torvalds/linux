@@ -6,6 +6,7 @@
 #ifndef _RC_CORE_PRIV
 #define _RC_CORE_PRIV
 
+#define	RC_DEV_MAX		256
 /* Define the max number of pulse/space transitions to buffer */
 #define	MAX_IR_EVENT_SIZE	512
 
@@ -277,6 +278,8 @@ void lirc_dev_exit(void);
 void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev);
 int ir_lirc_register(struct rc_dev *dev);
 void ir_lirc_unregister(struct rc_dev *dev);
+
+extern const struct file_operations lirc_fops;
 #else
 static inline int lirc_dev_init(void) { return 0; }
 static inline void lirc_dev_exit(void) {}

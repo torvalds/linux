@@ -12,10 +12,10 @@
  *  GNU General Public License for more details.
  */
 
+#include <linux/poll.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <media/lirc.h>
-#include <media/lirc_dev.h>
 #include <media/rc-core.h>
 #include "rc-core-priv.h"
 
@@ -90,8 +90,8 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 
 static int ir_lirc_open(struct inode *inode, struct file *file)
 {
-	struct lirc_dev *d = container_of(inode->i_cdev, struct lirc_dev, cdev);
-	struct rc_dev *dev = d->rdev;
+	struct rc_dev *dev = container_of(inode->i_cdev, struct rc_dev,
+					  lirc_cdev);
 	int retval;
 
 	retval = rc_open(dev);
@@ -523,7 +523,7 @@ static ssize_t ir_lirc_read(struct file *file, char __user *buffer,
 	return copied;
 }
 
-static const struct file_operations lirc_fops = {
+const struct file_operations lirc_fops = {
 	.owner		= THIS_MODULE,
 	.write		= ir_lirc_transmit_ir,
 	.unlocked_ioctl	= ir_lirc_ioctl,
@@ -536,36 +536,3 @@ static const struct file_operations lirc_fops = {
 	.release	= ir_lirc_close,
 	.llseek		= no_llseek,
 };
-
-int ir_lirc_register(struct rc_dev *dev)
-{
-	struct lirc_dev *ldev;
-	int rc = -ENOMEM;
-
-	ldev = lirc_allocate_device();
-	if (!ldev)
-		return rc;
-
-	ldev->fops = &lirc_fops;
-	ldev->dev.parent = &dev->dev;
-	ldev->rdev = dev;
-	ldev->owner = THIS_MODULE;
-
-	rc = lirc_register_device(ldev);
-	if (rc < 0)
-		goto out;
-
-	dev->send_mode = LIRC_MODE_PULSE;
-	dev->lirc_dev = ldev;
-	return 0;
-
-out:
-	lirc_free_device(ldev);
-	return rc;
-}
-
-void ir_lirc_unregister(struct rc_dev *dev)
-{
-	lirc_unregister_device(dev->lirc_dev);
-	dev->lirc_dev = NULL;
-}

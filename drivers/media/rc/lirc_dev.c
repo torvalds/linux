@@ -18,24 +18,19 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
-#include <linux/sched/signal.h>
-#include <linux/ioctl.h>
-#include <linux/poll.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
-#include <linux/cdev.h>
 #include <linux/idr.h>
+#include <linux/poll.h>
 
 #include "rc-core-priv.h"
 #include <media/lirc.h>
-#include <media/lirc_dev.h>
 
 #define LOGHEAD		"lirc_dev (%s[%d]): "
 
 static dev_t lirc_base_dev;
 
 /* Used to keep track of allocated lirc devices */
-#define LIRC_MAX_DEVICES 256
 static DEFINE_IDA(lirc_ida);
 
 /* Only used for sysfs but defined to void otherwise */
@@ -43,124 +38,80 @@ static struct class *lirc_class;
 
 static void lirc_release_device(struct device *ld)
 {
-	struct lirc_dev *d = container_of(ld, struct lirc_dev, dev);
-	struct rc_dev *rcdev = d->rdev;
+	struct rc_dev *rcdev = container_of(ld, struct rc_dev, lirc_dev);
 
 	if (rcdev->driver_type == RC_DRIVER_IR_RAW)
 		kfifo_free(&rcdev->rawir);
 
-	kfree(d);
-	module_put(THIS_MODULE);
-	put_device(d->dev.parent);
+	put_device(&rcdev->dev);
 }
 
-struct lirc_dev *
-lirc_allocate_device(void)
+int ir_lirc_register(struct rc_dev *dev)
 {
-	struct lirc_dev *d;
+	int err, minor;
 
-	d = kzalloc(sizeof(*d), GFP_KERNEL);
-	if (d) {
-		device_initialize(&d->dev);
-		d->dev.class = lirc_class;
-		d->dev.release = lirc_release_device;
-		__module_get(THIS_MODULE);
-	}
+	device_initialize(&dev->lirc_dev);
+	dev->lirc_dev.class = lirc_class;
+	dev->lirc_dev.release = lirc_release_device;
+	dev->send_mode = LIRC_MODE_PULSE;
 
-	return d;
-}
-EXPORT_SYMBOL(lirc_allocate_device);
-
-void lirc_free_device(struct lirc_dev *d)
-{
-	if (!d)
-		return;
-
-	put_device(&d->dev);
-}
-EXPORT_SYMBOL(lirc_free_device);
-
-int lirc_register_device(struct lirc_dev *d)
-{
-	struct rc_dev *rcdev = d->rdev;
-	int minor;
-	int err;
-
-	if (!d) {
-		pr_err("driver pointer must be not NULL!\n");
-		return -EBADRQC;
-	}
-
-	if (!d->dev.parent) {
-		pr_err("dev parent pointer not filled in!\n");
-		return -EINVAL;
-	}
-
-	if (!d->fops) {
-		pr_err("fops pointer not filled in!\n");
-		return -EINVAL;
-	}
-
-	if (rcdev->driver_type == RC_DRIVER_IR_RAW) {
-		if (kfifo_alloc(&rcdev->rawir, MAX_IR_EVENT_SIZE, GFP_KERNEL))
+	if (dev->driver_type == RC_DRIVER_IR_RAW) {
+		if (kfifo_alloc(&dev->rawir, MAX_IR_EVENT_SIZE, GFP_KERNEL))
 			return -ENOMEM;
 	}
 
-	init_waitqueue_head(&rcdev->wait_poll);
+	init_waitqueue_head(&dev->wait_poll);
 
-	minor = ida_simple_get(&lirc_ida, 0, LIRC_MAX_DEVICES, GFP_KERNEL);
-	if (minor < 0)
-		return minor;
-
-	d->minor = minor;
-	d->dev.devt = MKDEV(MAJOR(lirc_base_dev), d->minor);
-	dev_set_name(&d->dev, "lirc%d", d->minor);
-
-	cdev_init(&d->cdev, d->fops);
-	d->cdev.owner = d->owner;
-
-	err = cdev_device_add(&d->cdev, &d->dev);
-	if (err) {
-		ida_simple_remove(&lirc_ida, minor);
-		return err;
+	minor = ida_simple_get(&lirc_ida, 0, RC_DEV_MAX, GFP_KERNEL);
+	if (minor < 0) {
+		err = minor;
+		goto out_kfifo;
 	}
 
-	get_device(d->dev.parent);
+	dev->lirc_dev.parent = &dev->dev;
+	dev->lirc_dev.devt = MKDEV(MAJOR(lirc_base_dev), minor);
+	dev_set_name(&dev->lirc_dev, "lirc%d", minor);
 
-	dev_info(&d->dev, "lirc_dev: driver %s registered at minor = %d\n",
-		 rcdev->driver_name, d->minor);
+	cdev_init(&dev->lirc_cdev, &lirc_fops);
+
+	err = cdev_device_add(&dev->lirc_cdev, &dev->lirc_dev);
+	if (err)
+		goto out_ida;
+
+	get_device(&dev->dev);
+
+	dev_info(&dev->dev, "lirc_dev: driver %s registered at minor = %d",
+		 dev->driver_name, minor);
 
 	return 0;
+
+out_ida:
+	ida_simple_remove(&lirc_ida, minor);
+out_kfifo:
+	if (dev->driver_type == RC_DRIVER_IR_RAW)
+		kfifo_free(&dev->rawir);
+	return err;
 }
-EXPORT_SYMBOL(lirc_register_device);
 
-void lirc_unregister_device(struct lirc_dev *d)
+void ir_lirc_unregister(struct rc_dev *dev)
 {
-	struct rc_dev *rcdev;
+	dev_dbg(&dev->dev, "lirc_dev: driver %s unregistered from minor = %d\n",
+		dev->driver_name, MINOR(dev->lirc_dev.devt));
 
-	if (!d)
-		return;
+	mutex_lock(&dev->lock);
 
-	rcdev = d->rdev;
-
-	dev_dbg(&d->dev, "lirc_dev: driver %s unregistered from minor = %d\n",
-		rcdev->driver_name, d->minor);
-
-	mutex_lock(&rcdev->lock);
-
-	if (rcdev->lirc_open) {
-		dev_dbg(&d->dev, LOGHEAD "releasing opened driver\n",
-			rcdev->driver_name, d->minor);
-		wake_up_poll(&rcdev->wait_poll, POLLHUP);
+	if (dev->lirc_open) {
+		dev_dbg(&dev->dev, LOGHEAD "releasing opened driver\n",
+			dev->driver_name, MINOR(dev->lirc_dev.devt));
+		wake_up_poll(&dev->wait_poll, POLLHUP);
 	}
 
-	mutex_unlock(&rcdev->lock);
+	mutex_unlock(&dev->lock);
 
-	cdev_device_del(&d->cdev, &d->dev);
-	ida_simple_remove(&lirc_ida, d->minor);
-	put_device(&d->dev);
+	cdev_device_del(&dev->lirc_cdev, &dev->lirc_dev);
+	ida_simple_remove(&lirc_ida, MINOR(dev->lirc_dev.devt));
+	put_device(&dev->lirc_dev);
 }
-EXPORT_SYMBOL(lirc_unregister_device);
 
 int __init lirc_dev_init(void)
 {
@@ -172,7 +123,7 @@ int __init lirc_dev_init(void)
 		return PTR_ERR(lirc_class);
 	}
 
-	retval = alloc_chrdev_region(&lirc_base_dev, 0, LIRC_MAX_DEVICES,
+	retval = alloc_chrdev_region(&lirc_base_dev, 0, RC_DEV_MAX,
 				     "BaseRemoteCtl");
 	if (retval) {
 		class_destroy(lirc_class);
@@ -189,5 +140,5 @@ int __init lirc_dev_init(void)
 void __exit lirc_dev_exit(void)
 {
 	class_destroy(lirc_class);
-	unregister_chrdev_region(lirc_base_dev, LIRC_MAX_DEVICES);
+	unregister_chrdev_region(lirc_base_dev, RC_DEV_MAX);
 }
