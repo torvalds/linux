@@ -139,6 +139,7 @@ void opa_vnic_release_mac_tbl(struct opa_vnic_adapter *adapter)
 	rcu_assign_pointer(adapter->mactbl, NULL);
 	synchronize_rcu();
 	opa_vnic_free_mac_tbl(mactbl);
+	adapter->info.vport.mac_tbl_digest = 0;
 	mutex_unlock(&adapter->mactbl_lock);
 }
 
