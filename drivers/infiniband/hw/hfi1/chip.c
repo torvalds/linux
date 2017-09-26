@@ -13065,7 +13065,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			me->type = IRQ_SDMA;
 		} else if (first_rx <= i && i < last_rx) {
 			idx = i - first_rx;
-			rcd = hfi1_rcd_get_by_index(dd, idx);
+			rcd = hfi1_rcd_get_by_index_safe(dd, idx);
 			if (rcd) {
 				/*
 				 * Set the interrupt register and mask for this

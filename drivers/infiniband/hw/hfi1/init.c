@@ -284,6 +284,27 @@ static int allocate_rcd_index(struct hfi1_devdata *dd,
 }
 
 /**
+ * hfi1_rcd_get_by_index_safe - validate the ctxt index before accessing the
+ * array
+ * @dd: pointer to a valid devdata structure
+ * @ctxt: the index of an possilbe rcd
+ *
+ * This is a wrapper for hfi1_rcd_get_by_index() to validate that the given
+ * ctxt index is valid.
+ *
+ * The caller is responsible for making the _put().
+ *
+ */
+struct hfi1_ctxtdata *hfi1_rcd_get_by_index_safe(struct hfi1_devdata *dd,
+						 u16 ctxt)
+{
+	if (ctxt < dd->num_rcv_contexts)
+		return hfi1_rcd_get_by_index(dd, ctxt);
+
+	return NULL;
+}
+
+/**
  * hfi1_rcd_get_by_index
  * @dd: pointer to a valid devdata structure
  * @ctxt: the index of an possilbe rcd
