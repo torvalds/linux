@@ -867,7 +867,7 @@ const void *get_xsave_field_ptr(int xsave_state)
 {
 	struct fpu *fpu = &current->thread.fpu;
 
-	if (!fpu->fpstate_active)
+	if (!fpu->initialized)
 		return NULL;
 	/*
 	 * fpu__save() takes the CPU's xstate registers

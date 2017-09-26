@@ -100,7 +100,7 @@ void __kernel_fpu_begin(void)
 
 	kernel_fpu_disable();
 
-	if (fpu->fpstate_active) {
+	if (fpu->initialized) {
 		/*
 		 * Ignore return value -- we don't care if reg state
 		 * is clobbered.
@@ -116,7 +116,7 @@ void __kernel_fpu_end(void)
 {
 	struct fpu *fpu = &current->thread.fpu;
 
-	if (fpu->fpstate_active)
+	if (fpu->initialized)
 		copy_kernel_to_fpregs(&fpu->state);
 
 	kernel_fpu_enable();
@@ -148,7 +148,7 @@ void fpu__save(struct fpu *fpu)
 
 	preempt_disable();
 	trace_x86_fpu_before_save(fpu);
-	if (fpu->fpstate_active) {
+	if (fpu->initialized) {
 		if (!copy_fpregs_to_fpstate(fpu)) {
 			copy_kernel_to_fpregs(&fpu->state);
 		}
@@ -191,7 +191,7 @@ int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 {
 	dst_fpu->last_cpu = -1;
 
-	if (!src_fpu->fpstate_active || !static_cpu_has(X86_FEATURE_FPU))
+	if (!src_fpu->initialized || !static_cpu_has(X86_FEATURE_FPU))
 		return 0;
 
 	WARN_ON_FPU(src_fpu != &current->thread.fpu);
@@ -240,13 +240,13 @@ void fpu__activate_curr(struct fpu *fpu)
 {
 	WARN_ON_FPU(fpu != &current->thread.fpu);
 
-	if (!fpu->fpstate_active) {
+	if (!fpu->initialized) {
 		fpstate_init(&fpu->state);
 		trace_x86_fpu_init_state(fpu);
 
 		trace_x86_fpu_activate_state(fpu);
 		/* Safe to do for the current task: */
-		fpu->fpstate_active = 1;
+		fpu->initialized = 1;
 	}
 }
 EXPORT_SYMBOL_GPL(fpu__activate_curr);
@@ -271,13 +271,13 @@ void fpu__activate_fpstate_read(struct fpu *fpu)
 	if (fpu == &current->thread.fpu) {
 		fpu__save(fpu);
 	} else {
-		if (!fpu->fpstate_active) {
+		if (!fpu->initialized) {
 			fpstate_init(&fpu->state);
 			trace_x86_fpu_init_state(fpu);
 
 			trace_x86_fpu_activate_state(fpu);
 			/* Safe to do for current and for stopped child tasks: */
-			fpu->fpstate_active = 1;
+			fpu->initialized = 1;
 		}
 	}
 }
@@ -303,7 +303,7 @@ void fpu__activate_fpstate_write(struct fpu *fpu)
 	 */
 	WARN_ON_FPU(fpu == &current->thread.fpu);
 
-	if (fpu->fpstate_active) {
+	if (fpu->initialized) {
 		/* Invalidate any lazy state: */
 		__fpu_invalidate_fpregs_state(fpu);
 	} else {
@@ -312,7 +312,7 @@ void fpu__activate_fpstate_write(struct fpu *fpu)
 
 		trace_x86_fpu_activate_state(fpu);
 		/* Safe to do for stopped child tasks: */
-		fpu->fpstate_active = 1;
+		fpu->initialized = 1;
 	}
 }
 
@@ -354,7 +354,7 @@ void fpu__drop(struct fpu *fpu)
 	preempt_disable();
 
 	if (fpu == &current->thread.fpu) {
-		if (fpu->fpstate_active) {
+		if (fpu->initialized) {
 			/* Ignore delayed exceptions from user space */
 			asm volatile("1: fwait\n"
 				     "2:\n"
@@ -363,7 +363,7 @@ void fpu__drop(struct fpu *fpu)
 		}
 	}
 
-	fpu->fpstate_active = 0;
+	fpu->initialized = 0;
 
 	trace_x86_fpu_dropped(fpu);
 

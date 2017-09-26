@@ -171,7 +171,7 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 			sizeof(struct user_i387_ia32_struct), NULL,
 			(struct _fpstate_32 __user *) buf) ? -1 : 1;
 
-	if (fpu->fpstate_active || using_compacted_format()) {
+	if (fpu->initialized || using_compacted_format()) {
 		/* Save the live register state to the user directly. */
 		if (copy_fpregs_to_sigframe(buf_fx))
 			return -1;
@@ -315,12 +315,12 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 		int err = 0;
 
 		/*
-		 * Drop the current fpu which clears fpu->fpstate_active. This ensures
+		 * Drop the current fpu which clears fpu->initialized. This ensures
 		 * that any context-switch during the copy of the new state,
 		 * avoids the intermediate state from getting restored/saved.
 		 * Thus avoiding the new restored state from getting corrupted.
 		 * We will be ready to restore/save the state only after
-		 * fpu->fpstate_active is again set.
+		 * fpu->initialized is again set.
 		 */
 		fpu__drop(fpu);
 
@@ -342,7 +342,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 			sanitize_restored_xstate(tsk, &env, xfeatures, fx_only);
 		}
 
-		fpu->fpstate_active = 1;
+		fpu->initialized = 1;
 		preempt_disable();
 		fpu__restore(fpu);
 		preempt_enable();

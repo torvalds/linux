@@ -527,7 +527,7 @@ static inline void fpregs_activate(struct fpu *fpu)
 static inline void
 switch_fpu_prepare(struct fpu *old_fpu, int cpu)
 {
-	if (old_fpu->fpstate_active) {
+	if (old_fpu->initialized) {
 		if (!copy_fpregs_to_fpstate(old_fpu))
 			old_fpu->last_cpu = -1;
 		else
@@ -550,7 +550,7 @@ switch_fpu_prepare(struct fpu *old_fpu, int cpu)
 static inline void switch_fpu_finish(struct fpu *new_fpu, int cpu)
 {
 	bool preload = static_cpu_has(X86_FEATURE_FPU) &&
-		       new_fpu->fpstate_active;
+		       new_fpu->initialized;
 
 	if (preload) {
 		if (!fpregs_state_valid(new_fpu, cpu))

@@ -293,13 +293,13 @@ struct fpu {
 	unsigned int			last_cpu;
 
 	/*
-	 * @fpstate_active:
+	 * @initialized:
 	 *
-	 * This flag indicates whether this context is active: if the task
+	 * This flag indicates whether this context is initialized: if the task
 	 * is not running then we can restore from this context, if the task
 	 * is running then we should save into this context.
 	 */
-	unsigned char			fpstate_active;
+	unsigned char			initialized;
 
 	/*
 	 * @state:
