@@ -1382,34 +1382,34 @@ static int get_base_info(struct hfi1_filedata *fd, void __user *ubase,
 					       fd->subctxt,
 					       uctxt->egrbufs.rcvtids[0].dma);
 	binfo.sdma_comp_bufbase = HFI1_MMAP_TOKEN(SDMA_COMP, uctxt->ctxt,
-						 fd->subctxt, 0);
+						  fd->subctxt, 0);
 	/*
 	 * user regs are at
 	 * (RXE_PER_CONTEXT_USER + (ctxt * RXE_PER_CONTEXT_SIZE))
 	 */
 	binfo.user_regbase = HFI1_MMAP_TOKEN(UREGS, uctxt->ctxt,
-					    fd->subctxt, 0);
+					     fd->subctxt, 0);
 	offset = offset_in_page((uctxt_offset(uctxt) + fd->subctxt) *
 				sizeof(*dd->events));
 	binfo.events_bufbase = HFI1_MMAP_TOKEN(EVENTS, uctxt->ctxt,
-					      fd->subctxt,
-					      offset);
+					       fd->subctxt,
+					       offset);
 	binfo.status_bufbase = HFI1_MMAP_TOKEN(STATUS, uctxt->ctxt,
-					      fd->subctxt,
-					      dd->status);
+					       fd->subctxt,
+					       dd->status);
 	if (HFI1_CAP_IS_USET(DMA_RTAIL))
 		binfo.rcvhdrtail_base = HFI1_MMAP_TOKEN(RTAIL, uctxt->ctxt,
-						       fd->subctxt, 0);
+							fd->subctxt, 0);
 	if (uctxt->subctxt_cnt) {
 		binfo.subctxt_uregbase = HFI1_MMAP_TOKEN(SUBCTXT_UREGS,
-							uctxt->ctxt,
-							fd->subctxt, 0);
+							 uctxt->ctxt,
+							 fd->subctxt, 0);
 		binfo.subctxt_rcvhdrbuf = HFI1_MMAP_TOKEN(SUBCTXT_RCV_HDRQ,
-							 uctxt->ctxt,
-							 fd->subctxt, 0);
+							  uctxt->ctxt,
+							  fd->subctxt, 0);
 		binfo.subctxt_rcvegrbuf = HFI1_MMAP_TOKEN(SUBCTXT_EGRBUF,
-							 uctxt->ctxt,
-							 fd->subctxt, 0);
+							  uctxt->ctxt,
+							  fd->subctxt, 0);
 	}
 	sz = (len < sizeof(binfo)) ? len : sizeof(binfo);
 	if (copy_to_user(ubase, &binfo, sz))
