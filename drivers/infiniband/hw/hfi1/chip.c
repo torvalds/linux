@@ -1066,6 +1066,8 @@ static int read_idle_sma(struct hfi1_devdata *dd, u64 *data);
 static int thermal_init(struct hfi1_devdata *dd);
 
 static void update_statusp(struct hfi1_pportdata *ppd, u32 state);
+static int wait_phys_link_offline_substates(struct hfi1_pportdata *ppd,
+					    int msecs);
 static int wait_logical_linkstate(struct hfi1_pportdata *ppd, u32 state,
 				  int msecs);
 static void log_state_transition(struct hfi1_pportdata *ppd, u32 state);
@@ -10305,6 +10307,7 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 {
 	struct hfi1_devdata *dd = ppd->dd;
 	u32 previous_state;
+	int offline_state_ret;
 	int ret;
 
 	update_lcb_cache(dd);
@@ -10326,28 +10329,11 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 		ppd->offline_disabled_reason =
 		HFI1_ODR_MASK(OPA_LINKDOWN_REASON_TRANSIENT);
 
-	/*
-	 * Wait for offline transition. It can take a while for
-	 * the link to go down.
-	 */
-	ret = wait_physical_linkstate(ppd, PLS_OFFLINE, 10000);
-	if (ret < 0)
-		return ret;
+	offline_state_ret = wait_phys_link_offline_substates(ppd, 10000);
+	if (offline_state_ret < 0)
+		return offline_state_ret;
 
-	/*
-	 * Now in charge of LCB - must be after the physical state is
-	 * offline.quiet and before host_link_state is changed.
-	 */
-	set_host_lcb_access(dd);
-	write_csr(dd, DC_LCB_ERR_EN, ~0ull); /* watch LCB errors */
-
-	/* make sure the logical state is also down */
-	ret = wait_logical_linkstate(ppd, IB_PORT_DOWN, 1000);
-	if (ret)
-		force_logical_link_state_down(ppd);
-
-	ppd->host_link_state = HLS_LINK_COOLDOWN; /* LCB access allowed */
-
+	/* Disabling AOC transmitters */
 	if (ppd->port_type == PORT_TYPE_QSFP &&
 	    ppd->qsfp_info.limiting_active &&
 	    qsfp_mod_present(ppd)) {
@@ -10363,6 +10349,30 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 				   "Unable to acquire lock to turn off QSFP TX\n");
 		}
 	}
+
+	/*
+	 * Wait for the offline.Quiet transition if it hasn't happened yet. It
+	 * can take a while for the link to go down.
+	 */
+	if (offline_state_ret != PLS_OFFLINE_QUIET) {
+		ret = wait_physical_linkstate(ppd, PLS_OFFLINE, 30000);
+		if (ret < 0)
+			return ret;
+	}
+
+	/*
+	 * Now in charge of LCB - must be after the physical state is
+	 * offline.quiet and before host_link_state is changed.
+	 */
+	set_host_lcb_access(dd);
+	write_csr(dd, DC_LCB_ERR_EN, ~0ull); /* watch LCB errors */
+
+	/* make sure the logical state is also down */
+	ret = wait_logical_linkstate(ppd, IB_PORT_DOWN, 1000);
+	if (ret)
+		force_logical_link_state_down(ppd);
+
+	ppd->host_link_state = HLS_LINK_COOLDOWN; /* LCB access allowed */
 
 	/*
 	 * The LNI has a mandatory wait time after the physical state
@@ -12802,6 +12812,39 @@ static int wait_physical_linkstate(struct hfi1_pportdata *ppd, u32 state,
 
 	log_state_transition(ppd, state);
 	return 0;
+}
+
+/*
+ * wait_phys_link_offline_quiet_substates - wait for any offline substate
+ * @ppd: port device
+ * @msecs: the number of milliseconds to wait
+ *
+ * Wait up to msecs milliseconds for any offline physical link
+ * state change to occur.
+ * Returns 0 if at least one state is reached, otherwise -ETIMEDOUT.
+ */
+static int wait_phys_link_offline_substates(struct hfi1_pportdata *ppd,
+					    int msecs)
+{
+	u32 read_state;
+	unsigned long timeout;
+
+	timeout = jiffies + msecs_to_jiffies(msecs);
+	while (1) {
+		read_state = read_physical_state(ppd->dd);
+		if ((read_state & 0xF0) == PLS_OFFLINE)
+			break;
+		if (time_after(jiffies, timeout)) {
+			dd_dev_err(ppd->dd,
+				   "timeout waiting for phy link offline.quiet substates. Read state 0x%x, %dms\n",
+				   read_state, msecs);
+			return -ETIMEDOUT;
+		}
+		usleep_range(1950, 2050); /* sleep 2ms-ish */
+	}
+
+	log_state_transition(ppd, read_state);
+	return read_state;
 }
 
 #define CLEAR_STATIC_RATE_CONTROL_SMASK(r) \
