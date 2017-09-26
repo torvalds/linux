@@ -421,16 +421,6 @@ static netdev_tx_t dsa_slave_xmit(struct sk_buff *skb, struct net_device *dev)
 
 /* ethtool operations *******************************************************/
 
-static int
-dsa_slave_set_link_ksettings(struct net_device *dev,
-			     const struct ethtool_link_ksettings *cmd)
-{
-	if (!dev->phydev)
-		return -ENODEV;
-
-	return phy_ethtool_ksettings_set(dev->phydev, cmd);
-}
-
 static void dsa_slave_get_drvinfo(struct net_device *dev,
 				  struct ethtool_drvinfo *drvinfo)
 {
@@ -910,8 +900,8 @@ static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_wol		= dsa_slave_get_wol,
 	.set_eee		= dsa_slave_set_eee,
 	.get_eee		= dsa_slave_get_eee,
-	.set_link_ksettings	= dsa_slave_set_link_ksettings,
 	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
+	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 	.get_rxnfc		= dsa_slave_get_rxnfc,
 	.set_rxnfc		= dsa_slave_set_rxnfc,
 };
