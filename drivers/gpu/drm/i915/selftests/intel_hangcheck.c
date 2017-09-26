@@ -165,6 +165,7 @@ static int emit_recurse_batch(struct hang *h,
 		*batch++ = lower_32_bits(vma->node.start);
 	}
 	*batch++ = MI_BATCH_BUFFER_END; /* not reached */
+	i915_gem_chipset_flush(h->i915);
 
 	flags = 0;
 	if (INTEL_GEN(vm->i915) <= 5)
@@ -231,7 +232,7 @@ static u32 hws_seqno(const struct hang *h,
 static void hang_fini(struct hang *h)
 {
 	*h->batch = MI_BATCH_BUFFER_END;
-	wmb();
+	i915_gem_chipset_flush(h->i915);
 
 	i915_gem_object_unpin_map(h->obj);
 	i915_gem_object_put(h->obj);
@@ -275,6 +276,8 @@ static int igt_hang_sanitycheck(void *arg)
 		i915_gem_request_get(rq);
 
 		*h.batch = MI_BATCH_BUFFER_END;
+		i915_gem_chipset_flush(i915);
+
 		__i915_add_request(rq, true);
 
 		timeout = i915_wait_request(rq,
@@ -765,7 +768,7 @@ static int igt_reset_queue(void *arg)
 		pr_info("%s: Completed %d resets\n", engine->name, count);
 
 		*h.batch = MI_BATCH_BUFFER_END;
-		wmb();
+		i915_gem_chipset_flush(i915);
 
 		i915_gem_request_put(prev);
 	}
