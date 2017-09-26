@@ -464,10 +464,9 @@ struct clk *mmp_clk_register_mix(struct device *dev,
 	if (config->table) {
 		table_bytes = sizeof(*config->table) * config->table_size;
 		mix->table = kmemdup(config->table, table_bytes, GFP_KERNEL);
-		if (!mix->table) {
-			kfree(mix);
-			return ERR_PTR(-ENOMEM);
-		}
+		if (!mix->table)
+			goto free_mix;
+
 		mix->table_size = config->table_size;
 	}
 
@@ -477,8 +476,7 @@ struct clk *mmp_clk_register_mix(struct device *dev,
 					 GFP_KERNEL);
 		if (!mix->mux_table) {
 			kfree(mix->table);
-			kfree(mix);
-			return ERR_PTR(-ENOMEM);
+			goto free_mix;
 		}
 	}
 
@@ -502,4 +500,8 @@ struct clk *mmp_clk_register_mix(struct device *dev,
 	}
 
 	return clk;
+
+free_mix:
+	kfree(mix);
+	return ERR_PTR(-ENOMEM);
 }
