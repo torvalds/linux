@@ -658,7 +658,7 @@ static ssize_t ocrdma_dbgfs_ops_write(struct file *filp,
 		if (reset) {
 			status = ocrdma_mbx_rdma_stats(dev, true);
 			if (status) {
-				pr_err("Failed to reset stats = %d", status);
+				pr_err("Failed to reset stats = %d\n", status);
 				goto err;
 			}
 		}
