@@ -310,7 +310,7 @@
 				function = "i2c2";
 			};
 
-			mmc0_pins_a: mmc0@0 {
+			mmc0_pins_a: mmc0 {
 				pins = "PF0", "PF1", "PF2", "PF3",
 				       "PF4", "PF5";
 				function = "mmc0";
@@ -318,13 +318,13 @@
 				bias-pull-up;
 			};
 
-			mmc0_cd_pin: mmc0_cd_pin@0 {
+			mmc0_cd_pin: mmc0_cd_pin {
 				pins = "PF6";
 				function = "gpio_in";
 				bias-pull-up;
 			};
 
-			mmc1_pins_a: mmc1@0 {
+			mmc1_pins_a: mmc1 {
 				pins = "PG0", "PG1", "PG2", "PG3",
 				       "PG4", "PG5";
 				function = "mmc1";
@@ -342,7 +342,7 @@
 				bias-pull-up;
 			};
 
-			spdif_tx_pins_a: spdif@0 {
+			spdif_tx_pins_a: spdif {
 				pins = "PA17";
 				function = "spdif";
 			};
@@ -357,7 +357,7 @@
 				function = "spi1";
 			};
 
-			uart0_pins_a: uart0@0 {
+			uart0_pins_a: uart0 {
 				pins = "PA4", "PA5";
 				function = "uart0";
 			};
@@ -640,7 +640,7 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 
-			ir_pins_a: ir@0 {
+			ir_pins_a: ir {
 				pins = "PL11";
 				function = "s_cir_rx";
 			};
