@@ -487,6 +487,7 @@ struct c4iw_qp {
 	int sq_sig_all;
 	struct work_struct free_work;
 	struct c4iw_ucontext *ucontext;
+	struct c4iw_wr_wait *wr_waitp;
 };
 
 static inline struct c4iw_qp *to_c4iw_qp(struct ib_qp *ibqp)
