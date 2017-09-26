@@ -327,6 +327,7 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	 */
 	uint32_t idle_frames = max(6, dev_priv->vbt.psr.idle_frames);
 	uint32_t val;
+	uint8_t sink_latency;
 
 	val = idle_frames << EDP_PSR_IDLE_FRAME_SHIFT;
 
@@ -334,8 +335,16 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	 * mesh at all with our frontbuffer tracking. And the hw alone isn't
 	 * good enough. */
 	val |= EDP_PSR2_ENABLE |
-		EDP_SU_TRACK_ENABLE |
-		EDP_FRAMES_BEFORE_SU_ENTRY;
+		EDP_SU_TRACK_ENABLE;
+
+	if (drm_dp_dpcd_readb(&intel_dp->aux,
+				DP_SYNCHRONIZATION_LATENCY_IN_SINK,
+				&sink_latency) == 1) {
+		sink_latency &= DP_MAX_RESYNC_FRAME_COUNT_MASK;
+	} else {
+		sink_latency = 0;
+	}
+	val |= EDP_PSR2_FRAME_BEFORE_SU(sink_latency + 1);
 
 	if (dev_priv->vbt.psr.tp2_tp3_wakeup_time > 5)
 		val |= EDP_PSR2_TP2_TIME_2500;

@@ -4055,7 +4055,7 @@ enum {
 #define   EDP_PSR2_FRAME_BEFORE_SU_SHIFT 4
 #define   EDP_PSR2_FRAME_BEFORE_SU_MASK	(0xf<<4)
 #define   EDP_PSR2_IDLE_MASK		0xf
-#define   EDP_FRAMES_BEFORE_SU_ENTRY   (1<<4)
+#define   EDP_PSR2_FRAME_BEFORE_SU(a)	((a)<<4)
 
 #define EDP_PSR2_STATUS_CTL            _MMIO(0x6f940)
 #define EDP_PSR2_STATUS_STATE_MASK     (0xf<<28)
