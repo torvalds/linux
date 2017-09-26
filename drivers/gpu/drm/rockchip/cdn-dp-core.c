@@ -40,6 +40,7 @@
 #include "cdn-dp-reg.h"
 #include "rockchip_drm_vop.h"
 
+#define HDCP_TOGGLE_INTERVAL_US		10000
 #define HDCP_RETRY_INTERVAL_US		20000
 #define HDCP_EVENT_TIMEOUT_US		3000000
 #define HDCP_AUTHENTICATE_DELAY_MS	400
@@ -232,6 +233,19 @@ static int cdn_dp_start_hdcp1x_auth(struct cdn_dp_device *dp)
 	}
 	arm_smccc_smc(RK_SIP_HDCP_CONTROL, HDCP_KEY_DATA_START_DECRYPT,
 		      0, 0, 0, 0, 0, 0, &res);
+
+	/*
+	 * First thing's first, disable HDCP. The hardware likes to start with
+	 * a fresh slate, so this ensures that re-enabling on unplug/replug
+	 * works.
+	 */
+	ret = cdn_dp_hdcp_tx_configuration(dp, HDCP_TX_CONFIGURATION_HDCP_V1,
+					   false);
+	if (ret) {
+		DRM_DEV_ERROR(dp->dev, "HDCP pre-disable failed %d\n", ret);
+		return ret;
+	}
+	usleep_range(HDCP_TOGGLE_INTERVAL_US, HDCP_TOGGLE_INTERVAL_US * 2);
 
 	ret = cdn_dp_hdcp_tx_configuration(dp, HDCP_TX_CONFIGURATION_HDCP_V1,
 					   true);
