@@ -500,7 +500,7 @@ static void ovl_cleanup_index(struct dentry *dentry)
 		goto fail;
 
 	inode = d_inode(upperdentry);
-	if (inode->i_nlink != 1) {
+	if (!S_ISDIR(inode->i_mode) && inode->i_nlink != 1) {
 		pr_warn_ratelimited("overlayfs: cleanup linked index (%pd2, ino=%lu, nlink=%u)\n",
 				    upperdentry, inode->i_ino, inode->i_nlink);
 		/*
@@ -549,7 +549,7 @@ int ovl_nlink_start(struct dentry *dentry, bool *locked)
 	const struct cred *old_cred;
 	int err;
 
-	if (!d_inode(dentry) || d_is_dir(dentry))
+	if (!d_inode(dentry))
 		return 0;
 
 	/*
@@ -576,7 +576,7 @@ int ovl_nlink_start(struct dentry *dentry, bool *locked)
 	if (err)
 		return err;
 
-	if (!ovl_test_flag(OVL_INDEX, d_inode(dentry)))
+	if (d_is_dir(dentry) || !ovl_test_flag(OVL_INDEX, d_inode(dentry)))
 		goto out;
 
 	old_cred = ovl_override_creds(dentry->d_sb);
