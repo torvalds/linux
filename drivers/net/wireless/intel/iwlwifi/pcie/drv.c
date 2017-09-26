@@ -587,8 +587,6 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
 
-#ifdef CONFIG_ACPI
-
 static void set_dflt_pwr_limit(struct iwl_trans *trans, struct pci_dev *pdev)
 {
 	union acpi_object *data, *wifi_pkg;
@@ -610,10 +608,6 @@ static void set_dflt_pwr_limit(struct iwl_trans *trans, struct pci_dev *pdev)
 out:
 	kfree(data);
 }
-
-#else /* CONFIG_ACPI */
-static void set_dflt_pwr_limit(struct iwl_trans *trans, struct pci_dev *pdev) {}
-#endif
 
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
