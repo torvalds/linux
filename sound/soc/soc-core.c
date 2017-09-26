@@ -614,6 +614,8 @@ struct snd_pcm_substream *snd_soc_get_dai_substream(struct snd_soc_card *card,
 }
 EXPORT_SYMBOL_GPL(snd_soc_get_dai_substream);
 
+static const struct snd_soc_ops null_snd_soc_ops;
+
 static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	struct snd_soc_card *card, struct snd_soc_dai_link *dai_link)
 {
@@ -626,6 +628,9 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	INIT_LIST_HEAD(&rtd->component_list);
 	rtd->card = card;
 	rtd->dai_link = dai_link;
+	if (!rtd->dai_link->ops)
+		rtd->dai_link->ops = &null_snd_soc_ops;
+
 	rtd->codec_dais = kzalloc(sizeof(struct snd_soc_dai *) *
 					dai_link->num_codecs,
 					GFP_KERNEL);

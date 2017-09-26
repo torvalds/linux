@@ -511,7 +511,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 			codec_dai->rx_mask = 0;
 	}
 
-	if (rtd->dai_link->ops && rtd->dai_link->ops->startup) {
+	if (rtd->dai_link->ops->startup) {
 		ret = rtd->dai_link->ops->startup(substream);
 		if (ret < 0) {
 			pr_err("ASoC: %s startup failed: %d\n",
@@ -585,7 +585,7 @@ dynamic:
 	return 0;
 
 config_err:
-	if (rtd->dai_link->ops && rtd->dai_link->ops->shutdown)
+	if (rtd->dai_link->ops->shutdown)
 		rtd->dai_link->ops->shutdown(substream);
 
 machine_err:
@@ -692,7 +692,7 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 			codec_dai->driver->ops->shutdown(substream, codec_dai);
 	}
 
-	if (rtd->dai_link->ops && rtd->dai_link->ops->shutdown)
+	if (rtd->dai_link->ops->shutdown)
 		rtd->dai_link->ops->shutdown(substream);
 
 	if (platform->driver->ops && platform->driver->ops->close)
@@ -751,7 +751,7 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
-	if (rtd->dai_link->ops && rtd->dai_link->ops->prepare) {
+	if (rtd->dai_link->ops->prepare) {
 		ret = rtd->dai_link->ops->prepare(substream);
 		if (ret < 0) {
 			dev_err(rtd->card->dev, "ASoC: machine prepare error:"
@@ -855,7 +855,7 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	int i, ret = 0;
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
-	if (rtd->dai_link->ops && rtd->dai_link->ops->hw_params) {
+	if (rtd->dai_link->ops->hw_params) {
 		ret = rtd->dai_link->ops->hw_params(substream, params);
 		if (ret < 0) {
 			dev_err(rtd->card->dev, "ASoC: machine hw_params"
@@ -948,7 +948,7 @@ codec_err:
 		codec_dai->rate = 0;
 	}
 
-	if (rtd->dai_link->ops && rtd->dai_link->ops->hw_free)
+	if (rtd->dai_link->ops->hw_free)
 		rtd->dai_link->ops->hw_free(substream);
 
 	mutex_unlock(&rtd->pcm_mutex);
@@ -994,7 +994,7 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 	}
 
 	/* free any machine hw params */
-	if (rtd->dai_link->ops && rtd->dai_link->ops->hw_free)
+	if (rtd->dai_link->ops->hw_free)
 		rtd->dai_link->ops->hw_free(substream);
 
 	/* free any DMA resources */
@@ -1045,7 +1045,7 @@ static int soc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 			return ret;
 	}
 
-	if (rtd->dai_link->ops && rtd->dai_link->ops->trigger) {
+	if (rtd->dai_link->ops->trigger) {
 		ret = rtd->dai_link->ops->trigger(substream, cmd);
 		if (ret < 0)
 			return ret;
