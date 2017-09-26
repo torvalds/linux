@@ -123,8 +123,6 @@ MODULE_PARM_DESC(user_credit_return_threshold, "Credit return threshold for user
 static inline u64 encode_rcv_header_entry_size(u16 size);
 
 static struct idr hfi1_unit_table;
-u32 hfi1_cpulist_count;
-unsigned long *hfi1_cpulist;
 
 static int hfi1_create_kctxt(struct hfi1_devdata *dd,
 			     struct hfi1_pportdata *ppd)
@@ -1287,18 +1285,6 @@ struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra)
 		goto bail;
 	}
 
-	if (!hfi1_cpulist_count) {
-		u32 count = num_online_cpus();
-
-		hfi1_cpulist = kcalloc(BITS_TO_LONGS(count), sizeof(long),
-				       GFP_KERNEL);
-		if (hfi1_cpulist)
-			hfi1_cpulist_count = count;
-		else
-			hfi1_early_err(
-			&pdev->dev,
-			"Could not alloc cpulist info, cpu affinity might be wrong\n");
-	}
 	kobject_init(&dd->kobj, &hfi1_devdata_type);
 	return dd;
 
@@ -1471,8 +1457,6 @@ static void __exit hfi1_mod_cleanup(void)
 	node_affinity_destroy();
 	hfi1_wss_exit();
 	hfi1_dbg_exit();
-	hfi1_cpulist_count = 0;
-	kfree(hfi1_cpulist);
 
 	idr_destroy(&hfi1_unit_table);
 	dispose_firmware();	/* asymmetric with obtain_firmware() */

@@ -1371,8 +1371,6 @@ struct hfi1_filedata {
 extern struct list_head hfi1_dev_list;
 extern spinlock_t hfi1_devs_lock;
 struct hfi1_devdata *hfi1_lookup(int unit);
-extern u32 hfi1_cpulist_count;
-extern unsigned long *hfi1_cpulist;
 
 static inline unsigned long uctxt_offset(struct hfi1_ctxtdata *uctxt)
 {
