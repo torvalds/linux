@@ -341,6 +341,7 @@ thine	THine Electronics, Inc.
 ti	Texas Instruments
 tianma	Tianma Micro-electronics Co., Ltd.
 tlm	Trusted Logic Mobility
+tmt	Tecon Microprocessor Technologies, LLC.
 topeet  Topeet
 toradex	Toradex AG
 toshiba	Toshiba Corporation
