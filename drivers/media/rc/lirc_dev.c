@@ -101,9 +101,6 @@ int lirc_register_device(struct lirc_dev *d)
 		return -EINVAL;
 	}
 
-	/* some safety check 8-) */
-	d->name[sizeof(d->name) - 1] = '\0';
-
 	if (rcdev->driver_type == RC_DRIVER_IR_RAW) {
 		if (kfifo_alloc(&rcdev->rawir, MAX_IR_EVENT_SIZE, GFP_KERNEL))
 			return -ENOMEM;
@@ -131,7 +128,7 @@ int lirc_register_device(struct lirc_dev *d)
 	get_device(d->dev.parent);
 
 	dev_info(&d->dev, "lirc_dev: driver %s registered at minor = %d\n",
-		 d->name, d->minor);
+		 rcdev->driver_name, d->minor);
 
 	return 0;
 }
@@ -147,13 +144,13 @@ void lirc_unregister_device(struct lirc_dev *d)
 	rcdev = d->rdev;
 
 	dev_dbg(&d->dev, "lirc_dev: driver %s unregistered from minor = %d\n",
-		d->name, d->minor);
+		rcdev->driver_name, d->minor);
 
 	mutex_lock(&rcdev->lock);
 
 	if (rcdev->lirc_open) {
 		dev_dbg(&d->dev, LOGHEAD "releasing opened driver\n",
-			d->name, d->minor);
+			rcdev->driver_name, d->minor);
 		wake_up_poll(&rcdev->wait_poll, POLLHUP);
 	}
 

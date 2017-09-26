@@ -546,8 +546,6 @@ int ir_lirc_register(struct rc_dev *dev)
 	if (!ldev)
 		return rc;
 
-	snprintf(ldev->name, sizeof(ldev->name), "ir-lirc-codec (%s)",
-		 dev->driver_name);
 	ldev->fops = &lirc_fops;
 	ldev->dev.parent = &dev->dev;
 	ldev->rdev = dev;
