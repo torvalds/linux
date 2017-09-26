@@ -122,6 +122,7 @@ int amdgpu_cntl_sb_buf_per_se = 0;
 int amdgpu_param_buf_per_se = 0;
 int amdgpu_job_hang_limit = 0;
 int amdgpu_lbpw = -1;
+int amdgpu_compute_multipipe = -1;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
@@ -264,6 +265,9 @@ module_param_named(job_hang_limit, amdgpu_job_hang_limit, int ,0444);
 
 MODULE_PARM_DESC(lbpw, "Load Balancing Per Watt (LBPW) support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(lbpw, amdgpu_lbpw, int, 0444);
+
+MODULE_PARM_DESC(compute_multipipe, "Force compute queues to be spread across pipes (1 = enable, 0 = disable, -1 = auto)");
+module_param_named(compute_multipipe, amdgpu_compute_multipipe, int, 0444);
 
 #ifdef CONFIG_DRM_AMDGPU_SI
 

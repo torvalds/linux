@@ -111,6 +111,12 @@ void amdgpu_gfx_parse_disable_cu(unsigned *mask, unsigned max_se, unsigned max_s
 
 static bool amdgpu_gfx_is_multipipe_capable(struct amdgpu_device *adev)
 {
+	if (amdgpu_compute_multipipe != -1) {
+		DRM_INFO("amdgpu: forcing compute pipe policy %d\n",
+			 amdgpu_compute_multipipe);
+		return amdgpu_compute_multipipe == 1;
+	}
+
 	/* FIXME: spreading the queues across pipes causes perf regressions
 	 * on POLARIS11 compute workloads */
 	if (adev->asic_type == CHIP_POLARIS11)
