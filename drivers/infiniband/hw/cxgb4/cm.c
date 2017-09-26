@@ -318,11 +318,18 @@ static void *alloc_ep(int size, gfp_t gfp)
 
 	epc = kzalloc(size, gfp);
 	if (epc) {
+		epc->wr_waitp = kzalloc(sizeof(*epc->wr_waitp), gfp);
+		if (!epc->wr_waitp) {
+			kfree(epc);
+			epc = NULL;
+			goto out;
+		}
 		kref_init(&epc->kref);
 		mutex_init(&epc->mutex);
-		c4iw_init_wr_wait(&epc->wr_wait);
+		c4iw_init_wr_wait(epc->wr_waitp);
 	}
 	pr_debug("alloc ep %p\n", epc);
+out:
 	return epc;
 }
 
@@ -407,6 +414,7 @@ void _c4iw_free_ep(struct kref *kref)
 	}
 	if (!skb_queue_empty(&ep->com.ep_skb_list))
 		skb_queue_purge(&ep->com.ep_skb_list);
+	kfree(ep->com.wr_waitp);
 	kfree(ep);
 }
 
@@ -1872,7 +1880,7 @@ static int abort_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	mutex_lock(&ep->com.mutex);
 	switch (ep->com.state) {
 	case ABORTING:
-		c4iw_wake_up(&ep->com.wr_wait, -ECONNRESET);
+		c4iw_wake_up(ep->com.wr_waitp, -ECONNRESET);
 		__state_set(&ep->com, DEAD);
 		release = 1;
 		break;
@@ -2100,7 +2108,7 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 
 	pr_debug("qp %p cm_id %p\n", ep->com.qp, ep->com.cm_id);
 	init_timer(&ep->timer);
-	c4iw_init_wr_wait(&ep->com.wr_wait);
+	c4iw_init_wr_wait(ep->com.wr_waitp);
 
 	/* When MPA revision is different on nodes, the node with MPA_rev=2
 	 * tries to reconnect with MPA_rev 1 for the same EP through
@@ -2319,7 +2327,7 @@ static int pass_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	}
 	pr_debug("ep %p status %d error %d\n", ep,
 		 rpl->status, status2errno(rpl->status));
-	c4iw_wake_up(&ep->com.wr_wait, status2errno(rpl->status));
+	c4iw_wake_up(ep->com.wr_waitp, status2errno(rpl->status));
 	c4iw_put_ep(&ep->com);
 out:
 	return 0;
@@ -2336,7 +2344,7 @@ static int close_listsrv_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 		goto out;
 	}
 	pr_debug("ep %p\n", ep);
-	c4iw_wake_up(&ep->com.wr_wait, status2errno(rpl->status));
+	c4iw_wake_up(ep->com.wr_waitp, status2errno(rpl->status));
 	c4iw_put_ep(&ep->com);
 out:
 	return 0;
@@ -2671,12 +2679,12 @@ static int peer_close(struct c4iw_dev *dev, struct sk_buff *skb)
 		 */
 		__state_set(&ep->com, CLOSING);
 		pr_debug("waking up ep %p tid %u\n", ep, ep->hwtid);
-		c4iw_wake_up(&ep->com.wr_wait, -ECONNRESET);
+		c4iw_wake_up(ep->com.wr_waitp, -ECONNRESET);
 		break;
 	case MPA_REP_SENT:
 		__state_set(&ep->com, CLOSING);
 		pr_debug("waking up ep %p tid %u\n", ep, ep->hwtid);
-		c4iw_wake_up(&ep->com.wr_wait, -ECONNRESET);
+		c4iw_wake_up(ep->com.wr_waitp, -ECONNRESET);
 		break;
 	case FPDU_MODE:
 		start_ep_timer(ep);
@@ -2758,7 +2766,7 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 	 * MPA_REQ_SENT
 	 */
 	if (ep->com.state != MPA_REQ_SENT)
-		c4iw_wake_up(&ep->com.wr_wait, -ECONNRESET);
+		c4iw_wake_up(ep->com.wr_waitp, -ECONNRESET);
 
 	mutex_lock(&ep->com.mutex);
 	switch (ep->com.state) {
@@ -3346,14 +3354,14 @@ static int create_server6(struct c4iw_dev *dev, struct c4iw_listen_ep *ep)
 		if (err)
 			return err;
 	}
-	c4iw_init_wr_wait(&ep->com.wr_wait);
+	c4iw_init_wr_wait(ep->com.wr_waitp);
 	err = cxgb4_create_server6(ep->com.dev->rdev.lldi.ports[0],
 				   ep->stid, &sin6->sin6_addr,
 				   sin6->sin6_port,
 				   ep->com.dev->rdev.lldi.rxq_ids[0]);
 	if (!err)
 		err = c4iw_wait_for_reply(&ep->com.dev->rdev,
-					  &ep->com.wr_wait,
+					  ep->com.wr_waitp,
 					  0, 0, __func__);
 	else if (err > 0)
 		err = net_xmit_errno(err);
@@ -3389,13 +3397,13 @@ static int create_server4(struct c4iw_dev *dev, struct c4iw_listen_ep *ep)
 			}
 		} while (err == -EBUSY);
 	} else {
-		c4iw_init_wr_wait(&ep->com.wr_wait);
+		c4iw_init_wr_wait(ep->com.wr_waitp);
 		err = cxgb4_create_server(ep->com.dev->rdev.lldi.ports[0],
 				ep->stid, sin->sin_addr.s_addr, sin->sin_port,
 				0, ep->com.dev->rdev.lldi.rxq_ids[0]);
 		if (!err)
 			err = c4iw_wait_for_reply(&ep->com.dev->rdev,
-						  &ep->com.wr_wait,
+						  ep->com.wr_waitp,
 						  0, 0, __func__);
 		else if (err > 0)
 			err = net_xmit_errno(err);
@@ -3487,13 +3495,13 @@ int c4iw_destroy_listen(struct iw_cm_id *cm_id)
 			ep->com.dev->rdev.lldi.rxq_ids[0], 0);
 	} else {
 		struct sockaddr_in6 *sin6;
-		c4iw_init_wr_wait(&ep->com.wr_wait);
+		c4iw_init_wr_wait(ep->com.wr_waitp);
 		err = cxgb4_remove_server(
 				ep->com.dev->rdev.lldi.ports[0], ep->stid,
 				ep->com.dev->rdev.lldi.rxq_ids[0], 0);
 		if (err)
 			goto done;
-		err = c4iw_wait_for_reply(&ep->com.dev->rdev, &ep->com.wr_wait,
+		err = c4iw_wait_for_reply(&ep->com.dev->rdev, ep->com.wr_waitp,
 					  0, 0, __func__);
 		sin6 = (struct sockaddr_in6 *)&ep->com.local_addr;
 		cxgb4_clip_release(ep->com.dev->rdev.lldi.ports[0],
@@ -4216,7 +4224,7 @@ static int peer_abort_intr(struct c4iw_dev *dev, struct sk_buff *skb)
 	}
 	pr_debug("ep %p tid %u state %u\n", ep, ep->hwtid, ep->com.state);
 
-	c4iw_wake_up(&ep->com.wr_wait, -ECONNRESET);
+	c4iw_wake_up(ep->com.wr_waitp, -ECONNRESET);
 out:
 	sched(dev, skb);
 	return 0;

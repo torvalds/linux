@@ -842,7 +842,7 @@ struct c4iw_ep_common {
 	struct mutex mutex;
 	struct sockaddr_storage local_addr;
 	struct sockaddr_storage remote_addr;
-	struct c4iw_wr_wait wr_wait;
+	struct c4iw_wr_wait *wr_waitp;
 	unsigned long flags;
 	unsigned long history;
 };

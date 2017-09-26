@@ -1355,14 +1355,14 @@ static int rdma_fini(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 	wqe->flowid_len16 = cpu_to_be32(
 		FW_WR_FLOWID_V(ep->hwtid) |
 		FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*wqe), 16)));
-	wqe->cookie = (uintptr_t)&ep->com.wr_wait;
+	wqe->cookie = (uintptr_t)ep->com.wr_waitp;
 
 	wqe->u.fini.type = FW_RI_TYPE_FINI;
 	ret = c4iw_ofld_send(&rhp->rdev, skb);
 	if (ret)
 		goto out;
 
-	ret = c4iw_wait_for_reply(&rhp->rdev, &ep->com.wr_wait, qhp->ep->hwtid,
+	ret = c4iw_wait_for_reply(&rhp->rdev, ep->com.wr_waitp, qhp->ep->hwtid,
 			     qhp->wq.sq.qid, __func__);
 out:
 	pr_debug("ret %d\n", ret);
@@ -1425,7 +1425,7 @@ static int rdma_init(struct c4iw_dev *rhp, struct c4iw_qp *qhp)
 		FW_WR_FLOWID_V(qhp->ep->hwtid) |
 		FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*wqe), 16)));
 
-	wqe->cookie = (uintptr_t)&qhp->ep->com.wr_wait;
+	wqe->cookie = (uintptr_t)qhp->ep->com.wr_waitp;
 
 	wqe->u.init.type = FW_RI_TYPE_INIT;
 	wqe->u.init.mpareqbit_p2ptype =
@@ -1466,7 +1466,7 @@ static int rdma_init(struct c4iw_dev *rhp, struct c4iw_qp *qhp)
 	if (ret)
 		goto err1;
 
-	ret = c4iw_wait_for_reply(&rhp->rdev, &qhp->ep->com.wr_wait,
+	ret = c4iw_wait_for_reply(&rhp->rdev, qhp->ep->com.wr_waitp,
 				  qhp->ep->hwtid, qhp->wq.sq.qid, __func__);
 	if (!ret)
 		goto out;
