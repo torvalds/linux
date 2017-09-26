@@ -1518,6 +1518,27 @@ static struct cxgb4_uld_info c4iw_uld_info = {
 	.control = c4iw_uld_control,
 };
 
+void _c4iw_free_wr_wait(struct kref *kref)
+{
+	struct c4iw_wr_wait *wr_waitp;
+
+	wr_waitp = container_of(kref, struct c4iw_wr_wait, kref);
+	pr_debug("Free wr_wait %p\n", wr_waitp);
+	kfree(wr_waitp);
+}
+
+struct c4iw_wr_wait *c4iw_alloc_wr_wait(gfp_t gfp)
+{
+	struct c4iw_wr_wait *wr_waitp;
+
+	wr_waitp = kzalloc(sizeof(*wr_waitp), gfp);
+	if (wr_waitp) {
+		kref_init(&wr_waitp->kref);
+		pr_debug("wr_wait %p\n", wr_waitp);
+	}
+	return wr_waitp;
+}
+
 static int __init c4iw_init_module(void)
 {
 	int err;

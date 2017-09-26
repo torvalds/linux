@@ -318,7 +318,7 @@ static void *alloc_ep(int size, gfp_t gfp)
 
 	epc = kzalloc(size, gfp);
 	if (epc) {
-		epc->wr_waitp = kzalloc(sizeof(*epc->wr_waitp), gfp);
+		epc->wr_waitp = c4iw_alloc_wr_wait(gfp);
 		if (!epc->wr_waitp) {
 			kfree(epc);
 			epc = NULL;
@@ -414,7 +414,7 @@ void _c4iw_free_ep(struct kref *kref)
 	}
 	if (!skb_queue_empty(&ep->com.ep_skb_list))
 		skb_queue_purge(&ep->com.ep_skb_list);
-	kfree(ep->com.wr_waitp);
+	c4iw_put_wr_wait(ep->com.wr_waitp);
 	kfree(ep);
 }
 
@@ -1880,7 +1880,7 @@ static int abort_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	mutex_lock(&ep->com.mutex);
 	switch (ep->com.state) {
 	case ABORTING:
-		c4iw_wake_up(ep->com.wr_waitp, -ECONNRESET);
+		c4iw_wake_up_noref(ep->com.wr_waitp, -ECONNRESET);
 		__state_set(&ep->com, DEAD);
 		release = 1;
 		break;
@@ -2327,7 +2327,7 @@ static int pass_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	}
 	pr_debug("ep %p status %d error %d\n", ep,
 		 rpl->status, status2errno(rpl->status));
-	c4iw_wake_up(ep->com.wr_waitp, status2errno(rpl->status));
+	c4iw_wake_up_noref(ep->com.wr_waitp, status2errno(rpl->status));
 	c4iw_put_ep(&ep->com);
 out:
 	return 0;
@@ -2344,7 +2344,7 @@ static int close_listsrv_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 		goto out;
 	}
 	pr_debug("ep %p\n", ep);
-	c4iw_wake_up(ep->com.wr_waitp, status2errno(rpl->status));
+	c4iw_wake_up_noref(ep->com.wr_waitp, status2errno(rpl->status));
 	c4iw_put_ep(&ep->com);
 out:
 	return 0;
@@ -2679,12 +2679,12 @@ static int peer_close(struct c4iw_dev *dev, struct sk_buff *skb)
 		 */
 		__state_set(&ep->com, CLOSING);
 		pr_debug("waking up ep %p tid %u\n", ep, ep->hwtid);
-		c4iw_wake_up(ep->com.wr_waitp, -ECONNRESET);
+		c4iw_wake_up_noref(ep->com.wr_waitp, -ECONNRESET);
 		break;
 	case MPA_REP_SENT:
 		__state_set(&ep->com, CLOSING);
 		pr_debug("waking up ep %p tid %u\n", ep, ep->hwtid);
-		c4iw_wake_up(ep->com.wr_waitp, -ECONNRESET);
+		c4iw_wake_up_noref(ep->com.wr_waitp, -ECONNRESET);
 		break;
 	case FPDU_MODE:
 		start_ep_timer(ep);
@@ -2766,7 +2766,7 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 	 * MPA_REQ_SENT
 	 */
 	if (ep->com.state != MPA_REQ_SENT)
-		c4iw_wake_up(ep->com.wr_waitp, -ECONNRESET);
+		c4iw_wake_up_noref(ep->com.wr_waitp, -ECONNRESET);
 
 	mutex_lock(&ep->com.mutex);
 	switch (ep->com.state) {
@@ -4187,7 +4187,7 @@ static int fw6_msg(struct c4iw_dev *dev, struct sk_buff *skb)
 		wr_waitp = (struct c4iw_wr_wait *)(__force unsigned long) rpl->data[1];
 		pr_debug("wr_waitp %p ret %u\n", wr_waitp, ret);
 		if (wr_waitp)
-			c4iw_wake_up(wr_waitp, ret ? -ret : 0);
+			c4iw_wake_up_deref(wr_waitp, ret ? -ret : 0);
 		kfree_skb(skb);
 		break;
 	case FW6_TYPE_CQE:
@@ -4224,7 +4224,7 @@ static int peer_abort_intr(struct c4iw_dev *dev, struct sk_buff *skb)
 	}
 	pr_debug("ep %p tid %u state %u\n", ep, ep->hwtid, ep->com.state);
 
-	c4iw_wake_up(ep->com.wr_waitp, -ECONNRESET);
+	c4iw_wake_up_noref(ep->com.wr_waitp, -ECONNRESET);
 out:
 	sched(dev, skb);
 	return 0;

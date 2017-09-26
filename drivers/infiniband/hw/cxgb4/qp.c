@@ -353,11 +353,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	res->u.sqrq.eqaddr = cpu_to_be64(wq->rq.dma_addr);
 
 	c4iw_init_wr_wait(wr_waitp);
-
-	ret = c4iw_ofld_send(rdev, skb);
-	if (ret)
-		goto free_dma;
-	ret = c4iw_wait_for_reply(rdev, wr_waitp, 0, wq->sq.qid, __func__);
+	ret = c4iw_ref_send_wait(rdev, skb, wr_waitp, 0, wq->sq.qid, __func__);
 	if (ret)
 		goto free_dma;
 
@@ -730,7 +726,7 @@ static void free_qp_work(struct work_struct *work)
 
 	if (ucontext)
 		c4iw_put_ucontext(ucontext);
-	kfree(qhp->wr_waitp);
+	c4iw_put_wr_wait(qhp->wr_waitp);
 	kfree(qhp);
 }
 
@@ -1358,13 +1354,10 @@ static int rdma_fini(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 	wqe->cookie = (uintptr_t)ep->com.wr_waitp;
 
 	wqe->u.fini.type = FW_RI_TYPE_FINI;
-	ret = c4iw_ofld_send(&rhp->rdev, skb);
-	if (ret)
-		goto out;
 
-	ret = c4iw_wait_for_reply(&rhp->rdev, ep->com.wr_waitp, qhp->ep->hwtid,
-			     qhp->wq.sq.qid, __func__);
-out:
+	ret = c4iw_ref_send_wait(&rhp->rdev, skb, ep->com.wr_waitp,
+				 qhp->ep->hwtid, qhp->wq.sq.qid, __func__);
+
 	pr_debug("ret %d\n", ret);
 	return ret;
 }
@@ -1462,15 +1455,11 @@ static int rdma_init(struct c4iw_dev *rhp, struct c4iw_qp *qhp)
 	if (qhp->attr.mpa_attr.initiator)
 		build_rtr_msg(qhp->attr.mpa_attr.p2p_type, &wqe->u.init);
 
-	ret = c4iw_ofld_send(&rhp->rdev, skb);
-	if (ret)
-		goto err1;
-
-	ret = c4iw_wait_for_reply(&rhp->rdev, qhp->ep->com.wr_waitp,
-				  qhp->ep->hwtid, qhp->wq.sq.qid, __func__);
+	ret = c4iw_ref_send_wait(&rhp->rdev, skb, qhp->ep->com.wr_waitp,
+				 qhp->ep->hwtid, qhp->wq.sq.qid, __func__);
 	if (!ret)
 		goto out;
-err1:
+
 	free_ird(rhp, qhp->attr.max_ird);
 out:
 	pr_debug("ret %d\n", ret);
@@ -1796,7 +1785,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	if (!qhp)
 		return ERR_PTR(-ENOMEM);
 
-	qhp->wr_waitp = kzalloc(sizeof(*qhp), GFP_KERNEL);
+	qhp->wr_waitp = c4iw_alloc_wr_wait(GFP_KERNEL);
 	if (!qhp->wr_waitp) {
 		ret = -ENOMEM;
 		goto err_free_qhp;
@@ -1963,7 +1952,7 @@ err_destroy_qp:
 	destroy_qp(&rhp->rdev, &qhp->wq,
 		   ucontext ? &ucontext->uctx : &rhp->rdev.uctx);
 err_free_wr_wait:
-	kfree(qhp->wr_waitp);
+	c4iw_put_wr_wait(qhp->wr_waitp);
 err_free_qhp:
 	kfree(qhp);
 	return ERR_PTR(ret);

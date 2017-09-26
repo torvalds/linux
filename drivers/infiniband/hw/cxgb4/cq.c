@@ -57,10 +57,7 @@ static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	res->u.cq.iqid = cpu_to_be32(cq->cqid);
 
 	c4iw_init_wr_wait(wr_waitp);
-	ret = c4iw_ofld_send(rdev, skb);
-	if (!ret) {
-		ret = c4iw_wait_for_reply(rdev, wr_waitp, 0, 0, __func__);
-	}
+	ret = c4iw_ref_send_wait(rdev, skb, wr_waitp, 0, 0, __func__);
 
 	kfree(cq->sw_queue);
 	dma_free_coherent(&(rdev->lldi.pdev->dev),
@@ -140,12 +137,7 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	res->u.cq.iqaddr = cpu_to_be64(cq->dma_addr);
 
 	c4iw_init_wr_wait(wr_waitp);
-
-	ret = c4iw_ofld_send(rdev, skb);
-	if (ret)
-		goto err4;
-	pr_debug("wait_event wr_wait %p\n", wr_waitp);
-	ret = c4iw_wait_for_reply(rdev, wr_waitp, 0, 0, __func__);
+	ret = c4iw_ref_send_wait(rdev, skb, wr_waitp, 0, 0, __func__);
 	if (ret)
 		goto err4;
 
@@ -869,7 +861,7 @@ int c4iw_destroy_cq(struct ib_cq *ib_cq)
 	destroy_cq(&chp->rhp->rdev, &chp->cq,
 		   ucontext ? &ucontext->uctx : &chp->cq.rdev->uctx,
 		   chp->destroy_skb, chp->wr_waitp);
-	kfree(chp->wr_waitp);
+	c4iw_put_wr_wait(chp->wr_waitp);
 	kfree(chp);
 	return 0;
 }
@@ -901,7 +893,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 	chp = kzalloc(sizeof(*chp), GFP_KERNEL);
 	if (!chp)
 		return ERR_PTR(-ENOMEM);
-	chp->wr_waitp = kzalloc(sizeof(*chp->wr_waitp), GFP_KERNEL);
+	chp->wr_waitp = c4iw_alloc_wr_wait(GFP_KERNEL);
 	if (!chp->wr_waitp) {
 		ret = -ENOMEM;
 		goto err_free_chp;
@@ -1020,7 +1012,7 @@ err_destroy_cq:
 err_free_skb:
 	kfree_skb(chp->destroy_skb);
 err_free_wr_wait:
-	kfree(chp->wr_waitp);
+	c4iw_put_wr_wait(chp->wr_waitp);
 err_free_chp:
 	kfree(chp);
 	return ERR_PTR(ret);

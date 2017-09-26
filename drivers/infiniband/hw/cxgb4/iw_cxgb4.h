@@ -202,7 +202,26 @@ static inline int c4iw_num_stags(struct c4iw_rdev *rdev)
 struct c4iw_wr_wait {
 	struct completion completion;
 	int ret;
+	struct kref kref;
 };
+
+void _c4iw_free_wr_wait(struct kref *kref);
+
+static inline void c4iw_put_wr_wait(struct c4iw_wr_wait *wr_waitp)
+{
+	pr_debug("wr_wait %p ref before put %u\n", wr_waitp,
+		 kref_read(&wr_waitp->kref));
+	WARN_ON(kref_read(&wr_waitp->kref) == 0);
+	kref_put(&wr_waitp->kref, _c4iw_free_wr_wait);
+}
+
+static inline void c4iw_get_wr_wait(struct c4iw_wr_wait *wr_waitp)
+{
+	pr_debug("wr_wait %p ref before get %u\n", wr_waitp,
+		 kref_read(&wr_waitp->kref));
+	WARN_ON(kref_read(&wr_waitp->kref) == 0);
+	kref_get(&wr_waitp->kref);
+}
 
 static inline void c4iw_init_wr_wait(struct c4iw_wr_wait *wr_waitp)
 {
@@ -210,10 +229,23 @@ static inline void c4iw_init_wr_wait(struct c4iw_wr_wait *wr_waitp)
 	init_completion(&wr_waitp->completion);
 }
 
-static inline void c4iw_wake_up(struct c4iw_wr_wait *wr_waitp, int ret)
+static inline void _c4iw_wake_up(struct c4iw_wr_wait *wr_waitp, int ret,
+				 bool deref)
 {
 	wr_waitp->ret = ret;
 	complete(&wr_waitp->completion);
+	if (deref)
+		c4iw_put_wr_wait(wr_waitp);
+}
+
+static inline void c4iw_wake_up_noref(struct c4iw_wr_wait *wr_waitp, int ret)
+{
+	_c4iw_wake_up(wr_waitp, ret, false);
+}
+
+static inline void c4iw_wake_up_deref(struct c4iw_wr_wait *wr_waitp, int ret)
+{
+	_c4iw_wake_up(wr_waitp, ret, true);
 }
 
 static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
@@ -234,12 +266,34 @@ static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
 		       func, pci_name(rdev->lldi.pdev), hwtid, qpid);
 		rdev->flags |= T4_FATAL_ERROR;
 		wr_waitp->ret = -EIO;
+		goto out;
 	}
-out:
 	if (wr_waitp->ret)
 		pr_debug("%s: FW reply %d tid %u qpid %u\n",
 			 pci_name(rdev->lldi.pdev), wr_waitp->ret, hwtid, qpid);
+out:
 	return wr_waitp->ret;
+}
+
+int c4iw_ofld_send(struct c4iw_rdev *rdev, struct sk_buff *skb);
+
+static inline int c4iw_ref_send_wait(struct c4iw_rdev *rdev,
+				     struct sk_buff *skb,
+				     struct c4iw_wr_wait *wr_waitp,
+				     u32 hwtid, u32 qpid,
+				     const char *func)
+{
+	int ret;
+
+	pr_debug("%s wr_wait %p hwtid %u qpid %u\n", func, wr_waitp, hwtid,
+		 qpid);
+	c4iw_get_wr_wait(wr_waitp);
+	ret = c4iw_ofld_send(rdev, skb);
+	if (ret) {
+		c4iw_put_wr_wait(wr_waitp);
+		return ret;
+	}
+	return c4iw_wait_for_reply(rdev, wr_waitp, hwtid, qpid, func);
 }
 
 enum db_state {
@@ -991,7 +1045,6 @@ u32 c4iw_pblpool_alloc(struct c4iw_rdev *rdev, int size);
 void c4iw_pblpool_free(struct c4iw_rdev *rdev, u32 addr, int size);
 u32 c4iw_ocqp_pool_alloc(struct c4iw_rdev *rdev, int size);
 void c4iw_ocqp_pool_free(struct c4iw_rdev *rdev, u32 addr, int size);
-int c4iw_ofld_send(struct c4iw_rdev *rdev, struct sk_buff *skb);
 void c4iw_flush_hw_cq(struct c4iw_cq *chp);
 void c4iw_count_rcqes(struct t4_cq *cq, struct t4_wq *wq, int *count);
 int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp);
@@ -1019,5 +1072,6 @@ extern int db_fc_threshold;
 extern int db_coalescing_threshold;
 extern int use_dsgl;
 void c4iw_invalidate_mr(struct c4iw_dev *rhp, u32 rkey);
+struct c4iw_wr_wait *c4iw_alloc_wr_wait(gfp_t gfp);
 
 #endif
