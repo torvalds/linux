@@ -425,6 +425,7 @@ struct c4iw_cq {
 	spinlock_t comp_handler_lock;
 	atomic_t refcnt;
 	wait_queue_head_t wait;
+	struct c4iw_wr_wait *wr_waitp;
 };
 
 static inline struct c4iw_cq *to_c4iw_cq(struct ib_cq *ibcq)
