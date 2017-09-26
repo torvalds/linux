@@ -51,7 +51,6 @@ MODULE_LICENSE("GPL");
 static bool wmi_requires_smbios_request;
 
 MODULE_ALIAS("wmi:"DELL_EVENT_GUID);
-MODULE_ALIAS("wmi:"DELL_DESCRIPTOR_GUID);
 
 struct dell_wmi_priv {
 	struct input_dev *input_dev;
