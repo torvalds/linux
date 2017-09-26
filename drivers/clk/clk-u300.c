@@ -703,11 +703,9 @@ syscon_clk_register(struct device *dev, const char *name,
 	int ret;
 
 	sclk = kzalloc(sizeof(struct clk_syscon), GFP_KERNEL);
-	if (!sclk) {
-		pr_err("could not allocate syscon clock %s\n",
-			name);
+	if (!sclk)
 		return ERR_PTR(-ENOMEM);
-	}
+
 	init.name = name;
 	init.ops = &syscon_clk_ops;
 	init.flags = flags;
@@ -1124,11 +1122,9 @@ mclk_clk_register(struct device *dev, const char *name,
 	int ret;
 
 	mclk = kzalloc(sizeof(struct clk_mclk), GFP_KERNEL);
-	if (!mclk) {
-		pr_err("could not allocate MMC/SD clock %s\n",
-		       name);
+	if (!mclk)
 		return ERR_PTR(-ENOMEM);
-	}
+
 	init.name = "mclk";
 	init.ops = &mclk_ops;
 	init.flags = 0;
