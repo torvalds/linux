@@ -291,6 +291,47 @@ kci_test_ifalias()
 	echo "PASS: set ifalias $namewant for $devdummy"
 }
 
+kci_test_vrf()
+{
+	vrfname="test-vrf"
+	ret=0
+
+	ip link show type vrf 2>/dev/null
+	if [ $? -ne 0 ]; then
+		echo "SKIP: vrf: iproute2 too old"
+		return 0
+	fi
+
+	ip link add "$vrfname" type vrf table 10
+	check_err $?
+	if [ $ret -ne 0 ];then
+		echo "FAIL: can't add vrf interface, skipping test"
+		return 0
+	fi
+
+	ip -br link show type vrf | grep -q "$vrfname"
+	check_err $?
+	if [ $ret -ne 0 ];then
+		echo "FAIL: created vrf device not found"
+		return 1
+	fi
+
+	ip link set dev "$vrfname" up
+	check_err $?
+
+	ip link set dev "$devdummy" master "$vrfname"
+	check_err $?
+	ip link del dev "$vrfname"
+	check_err $?
+
+	if [ $ret -ne 0 ];then
+		echo "FAIL: vrf"
+		return 1
+	fi
+
+	echo "PASS: vrf"
+}
+
 kci_test_rtnl()
 {
 	kci_add_dummy
@@ -306,6 +347,7 @@ kci_test_rtnl()
 	kci_test_bridge
 	kci_test_addrlabel
 	kci_test_ifalias
+	kci_test_vrf
 
 	kci_del_dummy
 }
