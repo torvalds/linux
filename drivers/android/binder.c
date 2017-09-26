@@ -1303,7 +1303,7 @@ static struct binder_node *binder_init_node_ilocked(
 	node->cookie = cookie;
 	node->work.type = BINDER_WORK_NODE;
 	priority = flags & FLAT_BINDER_FLAG_PRIORITY_MASK;
-	node->sched_policy = (flags & FLAT_BINDER_FLAG_PRIORITY_MASK) >>
+	node->sched_policy = (flags & FLAT_BINDER_FLAG_SCHED_POLICY_MASK) >>
 		FLAT_BINDER_FLAG_SCHED_POLICY_SHIFT;
 	node->min_priority = to_kernel_prio(node->sched_policy, priority);
 	node->accept_fds = !!(flags & FLAT_BINDER_FLAG_ACCEPTS_FDS);
