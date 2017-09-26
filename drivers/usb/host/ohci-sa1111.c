@@ -178,7 +178,7 @@ static void sa1111_stop_hc(struct sa1111_dev *dev)
 static int ohci_hcd_sa1111_probe(struct sa1111_dev *dev)
 {
 	struct usb_hcd *hcd;
-	int ret;
+	int ret, irq;
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -196,6 +196,12 @@ static int ohci_hcd_sa1111_probe(struct sa1111_dev *dev)
 	hcd->rsrc_start = dev->res.start;
 	hcd->rsrc_len = resource_size(&dev->res);
 
+	irq = sa1111_get_irq(dev, 1);
+	if (irq <= 0) {
+		ret = irq ? : -ENXIO;
+		goto err1;
+	}
+
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
 		dev_dbg(&dev->dev, "request_mem_region failed\n");
 		ret = -EBUSY;
@@ -208,7 +214,7 @@ static int ohci_hcd_sa1111_probe(struct sa1111_dev *dev)
 	if (ret)
 		goto err2;
 
-	ret = usb_add_hcd(hcd, dev->irq[1], 0);
+	ret = usb_add_hcd(hcd, irq, 0);
 	if (ret == 0) {
 		device_wakeup_enable(hcd->self.controller);
 		return ret;
