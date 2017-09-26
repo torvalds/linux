@@ -37,7 +37,6 @@ static int stm32_lptim_validate_device(struct iio_trigger *trig,
 }
 
 static const struct iio_trigger_ops stm32_lptim_trigger_ops = {
-	.owner = THIS_MODULE,
 	.validate_device = stm32_lptim_validate_device,
 };
 
