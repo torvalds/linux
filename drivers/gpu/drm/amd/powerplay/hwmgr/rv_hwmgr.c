@@ -619,7 +619,53 @@ static int rv_force_clock_level(struct pp_hwmgr *hwmgr,
 static int rv_print_clock_levels(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, char *buf)
 {
-	return 0;
+	struct rv_hwmgr *data = (struct rv_hwmgr *)(hwmgr->backend);
+	struct rv_voltage_dependency_table *mclk_table =
+			data->clock_vol_info.vdd_dep_on_fclk;
+	int i, now, size = 0;
+
+	switch (type) {
+	case PP_SCLK:
+		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
+				PPSMC_MSG_GetGfxclkFrequency),
+				"Attempt to get current GFXCLK Failed!",
+				return -1);
+		PP_ASSERT_WITH_CODE(!rv_read_arg_from_smc(hwmgr,
+				&now),
+				"Attempt to get current GFXCLK Failed!",
+				return -1);
+
+		size += sprintf(buf + size, "0: %uMhz %s\n",
+				data->gfx_min_freq_limit / 100,
+				((data->gfx_min_freq_limit / 100)
+				 == now) ? "*" : "");
+		size += sprintf(buf + size, "1: %uMhz %s\n",
+				data->gfx_max_freq_limit / 100,
+				((data->gfx_max_freq_limit / 100)
+				 == now) ? "*" : "");
+		break;
+	case PP_MCLK:
+		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
+				PPSMC_MSG_GetFclkFrequency),
+				"Attempt to get current MEMCLK Failed!",
+				return -1);
+		PP_ASSERT_WITH_CODE(!rv_read_arg_from_smc(hwmgr,
+				&now),
+				"Attempt to get current MEMCLK Failed!",
+				return -1);
+
+		for (i = 0; i < mclk_table->count; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+					i,
+					mclk_table->entries[i].clk / 100,
+					((mclk_table->entries[i].clk / 100)
+					 == now) ? "*" : "");
+		break;
+	default:
+		break;
+	}
+
+	return size;
 }
 
 static int rv_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *state,
