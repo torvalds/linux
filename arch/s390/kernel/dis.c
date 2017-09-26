@@ -1549,6 +1549,7 @@ static struct s390_insn opcode_e7[] = {
 	{ "vfsq", 0xce, INSTR_VRR_VV000MM },
 	{ "vfs", 0xe2, INSTR_VRR_VVV00MM },
 	{ "vftci", 0x4a, INSTR_VRI_VVIMM },
+	{ "", 0, INSTR_INVALID }
 };
 
 static struct s390_insn opcode_eb[] = {
