@@ -956,10 +956,8 @@ static int pin_sdma_pages(struct user_sdma_request *req,
 	struct hfi1_user_sdma_pkt_q *pq = req->pq;
 
 	pages = kcalloc(npages, sizeof(*pages), GFP_KERNEL);
-	if (!pages) {
-		SDMA_DBG(req, "Failed page array alloc");
+	if (!pages)
 		return -ENOMEM;
-	}
 	memcpy(pages, node->pages, node->npages * sizeof(*pages));
 
 	npages -= node->npages;
