@@ -1729,14 +1729,6 @@ bool dc_validate_global_state(
 			dc, new_ctx) != DC_OK)
 		return false;
 
-	/* TODO without this SWDEV-114774 brakes */
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &new_ctx->res_ctx.pipe_ctx[i];
-
-		if (pipe_ctx->top_pipe)
-			memset(pipe_ctx, 0, sizeof(*pipe_ctx));
-	}
-
 	for (i = 0; new_ctx && i < new_ctx->stream_count; i++) {
 		struct dc_stream_state *stream = new_ctx->streams[i];
 
