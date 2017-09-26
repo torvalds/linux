@@ -85,8 +85,7 @@ static int init_user_ctxt(struct hfi1_filedata *fd,
 			  struct hfi1_ctxtdata *uctxt);
 static void user_init(struct hfi1_ctxtdata *uctxt);
 static int get_ctxt_info(struct hfi1_filedata *fd, unsigned long arg, u32 len);
-static int get_base_info(struct hfi1_filedata *fd, void __user *ubase,
-			 __u32 len);
+static int get_base_info(struct hfi1_filedata *fd, unsigned long arg, u32 len);
 static int setup_base_ctxt(struct hfi1_filedata *fd,
 			   struct hfi1_ctxtdata *uctxt);
 static int setup_subctxt(struct hfi1_ctxtdata *uctxt);
@@ -243,9 +242,9 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 		break;
 
 	case HFI1_IOCTL_USER_INFO:
-		ret = get_base_info(fd, (void __user *)(unsigned long)arg,
-				    sizeof(struct hfi1_base_info));
+		ret = get_base_info(fd, arg, _IOC_SIZE(cmd));
 		break;
+
 	case HFI1_IOCTL_CREDIT_UPD:
 		if (uctxt)
 			sc_return_credits(uctxt->sc);
@@ -1341,17 +1340,17 @@ setup_failed:
 	return ret;
 }
 
-static int get_base_info(struct hfi1_filedata *fd, void __user *ubase,
-			 __u32 len)
+static int get_base_info(struct hfi1_filedata *fd, unsigned long arg, u32 len)
 {
 	struct hfi1_base_info binfo;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
-	ssize_t sz;
 	unsigned offset;
-	int ret = 0;
 
 	trace_hfi1_uctxtdata(uctxt->dd, uctxt, fd->subctxt);
+
+	if (sizeof(binfo) != len)
+		return -EINVAL;
 
 	memset(&binfo, 0, sizeof(binfo));
 	binfo.hw_version = dd->revision;
@@ -1411,10 +1410,11 @@ static int get_base_info(struct hfi1_filedata *fd, void __user *ubase,
 							  uctxt->ctxt,
 							  fd->subctxt, 0);
 	}
-	sz = (len < sizeof(binfo)) ? len : sizeof(binfo);
-	if (copy_to_user(ubase, &binfo, sz))
-		ret = -EFAULT;
-	return ret;
+
+	if (copy_to_user((void __user *)arg, &binfo, len))
+		return -EFAULT;
+
+	return 0;
 }
 
 static unsigned int poll_urgent(struct file *fp,
