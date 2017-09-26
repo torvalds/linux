@@ -1454,29 +1454,36 @@ static int mlx5e_get_module_eeprom(struct net_device *netdev,
 
 typedef int (*mlx5e_pflag_handler)(struct net_device *netdev, bool enable);
 
-static int set_pflag_rx_cqe_based_moder(struct net_device *netdev, bool enable)
+static int set_pflag_cqe_based_moder(struct net_device *netdev, bool enable,
+				     bool is_rx_cq)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_channels new_channels = {};
-	bool rx_mode_changed;
-	u8 rx_cq_period_mode;
+	bool mode_changed;
+	u8 cq_period_mode, current_cq_period_mode;
 	int err = 0;
 
-	rx_cq_period_mode = enable ?
+	cq_period_mode = enable ?
 		MLX5_CQ_PERIOD_MODE_START_FROM_CQE :
 		MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
-	rx_mode_changed = rx_cq_period_mode != priv->channels.params.rx_cq_period_mode;
+	current_cq_period_mode = is_rx_cq ?
+		priv->channels.params.rx_cq_moderation.cq_period_mode :
+		priv->channels.params.tx_cq_moderation.cq_period_mode;
+	mode_changed = cq_period_mode != current_cq_period_mode;
 
-	if (rx_cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE &&
+	if (cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE &&
 	    !MLX5_CAP_GEN(mdev, cq_period_start_from_cqe))
 		return -EOPNOTSUPP;
 
-	if (!rx_mode_changed)
+	if (!mode_changed)
 		return 0;
 
 	new_channels.params = priv->channels.params;
-	mlx5e_set_rx_cq_mode_params(&new_channels.params, rx_cq_period_mode);
+	if (is_rx_cq)
+		mlx5e_set_rx_cq_mode_params(&new_channels.params, cq_period_mode);
+	else
+		mlx5e_set_tx_cq_mode_params(&new_channels.params, cq_period_mode);
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		priv->channels.params = new_channels.params;
@@ -1489,6 +1496,16 @@ static int set_pflag_rx_cqe_based_moder(struct net_device *netdev, bool enable)
 
 	mlx5e_switch_priv_channels(priv, &new_channels, NULL);
 	return 0;
+}
+
+static int set_pflag_tx_cqe_based_moder(struct net_device *netdev, bool enable)
+{
+	return set_pflag_cqe_based_moder(netdev, enable, false);
+}
+
+static int set_pflag_rx_cqe_based_moder(struct net_device *netdev, bool enable)
+{
+	return set_pflag_cqe_based_moder(netdev, enable, true);
 }
 
 int mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool new_val)
@@ -1575,6 +1592,12 @@ static int mlx5e_set_priv_flags(struct net_device *netdev, u32 pflags)
 	err = mlx5e_handle_pflag(netdev, pflags,
 				 MLX5E_PFLAG_RX_CQE_BASED_MODER,
 				 set_pflag_rx_cqe_based_moder);
+	if (err)
+		goto out;
+
+	err = mlx5e_handle_pflag(netdev, pflags,
+				 MLX5E_PFLAG_TX_CQE_BASED_MODER,
+				 set_pflag_tx_cqe_based_moder);
 	if (err)
 		goto out;
 

@@ -106,6 +106,7 @@
 #define MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC_FROM_CQE 0x3
 #define MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_PKTS      0x20
 #define MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_USEC      0x10
+#define MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_USEC_FROM_CQE 0x10
 #define MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_PKTS      0x20
 #define MLX5E_PARAMS_DEFAULT_MIN_RX_WQES                0x80
 #define MLX5E_PARAMS_DEFAULT_MIN_RX_WQES_MPW            0x2
@@ -198,12 +199,14 @@ extern const char mlx5e_self_tests[][ETH_GSTRING_LEN];
 
 static const char mlx5e_priv_flags[][ETH_GSTRING_LEN] = {
 	"rx_cqe_moder",
+	"tx_cqe_moder",
 	"rx_cqe_compress",
 };
 
 enum mlx5e_priv_flag {
 	MLX5E_PFLAG_RX_CQE_BASED_MODER = (1 << 0),
-	MLX5E_PFLAG_RX_CQE_COMPRESS = (1 << 1),
+	MLX5E_PFLAG_TX_CQE_BASED_MODER = (1 << 1),
+	MLX5E_PFLAG_RX_CQE_COMPRESS = (1 << 2),
 };
 
 #define MLX5E_SET_PFLAG(params, pflag, enable)			\
@@ -223,6 +226,7 @@ enum mlx5e_priv_flag {
 struct mlx5e_cq_moder {
 	u16 usec;
 	u16 pkts;
+	u8 cq_period_mode;
 };
 
 struct mlx5e_params {
@@ -234,7 +238,6 @@ struct mlx5e_params {
 	u8  log_rq_size;
 	u16 num_channels;
 	u8  num_tc;
-	u8  rx_cq_period_mode;
 	bool rx_cqe_compress_def;
 	struct mlx5e_cq_moder rx_cq_moderation;
 	struct mlx5e_cq_moder tx_cq_moderation;
@@ -926,6 +929,8 @@ void mlx5e_build_default_indir_rqt(u32 *indirection_rqt, int len,
 				   int num_channels);
 int mlx5e_get_max_linkspeed(struct mlx5_core_dev *mdev, u32 *speed);
 
+void mlx5e_set_tx_cq_mode_params(struct mlx5e_params *params,
+				 u8 cq_period_mode);
 void mlx5e_set_rx_cq_mode_params(struct mlx5e_params *params,
 				 u8 cq_period_mode);
 void mlx5e_set_rq_type_params(struct mlx5_core_dev *mdev,
