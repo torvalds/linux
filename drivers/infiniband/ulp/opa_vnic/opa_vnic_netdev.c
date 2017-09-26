@@ -183,6 +183,7 @@ static inline void opa_vnic_set_pod_values(struct opa_vnic_adapter *adapter)
 	adapter->info.vport.max_smac_ent = OPA_VNIC_MAX_SMAC_LIMIT;
 	adapter->info.vport.config_state = OPA_VNIC_STATE_DROP_ALL;
 	adapter->info.vport.eth_link_status = OPA_VNIC_ETH_LINK_DOWN;
+	adapter->info.vesw.eth_mtu = ETH_DATA_LEN;
 }
 
 /* opa_vnic_set_mac_addr - change mac address */
