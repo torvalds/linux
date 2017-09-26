@@ -546,9 +546,6 @@ int hfi1_user_exp_rcv_invalid(struct hfi1_filedata *fd,
 	u32 *array;
 	int ret = 0;
 
-	if (!fd->invalid_tids)
-		return -EINVAL;
-
 	/*
 	 * copy_to_user() can sleep, which will leave the invalid_lock
 	 * locked and cause the MMU notifier to be blocked on the lock
