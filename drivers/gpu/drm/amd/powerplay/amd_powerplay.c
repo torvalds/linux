@@ -222,28 +222,6 @@ static int pp_sw_reset(void *handle)
 	return 0;
 }
 
-
-int amd_set_clockgating_by_smu(void *handle, uint32_t msg_id)
-{
-	struct pp_hwmgr  *hwmgr;
-	struct pp_instance *pp_handle = (struct pp_instance *)handle;
-	int ret = 0;
-
-	ret = pp_check(pp_handle);
-
-	if (!ret)
-		return ret;
-
-	hwmgr = pp_handle->hwmgr;
-
-	if (hwmgr->hwmgr_func->update_clock_gatings == NULL) {
-		pr_info("%s was not implemented.\n", __func__);
-		return 0;
-	}
-
-	return hwmgr->hwmgr_func->update_clock_gatings(hwmgr, &msg_id);
-}
-
 static int pp_set_powergating_state(void *handle,
 				    enum amd_powergating_state state)
 {
@@ -333,6 +311,27 @@ static int pp_dpm_load_fw(void *handle)
 static int pp_dpm_fw_loading_complete(void *handle)
 {
 	return 0;
+}
+
+static int pp_set_clockgating_by_smu(void *handle, uint32_t msg_id)
+{
+	struct pp_hwmgr  *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+	int ret = 0;
+
+	ret = pp_check(pp_handle);
+
+	if (ret)
+		return ret;
+
+	hwmgr = pp_handle->hwmgr;
+
+	if (hwmgr->hwmgr_func->update_clock_gatings == NULL) {
+		pr_info("%s was not implemented.\n", __func__);
+		return 0;
+	}
+
+	return hwmgr->hwmgr_func->update_clock_gatings(hwmgr, &msg_id);
 }
 
 static void pp_dpm_en_umd_pstate(struct pp_hwmgr  *hwmgr,
@@ -1177,6 +1176,7 @@ const struct amd_pm_funcs pp_dpm_funcs = {
 	.get_power_profile_state = pp_dpm_get_power_profile_state,
 	.set_power_profile_state = pp_dpm_set_power_profile_state,
 	.switch_power_profile = pp_dpm_switch_power_profile,
+	.set_clockgating_by_smu = pp_set_clockgating_by_smu,
 };
 
 int amd_powerplay_reset(void *handle)

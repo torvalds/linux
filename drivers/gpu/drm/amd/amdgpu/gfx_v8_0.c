@@ -5984,7 +5984,6 @@ static int gfx_v8_0_tonga_update_gfx_clock_gating(struct amdgpu_device *adev,
 {
 	uint32_t msg_id, pp_state = 0;
 	uint32_t pp_support_state = 0;
-	void *pp_handle = adev->powerplay.pp_handle;
 
 	if (adev->cg_flags & (AMD_CG_SUPPORT_GFX_CGCG | AMD_CG_SUPPORT_GFX_CGLS)) {
 		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGLS) {
@@ -6002,7 +6001,8 @@ static int gfx_v8_0_tonga_update_gfx_clock_gating(struct amdgpu_device *adev,
 				PP_BLOCK_GFX_CG,
 				pp_support_state,
 				pp_state);
-		amd_set_clockgating_by_smu(pp_handle, msg_id);
+		if (adev->powerplay.pp_funcs->set_clockgating_by_smu)
+			amdgpu_dpm_set_clockgating_by_smu(adev, msg_id);
 	}
 
 	if (adev->cg_flags & (AMD_CG_SUPPORT_GFX_MGCG | AMD_CG_SUPPORT_GFX_MGLS)) {
@@ -6023,7 +6023,8 @@ static int gfx_v8_0_tonga_update_gfx_clock_gating(struct amdgpu_device *adev,
 				PP_BLOCK_GFX_MG,
 				pp_support_state,
 				pp_state);
-		amd_set_clockgating_by_smu(pp_handle, msg_id);
+		if (adev->powerplay.pp_funcs->set_clockgating_by_smu)
+			amdgpu_dpm_set_clockgating_by_smu(adev, msg_id);
 	}
 
 	return 0;
@@ -6035,7 +6036,6 @@ static int gfx_v8_0_polaris_update_gfx_clock_gating(struct amdgpu_device *adev,
 
 	uint32_t msg_id, pp_state = 0;
 	uint32_t pp_support_state = 0;
-	void *pp_handle = adev->powerplay.pp_handle;
 
 	if (adev->cg_flags & (AMD_CG_SUPPORT_GFX_CGCG | AMD_CG_SUPPORT_GFX_CGLS)) {
 		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGLS) {
@@ -6053,7 +6053,8 @@ static int gfx_v8_0_polaris_update_gfx_clock_gating(struct amdgpu_device *adev,
 				PP_BLOCK_GFX_CG,
 				pp_support_state,
 				pp_state);
-		amd_set_clockgating_by_smu(pp_handle, msg_id);
+		if (adev->powerplay.pp_funcs->set_clockgating_by_smu)
+			amdgpu_dpm_set_clockgating_by_smu(adev, msg_id);
 	}
 
 	if (adev->cg_flags & (AMD_CG_SUPPORT_GFX_3D_CGCG | AMD_CG_SUPPORT_GFX_3D_CGLS)) {
@@ -6072,7 +6073,8 @@ static int gfx_v8_0_polaris_update_gfx_clock_gating(struct amdgpu_device *adev,
 				PP_BLOCK_GFX_3D,
 				pp_support_state,
 				pp_state);
-		amd_set_clockgating_by_smu(pp_handle, msg_id);
+		if (adev->powerplay.pp_funcs->set_clockgating_by_smu)
+			amdgpu_dpm_set_clockgating_by_smu(adev, msg_id);
 	}
 
 	if (adev->cg_flags & (AMD_CG_SUPPORT_GFX_MGCG | AMD_CG_SUPPORT_GFX_MGLS)) {
@@ -6093,7 +6095,8 @@ static int gfx_v8_0_polaris_update_gfx_clock_gating(struct amdgpu_device *adev,
 				PP_BLOCK_GFX_MG,
 				pp_support_state,
 				pp_state);
-		amd_set_clockgating_by_smu(pp_handle, msg_id);
+		if (adev->powerplay.pp_funcs->set_clockgating_by_smu)
+			amdgpu_dpm_set_clockgating_by_smu(adev, msg_id);
 	}
 
 	if (adev->cg_flags & AMD_CG_SUPPORT_GFX_RLC_LS) {
@@ -6108,7 +6111,8 @@ static int gfx_v8_0_polaris_update_gfx_clock_gating(struct amdgpu_device *adev,
 				PP_BLOCK_GFX_RLC,
 				pp_support_state,
 				pp_state);
-		amd_set_clockgating_by_smu(pp_handle, msg_id);
+		if (adev->powerplay.pp_funcs->set_clockgating_by_smu)
+			amdgpu_dpm_set_clockgating_by_smu(adev, msg_id);
 	}
 
 	if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CP_LS) {
@@ -6122,7 +6126,8 @@ static int gfx_v8_0_polaris_update_gfx_clock_gating(struct amdgpu_device *adev,
 			PP_BLOCK_GFX_CP,
 			pp_support_state,
 			pp_state);
-		amd_set_clockgating_by_smu(pp_handle, msg_id);
+		if (adev->powerplay.pp_funcs->set_clockgating_by_smu)
+			amdgpu_dpm_set_clockgating_by_smu(adev, msg_id);
 	}
 
 	return 0;
