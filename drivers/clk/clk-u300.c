@@ -256,7 +256,7 @@
 #define U300_SYSCON_S1CCR_SEL_APP_FSM_CLK			(0x2 << 1)
 #define U300_SYSCON_S1CCR_SEL_RTC_CLK				(0x4 << 1)
 #define U300_SYSCON_S1CCR_SEL_APP_PLL208_CLK			(0x6 << 1)
-/* SYS_2_CLK_CONTROL third clock contol 16 bit (R/W) */
+/* SYS_2_CLK_CONTROL third clock control 16 bit (R/W) */
 #define U300_SYSCON_S2CCR					(0x128)
 #define U300_SYSCON_S2CCR_FIELD_MASK				(0xC3FF)
 #define U300_SYSCON_S2CCR_CLK_STEAL				(0x8000)
@@ -378,7 +378,7 @@
  *  +- ISP Image Signal Processor (U335 only)
  *  +- CDS (U335 only)
  *  +- DMA Direct Memory Access Controller
- *  +- AAIF APP/ACC Inteface (Mobile Scalable Link, MSL)
+ *  +- AAIF APP/ACC Interface (Mobile Scalable Link, MSL)
  *  +- APEX
  *  +- VIDEO_ENC AVE2/3 Video Encoder
  *  +- XGAM Graphics Accelerator Controller
