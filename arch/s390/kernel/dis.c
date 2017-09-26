@@ -865,6 +865,7 @@ static struct s390_insn opcode_b2[] = {
 	{ "msr", 0x52, INSTR_RRE_RR },
 	{ "mvpg", 0x54, INSTR_RRE_RR },
 	{ "mvst", 0x55, INSTR_RRE_RR },
+	{ "sthyi", 0x56, INSTR_RRE_RR },
 	{ "cuse", 0x57, INSTR_RRE_RR },
 	{ "bsg", 0x58, INSTR_RRE_RR },
 	{ "bsa", 0x5a, INSTR_RRE_RR },
