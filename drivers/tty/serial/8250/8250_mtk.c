@@ -61,7 +61,7 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 	 * registers to their default values.
 	 */
 	baud = uart_get_baud_rate(port, termios, old,
-				  port->uartclk / 16 / 0xffff,
+				  port->uartclk / 16 / UART_DIV_MAX,
 				  port->uartclk);
 
 	if (baud <= 115200) {
