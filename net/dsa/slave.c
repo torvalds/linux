@@ -266,10 +266,10 @@ static int dsa_slave_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 
-	if (p->phy != NULL)
-		return phy_mii_ioctl(p->phy, ifr, cmd);
+	if (!p->phy)
+		return -ENODEV;
 
-	return -EOPNOTSUPP;
+	return phy_mii_ioctl(p->phy, ifr, cmd);
 }
 
 static int dsa_slave_port_attr_set(struct net_device *dev,
@@ -429,7 +429,7 @@ dsa_slave_get_link_ksettings(struct net_device *dev,
 	struct dsa_slave_priv *p = netdev_priv(dev);
 
 	if (!p->phy)
-		return -EOPNOTSUPP;
+		return -ENODEV;
 
 	phy_ethtool_ksettings_get(p->phy, cmd);
 
@@ -442,10 +442,10 @@ dsa_slave_set_link_ksettings(struct net_device *dev,
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 
-	if (p->phy != NULL)
-		return phy_ethtool_ksettings_set(p->phy, cmd);
+	if (!p->phy)
+		return -ENODEV;
 
-	return -EOPNOTSUPP;
+	return phy_ethtool_ksettings_set(p->phy, cmd);
 }
 
 static void dsa_slave_get_drvinfo(struct net_device *dev,
@@ -481,22 +481,22 @@ static int dsa_slave_nway_reset(struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 
-	if (p->phy != NULL)
-		return genphy_restart_aneg(p->phy);
+	if (!p->phy)
+		return -ENODEV;
 
-	return -EOPNOTSUPP;
+	return genphy_restart_aneg(p->phy);
 }
 
 static u32 dsa_slave_get_link(struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 
-	if (p->phy != NULL) {
-		genphy_update_link(p->phy);
-		return p->phy->link;
-	}
+	if (!p->phy)
+		return -ENODEV;
 
-	return -EOPNOTSUPP;
+	genphy_update_link(p->phy);
+
+	return p->phy->link;
 }
 
 static int dsa_slave_get_eeprom_len(struct net_device *dev)
