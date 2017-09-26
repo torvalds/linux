@@ -421,6 +421,26 @@ static int rv_populate_clock_table(struct pp_hwmgr *hwmgr)
 	rv_get_clock_voltage_dependency_table(hwmgr, &pinfo->vdd_dep_on_phyclk,
 					ARRAY_SIZE(VddPhyClk), &VddPhyClk[0]);
 
+	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
+			PPSMC_MSG_GetMinGfxclkFrequency),
+			"Attempt to get min GFXCLK Failed!",
+			return -1);
+	PP_ASSERT_WITH_CODE(!rv_read_arg_from_smc(hwmgr,
+			&result),
+			"Attempt to get min GFXCLK Failed!",
+			return -1);
+	rv_data->gfx_min_freq_limit = result * 100;
+
+	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
+			PPSMC_MSG_GetMaxGfxclkFrequency),
+			"Attempt to get max GFXCLK Failed!",
+			return -1);
+	PP_ASSERT_WITH_CODE(!rv_read_arg_from_smc(hwmgr,
+			&result),
+			"Attempt to get max GFXCLK Failed!",
+			return -1);
+	rv_data->gfx_max_freq_limit = result * 100;
+
 	return 0;
 }
 
