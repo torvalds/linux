@@ -1272,24 +1272,18 @@ struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra)
 	dd->int_counter = alloc_percpu(u64);
 	if (!dd->int_counter) {
 		ret = -ENOMEM;
-		hfi1_early_err(&pdev->dev,
-			       "Could not allocate per-cpu int_counter\n");
 		goto bail;
 	}
 
 	dd->rcv_limit = alloc_percpu(u64);
 	if (!dd->rcv_limit) {
 		ret = -ENOMEM;
-		hfi1_early_err(&pdev->dev,
-			       "Could not allocate per-cpu rcv_limit\n");
 		goto bail;
 	}
 
 	dd->send_schedule = alloc_percpu(u64);
 	if (!dd->send_schedule) {
 		ret = -ENOMEM;
-		hfi1_early_err(&pdev->dev,
-			       "Could not allocate per-cpu int_counter\n");
 		goto bail;
 	}
 
