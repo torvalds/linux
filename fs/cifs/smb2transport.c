@@ -390,6 +390,7 @@ generate_smb30signingkey(struct cifs_ses *ses)
 	return generate_smb3signingkey(ses, &triplet);
 }
 
+#ifdef CONFIG_CIFS_SMB311
 int
 generate_smb311signingkey(struct cifs_ses *ses)
 
@@ -398,25 +399,26 @@ generate_smb311signingkey(struct cifs_ses *ses)
 	struct derivation *d;
 
 	d = &triplet.signing;
-	d->label.iov_base = "SMB2AESCMAC";
-	d->label.iov_len = 12;
-	d->context.iov_base = "SmbSign";
-	d->context.iov_len = 8;
+	d->label.iov_base = "SMBSigningKey";
+	d->label.iov_len = 14;
+	d->context.iov_base = ses->preauth_sha_hash;
+	d->context.iov_len = 64;
 
 	d = &triplet.encryption;
-	d->label.iov_base = "SMB2AESCCM";
-	d->label.iov_len = 11;
-	d->context.iov_base = "ServerIn ";
-	d->context.iov_len = 10;
+	d->label.iov_base = "SMBC2SCipherKey";
+	d->label.iov_len = 16;
+	d->context.iov_base = ses->preauth_sha_hash;
+	d->context.iov_len = 64;
 
 	d = &triplet.decryption;
-	d->label.iov_base = "SMB2AESCCM";
-	d->label.iov_len = 11;
-	d->context.iov_base = "ServerOut";
-	d->context.iov_len = 10;
+	d->label.iov_base = "SMBS2CCipherKey";
+	d->label.iov_len = 16;
+	d->context.iov_base = ses->preauth_sha_hash;
+	d->context.iov_len = 64;
 
 	return generate_smb3signingkey(ses, &triplet);
 }
+#endif /* 311 */
 
 int
 smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
