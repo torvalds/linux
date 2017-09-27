@@ -150,6 +150,7 @@ static inline bool is_timing_event(struct ir_raw_event ev)
 #define TO_STR(is_pulse)		((is_pulse) ? "pulse" : "space")
 
 /* functions for IR encoders */
+bool rc_validate_scancode(enum rc_proto proto, u32 scancode);
 
 static inline void init_ir_raw_event_duration(struct ir_raw_event *ev,
 					      unsigned int pulse,

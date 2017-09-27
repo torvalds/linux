@@ -776,6 +776,37 @@ void rc_keydown_notimeout(struct rc_dev *dev, enum rc_proto protocol,
 EXPORT_SYMBOL_GPL(rc_keydown_notimeout);
 
 /**
+ * rc_validate_scancode() - checks that a scancode is valid for a protocol
+ * @proto:	protocol
+ * @scancode:	scancode
+ */
+bool rc_validate_scancode(enum rc_proto proto, u32 scancode)
+{
+	switch (proto) {
+	case RC_PROTO_NECX:
+		if ((((scancode >> 16) ^ ~(scancode >> 8)) & 0xff) == 0)
+			return false;
+		break;
+	case RC_PROTO_NEC32:
+		if ((((scancode >> 24) ^ ~(scancode >> 16)) & 0xff) == 0)
+			return false;
+		break;
+	case RC_PROTO_RC6_MCE:
+		if ((scancode & 0xffff0000) != 0x800f0000)
+			return false;
+		break;
+	case RC_PROTO_RC6_6A_32:
+		if ((scancode & 0xffff0000) == 0x800f0000)
+			return false;
+		break;
+	default:
+		break;
+	}
+
+	return true;
+}
+
+/**
  * rc_validate_filter() - checks that the scancode and mask are valid and
  *			  provides sensible defaults
  * @dev:	the struct rc_dev descriptor of the device
@@ -794,26 +825,8 @@ static int rc_validate_filter(struct rc_dev *dev,
 
 	mask = protocols[protocol].scancode_bits;
 
-	switch (protocol) {
-	case RC_PROTO_NECX:
-		if ((((s >> 16) ^ ~(s >> 8)) & 0xff) == 0)
-			return -EINVAL;
-		break;
-	case RC_PROTO_NEC32:
-		if ((((s >> 24) ^ ~(s >> 16)) & 0xff) == 0)
-			return -EINVAL;
-		break;
-	case RC_PROTO_RC6_MCE:
-		if ((s & 0xffff0000) != 0x800f0000)
-			return -EINVAL;
-		break;
-	case RC_PROTO_RC6_6A_32:
-		if ((s & 0xffff0000) == 0x800f0000)
-			return -EINVAL;
-		break;
-	default:
-		break;
-	}
+	if (!rc_validate_scancode(protocol, s))
+		return -EINVAL;
 
 	filter->data &= mask;
 	filter->mask &= mask;
