@@ -36,7 +36,14 @@
 /* Control of forwarding link local multicast */
 #define BR_GROUPFWD_DEFAULT	0
 /* Don't allow forwarding of control protocols like STP, MAC PAUSE and LACP */
-#define BR_GROUPFWD_RESTRICTED	0x0007u
+enum {
+	BR_GROUPFWD_STP		= BIT(0),
+	BR_GROUPFWD_MACPAUSE	= BIT(1),
+	BR_GROUPFWD_LACP	= BIT(2),
+};
+
+#define BR_GROUPFWD_RESTRICTED (BR_GROUPFWD_STP | BR_GROUPFWD_MACPAUSE | \
+				BR_GROUPFWD_LACP)
 /* The Nearest Customer Bridge Group Address, 01-80-C2-00-00-[00,0B,0C,0D,0F] */
 #define BR_GROUPFWD_8021AD	0xB801u
 
@@ -268,6 +275,7 @@ struct net_bridge_port {
 #ifdef CONFIG_NET_SWITCHDEV
 	int				offload_fwd_mark;
 #endif
+	u16				group_fwd_mask;
 };
 
 #define br_auto_port(p) ((p)->flags & BR_AUTO_MASK)

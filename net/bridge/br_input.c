@@ -289,6 +289,7 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 		 *
 		 * Others reserved for future standardization
 		 */
+		fwd_mask |= p->group_fwd_mask;
 		switch (dest[5]) {
 		case 0x00:	/* Bridge Group Address */
 			/* If STP is turned off,
