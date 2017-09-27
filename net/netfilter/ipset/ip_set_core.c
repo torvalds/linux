@@ -1191,14 +1191,17 @@ static int ip_set_swap(struct net *net, struct sock *ctnl, struct sk_buff *skb,
 	      from->family == to->family))
 		return -IPSET_ERR_TYPE_MISMATCH;
 
-	if (from->ref_netlink || to->ref_netlink)
+	write_lock_bh(&ip_set_ref_lock);
+
+	if (from->ref_netlink || to->ref_netlink) {
+		write_unlock_bh(&ip_set_ref_lock);
 		return -EBUSY;
+	}
 
 	strncpy(from_name, from->name, IPSET_MAXNAMELEN);
 	strncpy(from->name, to->name, IPSET_MAXNAMELEN);
 	strncpy(to->name, from_name, IPSET_MAXNAMELEN);
 
-	write_lock_bh(&ip_set_ref_lock);
 	swap(from->ref, to->ref);
 	ip_set(inst, from_id) = to;
 	ip_set(inst, to_id) = from;
