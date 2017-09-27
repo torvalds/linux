@@ -632,6 +632,9 @@ bool min10_is_flip_pending(struct mem_input *mem_input)
 	return false;
 }
 
+uint32_t aperture_default_system = 1;
+uint32_t context0_default_system; /* = 0;*/
+
 static void min10_set_vm_system_aperture_settings(struct mem_input *mem_input,
 		struct vm_system_aperture_param *apt)
 {
@@ -645,7 +648,7 @@ static void min10_set_vm_system_aperture_settings(struct mem_input *mem_input,
 	mc_vm_apt_high.quad_part = apt->sys_high.quad_part >> 12;
 
 	REG_SET_2(DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, 0,
-		MC_VM_SYSTEM_APERTURE_DEFAULT_SYSTEM, 1, /* 1 = system physical memory */
+		MC_VM_SYSTEM_APERTURE_DEFAULT_SYSTEM, aperture_default_system, /* 1 = system physical memory */
 		MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, mc_vm_apt_default.high_part);
 	REG_SET(DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB, 0,
 		MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB, mc_vm_apt_default.low_part);
@@ -684,9 +687,9 @@ static void min10_set_vm_context0_settings(struct mem_input *mem_input,
 			VM_CONTEXT0_PAGE_TABLE_END_ADDR_LSB, vm0->pte_end.low_part);
 
 	/* fault handling */
-	REG_SET(DCN_VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR_MSB, 0,
-			VM_CONTEXT0_PAGE_TABLE_END_ADDR_MSB, vm0->fault_default.high_part);
-	/* VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_SYSTEM, 0 */
+	REG_SET_2(DCN_VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR_MSB, 0,
+			VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR_MSB, vm0->fault_default.high_part,
+			VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_SYSTEM, context0_default_system);
 	REG_SET(DCN_VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR_LSB, 0,
 			VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR_LSB, vm0->fault_default.low_part);
 
