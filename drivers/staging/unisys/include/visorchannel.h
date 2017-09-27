@@ -20,9 +20,7 @@
 #include <linux/types.h>
 #include <linux/uuid.h>
 
-#define SIGNATURE_16(A, B) ((A) | ((B) << 8))
-#define VISOR_CHANNEL_SIGNATURE \
-	(SIGNATURE_16('E', 'C') | (SIGNATURE_16('N', 'L') << 16))
+#define VISOR_CHANNEL_SIGNATURE ('L' << 24 | 'N' << 16 | 'C' << 8 | 'E')
 
 /*
  * enum channel_serverstate
