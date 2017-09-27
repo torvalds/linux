@@ -287,8 +287,17 @@ static void usbhsf_fifo_clear(struct usbhs_pipe *pipe,
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	int ret = 0;
 
-	if (!usbhs_pipe_is_dcp(pipe))
-		ret = usbhsf_fifo_barrier(priv, fifo);
+	if (!usbhs_pipe_is_dcp(pipe)) {
+		/*
+		 * This driver checks the pipe condition first to avoid -EBUSY
+		 * from usbhsf_fifo_barrier() with about 10 msec delay in
+		 * the interrupt handler if the pipe is RX direction and empty.
+		 */
+		if (usbhs_pipe_is_dir_in(pipe))
+			ret = usbhs_pipe_is_accessible(pipe);
+		if (!ret)
+			ret = usbhsf_fifo_barrier(priv, fifo);
+	}
 
 	/*
 	 * if non-DCP pipe, this driver should set BCLR when
