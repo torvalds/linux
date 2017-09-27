@@ -31,8 +31,6 @@
 
 #include "channel.h"
 
-extern struct bus_type visorbus_type;
-
 struct visorchipset_state {
 	u32 created:1;
 	u32 attached:1;

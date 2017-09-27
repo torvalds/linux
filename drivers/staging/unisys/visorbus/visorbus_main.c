@@ -159,12 +159,47 @@ static int visorbus_match(struct device *xdev, struct device_driver *xdrv)
  * This describes the TYPE of bus.
  * (Don't confuse this with an INSTANCE of the bus.)
  */
-struct bus_type visorbus_type = {
+static struct bus_type visorbus_type = {
 	.name = "visorbus",
 	.match = visorbus_match,
 	.uevent = visorbus_uevent,
 	.dev_groups = visorbus_dev_groups,
 };
+
+struct visor_busdev {
+	u32 bus_no;
+	u32 dev_no;
+};
+
+static int match_visorbus_dev_by_id(struct device *dev, void *data)
+{
+	struct visor_device *vdev = to_visor_device(dev);
+	struct visor_busdev *id = data;
+
+	if ((vdev->chipset_bus_no == id->bus_no) &&
+	    (vdev->chipset_dev_no == id->dev_no))
+		return 1;
+	return 0;
+}
+
+struct visor_device *visorbus_get_device_by_id(u32 bus_no, u32 dev_no,
+					       struct visor_device *from)
+{
+	struct device *dev;
+	struct device *dev_start = NULL;
+	struct visor_busdev id = {
+		.bus_no = bus_no,
+		.dev_no = dev_no
+	};
+
+	if (from)
+		dev_start = &from->device;
+	dev = bus_find_device(&visorbus_type, dev_start, (void *)&id,
+			      match_visorbus_dev_by_id);
+	if (!dev)
+		return NULL;
+	return to_visor_device(dev);
+}
 
 /*
  * visorbus_release_busdevice() - called when device_unregister() is called for
