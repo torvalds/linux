@@ -94,15 +94,20 @@ struct dvb_demux_filter {
 /**
  * struct dvb_demux_feed - describes a DVB field
  *
- * @feed:	a digital TV feed. It can either be a TS or a section feed:
- *		if the feed is TS, it contains &struct dvb_ts_feed @ts;
- *		if the feed is section, it contains
- *		&struct dmx_section_feed @sec.
- * @cb:		digital TV callbacks. depending on the feed type, it can be:
- *		if the feed is TS, it contains a dmx_ts_cb() @ts callback;
- *		if the feed is section, it contains a dmx_section_cb() @sec
- *		callback.
- *
+ * @feed:	a union describing a digital TV feed.
+ *		Depending on the feed type, it can be either
+ *		@feed.ts or @feed.sec.
+ * @feed.ts:	a &struct dmx_ts_feed pointer.
+ *		For TS feed only.
+ * @feed.sec:	a &struct dmx_section_feed pointer.
+ *		For section feed only.
+ * @cb:		a union describing digital TV callbacks.
+ *		Depending on the feed type, it can be either
+ *		@cb.ts or @cb.sec.
+ * @cb.ts:	a dmx_ts_cb() calback function pointer.
+ *		For TS feed only.
+ * @cb.sec:	a dmx_section_cb() callback function pointer.
+ *		For section feed only.
  * @demux:	pointer to &struct dvb_demux.
  * @priv:	private data that can optionally be used by a DVB driver.
  * @type:	type of the filter, as defined by &enum dvb_dmx_filter_type.
