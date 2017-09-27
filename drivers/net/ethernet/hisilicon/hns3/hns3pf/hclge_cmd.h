@@ -322,6 +322,11 @@ struct hclge_shared_buf {
 	u32 buf_size;
 };
 
+struct hclge_pkt_buf_alloc {
+	struct hclge_priv_buf priv_buf[HCLGE_MAX_TC_NUM];
+	struct hclge_shared_buf s_buf;
+};
+
 #define HCLGE_RX_COM_WL_EN_B	15
 struct hclge_rx_com_wl_buf {
 	__le16 high_wl;

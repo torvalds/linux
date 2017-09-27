@@ -463,8 +463,6 @@ struct hclge_dev {
 
 	u32 pkt_buf_size; /* Total pf buf size for tx/rx */
 	u32 mps; /* Max packet size */
-	struct hclge_priv_buf *priv_buf;
-	struct hclge_shared_buf s_buf;
 
 	enum hclge_mta_dmac_sel_type mta_mac_sel_type;
 	bool enable_mta; /* Mutilcast filter enable */
