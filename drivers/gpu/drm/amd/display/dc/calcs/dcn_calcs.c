@@ -1049,6 +1049,10 @@ bool dcn_validate_bandwidth(
 		else
 			bw_consumed = v->fabric_and_dram_bandwidth_vmax0p9;
 
+		if (bw_consumed < v->fabric_and_dram_bandwidth)
+			if (dc->debug.voltage_align_fclk)
+				bw_consumed = v->fabric_and_dram_bandwidth;
+
 		display_pipe_configuration(v);
 		calc_wm_sets_and_perf_params(context, v);
 		context->bw.dcn.calc_clk.fclk_khz = (int)(bw_consumed * 1000000 /
