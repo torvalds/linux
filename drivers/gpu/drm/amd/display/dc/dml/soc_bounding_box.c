@@ -68,7 +68,6 @@ double dml_socbb_return_bw_mhz(struct _vcs_dpi_soc_bounding_box_st *box, enum vo
 
 	return_bw = dml_min(
 			((double) box->return_bus_width_bytes) * state.dcfclk_mhz,
-			state.dram_bw_per_chan_gbps * 1000.0 * (double) box->num_chans
-					* box->ideal_dram_bw_after_urgent_percent / 100.0);
+			state.dram_bw_per_chan_gbps * 1000.0 * box->ideal_dram_bw_after_urgent_percent / 100.0);
 	return return_bw;
 }
