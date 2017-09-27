@@ -11,8 +11,6 @@ obj-$(CONFIG_VIDEO_ATOMISP_GC0310)     += atomisp-gc0310.o
 
 obj-$(CONFIG_VIDEO_ATOMISP_MSRLIST_HELPER) += atomisp-libmsrlisthelper.o
 
-obj-$(CONFIG_VIDEO_ATOMISP_AP1302)     += atomisp-ap1302.o
-
 # Makefile for flash drivers
 #
 
