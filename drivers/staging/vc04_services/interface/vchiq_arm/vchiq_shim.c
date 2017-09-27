@@ -84,7 +84,6 @@ VCHI_CONNECTION_T *vchi_create_connection(
  *             void **data,
  *             uint32_t *msg_size,
 
-
  *             VCHI_FLAGS_T flags
  *
  * Description: Routine to return a pointer to the current message (to allow in
@@ -541,7 +540,6 @@ int32_t vchi_connect(VCHI_CONNECTION_T **connections,
 }
 EXPORT_SYMBOL(vchi_connect);
 
-
 /***********************************************************
  * Name: vchi_disconnect
  *
@@ -560,7 +558,6 @@ int32_t vchi_disconnect(VCHI_INSTANCE_T instance_handle)
 	return vchiq_status_to_vchi(vchiq_shutdown(instance));
 }
 EXPORT_SYMBOL(vchi_disconnect);
-
 
 /***********************************************************
  * Name: vchi_service_open
