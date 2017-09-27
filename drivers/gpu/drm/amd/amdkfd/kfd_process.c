@@ -183,6 +183,7 @@ static void kfd_process_wq_release(struct work_struct *work)
 	kfd_event_free_process(p);
 
 	kfd_pasid_free(p->pasid);
+	kfd_free_process_doorbells(p);
 
 	mutex_unlock(&p->mutex);
 
@@ -288,6 +289,9 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 	if (process->pasid == 0)
 		goto err_alloc_pasid;
 
+	if (kfd_alloc_process_doorbells(process) < 0)
+		goto err_alloc_doorbells;
+
 	mutex_init(&process->mutex);
 
 	process->mm = thread->mm;
@@ -329,6 +333,8 @@ err_process_pqm_init:
 	mmu_notifier_unregister_no_release(&process->mmu_notifier, process->mm);
 err_mmu_notifier:
 	mutex_destroy(&process->mutex);
+	kfd_free_process_doorbells(process);
+err_alloc_doorbells:
 	kfd_pasid_free(process->pasid);
 err_alloc_pasid:
 	kfree(process->queues);

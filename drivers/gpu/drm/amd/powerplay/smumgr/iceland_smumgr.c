@@ -39,55 +39,55 @@
 
 #define ICELAND_SMC_SIZE               0x20000
 
-static int iceland_start_smc(struct pp_smumgr *smumgr)
+static int iceland_start_smc(struct pp_hwmgr *hwmgr)
 {
-	SMUM_WRITE_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 				  SMC_SYSCON_RESET_CNTL, rst_reg, 0);
 
 	return 0;
 }
 
-static void iceland_reset_smc(struct pp_smumgr *smumgr)
+static void iceland_reset_smc(struct pp_hwmgr *hwmgr)
 {
-	SMUM_WRITE_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 				  SMC_SYSCON_RESET_CNTL,
 				  rst_reg, 1);
 }
 
 
-static void iceland_stop_smc_clock(struct pp_smumgr *smumgr)
+static void iceland_stop_smc_clock(struct pp_hwmgr *hwmgr)
 {
-	SMUM_WRITE_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 				  SMC_SYSCON_CLOCK_CNTL_0,
 				  ck_disable, 1);
 }
 
-static void iceland_start_smc_clock(struct pp_smumgr *smumgr)
+static void iceland_start_smc_clock(struct pp_hwmgr *hwmgr)
 {
-	SMUM_WRITE_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC,
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 				  SMC_SYSCON_CLOCK_CNTL_0,
 				  ck_disable, 0);
 }
 
-static int iceland_smu_start_smc(struct pp_smumgr *smumgr)
+static int iceland_smu_start_smc(struct pp_hwmgr *hwmgr)
 {
 	/* set smc instruct start point at 0x0 */
-	smu7_program_jump_on_start(smumgr);
+	smu7_program_jump_on_start(hwmgr);
 
 	/* enable smc clock */
-	iceland_start_smc_clock(smumgr);
+	iceland_start_smc_clock(hwmgr);
 
 	/* de-assert reset */
-	iceland_start_smc(smumgr);
+	iceland_start_smc(hwmgr);
 
-	SMUM_WAIT_INDIRECT_FIELD(smumgr, SMC_IND, FIRMWARE_FLAGS,
+	PHM_WAIT_INDIRECT_FIELD(hwmgr, SMC_IND, FIRMWARE_FLAGS,
 				 INTERRUPTS_ENABLED, 1);
 
 	return 0;
 }
 
 
-static int iceland_upload_smc_firmware_data(struct pp_smumgr *smumgr,
+static int iceland_upload_smc_firmware_data(struct pp_hwmgr *hwmgr,
 					uint32_t length, const uint8_t *src,
 					uint32_t limit, uint32_t start_addr)
 {
@@ -96,17 +96,17 @@ static int iceland_upload_smc_firmware_data(struct pp_smumgr *smumgr,
 
 	PP_ASSERT_WITH_CODE((limit >= byte_count), "SMC address is beyond the SMC RAM area.", return -EINVAL);
 
-	cgs_write_register(smumgr->device, mmSMC_IND_INDEX_0, start_addr);
-	SMUM_WRITE_FIELD(smumgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 1);
+	cgs_write_register(hwmgr->device, mmSMC_IND_INDEX_0, start_addr);
+	PHM_WRITE_FIELD(hwmgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 1);
 
 	while (byte_count >= 4) {
 		data = src[0] * 0x1000000 + src[1] * 0x10000 + src[2] * 0x100 + src[3];
-		cgs_write_register(smumgr->device, mmSMC_IND_DATA_0, data);
+		cgs_write_register(hwmgr->device, mmSMC_IND_DATA_0, data);
 		src += 4;
 		byte_count -= 4;
 	}
 
-	SMUM_WRITE_FIELD(smumgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 0);
+	PHM_WRITE_FIELD(hwmgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, 0);
 
 	PP_ASSERT_WITH_CODE((0 == byte_count), "SMC size must be dividable by 4.", return -EINVAL);
 
@@ -114,16 +114,16 @@ static int iceland_upload_smc_firmware_data(struct pp_smumgr *smumgr,
 }
 
 
-static int iceland_smu_upload_firmware_image(struct pp_smumgr *smumgr)
+static int iceland_smu_upload_firmware_image(struct pp_hwmgr *hwmgr)
 {
 	uint32_t val;
 	struct cgs_firmware_info info = {0};
 
-	if (smumgr == NULL || smumgr->device == NULL)
+	if (hwmgr == NULL || hwmgr->device == NULL)
 		return -EINVAL;
 
 	/* load SMC firmware */
-	cgs_get_firmware_info(smumgr->device,
+	cgs_get_firmware_info(hwmgr->device,
 		smu7_convert_fw_type_to_cgs(UCODE_ID_SMU), &info);
 
 	if (info.image_size & 3) {
@@ -137,56 +137,56 @@ static int iceland_smu_upload_firmware_image(struct pp_smumgr *smumgr)
 	}
 
 	/* wait for smc boot up */
-	SMUM_WAIT_INDIRECT_FIELD_UNEQUAL(smumgr, SMC_IND,
+	PHM_WAIT_INDIRECT_FIELD_UNEQUAL(hwmgr, SMC_IND,
 					 RCU_UC_EVENTS, boot_seq_done, 0);
 
 	/* clear firmware interrupt enable flag */
-	val = cgs_read_ind_register(smumgr->device, CGS_IND_REG__SMC,
+	val = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC,
 				    ixSMC_SYSCON_MISC_CNTL);
-	cgs_write_ind_register(smumgr->device, CGS_IND_REG__SMC,
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
 			       ixSMC_SYSCON_MISC_CNTL, val | 1);
 
 	/* stop smc clock */
-	iceland_stop_smc_clock(smumgr);
+	iceland_stop_smc_clock(hwmgr);
 
 	/* reset smc */
-	iceland_reset_smc(smumgr);
-	iceland_upload_smc_firmware_data(smumgr, info.image_size,
+	iceland_reset_smc(hwmgr);
+	iceland_upload_smc_firmware_data(hwmgr, info.image_size,
 				(uint8_t *)info.kptr, ICELAND_SMC_SIZE,
 				info.ucode_start_address);
 
 	return 0;
 }
 
-static int iceland_request_smu_load_specific_fw(struct pp_smumgr *smumgr,
+static int iceland_request_smu_load_specific_fw(struct pp_hwmgr *hwmgr,
 						uint32_t firmwareType)
 {
 	return 0;
 }
 
-static int iceland_start_smu(struct pp_smumgr *smumgr)
+static int iceland_start_smu(struct pp_hwmgr *hwmgr)
 {
 	int result;
 
-	result = iceland_smu_upload_firmware_image(smumgr);
+	result = iceland_smu_upload_firmware_image(hwmgr);
 	if (result)
 		return result;
-	result = iceland_smu_start_smc(smumgr);
+	result = iceland_smu_start_smc(hwmgr);
 	if (result)
 		return result;
 
-	if (!smu7_is_smc_ram_running(smumgr)) {
+	if (!smu7_is_smc_ram_running(hwmgr)) {
 		pr_info("smu not running, upload firmware again \n");
-		result = iceland_smu_upload_firmware_image(smumgr);
+		result = iceland_smu_upload_firmware_image(hwmgr);
 		if (result)
 			return result;
 
-		result = iceland_smu_start_smc(smumgr);
+		result = iceland_smu_start_smc(hwmgr);
 		if (result)
 			return result;
 	}
 
-	result = smu7_request_smu_load_fw(smumgr);
+	result = smu7_request_smu_load_fw(hwmgr);
 
 	return result;
 }
@@ -198,7 +198,7 @@ static int iceland_start_smu(struct pp_smumgr *smumgr)
  * @param    smcAddress the address in the SMC RAM to access.
  * @param    value to write to the SMC SRAM.
  */
-static int iceland_smu_init(struct pp_smumgr *smumgr)
+static int iceland_smu_init(struct pp_hwmgr *hwmgr)
 {
 	int i;
 	struct iceland_smumgr *iceland_priv = NULL;
@@ -208,9 +208,9 @@ static int iceland_smu_init(struct pp_smumgr *smumgr)
 	if (iceland_priv == NULL)
 		return -ENOMEM;
 
-	smumgr->backend = iceland_priv;
+	hwmgr->smu_backend = iceland_priv;
 
-	if (smu7_init(smumgr))
+	if (smu7_init(hwmgr))
 		return -EINVAL;
 
 	for (i = 0; i < SMU71_MAX_LEVELS_GRAPHICS; i++)

@@ -184,12 +184,15 @@ config DRM_AMDGPU
 	select BACKLIGHT_CLASS_DEVICE
 	select BACKLIGHT_LCD_SUPPORT
 	select INTERVAL_TREE
+	select CHASH
 	help
 	  Choose this option if you have a recent AMD Radeon graphics card.
 
 	  If M is selected, the module will be called amdgpu.
 
 source "drivers/gpu/drm/amd/amdgpu/Kconfig"
+
+source "drivers/gpu/drm/amd/lib/Kconfig"
 
 source "drivers/gpu/drm/nouveau/Kconfig"
 

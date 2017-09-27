@@ -140,6 +140,7 @@ struct atom_context {
 	int io_mode;
 	uint32_t *scratch;
 	int scratch_size_bytes;
+	char vbios_version[20];
 };
 
 extern int amdgpu_atom_debug;

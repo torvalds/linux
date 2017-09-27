@@ -87,17 +87,28 @@ static int amdgpu_pp_early_init(void *handle)
 	case CHIP_OLAND:
 	case CHIP_HAINAN:
 		amd_pp->ip_funcs = &si_dpm_ip_funcs;
+		amd_pp->pp_funcs = &si_dpm_funcs;
 	break;
 #endif
 #ifdef CONFIG_DRM_AMDGPU_CIK
 	case CHIP_BONAIRE:
 	case CHIP_HAWAII:
-		amd_pp->ip_funcs = &ci_dpm_ip_funcs;
+		if (amdgpu_dpm == -1) {
+			amd_pp->ip_funcs = &ci_dpm_ip_funcs;
+			amd_pp->pp_funcs = &ci_dpm_funcs;
+		} else {
+			adev->pp_enabled = true;
+			if (amdgpu_create_pp_handle(adev))
+				return -EINVAL;
+			amd_pp->ip_funcs = &pp_ip_funcs;
+			amd_pp->pp_funcs = &pp_dpm_funcs;
+		}
 		break;
 	case CHIP_KABINI:
 	case CHIP_MULLINS:
 	case CHIP_KAVERI:
 		amd_pp->ip_funcs = &kv_dpm_ip_funcs;
+		amd_pp->pp_funcs = &kv_dpm_funcs;
 		break;
 #endif
 	default:
@@ -128,7 +139,7 @@ static int amdgpu_pp_late_init(void *handle)
 
 	if (adev->pp_enabled && adev->pm.dpm_enabled) {
 		amdgpu_pm_sysfs_init(adev);
-		amdgpu_dpm_dispatch_task(adev, AMD_PP_EVENT_COMPLETE_INIT, NULL, NULL);
+		amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_COMPLETE_INIT, NULL, NULL);
 	}
 
 	return ret;

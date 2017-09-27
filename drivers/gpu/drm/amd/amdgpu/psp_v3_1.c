@@ -319,7 +319,7 @@ int psp_v3_1_ring_create(struct psp_context *psp, enum psp_ring_type ring_type)
 	return ret;
 }
 
-int psp_v3_1_ring_destroy(struct psp_context *psp, enum psp_ring_type ring_type)
+int psp_v3_1_ring_stop(struct psp_context *psp, enum psp_ring_type ring_type)
 {
 	int ret = 0;
 	struct psp_ring *ring;
@@ -338,6 +338,19 @@ int psp_v3_1_ring_destroy(struct psp_context *psp, enum psp_ring_type ring_type)
 	/* Wait for response flag (bit 31) in C2PMSG_64 */
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
 			   0x80000000, 0x80000000, false);
+
+	return ret;
+}
+
+int psp_v3_1_ring_destroy(struct psp_context *psp, enum psp_ring_type ring_type)
+{
+	int ret = 0;
+	struct psp_ring *ring = &psp->km_ring;
+	struct amdgpu_device *adev = psp->adev;
+
+	ret = psp_v3_1_ring_stop(psp, ring_type);
+	if (ret)
+		DRM_ERROR("Fail to stop psp ring\n");
 
 	amdgpu_bo_free_kernel(&adev->firmware.rbuf,
 			      &ring->ring_mem_mc_addr,
@@ -516,4 +529,38 @@ bool psp_v3_1_smu_reload_quirk(struct psp_context *psp)
 	WREG32_SOC15(NBIO, 0, mmPCIE_INDEX2, reg);
 	reg = RREG32_SOC15(NBIO, 0, mmPCIE_DATA2);
 	return (reg & MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED_MASK) ? true : false;
+}
+
+int psp_v3_1_mode1_reset(struct psp_context *psp)
+{
+	int ret;
+	uint32_t offset;
+	struct amdgpu_device *adev = psp->adev;
+
+	offset = SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64);
+
+	ret = psp_wait_for(psp, offset, 0x80000000, 0x8000FFFF, false);
+
+	if (ret) {
+		DRM_INFO("psp is not working correctly before mode1 reset!\n");
+		return -EINVAL;
+	}
+
+	/*send the mode 1 reset command*/
+	WREG32(offset, 0x70000);
+
+	mdelay(1000);
+
+	offset = SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_33);
+
+	ret = psp_wait_for(psp, offset, 0x80000000, 0x80000000, false);
+
+	if (ret) {
+		DRM_INFO("psp mode 1 reset failed!\n");
+		return -EINVAL;
+	}
+
+	DRM_INFO("psp mode1 reset succeed \n");
+
+	return 0;
 }
