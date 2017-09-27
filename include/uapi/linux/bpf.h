@@ -190,6 +190,7 @@ union bpf_attr {
 		__u32	numa_node;	/* numa node (effective only if
 					 * BPF_F_NUMA_NODE is set).
 					 */
+		__u8	map_name[BPF_OBJ_NAME_LEN];
 	};
 
 	struct { /* anonymous struct used by BPF_MAP_*_ELEM commands */
@@ -829,6 +830,7 @@ struct bpf_map_info {
 	__u32 value_size;
 	__u32 max_entries;
 	__u32 map_flags;
+	__u8  name[BPF_OBJ_NAME_LEN];
 } __attribute__((aligned(8)));
 
 /* User bpf_sock_ops struct to access socket values and specify request ops
