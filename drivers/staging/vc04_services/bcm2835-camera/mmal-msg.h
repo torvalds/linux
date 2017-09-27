@@ -70,7 +70,7 @@ enum mmal_msg_type {
 
 /* port action request messages differ depending on the action type */
 enum mmal_msg_port_action_type {
-	MMAL_MSG_PORT_ACTION_TYPE_UNKNOWN = 0,      /* Unkown action */
+	MMAL_MSG_PORT_ACTION_TYPE_UNKNOWN = 0,      /* Unknown action */
 	MMAL_MSG_PORT_ACTION_TYPE_ENABLE,           /* Enable a port */
 	MMAL_MSG_PORT_ACTION_TYPE_DISABLE,          /* Disable a port */
 	MMAL_MSG_PORT_ACTION_TYPE_FLUSH,            /* Flush a port */

@@ -187,7 +187,7 @@ extern int32_t vchi_service_create( VCHI_INSTANCE_T instance_handle,
                                     SERVICE_CREATION_T *setup,
                                     VCHI_SERVICE_HANDLE_T *handle );
 
-// Routine to destory a service
+// Routine to destroy a service
 extern int32_t vchi_service_destroy( const VCHI_SERVICE_HANDLE_T handle );
 
 // Routine to open a named service
