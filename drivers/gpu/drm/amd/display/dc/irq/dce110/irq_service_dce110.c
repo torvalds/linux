@@ -406,7 +406,7 @@ static const struct irq_service_funcs irq_service_funcs_dce110 = {
 		.to_dal_irq_source = to_dal_irq_source_dce110
 };
 
-bool construct(
+static bool construct(
 	struct irq_service *irq_service,
 	struct irq_service_init_data *init_data)
 {
