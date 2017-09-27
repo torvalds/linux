@@ -94,6 +94,11 @@ struct hclge_bp_to_qs_map_cmd {
 	u32 rsvd1;
 };
 
+struct hclge_pfc_en_cmd {
+	u8 tx_rx_en_bitmap;
+	u8 pri_en_bitmap;
+};
+
 #define hclge_tm_set_field(dest, string, val) \
 			hnae_set_field((dest), (HCLGE_TM_SHAP_##string##_MSK), \
 				       (HCLGE_TM_SHAP_##string##_LSH), val)

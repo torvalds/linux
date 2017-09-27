@@ -124,6 +124,20 @@ static int hclge_mac_pause_en_cfg(struct hclge_dev *hdev, bool tx, bool rx)
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
 
+static int hclge_pfc_pause_en_cfg(struct hclge_dev *hdev, u8 tx_rx_bitmap,
+				  u8 pfc_bitmap)
+{
+	struct hclge_desc desc;
+	struct hclge_pfc_en_cmd *pfc = (struct hclge_pfc_en_cmd *)&desc.data;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_PFC_PAUSE_EN, false);
+
+	pfc->tx_rx_en_bitmap = tx_rx_bitmap;
+	pfc->pri_en_bitmap = pfc_bitmap;
+
+	return hclge_cmd_send(&hdev->hw, &desc, 1);
+}
+
 static int hclge_fill_pri_array(struct hclge_dev *hdev, u8 *pri, u8 pri_id)
 {
 	u8 tc;
@@ -969,19 +983,63 @@ static int hclge_tm_schd_setup_hw(struct hclge_dev *hdev)
 	return hclge_tm_schd_mode_hw(hdev);
 }
 
+static int hclge_pfc_setup_hw(struct hclge_dev *hdev)
+{
+	u8 enable_bitmap = 0;
+
+	if (hdev->tm_info.fc_mode == HCLGE_FC_PFC)
+		enable_bitmap = HCLGE_TX_MAC_PAUSE_EN_MSK |
+				HCLGE_RX_MAC_PAUSE_EN_MSK;
+
+	return hclge_pfc_pause_en_cfg(hdev, enable_bitmap,
+				      hdev->tm_info.hw_pfc_map);
+}
+
+static int hclge_mac_pause_setup_hw(struct hclge_dev *hdev)
+{
+	bool tx_en, rx_en;
+
+	switch (hdev->tm_info.fc_mode) {
+	case HCLGE_FC_NONE:
+		tx_en = false;
+		rx_en = false;
+		break;
+	case HCLGE_FC_RX_PAUSE:
+		tx_en = false;
+		rx_en = true;
+		break;
+	case HCLGE_FC_TX_PAUSE:
+		tx_en = true;
+		rx_en = false;
+		break;
+	case HCLGE_FC_FULL:
+		tx_en = true;
+		rx_en = true;
+		break;
+	default:
+		tx_en = true;
+		rx_en = true;
+	}
+
+	return hclge_mac_pause_en_cfg(hdev, tx_en, rx_en);
+}
+
 int hclge_pause_setup_hw(struct hclge_dev *hdev)
 {
-	bool en = hdev->tm_info.fc_mode != HCLGE_FC_PFC;
 	int ret;
 	u8 i;
 
-	ret = hclge_mac_pause_en_cfg(hdev, en, en);
-	if (ret)
-		return ret;
+	if (hdev->tm_info.fc_mode != HCLGE_FC_PFC)
+		return hclge_mac_pause_setup_hw(hdev);
 
-	/* Only DCB-supported dev supports qset back pressure setting */
+	/* Only DCB-supported dev supports qset back pressure and pfc cmd */
 	if (!hnae3_dev_dcb_supported(hdev))
 		return 0;
+
+	/* When MAC is GE Mode, hdev does not support pfc setting */
+	ret = hclge_pfc_setup_hw(hdev);
+	if (ret)
+		dev_warn(&hdev->pdev->dev, "set pfc pause failed:%d\n", ret);
 
 	for (i = 0; i < hdev->tm_info.num_tc; i++) {
 		ret = hclge_tm_qs_bp_cfg(hdev, i);
