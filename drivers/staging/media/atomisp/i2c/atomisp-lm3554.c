@@ -862,8 +862,7 @@ static void *lm3554_platform_data_func(struct i2c_client *client)
 	return &platform_data;
 }
 
-static int lm3554_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int lm3554_probe(struct i2c_client *client)
 {
 	int err = 0;
 	struct lm3554 *flash;
@@ -960,13 +959,6 @@ fail:
 	return ret;
 }
 
-static const struct i2c_device_id lm3554_id[] = {
-	{LM3554_NAME, 0},
-	{},
-};
-
-MODULE_DEVICE_TABLE(i2c, lm3554_id);
-
 static const struct dev_pm_ops lm3554_pm_ops = {
 	.suspend = lm3554_suspend,
 	.resume = lm3554_resume,
@@ -976,18 +968,16 @@ static const struct acpi_device_id lm3554_acpi_match[] = {
 	{ "INTCF1C" },
 	{},
 };
-
 MODULE_DEVICE_TABLE(acpi, lm3554_acpi_match);
 
 static struct i2c_driver lm3554_driver = {
 	.driver = {
-		.name = LM3554_NAME,
+		.name = "lm3554",
 		.pm   = &lm3554_pm_ops,
-		.acpi_match_table = ACPI_PTR(lm3554_acpi_match),
+		.acpi_match_table = lm3554_acpi_match,
 	},
-	.probe = lm3554_probe,
+	.probe_new = lm3554_probe,
 	.remove = lm3554_remove,
-	.id_table = lm3554_id,
 };
 module_i2c_driver(lm3554_driver);
 

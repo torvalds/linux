@@ -1438,8 +1438,7 @@ static int ov2680_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int ov2680_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ov2680_probe(struct i2c_client *client)
 {
 	struct ov2680_device *dev;
 	int ret;
@@ -1521,21 +1520,16 @@ static const struct acpi_device_id ov2680_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, ov2680_acpi_match);
 
-
-MODULE_DEVICE_TABLE(i2c, ov2680_id);
 static struct i2c_driver ov2680_driver = {
 	.driver = {
-		.name = OV2680_NAME,
-		.acpi_match_table = ACPI_PTR(ov2680_acpi_match),
-
+		.name = "ov2680",
+		.acpi_match_table = ov2680_acpi_match,
 	},
-	.probe = ov2680_probe,
+	.probe_new = ov2680_probe,
 	.remove = ov2680_remove,
-	.id_table = ov2680_id,
 };
 module_i2c_driver(ov2680_driver);
 
 MODULE_AUTHOR("Jacky Wang <Jacky_wang@ovt.com>");
 MODULE_DESCRIPTION("A low-level driver for OmniVision 2680 sensors");
 MODULE_LICENSE("GPL");
-

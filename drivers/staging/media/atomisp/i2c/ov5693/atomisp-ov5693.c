@@ -1935,8 +1935,7 @@ static int ov5693_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int ov5693_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ov5693_probe(struct i2c_client *client)
 {
 	struct ov5693_device *dev;
 	int i2c;
@@ -2021,8 +2020,6 @@ out_free:
 	return ret;
 }
 
-MODULE_DEVICE_TABLE(i2c, ov5693_id);
-
 static const struct acpi_device_id ov5693_acpi_match[] = {
 	{"INT33BE"},
 	{},
@@ -2031,12 +2028,11 @@ MODULE_DEVICE_TABLE(acpi, ov5693_acpi_match);
 
 static struct i2c_driver ov5693_driver = {
 	.driver = {
-		.name = OV5693_NAME,
-		.acpi_match_table = ACPI_PTR(ov5693_acpi_match),
+		.name = "ov5693",
+		.acpi_match_table = ov5693_acpi_match,
 	},
-	.probe = ov5693_probe,
+	.probe_new = ov5693_probe,
 	.remove = ov5693_remove,
-	.id_table = ov5693_id,
 };
 module_i2c_driver(ov5693_driver);
 

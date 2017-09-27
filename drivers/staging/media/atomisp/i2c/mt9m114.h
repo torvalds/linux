@@ -394,11 +394,6 @@ static struct mt9m114_res_struct mt9m114_res[] = {
 };
 #define N_RES (ARRAY_SIZE(mt9m114_res))
 
-static const struct i2c_device_id mt9m114_id[] = {
-	{"mt9m114", 0},
-	{}
-};
-
 static struct misensor_reg const mt9m114_exitstandby[] = {
 	{MISENSOR_16BIT,  0x098E, 0xDC00},
 	/* exit-standby */

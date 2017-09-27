@@ -35,8 +35,6 @@
 
 #include "../../include/linux/atomisp_platform.h"
 
-#define OV5693_NAME		"ov5693"
-
 #define OV5693_POWER_UP_RETRY_NUM 5
 
 /* Defines for register writes and register array processing */
@@ -276,11 +274,6 @@ struct ov5693_write_buffer {
 struct ov5693_write_ctrl {
 	int index;
 	struct ov5693_write_buffer buffer;
-};
-
-static const struct i2c_device_id ov5693_id[] = {
-	{OV5693_NAME, 0},
-	{}
 };
 
 static struct ov5693_reg const ov5693_global_setting[] = {

@@ -1853,8 +1853,7 @@ static int mt9m114_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int mt9m114_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int mt9m114_probe(struct i2c_client *client)
 {
 	struct mt9m114_device *dev;
 	int ret = 0;
@@ -1924,24 +1923,20 @@ static int mt9m114_probe(struct i2c_client *client,
 	return 0;
 }
 
-MODULE_DEVICE_TABLE(i2c, mt9m114_id);
-
 static const struct acpi_device_id mt9m114_acpi_match[] = {
 	{ "INT33F0" },
 	{ "CRMT1040" },
 	{},
 };
-
 MODULE_DEVICE_TABLE(acpi, mt9m114_acpi_match);
 
 static struct i2c_driver mt9m114_driver = {
 	.driver = {
 		.name = "mt9m114",
-		.acpi_match_table = ACPI_PTR(mt9m114_acpi_match),
+		.acpi_match_table = mt9m114_acpi_match,
 	},
-	.probe = mt9m114_probe,
+	.probe_new = mt9m114_probe,
 	.remove = mt9m114_remove,
-	.id_table = mt9m114_id,
 };
 module_i2c_driver(mt9m114_driver);
 

@@ -1114,8 +1114,7 @@ static int gc2235_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int gc2235_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int gc2235_probe(struct i2c_client *client)
 {
 	struct gc2235_device *dev;
 	void *gcpdev;
@@ -1185,17 +1184,15 @@ static const struct acpi_device_id gc2235_acpi_match[] = {
 	{ "INT33F8" },
 	{},
 };
-
 MODULE_DEVICE_TABLE(acpi, gc2235_acpi_match);
-MODULE_DEVICE_TABLE(i2c, gc2235_id);
+
 static struct i2c_driver gc2235_driver = {
 	.driver = {
-		.name = GC2235_NAME,
-		.acpi_match_table = ACPI_PTR(gc2235_acpi_match),
+		.name = "gc2235",
+		.acpi_match_table = gc2235_acpi_match,
 	},
-	.probe = gc2235_probe,
+	.probe_new = gc2235_probe,
 	.remove = gc2235_remove,
-	.id_table = gc2235_id,
 };
 module_i2c_driver(gc2235_driver);
 

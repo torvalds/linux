@@ -36,8 +36,6 @@
 
 #include "../include/linux/atomisp_platform.h"
 
-#define GC0310_NAME		"gc0310"
-
 /* Defines for register writes and register array processing */
 #define I2C_MSG_LENGTH		1
 #define I2C_RETRY_COUNT		5
@@ -194,11 +192,6 @@ struct gc0310_write_buffer {
 struct gc0310_write_ctrl {
 	int index;
 	struct gc0310_write_buffer buffer;
-};
-
-static const struct i2c_device_id gc0310_id[] = {
-	{GC0310_NAME, 0},
-	{}
 };
 
 /*

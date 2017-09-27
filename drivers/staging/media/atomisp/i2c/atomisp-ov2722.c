@@ -1276,8 +1276,7 @@ static int __ov2722_init_ctrl_handler(struct ov2722_device *dev)
 	return 0;
 }
 
-static int ov2722_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ov2722_probe(struct i2c_client *client)
 {
 	struct ov2722_device *dev;
 	void *ovpdev;
@@ -1333,23 +1332,19 @@ out_free:
 	return ret;
 }
 
-MODULE_DEVICE_TABLE(i2c, ov2722_id);
-
 static const struct acpi_device_id ov2722_acpi_match[] = {
 	{ "INT33FB" },
 	{},
 };
-
 MODULE_DEVICE_TABLE(acpi, ov2722_acpi_match);
 
 static struct i2c_driver ov2722_driver = {
 	.driver = {
-		.name = OV2722_NAME,
-		.acpi_match_table = ACPI_PTR(ov2722_acpi_match),
+		.name = "ov2722",
+		.acpi_match_table = ov2722_acpi_match,
 	},
-	.probe = ov2722_probe,
+	.probe_new = ov2722_probe,
 	.remove = ov2722_remove,
-	.id_table = ov2722_id,
 };
 module_i2c_driver(ov2722_driver);
 

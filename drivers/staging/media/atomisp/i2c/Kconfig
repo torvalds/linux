@@ -6,6 +6,7 @@ source "drivers/staging/media/atomisp/i2c/ov5693/Kconfig"
 
 config VIDEO_ATOMISP_OV2722
        tristate "OVT ov2722 sensor support"
+	depends on ACPI
        depends on I2C && VIDEO_V4L2
        ---help---
 	 This is a Video4Linux2 sensor-level driver for the OVT
@@ -17,6 +18,7 @@ config VIDEO_ATOMISP_OV2722
 
 config VIDEO_ATOMISP_GC2235
        tristate "Galaxy gc2235 sensor support"
+	depends on ACPI
        depends on I2C && VIDEO_V4L2
        ---help---
 	 This is a Video4Linux2 sensor-level driver for the OVT
@@ -28,6 +30,7 @@ config VIDEO_ATOMISP_GC2235
 
 config VIDEO_ATOMISP_OV8858
        tristate "Omnivision ov8858 sensor support"
+	depends on ACPI
        depends on I2C && VIDEO_V4L2 && VIDEO_ATOMISP
        ---help---
 	 This is a Video4Linux2 sensor-level driver for the Omnivision
@@ -49,6 +52,7 @@ config VIDEO_ATOMISP_MSRLIST_HELPER
 
 config VIDEO_ATOMISP_MT9M114
        tristate "Aptina mt9m114 sensor support"
+	depends on ACPI
        depends on I2C && VIDEO_V4L2
        ---help---
 	 This is a Video4Linux2 sensor-level driver for the Micron
@@ -60,6 +64,7 @@ config VIDEO_ATOMISP_MT9M114
 
 config VIDEO_ATOMISP_GC0310
 	tristate "GC0310 sensor support"
+	depends on ACPI
 	depends on I2C && VIDEO_V4L2
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the Galaxycore
@@ -67,6 +72,7 @@ config VIDEO_ATOMISP_GC0310
 	 
 config VIDEO_ATOMISP_OV2680
        tristate "Omnivision OV2680 sensor support"
+	depends on ACPI
        depends on I2C && VIDEO_V4L2
        ---help---
 	 This is a Video4Linux2 sensor-level driver for the Omnivision
@@ -82,6 +88,7 @@ config VIDEO_ATOMISP_OV2680
 
 config VIDEO_ATOMISP_LM3554
        tristate "LM3554 flash light driver"
+	depends on ACPI
        depends on VIDEO_V4L2 && I2C
        ---help---
 	 This is a Video4Linux2 sub-dev driver for the LM3554
@@ -89,5 +96,3 @@ config VIDEO_ATOMISP_LM3554
 
 	 To compile this driver as a module, choose M here: the
 	 module will be called lm3554
-
-

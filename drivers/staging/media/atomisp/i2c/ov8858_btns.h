@@ -113,7 +113,6 @@
 
 #define OV_SUBDEV_PREFIX			"ov"
 #define OV_ID_DEFAULT				0x0000
-#define	OV8858_NAME				"ov8858"
 #define OV8858_CHIP_ID				0x8858
 
 #define OV8858_LONG_EXPO			0x3500

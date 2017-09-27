@@ -2080,8 +2080,7 @@ static const struct v4l2_ctrl_config ctrls[] = {
 	}
 };
 
-static int ov8858_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ov8858_probe(struct i2c_client *client)
 {
 	struct ov8858_device *dev;
 	unsigned int i;
@@ -2097,8 +2096,6 @@ static int ov8858_probe(struct i2c_client *client,
 
 	mutex_init(&dev->input_lock);
 
-	if (id)
-		dev->i2c_id = id->driver_data;
 	dev->fmt_idx = 0;
 	dev->sensor_id = OV_ID_DEFAULT;
 	dev->vcm_driver = &ov8858_vcms[OV8858_ID_DEFAULT];
@@ -2178,26 +2175,19 @@ out_free:
 	return ret;
 }
 
-static const struct i2c_device_id ov8858_id[] = {
-	{OV8858_NAME, 0},
-	{}
-};
-
-MODULE_DEVICE_TABLE(i2c, ov8858_id);
-
 static const struct acpi_device_id ov8858_acpi_match[] = {
 	{"INT3477"},
 	{},
 };
+MODULE_DEVICE_TABLE(acpi, ov8858_acpi_match);
 
 static struct i2c_driver ov8858_driver = {
 	.driver = {
-		.name = OV8858_NAME,
-		.acpi_match_table = ACPI_PTR(ov8858_acpi_match),
+		.name = "ov8858",
+		.acpi_match_table = ov8858_acpi_match,
 	},
-	.probe = ov8858_probe,
+	.probe_new = ov8858_probe,
 	.remove = ov8858_remove,
-	.id_table = ov8858_id,
 };
 module_i2c_driver(ov8858_driver);
 

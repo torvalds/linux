@@ -24,7 +24,6 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-subdev.h>
 
-#define LM3554_NAME    "lm3554"
 #define LM3554_ID      3554
 
 #define	v4l2_queryctrl_entry_integer(_id, _name,\

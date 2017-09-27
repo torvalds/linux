@@ -35,10 +35,6 @@
 
 #include "../include/linux/atomisp_platform.h"
 
-#define OV2680_NAME		"ov2680"
-#define OV2680B_NAME	"ov2680b"
-#define OV2680F_NAME	"ov2680f"
-
 /* Defines for register writes and register array processing */
 #define I2C_MSG_LENGTH		0x2
 #define I2C_RETRY_COUNT		5
@@ -225,12 +221,6 @@ struct ov2680_format {
 	struct ov2680_write_ctrl {
 		int index;
 		struct ov2680_write_buffer buffer;
-	};
-
-	static const struct i2c_device_id ov2680_id[] = {
-		{OV2680B_NAME, 0},
-		{OV2680F_NAME, 0},
-		{}
 	};
 
 	static struct ov2680_reg const ov2680_global_setting[] = {

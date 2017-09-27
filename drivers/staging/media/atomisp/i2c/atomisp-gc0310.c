@@ -1375,8 +1375,7 @@ static int gc0310_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int gc0310_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int gc0310_probe(struct i2c_client *client)
 {
 	struct gc0310_device *dev;
 	int ret;
@@ -1455,18 +1454,15 @@ static const struct acpi_device_id gc0310_acpi_match[] = {
 	{"INT0310"},
 	{},
 };
-
 MODULE_DEVICE_TABLE(acpi, gc0310_acpi_match);
 
-MODULE_DEVICE_TABLE(i2c, gc0310_id);
 static struct i2c_driver gc0310_driver = {
 	.driver = {
-		.name = GC0310_NAME,
-		.acpi_match_table = ACPI_PTR(gc0310_acpi_match),
+		.name = "gc0310",
+		.acpi_match_table = gc0310_acpi_match,
 	},
-	.probe = gc0310_probe,
+	.probe_new = gc0310_probe,
 	.remove = gc0310_remove,
-	.id_table = gc0310_id,
 };
 module_i2c_driver(gc0310_driver);
 
