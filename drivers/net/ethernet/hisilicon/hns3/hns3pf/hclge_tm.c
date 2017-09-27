@@ -883,9 +883,13 @@ static int hclge_tm_pri_dwrr_cfg(struct hclge_dev *hdev)
 	return 0;
 }
 
-static int hclge_tm_map_cfg(struct hclge_dev *hdev)
+int hclge_tm_map_cfg(struct hclge_dev *hdev)
 {
 	int ret;
+
+	ret = hclge_up_to_tc_map(hdev);
+	if (ret)
+		return ret;
 
 	ret = hclge_tm_pg_to_pri_map(hdev);
 	if (ret)
@@ -994,7 +998,7 @@ static int hclge_tm_lvl34_schd_mode_cfg(struct hclge_dev *hdev)
 	return 0;
 }
 
-static int hclge_tm_schd_mode_hw(struct hclge_dev *hdev)
+int hclge_tm_schd_mode_hw(struct hclge_dev *hdev)
 {
 	int ret;
 
@@ -1092,7 +1096,45 @@ int hclge_pause_setup_hw(struct hclge_dev *hdev)
 			return ret;
 	}
 
-	return hclge_up_to_tc_map(hdev);
+	return 0;
+}
+
+int hclge_tm_prio_tc_info_update(struct hclge_dev *hdev, u8 *prio_tc)
+{
+	struct hclge_vport *vport = hdev->vport;
+	struct hnae3_knic_private_info *kinfo;
+	u32 i, k;
+
+	for (i = 0; i < HNAE3_MAX_USER_PRIO; i++) {
+		if (prio_tc[i] >= hdev->tm_info.num_tc)
+			return -EINVAL;
+		hdev->tm_info.prio_tc[i] = prio_tc[i];
+
+		for (k = 0;  k < hdev->num_alloc_vport; k++) {
+			kinfo = &vport[k].nic.kinfo;
+			kinfo->prio_tc[i] = prio_tc[i];
+		}
+	}
+	return 0;
+}
+
+void hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc)
+{
+	u8 i, bit_map = 0;
+
+	hdev->tm_info.num_tc = num_tc;
+
+	for (i = 0; i < hdev->tm_info.num_tc; i++)
+		bit_map |= BIT(i);
+
+	if (!bit_map) {
+		bit_map = 1;
+		hdev->tm_info.num_tc = 1;
+	}
+
+	hdev->hw_tc_map = bit_map;
+
+	hclge_tm_schd_info_init(hdev);
 }
 
 int hclge_tm_init_hw(struct hclge_dev *hdev)

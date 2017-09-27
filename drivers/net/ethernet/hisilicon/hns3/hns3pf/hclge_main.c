@@ -30,7 +30,6 @@
 #define HCLGE_64BIT_STATS_FIELD_OFF(f) (offsetof(struct hclge_64_bit_stats, f))
 #define HCLGE_32BIT_STATS_FIELD_OFF(f) (offsetof(struct hclge_32_bit_stats, f))
 
-static int hclge_rss_init_hw(struct hclge_dev *hdev);
 static int hclge_set_mta_filter_mode(struct hclge_dev *hdev,
 				     enum hclge_mta_dmac_sel_type mta_mac_sel,
 				     bool enable);
@@ -2655,7 +2654,7 @@ static int hclge_get_tc_size(struct hnae3_handle *handle)
 	return hdev->rss_size_max;
 }
 
-static int hclge_rss_init_hw(struct hclge_dev *hdev)
+int hclge_rss_init_hw(struct hclge_dev *hdev)
 {
 	const  u8 hfunc = HCLGE_RSS_HASH_ALGO_TOEPLITZ;
 	struct hclge_vport *vport = hdev->vport;
