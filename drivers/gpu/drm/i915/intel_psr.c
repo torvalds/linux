@@ -103,28 +103,26 @@ static void intel_psr_write_vsc(struct intel_dp *intel_dp,
 	POSTING_READ(ctl_reg);
 }
 
-static void vlv_psr_setup_vsc(struct intel_dp *intel_dp)
+static void vlv_psr_setup_vsc(struct intel_dp *intel_dp,
+			      const struct intel_crtc_state *crtc_state)
 {
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_device *dev = intel_dig_port->base.base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_crtc *crtc = intel_dig_port->base.base.crtc;
-	enum pipe pipe = to_intel_crtc(crtc)->pipe;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	uint32_t val;
 
 	/* VLV auto-generate VSC package as per EDP 1.3 spec, Table 3.10 */
-	val  = I915_READ(VLV_VSCSDP(pipe));
+	val  = I915_READ(VLV_VSCSDP(crtc->pipe));
 	val &= ~VLV_EDP_PSR_SDP_FREQ_MASK;
 	val |= VLV_EDP_PSR_SDP_FREQ_EVFRAME;
-	I915_WRITE(VLV_VSCSDP(pipe), val);
+	I915_WRITE(VLV_VSCSDP(crtc->pipe), val);
 }
 
-static void skl_psr_setup_su_vsc(struct intel_dp *intel_dp)
+static void skl_psr_setup_su_vsc(struct intel_dp *intel_dp,
+				 const struct intel_crtc_state *crtc_state)
 {
-	struct edp_vsc_psr psr_vsc;
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_device *dev = intel_dig_port->base.base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
+	struct edp_vsc_psr psr_vsc;
 
 	/* Prepare VSC Header for SU as per EDP 1.4 spec, Table 6.11 */
 	memset(&psr_vsc, 0, sizeof(psr_vsc));
@@ -145,7 +143,8 @@ static void skl_psr_setup_su_vsc(struct intel_dp *intel_dp)
 	intel_psr_write_vsc(intel_dp, &psr_vsc);
 }
 
-static void hsw_psr_setup_vsc(struct intel_dp *intel_dp)
+static void hsw_psr_setup_vsc(struct intel_dp *intel_dp,
+			      const struct intel_crtc_state *crtc_state)
 {
 	struct edp_vsc_psr psr_vsc;
 
@@ -233,16 +232,15 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 	I915_WRITE(aux_ctl_reg, aux_ctl);
 }
 
-static void vlv_psr_enable_source(struct intel_dp *intel_dp)
+static void vlv_psr_enable_source(struct intel_dp *intel_dp,
+				  const struct intel_crtc_state *crtc_state)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_device *dev = dig_port->base.base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_crtc *crtc = dig_port->base.base.crtc;
-	enum pipe pipe = to_intel_crtc(crtc)->pipe;
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 
 	/* Transition from PSR_state 0 to PSR_state 1, i.e. PSR Inactive */
-	I915_WRITE(VLV_PSRCTL(pipe),
+	I915_WRITE(VLV_PSRCTL(crtc->pipe),
 		   VLV_EDP_PSR_MODE_SW_TIMER |
 		   VLV_EDP_PSR_SRC_TRANSMITTER_STATE |
 		   VLV_EDP_PSR_ENABLE);
@@ -485,16 +483,17 @@ static void intel_psr_activate(struct intel_dp *intel_dp)
 /**
  * intel_psr_enable - Enable PSR
  * @intel_dp: Intel DP
+ * @crtc_state: new CRTC state
  *
  * This function can only be called after the pipe is fully trained and enabled.
  */
-void intel_psr_enable(struct intel_dp *intel_dp)
+void intel_psr_enable(struct intel_dp *intel_dp,
+		      const struct intel_crtc_state *crtc_state)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *crtc = to_intel_crtc(intel_dig_port->base.base.crtc);
-	enum transcoder cpu_transcoder = crtc->config->cpu_transcoder;
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	u32 chicken;
 
 	if (!HAS_PSR(dev_priv)) {
@@ -520,11 +519,13 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 
 	if (HAS_DDI(dev_priv)) {
 		if (dev_priv->psr.psr2_support) {
-			skl_psr_setup_su_vsc(intel_dp);
+			skl_psr_setup_su_vsc(intel_dp, crtc_state);
+
 			chicken = PSR2_VSC_ENABLE_PROG_HEADER;
 			if (dev_priv->psr.y_cord_support)
 				chicken |= PSR2_ADD_VERTICAL_LINE_COUNT;
 			I915_WRITE(CHICKEN_TRANS(cpu_transcoder), chicken);
+
 			I915_WRITE(EDP_PSR_DEBUG_CTL,
 				   EDP_PSR_DEBUG_MASK_MEMUP |
 				   EDP_PSR_DEBUG_MASK_HPD |
@@ -533,7 +534,8 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 				   EDP_PSR_DEBUG_MASK_DISP_REG_WRITE);
 		} else {
 			/* set up vsc header for psr1 */
-			hsw_psr_setup_vsc(intel_dp);
+			hsw_psr_setup_vsc(intel_dp, crtc_state);
+
 			/*
 			 * Per Spec: Avoid continuous PSR exit by masking MEMUP
 			 * and HPD. also mask LPSP to avoid dependency on other
@@ -553,7 +555,7 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 		if (INTEL_GEN(dev_priv) >= 9)
 			intel_psr_activate(intel_dp);
 	} else {
-		vlv_psr_setup_vsc(intel_dp);
+		vlv_psr_setup_vsc(intel_dp, crtc_state);
 
 		/* Enable PSR on the panel */
 		vlv_psr_enable_sink(intel_dp);
@@ -564,7 +566,7 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 		 * but let it on inactive state. So we might do this prior
 		 * to active transition, i.e. here.
 		 */
-		vlv_psr_enable_source(intel_dp);
+		vlv_psr_enable_source(intel_dp, crtc_state);
 	}
 
 	/*
@@ -585,37 +587,38 @@ unlock:
 	mutex_unlock(&dev_priv->psr.lock);
 }
 
-static void vlv_psr_disable(struct intel_dp *intel_dp)
+static void vlv_psr_disable(struct intel_dp *intel_dp,
+			    const struct intel_crtc_state *old_crtc_state)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc =
-		to_intel_crtc(intel_dig_port->base.base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
 	uint32_t val;
 
 	if (dev_priv->psr.active) {
 		/* Put VLV PSR back to PSR_state 0 that is PSR Disabled. */
 		if (intel_wait_for_register(dev_priv,
-					    VLV_PSRSTAT(intel_crtc->pipe),
+					    VLV_PSRSTAT(crtc->pipe),
 					    VLV_EDP_PSR_IN_TRANS,
 					    0,
 					    1))
 			WARN(1, "PSR transition took longer than expected\n");
 
-		val = I915_READ(VLV_PSRCTL(intel_crtc->pipe));
+		val = I915_READ(VLV_PSRCTL(crtc->pipe));
 		val &= ~VLV_EDP_PSR_ACTIVE_ENTRY;
 		val &= ~VLV_EDP_PSR_ENABLE;
 		val &= ~VLV_EDP_PSR_MODE_MASK;
-		I915_WRITE(VLV_PSRCTL(intel_crtc->pipe), val);
+		I915_WRITE(VLV_PSRCTL(crtc->pipe), val);
 
 		dev_priv->psr.active = false;
 	} else {
-		WARN_ON(vlv_is_psr_active_on_pipe(dev, intel_crtc->pipe));
+		WARN_ON(vlv_is_psr_active_on_pipe(dev, crtc->pipe));
 	}
 }
 
-static void hsw_psr_disable(struct intel_dp *intel_dp)
+static void hsw_psr_disable(struct intel_dp *intel_dp,
+			    const struct intel_crtc_state *old_crtc_state)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
@@ -664,10 +667,12 @@ static void hsw_psr_disable(struct intel_dp *intel_dp)
 /**
  * intel_psr_disable - Disable PSR
  * @intel_dp: Intel DP
+ * @old_crtc_state: old CRTC state
  *
  * This function needs to be called before disabling pipe.
  */
-void intel_psr_disable(struct intel_dp *intel_dp)
+void intel_psr_disable(struct intel_dp *intel_dp,
+		       const struct intel_crtc_state *old_crtc_state)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
@@ -681,9 +686,9 @@ void intel_psr_disable(struct intel_dp *intel_dp)
 
 	/* Disable PSR on Source */
 	if (HAS_DDI(dev_priv))
-		hsw_psr_disable(intel_dp);
+		hsw_psr_disable(intel_dp, old_crtc_state);
 	else
-		vlv_psr_disable(intel_dp);
+		vlv_psr_disable(intel_dp, old_crtc_state);
 
 	/* Disable PSR on Sink */
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, 0);

@@ -1509,9 +1509,9 @@ struct drm_i915_perf_oa_config {
 	__u32 n_boolean_regs;
 	__u32 n_flex_regs;
 
-	__u64 __user mux_regs_ptr;
-	__u64 __user boolean_regs_ptr;
-	__u64 __user flex_regs_ptr;
+	__u64 mux_regs_ptr;
+	__u64 boolean_regs_ptr;
+	__u64 flex_regs_ptr;
 };
 
 #if defined(__cplusplus)

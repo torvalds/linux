@@ -412,7 +412,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	else if (INTEL_INFO(dev_priv)->gen >= 9)
 		gen9_sseu_info_init(dev_priv);
 
-	info->has_snoop = !info->has_llc;
+	WARN_ON(info->has_snoop != !info->has_llc);
 
 	DRM_DEBUG_DRIVER("slice mask: %04x\n", info->sseu.slice_mask);
 	DRM_DEBUG_DRIVER("slice total: %u\n", hweight8(info->sseu.slice_mask));
