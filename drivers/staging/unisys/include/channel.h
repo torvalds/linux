@@ -18,7 +18,6 @@
 #define __CHANNEL_H__
 
 #include <linux/types.h>
-#include <linux/io.h>
 #include <linux/uuid.h>
 
 #define SIGNATURE_16(A, B) ((A) | ((B) << 8))
