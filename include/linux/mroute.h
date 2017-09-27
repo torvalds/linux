@@ -90,9 +90,11 @@ struct mr_table {
 
 /* mfc_flags:
  * MFC_STATIC - the entry was added statically (not by a routing daemon)
+ * MFC_OFFLOAD - the entry was offloaded to the hardware
  */
 enum {
 	MFC_STATIC = BIT(0),
+	MFC_OFFLOAD = BIT(1),
 };
 
 struct mfc_cache_cmp_arg {
