@@ -109,6 +109,7 @@ struct mfc_cache_cmp_arg {
  * @wrong_if: number of wrong source interface hits
  * @lastuse: time of last use of the group (traffic or update)
  * @ttls: OIF TTL threshold array
+ * @refcount: reference count for this entry
  * @list: global entry list
  * @rcu: used for entry destruction
  */
@@ -138,6 +139,7 @@ struct mfc_cache {
 			unsigned long wrong_if;
 			unsigned long lastuse;
 			unsigned char ttls[MAXVIFS];
+			refcount_t refcount;
 		} res;
 	} mfc_un;
 	struct list_head list;
@@ -148,4 +150,23 @@ struct rtmsg;
 int ipmr_get_route(struct net *net, struct sk_buff *skb,
 		   __be32 saddr, __be32 daddr,
 		   struct rtmsg *rtm, u32 portid);
+
+#ifdef CONFIG_IP_MROUTE
+void ipmr_cache_free(struct mfc_cache *mfc_cache);
+#else
+static inline void ipmr_cache_free(struct mfc_cache *mfc_cache)
+{
+}
+#endif
+
+static inline void ipmr_cache_put(struct mfc_cache *c)
+{
+	if (refcount_dec_and_test(&c->mfc_un.res.refcount))
+		ipmr_cache_free(c);
+}
+static inline void ipmr_cache_hold(struct mfc_cache *c)
+{
+	refcount_inc(&c->mfc_un.res.refcount);
+}
+
 #endif
