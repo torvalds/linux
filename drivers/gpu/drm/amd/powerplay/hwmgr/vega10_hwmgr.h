@@ -31,7 +31,6 @@
 #include "vega10_ppsmc.h"
 #include "vega10_powertune.h"
 
-extern const uint32_t PhwVega10_Magic;
 #define VEGA10_MAX_HARDWARE_POWERLEVELS 2
 
 #define WaterMarksExist  1

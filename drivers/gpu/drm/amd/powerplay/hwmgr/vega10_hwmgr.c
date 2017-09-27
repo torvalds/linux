@@ -81,7 +81,7 @@ static const uint32_t channel_number[] = {1, 2, 0, 4, 0, 8, 0, 16, 2};
 static int vega10_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask);
 
-const ULONG PhwVega10_Magic = (ULONG)(PHM_VIslands_Magic);
+static const ULONG PhwVega10_Magic = (ULONG)(PHM_VIslands_Magic);
 
 struct vega10_power_state *cast_phw_vega10_power_state(
 				  struct pp_hw_power_state *hw_ps)
