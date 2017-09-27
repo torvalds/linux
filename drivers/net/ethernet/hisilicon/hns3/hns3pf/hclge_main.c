@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 
 #include "hclge_cmd.h"
+#include "hclge_dcb.h"
 #include "hclge_main.h"
 #include "hclge_mdio.h"
 #include "hclge_tm.h"
@@ -1057,7 +1058,7 @@ static int hclge_configure(struct hclge_dev *hdev)
 	hdev->hw.mac.phy_addr = cfg.phy_addr;
 	hdev->num_desc = cfg.tqp_desc_num;
 	hdev->tm_info.num_pg = 1;
-	hdev->tm_info.num_tc = cfg.tc_num;
+	hdev->tc_max = cfg.tc_num;
 	hdev->tm_info.hw_pfc_map = 0;
 
 	ret = hclge_parse_speed(cfg.default_speed, &hdev->hw.mac.speed);
@@ -1066,15 +1067,25 @@ static int hclge_configure(struct hclge_dev *hdev)
 		return ret;
 	}
 
-	if ((hdev->tm_info.num_tc > HNAE3_MAX_TC) ||
-	    (hdev->tm_info.num_tc < 1)) {
+	if ((hdev->tc_max > HNAE3_MAX_TC) ||
+	    (hdev->tc_max < 1)) {
 		dev_warn(&hdev->pdev->dev, "TC num = %d.\n",
-			 hdev->tm_info.num_tc);
-		hdev->tm_info.num_tc = 1;
+			 hdev->tc_max);
+		hdev->tc_max = 1;
 	}
 
+	/* Dev does not support DCB */
+	if (!hnae3_dev_dcb_supported(hdev)) {
+		hdev->tc_max = 1;
+		hdev->pfc_max = 0;
+	} else {
+		hdev->pfc_max = hdev->tc_max;
+	}
+
+	hdev->tm_info.num_tc = hdev->tc_max;
+
 	/* Currently not support uncontiuous tc */
-	for (i = 0; i < cfg.tc_num; i++)
+	for (i = 0; i < hdev->tm_info.num_tc; i++)
 		hnae_set_bit(hdev->hw_tc_map, i, 1);
 
 	if (!hdev->num_vmdq_vport && !hdev->num_req_vfs)
@@ -4237,6 +4248,8 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		dev_err(&pdev->dev, "Rss init fail, ret =%d\n", ret);
 		return ret;
 	}
+
+	hclge_dcb_ops_set(hdev);
 
 	setup_timer(&hdev->service_timer, hclge_service_timer,
 		    (unsigned long)hdev);

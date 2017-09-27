@@ -421,8 +421,11 @@ struct hclge_dev {
 #define HCLGE_FLAG_TC_BASE_SCH_MODE		1
 #define HCLGE_FLAG_VNET_BASE_SCH_MODE		2
 	u8 tx_sch_mode;
+	u8 tc_max;
+	u8 pfc_max;
 
 	u8 default_up;
+	u8 dcbx_cap;
 	struct hclge_tm_info tm_info;
 
 	u16 num_msi;

@@ -103,4 +103,13 @@ config HNS3_ENET
 	  family of SoCs. This module depends upon HNAE3 driver to access the HNAE3
 	  devices and their associated operations.
 
+config HNS3_DCB
+	bool "Hisilicon HNS3 Data Center Bridge Support"
+	default n
+	depends on HNS3 && HNS3_HCLGE && DCB
+	---help---
+	  Say Y here if you want to use Data Center Bridging (DCB) in the HNS3 driver.
+
+	  If unsure, say N.
+
 endif # NET_VENDOR_HISILICON
