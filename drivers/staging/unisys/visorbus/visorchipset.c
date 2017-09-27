@@ -457,7 +457,7 @@ static int device_changestate_responder(
 static int visorbus_create(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
-	struct controlvm_message_header *pmsg_hdr = NULL;
+	struct controlvm_message_header *pmsg_hdr;
 	u32 bus_no = cmd->create_bus.bus_no;
 	struct visor_device *bus_info;
 	struct visorchannel *visorchannel;
@@ -524,7 +524,7 @@ err_respond:
 
 static int visorbus_destroy(struct controlvm_message *inmsg)
 {
-	struct controlvm_message_header *pmsg_hdr = NULL;
+	struct controlvm_message_header *pmsg_hdr;
 	u32 bus_no = inmsg->cmd.destroy_bus.bus_no;
 	struct visor_device *bus_info;
 	int err;
@@ -587,7 +587,7 @@ static void *parser_string_get(u8 *pscan, int nscan)
 
 static void *parser_name_get(struct parser_context *ctx)
 {
-	struct visor_controlvm_parameters_header *phdr = NULL;
+	struct visor_controlvm_parameters_header *phdr;
 
 	phdr = &ctx->data;
 	if (phdr->name_offset + phdr->name_length > ctx->param_bytes)
@@ -644,10 +644,10 @@ err_respond:
 static int visorbus_device_create(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
-	struct controlvm_message_header *pmsg_hdr = NULL;
+	struct controlvm_message_header *pmsg_hdr;
 	u32 bus_no = cmd->create_device.bus_no;
 	u32 dev_no = cmd->create_device.dev_no;
-	struct visor_device *dev_info = NULL;
+	struct visor_device *dev_info;
 	struct visor_device *bus_info;
 	struct visorchannel *visorchannel;
 	int err;
@@ -732,7 +732,7 @@ err_respond:
 static int visorbus_device_changestate(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
-	struct controlvm_message_header *pmsg_hdr = NULL;
+	struct controlvm_message_header *pmsg_hdr;
 	u32 bus_no = cmd->device_change_state.bus_no;
 	u32 dev_no = cmd->device_change_state.dev_no;
 	struct visor_segment_state state = cmd->device_change_state.state;
@@ -790,7 +790,7 @@ err_respond:
 static int visorbus_device_destroy(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
-	struct controlvm_message_header *pmsg_hdr = NULL;
+	struct controlvm_message_header *pmsg_hdr;
 	u32 bus_no = cmd->destroy_device.bus_no;
 	u32 dev_no = cmd->destroy_device.dev_no;
 	struct visor_device *dev_info;
@@ -1380,7 +1380,7 @@ static int handle_command(struct controlvm_message inmsg, u64 channel_addr)
 	 * makes a difference in how we compute the virtual address.
 	 */
 	if (parm_bytes) {
-		bool retry = false;
+		bool retry;
 
 		parser_ctx = parser_init_stream(parm_addr, parm_bytes, &retry);
 		if (!parser_ctx && retry)
